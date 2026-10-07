@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.trg_sync_profile_poste() FROM PUBLIC, anon, authenticated;
