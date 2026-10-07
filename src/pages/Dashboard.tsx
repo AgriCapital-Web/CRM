@@ -10,7 +10,7 @@ import { useSignedUrl } from "@/hooks/useSignedUrl";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { PERMISSIONS, ROLE_SHORT_LABELS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatWelcomeName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -450,7 +450,7 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold truncate">Bienvenue, <span className="text-accent font-extrabold drop-shadow-sm">{formatUserShortName(profile?.nom_complet)}</span></h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold truncate">Bienvenue, <span className="text-accent font-extrabold drop-shadow-sm">{formatWelcomeName(profile?.nom_complet)}</span></h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-primary-foreground/90">
                   <Badge variant="secondary">{roleLabel || "Utilisateur"}</Badge>
                   <span>Connecté à {connectionTime}</span>

@@ -22,6 +22,14 @@ export function formatUserShortName(fullName?: string | null): string {
   return parts.slice(1).map(displayCaseName).join(" ") + " " + displayCaseName(parts[0]);
 }
 
+/** Bandeau de bienvenue: dernier prénom puis NOM en majuscules (ex: KONAN ADJOUA LARRISSA → Larrissa KONAN). */
+export function formatWelcomeName(fullName?: string | null): string {
+  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "Utilisateur";
+  if (parts.length === 1) return parts[0].toLocaleUpperCase("fr-FR");
+  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
+}
+
 /** Affichage détaillé du profil: tous les prénoms, puis le nom de famille. */
 export function formatUserProfileName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
