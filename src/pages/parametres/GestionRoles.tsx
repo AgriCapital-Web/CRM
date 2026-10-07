@@ -654,7 +654,7 @@ const GestionRoles = () => {
             </div>
             <div className="space-y-2">
               <Label>Nom *</Label>
-              <Input value={roleDraft.nom} onChange={(e) => setRoleDraft({ ...roleDraft, nom: e.target.value })} />
+              <Input value={roleDraft.nom} onChange={(e) => setRoleDraft({ ...roleDraft, nom: e.target.value.toLocaleUpperCase("fr-FR") })} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">

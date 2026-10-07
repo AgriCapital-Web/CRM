@@ -210,7 +210,7 @@ const GestionNotifications = () => {
             <CardHeader><CardTitle>Nouvelle campagne</CardTitle><CardDescription>Choisissez le canal, les destinataires et le moment d'envoi.</CardDescription></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value })} placeholder="Campagne rentree agricole" /></Field>
+                <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Campagne rentree agricole" /></Field>
                 <Field label="Canal"><Select value={campaign.canal} onValueChange={(v) => setCampaign({ ...campaign, canal: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Destinataires"><Select value={campaign.audience} onValueChange={(v) => { setCampaign({ ...campaign, audience: v }); void previewAudience(v); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{AUDIENCES.map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Planification"><Input type="datetime-local" value={campaign.programme_le} onChange={(e) => setCampaign({ ...campaign, programme_le: e.target.value })} /></Field>
@@ -234,7 +234,7 @@ const GestionNotifications = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Code"><Input value={automation.code} onChange={(e) => setAutomation({ ...automation, code: e.target.value })} placeholder="paiement_recu_client" /></Field>
-                <Field label="Nom"><Input value={automation.nom} onChange={(e) => setAutomation({ ...automation, nom: e.target.value })} placeholder="Confirmation de paiement" /></Field>
+                <Field label="Nom"><Input value={automation.nom} onChange={(e) => setAutomation({ ...automation, nom: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Confirmation de paiement" /></Field>
                 <Field label="Evenement"><Select value={automation.evenement} onValueChange={(v) => setAutomation({ ...automation, evenement: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EVENTS.map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Canal"><Select value={automation.canal} onValueChange={(v) => setAutomation({ ...automation, canal: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Audience"><Select value={automation.audience} onValueChange={(v) => setAutomation({ ...automation, audience: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{AUDIENCES.map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field>

@@ -146,7 +146,7 @@ const ProprietaireTerreDetail = () => {
                   <DialogHeader><DialogTitle>Nouvelle parcelle</DialogTitle></DialogHeader>
                   <form onSubmit={submit} className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="space-y-2"><Label>Nom</Label><Input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} /></div>
+                      <div className="space-y-2"><Label>Nom</Label><Input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value.toLocaleUpperCase("fr-FR") }))} /></div>
                       <div className="space-y-2"><Label>Surface totale (ha)</Label><Input type="number" min="2" step="0.1" required value={form.surface_totale_ha} onChange={e => setForm(f => ({ ...f, surface_totale_ha: e.target.value }))} /></div>
                     </div>
                     <GeographieCascade districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} onChange={g => setForm(f => ({ ...f, district_id: g.districtId || "", region_id: g.regionId || "", departement_id: g.departementId || "", sous_prefecture_id: g.sousPrefectureId || "", village: g.villageName || "" }))} />

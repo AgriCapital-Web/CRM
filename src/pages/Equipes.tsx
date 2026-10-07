@@ -314,7 +314,7 @@ const Equipes = () => {
               </div>
               <div>
                 <Label>Nom de l'équipe</Label>
-                <Input value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value })} required />
+                <Input value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value.toLocaleUpperCase("fr-FR") })} required />
               </div>
               <div>
                 <Label>Chef d'équipe</Label>
