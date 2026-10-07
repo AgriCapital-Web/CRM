@@ -498,7 +498,7 @@ const Offres = () => {
               {editOffre && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div><Label>Nom d'affichage</Label><Input value={editOffre.nom || ""} onChange={e => setEditOffre({...editOffre, nom:e.target.value.toLocaleUpperCase("fr-FR")})} /></div>
+                    <div><Label>Nom d'affichage</Label><Input value={editOffre.nom || ""} onChange={e => setEditOffre({...editOffre, nom:e.target.value})} /></div>
                     <div><Label>PI / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_pi_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_pi_par_ha:Number(e.target.value)})} /></div>
                     <div><Label>Comptant / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_cash_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_cash_par_ha:Number(e.target.value)})} /></div>
                     <div><Label>Durée (mois)</Label><Input type="number" min="0" value={editOffre.duree_paiement_mois ?? ""} onChange={e => setEditOffre({...editOffre, duree_paiement_mois:Number(e.target.value)})} /></div>
@@ -565,7 +565,7 @@ const Offres = () => {
                     <Input
                       id="promo-nom"
                       value={promoFormData.nom}
-                      onChange={(e) => setPromoFormData({...promoFormData, nom: e.target.value.toLocaleUpperCase("fr-FR")})}
+                      onChange={(e) => setPromoFormData({...promoFormData, nom: e.target.value})}
                       placeholder="Ex: Promo Lancement Phase Pilote"
                       required
                     />
