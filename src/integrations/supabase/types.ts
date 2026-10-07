@@ -5401,6 +5401,7 @@ export type Database = {
         Row: {
           actif: boolean | null
           adresse_mail_secondaire: string | null
+          contact_urgence_email: string | null
           contact_urgence_nom: string | null
           contact_urgence_photo_url: string | null
           contact_urgence_prenom: string | null
@@ -5446,6 +5447,7 @@ export type Database = {
         Insert: {
           actif?: boolean | null
           adresse_mail_secondaire?: string | null
+          contact_urgence_email?: string | null
           contact_urgence_nom?: string | null
           contact_urgence_photo_url?: string | null
           contact_urgence_prenom?: string | null
@@ -5491,6 +5493,7 @@ export type Database = {
         Update: {
           actif?: boolean | null
           adresse_mail_secondaire?: string | null
+          contact_urgence_email?: string | null
           contact_urgence_nom?: string | null
           contact_urgence_photo_url?: string | null
           contact_urgence_prenom?: string | null
@@ -7502,6 +7505,7 @@ export type Database = {
         }[]
       }
       sync_anstat_admin_2021: { Args: never; Returns: Json }
+      sync_profile_poste: { Args: { _user_id: string }; Returns: undefined }
       username_available: { Args: { _username: string }; Returns: boolean }
       verifier_carte: {
         Args: { _code: string }
