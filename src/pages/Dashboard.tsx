@@ -624,7 +624,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {canPlantations && stats.plantations > 0 && <PlantationsMap />}
+              {canPlantations && <PlantationsMap />}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {canClients && recentClients.length > 0 && (
