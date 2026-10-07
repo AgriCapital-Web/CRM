@@ -1,0 +1,5 @@
+# CRM AgriCapital - Privé, ne pas indexer
+User-agent: *
+Disallow: /
+
+# No sitemap - CRM is private

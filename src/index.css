@@ -1,0 +1,361 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Couleurs de base - Fond blanc pour les interfaces */
+    --background: 0 0% 100%;
+    --foreground: 210 2% 35%;
+
+    /* Cartes et popovers */
+    --card: 0 0% 100%;
+    --card-foreground: 210 2% 35%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 2% 35%;
+
+    /* Vert Agricole #00643C (from logo) - Couleur principale */
+    --primary: 158 100% 20%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Variante plus claire du vert pour les états hover */
+    --primary-hover: 158 100% 25%;
+
+    /* Gris Clair #C7C8CA - Pour les éléments secondaires */
+    --secondary: 210 3% 79%;
+    --secondary-foreground: 210 2% 35%;
+
+    /* Zones atténuées */
+    --muted: 210 5% 96%;
+    --muted-foreground: 210 3% 50%;
+
+    /* Or/Doré #E89C31 (from logo) - Couleur d'accent */
+    --accent: 38 77% 55%;
+    --accent-foreground: 210 2% 10%;
+
+    /* Couleurs de destruction */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Bordures et inputs - Gris Clair */
+    --border: 210 3% 79%;
+    --input: 210 3% 88%;
+    --ring: 124 55% 24%;
+
+    --radius: 0.75rem;
+    
+    /* Gradients avec les couleurs de la marque */
+    --gradient-primary: linear-gradient(135deg, hsl(124 55% 24%), hsl(124 55% 30%));
+    --gradient-accent: linear-gradient(135deg, hsl(37 56% 61%), hsl(37 56% 70%));
+    --gradient-hero: linear-gradient(135deg, hsl(124 55% 24%) 0%, hsl(124 55% 28%) 50%, hsl(37 56% 61%) 100%);
+    
+    /* Ombres avec le vert agricole */
+    --shadow-soft: 0 4px 20px -4px hsl(124 55% 24% / 0.15);
+    --shadow-medium: 0 8px 30px -6px hsl(124 55% 24% / 0.25);
+    --shadow-strong: 0 12px 40px -8px hsl(124 55% 24% / 0.35);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Mode sombre - Fond gris très foncé */
+    --background: 210 10% 10%;
+    --foreground: 0 0% 95%;
+
+    --card: 210 10% 15%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 210 10% 15%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Vert plus clair pour le mode sombre */
+    --primary: 158 100% 30%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 158 100% 35%;
+
+    --secondary: 210 3% 25%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 210 3% 25%;
+    --muted-foreground: 210 3% 70%;
+
+    /* Or/Doré en mode sombre */
+    --accent: 38 77% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 210 3% 25%;
+    --input: 210 3% 25%;
+    --ring: 37 56% 61%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    width: 100%;
+    min-width: 320px;
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    width: 100%;
+    min-width: 320px;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+  }
+
+  #root {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  img,
+  svg,
+  video,
+  canvas {
+    max-width: 100%;
+  }
+
+  img {
+    height: auto;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    max-width: 100%;
+  }
+
+  pre,
+  code {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  [data-radix-scroll-area-viewport] {
+    max-width: 100%;
+  }
+
+  .responsive-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .responsive-grid > *,
+  .grid > *,
+  .flex > * {
+    min-width: 0;
+  }
+
+  .responsive-flex {
+    min-width: 0;
+  }
+
+  .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .responsive-table {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .responsive-table table {
+    min-width: 720px;
+  }
+
+  /* Le composant Table gère la pagination responsive : 5 lignes sur mobile, 8 sur tablette, 10 sur ordinateur. */
+
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Playfair Display', 'DM Sans', Georgia, serif;
+    letter-spacing: -0.015em;
+  }
+
+  h1 { @apply text-3xl md:text-4xl font-semibold; }
+  h2 { @apply text-2xl md:text-3xl font-semibold; }
+  h3 { @apply text-xl md:text-2xl font-semibold; }
+
+  /* Tableaux plus lisibles */
+  table { font-variant-numeric: tabular-nums; }
+
+  /* Focus ring cohérent */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  
+  /* Better touch targets on mobile */
+  @media (max-width: 640px) {
+    button, 
+    a, 
+    [role="button"],
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    input, 
+    select, 
+    textarea {
+      font-size: 16px !important; /* Prevent iOS zoom on focus */
+    }
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* AgriCapital UI polish — shared across every page */
+  ::selection {
+    background: hsl(var(--primary) / 0.16);
+    color: hsl(var(--foreground));
+  }
+
+  .page-section {
+    @apply space-y-5 sm:space-y-6;
+  }
+
+  .page-header {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between;
+  }
+
+  .page-header > div:first-child {
+    @apply min-w-0;
+  }
+
+  .surface {
+    @apply rounded-2xl border bg-card shadow-sm;
+  }
+
+  .surface-interactive {
+    @apply surface transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+  }
+
+  .data-toolbar {
+    @apply flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  @media (max-width: 767px) {
+    .page-section {
+      @apply space-y-4;
+    }
+
+    .responsive-table table {
+      min-width: 760px;
+    }
+
+    .surface {
+      @apply rounded-xl;
+    }
+  }
+
+  /* Gradient & accent utilities */
+  .gradient-primary { background: var(--gradient-primary); }
+  .gradient-accent { background: var(--gradient-accent); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-medium { box-shadow: var(--shadow-medium); }
+
+  /* Card hover refinement */
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+  .card-hover:hover {
+    @apply -translate-y-0.5;
+    box-shadow: var(--shadow-medium);
+  }
+}
+
+
+/* Responsive personnel-card preview: keeps the physical 54×85.6 ratio while fitting any viewport. */
+.id-card-preview {
+  flex: 0 0 auto;
+  width: 540px;
+  max-width: 540px;
+  transform-origin: top center;
+  transform: scale(clamp(0.5, calc((100vw - 48px) / 540px), 1));
+  margin-bottom: calc(-856px * (1 - clamp(0.5, calc((100vw - 48px) / 540px), 1)));
+}
+@media (min-width: 768px) {
+  .id-card-preview {
+    transform: scale(min(1, calc((100% - 32px) / 540px)));
+    margin-bottom: calc(-856px * (1 - min(1, calc((100% - 32px) / 540px))));
+  }
+}
+@media (max-width: 767px) {
+  .id-card-preview {
+    margin-bottom: calc(-856px * (1 - clamp(0.5, calc((100vw - 48px) / 540px), 1)));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse { animation: none !important; }
+}
+@layer base{[data-radix-dialog-content]{width:calc(100vw - 1rem);max-width:calc(100vw - 1rem);max-height:calc(100dvh - 1rem);overflow-y:auto}.break-anywhere{overflow-wrap:anywhere;word-break:break-word}}
