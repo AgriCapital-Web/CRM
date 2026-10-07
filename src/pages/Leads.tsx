@@ -469,16 +469,6 @@ export default function Leads() {
                 />
               </div>
               <div>
-                <Label>Diaspora ?</Label>
-                <Select value={leadForm.est_diaspora} onValueChange={(v) => setLeadForm({ ...leadForm, est_diaspora: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{refs("oui_non").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              {leadForm.est_diaspora === "oui" && (
-                <div><Label>Pays de résidence</Label><Input value={leadForm.pays_diaspora} onChange={(e) => setLeadForm({ ...leadForm, pays_diaspora: e.target.value })} /></div>
-              )}
-              <div>
                 <Label>Dispose d'un terrain ?</Label>
                 <Select value={leadForm.dispose_terrain} onValueChange={(v) => setLeadForm({ ...leadForm, dispose_terrain: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
