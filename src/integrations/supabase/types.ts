@@ -3201,7 +3201,7 @@ export type Database = {
           prenoms: string
           prochaine_relance_at: string | null
           region_id: string | null
-          region_residence: string
+          region_residence: string | null
           source: string
           sous_prefecture_id: string | null
           statut: string
@@ -3236,7 +3236,7 @@ export type Database = {
           prenoms: string
           prochaine_relance_at?: string | null
           region_id?: string | null
-          region_residence: string
+          region_residence?: string | null
           source?: string
           sous_prefecture_id?: string | null
           statut?: string
@@ -3271,7 +3271,7 @@ export type Database = {
           prenoms?: string
           prochaine_relance_at?: string | null
           region_id?: string | null
-          region_residence?: string
+          region_residence?: string | null
           source?: string
           sous_prefecture_id?: string | null
           statut?: string
