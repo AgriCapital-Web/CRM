@@ -18,13 +18,13 @@ const defaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = defaultIcon;
 
-const redIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+// Point rouge local (aucune image externe) : s'affiche toujours, même hors ligne.
+const redIcon = L.divIcon({
+  className: '',
+  html: '<span style="display:block;width:18px;height:18px;border-radius:9999px;background:hsl(var(--destructive));border:3px solid hsl(var(--background));box-shadow:0 0 0 1px hsl(var(--destructive)),0 2px 6px rgba(0,0,0,.35)"></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -10],
 });
 
 interface LocationPickerProps {

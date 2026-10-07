@@ -444,17 +444,23 @@ export function installOfflineFetch(): typeof fetch {
     }
 
     if (isMutation(method)) {
+      // Lire le corps AVANT l'envoi : un Request déjà envoyé ne peut plus être cloné.
+      const originalBody = method === "DELETE" && !request.body
+        ? ""
+        : await request.clone().text().catch(() => "");
       try {
         if (!navigator.onLine) throw new TypeError("offline");
-        const response = await baseFetch(request);
+        const response = await baseFetch(request.url, {
+          method,
+          headers: request.headers,
+          body: originalBody || undefined,
+          signal: request.signal,
+        });
 
-        // Mirror successful CRM mutations locally so a later connectivity loss
-        // never rolls the UI back to an older snapshot.
         if (response.ok) {
-          const body = await request.clone().text().catch(() => "");
           try {
-            await optimisticLocalMutation(request.url, method, body);
-          await reconcileHttpCacheForMutation(request.url, method, body);
+            await optimisticLocalMutation(request.url, method, originalBody);
+            await reconcileHttpCacheForMutation(request.url, method, originalBody);
           } catch {
             // Local cache is best-effort; server success remains authoritative.
           }
@@ -463,7 +469,7 @@ export function installOfflineFetch(): typeof fetch {
       } catch (error) {
         if (!isNetworkFailure(error)) throw error;
 
-        let body = await request.clone().text().catch(() => "");
+        let body = originalBody;
         const prefer = (request.headers.get("prefer") || "").toLowerCase();
         const accept = (request.headers.get("accept") || "").toLowerCase();
 
