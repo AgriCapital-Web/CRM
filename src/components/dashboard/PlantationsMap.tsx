@@ -22,93 +22,76 @@ export const PlantationsMap = () => {
   }, []);
 
   const fetchPlantations = async () => {
+    const num = (...values: any[]) => {
+      for (const v of values) {
+        if (v === null || v === undefined || v === "") continue;
+        const n = Number(v);
+        if (Number.isFinite(n) && n !== 0) return n;
+      }
+      return NaN;
+    };
     try {
-      // Les coordonnées peuvent être portées directement par la plantation
-      // ou par la parcelle liée. On ne doit jamais perdre une localisation
-      // parce qu'une plantation n'a pas encore été créée.
-      const [{ data: plantations, error: plantationError }, { data: clients, error: clientError }] = await Promise.all([
+      // Toute plantation ou parcelle localisée doit apparaître, sans limite.
+      const [plantRes, clientRes, parcelRes] = await Promise.all([
         (supabase as any)
           .from("plantations")
-          .select(`
-            id,
-            id_unique,
-            nom_plantation,
-            latitude,
-            longitude,
-            localisation_gps_lat,
-            localisation_gps_lng,
-            superficie_ha,
-            village_nom,
-            localite,
-            parcelle_id,
-            client:clients!plantations_client_id_fkey (id,id_unique,nom_complet,parcelle_id),
-            sous_prefectures (nom)
-          `),
+          .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,superficie_ha,village_nom,localite,parcelle_id,client_id")
+          .range(0, 99999),
+        (supabase as any).from("clients").select("id,nom_complet,parcelle_id").range(0, 99999),
         (supabase as any)
-          .from("clients")
-          .select("id,id_unique,nom_complet,parcelle_id")
-      ]);
-
-      if (plantationError) throw plantationError;
-      if (clientError) throw clientError;
-
-      const parcelIds = [...new Set(
-        (clients || []).map((c: any) => c.parcelle_id).filter(Boolean)
-          .concat((plantations || []).map((p: any) => p.parcelle_id).filter(Boolean))
-      )];
-
-      let parcels: any[] = [];
-      if (parcelIds.length) {
-        const { data, error } = await (supabase as any)
           .from("parcelles")
           .select("id,id_unique,nom,localisation_gps_lat,localisation_gps_lng,surface_totale_ha,surface_agricapital_ha,village")
-          .in("id", parcelIds);
-        if (error) throw error;
-        parcels = data || [];
-      }
+          .range(0, 99999),
+      ]);
+      if (plantRes.error) console.error(plantRes.error);
+      if (clientRes.error) console.error(clientRes.error);
+      if (parcelRes.error) console.error(parcelRes.error);
+      const plantations = plantRes.data || [];
+      const clients = clientRes.data || [];
+      const parcels = parcelRes.data || [];
 
-      const clientByParcel = new Map<string, any>((clients || []).filter((c: any) => c.parcelle_id).map((c: any) => [c.parcelle_id, c]));
+      const clientById = new Map<string, any>(clients.map((c: any) => [c.id, c]));
+      const clientsByParcel = new Map<string, any[]>();
+      clients.forEach((c: any) => {
+        if (!c.parcelle_id) return;
+        clientsByParcel.set(c.parcelle_id, [...(clientsByParcel.get(c.parcelle_id) || []), c]);
+      });
       const parcelById = new Map(parcels.map((p: any) => [p.id, p]));
-      const markersById = new Map<string, PlantationMarker>();
+      const out: PlantationMarker[] = [];
+      const parcelsWithPlantation = new Set<string>();
 
-      for (const p of plantations || []) {
-        const parcel = parcelById.get(p.parcelle_id);
-        const client: any = p.client as any || (p.parcelle_id ? clientByParcel.get(p.parcelle_id) : null);
-        const lat = Number(p.latitude ?? p.localisation_gps_lat ?? parcel?.localisation_gps_lat);
-        const lng = Number(p.longitude ?? p.localisation_gps_lng ?? parcel?.localisation_gps_lng);
+      for (const p of plantations) {
+        const parcel: any = parcelById.get(p.parcelle_id);
+        const lat = num(p.latitude, p.localisation_gps_lat, parcel?.localisation_gps_lat);
+        const lng = num(p.longitude, p.localisation_gps_lng, parcel?.localisation_gps_lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-
-        markersById.set(p.id, {
+        if (p.parcelle_id) parcelsWithPlantation.add(p.parcelle_id);
+        const client = clientById.get(p.client_id);
+        out.push({
           id: p.id,
           lat,
           lng,
           label: p.nom_plantation || p.id_unique || parcel?.id_unique || "Plantation",
-          info: `${client?.nom_complet || "N/A"} • ${p.superficie_ha || parcel?.surface_agricapital_ha || parcel?.surface_totale_ha || 0} ha • ${p.sous_prefectures?.nom || p.village_nom || p.localite || parcel?.village || "N/A"}`
+          info: `${client?.nom_complet || "—"} • ${p.superficie_ha || parcel?.surface_agricapital_ha || parcel?.surface_totale_ha || 0} ha • ${p.village_nom || p.localite || parcel?.village || ""}`,
         });
       }
 
-      // Une parcelle géolocalisée sans plantation doit également apparaître :
-      // c'est notamment nécessaire pour les clients déjà enregistrés dont
-      // la localisation est connue avant la création/activation de plantation.
       for (const parcel of parcels) {
-        const lat = Number(parcel.localisation_gps_lat);
-        const lng = Number(parcel.localisation_gps_lng);
+        if (parcelsWithPlantation.has(parcel.id)) continue;
+        const lat = num(parcel.localisation_gps_lat);
+        const lng = num(parcel.localisation_gps_lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-
-        const client = clientByParcel.get(parcel.id);
-        const markerId = `parcel-${parcel.id}`;
-        if ([...markersById.values()].some((m) => Math.abs(m.lat - lat) < 1e-9 && Math.abs(m.lng - lng) < 1e-9)) continue;
-
-        markersById.set(markerId, {
-          id: markerId,
+        const names = (clientsByParcel.get(parcel.id) || []).map((c) => c.nom_complet).filter(Boolean).join(", ");
+        out.push({
+          id: `parcel-${parcel.id}`,
           lat,
           lng,
-          label: client?.nom_complet ? `${client.nom_complet} — ${parcel.id_unique || "Parcelle"}` : (parcel.id_unique || parcel.nom || "Parcelle"),
-          info: `${client?.nom_complet || "Parcelle"} • ${parcel.surface_agricapital_ha || parcel.surface_totale_ha || 0} ha • ${parcel.village || "Localisation GPS"}`
+          label: names ? `${names} — ${parcel.id_unique || "Parcelle"}` : (parcel.id_unique || parcel.nom || "Parcelle"),
+          info: `${names || "Parcelle"} • ${parcel.surface_agricapital_ha || parcel.surface_totale_ha || 0} ha • ${parcel.village || ""}`,
         });
       }
 
-      setMarkers([...markersById.values()]);
+      setMarkers(out);
     } catch (error) {
       console.error("Erreur lors du chargement des plantations/parcelles:", error);
     } finally {
