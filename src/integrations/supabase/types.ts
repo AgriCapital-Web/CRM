@@ -1292,6 +1292,7 @@ export type Database = {
           created_by: string | null
           date_delivrance_piece: string | null
           date_naissance: string | null
+          demo_access_code: string | null
           departement_id: string | null
           district_id: string | null
           documents_valides_at: string | null
@@ -1382,6 +1383,7 @@ export type Database = {
           created_by?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
+          demo_access_code?: string | null
           departement_id?: string | null
           district_id?: string | null
           documents_valides_at?: string | null
@@ -1472,6 +1474,7 @@ export type Database = {
           created_by?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
+          demo_access_code?: string | null
           departement_id?: string | null
           district_id?: string | null
           documents_valides_at?: string | null
@@ -4108,7 +4111,6 @@ export type Database = {
           code: string
           contrat_accompagnement_requis: boolean
           contrat_acquisition_requis: boolean
-          mensualite_par_ha: number
           couleur: string | null
           created_at: string | null
           description: string | null
@@ -4120,6 +4122,7 @@ export type Database = {
           formule_nom: string | null
           gestion_type: string
           id: string
+          mensualite_par_ha: number
           montant_cash_par_ha: number
           montant_pi_par_ha: number
           montant_total_par_ha: number
@@ -4141,7 +4144,6 @@ export type Database = {
           code: string
           contrat_accompagnement_requis?: boolean
           contrat_acquisition_requis?: boolean
-          mensualite_par_ha?: number
           couleur?: string | null
           created_at?: string | null
           description?: string | null
@@ -4153,6 +4155,7 @@ export type Database = {
           formule_nom?: string | null
           gestion_type?: string
           id?: string
+          mensualite_par_ha?: number
           montant_cash_par_ha?: number
           montant_pi_par_ha?: number
           montant_total_par_ha?: number
@@ -4174,7 +4177,6 @@ export type Database = {
           code?: string
           contrat_accompagnement_requis?: boolean
           contrat_acquisition_requis?: boolean
-          mensualite_par_ha?: number
           couleur?: string | null
           created_at?: string | null
           description?: string | null
@@ -4186,6 +4188,7 @@ export type Database = {
           formule_nom?: string | null
           gestion_type?: string
           id?: string
+          mensualite_par_ha?: number
           montant_cash_par_ha?: number
           montant_pi_par_ha?: number
           montant_total_par_ha?: number
@@ -5015,6 +5018,7 @@ export type Database = {
           created_at: string
           id: string
           lu: boolean
+          lu_at: string | null
           message: string
           piece_jointe_bucket: string | null
           piece_jointe_nom: string | null
@@ -5022,6 +5026,7 @@ export type Database = {
           piece_jointe_type: string | null
           piece_jointe_url: string | null
           plantation_id: string | null
+          recu_at: string
         }
         Insert: {
           auteur_nom?: string | null
@@ -5031,6 +5036,7 @@ export type Database = {
           created_at?: string
           id?: string
           lu?: boolean
+          lu_at?: string | null
           message: string
           piece_jointe_bucket?: string | null
           piece_jointe_nom?: string | null
@@ -5038,6 +5044,7 @@ export type Database = {
           piece_jointe_type?: string | null
           piece_jointe_url?: string | null
           plantation_id?: string | null
+          recu_at?: string
         }
         Update: {
           auteur_nom?: string | null
@@ -5047,6 +5054,7 @@ export type Database = {
           created_at?: string
           id?: string
           lu?: boolean
+          lu_at?: string | null
           message?: string
           piece_jointe_bucket?: string | null
           piece_jointe_nom?: string | null
@@ -5054,6 +5062,7 @@ export type Database = {
           piece_jointe_type?: string | null
           piece_jointe_url?: string | null
           plantation_id?: string | null
+          recu_at?: string
         }
         Relationships: [
           {
@@ -6189,6 +6198,42 @@ export type Database = {
         }
         Relationships: []
       }
+      referentiels_systeme: {
+        Row: {
+          actif: boolean
+          categorie: string
+          code: string
+          created_at: string
+          id: string
+          libelle: string
+          metadata: Json
+          ordre: number
+          updated_at: string
+        }
+        Insert: {
+          actif?: boolean
+          categorie: string
+          code: string
+          created_at?: string
+          id?: string
+          libelle: string
+          metadata?: Json
+          ordre?: number
+          updated_at?: string
+        }
+        Update: {
+          actif?: boolean
+          categorie?: string
+          code?: string
+          created_at?: string
+          id?: string
+          libelle?: string
+          metadata?: Json
+          ordre?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       regions: {
         Row: {
           code: string | null
@@ -7151,6 +7196,33 @@ export type Database = {
         }
         Relationships: []
       }
+      v_referentiels_systeme: {
+        Row: {
+          categorie: string | null
+          code: string | null
+          id: string | null
+          libelle: string | null
+          metadata: Json | null
+          ordre: number | null
+        }
+        Insert: {
+          categorie?: string | null
+          code?: string | null
+          id?: string | null
+          libelle?: string | null
+          metadata?: Json | null
+          ordre?: number | null
+        }
+        Update: {
+          categorie?: string | null
+          code?: string | null
+          id?: string | null
+          libelle?: string | null
+          metadata?: Json | null
+          ordre?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _http_wait_json: {
@@ -7212,10 +7284,6 @@ export type Database = {
         Args: { _client_id: string }
         Returns: undefined
       }
-      ensure_client_repayment_schedule: {
-        Args: { _client_id: string }
-        Returns: undefined
-      }
       finalize_portal_payment: {
         Args: {
           _metadata?: Json
@@ -7234,6 +7302,17 @@ export type Database = {
       generate_plantation_id: { Args: never; Returns: string }
       generate_proprietaire_id: { Args: never; Returns: string }
       get_client_effective_pi: { Args: { _client_id: string }; Returns: number }
+      get_commercial_directory: {
+        Args: never
+        Returns: {
+          actif: boolean
+          email: string
+          nom_complet: string
+          profile_id: string
+          roles: string[]
+          user_id: string
+        }[]
+      }
       get_default_commercial_for_client: {
         Args: { _current_user?: string }
         Returns: string
@@ -7242,6 +7321,16 @@ export type Database = {
         Args: { _lead_id: string }
         Returns: string
       }
+      get_technician_directory: {
+        Args: never
+        Returns: {
+          equipe_id: string
+          nom_complet: string
+          profile_id: string
+          region_id: string
+          user_id: string
+        }[]
+      }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_demo: { Args: { _user_id: string }; Returns: boolean }
@@ -7249,6 +7338,10 @@ export type Database = {
       is_rh: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       mark_overdue_payments: { Args: never; Returns: undefined }
+      mark_portail_message_read: {
+        Args: { p_client_id?: string; p_message_id: string }
+        Returns: undefined
+      }
       normalize_agricapital_phone: {
         Args: { p_value: string }
         Returns: string
@@ -7329,13 +7422,13 @@ export type Database = {
         Args: { _at_date?: string; _client_id: string }
         Returns: number
       }
+      portal_current_payment_state: {
+        Args: { _client_id: string }
+        Returns: Json
+      }
       portal_days_for_amount: {
         Args: { _amount: number; _client_id: string; _plantation_id: string }
         Returns: number
-      }
-      portal_quote_payment: {
-        Args: { _client_id: string; _days: number; _plantation_id: string }
-        Returns: Json
       }
       rachater_monnaie_client: {
         Args: { p_client_id: string; p_jours: number }
@@ -7345,8 +7438,20 @@ export type Database = {
         Args: { p_client_id: string; p_jours: number }
         Returns: number
       }
+      reassign_intervention: {
+        Args: { _intervention_id: string; _new_profile_id: string }
+        Returns: undefined
+      }
       reassign_lead: {
         Args: { _lead_id: string; _motif?: string; _new_owner: string }
+        Returns: undefined
+      }
+      reassign_report: {
+        Args: { _new_profile_id: string; _report_id: string }
+        Returns: undefined
+      }
+      reassign_ticket: {
+        Args: { _new_profile_id: string; _ticket_id: string }
         Returns: undefined
       }
       recalculer_parametres_financiers_client: {
