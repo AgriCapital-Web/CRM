@@ -16,8 +16,6 @@ import { formatUserProfileName } from "@/lib/utils";
 import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 
-const upper = (v: string) => v.toLocaleUpperCase("fr-FR");
-
 const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File) => void; current?: string | null }) => (
   <div>
     <Label>{label}</Label>
@@ -30,7 +28,7 @@ const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File
 );
 
 const Profil = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { isPdg, isDg } = usePermissions();
   const isAdmin = isPdg || isDg;
   const { toast } = useToast();
@@ -84,6 +82,7 @@ const Profil = () => {
         const { error: e } = await supabase.auth.updateUser({ email: profile.email });
         if (e) throw e;
       }
+      await refreshProfile();
       toast({ title: "Profil mis à jour" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Modification impossible", description: e?.message || "Erreur inconnue" });
@@ -146,7 +145,7 @@ const Profil = () => {
           <Card>
             <CardHeader><CardTitle>Informations personnelles</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><Label>Nom complet</Label><Input value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", upper(e.target.value))} /></div>
+              <div><Label>Nom complet</Label><Input value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div><Label>Téléphone principal</Label><Input value={profile.telephone || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("telephone", e.target.value)} /></div>
@@ -176,7 +175,7 @@ const Profil = () => {
                 <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback>{(profile.contact_urgence_nom || "?").slice(0, 2)}</AvatarFallback></Avatar>
                 <div className="flex-1"><FileField label={uploading === "contact_urgence_photo_url" ? "Envoi…" : "Photo de la personne"} current={profile.contact_urgence_photo_url} onPick={(f) => upload("contact_urgence_photo_url", "photos-profils", f)} /></div>
               </div>
-              <div className="md:col-span-2"><Label>Contact urgence — Nom et Prénoms</Label><Input value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", upper(e.target.value))} /></div>
+              <div className="md:col-span-2"><Label>Contact urgence — Nom et Prénoms</Label><Input value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
               <div><Label>Contact urgence — Téléphone 1</Label><Input value={profile.contact_urgence_telephone1 || ""} onChange={(e) => set("contact_urgence_telephone1", e.target.value)} /></div>
               <div><Label>Contact urgence — Téléphone 2</Label><Input value={profile.contact_urgence_telephone2 || ""} onChange={(e) => set("contact_urgence_telephone2", e.target.value)} /></div>
               <div className="md:col-span-2"><Label>Contact urgence — Email (facultatif)</Label><Input type="email" value={profile.contact_urgence_email || ""} onChange={(e) => set("contact_urgence_email", e.target.value)} /></div>
