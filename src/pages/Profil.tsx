@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,16 +16,30 @@ import { formatUserProfileName } from "@/lib/utils";
 import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 
-const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File) => void; current?: string | null }) => (
-  <div>
-    <Label>{label}</Label>
-    <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-input px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50">
-      <Upload className="h-4 w-4" />
-      <span className="truncate">{current ? "Fichier enregistré — remplacer" : "Choisir un fichier"}</span>
-      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ""; }} />
-    </label>
-  </div>
-);
+const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File) => void; current?: string | null }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <Label>{label}</Label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="sr-only"
+        onChange={(e) => { e.stopPropagation(); const f = e.currentTarget.files?.[0]; if (f) onPick(f); e.currentTarget.value = ""; }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        className="mt-1 w-full justify-start"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); inputRef.current?.click(); }}
+      >
+        <Upload className="h-4 w-4" />
+        <span className="truncate">{current ? "Fichier enregistré — remplacer" : "Choisir un fichier"}</span>
+      </Button>
+    </div>
+  );
+};
 
 const Profil = () => {
   const { user, refreshProfile } = useAuth();
