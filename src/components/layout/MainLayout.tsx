@@ -128,7 +128,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             <NotificationCenter />
             <NetworkIndicator compact />
           </div>
-          <Avatar className="h-8 w-8" onClick={() => navigate('/profil')}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(formatUserShortName(profile?.nom_complet))}</AvatarFallback></Avatar>
+          <Avatar className="h-8 w-8 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(formatUserShortName(profile?.nom_complet))}</AvatarFallback></Avatar>
         </div>
         <SheetContent side="left" className="w-72 p-0"><SidebarContent /></SheetContent>
       </Sheet>
@@ -143,7 +143,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
             </Button>
             <div className="text-right leading-tight"><p className="text-sm font-semibold">{formatUserShortName(profile?.nom_complet)}</p><p className="text-xs text-muted-foreground">{userRoles.map(r => ROLE_SHORT_LABELS[r] || r).join(" / ") || "Compte actif"}</p></div>
-            <Avatar className="h-9 w-9 cursor-pointer" onClick={() => navigate('/profil')}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-sm">{getInitials(profile?.nom_complet || '')}</AvatarFallback></Avatar>
+            <Avatar className="h-9 w-9 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-sm">{getInitials(profile?.nom_complet || '')}</AvatarFallback></Avatar>
           </div>
         </header>
         <div className="min-w-0 w-full max-w-[1600px] mx-auto p-3 sm:p-5 lg:p-7">{children}</div>
