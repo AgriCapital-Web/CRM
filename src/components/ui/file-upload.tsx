@@ -64,7 +64,7 @@ const FileUpload = ({
         ref={inputRef}
         type="file"
         accept={accept}
-        onChange={handleFileChange}
+        onChange={(e) => { e.stopPropagation(); handleFileChange(e); }}
         className="hidden"
         disabled={disabled}
       />
