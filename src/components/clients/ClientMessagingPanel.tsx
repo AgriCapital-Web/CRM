@@ -75,43 +75,94 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
   const [messages, setMessages] = useState<any[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    if (!clientId) return;
+    if (!clientId) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoadError(null);
     const { data, error } = await (supabase as any).from("portail_messages")
       .select("id,client_id,plantation_id,auteur_user_id,auteur_type,auteur_nom,message,lu,recu_at,lu_at,created_at,piece_jointe_url,piece_jointe_nom,piece_jointe_type,piece_jointe_taille,piece_jointe_bucket")
-      .eq("client_id", clientId).order("created_at", { ascending: true });
-    if (!error) {
-      const enriched = await Promise.all((data || []).map(async (m: any) => {
-        if (!m.piece_jointe_url) return m;
-        const { data: signed } = await supabase.storage.from(m.piece_jointe_bucket || BUCKET).createSignedUrl(m.piece_jointe_url, 3600);
-        return { ...m, piece_jointe_signed_url: signed?.signedUrl || null };
-      }));
-      const unread=enriched.filter((m:any)=>m.auteur_type==="client"&&!m.lu).map((m:any)=>m.id);
-      if(unread.length){
-        const readAt=new Date().toISOString();
-        await (supabase as any).rpc("mark_portail_message_read", { p_message_id: unread[0], p_client_id: clientId }).catch(() => null);
-        if (unread.length > 1) {
-          await Promise.all(unread.slice(1).map((messageId:string) =>
-            (supabase as any).rpc("mark_portail_message_read", { p_message_id: messageId, p_client_id: clientId }).catch(() => null)
-          ));
-        }
-        setMessages(enriched.map((m:any)=>unread.includes(m.id)?{...m,lu:true,lu_at:readAt}:m));
-      } else setMessages(enriched);
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: true })
+      .limit(200);
+
+    if (error) {
+      setMessages([]);
+      setLoadError(error.message || "Impossible de charger les messages.");
+      setLoading(false);
+      return;
     }
+
+    const baseMessages = data || [];
+    setMessages(baseMessages);
     setLoading(false);
+
+    // Les pièces jointes ne doivent jamais bloquer l'affichage des messages.
+    const withAttachments = baseMessages.filter((m: any) => m.piece_jointe_url);
+    if (withAttachments.length) {
+      const enriched = await Promise.all(withAttachments.map(async (m: any) => {
+        try {
+          const result = await Promise.race([
+            supabase.storage.from(m.piece_jointe_bucket || BUCKET).createSignedUrl(m.piece_jointe_url, 3600),
+            new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
+          ]);
+          return { id: m.id, piece_jointe_signed_url: result.data?.signedUrl || null };
+        } catch {
+          return { id: m.id, piece_jointe_signed_url: null };
+        }
+      }));
+      setMessages(current => current.map(m => {
+        const match = enriched.find(x => x.id === m.id);
+        return match ? { ...m, piece_jointe_signed_url: match.piece_jointe_signed_url } : m;
+      }));
+    }
+
+    const unread = baseMessages.filter((m: any) => m.auteur_type === "client" && !m.lu).map((m: any) => m.id);
+    if (unread.length) {
+      const readAt = new Date().toISOString();
+      await Promise.all(unread.map((messageId: string) =>
+        (supabase as any).rpc("mark_portail_message_read", { p_message_id: messageId, p_client_id: clientId }).catch(() => null)
+      ));
+      setMessages(current => current.map(m => unread.includes(m.id) ? { ...m, lu: true, lu_at: readAt } : m));
+    }
   }, [clientId]);
 
   useEffect(() => {
     void load();
+
     const channel = supabase.channel(`crm-client-messages-${clientId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "portail_messages", filter: `client_id=eq.${clientId}` }, () => void load())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "portail_messages",
+        filter: `client_id=eq.${clientId}`,
+      }, (payload: any) => {
+        if (payload.eventType === "INSERT" && payload.new?.client_id === clientId) {
+          setMessages(current => current.some(m => m.id === payload.new.id) ? current : [...current, payload.new]);
+          setLoading(false);
+          setLoadError(null);
+        } else if (payload.eventType === "UPDATE" && payload.new?.client_id === clientId) {
+          setMessages(current => current.map(m => m.id === payload.new.id ? { ...m, ...payload.new } : m));
+        } else if (payload.eventType === "DELETE" && payload.old?.client_id === clientId) {
+          setMessages(current => current.filter(m => m.id !== payload.old.id));
+        }
+      })
+      .subscribe((status: string) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("Messagerie client realtime:", status);
+        }
+      });
+
+    return () => { void supabase.removeChannel(channel); };
   }, [clientId, load]);
 
   const chooseFile = async (file?: File) => {
@@ -174,6 +225,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
       <CardContent className="min-w-0 space-y-4">
         <div className="max-h-[500px] min-h-[260px] min-w-0 overflow-y-auto overflow-x-hidden rounded-xl bg-muted/20 p-3 sm:p-4 space-y-3">
           {loading ? <div className="h-40 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div> :
+            loadError ? <div className="h-40 flex flex-col items-center justify-center text-center px-4"><p className="font-medium text-destructive">Messagerie indisponible</p><p className="text-xs text-muted-foreground mt-1">{loadError}</p><Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void load()}>Réessayer</Button></div> :
             visible.length === 0 ? <div className="h-40 flex flex-col items-center justify-center text-center"><Headphones className="h-8 w-8 text-muted-foreground/40 mb-2" /><p className="font-medium">Aucun message</p><p className="text-xs text-muted-foreground">Envoyez le premier message au client.</p></div> :
             visible.map((m: any) => {
               const mine = m.auteur_type !== "client";
