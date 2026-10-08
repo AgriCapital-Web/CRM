@@ -138,7 +138,7 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
               <input
                 type="file"
                 accept="image/*,application/pdf"
-                onChange={(e) => handleFileChange(docType.key, e)}
+                onChange={(e) => { e.stopPropagation(); handleFileChange(docType.key, e); }}
                 className="mt-2 w-full"
               />
               {previews[docType.key] && (
