@@ -6,7 +6,7 @@ export type InputProps = React.ComponentProps<"input"> & { uppercase?: boolean }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, uppercase, onChange, onBlur, ...props }, ref) => {
-    const shouldUppercase = uppercase ?? (type !== "email" && type !== "password");
+    const shouldUppercase = false;
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       if (!shouldUppercase) {
