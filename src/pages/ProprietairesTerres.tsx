@@ -66,7 +66,7 @@ const ProprietairesTerres = () => {
     nom_pere: "", nom_mere: "",
     denomination_sociale: "", numero_enregistrement: "",
     nombre_membres: "", nom_representant: "",
-    telephone: "", telephone_indicatif: "+225", telephone_local: "", whatsapp: "", whatsapp_indicatif: "+225", whatsapp_local: "", email: "",
+    telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "",
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
     domicile: "",
     district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village: "",
@@ -77,7 +77,7 @@ const ProprietairesTerres = () => {
     servitudes: "", croquis_joint: false,
     plantation_partagee_activee: true, plantation_surface_cible_ha: "",
     plantation_type_culture: "Palmier à huile", plantation_densite_plants: "143", plantation_date_activation: "",
-    co_titulaire_nom: "", co_titulaire_lien: "", co_titulaire_piece: "", co_titulaire_telephone: "", co_titulaire_telephone_indicatif: "+225", co_titulaire_telephone_local: "",
+    co_titulaire_nom: "", co_titulaire_lien: "", co_titulaire_piece: "", co_titulaire_telephone: "", co_titulaire_telephone_indicatif: "", co_titulaire_telephone_local: "",
     temoin_proprietaire_nom: "", temoin_proprietaire_qualite: "", representant_agricapital_nom: "", representant_agricapital_qualite: "",
     leader_communautaire_nom: "", leader_communautaire_qualite: "", voisin_1_nom: "", voisin_1_cote: "", voisin_2_nom: "", voisin_2_cote: "",
     notes: "",
@@ -505,8 +505,8 @@ const ProprietairesTerres = () => {
                       <div className="border-t pt-4">
                         <h4 className="font-semibold mb-3">Contact & Pièce d'identité</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <CountryPhoneInput label="Téléphone" required countryCode={formData.telephone_indicatif||"+225"} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>updateFormPhone(v,"telephone")}/>
-                          <CountryPhoneInput label="WhatsApp" countryCode={formData.whatsapp_indicatif||"+225"} localValue={formData.whatsapp_local||formData.whatsapp||""} onChange={v=>updateFormPhone(v,"whatsapp")}/>
+                          <CountryPhoneInput label="Téléphone" required countryCode={formData.telephone_indicatif||undefined} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>updateFormPhone(v,"telephone")}/>
+                          <CountryPhoneInput label="WhatsApp" countryCode={formData.whatsapp_indicatif||undefined} localValue={formData.whatsapp_local||formData.whatsapp||""} onChange={v=>updateFormPhone(v,"whatsapp")}/>
                           
                           <div className="space-y-2">
                             <Label>Email</Label>
@@ -636,7 +636,7 @@ const ProprietairesTerres = () => {
                         <div className="space-y-2"><Label>Nom co-titulaire / mandataire</Label><Input value={formData.co_titulaire_nom} onChange={e => update('co_titulaire_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Lien avec le propriétaire</Label><RelationshipSelect value={formData.co_titulaire_lien} onChange={v=>update("co_titulaire_lien",v)}/></div>
                         <div className="space-y-2"><Label>Type de pièce du co-titulaire</Label><PieceTypeSelect value={formData.co_titulaire_piece} onChange={v=>update("co_titulaire_piece",v)}/></div>
-                        <CountryPhoneInput label="Téléphone / WhatsApp" countryCode={formData.co_titulaire_telephone_indicatif||"+225"} localValue={formData.co_titulaire_telephone_local||formData.co_titulaire_telephone||""} onChange={v=>updateFormPhone(v,"co_titulaire_telephone")}/>
+                        <CountryPhoneInput label="Téléphone / WhatsApp" countryCode={formData.co_titulaire_telephone_indicatif||undefined} localValue={formData.co_titulaire_telephone_local||formData.co_titulaire_telephone||""} onChange={v=>updateFormPhone(v,"co_titulaire_telephone")}/>
                         <div className="space-y-2"><Label>Témoin propriétaire — Nom</Label><Input value={formData.temoin_proprietaire_nom} onChange={e => update('temoin_proprietaire_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Témoin propriétaire — Qualité</Label><Input value={formData.temoin_proprietaire_qualite} onChange={e => update('temoin_proprietaire_qualite', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Représentant AgriCapital — Nom</Label><Input value={formData.representant_agricapital_nom} onChange={e => update('representant_agricapital_nom', e.target.value)} /></div>
