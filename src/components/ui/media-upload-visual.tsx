@@ -9,7 +9,7 @@ export default function MediaUploadVisual({label="Photos / vidéos",files,onChan
  const handleFiles=(list:FileList|null)=>onChange(Array.from(list||[]));
  return <div className="space-y-2">
   <label className="text-sm font-medium">{label}</label>
-  <input ref={fileRef} type="file" accept={accept} multiple={multiple} className="hidden" onChange={e=>{handleFiles(e.currentTarget.files);e.currentTarget.value="";}}/>
+  <input ref={fileRef} type="file" accept={accept} multiple={multiple} className="hidden" onChange={e=>{e.stopPropagation();handleFiles(e.currentTarget.files);e.currentTarget.value="";}}/>
   <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e=>{const file=e.currentTarget.files?.[0];if(file)onChange(multiple?[...files,file]:[file]);e.currentTarget.value="";}}/>
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
    <Button type="button" variant="outline" className="w-full" onClick={()=>cameraRef.current?.click()}><Camera className="mr-2 h-4 w-4"/>Prendre une photo</Button>
