@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & { uppercase?: boolean };
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, uppercase = true, onChange, onBlur, ...props }, ref) => {
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, uppercase = false, onChange, onBlur, ...props }, ref) => {
   const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!uppercase) {
       onChange?.(event);
