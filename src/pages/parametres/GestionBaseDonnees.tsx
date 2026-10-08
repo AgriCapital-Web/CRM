@@ -181,7 +181,9 @@ const GestionBaseDonnees = () => {
             const headers = Object.keys(rows[0]).join(",");
             const values = rows.map(row => 
               Object.values(row).map(v => 
-                typeof v === "string" ? `"${v.replace(/"/g, '""')}"` : v
+                typeof v === "string"
+                  ? `"${(/^[=+\-@\t\r]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`
+                  : v
               ).join(",")
             ).join("\n");
             csvParts.push(`--- ${table} ---\n${headers}\n${values}\n`);

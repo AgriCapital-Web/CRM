@@ -76,7 +76,7 @@ export default function Messagerie() {
       .order("nom_complet", { ascending: true })
       .limit(25);
 
-    const q = term.trim();
+    const q = term.replace(/[^\p{L}\p{N}\s+\-_.']/gu, "").trim();
     if (q) request = request.or(`nom_complet.ilike.%${q}%,telephone.ilike.%${q}%,id_unique.ilike.%${q}%`);
 
     const { data } = await request;
