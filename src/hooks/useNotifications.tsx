@@ -22,6 +22,9 @@ export const useNotifications = () => {
   const navigate = useNavigate();
   const seenIds = useRef<Set<string>>(new Set());
 
+// Plusieurs centres de notifications sont montés dans MainLayout (desktop + mobile).
+// Ce registre est partagé entre toutes les instances du hook afin qu'un même INSERT
+// ne déclenche qu'un seul toast / notification navigateur.
 const realtimeSideEffectsSeen = new Map<string, number>();
 const REALTIME_DEDUPE_WINDOW_MS = 15000;
 
