@@ -7433,6 +7433,16 @@ export type Database = {
         Args: { _amount: number; _client_id: string; _plantation_id: string }
         Returns: number
       }
+      portal_public_references: {
+        Args: never
+        Returns: {
+          categorie: string
+          code: string
+          libelle: string
+          metadata: Json
+          ordre: number
+        }[]
+      }
       rachater_monnaie_client: {
         Args: { p_client_id: string; p_jours: number }
         Returns: number
