@@ -15,6 +15,7 @@ interface AuthContextType {
   signIn: (usernameOrEmail: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   hasRole: (role: string) => boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -134,6 +135,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [loadProfileAndRoles]);
+
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return;
+    await loadProfileAndRoles(user.id);
+  }, [user?.id, loadProfileAndRoles]);
 
   const signIn = async (usernameOrEmail: string, password: string) => {
     // Authentification hors ligne : comparaison PBKDF2 avec le sel unique mis en cache.
@@ -269,6 +275,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return userRoles.includes(role);
   };
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`profile-sync-${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `user_id=eq.${user.id}` }, (payload) => {
+        setProfile(payload.new);
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [user?.id]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -278,7 +295,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading, 
       signIn, 
       signOut,
-      hasRole 
+      hasRole,
+      refreshProfile
     }}>
       {children}
     </AuthContext.Provider>
