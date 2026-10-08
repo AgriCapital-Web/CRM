@@ -211,8 +211,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         const { error: profileError } = await (supabase as any)
           .from("profiles")
           .update({
-            nom_complet: String(data.nom_complet || "").trim().toUpperCase(),
-            username: String(data.username || "").trim().toLowerCase(),
+            nom_complet: String(data.nom_complet || "").trim(),
+            username: String(data.username || "").trim(),
             email: String(data.email || "").trim(),
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
