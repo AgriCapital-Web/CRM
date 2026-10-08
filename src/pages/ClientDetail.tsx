@@ -583,7 +583,7 @@ const ClientDetail = () => {
 
                   <Card className="lg:col-span-2">
                     <CardHeader>
-                      <CardTitle className="flex items-center justify-between gap-3"><span>Documents du dossier</span><label className="inline-flex"><input type="file" className="hidden" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>setDocumentFile(e.target.files?.[0]||null)}/><Button variant="outline" size="sm" asChild><span><Upload className="mr-2 h-4 w-4"/>Ajouter</span></Button></label></CardTitle>
+                      <CardTitle className="flex items-center justify-between gap-3"><span>Documents du dossier</span><div className="inline-flex"><input id="client-dossier-document-upload" type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{e.stopPropagation();setDocumentFile(e.currentTarget.files?.[0]||null);e.currentTarget.value="";}}/><Button type="button" variant="outline" size="sm" onClick={(e)=>{e.preventDefault();e.stopPropagation();document.getElementById("client-dossier-document-upload")?.click();}}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button></div></CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="mb-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input placeholder="Libellé du document (contrat, annexe…)" value={documentLabel} onChange={e=>setDocumentLabel(e.target.value)}/>{documentFile&&<Button onClick={()=>void uploadClientDocument()}><Upload className="mr-2 h-4 w-4"/>Enregistrer</Button>}</div><div className="space-y-2">
