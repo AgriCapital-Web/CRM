@@ -22,6 +22,19 @@ export const useNotifications = () => {
   const navigate = useNavigate();
   const seenIds = useRef<Set<string>>(new Set());
 
+const realtimeSideEffectsSeen = new Map<string, number>();
+const REALTIME_DEDUPE_WINDOW_MS = 15000;
+
+const claimRealtimeSideEffect = (id: string) => {
+  const now = Date.now();
+  for (const [key, timestamp] of realtimeSideEffectsSeen) {
+    if (now - timestamp > REALTIME_DEDUPE_WINDOW_MS) realtimeSideEffectsSeen.delete(key);
+  }
+  if (realtimeSideEffectsSeen.has(id)) return false;
+  realtimeSideEffectsSeen.set(id, now);
+  return true;
+};
+
   const fetchNotifications = async () => {
     if (!user) return;
 
@@ -72,18 +85,22 @@ export const useNotifications = () => {
           setNotifications(prev => [newNotification, ...prev.filter(n => n.id !== newNotification.id)]);
           setUnreadCount(prev => prev + (newNotification.read ? 0 : 1));
           
-          // Notification native navigateur si l'utilisateur l'a déjà autorisée.
-          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            try {
-              new Notification(newNotification.title, {
-                body: newNotification.message,
-                icon: '/logo-agricapital.png',
-                tag: newNotification.id,
-                data: newNotification.data || {},
-              });
-            } catch (error) { console.warn("[Notifications] notification navigateur indisponible", error); }
+          // Le layout CRM monte le centre de notifications dans les vues desktop et mobile.
+          // Les deux abonnements reçoivent le même INSERT : une seule instance doit déclencher
+          // les effets visibles (toast / notification navigateur), sinon l'utilisateur voit un doublon.
+          if (claimRealtimeSideEffect(newNotification.id)) {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              try {
+                new Notification(newNotification.title, {
+                  body: newNotification.message,
+                  icon: '/logo-agricapital.png',
+                  tag: newNotification.id,
+                  data: newNotification.data || {},
+                });
+              } catch (error) { console.warn("[Notifications] notification navigateur indisponible", error); }
+            }
+            toast({ title: newNotification.title, description: newNotification.message });
           }
-          toast({ title: newNotification.title, description: newNotification.message });
         }
       )
       .on(
