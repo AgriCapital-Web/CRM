@@ -140,7 +140,8 @@ const TechnicienTerrain=()=>{
     return {...p,client:clients.find(c=>c.id===p.client_id)||null};
   },[plantations,clients,report.plantation_id]);
   const palmInvest=useMemo(()=>isPalmInvest(plantation),[plantation]);
-  const applicableStages=!palmInvest?(plantation?.date_plantation?stageRefs.filter((x:any)=>["suivi_mensuel","autre"].includes(x.code)):stageRefs.filter((x:any)=>["validation_parcelle","piquetage","trouaison","mise_en_terre"].includes(x.code))):stageRefs;
+  // Le référentiel technique est partagé avec le Portail : on affiche toujours toutes les étapes actives, dans l'ordre du référentiel.
+  const applicableStages=stageRefs;
 
   const saveReport=async(submit:boolean)=>{
     if(!report.plantation_id){toast({variant:"destructive",title:"Plantation requise"});return;}
@@ -201,9 +202,8 @@ const TechnicienTerrain=()=>{
     if(technicalPalmInvest && (!intervention.convention_id || !intervention.lot_id)){toast({variant:"destructive",title:"Lot requis",description:"Sélectionnez une parcelle puis un lot disponible avant de commencer le suivi technique."});return;}
     if(!isPrePlantationStage && !intervention.plantation_id){toast({variant:"destructive",title:"Plantation requise",description:"Cette étape intervient après la création de la plantation."});return;}
     const technicalContext={...interventionPlantation,client:interventionClient,date_plantation:interventionPlantation?.date_plantation};
-    const interventionStages=!isPalmInvest(technicalContext)
-      ? (interventionPlantation?.date_plantation?stageRefs.filter((x:any)=>["suivi_mensuel","autre"].includes(x.code)):stageRefs.filter((x:any)=>["validation_parcelle","piquetage","trouaison","mise_en_terre"].includes(x.code)))
-      : stageRefs;
+    // Même référentiel que le Portail : toutes les étapes actives sont disponibles dans l'ordre défini en base.
+    const interventionStages=stageRefs;
     if(!interventionStages.some((x:any)=>x.code===intervention.type_intervention)){toast({variant:"destructive",title:"Étape non applicable",description:"Cette étape n’est pas autorisée pour le parcours ou la phase actuelle."});return;}
     setSaving(true);
     try{
@@ -316,7 +316,7 @@ const TechnicienTerrain=()=>{
             <div><Label>Lot disponible *</Label><Select value={intervention.lot_id||""} onValueChange={v=>{const lot=lots.find(l=>l.id===v);setIntervention((x:any)=>({...x,lot_id:v,parcelle_id:lot?.parcelle_id||""}));}} disabled={!intervention.convention_id}><SelectTrigger><SelectValue placeholder="Sélectionner un lot"/></SelectTrigger><SelectContent>{lots.map(l=><SelectItem key={l.id} value={l.id}>{l.reference||("H"+String(l.numero_h).padStart(2,"0"))} — {l.surface_ha} ha</SelectItem>)}</SelectContent></Select></div>
           </div>}
           <div className="grid md:grid-cols-2 gap-4">
-            <div><Label>Étape technique</Label><Select value={intervention.type_intervention} onValueChange={v=>setIntervention((x:any)=>({...x,type_intervention:v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{((()=>{const p=plantations.find(x=>x.id===intervention.plantation_id);const c=clients.find(x=>x.id===(intervention.client_id||p?.client_id));const stages=!isPalmInvest({...p,client:c})?(p?.date_plantation?stageRefs.filter((x:any)=>["suivi_mensuel","autre"].includes(x.code)):stageRefs.filter((x:any)=>["validation_parcelle","piquetage","trouaison","mise_en_terre"].includes(x.code))):stageRefs;return stages;})()).map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Étape technique</Label><Select value={intervention.type_intervention} onValueChange={v=>setIntervention((x:any)=>({...x,type_intervention:v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{stageRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Statut</Label><Select value={intervention.statut} onValueChange={v=>setIntervention((x:any)=>({...x,statut:v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{interventionStatusRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
           </div>
           <div className="rounded-xl border p-4 space-y-4">
