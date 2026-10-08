@@ -357,11 +357,12 @@ const GestionPaiements = () => {
 
   // Search client by phone
   const searchClient = async (phone: string, target: 'source' | 'target') => {
-    if (phone.length < 8) return;
+    const safe = phone.replace(/[^\p{L}\p{N}\s+\-_.]/gu, '').trim();
+    if (safe.length < 8) return;
     const { data } = await supabase
       .from('clients')
       .select('id, nom_complet, telephone, id_unique')
-      .or(`telephone.ilike.%${phone}%,id_unique.ilike.%${phone}%`)
+      .or(`telephone.ilike.%${safe}%,id_unique.ilike.%${safe}%`)
       .eq('statut', 'actif')
       .limit(5);
     
