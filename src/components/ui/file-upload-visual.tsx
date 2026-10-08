@@ -85,8 +85,8 @@ export const FileUploadVisual = ({
       <Label>{label} {required && "*"}</Label>
       {!preview ? (
         <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
-          <Input ref={inputRef} type="file" accept={accept} onChange={(e) => handleFileSelect(e.target.files?.[0] || null)} className="hidden" id={`upload-${field}`} />
-          <Input ref={fileInputRef} type="file" accept={accept} onChange={(e) => { setSourceDialogOpen(false); handleFileSelect(e.target.files?.[0] || null); }} className="hidden" />
+          <Input ref={inputRef} type="file" accept={accept} onChange={(e) => { e.stopPropagation(); handleFileSelect(e.currentTarget.files?.[0] || null); }} className="hidden" id={`upload-${field}`} />
+          <Input ref={fileInputRef} type="file" accept={accept} onChange={(e) => { e.stopPropagation(); setSourceDialogOpen(false); handleFileSelect(e.currentTarget.files?.[0] || null); }} className="hidden" />
           <Input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => { setSourceDialogOpen(false); handleFileSelect(e.target.files?.[0] || null); }} className="hidden" />
           <button type="button" onClick={() => accept.includes("image") ? setSourceDialogOpen(true) : inputRef.current?.click()} className="w-full border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
             <div className="space-y-2">
