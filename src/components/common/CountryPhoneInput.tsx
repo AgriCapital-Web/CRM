@@ -18,9 +18,9 @@ export const CountryPhoneInput=({label,countryCode,localValue="",required,disabl
   const [countries,setCountries]=useState<Country[]>([]);
   useEffect(()=>{let active=true;void (async()=>{const {data,error}=await (supabase as any).from("referentiels_systeme").select("code,libelle,ordre,metadata").eq("categorie","pays_telephone").eq("actif",true).order("ordre").order("libelle");if(active&&!error)setCountries((data||[]).map((r:any)=>({code:r.code,name:r.libelle,iso3:r.metadata?.iso3,callingCode:r.metadata?.callingCode||"",flag:r.metadata?.flag||"🌐",minLocalDigits:r.metadata?.minLocalDigits,maxLocalDigits:r.metadata?.maxLocalDigits,metadata:r.metadata})).filter((c:Country)=>c.callingCode));})();return()=>{active=false;};},[]);
   const selected=countryFromCode(countryCode||"",countries);
-  const resolvedMin=minLocalDigits ?? selected?.minLocalDigits ?? 7;
-  const resolvedMax=maxLocalDigits ?? selected?.maxLocalDigits ?? 15;
-  const normalizeLocal=(value:string,country:Country)=>{let d=digits(value);const cc=digits(country?.callingCode||"");if(cc&&d.startsWith(cc)&&d.length>resolvedMax)d=d.slice(cc.length);return d.slice(0,resolvedMax);};
+  const resolvedMin=minLocalDigits ?? selected?.minLocalDigits;
+  const resolvedMax=maxLocalDigits ?? selected?.maxLocalDigits;
+  const normalizeLocal=(value:string,country:Country)=>{let d=digits(value);const cc=digits(country?.callingCode||"");if(cc&&d.startsWith(cc)&&resolvedMax&&d.length>resolvedMax)d=d.slice(cc.length);return resolvedMax ? d.slice(0,resolvedMax) : d;};
   const currentLocal=selected?normalizeLocal(localValue,selected):"";
   const options=useMemo(()=>countries.map(c=>({value:c.code,label:c.flag+" "+c.name+" "+c.callingCode})),[countries]);
   const emit=(country:Country,value:string)=>{const local=normalizeLocal(value,country);const international=local?country.callingCode+local:"";const parsed=international?parsePhoneNumberFromString(international,country.code as any):undefined;const normalizedLocal=parsed?.countryCallingCode===digits(country.callingCode)?parsed.nationalNumber:local;onChange({countryCode:country.code,callingCode:country.callingCode,localValue:normalizedLocal,internationalValue:international});};
