@@ -62,7 +62,7 @@ export default function Messagerie() {
       .from("portail_messages")
       .select("id,client_id,auteur_type,auteur_nom,message,lu,created_at,clients(id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id)")
       .order("created_at", { ascending: false })
-      .limit(5);
+      .limit(30);
     setRecent((data || []) as RecentMessage[]);
     setLoadingRecent(false);
   };
@@ -76,7 +76,7 @@ export default function Messagerie() {
       .order("nom_complet", { ascending: true })
       .limit(25);
 
-    const q = term.trim();
+    const q = term.replace(/[^\p{L}\p{N}\s+\-_.']/gu, "").trim();
     if (q) request = request.or(`nom_complet.ilike.%${q}%,telephone.ilike.%${q}%,id_unique.ilike.%${q}%`);
 
     const { data } = await request;
@@ -100,7 +100,6 @@ export default function Messagerie() {
     const channel = supabase.channel("crm-messaging-index")
       .on("postgres_changes", { event: "*", schema: "public", table: "portail_messages" }, () => {
         void loadRecent();
-        if (selected?.id) void loadSelected(selected.id);
       })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
@@ -120,7 +119,7 @@ export default function Messagerie() {
 
   const latest = useMemo(() => recent.filter((row) => JSON.stringify(row).toLowerCase().includes(tableSearch.trim().toLowerCase())), [recent, tableSearch]);
 
-  if (!can("clients.view")) {
+  if (!can("messagerie.view")) {
     return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><MainLayout><Card><CardContent className="p-8 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
   }
 
@@ -133,7 +132,7 @@ export default function Messagerie() {
               <MessageSquare className="h-6 w-6 text-primary" />
               <h1 className="text-2xl font-bold">Messagerie</h1>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Échanges avec les personnes suivies dans le portail.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Échanges avec les personnes suivies dans le portail. {recent.filter(m => m.auteur_type === "client" && !m.lu).length > 0 && <Badge className="ml-2">{recent.filter(m => m.auteur_type === "client" && !m.lu).length} non lu(s)</Badge>}</p>
           </div>
 
           <Card>
@@ -182,12 +181,12 @@ export default function Messagerie() {
               <div className="overflow-x-auto">
                 <Table className="min-w-[760px]">
                   <div className="mb-3"><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un message…" /></div>
-                  <TableHeader><TableRow><TableHead>Personne</TableHead><TableHead>Sens</TableHead><TableHead>Message</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Personne</TableHead><TableHead>Sens</TableHead><TableHead>Suivi</TableHead><TableHead>Message</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {loadingRecent ? (
-                      <TableRow><TableCell colSpan={4} className="py-8 text-center">Chargement…</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="py-8 text-center">Chargement…</TableCell></TableRow>
                     ) : latest.length === 0 ? (
-                      <TableRow><TableCell colSpan={4} className="py-8 text-center text-muted-foreground">Aucun message.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Aucun message.</TableCell></TableRow>
                     ) : latest.map((m) => (
                       <TableRow key={m.id} className="cursor-pointer hover:bg-muted/50" onClick={() => m.clients && choose(m.clients)}>
                         <TableCell>
@@ -200,6 +199,7 @@ export default function Messagerie() {
                             {m.auteur_type === "client" ? "Reçu" : "Envoyé"}
                           </Badge>
                         </TableCell>
+                        <TableCell>{m.auteur_type === "client" ? (m.lu ? <Badge variant="outline">Lu</Badge> : <Badge>Non lu</Badge>) : (m.lu ? <Badge variant="outline">Lu par le client</Badge> : <Badge variant="secondary">Envoyé</Badge>)}</TableCell>
                         <TableCell className="max-w-[420px] truncate">{m.message}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{new Date(m.created_at).toLocaleString("fr-FR")}</TableCell>
                       </TableRow>

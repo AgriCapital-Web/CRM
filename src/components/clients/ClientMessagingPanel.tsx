@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useToast } from "@/hooks/use-toast";
+import { getSafeErrorMessage } from "@/lib/safeError";
+import { Trash2 } from "lucide-react";
 
 const BUCKET = "portail-messages";
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -80,6 +84,10 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
   const [attachment, setAttachment] = useState<File | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { can } = usePermissions();
+  const { toast } = useToast();
+  const canSend = can("messagerie.send");
+  const canDelete = can("messagerie.delete");
 
   const load = useCallback(async () => {
     if (!clientId) {
@@ -207,9 +215,16 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
       if (error) throw error;
       setDraft(""); setAttachment(null);
       if (inputRef.current) inputRef.current.value = "";
-      // Realtime will deliver the INSERT; don't force a second full read here.
-      // This keeps the CRM composer state stable and avoids UI jumps.
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Envoi impossible", description: getSafeErrorMessage(e, "Le message n'a pas pu être envoyé.") });
     } finally { setSending(false); }
+  };
+
+  const remove = async (id: string) => {
+    if (!window.confirm("Supprimer ce message ?")) return;
+    const { error } = await (supabase as any).from("portail_messages").delete().eq("id", id);
+    if (error) { toast({ variant: "destructive", title: "Suppression impossible", description: getSafeErrorMessage(error, "Suppression refusée.") }); return; }
+    setMessages(current => current.filter(m => m.id !== id));
   };
 
   const isMobileLike=()=>typeof window!=="undefined"&&(window.matchMedia?.("(pointer: coarse)").matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
@@ -231,7 +246,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
               const mine = m.auteur_type !== "client";
               return <div key={m.id} className={`flex min-w-0 ${mine ? "justify-end" : "justify-start"}`}>
                 <div className={`min-w-0 max-w-[92%] overflow-hidden rounded-2xl px-3 py-2 ${mine ? "bg-primary text-primary-foreground" : "bg-background border"}`}>
-                  <div className="flex flex-wrap items-center gap-2 mb-1"><span className="text-[10px] font-semibold">{mine ? (m.auteur_nom || "AgriCapital") : (m.auteur_nom || "Client")}</span><Badge variant="outline" className="text-[8px] h-4">{mine ? "Équipe" : "Client"}</Badge></div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1"><span className="text-[10px] font-semibold">{mine ? (m.auteur_nom || "AgriCapital") : (m.auteur_nom || "Client")}</span><Badge variant="outline" className="text-[8px] h-4">{mine ? "Équipe" : "Client"}</Badge>{canDelete && <button type="button" aria-label="Supprimer le message" className="ml-auto opacity-60 hover:opacity-100" onClick={() => void remove(m.id)}><Trash2 className="h-3 w-3" /></button>}</div>
                   <p className="text-sm whitespace-pre-wrap break-words">{m.message}</p>
                   {m.piece_jointe_signed_url && (
                     <a href={m.piece_jointe_signed_url} target="_blank" rel="noreferrer" className="mt-2 flex max-w-full items-center gap-2 rounded-lg bg-black/10 p-2 text-xs underline">
@@ -254,14 +269,14 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
           </div>
         )}
 
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
+        {canSend && <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
           <Textarea uppercase={false} className="min-w-0 flex-1" value={draft} maxLength={4000} rows={3} placeholder="Répondre au client… (Entrée = envoyer, Maj+Entrée = nouvelle ligne)" onChange={e=>setDraft(e.target.value)} onKeyDown={handleComposerKeyDown} disabled={sending||optimizing}/>
           <div className="flex shrink-0 gap-2">
             <input ref={inputRef} type="file" className="hidden" accept="image/*,video/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{void chooseFile(e.currentTarget.files?.[0]);e.currentTarget.value="";}} />
             <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={sending || optimizing} title="Joindre un fichier"><Paperclip className="h-4 w-4" /><span className="ml-2 hidden sm:inline">{optimizing ? "Optimisation…" : "Joindre"}</span></Button>
             <Button type="button" onClick={send} disabled={sending||optimizing||(!draft.trim()&&!attachment)}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
           </div>
-        </div>
+        </div>}
       </CardContent>
     </Card>
   );
