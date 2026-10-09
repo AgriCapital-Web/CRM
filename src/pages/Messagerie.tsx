@@ -120,11 +120,11 @@ export default function Messagerie() {
   const latest = useMemo(() => recent.filter((row) => JSON.stringify(row).toLowerCase().includes(tableSearch.trim().toLowerCase())), [recent, tableSearch]);
 
   if (!can("messagerie.view")) {
-    return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><MainLayout><Card><CardContent className="p-8 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
+    return <ProtectedRoute requiredPermission={"messagerie.view" as any}><MainLayout><Card><CardContent className="p-8 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
   }
 
   return (
-    <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}>
+    <ProtectedRoute requiredPermission={"messagerie.view" as any}>
       <MainLayout>
         <div className="min-w-0 space-y-5">
           <div>
