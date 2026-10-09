@@ -6,7 +6,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
 type Country={code:string;iso3?:string;name:string;callingCode:string;flag:string;minLocalDigits?:number;maxLocalDigits?:number;metadata?:Record<string,any>};
 const digits=(value:string)=>String(value||"").replace(/\D/g,"");
-const countryFromCode=(value:string,countries:Country[])=>countries.find(c=>c.code===value)||countries.find(c=>c.callingCode===value)||countries[0];
+const countryFromCode=(value:string,countries:Country[])=>countries.find(c=>c.code===value)||countries.find(c=>c.callingCode===value)||countries.find(c=>c.metadata?.is_default)||countries[0];
 
 export interface CountryPhoneInputProps{
   label:string; countryCode?:string; localValue?:string; required?:boolean; disabled?:boolean;
