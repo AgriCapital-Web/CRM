@@ -93,7 +93,7 @@ const DomainRouter = () => {
       <Route path="/nouvelle-acquisition" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><ClientDetail /></ProtectedRoute>} />
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
-      <Route path="/messagerie" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><Messagerie /></ProtectedRoute>} />
+      <Route path="/messagerie" element={<ProtectedRoute requiredPermission={"messagerie.view" as any}><Messagerie /></ProtectedRoute>} />
       <Route path="/profil" element={<Profil />} />
       
       {/* Paiements */}

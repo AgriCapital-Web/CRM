@@ -33,6 +33,7 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   ...build("commissions", "Commissions", [["view", "Consulter"], ["validate", "Valider"], ["manage_payouts", "Paramétrer et effectuer les versements"]]),
   ...build("beneficiaires", "Bénéficiaires", [["view", "Consulter"], ["create", "Créer un bénéficiaire"], ["update", "Modifier"]]),
   ...build("portefeuilles", "Portefeuilles", [["view", "Consulter"], ["manage_payouts", "Gérer les versements"]]),
+  ...build("messagerie", "Messagerie du portail", [["view", "Consulter les messages"], ["send", "Envoyer des messages"], ["delete", "Supprimer des messages"]]),
   ...build("tickets", "Support", [["view", "Consulter"], ["create", "Créer"], ["update", "Traiter"]]),
   ...build("parametres", "Paramètres", [["view", "Accéder aux paramètres"], ["manage_geo", "Gérer le référentiel géographique"], ["manage_teams", "Gérer les équipes"], ["manage_users", "Gérer les utilisateurs"], ["manage_system", "Gérer la configuration système"], ["view_audit", "Consulter les journaux d'audit"]]),
   ...build("finance", "Finance & Comptabilité", [["view", "Consulter"], ["manage", "Gérer"], ["expenses", "Gérer les dépenses"], ["payroll", "Gérer les salaires et la paie"], ["associates", "Gérer les mouvements des associés"], ["reports", "Consulter les rapports financiers"]]),

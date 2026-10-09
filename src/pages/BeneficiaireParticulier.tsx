@@ -35,8 +35,8 @@ const BeneficiaireParticulier = () => {
     type_piece: "cni",
     numero_piece: "",
     date_delivrance_piece: "",
-    telephone: "", telephone_indicatif: "+225", telephone_local: "",
-    whatsapp: "", whatsapp_indicatif: "+225", whatsapp_local: "",
+    telephone: "", telephone_indicatif: "", telephone_local: "",
+    whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "",
     email: "",
     domicile: "",
   });
@@ -44,8 +44,8 @@ const BeneficiaireParticulier = () => {
     nom: "",
     prenoms: "",
     nom_complet: "",
-    telephone: "", telephone_indicatif: "+225", telephone_local: "",
-    whatsapp: "", whatsapp_indicatif: "+225", whatsapp_local: "",
+    telephone: "", telephone_indicatif: "", telephone_local: "",
+    whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "",
     statut_foncier: "coutumier",
     village: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "",
   });
@@ -184,8 +184,8 @@ const BeneficiaireParticulier = () => {
             <div><Label>Nationalité</Label><Input value={beneficiaire.nationalite} onChange={e=>setBeneficiaire({...beneficiaire,nationalite:e.target.value})}/></div>
             <div><Label>Type de pièce *</Label><PieceTypeSelect value={beneficiaire.type_piece} onChange={v=>setBeneficiaire({...beneficiaire,type_piece:v})}/></div><div><Label>N° CNI / pièce *</Label><Input value={beneficiaire.numero_piece} onChange={e=>setBeneficiaire({...beneficiaire,numero_piece:e.target.value})}/></div>
             <div><Label>Date d’émission</Label><Input type="date" value={beneficiaire.date_delivrance_piece} onChange={e=>setBeneficiaire({...beneficiaire,date_delivrance_piece:e.target.value})}/></div>
-            <CountryPhoneInput label="Téléphone" countryCode={beneficiaire.telephone_indicatif||"+225"} localValue={beneficiaire.telephone_local||""} onChange={v=>setBeneficiaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
-            <CountryPhoneInput label="WhatsApp" countryCode={beneficiaire.whatsapp_indicatif||"+225"} localValue={beneficiaire.whatsapp_local||""} onChange={v=>setBeneficiaire(x=>({...x,whatsapp_indicatif:v.callingCode,whatsapp_local:v.localValue,whatsapp:v.internationalValue}))}/>
+            <CountryPhoneInput label="Téléphone" countryCode={beneficiaire.telephone_indicatif||""} localValue={beneficiaire.telephone_local||""} onChange={v=>setBeneficiaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
+            <CountryPhoneInput label="WhatsApp" countryCode={beneficiaire.whatsapp_indicatif||""} localValue={beneficiaire.whatsapp_local||""} onChange={v=>setBeneficiaire(x=>({...x,whatsapp_indicatif:v.callingCode,whatsapp_local:v.localValue,whatsapp:v.internationalValue}))}/>
             <div className="md:col-span-2"><Label>Adresse</Label><Input value={beneficiaire.domicile} onChange={e=>setBeneficiaire({...beneficiaire,domicile:e.target.value})}/></div>
           </CardContent>
         </Card>
@@ -196,7 +196,7 @@ const BeneficiaireParticulier = () => {
             
             <div><Label>Nom</Label><Input value={proprietaire.nom} onChange={e=>setProprietaire({...proprietaire,nom:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <div><Label>Prénoms</Label><Input value={proprietaire.prenoms} onChange={e=>setProprietaire({...proprietaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
-            <CountryPhoneInput label="Téléphone du propriétaire" countryCode={proprietaire.telephone_indicatif||"+225"} localValue={proprietaire.telephone_local||""} onChange={v=>setProprietaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
+            <CountryPhoneInput label="Téléphone du propriétaire" countryCode={proprietaire.telephone_indicatif||""} localValue={proprietaire.telephone_local||""} onChange={v=>setProprietaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
             <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={proprietaire.district_id} regionId={proprietaire.region_id} departementId={proprietaire.departement_id} sousPrefectureId={proprietaire.sous_prefecture_id} villageId={proprietaire.village_id} required onChange={(g)=>setProprietaire((x:any)=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",village:g.villageName||""}))}/></div>
             <div><Label>Statut foncier</Label><Input value={proprietaire.statut_foncier} onChange={e=>setProprietaire({...proprietaire,statut_foncier:e.target.value})}/></div>
           </CardContent>
