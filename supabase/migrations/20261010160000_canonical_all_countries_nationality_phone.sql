@@ -204,7 +204,7 @@ from _ac_pays_seed
 on conflict (categorie,code) do update set libelle=excluded.libelle,ordre=excluded.ordre,actif=true,metadata=excluded.metadata,updated_at=now();
 
 insert into public.referentiels_systeme (categorie,code,libelle,ordre,actif,metadata)
-select 'pays_telephone',code,libelle,ordre,true,jsonb_build_object('iso2',code,'callingCode',indicatif,'minLocalDigits',case when code='CI' then 10 else 7 end,'maxLocalDigits',case when code='CI' then 10 else 15 end)
+select 'pays_telephone',code,libelle,ordre,true,jsonb_build_object('iso2',code,'callingCode',indicatif,'minLocalDigits',case when code='CI' then 10 else 7 end,'maxLocalDigits',case when code='CI' then 10 else 15 end,'is_default',code='CI')
 from _ac_pays_seed
 on conflict (categorie,code) do update set libelle=excluded.libelle,ordre=excluded.ordre,actif=true,metadata=excluded.metadata,updated_at=now();
 
