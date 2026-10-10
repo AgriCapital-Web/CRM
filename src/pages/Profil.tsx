@@ -17,7 +17,8 @@ import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 
-const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File) => void; current?: string | null }) => {
+const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: (f: File) => void; current?: string | null; bucket: string }) => {
+  const currentUrl = useSignedUrl(bucket, current);
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <div>
@@ -161,7 +162,7 @@ const Profil = () => {
                   <p className="text-sm text-muted-foreground">{profile.email || user?.email || "—"}</p>
                 </div>
                 <div className="w-full sm:w-64">
-                  <FileField label={uploading === "photo_url" ? "Envoi…" : "Ma photo"} current={profile.photo_url} onPick={(f) => upload("photo_url", "photos-profils", f)} />
+                  <FileField label={uploading === "photo_url" ? "Envoi…" : "Ma photo"} current={profile.photo_url} onPick={(f) => upload("photo_url", "photos-profils", f)} bucket="photos-profils" />
                 </div>
               </div>
             </CardContent>
@@ -206,8 +207,8 @@ const Profil = () => {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
               <div><Label>Numéro de pièce</Label><Input value={profile.numero_piece_identite || ""} onChange={(e) => set("numero_piece_identite", e.target.value)} /></div>
-              <FileField label={uploading === "piece_identite_recto_url" ? "Envoi…" : "Pièce — recto"} current={profile.piece_identite_recto_url} onPick={(f) => upload("piece_identite_recto_url", "pieces-identite", f)} />
-              <FileField label={uploading === "piece_identite_verso_url" ? "Envoi…" : "Pièce — verso"} current={profile.piece_identite_verso_url} onPick={(f) => upload("piece_identite_verso_url", "pieces-identite", f)} />
+              <FileField label={uploading === "piece_identite_recto_url" ? "Envoi…" : "Pièce — recto"} current={profile.piece_identite_recto_url} onPick={(f) => upload("piece_identite_recto_url", "pieces-identite", f)} bucket="pieces-identite" />
+              <FileField label={uploading === "piece_identite_verso_url" ? "Envoi…" : "Pièce — verso"} current={profile.piece_identite_verso_url} onPick={(f) => upload("piece_identite_verso_url", "pieces-identite", f)} bucket="pieces-identite" />
             </CardContent>
           </Card>
 
@@ -216,7 +217,7 @@ const Profil = () => {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2 flex items-center gap-4">
                 <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback>{(profile.contact_urgence_nom || "?").slice(0, 2)}</AvatarFallback></Avatar>
-                <div className="flex-1"><FileField label={uploading === "contact_urgence_photo_url" ? "Envoi…" : "Photo de la personne"} current={profile.contact_urgence_photo_url} onPick={(f) => upload("contact_urgence_photo_url", "photos-profils", f)} /></div>
+                <div className="flex-1"><FileField label={uploading === "contact_urgence_photo_url" ? "Envoi…" : "Photo de la personne"} current={profile.contact_urgence_photo_url} onPick={(f) => upload("contact_urgence_photo_url", "photos-profils", f)} bucket="photos-profils" /></div>
               </div>
               <div className="md:col-span-2"><Label>Contact urgence — Nom et Prénoms</Label><Input value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
               <CountryPhoneInput
