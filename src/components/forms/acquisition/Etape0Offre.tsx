@@ -294,6 +294,15 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
               <div className="flex justify-between text-sm"><span>Superficie:</span><span className="font-medium">{calculs.ha} ha</span></div>
               <div className="flex justify-between text-sm"><span>Paiement Initial{calculs.promoCible === "paiement_initial" ? " (promo)" : ""}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
               <div className="border-t pt-2 flex justify-between"><span className="font-semibold">Coût global contractuel{calculs.promoCible === "cout_global" ? " (promo)" : ""}:</span><span className="text-lg font-bold text-primary">{formatMontant(calculs.totalFinal)} F</span></div>
+              <div className="border-t pt-3 space-y-2">
+                <div className="flex justify-between text-sm"><span>Durée de paiement :</span><span className="font-semibold">{calculs.duree} mois</span></div>
+                {calculs.tranches.filter((tranche: any) => Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0) > 0).map((tranche: any, index: number) => (
+                  <div key={tranche.annee || index} className="flex justify-between gap-3 text-xs text-muted-foreground">
+                    <span>An {tranche.annee || index + 1} · {tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois</span>
+                    <span className="font-medium text-foreground">{formatMontant(Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0))} F/ha/mois</span>
+                  </div>
+                ))}
+              </div>
               {calculs.promotionAppliquee && <div className="flex items-center gap-1 text-xs text-amber-600"><Sparkles className="h-3 w-3" /><span>Promo -{calculs.promoReduction}% appliquée sur {calculs.promoCible}</span></div>}
             </div>
           )}
