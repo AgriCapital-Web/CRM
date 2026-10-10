@@ -44,9 +44,11 @@ export default function CountryNationalitySelect({
     return () => { active = false; };
   }, []);
 
+  const countryFlag = (code: string) => String(code || "").toUpperCase().replace(/[A-Z]/g, (letter) => String.fromCodePoint(127397 + letter.charCodeAt(0)));
+
   const options = useMemo(() => countries.map((country) => ({
     value: country.code,
-    label: country.name,
+    label: `${countryFlag(country.code)} ${country.name}`,
   })), [countries]);
 
   // Supporte les dossiers historiques qui contiennent encore le libellé au lieu du code ISO.
