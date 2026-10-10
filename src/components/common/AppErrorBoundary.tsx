@@ -17,13 +17,8 @@ export class AppErrorBoundary extends React.Component<Props, State> {
     console.error("[AgriCapital] Runtime render error", error, info);
   }
 
-  handleReload = () => {
-    try {
-      sessionStorage.setItem("agricapital_reload_after_error", String(Date.now()));
-    } catch {
-      // Ignore sessionStorage failures and continue with a normal reload.
-    }
-    window.location.assign(window.location.href);
+  handleRetry = () => {
+    this.setState({ hasError: false, message: undefined });
   };
 
   render() {
@@ -34,14 +29,14 @@ export class AppErrorBoundary extends React.Component<Props, State> {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive text-xl font-bold">!</div>
           <h1 className="text-xl font-bold text-foreground">AgriCapital a rencontré un problème</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            La page n'a pas pu être affichée correctement. Rechargez l'application. Si le problème persiste, contactez l'administrateur.
+            La page n'a pas pu être affichée correctement. Réessayez l’affichage. Vos données restent conservées ; aucune actualisation complète ne sera lancée.
           </p>
           <button
             type="button"
-            onClick={this.handleReload}
+            onClick={this.handleRetry}
             className="mt-5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
           >
-            Recharger l'application
+            Réessayer l’affichage
           </button>
           {import.meta.env.DEV && this.state.message && (
             <pre className="mt-4 overflow-auto rounded-lg bg-muted p-3 text-left text-xs">{this.state.message}</pre>
