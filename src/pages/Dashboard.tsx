@@ -481,13 +481,13 @@ const Dashboard = () => {
                   const Icon = k.icon;
                   const card = (
                     <Card className="h-full min-w-0 overflow-hidden transition-all hover:shadow-md hover:border-primary/50">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-muted-foreground">{k.label}</span>
+                      <CardContent className="min-w-0 p-3 sm:p-4">
+                        <div className="flex min-w-0 items-start justify-between gap-2">
+                          <span className="min-w-0 break-words text-xs font-medium text-muted-foreground">{k.label}</span>
                           <Icon className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="mt-3 text-2xl sm:text-3xl font-bold">{loading ? "Chargement" : k.value}</div>
-                        <p className="mt-1 text-xs text-muted-foreground">{k.sub}</p>
+                        <div className="mt-3 min-w-0 break-words [overflow-wrap:anywhere] text-xl font-bold leading-tight sm:text-2xl xl:text-3xl tabular-nums">{loading ? "Chargement" : k.value}</div>
+                        <p className="mt-1 break-words text-xs text-muted-foreground">{k.sub}</p>
                       </CardContent>
                     </Card>
                   );
