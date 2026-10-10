@@ -5,6 +5,7 @@ import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/com
 import GeographieCascade from "@/components/common/GeographieCascade";
 import { FileUploadVisual } from "@/components/ui/file-upload-visual";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
+import CountryNationalitySelect from "@/components/common/CountryNationalitySelect";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 
@@ -20,7 +21,7 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
  return <div className="space-y-6">
   <Card><CardHeader><CardTitle>Identité du Client</CardTitle><CardDescription>Informations utilisées dans le dossier et les documents contractuels.</CardDescription></CardHeader><CardContent className="space-y-4">
    <div className="grid md:grid-cols-3 gap-4"><div><Label>Civilité *</Label><Select value={formData.civilite||""} onValueChange={v=>updateFormData({civilite:v})}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("civilite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div><div><Label>Nom de famille *</Label><Input value={formData.nom_famille||""} onChange={e=>updateFormData({nom_famille:upperName(e.target.value)})}/></div><div><Label>Prénoms *</Label><Input value={formData.prenoms||""} onChange={e=>updateFormData({prenoms:upperName(e.target.value)})}/></div></div>
-   <div className="grid md:grid-cols-3 gap-4"><div><Label>Date de naissance *</Label><Input type="date" value={formData.date_naissance||""} onChange={e=>updateFormData({date_naissance:e.target.value})}/></div><div><Label>Lieu de naissance *</Label><Input value={formData.lieu_naissance||""} onChange={e=>updateFormData({lieu_naissance:e.target.value})}/></div><div><Label>Nationalité *</Label><Input value={formData.nationalite||""} onChange={e=>updateFormData({nationalite:e.target.value})} placeholder="Ivoirienne"/></div></div>
+   <div className="grid md:grid-cols-3 gap-4"><div><Label>Date de naissance *</Label><Input type="date" value={formData.date_naissance||""} onChange={e=>updateFormData({date_naissance:e.target.value})}/></div><div><Label>Lieu de naissance *</Label><Input value={formData.lieu_naissance||""} onChange={e=>updateFormData({lieu_naissance:e.target.value})}/></div><CountryNationalitySelect label="Nationalité" required value={formData.nationalite} onChange={v=>updateFormData({nationalite:v})} /></div>
    <div><Label>Situation matrimoniale</Label><Select value={formData.statut_marital||""} onValueChange={v=>updateFormData({statut_marital:v})}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("statut_marital").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
   </CardContent></Card>
 
