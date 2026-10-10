@@ -27,13 +27,15 @@ export const useSignedUrl = (
 
   useEffect(() => {
     let cancelled = false;
-    if (!value) {
-      setUrl(null);
-      return;
-    }
-    resolveStorageUrl(bucket, value, expiresIn).then((resolved) => {
-      if (!cancelled) setUrl(resolved);
-    });
+    setUrl(null);
+    if (!value) return;
+    resolveStorageUrl(bucket, value, expiresIn)
+      .then((resolved) => {
+        if (!cancelled) setUrl(resolved);
+      })
+      .catch(() => {
+        if (!cancelled) setUrl(null);
+      });
     return () => {
       cancelled = true;
     };
