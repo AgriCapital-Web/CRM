@@ -10,7 +10,7 @@ const countryFlag = (code: string) =>
     String.fromCodePoint(127397 + letter.charCodeAt(0))
   );
 const digits=(value:string)=>String(value||"").replace(/\D/g,"");
-const countryFromCode=(value:string,countries:Country[])=>countries.find(c=>c.code===value)||countries.find(c=>c.callingCode===value)||countries.find(c=>c.metadata?.is_default)||countries[0];
+const countryFromCode=(value:string,countries:Country[])=>{const exact=countries.find(c=>c.code===value);if(exact)return exact;const matches=countries.filter(c=>c.callingCode===value);return matches.length===1?matches[0]:countries.find(c=>c.metadata?.is_default)||countries[0];};
 
 export interface CountryPhoneInputProps{
   label:string; countryCode?:string; localValue?:string; required?:boolean; disabled?:boolean;
