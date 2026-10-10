@@ -20,6 +20,26 @@ interface Etape0Props {
   updateFormData: (data: any) => void;
 }
 
+const getFormulaConfig = (offer: any, code?: string) => {
+  const formulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
+  return formulas.find((formula: any) => formula.code === code) || formulas[0] || null;
+};
+
+const applyFormulaConfig = (offer: any, formula: any) => {
+  if (!offer || !formula) return offer;
+  const next = {
+    ...offer,
+    formule_code: formula.code || offer.formule_code || offer.code,
+    formule_nom: formula.nom || offer.formule_nom || offer.nom,
+    gestion_type: formula.gestion_type ?? offer.gestion_type,
+  };
+  if (formula.utilise_tarif_commun !== false) return next;
+  for (const key of ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]) {
+    if (formula[key] !== undefined && formula[key] !== null) (next as any)[key] = formula[key];
+  }
+  return next;
+};
+
 export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
   const { data: promotionActive } = usePromotionActive(formData.offre_id);
   const [loadingCommercialDefault, setLoadingCommercialDefault] = useState(false);
@@ -85,8 +105,10 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
 
   const calculs = useMemo(() => {
     if (!formData.offre_id || !formData.superficie_prevue || !offres) return null;
-    const offre = offres.find((o) => o.id === formData.offre_id);
-    if (!offre) return null;
+    const baseOffer = offres.find((o) => o.id === formData.offre_id);
+    if (!baseOffer) return null;
+    const formula = getFormulaConfig(baseOffer, formData.formule_code);
+    const offre = applyFormulaConfig(baseOffer, formula);
 
     const ha = Number(formData.superficie_prevue);
     const o = offre as any;
@@ -120,7 +142,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
       promoReduction: Number(prix.reduction_pct || 0),
       promotionAppliquee: !!prix.promotion_id,
     };
-  }, [formData.offre_id, formData.superficie_prevue, promotionActive, offres]);
+  }, [formData.offre_id, formData.formule_code, formData.superficie_prevue, promotionActive, offres]);
 
   if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
@@ -183,10 +205,16 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
                   type="button"
                   className="flex w-full min-w-0 items-center gap-3 p-3 text-left sm:p-4"
                   onClick={() => {
+                    if (selectedFamily) return;
+                    const formula = getFormulaConfig(first);
+                    const selected = applyFormulaConfig(first, formula);
                     updateFormData({
-                      offre_id: selectedFamily ? formData.offre_id : first.id,
-                      offre_code: selectedFamily ? formData.offre_code : first.code,
-                      offre: selectedFamily ? formData.offre : first,
+                      offre_id: first.id,
+                      offre_code: first.code,
+                      offre: selected,
+                      formule_code: formula?.code || first.formule_code || first.code,
+                      formule_nom: formula?.nom || first.formule_nom || first.nom,
+                      gestion_type: formula?.gestion_type || first.gestion_type || null,
                       type_client: first.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
                     });
                   }}
@@ -196,7 +224,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-bold text-primary">{familleLabel}</span>
-                    <span className="block text-xs text-muted-foreground">{familyOffers.length} formule{familyOffers.length > 1 ? "s" : ""} disponible{familyOffers.length > 1 ? "s" : ""}</span>
+                    <span className="block text-xs text-muted-foreground">{familyOffers.reduce((count, item: any) => count + (Array.isArray(item.formules_configuration) ? item.formules_configuration.length : 1), 0)} formules disponibles</span>
                   </span>
                   <span className="text-xs font-medium text-muted-foreground">{selectedFamily ? "Ouvert" : "Choisir"}</span>
                 </button>
@@ -205,22 +233,32 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
                   <div className="border-t px-3 pb-3 pt-3 sm:px-4">
                     <Label className="text-xs">Formule</Label>
                     <Select
-                      value={formData.offre_id || ""}
+                      value={formData.formule_code || getFormulaConfig(first)?.code || first.formule_code || first.code}
                       onValueChange={(value) => {
-                        const selected = familyOffers.find((o) => o.id === value);
-                        if (!selected) return;
+                        const formulaOwner = familyOffers.find((item: any) => (item.formules_configuration || []).some((f: any) => f.code === value)) || first;
+                        const formula = (formulaOwner.formules_configuration || []).find((f: any) => f.code === value);
+                        if (!formula) return;
+                        const selected = applyFormulaConfig(formulaOwner, formula);
                         updateFormData({
-                          offre_id: value,
-                          offre_code: selected.code,
+                          offre_id: formulaOwner.id,
+                          offre_code: formulaOwner.code,
                           offre: selected,
-                          type_client: selected.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
-                          ...(selected.type_offre === "sans_terre" ? {} : { parcelle_id: null }),
+                          formule_code: formula.code,
+                          formule_nom: formula.nom,
+                          gestion_type: formula.gestion_type || formulaOwner.gestion_type || null,
+                          type_client: formulaOwner.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
+                          ...(formulaOwner.type_offre === "sans_terre" ? {} : { parcelle_id: null }),
                         });
                       }}
                     >
                       <SelectTrigger className="mt-1 w-full min-w-0"><SelectValue placeholder="Sélectionner une formule" /></SelectTrigger>
                       <SelectContent>
-                        {familyOffers.map((o) => <SelectItem key={o.id} value={o.id}>{o.formule_nom || o.nom}</SelectItem>)}
+                        {familyOffers.flatMap((item: any) => {
+                          const formulas = Array.isArray(item.formules_configuration) ? item.formules_configuration : [];
+                          return formulas.length
+                            ? formulas.map((formula: any) => <SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)
+                            : [<SelectItem key={item.id} value={item.formule_code || item.code}>{item.formule_nom || item.nom}</SelectItem>];
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -267,8 +305,9 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
           <CardHeader><CardTitle>Récapitulatif de l'Offre</CardTitle></CardHeader>
           <CardContent>
             {(() => {
-              const offre = offres.find((o) => o.id === formData.offre_id);
-              if (!offre) return null;
+              const baseOffer = offres.find((o) => o.id === formData.offre_id);
+              if (!baseOffer) return null;
+              const offre = applyFormulaConfig(baseOffer, getFormulaConfig(baseOffer, formData.formule_code));
               const avantagesList = parseAvantages(offre.avantages);
               return (
                 <div className="space-y-4">
