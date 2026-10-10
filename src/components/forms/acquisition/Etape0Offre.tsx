@@ -233,7 +233,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
                   <div className="border-t px-3 pb-3 pt-3 sm:px-4">
                     <Label className="text-xs">Formule</Label>
                     <Select
-                      value={formData.formule_code || getFormulaConfig(first)?.code || first.formule_code || first.code}
+                      value={familyOffers.flatMap((item: any) => Array.isArray(item.formules_configuration) ? item.formules_configuration : []).some((formula: any) => formula.code === formData.formule_code) ? formData.formule_code : (getFormulaConfig(first)?.code || first.formule_code || first.code)}
                       onValueChange={(value) => {
                         const formulaOwner = familyOffers.find((item: any) => (item.formules_configuration || []).some((f: any) => f.code === value)) || first;
                         const formula = (formulaOwner.formules_configuration || []).find((f: any) => f.code === value);
