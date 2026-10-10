@@ -320,8 +320,9 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
               const avantagesList = parseAvantages(offre.avantages);
               return (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                     <div><span className="text-muted-foreground">Offre:</span><p className="font-medium">{offre.nom}</p></div>
+                    <div><span className="text-muted-foreground">Formule sélectionnée:</span><p className="font-medium">{offre.formule_nom || formData.formule_nom || "—"}</p></div>
                     <div><span className="text-muted-foreground">Type:</span><p className="font-medium">{offre.description}</p></div>
                   </div>
                   {avantagesList.length > 0 && <div className="border-t pt-4"><h4 className="font-medium mb-2">Avantages inclus:</h4><ul className="space-y-1">{avantagesList.map((avantage, idx) => <li key={idx} className="flex items-start gap-2 text-sm"><Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" /><span>{avantage}</span></li>)}</ul></div>}
