@@ -21,11 +21,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InteractiveMap from "@/components/maps/InteractiveMap";
 import CompteRenduIA from "@/components/technique/CompteRenduIA";
 
-const isPalmInvest=(p:any)=>{
-  const code=String(p?.formule_code||p?.client?.formule_code||"").toUpperCase();
-  const family=String(p?.famille_offre||p?.client?.famille_offre||"").toUpperCase();
-  return code.includes("PALMINVEST") || family.includes("PALMINVEST");
-};
 const TechnicienTerrain=()=>{
   const {user,userRoles}=useAuth();
   const {toast}=useToast();
@@ -39,6 +34,7 @@ const TechnicienTerrain=()=>{
   const plantationStateRefs=systemRefs("etat_plantation");
   const [plantations,setPlantations]=useState<any[]>([]);
   const [clients,setClients]=useState<any[]>([]);
+  const [offerConfigs,setOfferConfigs]=useState<any[]>([]);
   const [parcelles,setParcelles]=useState<any[]>([]);
   const [reports,setReports]=useState<any[]>([]);
   const [interventions,setInterventions]=useState<any[]>([]);
@@ -79,16 +75,17 @@ const TechnicienTerrain=()=>{
     if(!allowed)return;
     setLoading(true);
     const profile=await profileContext();
-    const [{data:p},{data:c},{data:pa},{data:r},{data:i},{data:t},{data:td}]=await Promise.all([
+    const [{data:p},{data:c},{data:pa},{data:r},{data:i},{data:t},{data:td},{data:offers}]=await Promise.all([
       (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,statut_global,prochaine_visite,date_plantation").order("nom_plantation"),
-      (supabase as any).from("clients").select("id,id_unique,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id").order("nom_complet"),
+      (supabase as any).from("clients") .select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id").order("nom_complet"),
       (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
       (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
       (supabase as any).from("interventions_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").order("date_intervention",{ascending:false}).limit(100)
       ,(supabase as any).from("tickets_techniques").select("*,client:clients(nom_complet),plantation:plantations(id_unique,nom_plantation)").eq("assigne_a",profile?.id||"00000000-0000-0000-0000-000000000000").order("created_at",{ascending:false})
       ,(supabase as any).from("profiles").select("id,nom_complet,user_id").eq("actif",true).order("nom_complet")
+      ,(supabase as any).from("offres").select("id,code,nom,necessite_foncier_client,parcours_code,famille_offre").eq("actif",true)
     ]);
-    setPlantations(p||[]);setClients(c||[]);setParcelles(pa||[]);setReports(r||[]);setInterventions(i||[]);setTickets(t||[]);
+    setPlantations(p||[]);setClients(c||[]);setOfferConfigs(offers||[]);setParcelles(pa||[]);setReports(r||[]);setInterventions(i||[]);setTickets(t||[]);
     setTechniciens((td||[]).map((x:any)=>({...x,id:x.id,profile_id:x.id})));
     setLoading(false);
   };
@@ -97,8 +94,10 @@ const TechnicienTerrain=()=>{
 
   const interventionClient=useMemo(()=>clients.find(c=>c.id===intervention.client_id)||null,[clients,intervention.client_id]);
   const interventionPlantation=useMemo(()=>plantations.find(p=>p.id===intervention.plantation_id)||null,[plantations,intervention.plantation_id]);
-  const technicalPalmInvest=isPalmInvest(interventionClient||interventionPlantation);
-  const technicalOwnLand=!technicalPalmInvest;
+  const interventionOwnerClient=interventionClient || clients.find((c:any)=>c.id===interventionPlantation?.client_id) || null;
+  const clientOffer=offerConfigs.find((o:any)=>o.id===interventionOwnerClient?.offre_id) || null;
+  const technicalPalmInvest=Boolean(clientOffer && clientOffer.necessite_foncier_client===false);
+  const technicalOwnLand=Boolean(clientOffer?.necessite_foncier_client===true);
 
   useEffect(()=>{
     if(!interventionClient)return;
