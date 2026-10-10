@@ -263,28 +263,84 @@ const Offres = () => {
 
   const getTranches = (offre: any) => {
     const raw = Array.isArray(offre?.tranches_paiement) ? offre.tranches_paiement : [];
-    if (raw.length) return raw;
+    const mensualites = raw.filter((tranche: any) => tranche.type !== "paiement_initial" && Number(tranche.mensualite_par_ha ?? 0) > 0);
+    if (mensualites.length) return mensualites;
     const duree = Number(offre?.duree_paiement_mois) || 0;
     const mensuel = Number(offre?.mensualite_par_ha) || 0;
     return mensuel > 0 && duree > 0 ? [{ annee: 1, mois_debut: 1, mois_fin: duree, mois: duree, mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * duree }] : [];
   };
 
+  const buildFormulaTranches = (duration: number, monthly: number) => {
+    const tranches: any[] = [];
+    let start = 1;
+    let year = 1;
+    while (start <= duration) {
+      const months = Math.min(12, duration - start + 1);
+      tranches.push({
+        annee: year,
+        mois_debut: start,
+        mois_fin: start + months - 1,
+        mois: months,
+        mensualite_par_ha: monthly,
+        total_periode_par_ha: monthly * months,
+      });
+      start += months;
+      year += 1;
+    }
+    return tranches;
+  };
+
   const handleSaveOffre = () => {
     if (!editOffre) return;
+    const family = String((editOffre as any).famille_offre || "").toUpperCase();
+    if (family === "PALMTERROIR") {
+      const formulas = (Array.isArray((editOffre as any).formules_configuration) ? (editOffre as any).formules_configuration : []).map((formula: any) => {
+        const pi = Math.max(0, Number(formula.montant_pi_par_ha) || 0);
+        const monthly = Math.max(0, Number(formula.mensualite_par_ha) || 0);
+        const duration = Math.max(1, Number(formula.duree_paiement_mois) || 36);
+        const tranches = buildFormulaTranches(duration, monthly);
+        const total = pi + tranches.reduce((sum, tranche) => sum + tranche.total_periode_par_ha, 0);
+        return {
+          ...formula,
+          utilise_tarif_commun: false,
+          montant_pi_par_ha: pi,
+          montant_cash_par_ha: total,
+          mensualite_par_ha: monthly,
+          montant_total_par_ha: total,
+          duree_paiement_mois: duration,
+          tranches_paiement: tranches,
+        };
+      });
+      const essentielle = formulas.find((formula: any) => /ESSENTIELLE/i.test(String(formula.code || ""))) || formulas[0];
+      if (!essentielle) {
+        toast({ variant: "destructive", title: "Configuration incomplète", description: "Les formules PalmTerroir sont absentes du référentiel." });
+        return;
+      }
+      updateOffreMutation.mutate({
+        id: editOffre.id,
+        updates: {
+          nom: editOffre.nom,
+          montant_pi_par_ha: essentielle.montant_pi_par_ha,
+          montant_cash_par_ha: essentielle.montant_cash_par_ha,
+          mensualite_par_ha: essentielle.mensualite_par_ha,
+          montant_total_par_ha: essentielle.montant_total_par_ha,
+          duree_paiement_mois: essentielle.duree_paiement_mois,
+          tranches_paiement: essentielle.tranches_paiement as any,
+          formules_configuration: formulas as any,
+        } as any,
+      });
+      return;
+    }
+
     const pi = Math.max(0, Number(editOffre.montant_pi_par_ha) || 0);
     const tranches = getTranches(editOffre).map((t: any, index: number) => {
       const mois = Math.max(0, Number(t.mois) || ((Number(t.mois_fin) || 0) - (Number(t.mois_debut) || 0) + 1));
       const mensuel = Math.max(0, Number(t.mensualite_par_ha) || 0);
-      return { ...t, annee: Number(t.annee) || index + 1, mois, mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * mois };
+      const debut = Number(t.mois_debut) || tranchesStartMonth(index, getTranches(editOffre));
+      return { ...t, annee: Number(t.annee) || index + 1, mois_debut: debut, mois_fin: Number(t.mois_fin) || debut + mois - 1, mois, mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * mois };
     });
-    const duree = tranches.reduce((sum: number, t: any) => sum + Number(t.mois || 0), 0);
-    // Les tranches ponctuelles (ex. paiement après trouaison) peuvent déjà
-    // être incluses dans le PI. Le total contractuel = PI + mensualités.
-    // On ne les additionne donc jamais une seconde fois.
-    const totalMensualites = tranches.reduce(
-      (sum: number, t: any) => sum + (Number(t.mensualite_par_ha || 0) * Number(t.mois || 0)),
-      0,
-    );
+    const duree = Math.max(0, Number(editOffre.duree_paiement_mois) || tranches.reduce((sum: number, t: any) => sum + Number(t.mois || 0), 0));
+    const totalMensualites = tranches.reduce((sum: number, t: any) => sum + (Number(t.mensualite_par_ha || 0) * Number(t.mois || 0)), 0);
     const total = pi + totalMensualites;
     const lastMonthly = Number(tranches[tranches.length - 1]?.mensualite_par_ha || 0);
     updateOffreMutation.mutate({
@@ -302,6 +358,11 @@ const Offres = () => {
         avantages: editOffre.avantages
       }
     });
+  };
+
+  const tranchesStartMonth = (index: number, tranches: any[]) => {
+    const previous = tranches.slice(0, index).reduce((sum, tranche) => sum + Number(tranche.mois || 0), 0);
+    return previous + 1;
   };
 
   const resetPromoForm = () => {
@@ -434,7 +495,7 @@ const Offres = () => {
                       <Badge variant={active ? "default" : "secondary"} className="shrink-0">{active ? "Active" : "Inactive"}</Badge>
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
-                      <span className="text-xs text-muted-foreground">{familyOffers.length} formule{familyOffers.length > 1 ? "s" : ""}</span>
+                      <span className="text-xs text-muted-foreground">{familyOffers.reduce((count: number, offer: any) => count + (Array.isArray(offer.formules_configuration) ? offer.formules_configuration.length : 1), 0)} formules</span>
                       <Button size="sm" variant="outline" onClick={() => setDetailsFamily(family.key)}>Voir les détails</Button>
                     </div>
                   </CardContent>
@@ -466,20 +527,46 @@ const Offres = () => {
                               <Pencil className="mr-1 h-4 w-4" /> Modifier
                             </Button>
                           </div>
-                          <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                            <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">PI / ha</span><b>{formatMontant((pe as any)?.pi_effectif ?? offre.montant_pi_par_ha)} F</b></div>
-                            <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Mensualité / ha</span><b>{formatMontant(offre.mensualite_par_ha || 0)} F</b></div>
-                            <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Durée</span><b>{offre.duree_paiement_mois || 0} mois</b></div>
-                            <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Gestion</span><b>{offre.gestion_type === "deleguee" ? "Déléguée" : "Autonome"}</b></div>
-                          </div>
-                          <div className="mt-3 space-y-1">
-                            {tranches.filter((t: any) => Number(t.mensualite_par_ha ?? 0) > 0).map((t: any, i: number) => (
-                              <div key={i} className="flex min-w-0 justify-between gap-3 rounded-md bg-background p-2 text-xs">
-                                <span>An {t.annee ?? i + 1} · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
-                                <span className="shrink-0 font-semibold">{formatMontant(Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0))} F/ha</span>
+                          {String(detailsFamily || "").toUpperCase() === "PALMTERROIR" ? (
+                            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                              {(Array.isArray(offre.formules_configuration) ? offre.formules_configuration : []).map((formula: any) => (
+                                <div key={formula.code} className="rounded-lg border p-3">
+                                  <p className="font-semibold">{formula.nom}</p>
+                                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                    <div className="rounded bg-muted/40 p-2"><span className="block text-muted-foreground">Paiement initial / ha</span><b>{formatMontant(Number(formula.montant_pi_par_ha || 0))} F</b></div>
+                                    <div className="rounded bg-muted/40 p-2"><span className="block text-muted-foreground">Mensualité / ha</span><b>{formatMontant(Number(formula.mensualite_par_ha || 0))} F</b></div>
+                                    <div className="rounded bg-muted/40 p-2"><span className="block text-muted-foreground">Durée</span><b>{Number(formula.duree_paiement_mois || 36)} mois</b></div>
+                                    <div className="rounded bg-muted/40 p-2"><span className="block text-muted-foreground">Total / ha</span><b>{formatMontant(Number(formula.montant_total_par_ha || 0))} F</b></div>
+                                  </div>
+                                  <div className="mt-2 space-y-1">
+                                    {(Array.isArray(formula.tranches_paiement) ? formula.tranches_paiement : []).map((tranche: any, index: number) => (
+                                      <div key={tranche.annee || index} className="flex justify-between gap-2 rounded bg-background p-2 text-xs">
+                                        <span>An {tranche.annee || index + 1} · {tranche.mois || 12} mois</span>
+                                        <b>{formatMontant(Number(tranche.mensualite_par_ha || 0))} F/ha</b>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <>
+                              <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                                <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">PI / ha</span><b>{formatMontant((pe as any)?.pi_effectif ?? offre.montant_pi_par_ha)} F</b></div>
+                                <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Mensualité / ha</span><b>{formatMontant(offre.mensualite_par_ha || 0)} F</b></div>
+                                <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Durée</span><b>{offre.duree_paiement_mois || 0} mois</b></div>
+                                <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Formules</span><b>{(offre.formules_configuration || []).map((formula: any) => formula.nom).join(" / ") || offre.formule_nom || offre.nom}</b></div>
                               </div>
-                            ))}
-                          </div>
+                              <div className="mt-3 space-y-1">
+                                {tranches.map((t: any, i: number) => (
+                                  <div key={i} className="flex min-w-0 justify-between gap-3 rounded-md bg-background p-2 text-xs">
+                                    <span>An {t.annee ?? i + 1} · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
+                                    <span className="shrink-0 font-semibold">{formatMontant(Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0))} F/ha</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </CardContent>
                       </Card>
                     );
