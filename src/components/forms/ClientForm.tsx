@@ -58,19 +58,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
 
   const offer = useMemo(() => offers.find(o => o.id === form.offre_id) || null, [offers, form.offre_id]);
   const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
-  const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || offerFormulas[0] || null;
-
-  useEffect(() => {
-    if (!offer || !offerFormulas.length || offerFormulas.some((formula: any) => formula.code === form.formule_code)) return;
-    const firstFormula = offerFormulas[0];
-    setForm((current: any) => ({
-      ...current,
-      formule_code: firstFormula.code,
-      formule_nom: firstFormula.nom,
-      famille_offre: offer.famille_offre || null,
-      parcours_code: offer.parcours_code || offer.code,
-    }));
-  }, [offer, form.formule_code]);
+  const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || (!form.formule_code ? offerFormulas[0] : null) || null;
 
   const isBeneficiary = form.type_client === "beneficiaire_particulier";
   const hasActivity = Number(form.nombre_plantations || 0) > 0 || Boolean(form.pi_paye_at || form.paiement_initial_paye_at);
@@ -203,7 +191,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
           <div className="grid md:grid-cols-3 gap-4">
             <div><Label>Type de dossier</Label><Input value={isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"} disabled /></div>
             <div><Label>Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{if(hasActivity)return;const selected=offers.find(o=>o.id===v);if(!selected)return;const formulas=Array.isArray(selected.formules_configuration)?selected.formules_configuration:[];const formula=formulas[0]||null;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:formula?.code||selected.formule_code||selected.code,formule_nom:formula?.nom||selected.formule_nom||selected.nom,parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}} disabled={hasActivity}><SelectTrigger><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Formule</Label><Select value={selectedFormula?.code || form.formule_code || ""} onValueChange={code=>{if(hasActivity)return;const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={hasActivity || !offerFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Formule</Label><Select value={selectedFormula?.code || ""} onValueChange={code=>{if(hasActivity)return;const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={hasActivity || !offerFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
           </div>
           {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>L’offre est verrouillée car le dossier possède déjà une activation, un paiement initial ou une plantation. Toute modification contractuelle doit passer par le parcours contractuel.</span></div>}
         </CardContent>
