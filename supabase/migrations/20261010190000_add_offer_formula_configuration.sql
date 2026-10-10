@@ -22,6 +22,8 @@ WHERE UPPER(COALESCE(famille_offre, '')) IN ('PALMINVEST','TERRAPALM','PALMTERRO
 
 UPDATE public.offres
 SET montant_pi_par_ha = 230000,
+    paiement_signature_par_ha = 230000,
+    paiement_apres_trouaison_par_ha = 0,
     montant_cash_par_ha = 356000,
     mensualite_par_ha = 3500,
     montant_total_par_ha = 356000,
