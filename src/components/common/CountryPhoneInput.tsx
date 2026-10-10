@@ -5,6 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
 type Country={code:string;iso3?:string;name:string;callingCode:string;flag:string;minLocalDigits?:number;maxLocalDigits?:number;metadata?:Record<string,any>};
+const countryFlag = (code: string) =>
+  String(code || "").toUpperCase().replace(/[A-Z]/g, (letter) =>
+    String.fromCodePoint(127397 + letter.charCodeAt(0))
+  );
 const digits=(value:string)=>String(value||"").replace(/\D/g,"");
 const countryFromCode=(value:string,countries:Country[])=>countries.find(c=>c.code===value)||countries.find(c=>c.callingCode===value)||countries.find(c=>c.metadata?.is_default)||countries[0];
 
@@ -16,7 +20,7 @@ export interface CountryPhoneInputProps{
 
 export const CountryPhoneInput=({label,countryCode,localValue="",required,disabled,onChange,minLocalDigits,maxLocalDigits}:CountryPhoneInputProps)=>{
   const [countries,setCountries]=useState<Country[]>([]);
-  useEffect(()=>{let active=true;void (async()=>{const {data,error}=await (supabase as any).from("referentiels_systeme").select("code,libelle,ordre,metadata").eq("categorie","pays_telephone").eq("actif",true).order("ordre").order("libelle");if(active&&!error)setCountries((data||[]).map((r:any)=>({code:r.code,name:r.libelle,iso3:r.metadata?.iso3,callingCode:r.metadata?.callingCode||"",flag:r.metadata?.flag||"🌐",minLocalDigits:r.metadata?.minLocalDigits,maxLocalDigits:r.metadata?.maxLocalDigits,metadata:r.metadata})).filter((c:Country)=>c.callingCode));})();return()=>{active=false;};},[]);
+  useEffect(()=>{let active=true;void (async()=>{const {data,error}=await (supabase as any).from("referentiels_systeme").select("code,libelle,ordre,metadata").eq("categorie","pays_telephone").eq("actif",true).order("ordre").order("libelle");if(active&&!error)setCountries((data||[]).map((r:any)=>({code:r.code,name:r.libelle,iso3:r.metadata?.iso3,callingCode:r.metadata?.callingCode||"",flag:r.metadata?.flag||countryFlag(r.code),minLocalDigits:r.metadata?.minLocalDigits,maxLocalDigits:r.metadata?.maxLocalDigits,metadata:r.metadata})).filter((c:Country)=>c.callingCode));})();return()=>{active=false;};},[]);
   const selected=countryFromCode(countryCode||"",countries);
   const resolvedMin=minLocalDigits ?? selected?.minLocalDigits;
   const resolvedMax=maxLocalDigits ?? selected?.maxLocalDigits;
