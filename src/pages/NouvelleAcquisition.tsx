@@ -205,9 +205,10 @@ const NouvelleAcquisition = () => {
         if(leadError) throw leadError;
       }
 
-      for(const [field,column] of [["photo_profil","photo_profil_url"],["photo_piece_recto","fichier_piece_recto_url"],["photo_piece_verso","fichier_piece_verso_url"]] as const){
-        const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id);if(!uploaded)throw new Error("Upload impossible : "+field);
-        await (supabase as any).from("clients").update({[column]:uploaded.url}).eq("id",client.id);
+      for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
+        const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+client.id);if(!uploaded)throw new Error("Upload impossible : "+field);
+        const {error:mediaLinkError}=await (supabase as any).from("clients").update({[column]:uploaded.path}).eq("id",client.id);
+        if(mediaLinkError)throw mediaLinkError;
       }
 
 
@@ -219,9 +220,10 @@ const NouvelleAcquisition = () => {
           telephone:formData.representant_telephone||null,whatsapp:formData.representant_whatsapp||null,adresse:formData.representant_adresse||null,created_by:currentUser.id,updated_by:currentUser.id
         }).select().single();
         if(repError||!rep)throw repError||new Error("Cotitulaire / mandataire non enregistré");
-        for(const [field,column] of [["representant_photo_profil","photo_profil_url"],["representant_piece_recto","piece_recto_url"],["representant_piece_verso","piece_verso_url"]] as const){
-          const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/representant");if(!uploaded)throw new Error("Upload impossible : "+field);
-          await (supabase as any).from("client_cotitulaires_mandataires").update({[column]:uploaded.url}).eq("id",rep.id);
+        for(const [field,column,bucket] of [["representant_photo_profil","photo_profil_url","photos-profils"],["representant_piece_recto","piece_recto_url","pieces-identite"],["representant_piece_verso","piece_verso_url","pieces-identite"]] as const){
+          const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+client.id+"/representant");if(!uploaded)throw new Error("Upload impossible : "+field);
+          const {error:mediaLinkError}=await (supabase as any).from("client_cotitulaires_mandataires").update({[column]:uploaded.path}).eq("id",rep.id);
+          if(mediaLinkError)throw mediaLinkError;
         }
       }
 
