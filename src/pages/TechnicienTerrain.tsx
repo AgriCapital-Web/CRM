@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtime } from "@/hooks/useRealtime";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -91,6 +92,13 @@ const TechnicienTerrain=()=>{
   };
 
   useEffect(()=>{load();},[allowed]);
+  useRealtime({ table: "clients", onChange: load });
+  useRealtime({ table: "plantations", onChange: load });
+  useRealtime({ table: "parcelles", onChange: load });
+  useRealtime({ table: "offres", onChange: load });
+  useRealtime({ table: "interventions_techniques", onChange: load });
+  useRealtime({ table: "rapports_visites_techniques", onChange: load });
+  useRealtime({ table: "tickets_techniques", onChange: load });
 
   const interventionClient=useMemo(()=>clients.find(c=>c.id===intervention.client_id)||null,[clients,intervention.client_id]);
   const interventionPlantation=useMemo(()=>plantations.find(p=>p.id===intervention.plantation_id)||null,[plantations,intervention.plantation_id]);

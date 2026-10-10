@@ -10,46 +10,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Shield, KeyRound, Save, Lock, Upload, UserRound } from "lucide-react";
+import { Shield, KeyRound, Save, Lock, Upload, UserRound, Camera } from "lucide-react";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { formatUserProfileName } from "@/lib/utils";
 import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 
-const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: (f: File) => void; current?: string | null; bucket: string }) => {
+const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: (f: File) => Promise<void> | void; current?: string | null; bucket: string }) => {
   const currentUrl = useSignedUrl(bucket, current);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string>("");
+  const [previewIsImage, setPreviewIsImage] = useState(false);
+  const isPhoto = label.toLocaleLowerCase("fr-FR").includes("photo");
+  const handleFile = (file?: File) => {
+    if (!file) return;
+    setPreviewIsImage(file.type.startsWith("image/"));
+    const reader = new FileReader();
+    reader.onload = () => setPreview(String(reader.result || ""));
+    reader.onerror = () => setPreview("");
+    reader.readAsDataURL(file);
+    void Promise.resolve(onPick(file)).catch(() => setPreview(''));
+  };
+  const shown = preview || currentUrl || "";
+  const isImage = preview ? previewIsImage : isPhoto || [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".heic"].some((ext) => (current || "").toLowerCase().includes(ext));
   return (
-    <div>
+    <div className="min-w-0 space-y-2">
       <Label>{label}</Label>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*,application/pdf"
-        className="sr-only"
-        onChange={(e) => { e.stopPropagation(); const f = e.currentTarget.files?.[0]; if (f) onPick(f); e.currentTarget.value = ""; }}
-      />
-      <Button
-        type="button"
-        variant="outline"
-        className="mt-1 w-full justify-start"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); inputRef.current?.click(); }}
-      >
-        <Upload className="h-4 w-4" />
-        <span className="truncate">{current ? "Fichier enregistré — remplacer" : "Choisir un fichier"}</span>
-      </Button>
-      {current && (
-        <div className="mt-2 rounded-md border bg-muted/20 p-2">
-          {currentUrl ? (
-            <a href={currentUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary underline underline-offset-4">
-              Ouvrir le fichier enregistré
-            </a>
-          ) : (
-            <p className="text-xs text-muted-foreground">Chargement du fichier enregistré…</p>
-          )}
-        </div>
-      )}
+      <input ref={cameraRef} type="file" accept="image/*" capture={isPhoto ? "user" : "environment"} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
+      <input ref={fileRef} type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Button type="button" variant="outline" className="w-full justify-start" onClick={() => cameraRef.current?.click()}><Camera className="mr-2 h-4 w-4" />Prendre une photo</Button>
+        <Button type="button" variant="outline" className="w-full justify-start" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{current ? "Remplacer le fichier" : "Importer un fichier"}</Button>
+      </div>
+      {shown ? <div className="overflow-hidden rounded-md border bg-muted/20">
+        {isImage ? <img src={shown} alt={"Aperçu — " + label} className="mx-auto max-h-64 w-full object-contain" /> : preview ? <object data={shown} type="application/pdf" className="h-64 w-full"><a href={shown} target="_blank" rel="noreferrer">Consulter le document</a></object> : <div className="p-3 text-sm text-muted-foreground">Document enregistré</div>}
+        <div className="border-t p-2 text-xs text-muted-foreground">{preview ? "Aperçu du fichier sélectionné" : "Fichier enregistré"}</div>
+      </div> : current ? <p className="text-xs text-muted-foreground">Chargement du fichier enregistré…</p> : <p className="text-xs text-muted-foreground">Utilisez la caméra ou choisissez un fichier sur votre appareil.</p>}
     </div>
   );
 };
@@ -86,6 +84,7 @@ const Profil = () => {
       toast({ title: "Fichier téléversé", description: "Cliquez sur Enregistrer pour associer le fichier à votre profil." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Envoi impossible", description: error?.message || "Le fichier n'a pas pu être envoyé." });
+      throw error;
     } finally {
       setUploading(null);
     }

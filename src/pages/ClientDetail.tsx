@@ -20,6 +20,7 @@ import TicketForm from "@/components/forms/TicketForm";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { uploadFile } from "@/utils/storage";
 import { resolveStorageUrl } from "@/utils/storage";
+import { useRealtime } from "@/hooks/useRealtime";
 import ClientMessagingPanel from "@/components/clients/ClientMessagingPanel";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
@@ -35,6 +36,7 @@ const ClientDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
+  const [clientMedia, setClientMedia] = useState<{ photo: string | null; recto: string | null; verso: string | null }>({ photo: null, recto: null, verso: null });
   const [plantations, setPlantations] = useState<any[]>([]);
   const [paiements, setPaiements] = useState<any[]>([]);
   const [interventions, setInterventions] = useState<any[]>([]);
@@ -104,6 +106,19 @@ const ClientDetail = () => {
       if (clientError) throw clientError;
       setClient(clientData);
 
+      // New files use dedicated private buckets. Legacy client files may still
+      // live in the old documents bucket or be stored as expired signed URLs.
+      const resolveClientMedia = async (value: string | null | undefined, bucket: string) => {
+        if (!value) return null;
+        return await resolveStorageUrl(bucket, value) || await resolveStorageUrl("documents", value);
+      };
+      const [photo, recto, verso] = await Promise.all([
+        resolveClientMedia(clientData.photo_profil_url, "photos-profils"),
+        resolveClientMedia(clientData.fichier_piece_recto_url, "pieces-identite"),
+        resolveClientMedia(clientData.fichier_piece_verso_url, "pieces-identite"),
+      ]);
+      setClientMedia({ photo, recto, verso });
+
       if (canViewClientMoney) {
         const { data: monnaieData } = await (supabase as any).from("v_monnaie_clients").select("monnaie_client").eq("client_id", id).maybeSingle();
         setMonnaieClient(Number(monnaieData?.monnaie_client || 0));
@@ -125,7 +140,7 @@ const ClientDetail = () => {
         (supabase as any).from("documents_acquisition").select("*").eq("client_id",id).order("created_at",{ascending:true})
       ]);
       const normalized=[...(benefDocs||[]).map((x:any)=>({...x,libelle:x.libelle||x.document_type,categorie:x.categorie||"Bénéficiaire"})),...(acqDocs||[]).map((x:any)=>({...x,libelle:x.libelle||x.type_document,categorie:x.categorie||"Acquisition"}))];
-      const docsWithUrls=await Promise.all(normalized.map(async(doc:any)=>({...doc,displayUrl:doc.fichier_url&&doc.storage_bucket?await resolveStorageUrl(doc.storage_bucket,doc.storage_path||doc.fichier_url):null})));
+      const docsWithUrls=await Promise.all(normalized.map(async(doc:any)=>({...doc,displayUrl:doc.fichier_url?await resolveStorageUrl(doc.storage_bucket||"documents",doc.storage_path||doc.fichier_url):null})));
       setDocuments(docsWithUrls);
 
       const { data: attributionsData } = await (supabase as any)
@@ -202,6 +217,16 @@ const ClientDetail = () => {
     }
   }, [id, canViewClientMoney, canViewClientPayments]);
 
+  // Keep this detail view synchronized in place when this Client or its linked
+  // records change elsewhere in the CRM.
+  useRealtime({ table: "clients", filter: id ? `id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "plantations", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "documents_acquisition", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "beneficiaire_attributions", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "beneficiaire_documents", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "client_enquetes", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "client_cotitulaires_mandataires", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+
   const formatMontant = (montant: number) => {
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -254,18 +279,32 @@ const ClientDetail = () => {
       <MainLayout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               <Button
                 variant="ghost"
                 size="sm"
+                className="shrink-0"
                 onClick={() => navigate("/acquisitions")}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Retour
               </Button>
-              <div>
-                <h1 className="text-3xl font-bold">{client.nom_complet}</h1>
-                <p className="text-muted-foreground">{client.id_unique}</p>
+              {clientMedia.photo ? (
+                <img src={clientMedia.photo} alt={client.nom_complet || "Photo du Client"} className="h-14 w-14 shrink-0 rounded-full border object-cover sm:h-16 sm:w-16" />
+              ) : (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold sm:h-16 sm:w-16">
+                  {String(client.nom_complet || "C").trim().charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-bold sm:text-3xl">{client.nom_complet}</h1>
+                <p className="truncate text-sm text-muted-foreground">{client.id_unique}</p>
+                {(clientMedia.recto || clientMedia.verso) && (
+                  <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                    {clientMedia.recto && <a href={clientMedia.recto} target="_blank" rel="noreferrer" className="text-primary underline">Pièce d’identité — recto</a>}
+                    {clientMedia.verso && <a href={clientMedia.verso} target="_blank" rel="noreferrer" className="text-primary underline">Pièce d’identité — verso</a>}
+                  </div>
+                )}
               </div>
             </div>
             <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>

@@ -4,11 +4,10 @@ import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Loader2, BriefcaseBusiness, UserRound, UserCog, MapPin, FileText, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, BriefcaseBusiness, UserRound, UserCog, FileText, CheckCircle2 } from "lucide-react";
 import { Etape0Offre } from "@/components/forms/acquisition/Etape0Offre";
 import { EtapeClientDynamique } from "@/components/forms/acquisition/EtapeClientDynamique";
 import { EtapeRepresentantDynamique } from "@/components/forms/acquisition/EtapeRepresentantDynamique";
-import { EtapeParcelleDynamique } from "@/components/forms/acquisition/EtapeParcelleDynamique";
 import { EtapeEnqueteClient } from "@/components/forms/acquisition/EtapeEnqueteClient";
 import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition/EtapeDocumentsContratsDynamiques";
 import { EtapeConfirmationDossier } from "@/components/forms/acquisition/EtapeConfirmationDossier";
@@ -24,7 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 
 type Step = { code:string; titre:string; description?:string; ordre:number; obligatoire:boolean };
-const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, parcelle: MapPin, enquete: UserRound, documents: FileText, confirmation: CheckCircle2 };
+const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, enquete: UserRound, documents: FileText, confirmation: CheckCircle2 };
 
 const NouvelleAcquisition = () => {
   const [formData,setFormData]=useState<any>({});
@@ -85,7 +84,9 @@ const NouvelleAcquisition = () => {
         .select("code,titre,description,ordre,obligatoire").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre");
       if(!mounted)return;
       if(error)toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
-      setSteps(data||[]);
+      // Le foncier relève exclusivement de la première intervention technique, jamais du parcours commercial.
+      // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
+      setSteps((data||[]).filter((item:any)=>String(item.code).toLowerCase()!=="parcelle"));
       setCurrent(v=>Math.min(v,Math.max(0,(data||[]).length-1)));
       setLoadingSteps(false);
     })();
@@ -107,15 +108,6 @@ const NouvelleAcquisition = () => {
       }
       if(!formData.enquete_objectif){
         toast({variant:"destructive",title:"Enquête client incomplète",description:"L’objectif du Client est obligatoire."}); return false;
-      }
-    }
-    if(step.code==="parcelle"){
-      const external=!formData.offre?.necessite_foncier_client;
-      if(Number(formData.superficie_prevue)<=0||!formData.village_propre){
-        toast({variant:"destructive",title:"Parcelle incomplète",description:"La superficie et la localité sont obligatoires."}); return false;
-      }
-      if(external&&(!formData.convention_id||!formData.lot_id)){
-        toast({variant:"destructive",title:"Foncier externe incomplet",description:"La convention et le lot disponible sont obligatoires pour cette offre."}); return false;
       }
     }
     if(step.code==="cotitulaire"){
@@ -191,17 +183,9 @@ const NouvelleAcquisition = () => {
       const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement:"echeancier"});
       const total=Number(prix.montant_total_effectif||prix.montant_total_base||0)*ha;
       const external=!offer.necessite_foncier_client;
-
-      let parcelleId=formData.parcelle_id||null;
-      if(external&&formData.lot_id){
-        const {data:lot,error:lotError}=await (supabase as any).from("lots_hectares").select("parcelle_id").eq("id",formData.lot_id).maybeSingle();
-        if(lotError) throw lotError;
-        if(!lot?.parcelle_id) throw new Error("Le lot sélectionné n’est pas rattaché à une parcelle foncière.");
-        parcelleId=lot.parcelle_id;
-      }
       const nomComplet=(String(formData.nom_famille||"")+" "+String(formData.prenoms||"")).trim();
       const {data:client,error:clientError}=await offlineInsert("clients",{
-        offre_id:offer.id,commercial_id:formData.commercial_id||null,parcelle_id:parcelleId,type_client:external?"sans_terre":"avec_terre",type_client_foncier:external?"EXT":"OWN",
+        offre_id:offer.id,commercial_id:formData.commercial_id||null,parcelle_id:null,type_client:external?"sans_terre":"avec_terre",type_client_foncier:external?"EXT":"OWN",
         nom:formData.nom_famille||"",nom_famille:formData.nom_famille||"",prenoms:formData.prenoms||"",nom_complet:nomComplet,
         civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,nationalite:formData.nationalite||null,
         statut_marital:formData.statut_marital||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,date_delivrance_piece:formData.date_delivrance_piece||null,
@@ -221,22 +205,12 @@ const NouvelleAcquisition = () => {
         if(leadError) throw leadError;
       }
 
-      for(const [field,column] of [["photo_profil","photo_profil_url"],["photo_piece_recto","fichier_piece_recto_url"],["photo_piece_verso","fichier_piece_verso_url"]] as const){
-        const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id);if(!uploaded)throw new Error("Upload impossible : "+field);
-        await (supabase as any).from("clients").update({[column]:uploaded.url}).eq("id",client.id);
+      for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
+        const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+client.id);if(!uploaded)throw new Error("Upload impossible : "+field);
+        const {error:mediaLinkError}=await (supabase as any).from("clients").update({[column]:uploaded.path}).eq("id",client.id);
+        if(mediaLinkError)throw mediaLinkError;
       }
 
-       if(external&&formData.lot_id){
-         const {error}=await (supabase as any).from("lots_hectares").update({
-           client_id:client.id,
-           statut:"attribue",
-           date_attribution:new Date().toISOString().slice(0,10),
-         }).eq("id",formData.lot_id);
-         if(error) throw error;
-         // Le commercial s'arrête à l'attribution du lot.
-         // L'activation Planté-Partagé du propriétaire est déclenchée
-         // automatiquement après validation du paiement initial.
-       }
 
       if(formData.has_representant){
         const {data:rep,error:repError}=await (supabase as any).from("client_cotitulaires_mandataires").insert({
@@ -246,9 +220,10 @@ const NouvelleAcquisition = () => {
           telephone:formData.representant_telephone||null,whatsapp:formData.representant_whatsapp||null,adresse:formData.representant_adresse||null,created_by:currentUser.id,updated_by:currentUser.id
         }).select().single();
         if(repError||!rep)throw repError||new Error("Cotitulaire / mandataire non enregistré");
-        for(const [field,column] of [["representant_photo_profil","photo_profil_url"],["representant_piece_recto","piece_recto_url"],["representant_piece_verso","piece_verso_url"]] as const){
-          const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/representant");if(!uploaded)throw new Error("Upload impossible : "+field);
-          await (supabase as any).from("client_cotitulaires_mandataires").update({[column]:uploaded.url}).eq("id",rep.id);
+        for(const [field,column,bucket] of [["representant_photo_profil","photo_profil_url","photos-profils"],["representant_piece_recto","piece_recto_url","pieces-identite"],["representant_piece_verso","piece_verso_url","pieces-identite"]] as const){
+          const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+client.id+"/representant");if(!uploaded)throw new Error("Upload impossible : "+field);
+          const {error:mediaLinkError}=await (supabase as any).from("client_cotitulaires_mandataires").update({[column]:uploaded.path}).eq("id",rep.id);
+          if(mediaLinkError)throw mediaLinkError;
         }
       }
 
@@ -296,7 +271,6 @@ const NouvelleAcquisition = () => {
       case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
       case "client":return <div className="space-y-6"><EtapeClientDynamique formData={formData} updateFormData={updateFormData}/><EtapeEnqueteClient formData={formData} updateFormData={updateFormData}/></div>;
       case "cotitulaire":return <EtapeRepresentantDynamique formData={formData} updateFormData={updateFormData}/>;
-      case "parcelle":return <EtapeParcelleDynamique formData={formData} updateFormData={updateFormData}/>;
       case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData}/>;
       case "confirmation":return <EtapeConfirmationDossier formData={formData} updateFormData={updateFormData}/>;
       default:return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
@@ -305,7 +279,7 @@ const NouvelleAcquisition = () => {
 
   const last=current===activeSteps.length-1&&activeSteps.length>0;
   return <ProtectedRoute requiredPermissionCode="clients.create"><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
-    <div><h1 className="text-3xl font-bold">Nouveau Client</h1><p className="text-muted-foreground">Parcours Client : offre, informations du client, cotitulaire / mandataire, foncier, documents et confirmation.</p><SyncStatusBadge state={syncState} className="mt-2"/></div>
+    <div><h1 className="text-3xl font-bold">Nouveau Client</h1><p className="text-muted-foreground">Parcours commercial : offre, informations du Client, cotitulaire / mandataire, enquête, documents et confirmation. La parcelle est identifiée par le technicien lors de la première intervention.</p><SyncStatusBadge state={syncState} className="mt-2"/></div>
     <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>i<=current&&setCurrent(i)}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
     <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:renderStep()}</Card>
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">

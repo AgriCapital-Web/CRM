@@ -31,8 +31,9 @@ export const uploadFile = async (
 
 /**
  * Resolves a stored storage value to a usable URL.
- * - Full http(s) URLs (legacy rows) are returned as-is.
- * - Storage paths get a fresh short-lived signed URL (default 1 hour).
+ * New records store a path. Legacy records may contain public or signed
+ * Supabase Storage URLs; those are converted back to a path and re-signed so
+ * existing images continue to work after an old signed URL expires.
  */
 export const resolveStorageUrl = async (
   bucket: string,
@@ -40,9 +41,29 @@ export const resolveStorageUrl = async (
   expiresIn = 3600
 ): Promise<string | null> => {
   if (!value) return null;
-  if (value.startsWith('http')) return value;
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(value, expiresIn);
-  if (error || !data?.signedUrl) return null;
+
+  let path = value;
+  if (/^https?:\/\//i.test(value)) {
+    let parsed: URL;
+    try {
+      parsed = new URL(value);
+    } catch {
+      return value;
+    }
+
+    const storageMatch = parsed.pathname.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/);
+    if (!storageMatch) return value;
+    if (decodeURIComponent(storageMatch[1]) !== bucket) return null;
+    path = storageMatch[2].split('/').map((segment) => {
+      try { return decodeURIComponent(segment); } catch { return segment; }
+    }).join('/');
+  }
+
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+  if (error || !data?.signedUrl) {
+    console.warn('Unable to resolve stored media path', { bucket, path, error });
+    return null;
+  }
   return data.signedUrl;
 };
 
@@ -68,6 +89,6 @@ export const getFileUrl = (bucket: string, path: string): string => {
   const { data: { publicUrl } } = supabase.storage
     .from(bucket)
     .getPublicUrl(path);
-  
+
   return publicUrl;
 };

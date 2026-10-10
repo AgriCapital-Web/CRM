@@ -42,7 +42,6 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
-import { cleanupLegacyStorage } from "@/lib/storageMaintenance";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -122,23 +121,6 @@ const DomainRouter = () => {
   );
 };
 
-let legacyStorageCleanupCompleted = false;
-
-const LegacyStorageMaintenance = () => {
-  const { user } = useAuth();
-  const { isPdg, isDg, loading } = usePermissions();
-
-  useEffect(() => {
-    if (loading || !user || (!isPdg && !isDg) || legacyStorageCleanupCompleted) return;
-    void cleanupLegacyStorage()
-      .then(() => { legacyStorageCleanupCompleted = true; })
-      .catch(() => {});
-  }, [loading, user, isPdg, isDg]);
-
-  return null;
-};
-
-
 const SpaNavigationGuard = () => {
   const navigate = useNavigate();
 
@@ -187,7 +169,6 @@ const App = () => (
         <BrowserRouter>
           <SpaNavigationGuard />
           <InstallPrompt />
-          <LegacyStorageMaintenance />
           <DomainRouter />
         </BrowserRouter>
       </TooltipProvider>

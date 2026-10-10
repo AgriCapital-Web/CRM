@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -12,6 +12,7 @@ interface UseRealtimeOptions {
   onChange?: (payload: any) => void;
 }
 
+/** Subscribe once per table/filter while always invoking the latest callbacks. */
 export const useRealtime = ({
   table,
   event = '*',
@@ -22,49 +23,27 @@ export const useRealtime = ({
   onChange,
 }: UseRealtimeOptions) => {
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const callbacks = useRef({ onInsert, onUpdate, onDelete, onChange });
+  callbacks.current = { onInsert, onUpdate, onDelete, onChange };
 
   useEffect(() => {
-    const channelName = `${table}-changes-${Date.now()}`;
-    const realtimeChannel = supabase.channel(channelName);
+    const config: any = { event, schema: 'public', table };
+    if (filter) config.filter = filter;
 
-    const config: any = {
-      event: event,
-      schema: 'public',
-      table: table,
-    };
-
-    if (filter) {
-      config.filter = filter;
-    }
-
-    realtimeChannel.on(
-      'postgres_changes',
-      config,
-      (payload) => {
-        console.log(`Realtime event on ${table}:`, payload);
-        
-        if (onChange) {
-          onChange(payload);
-        }
-
-        if (payload.eventType === 'INSERT' && onInsert) {
-          onInsert(payload.new);
-        } else if (payload.eventType === 'UPDATE' && onUpdate) {
-          onUpdate(payload.new);
-        } else if (payload.eventType === 'DELETE' && onDelete) {
-          onDelete(payload.old);
-        }
-      }
-    );
-
-    realtimeChannel.subscribe((status) => {
-      console.log(`Realtime subscription status for ${table}:`, status);
-    });
+    const realtimeChannel = supabase
+      .channel(`crm-${table}-${filter || 'all'}`)
+      .on('postgres_changes', config, (payload) => {
+        callbacks.current.onChange?.(payload);
+        if (payload.eventType === 'INSERT') callbacks.current.onInsert?.(payload.new);
+        else if (payload.eventType === 'UPDATE') callbacks.current.onUpdate?.(payload.new);
+        else if (payload.eventType === 'DELETE') callbacks.current.onDelete?.(payload.old);
+      })
+      .subscribe();
 
     setChannel(realtimeChannel);
-
     return () => {
-      supabase.removeChannel(realtimeChannel);
+      void supabase.removeChannel(realtimeChannel);
+      setChannel((current) => current === realtimeChannel ? null : current);
     };
   }, [table, event, filter]);
 
