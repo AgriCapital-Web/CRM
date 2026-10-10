@@ -27,7 +27,7 @@ const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 const CLIENT_COLUMNS = new Set([
   "civilite","nom_famille","prenoms","nom_complet","nom","date_naissance","lieu_naissance","statut_marital",
   "type_piece","numero_piece","date_delivrance_piece","telephone","whatsapp","email","domicile","domicile_residence",
-  "district_id","region_id","departement_id","sous_prefecture_id","village_id","offre_id","commercial_id","type_compte","banque_operateur",
+  "district_id","region_id","departement_id","sous_prefecture_id","village_id","offre_id","famille_offre","formule_code","formule_nom","parcours_code","commercial_id","type_compte","banque_operateur",
   "numero_compte","nom_titulaire_compte","photo_profil_url","fichier_piece_url","fichier_piece_recto_url",
   "fichier_piece_verso_url","localite","nationalite","type_client","telephone_indicatif","telephone_local",
   "whatsapp_indicatif","whatsapp_local","updated_by"
@@ -51,7 +51,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
 
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any).from("offres").select("id,code,nom,famille_offre,necessite_foncier_client,actif").eq("actif", true).order("nom");
+      const { data } = await (supabase as any).from("offres").select("id,code,nom,famille_offre,formule_code,formule_nom,parcours_code,type_offre,necessite_foncier_client,actif").eq("actif", true).order("ordre").order("nom");
       setOffers(data || []);
     })();
   }, []);
@@ -188,7 +188,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
             <div><Label>Type de dossier</Label><Input value={isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"} disabled /></div>
-            <div><Label>Offre / formule</Label><Select value={form.offre_id || ""} onValueChange={v=>{if(!hasActivity)setField("offre_id",v);}} disabled={hasActivity}><SelectTrigger><SelectValue placeholder={offer?.nom || "Offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Offre / formule</Label><Select value={form.offre_id || ""} onValueChange={v=>{if(hasActivity)return;const selected=offers.find(o=>o.id===v);if(!selected)return;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:selected.formule_code||selected.code,formule_nom:selected.formule_nom||selected.nom,parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}} disabled={hasActivity}><SelectTrigger><SelectValue placeholder={offer?.formule_nom || offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.formule_nom || o.nom}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Formule</Label><Input value={form.formule_nom || form.formule_code || "—"} disabled /></div>
           </div>
           {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>L’offre est verrouillée car le dossier possède déjà une activation, un paiement initial ou une plantation. Toute modification contractuelle doit passer par le parcours contractuel.</span></div>}
