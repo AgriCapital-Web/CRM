@@ -165,8 +165,15 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
           <CardTitle className="text-base sm:text-lg">Choisissez votre offre</CardTitle>
           <CardDescription>Sélectionnez une offre puis sa formule. Les détails s'affichent uniquement après sélection.</CardDescription>
         </CardHeader>
+        {formData.offre_id && (
+          <CardContent className="pt-0 pb-3">
+            <Button type="button" variant="outline" size="sm" onClick={() => updateFormData({ offre_id: "", offre_code: "", offre: null, type_client: "" })}>
+              Changer d’offre
+            </Button>
+          </CardContent>
+        )}
         <CardContent className="space-y-2">
-          {familles.map(([famille, familyOffers]) => {
+          {(formData.offre_id ? familles.filter(([, familyOffers]) => familyOffers.some((o) => o.id === formData.offre_id)) : familles).map(([famille, familyOffers]) => {
             const selectedFamily = familyOffers.some((o) => o.id === formData.offre_id);
             const first = familyOffers[0];
             const familleLabel = String(famille);
