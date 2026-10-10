@@ -172,8 +172,21 @@ const NouvelleAcquisition = () => {
     try{
       const currentUser = user;
       if(!currentUser)throw new Error("Session utilisateur introuvable");
-      const {data:offer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
-      if(offerError||!offer)throw new Error("Offre sélectionnée introuvable");
+      const {data:baseOffer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
+      if(offerError||!baseOffer)throw new Error("Offre sélectionnée introuvable");
+      const formulas = Array.isArray(baseOffer.formules_configuration) ? baseOffer.formules_configuration : [];
+      const selectedFormula = formulas.find((formula: any) => formula.code === formData.formule_code) || formulas[0] || null;
+      const offer: any = selectedFormula ? {
+        ...baseOffer,
+        formule_code: selectedFormula.code || baseOffer.formule_code || baseOffer.code,
+        formule_nom: selectedFormula.nom || baseOffer.formule_nom || baseOffer.nom,
+        gestion_type: selectedFormula.gestion_type ?? baseOffer.gestion_type,
+        ...(selectedFormula.utilise_tarif_commun === false ? Object.fromEntries(
+          ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]
+            .filter((key) => selectedFormula[key] !== undefined && selectedFormula[key] !== null)
+            .map((key) => [key, selectedFormula[key]])
+        ) : {}),
+      } : baseOffer;
       const ha=Number(formData.superficie_prevue);
       const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement:"echeancier"});
       const total=Number(prix.montant_total_effectif||prix.montant_total_base||0)*ha;
@@ -244,7 +257,7 @@ const NouvelleAcquisition = () => {
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
-        if(c.when==="offre_plus"&&!String(offer.code).endsWith("-plus"))continue;
+        if(c.when==="offre_plus"&&!(/PLUS|DELEGUE|\+/i.test(String(offer.formule_code||"")+" "+String(offer.formule_nom||""))))continue;
         if(c.when==="client_land"&&!offer.necessite_foncier_client)continue;
         if(c.when==="acquisition"&&!offer.contrat_acquisition_requis)continue;
         if(doc.obligatoire&&!formData["doc_"+doc.code+"_file"])throw new Error("Pièce obligatoire manquante : "+doc.libelle);
