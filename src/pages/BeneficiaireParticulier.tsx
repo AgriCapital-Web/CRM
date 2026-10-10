@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
+import CountryNationalitySelect from "@/components/common/CountryNationalitySelect";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import { ArrowLeft, FileCheck2, LandPlot, UserRound, Sprout, Upload } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
@@ -181,7 +182,7 @@ const BeneficiaireParticulier = () => {
             <div><Label>Nom complet *</Label><Input value={beneficiaire.nom_complet} onChange={e=>setBeneficiaire({...beneficiaire,nom_complet:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <div><Label>Date de naissance</Label><Input type="date" value={beneficiaire.date_naissance} onChange={e=>setBeneficiaire({...beneficiaire,date_naissance:e.target.value})}/></div>
             <div><Label>Lieu de naissance</Label><Input value={beneficiaire.lieu_naissance} onChange={e=>setBeneficiaire({...beneficiaire,lieu_naissance:e.target.value})}/></div>
-            <div><Label>Nationalité</Label><Input value={beneficiaire.nationalite} onChange={e=>setBeneficiaire({...beneficiaire,nationalite:e.target.value})}/></div>
+            <CountryNationalitySelect value={beneficiaire.nationalite} onChange={v=>setBeneficiaire({...beneficiaire,nationalite:v})} />
             <div><Label>Type de pièce *</Label><PieceTypeSelect value={beneficiaire.type_piece} onChange={v=>setBeneficiaire({...beneficiaire,type_piece:v})}/></div><div><Label>N° CNI / pièce *</Label><Input value={beneficiaire.numero_piece} onChange={e=>setBeneficiaire({...beneficiaire,numero_piece:e.target.value})}/></div>
             <div><Label>Date d’émission</Label><Input type="date" value={beneficiaire.date_delivrance_piece} onChange={e=>setBeneficiaire({...beneficiaire,date_delivrance_piece:e.target.value})}/></div>
             <CountryPhoneInput label="Téléphone" countryCode={beneficiaire.telephone_indicatif||""} localValue={beneficiaire.telephone_local||""} onChange={v=>setBeneficiaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
