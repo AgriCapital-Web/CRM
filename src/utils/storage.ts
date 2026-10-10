@@ -25,7 +25,7 @@ export const uploadFile = async (
     return { url: result.path, path: result.path };
   } catch (error) {
     console.error('Error uploading file:', error);
-    return null;
+    throw error instanceof Error ? error : new Error('Le téléversement du fichier a échoué.');
   }
 };
 
