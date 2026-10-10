@@ -113,8 +113,16 @@ const Profil = () => {
         payload.username = profile.username || null;
         payload.poste = profile.poste || null;
       }
-      const { error } = await (supabase as any).from("profiles").update(payload).eq("user_id", user.id);
+      const { data: savedProfile, error } = await (supabase as any)
+        .from("profiles")
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .select("user_id")
+        .maybeSingle();
       if (error) throw error;
+      if (!savedProfile?.user_id) {
+        throw new Error("Aucune modification n'a été confirmée par la base de données. Vérifiez vos droits d'accès puis réessayez.");
+      }
       if (isAdmin && profile.email && profile.email !== user.email) {
         const { error: e } = await supabase.auth.updateUser({ email: profile.email });
         if (e) throw e;
