@@ -476,11 +476,11 @@ const Dashboard = () => {
 
           {!isClientOnly && (
             <>
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <section className="grid min-w-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {kpis.filter((k) => k.show).map((k) => {
                   const Icon = k.icon;
                   const card = (
-                    <Card className="h-full transition-all hover:shadow-md hover:border-primary/50">
+                    <Card className="h-full min-w-0 overflow-hidden transition-all hover:shadow-md hover:border-primary/50">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium text-muted-foreground">{k.label}</span>
