@@ -32,7 +32,7 @@ const BeneficiaireParticulier = () => {
     nom_complet: "",
     date_naissance: "",
     lieu_naissance: "",
-    nationalite: "Ivoirienne",
+    nationalite: "",
     type_piece: "cni",
     numero_piece: "",
     date_delivrance_piece: "",
