@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
+import CountryNationalitySelect from "@/components/common/CountryNationalitySelect";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
@@ -157,7 +158,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
           <div><Label>Prénoms</Label><Input value={form.prenoms || ""} onChange={e=>{setField("prenoms",e.target.value);setField("nom_complet",[form.nom_famille || form.nom,e.target.value].filter(Boolean).join(" "));}}/></div>
           <div><Label>Date de naissance</Label><Input type="date" value={form.date_naissance || ""} onChange={e=>setField("date_naissance",e.target.value)}/></div>
           <div><Label>Lieu de naissance</Label><Input value={form.lieu_naissance || ""} onChange={e=>setField("lieu_naissance",e.target.value)}/></div>
-          <div><Label>Nationalité</Label><Input value={form.nationalite || ""} onChange={e=>setField("nationalite",e.target.value)}/></div>
+          <CountryNationalitySelect value={form.nationalite} onChange={v=>setField("nationalite",v)} />
           <div><Label>Situation matrimoniale</Label><Select value={form.statut_marital || ""} onValueChange={v=>setField("statut_marital",v)}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("statut_marital").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
         </CardContent>
       </Card>
