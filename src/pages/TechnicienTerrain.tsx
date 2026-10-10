@@ -95,7 +95,10 @@ const TechnicienTerrain=()=>{
   const interventionClient=useMemo(()=>clients.find(c=>c.id===intervention.client_id)||null,[clients,intervention.client_id]);
   const interventionPlantation=useMemo(()=>plantations.find(p=>p.id===intervention.plantation_id)||null,[plantations,intervention.plantation_id]);
   const interventionOwnerClient=interventionClient || clients.find((c:any)=>c.id===interventionPlantation?.client_id) || null;
-  const clientOffer=offerConfigs.find((o:any)=>o.id===interventionOwnerClient?.offre_id) || null;
+  const clientOffer=offerConfigs.find((o:any)=>o.id===interventionOwnerClient?.offre_id)
+    || offerConfigs.find((o:any)=>o.famille_offre && o.famille_offre===interventionOwnerClient?.famille_offre)
+    || offerConfigs.find((o:any)=>o.code && o.code===interventionOwnerClient?.famille_offre)
+    || null;
   const technicalPalmInvest=Boolean(clientOffer && clientOffer.necessite_foncier_client===false);
   const technicalOwnLand=Boolean(clientOffer?.necessite_foncier_client===true);
 
