@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,14 +20,17 @@ export interface CountryPhoneInputProps{
 
 export const CountryPhoneInput=({label,countryCode,localValue="",required,disabled,onChange,minLocalDigits,maxLocalDigits}:CountryPhoneInputProps)=>{
   const [countries,setCountries]=useState<Country[]>([]);
+  const [selectedCode,setSelectedCode]=useState("");
+  const lastEmittedCallingCode=useRef<string|null>(null);
   useEffect(()=>{let active=true;void (async()=>{const {data,error}=await (supabase as any).from("referentiels_systeme").select("code,libelle,ordre,metadata").eq("categorie","pays_telephone").eq("actif",true).order("ordre").order("libelle");if(active&&!error)setCountries((data||[]).map((r:any)=>({code:r.code,name:r.libelle,iso3:r.metadata?.iso3,callingCode:r.metadata?.callingCode||"",flag:r.metadata?.flag||countryFlag(r.code),minLocalDigits:r.metadata?.minLocalDigits,maxLocalDigits:r.metadata?.maxLocalDigits,metadata:r.metadata})).filter((c:Country)=>c.callingCode));})();return()=>{active=false;};},[]);
-  const selected=countryFromCode(countryCode||"",countries);
+  useEffect(()=>{if(!countries.length)return;if(lastEmittedCallingCode.current&&countryCode===lastEmittedCallingCode.current){lastEmittedCallingCode.current=null;return;}setSelectedCode(countryFromCode(countryCode||"",countries)?.code||"");},[countryCode,countries]);
+  const selected=countries.find(c=>c.code===selectedCode)||countryFromCode(countryCode||"",countries);
   const resolvedMin=minLocalDigits ?? selected?.minLocalDigits;
   const resolvedMax=maxLocalDigits ?? selected?.maxLocalDigits;
   const normalizeLocal=(value:string,country:Country)=>{let d=digits(value);const cc=digits(country?.callingCode||"");if(cc&&d.startsWith(cc)&&resolvedMax&&d.length>resolvedMax)d=d.slice(cc.length);return resolvedMax ? d.slice(0,resolvedMax) : d;};
   const currentLocal=selected?normalizeLocal(localValue,selected):"";
   const options=useMemo(()=>countries.map(c=>({value:c.code,label:c.flag+" "+c.name+" "+c.callingCode})),[countries]);
-  const emit=(country:Country,value:string)=>{const local=normalizeLocal(value,country);const international=local?country.callingCode+local:"";const parsed=international?parsePhoneNumberFromString(international,country.code as any):undefined;const normalizedLocal=parsed?.countryCallingCode===digits(country.callingCode)?parsed.nationalNumber:local;onChange({countryCode:country.code,callingCode:country.callingCode,localValue:normalizedLocal,internationalValue:international});};
+  const emit=(country:Country,value:string)=>{setSelectedCode(country.code);lastEmittedCallingCode.current=country.callingCode;const local=normalizeLocal(value,country);const international=local?country.callingCode+local:"";const parsed=international?parsePhoneNumberFromString(international,country.code as any):undefined;const normalizedLocal=parsed?.countryCallingCode===digits(country.callingCode)?parsed.nationalNumber:local;onChange({countryCode:country.code,callingCode:country.callingCode,localValue:normalizedLocal,internationalValue:international});};
   return <div className="space-y-2 min-w-0">
     {label&&<label className="text-sm font-medium truncate block">{label}{required&&" *"}</label>}
     <div className="flex w-full min-w-0 items-stretch gap-2">
