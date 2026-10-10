@@ -72,7 +72,15 @@ export async function uploadOrQueueFile(opts: {
       .from(opts.bucket)
       .upload(opts.path, preparedFile, { upsert: true, contentType });
     if (!error) return { path: opts.path, queued: false, error: null };
-    // Échec réseau → on met en file
+
+    // Online permission/validation errors must never be reported as successful queued uploads.
+    // Queue only failures that can plausibly be caused by a transient connection issue.
+    const statusCode = Number((error as any)?.statusCode || (error as any)?.status || 0);
+    const errorText = String((error as any)?.message || "").toLowerCase();
+    const permanentFailure =
+      (statusCode >= 400 && statusCode < 500 && statusCode !== 408 && statusCode !== 429) ||
+      /row-level security|permission denied|unauthorized|forbidden|bucket not found|invalid key|payload too large|mime type/i.test(errorText);
+    if (permanentFailure) throw error;
   }
 
   const entry: QueuedFile = {
