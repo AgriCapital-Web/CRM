@@ -67,11 +67,16 @@ const Profil = () => {
   const upload = async (field: string, bucket: string, file: File) => {
     if (!user?.id) return;
     setUploading(field);
-    const res = await uploadFile(bucket, file, user.id);
-    setUploading(null);
-    if (!res) return toast({ variant: "destructive", title: "Envoi impossible", description: "Le fichier n'a pas pu être envoyé." });
-    set(field, res.path);
-    toast({ title: "Fichier ajouté", description: "Cliquez sur Enregistrer pour valider." });
+    try {
+      const res = await uploadFile(bucket, file, user.id);
+      if (!res?.path) throw new Error("Le stockage n'a pas confirmé l'enregistrement du fichier.");
+      set(field, res.path);
+      toast({ title: "Fichier téléversé", description: "Cliquez sur Enregistrer pour associer le fichier à votre profil." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Envoi impossible", description: error?.message || "Le fichier n'a pas pu être envoyé." });
+    } finally {
+      setUploading(null);
+    }
   };
 
   const save = async () => {
