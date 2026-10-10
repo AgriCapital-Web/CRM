@@ -39,6 +39,17 @@ const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: 
         <Upload className="h-4 w-4" />
         <span className="truncate">{current ? "Fichier enregistré — remplacer" : "Choisir un fichier"}</span>
       </Button>
+      {current && (
+        <div className="mt-2 rounded-md border bg-muted/20 p-2">
+          {currentUrl ? (
+            <a href={currentUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary underline underline-offset-4">
+              Ouvrir le fichier enregistré
+            </a>
+          ) : (
+            <p className="text-xs text-muted-foreground">Chargement du fichier enregistré…</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
