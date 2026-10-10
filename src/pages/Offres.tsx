@@ -580,32 +580,65 @@ const Offres = () => {
             <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Modifier la configuration {editOffre?.famille_offre || editOffre?.nom}</DialogTitle>
-                <DialogDescription>Pour PalmInvest et TerraPalm, les paramètres tarifaires enregistrés ici sont répliqués sur les deux formules de la même offre.</DialogDescription>
+                <DialogDescription>PalmInvest et TerraPalm partagent une grille tarifaire. PalmTerroir conserve une grille distincte pour Essentielle et Flexible (+).</DialogDescription>
               </DialogHeader>
               {editOffre && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div><Label>Nom d'affichage</Label><Input value={editOffre.nom || ""} onChange={e => setEditOffre({...editOffre, nom:e.target.value})} /></div>
-                    <div><Label>PI / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_pi_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_pi_par_ha:Number(e.target.value)})} /></div>
-                    <div><Label>Comptant / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_cash_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_cash_par_ha:Number(e.target.value)})} /></div>
-                    <div><Label>Durée (mois)</Label><Input type="number" min="0" value={editOffre.duree_paiement_mois ?? ""} onChange={e => setEditOffre({...editOffre, duree_paiement_mois:Number(e.target.value)})} /></div>
+                  <div>
+                    <Label>Nom de l'offre</Label>
+                    <Input value={editOffre.nom || ""} onChange={e => setEditOffre({...editOffre, nom:e.target.value})} />
                   </div>
-                  <div className="rounded-xl border p-3">
-                    <p className="mb-2 text-sm font-semibold">Échéancier</p>
-                    {getTranches(editOffre).map((t:any,i:number) => (
-                      <div key={i} className="grid grid-cols-1 gap-2 border-t py-2 first:border-t-0 sm:grid-cols-3">
-                        <Label className="text-xs">An {i+1} · {t.mois ?? 0} mois</Label>
-                        <Input type="number" min="0" placeholder="Mois" value={t.mois ?? ""} onChange={e => {
-                          const next=getTranches(editOffre).map((x:any,j:number)=>j===i?{...x,mois:Number(e.target.value)}:x);
-                          setEditOffre({...editOffre,tranches_paiement:next});
-                        }} />
-                        <Input type="number" min="0" placeholder="Mensualité / ha" value={t.mensualite_par_ha ?? ""} onChange={e => {
-                          const next=getTranches(editOffre).map((x:any,j:number)=>j===i?{...x,mensualite_par_ha:Number(e.target.value)}:x);
-                          setEditOffre({...editOffre,tranches_paiement:next});
-                        }} />
+                  {String((editOffre as any).famille_offre || "").toUpperCase() === "PALMTERROIR" ? (
+                    <div className="space-y-3">
+                      {(Array.isArray((editOffre as any).formules_configuration) ? (editOffre as any).formules_configuration : []).map((formula: any) => (
+                        <div key={formula.code} className="rounded-xl border p-3 space-y-3">
+                          <div>
+                            <p className="font-semibold">{formula.nom}</p>
+                            <p className="text-xs text-muted-foreground">Grille tarifaire propre à cette formule · FCFA par hectare</p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div><Label>Paiement initial / ha (F)</Label><Input type="number" min="0" value={formula.montant_pi_par_ha ?? ""} onChange={e => {
+                              const next=(editOffre as any).formules_configuration.map((item: any) => item.code===formula.code ? {...item,montant_pi_par_ha:Number(e.target.value)} : item);
+                              setEditOffre({...editOffre,formules_configuration:next} as any);
+                            }} /></div>
+                            <div><Label>Mensualité / ha (F)</Label><Input type="number" min="0" value={formula.mensualite_par_ha ?? ""} onChange={e => {
+                              const next=(editOffre as any).formules_configuration.map((item: any) => item.code===formula.code ? {...item,mensualite_par_ha:Number(e.target.value)} : item);
+                              setEditOffre({...editOffre,formules_configuration:next} as any);
+                            }} /></div>
+                            <div><Label>Durée (mois)</Label><Input type="number" min="1" value={formula.duree_paiement_mois ?? 36} onChange={e => {
+                              const next=(editOffre as any).formules_configuration.map((item: any) => item.code===formula.code ? {...item,duree_paiement_mois:Math.max(1,Number(e.target.value)||1)} : item);
+                              setEditOffre({...editOffre,formules_configuration:next} as any);
+                            }} /></div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Total calculé à l'enregistrement : paiement initial + mensualités × durée.</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div><Label>PI / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_pi_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_pi_par_ha:Number(e.target.value)})} /></div>
+                        <div><Label>Comptant / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_cash_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_cash_par_ha:Number(e.target.value)})} /></div>
+                        <div><Label>Durée (mois)</Label><Input type="number" min="1" value={editOffre.duree_paiement_mois ?? ""} onChange={e => setEditOffre({...editOffre, duree_paiement_mois:Number(e.target.value)})} /></div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="rounded-xl border p-3">
+                        <p className="mb-2 text-sm font-semibold">Échéancier mensuel</p>
+                        {getTranches(editOffre).map((t:any,i:number) => (
+                          <div key={i} className="grid grid-cols-1 gap-2 border-t py-2 first:border-t-0 sm:grid-cols-3">
+                            <Label className="text-xs">An {t.annee ?? i+1} · {t.mois ?? 0} mois</Label>
+                            <Input type="number" min="1" placeholder="Mois" value={t.mois ?? ""} onChange={e => {
+                              const next=getTranches(editOffre).map((x:any,j:number)=>j===i?{...x,mois:Number(e.target.value)}:x);
+                              setEditOffre({...editOffre,tranches_paiement:next} as any);
+                            }} />
+                            <Input type="number" min="0" placeholder="Mensualité / ha" value={t.mensualite_par_ha ?? ""} onChange={e => {
+                              const next=getTranches(editOffre).map((x:any,j:number)=>j===i?{...x,mensualite_par_ha:Number(e.target.value)}:x);
+                              setEditOffre({...editOffre,tranches_paiement:next} as any);
+                            }} />
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   <div className="flex flex-wrap justify-end gap-2">
                     <Button variant="outline" onClick={() => { setIsOffreDialogOpen(false); setEditOffre(null); }}>Annuler</Button>
                     <Button onClick={handleSaveOffre} disabled={updateOffreMutation.isPending}>{updateOffreMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Enregistrer</Button>
