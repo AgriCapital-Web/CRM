@@ -157,8 +157,9 @@ const SpaNavigationGuard = () => {
       const anchor = pathAnchor || target?.closest("a[href]") as HTMLAnchorElement | null;
       if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download") || anchor.dataset.nativeNavigation === "true") return;
       const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin || (url.pathname === window.location.pathname && url.search === window.location.search && url.hash === window.location.hash)) return;
+      if (url.origin !== window.location.origin) return;
       if (/\.(?:pdf|jpg|jpeg|png|gif|webp|mp4|webm|csv|xlsx?|docx?|pptx?)$/i.test(url.pathname)) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash === window.location.hash) return;
       event.preventDefault();
       navigate(url.pathname + url.search + url.hash);
     };
