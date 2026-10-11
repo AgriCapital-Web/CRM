@@ -1,52 +1,72 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { normalizeRoles } from "@/lib/roles";
 import { cachePermissionMatrix, getCachedPermissionMatrix } from "@/lib/offlineDb";
 
+type PermissionMatrix = Record<string, string[]>;
+type PermissionMatrixResult = {
+  matrix: PermissionMatrix;
+  fromDatabase: boolean;
+};
+
+async function fetchRolePermissionMatrix(): Promise<PermissionMatrixResult> {
+  try {
+    const { data, error } = await (supabase as any)
+      .from("role_permissions")
+      .select("role_code, permission_code");
+
+    if (!error && data && data.length > 0) {
+      const matrix: PermissionMatrix = {};
+      for (const row of data as any[]) {
+        (matrix[row.role_code] ||= []).push(row.permission_code);
+      }
+
+      // Persist for offline use, but a local cache failure must not discard a
+      // valid response from the database.
+      try {
+        await cachePermissionMatrix(matrix);
+      } catch {
+        // Best-effort offline cache.
+      }
+      return { matrix, fromDatabase: true };
+    }
+  } catch {
+    // Fall back to the last known permission matrix below.
+  }
+
+  try {
+    const cached = await getCachedPermissionMatrix();
+    return { matrix: cached || {}, fromDatabase: false };
+  } catch {
+    return { matrix: {}, fromDatabase: false };
+  }
+}
 
 /**
- * Charge la matrice rôle → permissions exclusivement depuis la base (`role_permissions`).
- * Une erreur ou une matrice vide ne donne aucun droit par défaut.
+ * Shared, cached role -> permissions matrix. Reusing the QueryClient cache
+ * prevents every route mount from reloading the same 438-row matrix and
+ * briefly blanking protected pages during navigation.
  */
 export function useRolePermissionMatrix() {
-  const [matrix, setMatrix] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [fromDatabase, setFromDatabase] = useState(false);
+  const query = useQuery({
+    queryKey: ["role-permission-matrix"],
+    queryFn: fetchRolePermissionMatrix,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from("role_permissions")
-        .select("role_code, permission_code");
-      if (error || !data || data.length === 0) {
-        const cached = await getCachedPermissionMatrix();
-        setMatrix(cached || {});
-        setFromDatabase(Boolean(cached));
-      } else {
-        const next: Record<string, string[]> = {};
-        for (const row of data as any[]) {
-          (next[row.role_code] ||= []).push(row.permission_code);
-        }
-        setMatrix(next);
-        setFromDatabase(true);
-        await cachePermissionMatrix(next);
-      }
-    } catch {
-      const cached = await getCachedPermissionMatrix();
-      setMatrix(cached || {});
-      setFromDatabase(Boolean(cached));
-    } finally {
-      setLoading(false);
-    }
+  return {
+    matrix: query.data?.matrix || {},
+    loading: query.isPending,
+    fromDatabase: query.data?.fromDatabase || false,
+    reload: async () => {
+      await query.refetch();
+    },
   };
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  return { matrix, loading, fromDatabase, reload: load };
 }
 
 /** Permissions effectives de l'utilisateur connecté */
