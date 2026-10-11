@@ -10,6 +10,7 @@ Audit à partir du dépôt `AgriCapital-Web/CRM` sur `main`, du projet Supabase 
 2. **Événements d'authentification** — `src/hooks/useAuth.tsx`, commit `abd71933c56cb001206c6102bde385b0c520abc2`. Les rafraîchissements ordinaires de token n'hydratent pas le profil et les rôles. Un événement `USER_UPDATED` force toutefois la réhydratation même pour le même identifiant utilisateur.
 3. **Soumission des formulaires** — `src/App.tsx`, commit `96f78e41ca8e64fe68833ec69995a33b0876b4aa`. Suppression du listener global en capture qui empêchait par défaut les soumissions natives de formulaires. Le garde de navigation SPA sur les liens internes est conservé.
 4. **Endpoint d'automatisation de notifications** — Edge Function `notification-cron`, version 6. Avant correction, cette fonction était appelée sans authentification et utilisait la clé service-role pour traiter les files de notifications et de provisionnement de comptes. Elle exige maintenant `x-agricapital-automation-secret`, vérifié contre le secret Vault `notification_cron_secret` (ou `NOTIFICATION_CRON_SECRET`). Le job `agricapital-notification-automation` envoie désormais ce secret depuis Vault, sans l'inscrire en clair dans le dépôt. Le job cron a réussi après le changement (exécution observée à 01:45 UTC le 11/10/2026).
+5. **Import ANSTAT protégé par un jeton codé en dur** — Edge Function `anstat-rgph2021-import`, version 2. Le point d'entrée exposait un jeton statique dans son code et permettait des écritures géographiques avec la clé service-role. Version 3 déployée : `verify_jwt=true`, méthode POST et contrôle explicite `is_admin` ; le jeton codé en dur a été supprimé.
 
 ## Constatations confirmées
 
@@ -26,6 +27,7 @@ Audit à partir du dépôt `AgriCapital-Web/CRM` sur `main`, du projet Supabase 
 
 - 43 Edge Functions actives ont été recensées. Plusieurs ont `verify_jwt=false` mais implémentent une authentification métier spécifique (signature de webhook, session de portail, secret interne ou contrôle de rôle) ; cette configuration n'est pas à elle seule la preuve d'une vulnérabilité.
 - **`notification-cron` était une exposition confirmée de privilèges élevés** : endpoint sans vérification de l'appelant, puis opérations privilégiées via service-role. Corrigé par secret interne et job cron mis à jour.
+- **`anstat-rgph2021-import` exposait un jeton statique** permettant d'appeler un import qui écrit en base avec service-role. Corrigé en version 3 : JWT obligatoire et contrôle administrateur côté fonction.
 - Il reste à tester systématiquement chaque fonction publique : appels anonymes, jetons invalides, mauvais rôle, rejouabilité, limitation de débit, CORS, erreurs et secrets. Ne pas activer `verify_jwt` en masse : les webhooks et les flux portail utilisent des protocoles d'authentification différents.
 
 ### Base de données / sécurité
