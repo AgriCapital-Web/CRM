@@ -85,25 +85,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let disposed = false;
+    let loadedUserId: string | null = null;
+
+    const hydrateUser = async (userId: string, showLoading: boolean) => {
+      if (loadedUserId === userId) return;
+      loadedUserId = userId;
+      if (showLoading && !disposed) setLoading(true);
+      try {
+        await loadProfileAndRoles(userId);
+      } finally {
+        if (!disposed) setLoading(false);
+      }
+    };
+
+    // Keep the auth listener lightweight. A routine token refresh must not
+    // re-fetch the profile, toggle route guards, or unmount the current page.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Ne laissez jamais une route métier s'évaluer avec une liste de rôles vide
-          // pendant la phase de connexion : les comptes Super Admin / PDG doivent
-          // disposer de leurs droits avant le rendu des écrans protégés.
-          setLoading(true);
-          setTimeout(async () => {
-            try {
-              await loadProfileAndRoles(session.user.id);
-            } finally {
-              setLoading(false);
-            }
-          }, 0);
+      (event, nextSession) => {
+        if (disposed) return;
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+
+        if (event === 'TOKEN_REFRESHED') return;
+
+        if (nextSession?.user) {
+          const shouldHydrate = event === 'INITIAL_SESSION' || event === 'SIGNED_IN' ||
+            event === 'USER_UPDATED' || loadedUserId !== nextSession.user.id;
+          if (shouldHydrate) {
+            // Defer Supabase queries until after the auth callback returns.
+            window.setTimeout(() => {
+              if (!disposed) void hydrateUser(nextSession.user.id, loadedUserId !== nextSession.user.id);
+            }, 0);
+          }
         } else {
+          loadedUserId = null;
           setProfile(null);
           setUserRoles([]);
           setLoading(false);
@@ -111,29 +127,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      // Stale/invalid refresh token → clean local storage so ProtectedRoute redirects to /login
+    // Resolve the initial session as a fallback. The listener and this lookup
+    // can race; hydrateUser's identity guard prevents duplicate profile loads.
+    supabase.auth.getSession().then(async ({ data: { session: currentSession }, error }) => {
+      if (disposed) return;
       if (error && /refresh.*token/i.test(error.message || '')) {
         try { await supabase.auth.signOut(); } catch { /* best effort */ }
-        setSession(null); setUser(null); setProfile(null); setUserRoles([]);
+        if (disposed) return;
+        loadedUserId = null;
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setUserRoles([]);
         setLoading(false);
         return;
       }
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        setTimeout(async () => {
-          await loadProfileAndRoles(session.user.id);
-          setLoading(false);
-        }, 0);
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      if (currentSession?.user) {
+        await hydrateUser(currentSession.user.id, loadedUserId !== currentSession.user.id);
       } else {
         setLoading(false);
       }
+    }).catch((error) => {
+      console.error('Unable to restore auth session:', error);
+      if (!disposed) setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      disposed = true;
+      subscription.unsubscribe();
+    };
   }, [loadProfileAndRoles]);
 
   const refreshProfile = useCallback(async () => {
@@ -191,7 +215,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           resolved = null;
         }
-
 
         if (!resolved) {
           toast({
@@ -287,13 +310,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      profile, 
-      userRoles, 
-      loading, 
-      signIn, 
+    <AuthContext.Provider value={{
+      user,
+      session,
+      profile,
+      userRoles,
+      loading,
+      signIn,
       signOut,
       hasRole,
       refreshProfile
