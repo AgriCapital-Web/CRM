@@ -416,6 +416,12 @@ const Dashboard = () => {
   useRealtime({ table: "plantations", onChange: refreshSilently });
   useRealtime({ table: "paiements", onChange: refreshSilently });
   useRealtime({ table: "interventions_techniques", onChange: refreshSilently });
+  useRealtime({ table: "commissions", onChange: refreshSilently });
+  useRealtime({ table: "portefeuilles", onChange: refreshSilently });
+  useRealtime({ table: "leads", onChange: refreshSilently });
+  useRealtime({ table: "promotions", onChange: refreshSilently });
+  useRealtime({ table: "documents_acquisition", onChange: refreshSilently });
+  useRealtime({ table: "parcelles", onChange: refreshSilently });
 
   const progress = stats.engagedHa > 0 ? Math.min(100, Math.round((stats.plantedHa / stats.engagedHa) * 100)) : 0;
   const roleLabel = userRoles.map((r) => ROLE_SHORT_LABELS[r] || r).join(" / ");

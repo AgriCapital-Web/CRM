@@ -119,17 +119,21 @@ const BeneficiaireParticulier = () => {
         const bucket = doc.document_type.startsWith("cni_") ? "pieces-identite" : doc.document_type === "photo_officielle" ? "photos-profils" : "documents";
         const uploaded = await uploadFile(bucket, selected, `beneficiaires/${ids.client_id}`);
         if (!uploaded) throw new Error(`Échec du stockage de ${doc.libelle}`);
-        await (supabase as any)
+        const { data: updatedDocument, error: documentUpdateError } = await (supabase as any)
           .from("beneficiaire_documents")
-          .update({ fichier_url: uploaded.url, storage_bucket: bucket, storage_path: uploaded.path, statut: "stocke" })
+          .update({ fichier_url: uploaded.path, storage_bucket: bucket, storage_path: uploaded.path, statut: "stocke" })
           .eq("client_id", ids.client_id)
-          .eq("document_type", doc.document_type);
+          .eq("document_type", doc.document_type)
+          .select("id")
+          .maybeSingle();
+        if (documentUpdateError) throw documentUpdateError;
+        if (!updatedDocument) throw new Error(`Le document « ${doc.libelle} » n'a pas été rattaché à la base de données.`);
       }
 
       for (const photo of remisePhotos) {
         const uploaded = await uploadFile("documents", photo, `beneficiaires/${ids.client_id}/remise-acte`);
         if (!uploaded) continue;
-        await (supabase as any).from("beneficiaire_documents").insert({
+        const { data: insertedDocument, error: documentInsertError } = await (supabase as any).from("beneficiaire_documents").insert({
           client_id: ids.client_id,
           proprietaire_id: ids.proprietaire_id,
           parcelle_id: ids.parcelle_id,
@@ -137,11 +141,13 @@ const BeneficiaireParticulier = () => {
           document_type: "photo_remise_acte",
           libelle: `Photo remise de l’acte — ${photo.name}`,
           categorie: "remise_acte",
-          fichier_url: uploaded.url,
+          fichier_url: uploaded.path,
           storage_bucket: "documents",
           storage_path: uploaded.path,
           statut: "stocke",
-        });
+        }).select("id").maybeSingle();
+        if (documentInsertError) throw documentInsertError;
+        if (!insertedDocument) throw new Error("La photo de remise n'a pas été rattachée à la base de données.");
       }
 
       toast({

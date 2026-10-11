@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.ts";
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
@@ -293,7 +292,7 @@ All colors MUST be HSL.
   }
 
   .surface-interactive {
-    @apply surface transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+    @apply rounded-2xl border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
   }
 
   .data-toolbar {

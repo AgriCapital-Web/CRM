@@ -4118,6 +4118,7 @@ export type Database = {
           duree_paiement_mois: number
           duree_production_ans: number
           famille_offre: string | null
+          formules_configuration: Json | null
           formule_code: string | null
           formule_nom: string | null
           gestion_type: string
@@ -4151,6 +4152,7 @@ export type Database = {
           duree_paiement_mois?: number
           duree_production_ans?: number
           famille_offre?: string | null
+          formules_configuration?: Json | null
           formule_code?: string | null
           formule_nom?: string | null
           gestion_type?: string
@@ -4184,6 +4186,7 @@ export type Database = {
           duree_paiement_mois?: number
           duree_production_ans?: number
           famille_offre?: string | null
+          formules_configuration?: Json | null
           formule_code?: string | null
           formule_nom?: string | null
           gestion_type?: string

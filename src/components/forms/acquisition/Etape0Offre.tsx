@@ -236,7 +236,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
                       value={familyOffers.flatMap((item: any) => Array.isArray(item.formules_configuration) ? item.formules_configuration : []).some((formula: any) => formula.code === formData.formule_code) ? formData.formule_code : (getFormulaConfig(first)?.code || first.formule_code || first.code)}
                       onValueChange={(value) => {
                         const formulaOwner = familyOffers.find((item: any) => (item.formules_configuration || []).some((f: any) => f.code === value)) || first;
-                        const formula = (formulaOwner.formules_configuration || []).find((f: any) => f.code === value);
+                        const formula = (Array.isArray(formulaOwner.formules_configuration) ? formulaOwner.formules_configuration : []).find((f: any) => f.code === value) as any;
                         if (!formula) return;
                         const selected = applyFormulaConfig(formulaOwner, formula);
                         updateFormData({
