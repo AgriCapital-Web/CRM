@@ -135,9 +135,22 @@ const Equipes = () => {
         p_equipe_id: membersEquipe.id,
       });
       if (error) throw error;
-      toast({ title: "Membre ajouté", description: "L'affectation a été enregistrée." });
+
+      // Vérifier l'état réellement persisté : un retour RPC sans erreur ne suffit pas
+      // si la fonction n'a modifié aucune ligne.
+      const { data: persistedProfile, error: verifyError } = await (supabase as any)
+        .from("profiles")
+        .select("id, equipe_id")
+        .eq("id", selectedMemberId)
+        .maybeSingle();
+      if (verifyError) throw verifyError;
+      if (!persistedProfile || persistedProfile.equipe_id !== membersEquipe.id) {
+        throw new Error("L'affectation n'est pas enregistrée dans la base. Vérifiez la fonction assign_profile_to_equipe et les droits d'accès.");
+      }
+
+      toast({ title: "Membre ajouté", description: "L'affectation est confirmée dans la base." });
       setSelectedMemberId("");
-      fetchMembers(membersEquipe);
+      await fetchMembers(membersEquipe);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
     }
@@ -150,8 +163,17 @@ const Equipes = () => {
         p_equipe_id: null,
       });
       if (error) throw error;
-      toast({ title: "Membre retiré", description: "Le retrait a été enregistré." });
-      if (membersEquipe) fetchMembers(membersEquipe);
+      const { data: persistedProfile, error: verifyError } = await (supabase as any)
+        .from("profiles")
+        .select("id, equipe_id")
+        .eq("id", profileId)
+        .maybeSingle();
+      if (verifyError) throw verifyError;
+      if (!persistedProfile || persistedProfile.equipe_id !== null) {
+        throw new Error("Le retrait n'est pas confirmé dans la base. Vérifiez la fonction assign_profile_to_equipe et les droits d'accès.");
+      }
+      toast({ title: "Membre retiré", description: "Le retrait est confirmé dans la base." });
+      if (membersEquipe) await fetchMembers(membersEquipe);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
     }
