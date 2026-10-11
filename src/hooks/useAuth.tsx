@@ -88,8 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let disposed = false;
     let loadedUserId: string | null = null;
 
-    const hydrateUser = async (userId: string, showLoading: boolean) => {
-      if (loadedUserId === userId) return;
+    const hydrateUser = async (userId: string, showLoading: boolean, force = false) => {
+      if (loadedUserId === userId && !force) return;
       loadedUserId = userId;
       if (showLoading && !disposed) setLoading(true);
       try {
@@ -115,7 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (shouldHydrate) {
             // Defer Supabase queries until after the auth callback returns.
             window.setTimeout(() => {
-              if (!disposed) void hydrateUser(nextSession.user.id, loadedUserId !== nextSession.user.id);
+              if (!disposed) void hydrateUser(
+                nextSession.user.id,
+                loadedUserId !== nextSession.user.id,
+                event === 'USER_UPDATED'
+              );
             }, 0);
           }
         } else {
