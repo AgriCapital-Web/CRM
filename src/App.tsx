@@ -125,13 +125,6 @@ const SpaNavigationGuard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const onSubmit = (event: Event) => {
-      const form = event.target;
-      if (form instanceof HTMLFormElement && form.dataset.nativeSubmit !== "true") {
-        event.preventDefault();
-      }
-    };
-
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const pathAnchor = event.composedPath().find((node) => node instanceof HTMLAnchorElement) as HTMLAnchorElement | undefined;
@@ -149,10 +142,8 @@ const SpaNavigationGuard = () => {
       navigate(url.pathname + url.search + url.hash);
     };
 
-    document.addEventListener("submit", onSubmit, true);
     document.addEventListener("click", onClick, true);
     return () => {
-      document.removeEventListener("submit", onSubmit, true);
       document.removeEventListener("click", onClick, true);
     };
   }, [navigate]);
