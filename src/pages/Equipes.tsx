@@ -130,9 +130,12 @@ const Equipes = () => {
   const addMember = async () => {
     if (!selectedMemberId || !membersEquipe) return;
     try {
-      const { error } = await (supabase as any).from("profiles").update({ equipe_id: membersEquipe.id }).eq("id", selectedMemberId);
+      const { error } = await (supabase as any).rpc("assign_profile_to_equipe", {
+        p_profile_id: selectedMemberId,
+        p_equipe_id: membersEquipe.id,
+      });
       if (error) throw error;
-      toast({ title: "Membre ajouté" });
+      toast({ title: "Membre ajouté", description: "L'affectation a été enregistrée." });
       setSelectedMemberId("");
       fetchMembers(membersEquipe);
     } catch (error: any) {
@@ -142,9 +145,12 @@ const Equipes = () => {
 
   const removeMember = async (profileId: string) => {
     try {
-      const { error } = await (supabase as any).from("profiles").update({ equipe_id: null }).eq("id", profileId);
+      const { error } = await (supabase as any).rpc("assign_profile_to_equipe", {
+        p_profile_id: profileId,
+        p_equipe_id: null,
+      });
       if (error) throw error;
-      toast({ title: "Membre retiré" });
+      toast({ title: "Membre retiré", description: "Le retrait a été enregistré." });
       if (membersEquipe) fetchMembers(membersEquipe);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
