@@ -82,11 +82,11 @@ const Login = () => {
       <div className="relative flex-1 flex flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-b from-background via-background to-primary/5 min-h-screen lg:min-h-0">
 {/* Logo mobile — sans cadre */}
 
-        <div className="lg:hidden mb-6 w-full flex flex-col items-center rounded-3xl border bg-card/95 px-5 py-6 shadow-sm backdrop-blur">
+        <div className="login-brand-mobile lg:hidden mb-6 w-full min-w-0 flex flex-col items-center px-2 py-3">
           <img
             src={logoV2}
             alt="AgriCapital"
-            className="w-full max-w-[230px] sm:max-w-xs h-auto"
+            className="login-brand-mobile__logo block w-full h-auto object-contain"
           />
           <p className="text-muted-foreground text-sm mt-3 text-center">
             Gestion des clients & plantations
