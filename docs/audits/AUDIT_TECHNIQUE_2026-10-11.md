@@ -11,6 +11,7 @@ Audit à partir du dépôt `AgriCapital-Web/CRM` sur `main`, du projet Supabase 
 3. **Soumission des formulaires** — `src/App.tsx`, commit `96f78e41ca8e64fe68833ec69995a33b0876b4aa`. Suppression du listener global en capture qui empêchait par défaut les soumissions natives de formulaires. Le garde de navigation SPA sur les liens internes est conservé.
 4. **Endpoint d'automatisation de notifications** — Edge Function `notification-cron`, version 6. Avant correction, cette fonction était appelée sans authentification et utilisait la clé service-role pour traiter les files de notifications et de provisionnement de comptes. Elle exige maintenant `x-agricapital-automation-secret`, vérifié contre le secret Vault `notification_cron_secret` (ou `NOTIFICATION_CRON_SECRET`). Le job `agricapital-notification-automation` envoie désormais ce secret depuis Vault, sans l'inscrire en clair dans le dépôt. Le job cron a réussi après le changement (exécution observée à 01:45 UTC le 11/10/2026).
 5. **Import ANSTAT protégé par un jeton codé en dur** — Edge Function `anstat-rgph2021-import`, version 2. Le point d'entrée exposait un jeton statique dans son code et permettait des écritures géographiques avec la clé service-role. Version 3 déployée : `verify_jwt=true`, méthode POST et contrôle explicite `is_admin` ; le jeton codé en dur a été supprimé.
+6. **Support public du portail** — Edge Function `portal-contact-support`, version 3. L'ancien code ne limitait pas les demandes par IP/téléphone et ne recherchait les clients que dans les 100 premières lignes, ce qui pouvait refuser des clients légitimes et lire inutilement des données. La version 3 ajoute des limites persistées par IP et par téléphone haché et une recherche ciblée par suffixe téléphonique.
 
 ## Constatations confirmées
 
@@ -28,7 +29,9 @@ Audit à partir du dépôt `AgriCapital-Web/CRM` sur `main`, du projet Supabase 
 - 43 Edge Functions actives ont été recensées. Plusieurs ont `verify_jwt=false` mais implémentent une authentification métier spécifique (signature de webhook, session de portail, secret interne ou contrôle de rôle) ; cette configuration n'est pas à elle seule la preuve d'une vulnérabilité.
 - **`notification-cron` était une exposition confirmée de privilèges élevés** : endpoint sans vérification de l'appelant, puis opérations privilégiées via service-role. Corrigé par secret interne et job cron mis à jour.
 - **`anstat-rgph2021-import` exposait un jeton statique** permettant d'appeler un import qui écrit en base avec service-role. Corrigé en version 3 : JWT obligatoire et contrôle administrateur côté fonction.
+- **`portal-contact-support` acceptait des demandes publiques sans limite persistée** et cherchait le client uniquement dans les 100 premiers résultats. Corrigé en version 3 : limites par IP/téléphone et recherche ciblée.
 - Il reste à tester systématiquement chaque fonction publique : appels anonymes, jetons invalides, mauvais rôle, rejouabilité, limitation de débit, CORS, erreurs et secrets. Ne pas activer `verify_jwt` en masse : les webhooks et les flux portail utilisent des protocoles d'authentification différents.
+- `submit-account-request` dispose d'un trigger de limitation à 3 demandes/email/heure, mais ce trigger s'exécute sur l'insertion de `account_requests`, après la création du compte Auth et la tentative de mise à jour du profil. Si le trigger rejette l'insertion, le compte Auth/profil peut rester orphelin. Correction recommandée : appliquer la limite avant toute création et supprimer/annuler proprement les ressources si une étape ultérieure échoue. Cette correction n'a pas été déployée pendant cette passe.
 
 ### Base de données / sécurité
 
@@ -53,9 +56,10 @@ Audit à partir du dépôt `AgriCapital-Web/CRM` sur `main`, du projet Supabase 
 1. Laisser Vercel construire le commit `96f78e41` dès que la limite est levée, puis confirmer le SHA exact du déploiement actif.
 2. Exécuter typecheck, lint et build ; corriger les erreurs avant toute autre suppression.
 3. Tester la navigation sur Chrome desktop et Android/iOS : clics menu, retour/avance, liens directs, session active, expiration/refresh token, perte/reprise réseau, cache service worker, formulaires et sélection de fichiers.
-4. Parcourir les modules métier avec des comptes de rôles différents et vérifier les permissions côté base, pas seulement l'interface.
-5. Examiner les 27 fonctions SECURITY DEFINER et les 37 Edge Functions sans vérification JWT par lots, en partant des fonctions qui manipulent comptes, paiements, notifications et données du portail.
-6. Optimiser les politiques et index après mesure. Aucune donnée métier ni table n'a été supprimée pendant cet audit.
+4. Déplacer la limitation de `submit-account-request` avant la création du compte Auth et traiter les échecs partiels de manière compensatoire.
+5. Parcourir les modules métier avec des comptes de rôles différents et vérifier les permissions côté base, pas seulement l'interface.
+6. Examiner les 27 fonctions SECURITY DEFINER et les 37 Edge Functions sans vérification JWT par lots, en partant des fonctions qui manipulent comptes, paiements, notifications et données du portail.
+7. Optimiser les politiques et index après mesure. Aucune donnée métier ni table n'a été supprimée pendant cet audit.
 
 ## Règle de suppression
 
