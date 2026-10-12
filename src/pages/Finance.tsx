@@ -135,7 +135,7 @@ export default function Finance(){
     setSaving(true);
     const {data:run,error}=await (supabase as any).from("finance_payroll_runs").upsert({period_start:start,period_end:end,status:"brouillon"},{onConflict:"period_start,period_end"}).select("id").single();
     if(error||!run){toast({title:"Erreur",description:error?.message||"Paie impossible",variant:"destructive"});setSaving(false);return;}
-    for(const sp of salaryProfiles.filter(s=>s.active)){
+    for(const sp of salaryProfiles.filter(s=>s.active && Number(s.base_salary)>0)){
       const commissions=(await (supabase as any).from("commissions").select("montant_commission").eq("profile_id",sp.profile_id).gte("periode",start).lte("periode",end).in("statut",["calculee","validee"])).data||[];
       const totalCommissions=commissions.reduce((s:any,c:any)=>s+Number(c.montant_commission||0),0);
       await (supabase as any).from("finance_payroll_items").upsert({
@@ -234,7 +234,7 @@ export default function Finance(){
         {can("finance.payroll")&&<Card><CardHeader><CardTitle>Paramétrer un salaire</CardTitle></CardHeader><CardContent className="space-y-3">
           <Select value={salaryForm.profileId} onValueChange={v=>setSalaryForm({...salaryForm,profileId:v})}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select>
           <Input type="number" placeholder="SALAIRE DE BASE" value={salaryForm.baseSalary} onChange={e=>setSalaryForm({...salaryForm,baseSalary:e.target.value})}/><p className="text-xs text-muted-foreground">Le salaire de base est défini dans Utilisateurs → Relation RH et Département. Seuls les profils ayant un salaire positif apparaissent dans la paie.</p>
-          <Input type="number" min="1" max="31" placeholder="JOUR DE PAIE" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/>
+          <Input type="number" min="1" max="31" placeholder="Jour habituel de paiement (28)" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/>
           <Button className="w-full" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
         </CardContent></Card>}
         {can("finance.payroll")&&<Card><CardHeader><CardTitle>Générer la paie</CardTitle></CardHeader><CardContent className="space-y-3"><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><Button className="w-full" onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>GÉNÉRER AUTOMATIQUEMENT</Button><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="rounded-lg border p-3 flex items-center justify-between"><div><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p></div>{r.status!=="paye"&&<Button size="sm" onClick={()=>void payRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>DÉCLENCHER</Button>}</div>)}</div></CardContent></Card>}
