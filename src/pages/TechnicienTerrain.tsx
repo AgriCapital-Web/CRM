@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InteractiveMap from "@/components/maps/InteractiveMap";
 import CompteRenduIA from "@/components/technique/CompteRenduIA";
+import { ArrowRightLeft } from "lucide-react";
 
 const TechnicienTerrain=()=>{
   const {user,userRoles}=useAuth();
@@ -50,6 +51,9 @@ const TechnicienTerrain=()=>{
   const [loading,setLoading]=useState(true);
   const [activeTab,setActiveTab]=useState("rapport");
   const [saving,setSaving]=useState(false);
+  const [transferPlantationId,setTransferPlantationId]=useState("");
+  const [transferClientId,setTransferClientId]=useState("");
+  const [transferSaving,setTransferSaving]=useState(false);
   const [report,setReport]=useState<any>({
     plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",
     constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",
@@ -208,6 +212,21 @@ const TechnicienTerrain=()=>{
     }
   };
 
+  const transferAgriCapitalPlantation=async()=>{
+    if(!transferPlantationId||!transferClientId){toast({variant:"destructive",title:"Sélection requise",description:"Sélectionnez une plantation interne et un client PalmInvest."});return;}
+    setTransferSaving(true);
+    try{
+      const {data,error}=await (supabase as any).rpc("transfer_agricapital_plantation",{p_plantation_id:transferPlantationId,p_client_id:transferClientId});
+      if(error)throw error;
+      if(data?.ok===false)throw new Error("Le transfert n'a pas été confirmé.");
+      toast({title:"Plantation transférée",description:"La plantation et son lien de parcelle restent conservés."});
+      setTransferPlantationId("");setTransferClientId("");
+      await load();
+    }catch(error:any){
+      toast({variant:"destructive",title:"Transfert impossible",description:error?.message||"Vérifiez les droits et l'éligibilité PalmInvest."});
+    }finally{setTransferSaving(false);}
+  };
+
   const saveIntervention=async()=>{
     const interventionPlantation=plantations.find(p=>p.id===intervention.plantation_id);
     const targetClientId=intervention.client_id||interventionPlantation?.client_id||null;
@@ -337,6 +356,13 @@ const TechnicienTerrain=()=>{
       </TabsContent>
 
       <TabsContent value="intervention" className="space-y-5">
+        {manager && <Card><CardHeader><CardTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5"/>Transférer une plantation AgriCapital</CardTitle><CardDescription>Attribuez une plantation interne à un client PalmInvest sans recréer la plantation ni perdre son historique.</CardDescription></CardHeader><CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div><Label>Plantation interne *</Label><Select value={transferPlantationId} onValueChange={setTransferPlantationId}><SelectTrigger><SelectValue placeholder="Choisir une plantation AgriCapital"/></SelectTrigger><SelectContent>{plantations.filter(p=>clients.some(c=>c.id===p.client_id&&c.is_internal===true)).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_plantation||p.nom||p.id_unique} · {Number(p.superficie_ha||0)} ha</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Client PalmInvest destinataire *</Label><Select value={transferClientId} onValueChange={setTransferClientId}><SelectTrigger><SelectValue placeholder="Choisir un client PalmInvest"/></SelectTrigger><SelectContent>{clients.filter(c=>!c.is_internal&&(String(c.famille_offre||"").toUpperCase()==="PALMINVEST"||String(c.formule_code||"").toUpperCase().includes("PALMINVEST")||String(c.formule_nom||"").toUpperCase().includes("PALMINVEST"))).map(c=><SelectItem key={c.id} value={c.id}>{c.nom_complet||c.id_unique} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
+          </div>
+          <div className="flex justify-end"><Button onClick={transferAgriCapitalPlantation} disabled={transferSaving||!transferPlantationId||!transferClientId}>{transferSaving?"Transfert…":"Transférer la plantation"}</Button></div>
+        </CardContent></Card>}
         <CompteRenduIA />
         <Card><CardHeader><CardTitle>Intervention technique</CardTitle><CardDescription>Enregistrez l’intervention selon le dossier et l’étape technique.</CardDescription></CardHeader><CardContent className="space-y-5">
           <div className="grid md:grid-cols-3 gap-4">
