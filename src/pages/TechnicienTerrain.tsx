@@ -82,7 +82,7 @@ const TechnicienTerrain=()=>{
     const profile=await profileContext();
     const [{data:p},{data:c},{data:pa},{data:r},{data:i},{data:t},{data:td},{data:offers}]=await Promise.all([
       (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,statut_global,prochaine_visite,date_plantation").order("nom_plantation"),
-      (supabase as any).from("clients") .select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id").order("nom_complet"),
+      (supabase as any).from("clients") .select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,is_internal").order("nom_complet"),
       (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
       (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
       (supabase as any).from("interventions_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").order("date_intervention",{ascending:false}).limit(100)
