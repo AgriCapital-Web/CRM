@@ -182,7 +182,8 @@ export default function Finance(){
         <TabsTrigger value="associes" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><Users className="mb-1 h-4 w-4 shrink-0" />Associés</TabsTrigger>
         <TabsTrigger value="rapports" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><RefreshCw className="mb-1 h-4 w-4 shrink-0" />Rapports</TabsTrigger>
       </TabsList>
-      <TabsContent value="journal" className="mt-4 min-w-0 space-y-4">\n        <div className="rounded-xl border-l-4 border-primary bg-primary/5 p-4"><h2 className="font-semibold">Journal financier</h2><p className="mt-1 text-sm text-muted-foreground">Consultez les mouvements, leurs dates, leurs sources et leurs montants.</p></div>
+      <TabsContent value="journal" className="mt-4 min-w-0 space-y-4">
+        <div className="rounded-xl border-l-4 border-primary bg-primary/5 p-4"><h2 className="font-semibold">Journal financier</h2><p className="mt-1 text-sm text-muted-foreground">Consultez les mouvements, leurs dates, leurs sources et leurs montants.</p></div>
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
