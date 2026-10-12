@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -3180,6 +3180,7 @@ export type Database = {
       leads: {
         Row: {
           assigned_to: string | null
+          campement_quartier: string | null
           client_id: string | null
           commentaire: string | null
           converti_at: string | null
@@ -3215,6 +3216,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          campement_quartier?: string | null
           client_id?: string | null
           commentaire?: string | null
           converti_at?: string | null
@@ -3250,6 +3252,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          campement_quartier?: string | null
           client_id?: string | null
           commentaire?: string | null
           converti_at?: string | null
@@ -4118,9 +4121,9 @@ export type Database = {
           duree_paiement_mois: number
           duree_production_ans: number
           famille_offre: string | null
-          formules_configuration: Json | null
           formule_code: string | null
           formule_nom: string | null
+          formules_configuration: Json
           gestion_type: string
           id: string
           mensualite_par_ha: number
@@ -4152,9 +4155,9 @@ export type Database = {
           duree_paiement_mois?: number
           duree_production_ans?: number
           famille_offre?: string | null
-          formules_configuration?: Json | null
           formule_code?: string | null
           formule_nom?: string | null
+          formules_configuration?: Json
           gestion_type?: string
           id?: string
           mensualite_par_ha?: number
@@ -4186,9 +4189,9 @@ export type Database = {
           duree_paiement_mois?: number
           duree_production_ans?: number
           famille_offre?: string | null
-          formules_configuration?: Json | null
           formule_code?: string | null
           formule_nom?: string | null
+          formules_configuration?: Json
           gestion_type?: string
           id?: string
           mensualite_par_ha?: number
@@ -5431,6 +5434,7 @@ export type Database = {
           quartier: string | null
           region_id: string | null
           relation_rh: string | null
+          salaire_base: number | null
           taux_commission: number | null
           telephone: string | null
           telephone_indicatif: string | null
@@ -5477,6 +5481,7 @@ export type Database = {
           quartier?: string | null
           region_id?: string | null
           relation_rh?: string | null
+          salaire_base?: number | null
           taux_commission?: number | null
           telephone?: string | null
           telephone_indicatif?: string | null
@@ -5523,6 +5528,7 @@ export type Database = {
           quartier?: string | null
           region_id?: string | null
           relation_rh?: string | null
+          salaire_base?: number | null
           taux_commission?: number | null
           telephone?: string | null
           telephone_indicatif?: string | null
@@ -7271,6 +7277,10 @@ export type Database = {
         Args: { p_label?: string; p_value: string }
         Returns: string
       }
+      assign_profile_to_equipe: {
+        Args: { p_equipe_id: string; p_profile_id: string }
+        Returns: undefined
+      }
       assign_sp_code: { Args: { _sp_id: string }; Returns: string }
       calculer_commission_paiement: {
         Args: { p_paiement_id: string }
@@ -7423,6 +7433,10 @@ export type Database = {
           reduction_montant: number
           reduction_pct: number
         }[]
+      }
+      pdg_delete_payroll_draft: {
+        Args: { p_run_id: string }
+        Returns: undefined
       }
       portal_client_daily_rate: {
         Args: { _at_date?: string; _client_id: string }
