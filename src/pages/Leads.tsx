@@ -81,16 +81,21 @@ export default function Leads() {
     let active = true;
     void (async () => {
       const { data, error } = await (supabase as any).from("offres")
-        .select("id,code,nom,famille_offre,formules_configuration").eq("actif", true).order("nom");
+        .select("id,code,nom,famille_offre,formule_code,formule_nom,formules_configuration").eq("actif", true).order("nom");
       if (active) setOffers(error ? [] : (data || []).filter((o: any) => typeof o.code === "string" && o.code.trim() && typeof o.nom === "string" && o.nom.trim()));
     })();
     return () => { active = false; };
   }, []);
 
   const selectedLeadOffer = offers.find((o) => o.code && o.code === leadForm.offre_code);
-  const selectedLeadFormulas = Array.isArray(selectedLeadOffer?.formules_configuration)
-    ? selectedLeadOffer.formules_configuration.filter((f: any) => typeof f?.code === "string" && f.code.trim() && typeof f?.nom === "string" && f.nom.trim())
-    : [];
+  const selectedLeadFormulas = (() => {
+    const configured = Array.isArray(selectedLeadOffer?.formules_configuration)
+      ? selectedLeadOffer.formules_configuration.filter((f: any) => typeof f?.code === "string" && f.code.trim() && typeof f?.nom === "string" && f.nom.trim())
+      : [];
+    if (configured.length) return configured;
+    if (selectedLeadOffer?.code) return [{ code: selectedLeadOffer.formule_code || selectedLeadOffer.code, nom: selectedLeadOffer.formule_nom || selectedLeadOffer.nom }];
+    return [];
+  })();
 
   useEffect(() => {
     const hasOwnCommercialRole = (userRoles || []).some((r: string) =>
@@ -529,7 +534,7 @@ export default function Leads() {
                 </Select>
               </div>
               {leadForm.type_lead === "client" && <>
-                <div><Label>Offre *</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || "" })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.filter((o) => Boolean(o.code && o.nom)).map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>Offre *</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration.filter((f: any) => f?.code && f?.nom) : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || offer?.formule_code || offer?.code || "" })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.filter((o) => Boolean(o.code && o.nom)).map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>Formule *</Label><Select value={leadForm.formule_code} onValueChange={(v) => setLeadForm(x => ({ ...x, formule_code: v }))} disabled={!selectedLeadFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule" /></SelectTrigger><SelectContent>{selectedLeadFormulas.map((f: any) => <SelectItem key={f.code} value={f.code}>{f.nom}</SelectItem>)}</SelectContent></Select></div>
               </>}
               <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={(e) => setLeadForm({ ...leadForm, nom: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
