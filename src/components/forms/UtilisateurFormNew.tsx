@@ -44,6 +44,7 @@ const userFormSchema = z.object({
   whatsapp_indicatif: z.string().optional().or(z.literal("")),
   type_piece_identite: z.string().optional().or(z.literal("")),
   numero_piece_identite: z.string().optional().or(z.literal("")),
+  salaire_base: z.string().optional().or(z.literal("")),
 });
 
 interface UtilisateurFormProps {
