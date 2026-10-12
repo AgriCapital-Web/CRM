@@ -412,7 +412,7 @@ export default function Leads() {
                             setCreateOpen(true);
                           }}>Modifier</Button>
                         )}
-                        {l.statut !== "converti" && (
+                        {l.statut !== "converti" && l.type_lead !== "proprietaire_foncier" && !isFoncierRole && (
                           <Button size="sm" onClick={() => convertToClient(l)}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
                         )}
                       </TableCell>
