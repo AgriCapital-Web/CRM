@@ -183,7 +183,7 @@ const GestionNotifications = () => {
             <div className="min-w-0">
               <CardTitle className="flex flex-wrap items-center gap-2"><Bell className="h-5 w-5 shrink-0" /> Communication et notifications</CardTitle>
               <CardDescription className="break-anywhere">
-                Notifications app, SMS, emails et routage automatique selon le profil, la situation et le canal disponible. Les propriétaires fonciers et bénéficiaires particuliers ont un parcours distinct des clients payants.
+                Notifications app, SMS, e-mails et routage automatique selon le canal choisi.
               </CardDescription>
             </div>
             <Button variant="outline" onClick={() => { void checkProviders(); void load(); }}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
