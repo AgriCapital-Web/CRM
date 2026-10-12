@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sprout, Check, Sparkles, Loader2 } from "lucide-react";
+import { Sprout, Sparkles, Loader2 } from "lucide-react";
 import { usePromotionActive } from "@/hooks/usePromotionActive";
 import { calculPrixEffectif } from "@/lib/pricing";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,18 +93,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
 
   const formatMontant = (montant: number) => new Intl.NumberFormat("fr-FR").format(montant);
 
-  const parseAvantages = (avantages: any): string[] => {
-    if (Array.isArray(avantages)) return avantages.map(String);
-    if (typeof avantages === "string") {
-      try {
-        const parsed = JSON.parse(avantages);
-        return Array.isArray(parsed) ? parsed.map(String) : [avantages];
-      } catch {
-        return [avantages];
-      }
-    }
-    return [];
-  };
+
 
   const calculs = useMemo(() => {
     if (!formData.offre_id || !formData.superficie_prevue || !offres) return null;
@@ -312,29 +301,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
         </CardContent>
       </Card>
 
-      {formData.offre_id && offres && (
-        <Card>
-          <CardHeader><CardTitle>Récapitulatif de l'Offre</CardTitle></CardHeader>
-          <CardContent>
-            {(() => {
-              const baseOffer = offres.find((o) => o.id === formData.offre_id);
-              if (!baseOffer) return null;
-              const offre = applyFormulaConfig(baseOffer, getFormulaConfig(baseOffer, formData.formule_code));
-              const avantagesList = parseAvantages(offre.avantages);
-              return (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                    <div><span className="text-muted-foreground">Offre:</span><p className="font-medium">{offre.nom}</p></div>
-                    <div><span className="text-muted-foreground">Formule sélectionnée:</span><p className="font-medium">{offre.formule_nom || formData.formule_nom || "—"}</p></div>
-                    <div><span className="text-muted-foreground">Type:</span><p className="font-medium">{offre.description}</p></div>
-                  </div>
-                  {avantagesList.length > 0 && <div className="border-t pt-4"><h4 className="font-medium mb-2">Avantages inclus:</h4><ul className="space-y-1">{avantagesList.map((avantage, idx) => <li key={idx} className="flex items-start gap-2 text-sm"><Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" /><span>{avantage}</span></li>)}</ul></div>}
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+
     </div>
   );
 };
