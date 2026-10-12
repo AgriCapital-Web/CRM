@@ -108,7 +108,6 @@ const Dashboard = () => {
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [monthly, setMonthly] = useState<any[]>([]);
   const [offerPerformance, setOfferPerformance] = useState<any[]>([]);
-  const [leadFunnel, setLeadFunnel] = useState<any[]>([]);
   const [cycle, setCycle] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [topClients, setTopClients] = useState<any[]>([]);
@@ -214,8 +213,8 @@ const Dashboard = () => {
       const remainingHa = Math.max(0, engagedHa - plantedHa);
       const clientLeads = leads.filter((l: any) => l.type_lead !== "proprietaire_foncier");
       const convertedLeads = clientLeads.filter((l: any) => l.statut === "converti" || Boolean(l.converti_at)).length;
-      const newLeads = clientLeads.filter((l: any) => l.statut === "nouveau").length;
-      const followupLeads = clientLeads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length;
+      const newLeads = leads.filter((l: any) => l.statut === "nouveau").length;
+      const followupLeads = leads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length;
       const conversionRate = clientLeads.length ? Math.round((convertedLeads / clientLeads.length) * 100) : 0;
       const partnershipHa = parcelles.filter((p: any) => p.statut === "validee" && (p.plantation_partagee_activee === true || Boolean(p.convention_id)))
         .reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0), 0);
@@ -254,7 +253,7 @@ const Dashboard = () => {
 
       setStats({
         clients: clients.filter((c: any) => !c.is_internal).length,
-        leads: clientLeads.length,
+        leads: leads.length,
         leadsNew: newLeads,
         leadsConverted: convertedLeads,
         leadsFollowup: followupLeads,
@@ -323,10 +322,6 @@ const Dashboard = () => {
         if (canTechnicalTeamPerformance) interventions.forEach((i: any) => { const p=profileById.get(i.agent_technique_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="technique:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"technique",nom:"Équipe technique",clients:0,hectares:0,interventions:0}; row.interventions+=1; teamMap.set(key,row); });
         setTeamPerformance([...teamMap.values()].sort((a,b)=>(b.clients+b.interventions)-(a.clients+a.interventions)).slice(0,10));
       }
-
-      const funnelMap = new Map<string, number>();
-      leads.forEach((l: any) => funnelMap.set(l.statut || "non renseigné", (funnelMap.get(l.statut || "non renseigné") || 0) + 1));
-      setLeadFunnel([...funnelMap.entries()].map(([name, value]) => ({ name, value })));
 
       // Le pilotage technique est un parcours CLIENT, pas un simple comptage de lignes d'intervention.
       // Dès que le paiement initial est validé, le dossier entre dans le périmètre technique.
@@ -411,10 +406,6 @@ const Dashboard = () => {
       if (canClients && docs.filter((d: any) => d.statut === "en_attente").length) newAlerts.push({ type: "warning", message: `${docs.filter((d: any) => d.statut === "en_attente").length} document(s) en attente de vérification`, href: "/documents" });
       const technicalAlerts = plantations.filter((p: any) => p.statut_global !== "en_production" && (p.alerte_non_paiement || p.alerte_visite_retard));
       if (canTechnical && technicalAlerts.length) newAlerts.push({ type: "warning", message: `${technicalAlerts.length} plantation(s) nécessitent une intervention`, href: "/plantations" });
-      if (canLeads) {
-        const followups = leads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= today()).length;
-        if (followups) newAlerts.push({ type: "info", message: `${followups} lead(s) nécessitent une relance`, href: "/leads" });
-      }
       setAlerts(newAlerts);
 
       const superficieGroups = [
@@ -469,7 +460,7 @@ const Dashboard = () => {
     { label:"Acquisitions", value:stats.clients.toString(), sub:"Clients / dossiers", icon:Users, href:"/acquisitions", show:canClients },
     { label:"Leads", icon:Target, href:"/leads", show:canLeads, metrics:[
       {label:"Nombre de leads",value:stats.leads,href:"/leads"},
-      {label:"Taux de conversion",value:stats.conversionRate+"%",href:"/leads"},
+      {label:"Conversion client",value:stats.conversionRate+"%",href:"/leads"},
       {label:"Nouveaux",value:stats.leadsNew,href:"/leads?statut=nouveau"},
       {label:"À relancer",value:stats.leadsFollowup,href:"/leads"},
       {label:"Convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},
