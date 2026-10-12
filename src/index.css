@@ -591,3 +591,15 @@ All colors MUST be HSL.
     .responsive-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 }
+
+/* CRM tables: prevent narrow columns from breaking words vertically on small screens. */
+@layer components {
+  .responsive-data-table { width: 100%; min-width: 900px; table-layout: auto; }
+  .responsive-data-table th, .responsive-data-table td { white-space: nowrap; word-break: normal; overflow-wrap: normal; vertical-align: middle; }
+  .responsive-data-table td:nth-child(2), .responsive-data-table th:nth-child(2) { min-width: 150px; white-space: normal; overflow-wrap: anywhere; }
+  .responsive-data-table td:last-child, .responsive-data-table th:last-child { min-width: 110px; }
+  @media (max-width: 640px) {
+    .responsive-data-table { min-width: 820px; }
+    .responsive-data-table th, .responsive-data-table td { padding: .625rem .75rem; }
+  }
+}
