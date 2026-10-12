@@ -67,7 +67,7 @@ export function SyncQueueContent() {
             Relancer les échecs ({fileStats.error + fileStats.waiting})
           </Button>
           <Button
-            onClick={async () => { await flushFileQueue(); await syncNow(); await load(); }}
+            onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await syncNow(); await load(); }}
             disabled={!isOnline || isSyncing}
             size="sm"
             className="w-full sm:flex-1 lg:w-auto"
