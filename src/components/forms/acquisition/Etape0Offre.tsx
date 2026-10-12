@@ -33,7 +33,9 @@ const applyFormulaConfig = (offer: any, formula: any) => {
     formule_nom: formula.nom || offer.formule_nom || offer.nom,
     gestion_type: formula.gestion_type ?? offer.gestion_type,
   };
-  if (formula.utilise_tarif_commun !== false) return next;
+  // Une formule qui porte ses propres paramètres tarifaires doit toujours primer sur les valeurs
+  // génériques de l'offre, même si l'indicateur utilise_tarif_commun est absent ou mal renseigné.
+  // Les formules qui partagent le tarif n'ont simplement pas ces champs et conservent le tarif commun.
   for (const key of ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]) {
     if (formula[key] !== undefined && formula[key] !== null) (next as any)[key] = formula[key];
   }
