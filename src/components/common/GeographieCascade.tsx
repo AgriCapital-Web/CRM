@@ -12,12 +12,12 @@ interface Props {
     villageName?: string | null; regionName?: string | null; departementName?: string | null;
     sousPrefectureName?: string | null;
   }) => void;
-  required?: boolean; showDistrict?: boolean; showVillage?: boolean; className?: string;
+  required?: boolean; showDistrict?: boolean; showDepartement?: boolean; showSousPrefecture?: boolean; showVillage?: boolean; className?: string;
 }
 
 export default function GeographieCascade({
   districtId, regionId, departementId, sousPrefectureId, villageId, onChange,
-  required = false, showDistrict = true, showVillage = true,
+  required = false, showDistrict = true, showDepartement = true, showSousPrefecture = true, showVillage = true,
   className = "grid md:grid-cols-2 gap-4",
 }: Props) {
   const [districts, setDistricts] = useState<any[]>([]);
@@ -100,7 +100,7 @@ export default function GeographieCascade({
               departementId:null,sousPrefectureId:null,villageId:null,regionName:x?.nom||null
             }); }} />
         </div>
-        <div className="space-y-2"><Label>Département{required ? " *" : ""}</Label>
+        {showDepartement && <div className="space-y-2"><Label>Département{required ? " *" : ""}</Label>
           <SearchableSelect value={departementId || ""} disabled={!regionId} options={departements.map((x) => ({ value:x.id,label:x.nom }))}
             placeholder="Sélectionner le département" searchPlaceholder="Rechercher un département"
             onValueChange={(value)=>{const x=departements.find((d)=>d.id===value);onChange({
@@ -108,7 +108,8 @@ export default function GeographieCascade({
               regionName:regions.find((r)=>r.id===regionId)?.nom||null,departementName:x?.nom||null,sousPrefectureName:null,villageName:null
             });}} />
         </div>
-        <div className="space-y-2"><Label>Sous-préfecture{required ? " *" : ""}</Label>
+        </div>}
+        {showSousPrefecture && <div className="space-y-2"><Label>Sous-préfecture{required ? " *" : ""}</Label>
           <SearchableSelect value={sousPrefectureId || ""} disabled={!departementId} options={sousPrefectures.map((x)=>({value:x.id,label:x.nom}))}
             placeholder="Sélectionner la sous-préfecture" searchPlaceholder="Rechercher une sous-préfecture"
             onValueChange={(value)=>{const x=sousPrefectures.find((s)=>s.id===value);onChange({
