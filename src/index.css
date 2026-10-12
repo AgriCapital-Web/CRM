@@ -413,3 +413,88 @@ All colors MUST be HSL.
     .responsive-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 }
+
+
+/* Final responsive pass: prevent intrinsic content from forcing page overflow. */
+@layer base {
+  .page-header,
+  .data-toolbar,
+  [role="tabpanel"],
+  [data-radix-accordion-content] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .page-header > *,
+  .data-toolbar > *,
+  .card,
+  [data-radix-card] {
+    min-width: 0;
+  }
+
+  .page-header h1,
+  .page-header h2,
+  .page-header p,
+  label,
+  th,
+  td {
+    overflow-wrap: anywhere;
+  }
+
+  form .grid,
+  [role="tabpanel"] .grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  }
+
+  form button,
+  form [role="button"] {
+    max-width: 100%;
+  }
+
+  [data-radix-dialog-content] form,
+  [data-radix-sheet-content] form {
+    width: 100%;
+    min-width: 0;
+  }
+
+  @media (max-width: 767px) {
+    main > div {
+      padding-inline: 0.75rem;
+    }
+
+    .page-header {
+      gap: 0.625rem;
+    }
+
+    .page-section,
+    .messaging-page {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .messaging-conversation,
+    .messaging-contacts {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .messaging-conversation [data-radix-card-content] {
+      padding-inline: 0.625rem;
+    }
+
+    .data-toolbar > * {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .responsive-table {
+      max-width: calc(100vw - 1.5rem);
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1100px) {
+    main > div {
+      padding: 1rem;
+    }
+  }
+}
