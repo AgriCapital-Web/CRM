@@ -291,7 +291,7 @@ const AccountRequest = () => {
 
             <div className="space-y-3">
               <Label className="text-sm font-medium flex items-center gap-2"><MapPin className="h-4 w-4" /> Localisation</Label>
-              <GeographieCascade districtId={formData.district} regionId={formData.region} departementId={formData.departement} showVillage={false} showDepartement={!isFoncierSupervisor} showSousPrefecture={!isFoncierSupervisor} className="grid grid-cols-1 gap-3 sm:grid-cols-3" onChange={(g)=>setFormData(prev=>({...prev,district:g.districtId||"",region:g.regionId||"",departement:g.departementId||""}))} />
+              <GeographieCascade districtId={formData.district} regionId={formData.region} departementId={formData.departement} sousPrefectureId={formData.sous_prefecture} showVillage={false} showDepartement={!isFoncierSupervisor} showSousPrefecture={!isFoncierSupervisor} className="grid grid-cols-1 gap-3 sm:grid-cols-3" onChange={(g)=>setFormData(prev=>({...prev,district:g.districtId||"",region:g.regionId||"",departement:g.departementId||"",sous_prefecture:g.sousPrefectureId||""}))} />
             </div>
 
             <div className="space-y-3 rounded-lg border-2 border-primary/30 bg-primary/5 p-4">
