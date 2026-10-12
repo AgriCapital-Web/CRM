@@ -68,7 +68,7 @@ const ProprietairesTerres = () => {
     nombre_membres: "", nom_representant: "",
     telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "",
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
-    domicile: "",
+    domicile: "", lieu_residence: "",
     district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village: "",
     surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
     type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
@@ -195,6 +195,7 @@ const ProprietairesTerres = () => {
         telephone: formData.telephone, telephone_indicatif: formData.telephone_indicatif || null, telephone_local: formData.telephone_local || null,
         whatsapp: formData.whatsapp || null, whatsapp_indicatif: formData.whatsapp_indicatif || null, whatsapp_local: formData.whatsapp_local || null,
         domicile: formData.domicile || null,
+        lieu_residence: formData.lieu_residence || null,
         numero_piece: formData.numero_piece || null,
         photo_profil_url, fichier_piece_recto_url, fichier_piece_verso_url,
         district_id: formData.district_id || null,
@@ -345,7 +346,7 @@ const ProprietairesTerres = () => {
       date_naissance: "", lieu_naissance: "", nom_pere: "", nom_mere: "",
       denomination_sociale: "", numero_enregistrement: "", nombre_membres: "", nom_representant: "",
       telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", type_piece: "", numero_piece: "",
-      date_delivrance_piece: "", domicile: "", district_id: "", region_id: "",
+      date_delivrance_piece: "", domicile: "", lieu_residence: "", district_id: "", region_id: "",
       departement_id: "", sous_prefecture_id: "", village: "",
       surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
       type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
@@ -515,6 +516,10 @@ const ProprietairesTerres = () => {
                           <div className="space-y-2">
                             <Label>Adresse / Domicile</Label>
                             <Input value={formData.domicile} onChange={e => update('domicile', e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Lieu de résidence</Label>
+                            <Input value={formData.lieu_residence} onChange={e => update('lieu_residence', e.target.value)} placeholder="Campement ou quartier" />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
