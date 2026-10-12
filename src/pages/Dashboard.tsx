@@ -201,7 +201,7 @@ const Dashboard = () => {
       });
       const overdueAmount = overdue.reduce((s: number, p: any) => s + Math.max(0, Number(p.montant || 0) - Number(p.montant_paye || 0)), 0);
 
-      const engagedHa = clients.filter((c:any)=>c.id_unique!=="AC-DEMO" && !c.is_internal).reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
+      const engagedHa = clients.filter((c:any)=>c.id_unique!=="AC-DEMO").reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const plantedHa = plantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
       const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
