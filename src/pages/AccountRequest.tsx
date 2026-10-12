@@ -191,6 +191,7 @@ const AccountRequest = () => {
           role_souhaite: formData.poste,
           region_id: formData.region || null,
           departement_geo_id: formData.departement || null,
+          sous_prefecture_id: formData.sous_prefecture || null,
           district_id: formData.district || null,
           departement: deptName || null,
           region: regionName || null,
