@@ -207,6 +207,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             whatsapp_local: data.whatsapp_local || null,
             departement: data.departement || null,
             relation_rh: data.relation_rh || null,
+            salaire_base: data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base),
             taux_commission: data.taux_commission ? Number(data.taux_commission) : null,
             district_id: data.district_id || null,
             region_id: data.region_id || null,
@@ -517,6 +518,12 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
               </SelectContent>
             </Select>
           </div>}
+
+          <div className="space-y-2">
+            <Label>Salaire de base mensuel (FCFA)</Label>
+            <Input type="number" min="0" step="1" {...register("salaire_base")} defaultValue={utilisateur?.salaire_base ?? ""} placeholder="Laisser vide si non salarié" />
+            <p className="text-xs text-muted-foreground">Un salaire positif rend ce profil éligible à la préparation de la paie.</p>
+          </div>
 
           {!governanceOnly && showEquipe && <div className="space-y-2">
             <Label>Équipe</Label>
