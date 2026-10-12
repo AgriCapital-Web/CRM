@@ -188,7 +188,7 @@ export default function Leads() {
     mutationFn: async ({ id, statut }: any) => {
        const lead = leads.find((item: any) => item.id === id);
        const isOwner = lead?.assigned_to === user?.id || lead?.created_by === user?.id;
-       if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
+       if (!isOwner && !isGlobalAdmin) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
        const { error } = await offlineUpdate("leads", id, { statut });
       if (error) throw error;
     },
@@ -382,7 +382,7 @@ export default function Leads() {
                       <TableCell className="text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button size="sm" variant="outline" onClick={() => setSelected(l)}>Détails</Button>
-                        {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin || canSupervise) && (
+                        {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
                           <Button size="sm" variant="secondary" onClick={() => {
                             setEditingLead(l);
                             setLeadForm({
