@@ -18,6 +18,8 @@ import GeographieCascade from "@/components/common/GeographieCascade";
 const ROLES = [
   { value: "commercial", label: "Commercial (Comm)" },
   { value: "technicien", label: "Technicien (Tech)" },
+  { value: "mobilisateur_foncier", label: "Mobilisateur foncier (MF)" },
+  { value: "superviseur_mobilisation_fonciere", label: "Superviseur de zone foncière (SZF)" },
   { value: "chef_equipe_commercial", label: "Chef d'Équipe Commercial (CEC)" },
   { value: "chef_equipe_technique", label: "Chef d'Équipe Technique (CET)" },
   { value: "responsable_commercial", label: "Responsable Commercial (RCom)" },
@@ -88,6 +90,7 @@ const AccountRequest = () => {
   const [errorDetail, setErrorDetail] = useState<any>(null);
   const [regions, setRegions] = useState<any[]>([]);
   const [departements, setDepartements] = useState<any[]>([]);
+  const isFoncierSupervisor = formData.poste === "superviseur_mobilisation_fonciere";
   const [districts, setDistricts] = useState<any[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -244,7 +247,7 @@ const AccountRequest = () => {
               <Field label="Nom complet *" icon={<User />}><Input required value={formData.nom_complet} onChange={(e) => setFormData({ ...formData, nom_complet: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Ex: KOUASSI Jean" /></Field>
               <Field label="Email *" icon={<Mail />}><Input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="votre@email.com" /></Field>
               <Field label="Téléphone *" icon={<Phone />}><CountryPhoneInput label="" required countryCode={formData.telephone_indicatif||undefined} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>setFormData(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/></Field>
-              <Field label="Poste souhaité *" icon={<Briefcase />}><Select value={formData.poste} onValueChange={(value) => setFormData({ ...formData, poste: value })}><SelectTrigger><SelectValue placeholder="Sélectionner un poste" /></SelectTrigger><SelectContent>{ROLES.map((role) => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></Field>
+              <Field label="Poste souhaité *" icon={<Briefcase />}><Select value={formData.poste} onValueChange={(value) => setFormData({ ...formData, poste: value, ...(value === "superviseur_mobilisation_fonciere" ? { departement: "" } : {}) })}><SelectTrigger><SelectValue placeholder="Sélectionner un poste" /></SelectTrigger><SelectContent>{ROLES.map((role) => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></Field>
             </div>
 
             <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
@@ -287,7 +290,7 @@ const AccountRequest = () => {
 
             <div className="space-y-3">
               <Label className="text-sm font-medium flex items-center gap-2"><MapPin className="h-4 w-4" /> Localisation</Label>
-              <GeographieCascade districtId={formData.district} regionId={formData.region} departementId={formData.departement} showVillage={false} className="grid grid-cols-1 gap-3 sm:grid-cols-3" onChange={(g)=>setFormData(prev=>({...prev,district:g.districtId||"",region:g.regionId||"",departement:g.departementId||""}))} />
+              <GeographieCascade districtId={formData.district} regionId={formData.region} departementId={formData.departement} showVillage={false} showDepartement={!isFoncierSupervisor} showSousPrefecture={!isFoncierSupervisor} className="grid grid-cols-1 gap-3 sm:grid-cols-3" onChange={(g)=>setFormData(prev=>({...prev,district:g.districtId||"",region:g.regionId||"",departement:g.departementId||""}))} />
             </div>
 
             <div className="space-y-3 rounded-lg border-2 border-primary/30 bg-primary/5 p-4">
