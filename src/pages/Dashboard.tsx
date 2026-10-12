@@ -479,7 +479,7 @@ const Dashboard = () => {
       {label:"Parcelles",value:stats.parcelles,href:"/parcelles"},
       {label:"Partenariat validé",value:num(stats.partnershipHa)+" ha",href:"/parcelles"},
     ]},
-    { label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations && (globalAdmin || canTechnical), metrics:[
+    { label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
       {label:"Superficie totale",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
       {label:"Superficie plantée",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
@@ -556,7 +556,7 @@ const Dashboard = () => {
                       </CardContent>
                     </Card>
                   );
-                  return k.href ? <Link key={k.label} to={k.href} className="block">{card}</Link> : <div key={k.label}>{card}</div>;
+                  return Array.isArray(k.metrics) ? <div key={k.label}>{card}</div> : k.href ? <Link key={k.label} to={k.href} className="block">{card}</Link> : <div key={k.label}>{card}</div>;
                 })}
               </section>
 
