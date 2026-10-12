@@ -57,13 +57,15 @@ export default function Leads() {
   const qc = useQueryClient();
   const { user, userRoles } = useAuth();
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
-  const canSupervise = (userRoles || []).some((r: string) =>
-    ["pdg", "dg", "responsable_operations", "responsable_commercial",
+  const isGlobalAdmin = (userRoles || []).some((r: string) => ["pdg", "dg", "admin", "super_admin"].includes(r));
+  const canSupervise = isGlobalAdmin || (userRoles || []).some((r: string) =>
+    ["responsable_operations", "responsable_commercial",
      "chef_equipe_commercial", "service_client", "chef_equipe_service_client"].includes(r));
   const isServiceClient = (userRoles || []).some((r: string) => ["service_client", "chef_equipe_service_client"].includes(r));
   const hasCommercialAccess = (userRoles || []).some((r: string) => COMMERCIAL_ASSIGNABLE_ROLES.includes(r));
   const [selected, setSelected] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
     nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
@@ -186,7 +188,7 @@ export default function Leads() {
     mutationFn: async ({ id, statut }: any) => {
        const lead = leads.find((item: any) => item.id === id);
        const isOwner = lead?.assigned_to === user?.id || lead?.created_by === user?.id;
-       if (!isOwner && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
+       if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
        const { error } = await offlineUpdate("leads", id, { statut });
       if (error) throw error;
     },
@@ -196,6 +198,31 @@ export default function Leads() {
   const createLead = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Non authentifié");
+      if (editingLead) {
+        const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
+        if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
+        const num = (v: string) => (v === "" || v == null ? null : Number(v));
+        const { error } = await offlineUpdate("leads", editingLead.id, {
+          nom: leadForm.nom, prenoms: leadForm.prenoms, telephone: leadForm.telephone,
+          whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+          district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
+          departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
+          village_id: leadForm.village_id || null, region_residence: leadForm.region_residence,
+          dispose_terrain: leadForm.dispose_terrain === "oui",
+          superficie_disponible_ha: leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_disponible_ha) : null,
+          superficie_a_valoriser_ha: leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_a_valoriser_ha) : null,
+          superficie_souhaitee_ha: num(leadForm.superficie_souhaitee_ha),
+          delai_demarrage: leadForm.delai_demarrage || null,
+          date_contact_souhaitee: leadForm.date_contact_souhaitee || null,
+          creneau_prefere: leadForm.creneau_prefere || null,
+          mode_contact_prefere: leadForm.mode_contact_prefere || null,
+          commentaire: leadForm.commentaire || null, statut: leadForm.statut,
+          source: leadForm.source || editingLead.source,
+          assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
+        });
+        if (error) throw error;
+        return;
+      }
       if (leadForm.source === "commercial_terrain" && (canSupervise || isServiceClient) && !leadForm.assigned_to) {
         throw new Error("Sélectionnez le commercial responsable de ce lead.");
       }
@@ -229,7 +256,8 @@ export default function Leads() {
       qc.invalidateQueries({ queryKey: ["leads"] });
       setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
       setCreateOpen(false);
-      toast({ title: navigator.onLine ? "Lead créé" : "Lead enregistré hors ligne" });
+      setEditingLead(null);
+      toast({ title: editingLead ? "Lead modifié" : (navigator.onLine ? "Lead créé" : "Lead enregistré hors ligne") });
     },
     onError: (e: any) => toast({ variant: "destructive", title: "Création impossible", description: getSafeErrorMessage(e) }),
   });
@@ -354,6 +382,20 @@ export default function Leads() {
                       <TableCell className="text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button size="sm" variant="outline" onClick={() => setSelected(l)}>Détails</Button>
+                        {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin || canSupervise) && (
+                          <Button size="sm" variant="secondary" onClick={() => {
+                            setEditingLead(l);
+                            setLeadForm({
+                              ...emptyLead,
+                              ...Object.fromEntries(Object.entries(l).map(([k, v]) => [k, v == null ? "" : String(v)])),
+                              dispose_terrain: l.dispose_terrain ? "oui" : "non",
+                              assigned_to: l.assigned_to || "",
+                              telephone_indicatif: "", telephone_local: l.telephone || "",
+                              whatsapp_indicatif: "", whatsapp_local: l.whatsapp || "",
+                            });
+                            setCreateOpen(true);
+                          }}>Modifier</Button>
+                        )}
                         {l.statut !== "converti" && (
                           <Button size="sm" onClick={() => convertToClient(l)}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
                         )}
@@ -450,7 +492,7 @@ export default function Leads() {
 
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Créer un lead</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingLead ? "Modifier le lead" : "Créer un lead"}</DialogTitle></DialogHeader>
             <div className="grid gap-4 sm:grid-cols-2">
               <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={(e) => setLeadForm({ ...leadForm, nom: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
               <div><Label>Prénom(s) *</Label><Input value={leadForm.prenoms} onChange={(e) => setLeadForm({ ...leadForm, prenoms: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
@@ -543,11 +585,11 @@ export default function Leads() {
               <div className="sm:col-span-2"><Label>Note / Commentaire</Label><Textarea value={leadForm.commentaire} onChange={(e) => setLeadForm({ ...leadForm, commentaire: e.target.value })} rows={3} /></div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button>
               <Button
                 onClick={() => createLead.mutate()}
                 disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || !leadForm.district_id.trim()}
-              >{createLead.isPending ? "Enregistrement…" : "Enregistrer"}</Button>
+              >{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
