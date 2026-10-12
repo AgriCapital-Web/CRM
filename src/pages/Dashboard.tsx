@@ -152,7 +152,7 @@ const Dashboard = () => {
           ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut")
           : Promise.resolve({ data: [] }),
         canParcelles || canPlantations || canClients || globalAdmin
-          ? (supabase as any).from("parcelles").select("id,surface_totale_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,statut")
+          ? (supabase as any).from("parcelles").select("id,surface_totale_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
           : Promise.resolve({ data: [] }),
         canPlantations || canClients || globalAdmin
           ? (supabase as any).from("beneficiaire_attributions").select("id,client_id,statut,surface_attribuee_ha")
@@ -209,7 +209,7 @@ const Dashboard = () => {
       const remainingHa = Math.max(0, engagedHa - plantedHa);
       const convertedLeads = leads.filter((l: any) => l.statut === "converti" || Boolean(l.converti_at)).length;
       const conversionRate = leads.length ? Math.round((convertedLeads / leads.length) * 100) : 0;
-      const partnershipHa = parcelles.filter((p: any) => p.statut === "validee" && p.plantation_partagee_activee === true)
+      const partnershipHa = parcelles.filter((p: any) => p.statut === "validee" && (p.plantation_partagee_activee === true || Boolean(p.convention_id)))
         .reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0), 0);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
@@ -304,7 +304,7 @@ const Dashboard = () => {
         const profileByUser = new Map(directory.map((p: any) => [p.user_id, p]));
         const profileById = new Map(directory.map((p: any) => [p.id, p]));
         const teamMap = new Map<string, any>();
-        if (canCommercialTeamPerformance) clients.forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:"Équipe commerciale",clients:0,hectares:0,interventions:0}; row.clients+=1; row.hectares+=Number(cl.total_hectares||0); teamMap.set(key,row); });
+        if (canCommercialTeamPerformance) clients.filter((cl: any) => !cl.is_internal).forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:"Équipe commerciale",clients:0,hectares:0,interventions:0}; row.clients+=1; row.hectares+=Number(cl.total_hectares||0); teamMap.set(key,row); });
         if (canTechnicalTeamPerformance) interventions.forEach((i: any) => { const p=profileById.get(i.agent_technique_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="technique:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"technique",nom:"Équipe technique",clients:0,hectares:0,interventions:0}; row.interventions+=1; teamMap.set(key,row); });
         setTeamPerformance([...teamMap.values()].sort((a,b)=>(b.clients+b.interventions)-(a.clients+a.interventions)).slice(0,10));
       }
@@ -415,6 +415,7 @@ const Dashboard = () => {
         superficieGroups.map((group) => ({
           label: group.label,
           count: clients.filter((client: any) => {
+            if (client.is_internal) return false;
             const ha = Number(client.total_hectares || 0);
             if (group.min === group.max) return Math.round(ha * 100) / 100 === group.min;
             return ha >= group.min && ha < group.max;
