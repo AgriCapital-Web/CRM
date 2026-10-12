@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
+import ConfigurationSenndo from "@/pages/parametres/ConfigurationSenndo";
 
 type Segment = { id: string; code: string; nom: string; description: string | null; criteres: Record<string, unknown>; actif: boolean };
 type Campaign = {
@@ -204,6 +205,7 @@ const GestionNotifications = () => {
             <TabsTrigger value="campaigns"><Send className="mr-2 h-4 w-4" />Campagnes</TabsTrigger>
             <TabsTrigger value="automations"><Zap className="mr-2 h-4 w-4" />Automatisations</TabsTrigger>
             <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger>
+            <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger>
           </TabsList>
         </div>
 
@@ -254,6 +256,8 @@ const GestionNotifications = () => {
             <CardContent className="space-y-2">{automations.map((a) => <div key={a.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{a.nom}</span><Badge variant="outline">{a.evenement}</Badge></div><p className="mt-1 break-anywhere text-sm text-muted-foreground">{a.canal} · {String(a.criteres?.audience || "tous")} · anti-doublon {a.cooldown_minutes} min</p></div><Switch checked={a.actif} onCheckedChange={() => void toggleAutomation(a)} /></div>)}{!loading && automations.length === 0 && <p className="py-8 text-center text-muted-foreground">Aucune automatisation</p>}</CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="senndo" className="space-y-5"><ConfigurationSenndo /></TabsContent>
 
         <TabsContent value="segments">
           <Card><CardHeader><CardTitle>Segments disponibles</CardTitle><CardDescription>Les destinataires sont resolus au moment de l'envoi. Une campagne reste donc dynamique.</CardDescription></CardHeader><CardContent><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{segments.map((s) => <div key={s.id} className="rounded-lg border p-4"><div className="flex items-start justify-between gap-2"><div><p className="font-medium">{s.nom}</p><p className="text-xs text-muted-foreground">{s.description}</p></div><Badge variant={s.actif ? "default" : "outline"}>{s.actif ? "Actif" : "Inactif"}</Badge></div><Button className="mt-3 w-full" variant="outline" onClick={() => { setCampaign({ ...campaign, audience: String(s.criteres?.audience || "tous"), segment_id: s.id }); void previewAudience(String(s.criteres?.audience || "tous")); }}>Utiliser ce segment</Button></div>)}</div></CardContent></Card>
