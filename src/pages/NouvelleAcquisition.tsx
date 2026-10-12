@@ -8,7 +8,6 @@ import { ChevronLeft, ChevronRight, Loader2, BriefcaseBusiness, UserRound, UserC
 import { Etape0Offre } from "@/components/forms/acquisition/Etape0Offre";
 import { EtapeClientDynamique } from "@/components/forms/acquisition/EtapeClientDynamique";
 import { EtapeRepresentantDynamique } from "@/components/forms/acquisition/EtapeRepresentantDynamique";
-import { EtapeEnqueteClient } from "@/components/forms/acquisition/EtapeEnqueteClient";
 import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition/EtapeDocumentsContratsDynamiques";
 import { EtapeConfirmationDossier } from "@/components/forms/acquisition/EtapeConfirmationDossier";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 
 type Step = { code:string; titre:string; description?:string; ordre:number; obligatoire:boolean };
-const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, enquete: UserRound, documents: FileText, confirmation: CheckCircle2 };
+const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, documents: FileText, confirmation: CheckCircle2 };
 
 const NouvelleAcquisition = () => {
   const [formData,setFormData]=useState<any>({});
@@ -86,7 +85,7 @@ const NouvelleAcquisition = () => {
       if(error)toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
       // Le foncier relève exclusivement de la première intervention technique, jamais du parcours commercial.
       // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
-      setSteps((data||[]).filter((item:any)=>String(item.code).toLowerCase()!=="parcelle"));
+      setSteps((data||[]).filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase())));
       setCurrent(v=>Math.min(v,Math.max(0,(data||[]).length-1)));
       setLoadingSteps(false);
     })();
@@ -106,9 +105,6 @@ const NouvelleAcquisition = () => {
       if(fields.some(f=>!formData[f])||!formData.photo_piece_recto_file||!formData.photo_piece_verso_file||!formData.photo_profil_file){
         toast({variant:"destructive",title:"Client incomplet",description:"L’identité, les coordonnées, la photo et les deux faces de la pièce sont obligatoires."}); return false;
       }
-      if(!formData.enquete_objectif){
-        toast({variant:"destructive",title:"Enquête client incomplète",description:"L’objectif du Client est obligatoire."}); return false;
-      }
     }
     if(step.code==="cotitulaire"){
       if(formData.offre?.necessite_cotitulaire&&!formData.has_representant){toast({variant:"destructive",title:"Cotitulaire / mandataire requis",description:"Cette offre exige de renseigner un cotitulaire ou mandataire."});return false;}
@@ -116,9 +112,6 @@ const NouvelleAcquisition = () => {
         const repFields=["representant_type","representant_nom","representant_prenoms","representant_type_piece","representant_numero_piece","representant_telephone"];
         if(repFields.some(f=>!formData[f])||!formData.representant_piece_recto_file||!formData.representant_piece_verso_file||!formData.representant_photo_profil_file){toast({variant:"destructive",title:"Cotitulaire / mandataire incomplet",description:"Renseignez l’identité, le lien, les coordonnées et les pièces/photos."});return false;}
       }
-    }
-    if(step.code==="enquete"&&!formData.enquete_objectif){
-      toast({variant:"destructive",title:"Enquête incomplète",description:"L’objectif du Client est obligatoire."}); return false;
     }
     if(step.code==="documents"){
       const {data:docs}=await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre");
@@ -250,12 +243,6 @@ const NouvelleAcquisition = () => {
         await (supabase as any).from("clients").update({[c.type_contrat==="contrat_acquisition_client"?"contrat_acquisition_statut":"contrat_accompagnement_statut"]:formData[key+"_statut"]||"a_preparer"}).eq("id",client.id);
       }
 
-      await (supabase as any).from("client_enquetes").insert({
-        client_id:client.id,offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,niveau_detail:String(offer.famille_offre||"").toUpperCase()==="PALMTERROIR"?"light":"standard",
-        reponses:{objectif:formData.enquete_objectif,experience:formData.enquete_experience,disponibilite:formData.enquete_disponibilite,source:formData.enquete_source,observations:formData.enquete_observations},
-        statut:"complete",created_by:currentUser.id,updated_by:currentUser.id
-      });
-
       if(brouillonId)await (supabase as any).from("acquisitions_brouillon").delete().eq("id",brouillonId);
       toast({title:"Client enregistré",description:"Le dossier Client et son parcours ont été enregistrés."});
       setSyncState("synced");
@@ -269,7 +256,7 @@ const NouvelleAcquisition = () => {
     if(!step)return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
     switch(step.code){
       case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
-      case "client":return <div className="space-y-6"><EtapeClientDynamique formData={formData} updateFormData={updateFormData}/><EtapeEnqueteClient formData={formData} updateFormData={updateFormData}/></div>;
+      case "client":return <EtapeClientDynamique formData={formData} updateFormData={updateFormData}/>;
       case "cotitulaire":return <EtapeRepresentantDynamique formData={formData} updateFormData={updateFormData}/>;
       case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData}/>;
       case "confirmation":return <EtapeConfirmationDossier formData={formData} updateFormData={updateFormData}/>;
@@ -279,7 +266,7 @@ const NouvelleAcquisition = () => {
 
   const last=current===activeSteps.length-1&&activeSteps.length>0;
   return <ProtectedRoute requiredPermissionCode="clients.create"><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
-    <div><h1 className="text-3xl font-bold">Nouveau Client</h1><p className="text-muted-foreground">Parcours commercial : offre, informations du Client, cotitulaire / mandataire, enquête, documents et confirmation. La parcelle est identifiée par le technicien lors de la première intervention.</p><SyncStatusBadge state={syncState} className="mt-2"/></div>
+    <div><h1 className="text-3xl font-bold">Nouveau Client</h1><p className="text-muted-foreground">Parcours commercial : offre, informations du Client, cotitulaire / mandataire, documents et confirmation. La parcelle est identifiée par le technicien lors de la première intervention.</p><SyncStatusBadge state={syncState} className="mt-2"/></div>
     <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>i<=current&&setCurrent(i)}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
     <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:renderStep()}</Card>
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
