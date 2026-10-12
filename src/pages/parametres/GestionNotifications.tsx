@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 
 type Segment = { id: string; code: string; nom: string; description: string | null; criteres: Record<string, unknown>; actif: boolean };
@@ -26,9 +26,11 @@ type Automation = {
 const CHANNELS = [
   { value: "app", label: "Notification app", icon: Bell },
   { value: "email", label: "Email", icon: Mail },
-  { value: "sms", label: "SMS", icon: Smartphone },
-  { value: "email_sms", label: "Email + SMS", icon: MessageSquare },
-  { value: "auto", label: "Automatique (routage AgriCapital)", icon: Zap },
+  { value: "sms", label: "SMS · Senndo", icon: Smartphone },
+  { value: "whatsapp", label: "WhatsApp appairé · Senndo", icon: MessageSquare },
+  { value: "voice", label: "Appel vocal · Senndo", icon: PhoneCall },
+  { value: "email_sms", label: "E-mail + SMS · Senndo", icon: Mail },
+  { value: "auto", label: "Automatique · Senndo", icon: Zap },
 ];
 
 const EVENTS = [
@@ -188,10 +190,10 @@ const GestionNotifications = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Status label="Resend email" ok={Boolean(provider.resend_email)} />
-            <Status label="Brevo email" ok={Boolean(provider.brevo_email)} />
-            <Status label="Brevo SMS" ok={Boolean(provider.brevo_sms)} />
-            <Status label="WhatsApp Cloud" ok={Boolean(provider.whatsapp)} />
+            <Status label="Senndo API" ok={Boolean(provider.senndo)} />
+            <Status label="Webhook Senndo" ok={Boolean(provider.webhook)} />
+            <Status label="WhatsApp appairé" ok={Boolean(provider.whatsapp_paired)} />
+            <Status label="Appels vocaux" ok={Boolean(provider.voice)} />
           </div>
         </CardContent>
       </Card>
