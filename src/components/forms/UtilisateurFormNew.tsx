@@ -224,6 +224,17 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
 
         if (profileError) throw profileError;
 
+        const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
+        if (baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
+          const { error: salaryError } = await (supabase as any).from("finance_salary_profiles")
+            .upsert({ profile_id: utilisateur.id, base_salary: baseSalary, pay_day: 28, active: true }, { onConflict: "profile_id" });
+          if (salaryError) throw salaryError;
+        } else {
+          const { error: salaryError } = await (supabase as any).from("finance_salary_profiles")
+            .update({ active: false }).eq("profile_id", utilisateur.id);
+          if (salaryError) throw salaryError;
+        }
+
         // Les rôles sont liés au compte Auth. Un ancien profil sans compte de connexion
         // ne doit jamais provoquer une erreur de clé étrangère.
         const uid = utilisateur.user_id;
@@ -280,6 +291,18 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
 
         if (error) throw error;
         if (!result.success) throw new Error(result.error);
+
+        const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
+        const { data: newProfile, error: newProfileError } = await (supabase as any).from("profiles")
+          .select("id").eq("user_id", result.user_id).single();
+        if (newProfileError) throw newProfileError;
+        if (baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
+          const { error: salaryError } = await (supabase as any).from("profiles").update({ salaire_base: baseSalary }).eq("id", newProfile.id);
+          if (salaryError) throw salaryError;
+          const { error: salaryConfigError } = await (supabase as any).from("finance_salary_profiles")
+            .upsert({ profile_id: newProfile.id, base_salary: baseSalary, pay_day: 28, active: true }, { onConflict: "profile_id" });
+          if (salaryConfigError) throw salaryConfigError;
+        }
 
         if (file && result.user_id) {
           const fileExt = file.name.split('.').pop();
