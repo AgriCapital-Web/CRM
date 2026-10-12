@@ -425,6 +425,8 @@ export default function Leads() {
                     <p><b>Téléphone:</b> {selected.telephone} • <b>WhatsApp:</b> {selected.whatsapp || "—"}</p>
                     <p><b>Email:</b> {selected.email || "—"}</p>
                     <p><b>Région:</b> {selected.region_residence || "—"}</p>
+                    <p><b>Type:</b> {selected.type_lead === "proprietaire_foncier" ? "Propriétaire foncier" : "Client"}</p>
+                    {selected.type_lead === "client" && <p><b>Offre / formule:</b> {selected.offre_code || "—"} / {selected.formule_code || "—"}</p>}
                     <p><b>Terrain:</b> {selected.dispose_terrain ? `Oui — ${selected.superficie_disponible_ha || 0} ha dispo, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : `Non — souhaite ${selected.superficie_souhaitee_ha || 0} ha`}</p>
                     <p><b>Délai:</b> {selected.delai_demarrage || "—"} • <b>Créneau:</b> {selected.creneau_prefere || "—"} • <b>Mode:</b> {selected.mode_contact_prefere}</p>
                     <p><b>Source:</b> {selected.source}</p>
