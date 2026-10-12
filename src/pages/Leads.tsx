@@ -67,7 +67,7 @@ export default function Leads() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
-    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "",
+    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
     statut: "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
@@ -233,7 +233,7 @@ export default function Leads() {
         telephone: leadForm.telephone,
         whatsapp: leadForm.whatsapp || null,
         email: leadForm.email || null,
-        district_id: leadForm.district_id || null, region_id: leadForm.region_id || null, departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null, village_id: leadForm.village_id || null, region_residence: leadForm.region_residence,
+        district_id: leadForm.district_id || null, region_id: leadForm.region_id || null, departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null, village_id: leadForm.village_id || null, region_residence: leadForm.region_residence, campement_quartier: leadForm.campement_quartier.trim() || null, campement_quartier: leadForm.campement_quartier.trim() || null,
         dispose_terrain: leadForm.dispose_terrain === "oui",
         superficie_disponible_ha: leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_disponible_ha) : null,
         superficie_a_valoriser_ha: leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_a_valoriser_ha) : null,
@@ -499,6 +499,7 @@ export default function Leads() {
               <CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif||undefined} localValue={leadForm.telephone_local||""} onChange={v=>setLeadForm(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
               <CountryPhoneInput label="WhatsApp" countryCode={leadForm.whatsapp_indicatif||undefined} localValue={leadForm.whatsapp_local||""} onChange={v=>setLeadForm(x=>({...x,whatsapp_indicatif:v.callingCode,whatsapp_local:v.localValue,whatsapp:v.internationalValue}))}/>
               <div><Label>Email</Label><Input type="email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} /></div>
+              <div><Label>Campement / Quartier</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Nom du campement ou du quartier" /></div>
               <div className="sm:col-span-2">
                 <GeographieCascade
                   districtId={leadForm.district_id}
