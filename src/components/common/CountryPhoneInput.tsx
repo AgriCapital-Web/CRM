@@ -39,7 +39,8 @@ export interface CountryPhoneInputProps {
 export const CountryPhoneInput = ({ label, countryCode, localValue = "", required, disabled, onChange, minLocalDigits, maxLocalDigits }: CountryPhoneInputProps) => {
   const [selectedCode, setSelectedCode] = useState(() => countryFromCode(countryCode || "+225", COUNTRIES).code);
   const selected = COUNTRIES.find(c => c.code === selectedCode) || countryFromCode(countryCode || "+225", COUNTRIES);
-  const options = useMemo(() => COUNTRIES.map(c => ({ value: c.code, label: c.flag + " " + c.name + " " + c.callingCode })), []);
+  const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
+  const options = useMemo(() => COUNTRIES.map(c => ({ value: c.code, label: c.name + " " + c.callingCode, flagUrl: flagUrl(c.code) })), []);
   const normalizedLocal = (value: string, country: Country) => {
     let valueDigits = digits(value);
     const callingDigits = digits(country.callingCode);
@@ -68,7 +69,8 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         emptyText="Aucun pays trouvé."
         disabled={disabled}
         className="w-[112px] shrink-0 sm:w-[145px]"
-        triggerLabel={selected.flag + " " + selected.callingCode}
+        triggerLabel={selected.callingCode}
+        triggerFlagUrl={flagUrl(selected.code)}
       />
       <Input
         className="min-w-0 flex-1"

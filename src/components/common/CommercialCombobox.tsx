@@ -49,7 +49,8 @@ const CommercialCombobox = ({
           nom: formatUserShortName(row.nom_complet || row.email || "Sans nom"),
           roles: Array.isArray(row.roles) ? row.roles.map(normalizeRole) : [],
         }));
-        if (active) setOptions(list);
+        if (active && list.length) { setOptions(list); return; }
+        throw new Error("Répertoire commercial vide");
       } catch {
         const [profiles, cachedRoles] = await Promise.all([
           getCachedItems(STORES.PROFILES),
