@@ -12,6 +12,8 @@ export const ROLES = {
   CHEF_EQUIPE_COMMERCIAL: 'chef_equipe_commercial',
   CHEF_EQUIPE_TECHNIQUE: 'chef_equipe_technique',
   TECHNICIEN: 'technicien',
+  MOBILISATEUR_FONCIER: 'mobilisateur_foncier',
+  SUPERVISEUR_MOBILISATION_FONCIERE: 'superviseur_mobilisation_fonciere',
   CHEF_EQUIPE_SERVICE_CLIENT: 'chef_equipe_service_client',
   ASSOCIE_ACTIONNAIRE: 'associe_actionnaire',
 } as const;
@@ -37,6 +39,8 @@ export const OFFICIAL_ROLES: RoleDefinition[] = [
   { code: ROLES.CHEF_EQUIPE_COMMERCIAL, nom: "Chef d'Equipe Commercial", court: 'CEC', description: "Encadrement d'une équipe commerciale terrain", niveau: 4, niveauLabel: 'Encadrement', couleur: 'bg-secondary text-secondary-foreground' },
   { code: ROLES.CHEF_EQUIPE_TECHNIQUE, nom: "Chef d'Equipe Technique", court: 'CET', description: "Encadrement d'une équipe technique terrain", niveau: 4, niveauLabel: 'Encadrement', couleur: 'bg-secondary text-secondary-foreground' },
   { code: ROLES.TECHNICIEN, nom: 'Technicien', court: 'Tech', description: 'Visites, rapports et interventions techniques terrain', niveau: 5, niveauLabel: 'Opérationnel', couleur: 'bg-muted text-muted-foreground' },
+  { code: ROLES.MOBILISATEUR_FONCIER, nom: 'Mobilisateur foncier', court: 'MF', description: 'Prospection foncière et suivi de ses propres propriétaires et leads', niveau: 5, niveauLabel: 'Opérationnel', couleur: 'bg-muted text-muted-foreground' },
+  { code: ROLES.SUPERVISEUR_MOBILISATION_FONCIERE, nom: 'Superviseur de zone foncière', court: 'SZF', description: 'Supervision foncière à l’échelle d’une région', niveau: 3, niveauLabel: 'Management', couleur: 'bg-accent/20 text-accent-foreground' },
   { code: ROLES.CHEF_EQUIPE_SERVICE_CLIENT, nom: "Chef d'Equipe Service Client", court: 'CESC', description: "Encadrement de l'équipe service client", niveau: 4, niveauLabel: 'Encadrement', couleur: 'bg-secondary text-secondary-foreground' },
   { code: ROLES.COMMERCIAL, nom: 'Commercial', court: 'Comm', description: 'Prospection, leads et clients', niveau: 5, niveauLabel: 'Opérationnel', couleur: 'bg-muted text-muted-foreground' },
   { code: ROLES.SERVICE_CLIENT, nom: 'Service Client', court: 'SC', description: 'Support, tickets et assistance client', niveau: 5, niveauLabel: 'Opérationnel', couleur: 'bg-muted text-muted-foreground' },
