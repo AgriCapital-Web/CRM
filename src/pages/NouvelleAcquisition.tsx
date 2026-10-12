@@ -173,11 +173,11 @@ const NouvelleAcquisition = () => {
         formule_code: selectedFormula.code || baseOffer.formule_code || baseOffer.code,
         formule_nom: selectedFormula.nom || baseOffer.formule_nom || baseOffer.nom,
         gestion_type: selectedFormula.gestion_type ?? baseOffer.gestion_type,
-        ...(selectedFormula.utilise_tarif_commun === false ? Object.fromEntries(
+        ...Object.fromEntries(
           ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]
             .filter((key) => selectedFormula[key] !== undefined && selectedFormula[key] !== null)
             .map((key) => [key, selectedFormula[key]])
-        ) : {}),
+        ),
       } : baseOffer;
       const ha=Number(formData.superficie_prevue);
       const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement:"echeancier"});
