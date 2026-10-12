@@ -273,7 +273,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
           <Textarea uppercase={false} className="min-w-0 flex-1" value={draft} maxLength={4000} rows={3} placeholder="Répondre au client… (Entrée = envoyer, Maj+Entrée = nouvelle ligne)" onChange={e=>setDraft(e.target.value)} onKeyDown={handleComposerKeyDown} disabled={sending||optimizing}/>
           <div className="flex shrink-0 gap-2">
             <input ref={inputRef} type="file" className="hidden" accept="image/*,video/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{void chooseFile(e.currentTarget.files?.[0]);e.currentTarget.value="";}} />
-            <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={sending || optimizing} title="Joindre un fichier"><Paperclip className="h-4 w-4" /><span className="ml-2 hidden sm:inline">{optimizing ? "Optimisation…" : "Joindre"}</span></Button>
+            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={() => inputRef.current?.click()} disabled={sending || optimizing} title={optimizing ? "Optimisation du fichier…" : "Ajouter un fichier"} aria-label={optimizing ? "Optimisation du fichier en cours" : "Ajouter un fichier"}>{optimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}</Button>
             <Button type="button" onClick={send} disabled={sending||optimizing||(!draft.trim()&&!attachment)}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
           </div>
         </div>}
