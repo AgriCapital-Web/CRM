@@ -44,7 +44,10 @@ Deno.serve(async (req) => {
   });
   const { data: { user } } = await supabase.auth.getUser(auth.replace(/^Bearer\s+/i, ""));
   if (!user) return json({ error: "Connexion requise" }, 401);
-  const { data: staff } = await supabase.rpc("is_staff", { _user_id: user.id });
+  const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: staff } = await adminClient.rpc("is_staff", { _user_id: user.id });
   if (!staff) return json({ error: "Accès réservé au personnel" }, 403);
 
   let description = "";
