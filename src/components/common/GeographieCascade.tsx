@@ -107,7 +107,6 @@ export default function GeographieCascade({
               districtId:districtId||null,regionId:regionId||null,departementId:value,sousPrefectureId:null,villageId:null,
               regionName:regions.find((r)=>r.id===regionId)?.nom||null,departementName:x?.nom||null,sousPrefectureName:null,villageName:null
             });}} />
-        </div>
         </div>}
         {showSousPrefecture && <div className="space-y-2"><Label>Sous-préfecture{required ? " *" : ""}</Label>
           <SearchableSelect value={sousPrefectureId || ""} disabled={!departementId} options={sousPrefectures.map((x)=>({value:x.id,label:x.nom}))}
@@ -117,7 +116,7 @@ export default function GeographieCascade({
               regionName:regions.find((r)=>r.id===regionId)?.nom||null,departementName:departements.find((d)=>d.id===departementId)?.nom||null,
               sousPrefectureName:x?.nom||null,villageName:null
             });}} />
-        </div>
+        </div>}
         {showVillage && <div className="space-y-2"><Label>Village / localité{required ? " *" : ""}</Label>
           <SearchableSelect value={villageId || ""} disabled={!sousPrefectureId} options={villages.map((x)=>({value:x.id,label:x.nom}))}
             placeholder="Sélectionner le village / la localité" searchPlaceholder="Rechercher un village"
