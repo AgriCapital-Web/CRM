@@ -58,6 +58,7 @@ export default function Leads() {
   const { user, userRoles } = useAuth();
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
   const isGlobalAdmin = (userRoles || []).some((r: string) => ["pdg", "dg", "admin", "super_admin"].includes(r));
+  const isFoncierRole = (userRoles || []).some((r: string) => ["mobilisateur_foncier", "superviseur_mobilisation_fonciere"].includes(r));
   const canSupervise = isGlobalAdmin || (userRoles || []).some((r: string) =>
     ["responsable_operations", "responsable_commercial",
      "chef_equipe_commercial", "service_client", "chef_equipe_service_client"].includes(r));
