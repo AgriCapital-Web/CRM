@@ -9,7 +9,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { getAllItems, getHttpMutationStats, STORES } from "@/lib/offlineDb";
 import {
   getAllQueuedFiles, retryQueuedFile, retryAllQueuedFiles, discardQueuedFile,
-  getFileQueueStats, startFileQueueResume,
+  getFileQueueStats, startFileQueueResume, flushFileQueue,
 } from "@/lib/offlineFiles";
 import { RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 
@@ -60,14 +60,14 @@ export function SyncQueueContent() {
             variant="outline"
             size="sm"
             className="w-full sm:flex-1 lg:w-auto"
-            onClick={async () => { await retryAllQueuedFiles(); await syncNow(); await load(); }}
+            onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await syncNow(); await load(); }}
             disabled={!isOnline || fileStats.error + fileStats.waiting === 0}
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             Relancer les échecs ({fileStats.error + fileStats.waiting})
           </Button>
           <Button
-            onClick={syncNow}
+            onClick={async () => { await flushFileQueue(); await syncNow(); await load(); }}
             disabled={!isOnline || isSyncing}
             size="sm"
             className="w-full sm:flex-1 lg:w-auto"
