@@ -201,7 +201,7 @@ const Dashboard = () => {
       });
       const overdueAmount = overdue.reduce((s: number, p: any) => s + Math.max(0, Number(p.montant || 0) - Number(p.montant_paye || 0)), 0);
 
-      const engagedHa = clients.filter((c:any)=>c.id_unique!=="AC-DEMO").reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
+      const engagedHa = clients.filter((c:any)=>c.id_unique!=="AC-DEMO" && !c.is_internal).reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const plantedHa = plantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
       const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
@@ -215,7 +215,7 @@ const Dashboard = () => {
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
       const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
 
-      const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.id_unique !== "AC-DEMO");
+      const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.id_unique !== "AC-DEMO" && !c.is_internal);
       const contractRows = activeContracts.filter((c: any) => c.type_client !== "beneficiaire_particulier" && ["PalmInvest","TerraPalm","PalmTerroir"].includes(c.formule_nom) && Number(c.montant_total_contrat || 0) > 0);
       const paidByClient = new Map<string, number>();
       validPayments.forEach((p: any) => paidByClient.set(p.client_id, (paidByClient.get(p.client_id) || 0) + Number(p.montant_paye ?? p.montant ?? 0)));
@@ -277,7 +277,7 @@ const Dashboard = () => {
 
       // IMPORTANT: "Clients récents" = ordre de création récent, pas numéro métier.
       setRecentClients(
-        [...clients]
+        [...clients].filter((c: any) => !c.is_internal)
           .sort((a: any, b: any) => {
             const byDate = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
             return byDate || Number(b.numero_ordre_global || 0) - Number(a.numero_ordre_global || 0);
@@ -297,7 +297,7 @@ const Dashboard = () => {
       );
 
       const officialOffers = new Map([["PalmInvest",{name:"PalmInvest",clients:0,hectares:0}],["TerraPalm",{name:"TerraPalm",clients:0,hectares:0}],["PalmTerroir",{name:"PalmTerroir",clients:0,hectares:0}]]);
-      clients.filter((c:any)=>c.id_unique!=="AC-DEMO"&&c.type_client!=="beneficiaire_particulier"&&officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
+      clients.filter((c:any)=>c.id_unique!=="AC-DEMO"&&!c.is_internal&&c.type_client!=="beneficiaire_particulier"&&officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
       setOfferPerformance([...officialOffers.values()].filter((x:any)=>x.clients>0).sort((a,b)=>b.clients-a.clients));
 
       if (canCommercialTeamPerformance || canTechnicalTeamPerformance) {
@@ -427,7 +427,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [canClients, canLeads, canPlantations, canPayments, canFinance, canTechnical, canCommissions, canPortfolios, globalAdmin, canCommercialTeamPerformance, canTechnicalTeamPerformance]);
+  }, [canClients, canLeads, canOwners, canParcelles, canPlantations, canPayments, canFinance, canTechnical, canCommissions, canPortfolios, globalAdmin, canCommercialTeamPerformance, canTechnicalTeamPerformance]);
 
   useEffect(() => { void fetchStats(false); }, [fetchStats]);
   const refreshSilently = useCallback(() => { void fetchStats(true); }, [fetchStats]);
