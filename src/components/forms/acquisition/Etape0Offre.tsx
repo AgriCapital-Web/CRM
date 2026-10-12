@@ -22,7 +22,8 @@ interface Etape0Props {
 
 const getFormulaConfig = (offer: any, code?: string) => {
   const formulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
-  return formulas.find((formula: any) => formula.code === code) || formulas[0] || null;
+  if (code) return formulas.find((formula: any) => formula.code === code) || null;
+  return formulas[0] || null;
 };
 
 const applyFormulaConfig = (offer: any, formula: any) => {
