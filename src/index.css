@@ -603,3 +603,16 @@ All colors MUST be HSL.
     .responsive-data-table th, .responsive-data-table td { padding: .625rem .75rem; }
   }
 }
+
+/* Layout safety net shared by forms and dialogs across desktop and mobile. */
+@layer components {
+  form, [role="dialog"], [data-radix-dialog-content] { min-width: 0; }
+  form .grid, [role="dialog"] .grid, [data-radix-dialog-content] .grid { min-width: 0; }
+  form .grid > *, [role="dialog"] .grid > *, [data-radix-dialog-content] .grid > * { min-width: 0; max-width: 100%; }
+  form input, form select, form textarea, form button, [role="dialog"] input, [role="dialog"] select, [role="dialog"] textarea, [role="dialog"] button { max-width: 100%; }
+  form label, [role="dialog"] label { overflow-wrap: anywhere; }
+  @media (max-width: 640px) {
+    form .flex, [role="dialog"] .flex { min-width: 0; }
+    form [type="submit"], [role="dialog"] button { white-space: normal; }
+  }
+}

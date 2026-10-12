@@ -1,48 +1,94 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import SearchableSelect from "@/components/common/SearchableSelect";
-import { supabase } from "@/integrations/supabase/client";
-import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import { getCountries, getCountryCallingCode, parsePhoneNumberFromString } from "libphonenumber-js/max";
 
-type Country={code:string;iso3?:string;name:string;callingCode:string;flag:string;minLocalDigits?:number;maxLocalDigits?:number;metadata?:Record<string,any>};
-const countryFlag = (code: string) =>
-  String(code || "").toUpperCase().replace(/[A-Z]/g, (letter) =>
-    String.fromCodePoint(127397 + letter.charCodeAt(0))
-  );
-const digits=(value:string)=>String(value||"").replace(/\D/g,"");
-const countryFromCode=(value:string,countries:Country[])=>{const exact=countries.find(c=>c.code===value);if(exact)return exact;const matches=countries.filter(c=>c.callingCode===value);return matches.length===1?matches[0]:countries.find(c=>c.metadata?.is_default)||countries[0];};
+type Country = { code: string; name: string; callingCode: string; flag: string };
+const digits = (value: string) => String(value || "").replace(/\D/g, "");
+const countryFlag = (code: string) => String(code || "").toUpperCase().replace(/[A-Z]/g, letter => String.fromCodePoint(127397 + letter.charCodeAt(0)));
+const displayNames = new Intl.DisplayNames(["fr"], { type: "region" });
+const COUNTRIES: Country[] = getCountries().map(code => ({
+  code,
+  name: displayNames.of(code) || code,
+  callingCode: "+" + getCountryCallingCode(code),
+  flag: countryFlag(code),
+})).sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
-export interface CountryPhoneInputProps{
-  label:string; countryCode?:string; localValue?:string; required?:boolean; disabled?:boolean;
-  onChange:(v:{countryCode:string;callingCode:string;localValue:string;internationalValue:string})=>void;
-  minLocalDigits?:number; maxLocalDigits?:number;
+const countryFromCode = (value: string, countries: Country[]) => {
+  const normalized = String(value || "").trim();
+  const exact = countries.find(c => c.code === normalized.toUpperCase());
+  if (exact) return exact;
+  const matches = countries.filter(c => c.callingCode === normalized);
+  if (matches.length === 1) return matches[0];
+  if (normalized === "+1") return countries.find(c => c.code === "US") || matches[0];
+  if (normalized === "+44") return countries.find(c => c.code === "GB") || matches[0];
+  return matches[0] || countries.find(c => c.code === "CI") || countries[0];
+};
+
+export interface CountryPhoneInputProps {
+  label: string;
+  countryCode?: string;
+  localValue?: string;
+  required?: boolean;
+  disabled?: boolean;
+  onChange: (v: { countryCode: string; callingCode: string; localValue: string; internationalValue: string }) => void;
+  minLocalDigits?: number;
+  maxLocalDigits?: number;
 }
 
-export const CountryPhoneInput=({label,countryCode,localValue="",required,disabled,onChange,minLocalDigits,maxLocalDigits}:CountryPhoneInputProps)=>{
-  const [countries,setCountries]=useState<Country[]>([]);
-  const [selectedCode,setSelectedCode]=useState("");
-  const lastEmittedCallingCode=useRef<string|null>(null);
-  useEffect(()=>{let active=true;void (async()=>{const {data,error}=await (supabase as any).from("referentiels_systeme").select("code,libelle,ordre,metadata").eq("categorie","pays_telephone").eq("actif",true).order("ordre").order("libelle");if(active&&!error)setCountries((data||[]).map((r:any)=>({code:r.code,name:r.libelle,iso3:r.metadata?.iso3,callingCode:r.metadata?.callingCode||"",flag:r.metadata?.flag||countryFlag(r.code),minLocalDigits:r.metadata?.minLocalDigits,maxLocalDigits:r.metadata?.maxLocalDigits,metadata:r.metadata})).filter((c:Country)=>c.callingCode));})();return()=>{active=false;};},[]);
-  useEffect(()=>{if(!countries.length)return;if(lastEmittedCallingCode.current&&countryCode===lastEmittedCallingCode.current){lastEmittedCallingCode.current=null;return;}setSelectedCode(countryFromCode(countryCode||"",countries)?.code||"");},[countryCode,countries]);
-  const selected=countries.find(c=>c.code===selectedCode)||countryFromCode(countryCode||"",countries);
-  const resolvedMin=minLocalDigits ?? selected?.minLocalDigits;
-  const resolvedMax=maxLocalDigits ?? selected?.maxLocalDigits;
-  const normalizeLocal=(value:string,country:Country)=>{let d=digits(value);const cc=digits(country?.callingCode||"");if(cc&&d.startsWith(cc)&&resolvedMax&&d.length>resolvedMax)d=d.slice(cc.length);return resolvedMax ? d.slice(0,resolvedMax) : d;};
-  const currentLocal=selected?normalizeLocal(localValue,selected):"";
-  const options=useMemo(()=>countries.map(c=>({value:c.code,label:c.flag+" "+c.name+" "+c.callingCode})),[countries]);
-  const emit=(country:Country,value:string)=>{setSelectedCode(country.code);lastEmittedCallingCode.current=country.callingCode;const local=normalizeLocal(value,country);const international=local?country.callingCode+local:"";const parsed=international?parsePhoneNumberFromString(international,country.code as any):undefined;const normalizedLocal=parsed?.countryCallingCode===digits(country.callingCode)?parsed.nationalNumber:local;onChange({countryCode:country.code,callingCode:country.callingCode,localValue:normalizedLocal,internationalValue:international});};
-  return <div className="space-y-2 min-w-0">
-    {label&&<label className="text-sm font-medium truncate block">{label}{required&&" *"}</label>}
+export const CountryPhoneInput = ({ label, countryCode, localValue = "", required, disabled, onChange, minLocalDigits, maxLocalDigits }: CountryPhoneInputProps) => {
+  const [selectedCode, setSelectedCode] = useState(() => countryFromCode(countryCode || "+225", COUNTRIES).code);
+  const selected = COUNTRIES.find(c => c.code === selectedCode) || countryFromCode(countryCode || "+225", COUNTRIES);
+  const options = useMemo(() => COUNTRIES.map(c => ({ value: c.code, label: c.flag + " " + c.name + " " + c.callingCode })), []);
+  const normalizedLocal = (value: string, country: Country) => {
+    let valueDigits = digits(value);
+    const callingDigits = digits(country.callingCode);
+    if (callingDigits && valueDigits.startsWith(callingDigits) && valueDigits.length > (maxLocalDigits || 15)) valueDigits = valueDigits.slice(callingDigits.length);
+    return valueDigits.slice(0, maxLocalDigits || 15);
+  };
+  const currentLocal = normalizedLocal(localValue, selected);
+  const emit = (country: Country, value: string) => {
+    setSelectedCode(country.code);
+    const local = normalizedLocal(value, country);
+    const internationalValue = local ? country.callingCode + local : "";
+    const parsed = internationalValue ? parsePhoneNumberFromString(internationalValue, country.code as any) : undefined;
+    const normalized = parsed?.countryCallingCode === digits(country.callingCode) ? parsed.nationalNumber : local;
+    onChange({ countryCode: country.code, callingCode: country.callingCode, localValue: normalized, internationalValue });
+  };
+
+  return <div className="min-w-0 space-y-2">
+    {label && <label className="block truncate text-sm font-medium">{label}{required && " *"}</label>}
     <div className="flex w-full min-w-0 items-stretch gap-2">
-      <SearchableSelect value={selected?.code||""} onValueChange={code=>{const c=countries.find(x=>x.code===code);if(c)emit(c,currentLocal);}}
-        options={options} placeholder="Pays" searchPlaceholder="Rechercher un pays..." disabled={disabled||!countries.length}
-        className="w-[88px] min-[390px]:w-[104px] sm:w-[120px] shrink-0" triggerLabel={(selected?.flag||"🌐")+" "+(selected?.callingCode||"")} />
-      <Input className="min-w-0 flex-1" type="tel" inputMode="numeric" autoComplete="tel" value={currentLocal}
-        disabled={disabled||!selected} required={required} minLength={resolvedMin} maxLength={resolvedMax}
-        pattern={selected?.metadata?.pattern || undefined}
-        placeholder={selected?.metadata?.placeholder || "Numéro local"}
-        onInvalid={e=>{const value=(e.currentTarget as HTMLInputElement).value;const phone=selected&&value?parsePhoneNumberFromString(value,selected.code as any):undefined;if(value&&(!phone||!phone.isPossible()))e.currentTarget.setCustomValidity(selected?.metadata?.invalidMessage || "Le numéro ne correspond pas à une longueur valide pour le pays sélectionné.");}}
-        onInput={e=>e.currentTarget.setCustomValidity("")} onChange={e=>selected&&emit(selected,e.target.value)} />
+      <SearchableSelect
+        value={selected.code}
+        onValueChange={code => { const country = COUNTRIES.find(c => c.code === code); if (country) emit(country, currentLocal); }}
+        options={options}
+        placeholder="Pays"
+        searchPlaceholder="Rechercher un pays..."
+        emptyText="Aucun pays trouvé."
+        disabled={disabled}
+        className="w-[112px] shrink-0 sm:w-[145px]"
+        triggerLabel={selected.flag + " " + selected.callingCode}
+      />
+      <Input
+        className="min-w-0 flex-1"
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel-national"
+        value={currentLocal}
+        disabled={disabled}
+        required={required}
+        minLength={minLocalDigits}
+        maxLength={maxLocalDigits || 15}
+        placeholder="Numéro local"
+        onInvalid={e => {
+          const value = (e.currentTarget as HTMLInputElement).value;
+          const phone = value ? parsePhoneNumberFromString(value, selected.code as any) : undefined;
+          if (value && (!phone || !phone.isPossible())) e.currentTarget.setCustomValidity("Le numéro ne correspond pas à une longueur valide pour le pays sélectionné.");
+        }}
+        onInput={e => e.currentTarget.setCustomValidity("")}
+        onChange={e => emit(selected, e.target.value)}
+      />
     </div>
   </div>;
 };

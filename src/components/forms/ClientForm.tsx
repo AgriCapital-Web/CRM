@@ -50,10 +50,27 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
   const setField = (key: string, value: any) => setForm((x: any) => ({ ...x, [key]: value }));
 
   useEffect(() => {
+    let active = true;
     (async () => {
-      const { data } = await (supabase as any).from("offres").select("id,code,nom,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,actif").eq("actif", true).order("ordre").order("nom");
-      setOffers(data || []);
+      const columns = "id,code,nom,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,actif";
+      try {
+        const { data, error } = await (supabase as any).from("offres").select(columns).eq("actif", true).order("ordre").order("nom");
+        if (error) throw error;
+        if (active && data?.length) {
+          setOffers(data);
+          return;
+        }
+        // Fallback for environments where the active-only query returns no rows:
+        // do not change DB records; filter the existing offer list in the form.
+        const fallback = await (supabase as any).from("offres").select(columns).order("ordre").order("nom");
+        if (fallback.error) throw fallback.error;
+        if (active) setOffers((fallback.data || []).filter((item: any) => item.actif !== false));
+      } catch (error) {
+        console.error("Chargement des offres impossible", error);
+        if (active) setOffers([]);
+      }
     })();
+    return () => { active = false; };
   }, []);
 
   const offer = useMemo(() => offers.find(o => o.id === form.offre_id) || null, [offers, form.offre_id]);
@@ -190,10 +207,10 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
             <div><Label>Type de dossier</Label><Input value={isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"} disabled /></div>
-            <div><Label>Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{if(hasActivity)return;const selected=offers.find(o=>o.id===v);if(!selected)return;const formulas=Array.isArray(selected.formules_configuration)?selected.formules_configuration:[];const formula=formulas[0]||null;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:formula?.code||selected.formule_code||selected.code,formule_nom:formula?.nom||selected.formule_nom||selected.nom,parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}} disabled={hasActivity}><SelectTrigger><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Formule</Label><Select value={selectedFormula?.code || ""} onValueChange={code=>{if(hasActivity)return;const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={hasActivity || !offerFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{if(hasActivity)return;const selected=offers.find(o=>o.id===v);if(!selected)return;const formulas=Array.isArray(selected.formules_configuration)?selected.formules_configuration:[];const formula=formulas[0]||null;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:formula?.code||selected.formule_code||selected.code,formule_nom:formula?.nom||selected.formule_nom||selected.nom,parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}}><SelectTrigger><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Formule</Label><Select value={selectedFormula?.code || ""} onValueChange={code=>{if(hasActivity)return;const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={!offerFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
           </div>
-          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>L’offre est verrouillée car le dossier possède déjà une activation, un paiement initial ou une plantation. Toute modification contractuelle doit passer par le parcours contractuel.</span></div>}
+          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Le dossier possède déjà une activation, un paiement initial ou une plantation. Le choix de l’offre ici ne recalcule pas les éléments contractuels déjà activés.</span></div>}
         </CardContent>
       </Card>
 

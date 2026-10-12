@@ -519,7 +519,7 @@ const ProprietairesTerres = () => {
                           </div>
                           <div className="space-y-2">
                             <Label>Lieu de résidence</Label>
-                            <Input value={formData.lieu_residence} onChange={e => update('lieu_residence', e.target.value)} placeholder="Campement ou quartier" />
+                            <Input value={formData.lieu_residence} onChange={e => update('lieu_residence', e.target.value)} placeholder="Lieu de résidence" />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
