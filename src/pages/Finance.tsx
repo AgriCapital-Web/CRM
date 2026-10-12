@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, PlayCircle, CheckCircle2 } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, PlayCircle, CheckCircle2, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import TableSearchInput from "@/components/common/TableSearchInput";
 
@@ -22,7 +22,7 @@ const today=()=>new Date().toISOString().slice(0,10);
 export default function Finance(){
   const { can } = usePermissions();
   const { hasRole } = useAuth();
-  const canDeleteDraftPayroll = hasRole("pdg") || hasRole("super_admin");
+  const canDeleteDraftPayroll = hasRole("pdg") || hasRole("super_admin") || hasRole("admin") || hasRole("dg");
   const { toast } = useToast();
   const [transactions,setTransactions]=useState<any[]>([]);
   const [expenses,setExpenses]=useState<any[]>([]);
@@ -237,7 +237,7 @@ export default function Finance(){
           <Input type="number" min="1" max="31" placeholder="Jour habituel de paiement (28)" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/>
           <Button className="w-full" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
         </CardContent></Card>}
-        {can("finance.payroll")&&<Card><CardHeader><CardTitle>Générer la paie</CardTitle></CardHeader><CardContent className="space-y-3"><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><Button className="w-full" onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>GÉNÉRER AUTOMATIQUEMENT</Button><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="rounded-lg border p-3 flex items-center justify-between"><div><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p></div>{r.status!=="paye"&&<Button size="sm" onClick={()=>void payRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>DÉCLENCHER</Button>}</div>)}</div></CardContent></Card>}
+        {can("finance.payroll")&&<Card><CardHeader><CardTitle>Générer la paie</CardTitle></CardHeader><CardContent className="space-y-3"><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><Button className="w-full" onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>GÉNÉRER AUTOMATIQUEMENT</Button><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p></div><div className="flex flex-wrap items-center gap-2">{r.status!=="paye"&&<Button size="sm" onClick={()=>void payRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>DÉCLENCHER</Button>}{canDeleteDraftPayroll && r.status==="brouillon" && <Button size="sm" variant="destructive" onClick={()=>{if(window.confirm("Supprimer définitivement ce brouillon de paie et ses lignes ?")) void deletePayrollDraft(r);}} disabled={saving}><Trash2 className="mr-1 h-4 w-4"/>Supprimer</Button>}</div></div>)}</div></CardContent></Card>}
       </div></TabsContent>
       <TabsContent value="associes" className="mt-4 min-w-0 space-y-4"><div className="rounded-xl border-l-4 border-violet-600 bg-violet-600/5 p-4"><h2 className="font-semibold">Comptes des associés</h2><p className="mt-1 text-sm text-muted-foreground">Suivez les apports et remboursements enregistrés pour les associés.</p></div><div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {can("finance.associates")&&<Card><CardHeader><CardTitle>Mouvement associé</CardTitle></CardHeader><CardContent className="space-y-3">
