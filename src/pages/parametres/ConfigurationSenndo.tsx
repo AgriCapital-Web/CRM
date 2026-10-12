@@ -20,6 +20,7 @@ export default function ConfigurationSenndo() {
   const [status, setStatus] = useState<Status>({ apiKey: false, webhookSecret: false, emailSenderId: false });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     setLoading(true);
@@ -34,6 +35,20 @@ export default function ConfigurationSenndo() {
   }, []);
 
   useEffect(() => { void refreshStatus(); }, [refreshStatus]);
+
+  const testConnection = async () => {
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("senndo-config", { body: { mode: "test" } });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Test de connexion refusé");
+      const count = Array.isArray(data.senderIds) ? data.senderIds.length : 0;
+      toast.success(`Clé API valide. ${count} expéditeur(s) déclaré(s) par Senndo.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Connexion Senndo impossible");
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const save = async () => {
     if (!apiKey.trim() && !webhookSecret.trim() && !emailSenderId.trim()) {
@@ -70,7 +85,7 @@ export default function ConfigurationSenndo() {
         <ShieldCheck className="h-4 w-4" />
         <AlertTitle>Secrets protégés côté serveur</AlertTitle>
         <AlertDescription>
-          Les valeurs saisies sont transmises à une fonction serveur authentifiée, puis conservées dans Supabase Vault. Elles ne sont jamais renvoyées à l'interface, enregistrées dans le navigateur ou affichées dans les journaux. Les champs sont vidés après l'enregistrement.
+          La clé API et le secret du webhook sont transmis à une fonction serveur authentifiée puis conservés dans Supabase Vault. Ils ne sont jamais renvoyés à l'interface ni affichés dans les journaux. L'adresse expéditrice vérifiée est conservée côté serveur.
         </AlertDescription>
       </Alert>
 
@@ -104,7 +119,8 @@ export default function ConfigurationSenndo() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement sécurisé…" : "Enregistrer côté serveur"}</Button>
-            <Button variant="outline" onClick={() => void refreshStatus()} disabled={loading || saving}><RefreshCw className="mr-2 h-4 w-4" />Vérifier l'état</Button>
+            <Button variant="outline" onClick={() => void refreshStatus()} disabled={loading || saving || testing}><RefreshCw className="mr-2 h-4 w-4" />Vérifier l'état</Button>
+            <Button variant="outline" onClick={() => void testConnection()} disabled={loading || saving || testing || !status.apiKey}><CheckCircle2 className="mr-2 h-4 w-4" />{testing ? "Test en cours…" : "Tester la connexion API"}</Button>
           </div>
           <div className="rounded-lg border p-3">
             <div className="mb-2 flex items-center gap-2 font-medium"><Webhook className="h-4 w-4" />URL de réception webhook</div>
