@@ -465,10 +465,9 @@ const Dashboard = () => {
       {label:"À relancer",value:stats.leadsFollowup,href:"/leads"},
       {label:"Convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},
     ]},
-    { label:"Propriétaires fonciers", icon:LandPlot, href:"/proprietaires-terres", show:canOwners, metrics:[
-      {label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},
-      {label:"Parcelles",value:stats.parcelles,href:"/parcelles"},
-      {label:"Partenariat validé",value:num(stats.partnershipHa)+" ha",href:"/parcelles"},
+    { label:"Propriétaires fonciers", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
+      ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
+      ...(canParcelles || canPlantations ? [{label:"Parcelles",value:stats.parcelles,href:"/parcelles"},{label:"Partenariat validé",value:num(stats.partnershipHa)+" ha",href:"/parcelles"}] : []),
     ]},
     { label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
@@ -551,7 +550,7 @@ const Dashboard = () => {
                 })}
               </section>
 
-              {(canPlantations || canClients) && (
+              {canPlantations && (
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><LandPlot className="h-5 w-5 text-primary" />Patrimoine agricole</CardTitle></CardHeader>
                   <CardContent>
