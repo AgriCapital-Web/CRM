@@ -69,10 +69,15 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     clients: 0,
     leads: 0,
+    leadsNew: 0,
+    leadsConverted: 0,
+    leadsFollowup: 0,
     conversionRate: 0,
     partnershipHa: 0,
     internalPlantations: 0,
+    internalAreaHa: 0,
     internalPlantedHa: 0,
+    internalRemainingHa: 0,
     plantations: 0,
     plantedHa: 0,
     engagedHa: 0,
@@ -209,12 +214,16 @@ const Dashboard = () => {
       const remainingHa = Math.max(0, engagedHa - plantedHa);
       const clientLeads = leads.filter((l: any) => l.type_lead !== "proprietaire_foncier");
       const convertedLeads = clientLeads.filter((l: any) => l.statut === "converti" || Boolean(l.converti_at)).length;
+      const newLeads = clientLeads.filter((l: any) => l.statut === "nouveau").length;
+      const followupLeads = clientLeads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length;
       const conversionRate = clientLeads.length ? Math.round((convertedLeads / clientLeads.length) * 100) : 0;
       const partnershipHa = parcelles.filter((p: any) => p.statut === "validee" && (p.plantation_partagee_activee === true || Boolean(p.convention_id)))
         .reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0), 0);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
       const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
+      const internalAreaHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
+      const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
       const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.id_unique !== "AC-DEMO" && !c.is_internal);
       const contractRows = activeContracts.filter((c: any) => c.type_client !== "beneficiaire_particulier" && ["PalmInvest","TerraPalm","PalmTerroir"].includes(c.formule_nom) && Number(c.montant_total_contrat || 0) > 0);
@@ -245,11 +254,16 @@ const Dashboard = () => {
 
       setStats({
         clients: clients.filter((c: any) => !c.is_internal).length,
-        leads: leads.length,
+        leads: clientLeads.length,
+        leadsNew: newLeads,
+        leadsConverted: convertedLeads,
+        leadsFollowup: followupLeads,
         conversionRate,
         partnershipHa,
         internalPlantations: internalPlantationRows.length,
+        internalAreaHa,
         internalPlantedHa,
+        internalRemainingHa,
         plantations: plantations.length,
         plantedHa,
         engagedHa,
@@ -447,19 +461,30 @@ const Dashboard = () => {
   const progress = stats.engagedHa > 0 ? Math.min(100, Math.round((stats.plantedHa / stats.engagedHa) * 100)) : 0;
   const roleLabel = userRoles.map((r) => ROLE_SHORT_LABELS[r] || r).join(" / ");
 
-  const kpis = [
+  const kpis: any[] = [
     { label:"Chiffre d'affaires", value:money(stats.forecastRevenue), sub:"Contrats actifs / prévisionnel", icon:Wallet, show:canFinancialOverview },
     { label:"Total encaissé", value:money(stats.collected), sub:"Encaissements validés", icon:CreditCard, show:canFinancialOverview },
     { label:"Reste à encaisser", value:money(stats.dueAmount), sub:"Créances contractuelles", icon:DollarSign, show:canFinancialOverview },
     { label:"Monnaie client", value:money(stats.clientCredit), sub:"Monnaie réellement enregistrée", icon:Wallet, show:canFinancialOverview },
     { label:"Acquisitions", value:stats.clients.toString(), sub:"Clients / dossiers", icon:Users, href:"/acquisitions", show:canClients },
-    { label:"Leads", value:stats.leads.toString(), sub:"Prospects de votre périmètre", icon:Users, href:"/leads", show:canLeads },
-    { label:"Taux de conversion", value:stats.conversionRate+"%", sub:"Leads convertis / leads enregistrés", icon:TrendingUp, href:"/leads", show:canLeads },
-    { label:"Propriétaires fonciers", value:stats.proprietaires.toString(), sub:"Dossiers visibles dans votre périmètre", icon:Users, href:"/proprietaires-terres", show:canOwners },
-    { label:"Parcelles en partenariat validé", value:num(stats.partnershipHa)+" ha", sub:"Superficie AgriCapital sur parcelles validées", icon:LandPlot, href:"/parcelles", show:canParcelles || canPlantations },
-    { label:"Superficie plantée", value:num(stats.plantedHa)+" ha", sub:"Surface réellement plantée / activée", icon:Sprout, href:"/plantations", show:canPlantations },
-    { label:"Superficie restante", value:num(stats.remainingHa)+" ha", sub:"Superficie engagée moins superficie plantée", icon:MapPin, href:"/plantations", show:canPlantations },
-    { label:"Plantations AgriCapital", value:stats.internalPlantations.toString(), sub:num(stats.internalPlantedHa)+" ha plantés en interne", icon:Sprout, href:"/plantations", show:canPlantations && (globalAdmin || canTechnical) },
+    { label:"Leads", icon:Target, href:"/leads", show:canLeads, metrics:[
+      {label:"Nombre de leads",value:stats.leads,href:"/leads"},
+      {label:"Taux de conversion",value:stats.conversionRate+"%",href:"/leads"},
+      {label:"Nouveaux",value:stats.leadsNew,href:"/leads?statut=nouveau"},
+      {label:"À relancer",value:stats.leadsFollowup,href:"/leads"},
+      {label:"Convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},
+    ]},
+    { label:"Propriétaires fonciers", icon:LandPlot, href:"/proprietaires-terres", show:canOwners, metrics:[
+      {label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},
+      {label:"Parcelles",value:stats.parcelles,href:"/parcelles"},
+      {label:"Partenariat validé",value:num(stats.partnershipHa)+" ha",href:"/parcelles"},
+    ]},
+    { label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations && (globalAdmin || canTechnical), metrics:[
+      {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
+      {label:"Superficie totale",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
+      {label:"Superficie plantée",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
+      {label:"Superficie restante",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
+    ]},
     { label:"Plantations", value:stats.plantations.toString(), sub:num(stats.plantedHa)+" ha plantés", icon:Sprout, href:"/plantations", show:canPlantations },
     { label:"Production", value:stats.production.toString(), sub:num(stats.productionHa)+" ha en production", icon:TrendingUp, href:"/plantations?statut=en_production", show:canPlantations },
   ];
@@ -510,18 +535,24 @@ const Dashboard = () => {
 
           {!isClientOnly && (
             <>
-              <section className="grid min-w-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <section className="grid min-w-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {kpis.filter((k) => k.show).map((k) => {
                   const Icon = k.icon;
                   const card = (
                     <Card className="h-full min-w-0 overflow-hidden transition-all hover:shadow-md hover:border-primary/50">
                       <CardContent className="min-w-0 p-3 sm:p-4">
                         <div className="flex min-w-0 items-start justify-between gap-2">
-                          <span className="min-w-0 break-words text-xs font-medium text-muted-foreground">{k.label}</span>
-                          <Icon className="h-5 w-5 text-primary" />
+                          <span className="min-w-0 break-words text-xs font-semibold text-muted-foreground">{k.label}</span>
+                          <Icon className="h-5 w-5 shrink-0 text-primary" />
                         </div>
-                        <div className="mt-3 min-w-0 break-words [overflow-wrap:anywhere] text-xl font-bold leading-tight sm:text-2xl xl:text-3xl tabular-nums">{loading ? "Chargement" : k.value}</div>
-                        <p className="mt-1 break-words text-xs text-muted-foreground">{k.sub}</p>
+                        {Array.isArray(k.metrics) ? (
+                          <div className={`mt-3 grid gap-2 ${k.metrics.length > 3 ? "grid-cols-2" : "grid-cols-1"}`}>
+                            {k.metrics.map((metric: any) => <Link key={metric.label} to={metric.href || k.href} className="min-w-0 rounded-lg bg-muted/50 p-2.5 hover:bg-muted"><p className="text-xs text-muted-foreground break-words">{metric.label}</p><p className="mt-1 text-lg font-bold tabular-nums break-words">{loading ? "…" : metric.value}</p></Link>)}
+                          </div>
+                        ) : <>
+                          <div className="mt-3 min-w-0 break-words [overflow-wrap:anywhere] text-xl font-bold leading-tight sm:text-2xl xl:text-3xl tabular-nums">{loading ? "Chargement" : k.value}</div>
+                          <p className="mt-1 break-words text-xs text-muted-foreground">{k.sub}</p>
+                        </>}
                       </CardContent>
                     </Card>
                   );
@@ -593,38 +624,10 @@ const Dashboard = () => {
                 </Card>
               )}
 
-              {canLeads && (leadFunnel.length > 0 || stats.clients > 0) && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><Target className="h-5 w-5 text-primary" />Tunnel commercial</CardTitle></CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {leadFunnel.length ? leadFunnel.map((l) => (
-                          <div key={l.name} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
-                            <span className="text-sm">{l.name}</span><Badge variant="secondary">{l.value}</Badge>
-                          </div>
-                        )) : <p className="text-sm text-muted-foreground">Aucun lead dans le périmètre accessible.</p>}
-                        <div className="flex items-center justify-between rounded-lg border px-3 py-2"><span className="text-sm font-medium">Acquisitions</span><Badge>{stats.clients}</Badge></div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {offerPerformance.length > 0 && <Card>
-                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-5 w-5 text-primary" />Performance par offre</CardTitle></CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={240}>
-                        <BarChart data={offerPerformance} layout="vertical" margin={{ left: 10, right: 10 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" allowDecimals={false} />
-                          <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Bar dataKey="clients" name="Clients" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>}
-                </div>
-              )}
+              {offerPerformance.length > 0 && canClients && <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-5 w-5 text-primary" />Performance par offre</CardTitle></CardHeader>
+                <CardContent><ResponsiveContainer width="100%" height={240}><BarChart data={offerPerformance} layout="vertical" margin={{ left: 10, right: 10 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="clients" name="Clients" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent>
+              </Card>}
 
               {(canClients || canFinance) && stats.activeContracts > 0 && (
                 <Card>
@@ -645,17 +648,8 @@ const Dashboard = () => {
                 </Card>
               )}
 
-              {(canPlantations || canClients) && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    ["Propriétaires fonciers", stats.proprietaires, UserRound],
-                    ["Parcelles", stats.parcelles, LandPlot],
-                    ["Bénéficiaires", stats.beneficiaries, Users],
-                    ["Documents en attente", stats.documentsPending, FileText],
-                  ].map(([label, value, Icon]: any) => (
-                    <Card key={label}><CardContent className="p-4"><div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">{label}</span><Icon className="h-4 w-4 text-primary" /></div><p className="mt-2 text-2xl font-bold">{value}</p></CardContent></Card>
-                  ))}
-                </div>
+              {(canPlantations || canClients) && stats.documentsPending > 0 && (
+                <Card><CardContent className="flex items-center justify-between p-4"><span className="text-sm text-muted-foreground">Documents en attente</span><Badge variant="secondary">{stats.documentsPending}</Badge></CardContent></Card>
               )}
 
               {canPlantations && <PlantationsMap />}
