@@ -38,7 +38,7 @@ const Plantations = () => {
         .from("plantations")
         .select(`
           *,
-          clients (nom, prenoms, nom_complet, id, id_unique),
+          clients (nom, prenoms, nom_complet, id, id_unique, is_internal),
           parcelles (id_unique, nom, village),
           lots_hectares (id, reference, numero_h, surface_ha, client_id, parcelle_id),
           regions (nom),
@@ -182,7 +182,7 @@ const Plantations = () => {
                       {plantation.clients ? (
                         <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline">
                           {plantation.clients.nom_complet || `${plantation.clients.nom || ""} ${plantation.clients.prenoms || ""}`}
-                          <span className="block text-xs text-muted-foreground">{plantation.clients.id_unique}</span>
+                          <span className="block text-xs text-muted-foreground">{plantation.clients.is_internal ? "Bénéficiaire interne AgriCapital" : plantation.clients.id_unique}</span>
                         </Link>
                       ) : "—"}
                     </TableCell>
