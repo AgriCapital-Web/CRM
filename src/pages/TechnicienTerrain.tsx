@@ -80,7 +80,7 @@ const TechnicienTerrain=()=>{
     if(!allowed)return;
     setLoading(true);
     const profile=await profileContext();
-    const [{data:p},{data:c},{data:pa},{data:r},{data:i},{data:t},{data:td},{data:offers}]=await Promise.all([
+    const [{data:p},{data:c},{data:pa},{data:r},{data:i},{data:t},{data:td},{data:offers},{data:convs}]=await Promise.all([
       (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,statut_global,prochaine_visite,date_plantation").order("nom_plantation"),
       (supabase as any).from("clients") .select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,is_internal").order("nom_complet"),
       (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
@@ -90,7 +90,7 @@ const TechnicienTerrain=()=>{
       ,(supabase as any).from("profiles").select("id,nom_complet,user_id").eq("actif",true).order("nom_complet")
       ,(supabase as any).from("offres").select("id,code,nom,necessite_foncier_client,parcours_code,famille_offre").eq("actif",true)
     ]);
-    setPlantations(p||[]);setClients(c||[]);setOfferConfigs(offers||[]);setParcelles(pa||[]);setReports(r||[]);setInterventions(i||[]);setTickets(t||[]);
+    setPlantations(p||[]);setClients(c||[]);setOfferConfigs(offers||[]);setParcelles(pa||[]);setConventions(convs||[]);setReports(r||[]);setInterventions(i||[]);setTickets(t||[]);
     setTechniciens((td||[]).map((x:any)=>({...x,id:x.id,profile_id:x.id})));
     setLoading(false);
   };
@@ -373,7 +373,7 @@ const TechnicienTerrain=()=>{
           </div>
           {!technicalPalmInvest && !intervention.parcelle_id && !interventionPlantation?.parcelle_id && intervention.client_id && <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-4"><div><h3 className="font-semibold">Identification foncière — première visite</h3><p className="text-sm text-muted-foreground">Parcelle associée à la plantation suivie.</p></div><div className="grid md:grid-cols-3 gap-4"><div><Label>Nom / référence de la parcelle *</Label><Input value={intervention.nouvelle_parcelle_nom||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_nom:e.target.value}))} placeholder="Nom ou référence terrain"/></div><div><Label>Superficie (ha) *</Label><Input type="number" min="0.1" step="0.1" value={intervention.nouvelle_parcelle_surface||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_surface:e.target.value}))}/></div><div><Label>Village / localité *</Label><Input value={intervention.nouvelle_parcelle_village||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_village:e.target.value}))}/></div></div></div>}
           {technicalPalmInvest&&<div className="grid md:grid-cols-2 gap-4 rounded-xl border p-4">
-            <div><Label>Convention foncière active *</Label><Select value={intervention.convention_id||""} onValueChange={v=>setIntervention((x:any)=>({...x,convention_id:v,lot_id:"",parcelle_id:""}))}><SelectTrigger><SelectValue placeholder="Sélectionner une convention"/></SelectTrigger><SelectContent>{conventions.map(c=><SelectItem key={c.id} value={c.id}>{c.reference} — {c.proprietaire?.nom_complet||"Propriétaire non renseigné"}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Convention foncière active *</Label><Select value={intervention.convention_id||""} onValueChange={v=>{const conv=conventions.find((item:any)=>item.id===v);setIntervention((x:any)=>({...x,convention_id:v,lot_id:"",parcelle_id:conv?.parcelle_id||""}));}}><SelectTrigger><SelectValue placeholder="Sélectionner une convention"/></SelectTrigger><SelectContent>{conventions.map(c=><SelectItem key={c.id} value={c.id}>{c.reference} — {c.proprietaire?.nom_complet||"Propriétaire non renseigné"}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Lot disponible *</Label><Select value={intervention.lot_id||""} onValueChange={v=>{const lot=lots.find(l=>l.id===v);setIntervention((x:any)=>({...x,lot_id:v,parcelle_id:lot?.parcelle_id||""}));}} disabled={!intervention.convention_id}><SelectTrigger><SelectValue placeholder="Sélectionner un lot"/></SelectTrigger><SelectContent>{lots.map(l=><SelectItem key={l.id} value={l.id}>{l.reference||("H"+String(l.numero_h).padStart(2,"0"))} — {l.surface_ha} ha</SelectItem>)}</SelectContent></Select></div>
           </div>}
           <div className="grid md:grid-cols-2 gap-4">
