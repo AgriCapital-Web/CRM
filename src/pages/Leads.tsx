@@ -214,6 +214,7 @@ export default function Leads() {
   const createLead = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Non authentifié");
+      if (leadForm.type_lead === "client" && (!leadForm.offre_code || !leadForm.formule_code)) throw new Error("Pour un prospect client, sélectionnez une offre et une formule.");
       if (editingLead) {
         const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
         if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
@@ -233,6 +234,9 @@ export default function Leads() {
           creneau_prefere: leadForm.creneau_prefere || null,
           mode_contact_prefere: leadForm.mode_contact_prefere || null,
           commentaire: leadForm.commentaire || null, statut: leadForm.statut,
+          type_lead: leadForm.type_lead || "client",
+          offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
+          formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
           source: leadForm.source || editingLead.source,
           assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
         });
@@ -259,6 +263,9 @@ export default function Leads() {
         creneau_prefere: leadForm.creneau_prefere || null,
         mode_contact_prefere: leadForm.mode_contact_prefere || null,
         commentaire: leadForm.commentaire || null,
+        type_lead: leadForm.type_lead || "client",
+        offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
+        formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
         statut: leadForm.statut || "nouveau",
         source: leadForm.source || "commercial_terrain",
         created_by: user.id,
