@@ -82,13 +82,15 @@ export default function Leads() {
     void (async () => {
       const { data, error } = await (supabase as any).from("offres")
         .select("id,code,nom,famille_offre,formules_configuration").eq("actif", true).order("nom");
-      if (active) setOffers(error ? [] : (data || []));
+      if (active) setOffers(error ? [] : (data || []).filter((o: any) => typeof o.code === "string" && o.code.trim() && typeof o.nom === "string" && o.nom.trim()));
     })();
     return () => { active = false; };
   }, []);
 
-  const selectedLeadOffer = offers.find((o) => o.code === leadForm.offre_code);
-  const selectedLeadFormulas = Array.isArray(selectedLeadOffer?.formules_configuration) ? selectedLeadOffer.formules_configuration : [];
+  const selectedLeadOffer = offers.find((o) => o.code && o.code === leadForm.offre_code);
+  const selectedLeadFormulas = Array.isArray(selectedLeadOffer?.formules_configuration)
+    ? selectedLeadOffer.formules_configuration.filter((f: any) => typeof f?.code === "string" && f.code.trim() && typeof f?.nom === "string" && f.nom.trim())
+    : [];
 
   useEffect(() => {
     const hasOwnCommercialRole = (userRoles || []).some((r: string) =>
@@ -521,13 +523,13 @@ export default function Leads() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Label>Type de prospect *</Label>
-                <Select value={leadForm.type_lead} onValueChange={(v) => setLeadForm(x => ({ ...x, type_lead: v, offre_code: v === "client" ? x.offre_code : "", formule_code: v === "client" ? x.formule_code : "" }))}>
+                <Select value={leadForm.type_lead} onValueChange={(v) => setLeadForm(x => ({ ...x, type_lead: v, offre_code: v === "client" ? x.offre_code : "", formule_code: v === "client" ? x.formule_code : "", dispose_terrain: v === "proprietaire_foncier" ? "non" : x.dispose_terrain, superficie_disponible_ha: v === "proprietaire_foncier" ? "" : x.superficie_disponible_ha, superficie_a_valoriser_ha: v === "proprietaire_foncier" ? "" : x.superficie_a_valoriser_ha, superficie_souhaitee_ha: v === "proprietaire_foncier" ? "" : x.superficie_souhaitee_ha }))}>
                   <SelectTrigger><SelectValue placeholder="Choisir le type de prospect" /></SelectTrigger>
                   <SelectContent><SelectItem value="client">Client</SelectItem><SelectItem value="proprietaire_foncier">Propriétaire foncier</SelectItem></SelectContent>
                 </Select>
               </div>
               {leadForm.type_lead === "client" && <>
-                <div><Label>Offre *</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || "" })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>Offre *</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || "" })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.filter((o) => Boolean(o.code && o.nom)).map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>Formule *</Label><Select value={leadForm.formule_code} onValueChange={(v) => setLeadForm(x => ({ ...x, formule_code: v }))} disabled={!selectedLeadFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule" /></SelectTrigger><SelectContent>{selectedLeadFormulas.map((f: any) => <SelectItem key={f.code} value={f.code}>{f.nom}</SelectItem>)}</SelectContent></Select></div>
               </>}
               <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={(e) => setLeadForm({ ...leadForm, nom: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
@@ -548,21 +550,21 @@ export default function Leads() {
                 />
               </div>
               <div><Label>Lieu de résidence</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Lieu de résidence" /></div>
-              <div>
+              {leadForm.type_lead === "client" && <div>
                 <Label>Dispose d'un terrain ?</Label>
                 <Select value={leadForm.dispose_terrain} onValueChange={(v) => setLeadForm({ ...leadForm, dispose_terrain: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{refs("oui_non").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
                 </Select>
-              </div>
-              {leadForm.dispose_terrain === "oui" ? (
+              </div>}
+              {leadForm.type_lead === "client" && (leadForm.dispose_terrain === "oui" ? (
                 <>
                   <div><Label>Superficie disponible (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_disponible_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_disponible_ha: e.target.value })} /></div>
                   <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
                 </>
               ) : (
                 <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_souhaitee_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_souhaitee_ha: e.target.value })} /></div>
-              )}
+              ))}
               <div>
                 <Label>Délai de démarrage</Label>
                 <Select value={leadForm.delai_demarrage} onValueChange={(v) => setLeadForm({ ...leadForm, delai_demarrage: v })}>
