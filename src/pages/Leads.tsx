@@ -70,11 +70,25 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
     nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
+    type_lead: "client", offre_code: "", formule_code: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
     statut: "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
   };
   const [leadForm, setLeadForm] = useState<Record<string, string>>({ ...emptyLead, assigned_to: "" });
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data, error } = await (supabase as any).from("offres")
+        .select("id,code,nom,famille_offre,formules_configuration").eq("actif", true).order("nom");
+      if (active) setOffers(error ? [] : (data || []));
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const selectedLeadOffer = offers.find((o) => o.code === leadForm.offre_code);
+  const selectedLeadFormulas = Array.isArray(selectedLeadOffer?.formules_configuration) ? selectedLeadOffer.formules_configuration : [];
 
   useEffect(() => {
     const hasOwnCommercialRole = (userRoles || []).some((r: string) =>
