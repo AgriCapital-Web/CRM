@@ -499,7 +499,7 @@ export default function Leads() {
               <CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif||undefined} localValue={leadForm.telephone_local||""} onChange={v=>setLeadForm(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
               <CountryPhoneInput label="WhatsApp" countryCode={leadForm.whatsapp_indicatif||undefined} localValue={leadForm.whatsapp_local||""} onChange={v=>setLeadForm(x=>({...x,whatsapp_indicatif:v.callingCode,whatsapp_local:v.localValue,whatsapp:v.internationalValue}))}/>
               <div><Label>Email</Label><Input type="email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} /></div>
-              <div><Label>Campement / Quartier</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Nom du campement ou du quartier" /></div>
+
               <div className="sm:col-span-2">
                 <GeographieCascade
                   districtId={leadForm.district_id}
@@ -511,6 +511,7 @@ export default function Leads() {
                   onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",region_residence:g.regionName||""}))}
                 />
               </div>
+              <div><Label>Campement / Quartier</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Nom du campement ou du quartier" /></div>
               <div>
                 <Label>Dispose d'un terrain ?</Label>
                 <Select value={leadForm.dispose_terrain} onValueChange={(v) => setLeadForm({ ...leadForm, dispose_terrain: v })}>
