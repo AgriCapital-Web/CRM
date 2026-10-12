@@ -9,14 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
-type Status = { apiKey: boolean; webhookSecret: boolean };
+type Status = { apiKey: boolean; webhookSecret: boolean; emailSenderId: boolean };
 
 const webhookUrl = "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook";
 
 export default function ConfigurationSenndo() {
   const [apiKey, setApiKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
-  const [status, setStatus] = useState<Status>({ apiKey: false, webhookSecret: false });
+  const [emailSenderId, setEmailSenderId] = useState("");
+  const [status, setStatus] = useState<Status>({ apiKey: false, webhookSecret: false, emailSenderId: false });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -26,7 +27,8 @@ export default function ConfigurationSenndo() {
     if (error || !data?.ok) {
       toast.error("Impossible de vérifier la configuration Senndo. Vérifiez vos droits administrateur.");
     } else {
-      setStatus({ apiKey: Boolean(data.configured?.apiKey), webhookSecret: Boolean(data.configured?.webhookSecret) });
+      setStatus({ apiKey: Boolean(data.configured?.apiKey), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId) });
+      setEmailSenderId(typeof data.emailSenderId === "string" ? data.emailSenderId : "");
     }
     setLoading(false);
   }, []);
@@ -34,7 +36,7 @@ export default function ConfigurationSenndo() {
   useEffect(() => { void refreshStatus(); }, [refreshStatus]);
 
   const save = async () => {
-    if (!apiKey.trim() && !webhookSecret.trim()) {
+    if (!apiKey.trim() && !webhookSecret.trim() && !emailSenderId.trim()) {
       toast.error("Saisissez au moins une valeur à enregistrer.");
       return;
     }
@@ -43,6 +45,7 @@ export default function ConfigurationSenndo() {
       const payload: Record<string, string> = { mode: "save" };
       if (apiKey.trim()) payload.apiKey = apiKey.trim();
       if (webhookSecret.trim()) payload.webhookSecret = webhookSecret.trim();
+      if (emailSenderId.trim()) payload.emailSenderId = emailSenderId.trim();
       const { data, error } = await supabase.functions.invoke("senndo-config", { body: payload });
       if (error || !data?.ok) throw new Error(data?.error || error?.message || "Enregistrement refusé");
       setApiKey("");
@@ -73,7 +76,7 @@ export default function ConfigurationSenndo() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Sender ID : AgriCapital</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Expéditeur à valider dans Senndo</p></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.emailSenderId ? "default" : "secondary"}>{status.emailSenderId ? "Expéditeur configuré" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Adresse vérifiée dans Senndo</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">+225 05 64 55 17 17 · pas WhatsApp Cloud</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Disponibilité à confirmer sur le compte</p></CardContent></Card>
       </div>
@@ -88,6 +91,11 @@ export default function ConfigurationSenndo() {
             <Label htmlFor="senndo-api-key">Clé API Senndo</Label>
             <Input id="senndo-api-key" type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={status.apiKey ? "Clé déjà enregistrée · saisir uniquement pour remplacer" : "sk_live_… ou sk_test_…"} spellCheck={false} autoCapitalize="none" />
             <p className="text-xs text-muted-foreground">Le serveur ne permet jamais de relire la clé existante. Laissez vide pour la conserver.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="senndo-email-sender">Adresse expéditrice e-mail vérifiée</Label>
+            <Input id="senndo-email-sender" type="email" autoComplete="email" value={emailSenderId} onChange={(e) => setEmailSenderId(e.target.value)} placeholder={status.emailSenderId ? "Adresse déjà configurée" : "notifications@votre-domaine.ci"} spellCheck={false} autoCapitalize="none" />
+            <p className="text-xs text-muted-foreground">Cette adresse doit déjà être vérifiée dans Senndo. Elle est conservée côté serveur et ne sert qu’aux e-mails sortants.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="senndo-webhook-secret">Secret de signature du webhook Senndo</Label>
@@ -105,9 +113,9 @@ export default function ConfigurationSenndo() {
             <p className="mt-2 text-xs text-muted-foreground">Configurez cette URL dans la console Senndo avec les événements de statut de message et d'appel disponibles pour votre compte. Le secret de signature se saisit ci-dessus.</p>
           </div>
           <Alert variant="default">
-            {status.apiKey && status.webhookSecret ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-            <AlertTitle>{status.apiKey && status.webhookSecret ? "Secrets enregistrés" : "Configuration incomplète"}</AlertTitle>
-            <AlertDescription>{loading ? "Vérification…" : status.apiKey && status.webhookSecret ? "La clé API et le secret webhook sont présents dans le coffre-fort serveur. Un test réel de chaque canal reste nécessaire avant la mise en production des envois." : "Les secrets manquants peuvent être ajoutés séparément. Aucun envoi externe ne doit être considéré comme validé avant les tests."}</AlertDescription>
+            {status.apiKey && status.webhookSecret && status.emailSenderId ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+            <AlertTitle>{status.apiKey && status.webhookSecret && status.emailSenderId ? "Configuration enregistrée" : "Configuration incomplète"}</AlertTitle>
+            <AlertDescription>{loading ? "Vérification…" : status.apiKey && status.webhookSecret && status.emailSenderId ? "La clé API, le secret webhook et l’expéditeur e-mail sont enregistrés. Un test réel de chaque canal reste nécessaire avant de considérer les envois comme validés." : "La clé API, le secret webhook et l’adresse expéditrice vérifiée peuvent être enregistrés séparément. Aucun envoi externe n’est considéré comme validé avant les tests."}</AlertDescription>
           </Alert>
         </CardContent>
       </Card>
