@@ -3,6 +3,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,8 @@ const today=()=>new Date().toISOString().slice(0,10);
 
 export default function Finance(){
   const { can } = usePermissions();
+  const { hasRole } = useAuth();
+  const canDeleteDraftPayroll = hasRole("pdg") || hasRole("super_admin");
   const { toast } = useToast();
   const [transactions,setTransactions]=useState<any[]>([]);
   const [expenses,setExpenses]=useState<any[]>([]);
@@ -61,7 +64,7 @@ export default function Finance(){
       (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}).limit(100),
       (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}).limit(100),
       (supabase as any).from("finance_associates").select("*").order("full_name"),
-      (supabase as any).from("profiles").select("id,nom_complet,poste,relation_rh,actif").eq("actif",true).order("nom_complet"),
+      (supabase as any).from("profiles").select("id,nom_complet,poste,relation_rh,actif,salaire_base").eq("actif",true).order("nom_complet"),
       (supabase as any).from("finance_salary_profiles").select("*").order("created_at",{ascending:false}),
       (supabase as any).from("finance_payroll_runs").select("*").order("period_start",{ascending:false}).limit(24)
     ]);
@@ -142,6 +145,16 @@ export default function Finance(){
     toast({title:"Paie générée",description:`Période ${period.toUpperCase()} prête à validation.`});await load();setSaving(false);
   };
 
+  const deletePayrollDraft=async(run:any)=>{
+    if (!canDeleteDraftPayroll || run.status !== "brouillon") return;
+    setSaving(true);
+    const { error } = await (supabase as any).rpc("pdg_delete_payroll_draft", { p_run_id: run.id });
+    if (error) toast({ title: "Suppression impossible", description: error.message, variant: "destructive" });
+    else toast({ title: "Brouillon supprimé", description: "Le brouillon et ses lignes ont été supprimés." });
+    await load();
+    setSaving(false);
+  };
+
   const payRun=async(run:any)=>{
     setSaving(true);
     await (supabase as any).from("finance_payroll_runs").update({status:"paye",paid_at:new Date().toISOString()}).eq("id",run.id);
@@ -162,7 +175,7 @@ export default function Finance(){
       <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SOLDE FINANCIER</p><p className="mt-2 text-2xl font-bold">{money(totals.balance)}</p></CardContent></Card>
     </div>
     <Tabs defaultValue="journal">
-      <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 overflow-visible rounded-xl p-1 sm:grid sm:grid-cols-3 lg:grid-cols-5">
         <TabsTrigger value="journal">Journal</TabsTrigger>
         <TabsTrigger value="depenses">Dépenses</TabsTrigger>
         <TabsTrigger value="salaires">Salaires</TabsTrigger>
@@ -209,7 +222,7 @@ export default function Finance(){
       </TabsContent>
       <TabsContent value="depenses"><div className="grid lg:grid-cols-[1fr_1.5fr] gap-4">
         {can("finance.expenses")&&<Card><CardHeader><CardTitle>Nouvelle dépense</CardTitle></CardHeader><CardContent className="space-y-3">
-          <div><Label>CATÉGORIE</Label><Select value={expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["SALAIRES","CARBURANT","TRANSPORT","FOURNITURES","COMMUNICATION","PRESTATION","LOYER","BANQUE","IMPÔTS","AUTRE"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>CATÉGORIE</Label><Select value={expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["SALAIRES","ÉLECTRICITÉ","EAU","INTERNET","TÉLÉPHONE","CARBURANT","TRANSPORT","FRAIS DE MISSION","HÉBERGEMENT","RESTAURATION","FOURNITURES DE BUREAU","FOURNITURES AGRICOLES","ENTRETIEN","RÉPARATIONS","LOYER","ASSURANCE","BANQUE","FRAIS BANCAIRES","IMPÔTS ET TAXES","HONORAIRES","PRESTATIONS","COMMUNICATION","MARKETING","FORMATION","RECRUTEMENT","SÉCURITÉ","NETTOYAGE","ÉQUIPEMENTS","LOGICIELS","ABONNEMENTS","DÉPLACEMENTS","DONS","AUTRE"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
           <div><Label>MONTANT</Label><Input type="number" value={expense.amount} onChange={e=>setExpense({...expense,amount:e.target.value})}/></div>
           <div><Label>FOURNISSEUR / BÉNÉFICIAIRE</Label><Input value={expense.supplier} onChange={e=>setExpense({...expense,supplier:e.target.value})}/></div>
           <div><Label>DESCRIPTION</Label><Textarea value={expense.description} onChange={e=>setExpense({...expense,description:e.target.value})}/></div>
@@ -219,8 +232,8 @@ export default function Finance(){
       </div></TabsContent>
       <TabsContent value="salaires"><div className="grid lg:grid-cols-2 gap-4">
         {can("finance.payroll")&&<Card><CardHeader><CardTitle>Paramétrer un salaire</CardTitle></CardHeader><CardContent className="space-y-3">
-          <Select value={salaryForm.profileId} onValueChange={v=>setSalaryForm({...salaryForm,profileId:v})}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet}</SelectItem>)}</SelectContent></Select>
-          <Input type="number" placeholder="SALAIRE DE BASE" value={salaryForm.baseSalary} onChange={e=>setSalaryForm({...salaryForm,baseSalary:e.target.value})}/>
+          <Select value={salaryForm.profileId} onValueChange={v=>setSalaryForm({...salaryForm,profileId:v})}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select>
+          <Input type="number" placeholder="SALAIRE DE BASE" value={salaryForm.baseSalary} onChange={e=>setSalaryForm({...salaryForm,baseSalary:e.target.value})}/><p className="text-xs text-muted-foreground">Le salaire de base est défini dans Utilisateurs → Relation RH et Département. Seuls les profils ayant un salaire positif apparaissent dans la paie.</p>
           <Input type="number" min="1" max="31" placeholder="JOUR DE PAIE" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/>
           <Button className="w-full" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
         </CardContent></Card>}
