@@ -208,9 +208,9 @@ const Dashboard = () => {
 
       const engagedHa = clients.filter((c:any)=>c.id_unique!=="AC-DEMO").reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const plantedHa = plantations.reduce((s: number, p: any) =>
-        s + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
+        s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
-      const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.superficie_activee || p.superficie_ha || 0), 0);
+      const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       const remainingHa = Math.max(0, engagedHa - plantedHa);
       const clientLeads = leads.filter((l: any) => l.type_lead !== "proprietaire_foncier");
       const convertedLeads = clientLeads.filter((l: any) => l.statut === "converti" || Boolean(l.converti_at)).length;
@@ -221,7 +221,7 @@ const Dashboard = () => {
         .reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0), 0);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
-      const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
+      const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       const internalAreaHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
