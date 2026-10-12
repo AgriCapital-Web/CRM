@@ -1,20 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Search, ChevronsUpDown, ArrowDownLeft, ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowLeft, MessageSquare, Search, Loader2, UserRound } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { PERMISSIONS } from "@/lib/roles";
 import ClientMessagingPanel from "@/components/clients/ClientMessagingPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePermissions } from "@/hooks/usePermissions";
-import TableSearchInput from "@/components/common/TableSearchInput";
 
 type ClientRow = {
   id: string;
@@ -48,40 +43,34 @@ export default function Messagerie() {
   const { can } = usePermissions();
   const [params, setParams] = useSearchParams();
   const [selected, setSelected] = useState<ClientRow | null>(null);
-  const [results, setResults] = useState<ClientRow[]>([]);
+  const [clients, setClients] = useState<ClientRow[]>([]);
   const [recent, setRecent] = useState<RecentMessage[]>([]);
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [loadingResults, setLoadingResults] = useState(false);
-  const [loadingRecent, setLoadingRecent] = useState(true);
-  const [tableSearch, setTableSearch] = useState("");
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [mobileConversation, setMobileConversation] = useState(Boolean(params.get("client")));
 
   const loadRecent = async () => {
-    setLoadingRecent(true);
     const { data } = await (supabase as any)
       .from("portail_messages")
       .select("id,client_id,auteur_type,auteur_nom,message,lu,created_at,clients(id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id)")
       .order("created_at", { ascending: false })
-      .limit(30);
+      .limit(100);
     setRecent((data || []) as RecentMessage[]);
-    setLoadingRecent(false);
   };
 
-  const searchClients = async (term: string) => {
-    setLoadingResults(true);
+  const loadClients = async (term = "") => {
+    setLoadingClients(true);
     let request = (supabase as any)
       .from("clients")
       .select("id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id")
       .eq("compte_actif", true)
       .order("nom_complet", { ascending: true })
-      .limit(25);
-
+      .limit(100);
     const q = term.replace(/[^\p{L}\p{N}\s+\-_.']/gu, "").trim();
     if (q) request = request.or(`nom_complet.ilike.%${q}%,telephone.ilike.%${q}%,id_unique.ilike.%${q}%`);
-
     const { data } = await request;
-    setResults((data || []) as ClientRow[]);
-    setLoadingResults(false);
+    setClients((data || []) as ClientRow[]);
+    setLoadingClients(false);
   };
 
   const loadSelected = async (id: string) => {
@@ -95,127 +84,132 @@ export default function Messagerie() {
 
   useEffect(() => {
     void loadRecent();
+    void loadClients();
     const clientId = params.get("client");
     if (clientId) void loadSelected(clientId);
     const channel = supabase.channel("crm-messaging-index")
-      .on("postgres_changes", { event: "*", schema: "public", table: "portail_messages" }, () => {
-        void loadRecent();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "portail_messages" }, () => { void loadRecent(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
-    if (!open) return;
-    const timer = window.setTimeout(() => void searchClients(query), 180);
+    const timer = window.setTimeout(() => void loadClients(query), 220);
     return () => window.clearTimeout(timer);
-  }, [query, open]);
+  }, [query]);
 
   const choose = (client: ClientRow) => {
     setSelected(client);
     setParams({ client: client.id });
-    setOpen(false);
+    setMobileConversation(true);
   };
 
-  const latest = useMemo(() => recent.filter((row) => JSON.stringify(row).toLowerCase().includes(tableSearch.trim().toLowerCase())), [recent, tableSearch]);
+  const recentByClient = useMemo(() => {
+    const map = new Map<string, RecentMessage>();
+    recent.forEach((message) => {
+      if (!map.has(message.client_id)) map.set(message.client_id, message);
+    });
+    return map;
+  }, [recent]);
+
+  const orderedClients = useMemo(() => {
+    const clientsCopy = [...clients];
+    clientsCopy.sort((a, b) => {
+      const aDate = recentByClient.get(a.id)?.created_at || "";
+      const bDate = recentByClient.get(b.id)?.created_at || "";
+      return bDate.localeCompare(aDate) || (a.nom_complet || "").localeCompare(b.nom_complet || "", "fr");
+    });
+    return clientsCopy;
+  }, [clients, recentByClient]);
+
+  const unreadCount = recent.filter((m) => m.auteur_type === "client" && !m.lu).length;
 
   if (!can("messagerie.view")) {
-    return <ProtectedRoute requiredPermission={"messagerie.view" as any}><MainLayout><Card><CardContent className="p-8 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
+    return <ProtectedRoute requiredPermission={"messagerie.view" as any}><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
   }
 
   return (
     <ProtectedRoute requiredPermission={"messagerie.view" as any}>
       <MainLayout>
-        <div className="min-w-0 space-y-5">
-          <div>
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-bold">Messagerie</h1>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">Échanges avec les personnes suivies dans le portail. {recent.filter(m => m.auteur_type === "client" && !m.lu).length > 0 && <Badge className="ml-2">{recent.filter(m => m.auteur_type === "client" && !m.lu).length} non lu(s)</Badge>}</p>
-          </div>
-
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">Conversation</CardTitle></CardHeader>
-            <CardContent>
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" aria-expanded={open} className="w-full max-w-xl justify-between">
-                    <span className="truncate">
-                      {selected ? `${selected.nom_complet || "Dossier"} · ${selected.telephone || ""}` : "Rechercher une personne…"}
-                    </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[min(520px,calc(100vw-2rem))] p-0" align="start">
-                  <Command shouldFilter={false}>
-                    <CommandInput placeholder="Nom, téléphone ou identifiant…" value={query} onValueChange={setQuery} />
-                    <CommandList>
-                      {loadingResults ? (
-                        <div className="flex items-center justify-center gap-2 p-5 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Recherche…</div>
-                      ) : (
-                        <>
-                          <CommandEmpty>Aucun résultat.</CommandEmpty>
-                          <CommandGroup>
-                            {results.map((client) => (
-                              <CommandItem key={client.id} value={client.id} onSelect={() => choose(client)}>
-                                <div className="min-w-0">
-                                  <p className="truncate font-medium">{client.nom_complet || "Dossier sans nom"}</p>
-                                  <p className="truncate text-xs text-muted-foreground">{client.telephone || "—"} · {typeLabel(client)}</p>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </>
-                      )}
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3"><CardTitle className="text-base">Derniers échanges</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table className="min-w-[760px]">
-                  <div className="mb-3"><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un message…" /></div>
-                  <TableHeader><TableRow><TableHead>Personne</TableHead><TableHead>Sens</TableHead><TableHead>Suivi</TableHead><TableHead>Message</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {loadingRecent ? (
-                      <TableRow><TableCell colSpan={5} className="py-8 text-center">Chargement…</TableCell></TableRow>
-                    ) : latest.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Aucun message.</TableCell></TableRow>
-                    ) : latest.map((m) => (
-                      <TableRow key={m.id} className="cursor-pointer hover:bg-muted/50" onClick={() => m.clients && choose(m.clients)}>
-                        <TableCell>
-                          <p className="font-medium">{m.clients?.nom_complet || "—"}</p>
-                          <p className="text-xs text-muted-foreground">{typeLabel(m.clients)}</p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={m.auteur_type === "client" ? "outline" : "secondary"} className="gap-1">
-                            {m.auteur_type === "client" ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-                            {m.auteur_type === "client" ? "Reçu" : "Envoyé"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{m.auteur_type === "client" ? (m.lu ? <Badge variant="outline">Lu</Badge> : <Badge>Non lu</Badge>) : (m.lu ? <Badge variant="outline">Lu par le client</Badge> : <Badge variant="secondary">Envoyé</Badge>)}</TableCell>
-                        <TableCell className="max-w-[420px] truncate">{m.message}</TableCell>
-                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{new Date(m.created_at).toLocaleString("fr-FR")}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+        <section className="messaging-page min-w-0 space-y-4">
+          <header className="page-header gap-2">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <MessageSquare className="h-5 w-5 shrink-0 text-primary sm:h-6 sm:w-6" />
+                <h1 className="truncate text-2xl font-semibold sm:text-3xl">Messagerie</h1>
+                {unreadCount > 0 && <Badge className="shrink-0">{unreadCount} non lu(s)</Badge>}
               </div>
-            </CardContent>
-          </Card>
+              <p className="mt-1 text-sm text-muted-foreground">Retrouvez chaque personne à gauche et échangez dans sa conversation à droite.</p>
+            </div>
+          </header>
 
-          {selected ? (
-            <ClientMessagingPanel key={selected.id} clientId={selected.id} />
-          ) : (
-            <Card><CardContent className="flex min-h-[300px] items-center justify-center text-center text-sm text-muted-foreground">Sélectionnez une personne pour ouvrir la conversation.</CardContent></Card>
-          )}
-        </div>
+          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(250px,320px)_minmax(0,1fr)] lg:gap-4">
+            <Card className={`messaging-contacts min-w-0 overflow-hidden ${mobileConversation ? "hidden lg:block" : "block"}`}>
+              <CardHeader className="space-y-3 p-3 sm:p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">Clients</CardTitle>
+                  <Badge variant="secondary">{clients.length}</Badge>
+                </div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom, téléphone, identifiant…" className="h-10 pl-9" aria-label="Rechercher un client" />
+                </div>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100dvh-255px)] min-h-[260px] overflow-y-auto p-2 pt-0 lg:max-h-[calc(100dvh-230px)]">
+                {loadingClients && clients.length === 0 ? (
+                  <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Chargement des clients…</div>
+                ) : orderedClients.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-muted-foreground">Aucun client trouvé.</div>
+                ) : (
+                  <div className="space-y-1">
+                    {orderedClients.map((client) => {
+                      const last = recentByClient.get(client.id);
+                      const active = selected?.id === client.id;
+                      return (
+                        <button key={client.id} type="button" onClick={() => choose(client)} className={`flex min-h-[66px] w-full min-w-0 items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-primary/10 ring-1 ring-primary/20" : ""}`}>
+                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserRound className="h-4 w-4" /></span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold">{client.nom_complet || "Dossier sans nom"}</span>
+                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{client.telephone || typeLabel(client)}</span>
+                            <span className="mt-1 block truncate text-xs text-muted-foreground">{last?.message || typeLabel(client)}</span>
+                          </span>
+                          {last?.auteur_type === "client" && !last.lu && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Message non lu" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className={`messaging-conversation flex min-w-0 flex-col overflow-hidden ${mobileConversation ? "flex" : "hidden lg:flex"}`}>
+              {selected ? (
+                <>
+                  <CardHeader className="border-b p-3 sm:p-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 lg:hidden" onClick={() => setMobileConversation(false)} aria-label="Retour à la liste des clients"><ArrowLeft className="h-4 w-4" /></Button>
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><UserRound className="h-4 w-4" /></div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="truncate text-base">{selected.nom_complet || "Dossier sans nom"}</CardTitle>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{selected.telephone || "Téléphone non renseigné"} · {typeLabel(selected)}</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="min-h-0 min-w-0 flex-1 p-2 sm:p-4">
+                    <ClientMessagingPanel key={selected.id} clientId={selected.id} />
+                  </CardContent>
+                </>
+              ) : (
+                <CardContent className="flex min-h-[360px] flex-1 flex-col items-center justify-center px-5 py-10 text-center">
+                  <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground"><MessageSquare className="h-5 w-5" /></span>
+                  <p className="font-medium">Aucune conversation sélectionnée</p>
+                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">Choisissez un client dans la liste pour afficher ses messages et lui répondre.</p>
+                  <Button variant="outline" className="mt-4 lg:hidden" onClick={() => setMobileConversation(false)}>Voir les clients</Button>
+                </CardContent>
+              )}
+            </Card>
+          </div>
+        </section>
       </MainLayout>
     </ProtectedRoute>
   );
