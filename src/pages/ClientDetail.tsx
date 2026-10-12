@@ -224,7 +224,6 @@ const ClientDetail = () => {
   useRealtime({ table: "documents_acquisition", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "beneficiaire_attributions", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "beneficiaire_documents", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
-  useRealtime({ table: "client_enquetes", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "client_cotitulaires_mandataires", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
 
   const formatMontant = (montant: number) => {
