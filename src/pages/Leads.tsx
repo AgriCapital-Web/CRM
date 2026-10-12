@@ -214,7 +214,7 @@ export default function Leads() {
   const createLead = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Non authentifié");
-      if (leadForm.type_lead === "client" && (!leadForm.offre_code || !leadForm.formule_code)) throw new Error("Pour un prospect client, sélectionnez une offre et une formule.");
+      if (!editingLead && leadForm.type_lead === "client" && (!leadForm.offre_code || !leadForm.formule_code)) throw new Error("Pour un prospect client, sélectionnez une offre et une formule.");
       if (editingLead) {
         const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
         if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
