@@ -515,6 +515,10 @@ const Offres = () => {
                   {(offres || []).filter((o: any) => String(o.famille_offre || "").toUpperCase() === detailsFamily).map((offre: any) => {
                     const pe = parOffre(offre.id);
                     const tranches = pe?.tranches_effectives?.length ? pe.tranches_effectives : getTranches(offre);
+                    const totalParHa = Number((pe as any)?.montant_total_effectif ?? (pe as any)?.montant_total_base ?? offre.montant_total_par_ha ?? (
+                      Number((pe as any)?.pi_effectif ?? offre.montant_pi_par_ha ?? 0) +
+                      tranches.reduce((sum: number, tranche: any) => sum + Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0) * Number(tranche.mois ?? Math.max(0, Number(tranche.mois_fin ?? 0) - Number(tranche.mois_debut ?? 1) + 1)), 0)
+                    ));
                     return (
                       <Card key={offre.id} className="border-border">
                         <CardContent className="p-4">
@@ -555,7 +559,7 @@ const Offres = () => {
                                 <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">PI / ha</span><b>{formatMontant((pe as any)?.pi_effectif ?? offre.montant_pi_par_ha)} F</b></div>
                                 <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Mensualité / ha</span><b>{formatMontant(offre.mensualite_par_ha || 0)} F</b></div>
                                 <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Durée</span><b>{offre.duree_paiement_mois || 0} mois</b></div>
-                                <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Formules</span><b>{(offre.formules_configuration || []).map((formula: any) => formula.nom).join(" / ") || offre.formule_nom || offre.nom}</b></div>
+                                <div className="rounded-lg bg-muted/40 p-2"><span className="block text-[10px] text-muted-foreground">Total / ha</span><b>{formatMontant(totalParHa)} F</b></div>
                               </div>
                               <div className="mt-3 space-y-1">
                                 {tranches.filter((t: any) => Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0) > 0).map((t: any, i: number) => (
