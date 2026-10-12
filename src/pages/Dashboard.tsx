@@ -51,6 +51,8 @@ const Dashboard = () => {
 
   const canClients = can(PERMISSIONS.VIEW_CLIENTS);
   const canLeads = can(PERMISSIONS.VIEW_LEADS);
+  const canOwners = can(PERMISSIONS.VIEW_PROPRIETAIRES);
+  const canParcelles = can(PERMISSIONS.VIEW_PARCELLES);
   const canPlantations = can(PERMISSIONS.VIEW_PLANTATIONS);
   const canPayments = can(PERMISSIONS.VIEW_PAIEMENTS);
   const canFinance = can(PERMISSIONS.VIEW_RAPPORTS_FINANCIERS);
@@ -66,6 +68,11 @@ const Dashboard = () => {
 
   const [stats, setStats] = useState({
     clients: 0,
+    leads: 0,
+    conversionRate: 0,
+    partnershipHa: 0,
+    internalPlantations: 0,
+    internalPlantedHa: 0,
     plantations: 0,
     plantedHa: 0,
     engagedHa: 0,
@@ -127,7 +134,7 @@ const Dashboard = () => {
         directoryRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations || globalAdmin
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut_global,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut_global,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canPlantations || globalAdmin
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
@@ -136,16 +143,16 @@ const Dashboard = () => {
           ? (supabase as any).from("paiements").select("id,client_id,plantation_id,montant,montant_paye,statut,date_paiement,date_echeance,type_paiement,mode_paiement,reference,est_paiement_initial,created_at").order("date_paiement", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
           : Promise.resolve({ data: [] }),
         canLeads || globalAdmin
-          ? (supabase as any).from("leads").select("id,statut,created_at,converti_at,prochaine_relance_at,assigned_to")
+          ? (supabase as any).from("leads").select("id,statut,created_at,converti_at,prochaine_relance_at,assigned_to,type_lead")
           : Promise.resolve({ data: [] }),
         canClients || globalAdmin
           ? (supabase as any).from("documents_acquisition").select("id,statut,obligatoire,created_at")
           : Promise.resolve({ data: [] }),
-        canPlantations || canClients || globalAdmin
+        canOwners || canPlantations || canClients || globalAdmin
           ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut")
           : Promise.resolve({ data: [] }),
-        canPlantations || canClients || globalAdmin
-          ? (supabase as any).from("parcelles").select("id,surface_totale_ha,surface_disponible_ha,surface_attribuee_ha,statut")
+        canParcelles || canPlantations || canClients || globalAdmin
+          ? (supabase as any).from("parcelles").select("id,surface_totale_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,statut")
           : Promise.resolve({ data: [] }),
         canPlantations || canClients || globalAdmin
           ? (supabase as any).from("beneficiaire_attributions").select("id,client_id,statut,surface_attribuee_ha")
@@ -200,6 +207,13 @@ const Dashboard = () => {
       const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
       const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.superficie_activee || p.superficie_ha || 0), 0);
       const remainingHa = Math.max(0, engagedHa - plantedHa);
+      const convertedLeads = leads.filter((l: any) => l.statut === "converti" || Boolean(l.converti_at)).length;
+      const conversionRate = leads.length ? Math.round((convertedLeads / leads.length) * 100) : 0;
+      const partnershipHa = parcelles.filter((p: any) => p.statut === "validee" && p.plantation_partagee_activee === true)
+        .reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0), 0);
+      const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
+      const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
+      const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
 
       const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.id_unique !== "AC-DEMO");
       const contractRows = activeContracts.filter((c: any) => c.type_client !== "beneficiaire_particulier" && ["PalmInvest","TerraPalm","PalmTerroir"].includes(c.formule_nom) && Number(c.montant_total_contrat || 0) > 0);
@@ -229,7 +243,12 @@ const Dashboard = () => {
       const portfolioTotal = commissions.filter((c: any) => c.statut !== "annule" && c.statut !== "payee").reduce((s: number, c: any) => s + Number(c.montant_commission || 0), 0);
 
       setStats({
-        clients: clients.length,
+        clients: clients.filter((c: any) => !c.is_internal).length,
+        leads: leads.length,
+        conversionRate,
+        partnershipHa,
+        internalPlantations: internalPlantationRows.length,
+        internalPlantedHa,
         plantations: plantations.length,
         plantedHa,
         engagedHa,
@@ -432,6 +451,13 @@ const Dashboard = () => {
     { label:"Reste à encaisser", value:money(stats.dueAmount), sub:"Créances contractuelles", icon:DollarSign, show:canFinancialOverview },
     { label:"Monnaie client", value:money(stats.clientCredit), sub:"Monnaie réellement enregistrée", icon:Wallet, show:canFinancialOverview },
     { label:"Acquisitions", value:stats.clients.toString(), sub:"Clients / dossiers", icon:Users, href:"/acquisitions", show:canClients },
+    { label:"Leads", value:stats.leads.toString(), sub:"Prospects de votre périmètre", icon:Users, href:"/leads", show:canLeads },
+    { label:"Taux de conversion", value:stats.conversionRate+"%", sub:"Leads convertis / leads enregistrés", icon:TrendingUp, href:"/leads", show:canLeads },
+    { label:"Propriétaires fonciers", value:stats.proprietaires.toString(), sub:"Dossiers visibles dans votre périmètre", icon:Users, href:"/proprietaires-terres", show:canOwners },
+    { label:"Parcelles en partenariat validé", value:num(stats.partnershipHa)+" ha", sub:"Superficie AgriCapital sur parcelles validées", icon:LandPlot, href:"/parcelles", show:canParcelles || canPlantations },
+    { label:"Superficie plantée", value:num(stats.plantedHa)+" ha", sub:"Surface réellement plantée / activée", icon:Sprout, href:"/plantations", show:canPlantations },
+    { label:"Superficie restante", value:num(stats.remainingHa)+" ha", sub:"Superficie engagée moins superficie plantée", icon:MapPin, href:"/plantations", show:canPlantations },
+    { label:"Plantations AgriCapital", value:stats.internalPlantations.toString(), sub:num(stats.internalPlantedHa)+" ha plantés en interne", icon:Sprout, href:"/plantations", show:canPlantations && (globalAdmin || canTechnical) },
     { label:"Plantations", value:stats.plantations.toString(), sub:num(stats.plantedHa)+" ha plantés", icon:Sprout, href:"/plantations", show:canPlantations },
     { label:"Production", value:stats.production.toString(), sub:num(stats.productionHa)+" ha en production", icon:TrendingUp, href:"/plantations?statut=en_production", show:canPlantations },
   ];
