@@ -92,7 +92,7 @@ export default function ConfigurationSenndo() {
     // Normalize formatting and let the server return a precise validation error.
     const normalizedDestination = testChannel === "email"
       ? destination
-      : "+" + destination.replace(/\\D/g, "");
+      : "+" + destination.replace(/\D/g, "");
     setSendingTest(true);
     try {
       const { data, error } = await supabase.functions.invoke("senndo-test-send", {
