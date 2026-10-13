@@ -57,16 +57,43 @@ Deno.serve(async (req) => {
       if (typeof senderId !== "string" || !senderId) return reply(req, { error: "Adresse expéditrice e-mail vérifiée non configurée" }, 400);
       result = await client.sendMessage({ channel: "email", to, subject: subject || "Test AgriCapital", text, senderId, idempotencyKey: crypto.randomUUID() });
     } else if (channel === "sms") {
-      result = await client.sendMessage({ channel: "sms", to, text: text.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").slice(0, 150), senderId: "AgriCapital", idempotencyKey: crypto.randomUUID() });
+      // Prefer a configured sender ID; otherwise resolve the registered Senndo sender.
+      let senderId = Deno.env.get("SENNDO_SMS_SENDER_ID")?.trim() || "";
+      if (!senderId) {
+        const senderResult = await client.listSenderIds();
+        const senders = Array.isArray(senderResult?.senderIds) ? senderResult.senderIds : [];
+        const matching = senders.find((item: any) =>
+          String(item?.value || "").toLowerCase() === "agricapital" &&
+          !/reject|inactive|pending|blocked/i.test(String(item?.lifecycleStatus || ""))
+        );
+        senderId = String(matching?.value || "");
+      }
+      if (!senderId) return reply(req, { error: "Aucun Sender ID SMS AgriCapital actif n’est enregistré chez Senndo. Vérifiez/validez le Sender ID dans Senndo avant le test." }, 409);
+      const smsText = text.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").slice(0, 150);
+      if (!smsText) return reply(req, { error: "Le message ne contient aucun caractère SMS exploitable après normalisation." }, 400);
+      result = await client.sendMessage({ channel: "sms", to, text: smsText, senderId, idempotencyKey: crypto.randomUUID() });
     } else if (channel === "whatsapp") {
       result = await client.sendMessage({ channel: "whatsapp", to, text, idempotencyKey: crypto.randomUUID() });
     } else {
       result = await client.sendMessage({ channel: "voice", to, text, idempotencyKey: crypto.randomUUID() });
     }
     return reply(req, { ok: true, channel, accepted: true, messageId: result?.id || null, message: "Demande de test acceptée par Senndo. Vérifiez ensuite le statut de livraison auprès du fournisseur." });
-  } catch (_error) {
-    // Never log destination, message body, credentials, or provider exception details.
-    console.error("senndo-test-send failed");
-    return reply(req, { error: "Échec de l'envoi de test. Vérifiez la disponibilité du canal, les crédits et la configuration du compte Senndo." }, 502);
+  } catch (error) {
+    // Never log destination, message body, credentials, or raw provider responses.
+    const err = error as { status?: number; statusCode?: number; code?: string };
+    const providerStatus = Number(err?.status || err?.statusCode || 0);
+    const providerCode = typeof err?.code === "string" ? err.code.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40) : "";
+    console.error("senndo-test-send provider failure", JSON.stringify({
+      channel: typeof channel === "string" ? channel : "unknown",
+      status: providerStatus || null,
+      code: providerCode || null,
+    }));
+    const statusHint = providerStatus ? " (réponse fournisseur " + providerStatus + ")" : "";
+    const codeHint = providerCode ? " [" + providerCode + "]" : "";
+    return reply(req, {
+      error: "Senndo n’a pas pu traiter cet envoi" + statusHint + codeHint + ". Vérifiez la clé API, les crédits, le Sender ID SMS et l’activation du canal WhatsApp/appel vocal dans Senndo.",
+      providerStatus: providerStatus || null,
+      providerCode: providerCode || null,
+    }, 502);
   }
 });
