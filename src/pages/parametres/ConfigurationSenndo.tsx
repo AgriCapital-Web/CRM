@@ -66,11 +66,11 @@ export default function ConfigurationSenndo() {
       toast.error("Le message de test ne peut pas être vide.");
       return;
     }
-    if (testChannel === "email" && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(destination)) {
+    if (testChannel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destination)) {
       toast.error("L'adresse e-mail de destination est invalide.");
       return;
     }
-    if (testChannel !== "email" && !/^\\+?[1-9]\\d{7,14}$/.test(destination.replace(/[\\s().-]/g, ""))) {
+    if (testChannel !== "email" && !/^\+?[1-9]\d{7,14}$/.test(destination.replace(/[\s().-]/g, ""))) {
       toast.error("Utilisez un numéro valide au format international, par exemple +2250700000000.");
       return;
     }
