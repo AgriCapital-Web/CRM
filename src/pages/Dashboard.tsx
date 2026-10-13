@@ -154,7 +154,7 @@ const Dashboard = () => {
         directoryRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations || globalAdmin
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canPlantations || globalAdmin
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
@@ -430,10 +430,10 @@ const Dashboard = () => {
 
       const cycleTypes = [
         ["validation_parcelle", "Parcelles validées"],
-        ["defrichage", "Défrichage"],
-        ["piquetage", "Piquetage"],
-        ["trouaison", "Trouaison"],
-        ["mise_en_terre", "Mise en terre"],
+        ["defrichage", "Défrichage réalisé"],
+        ["piquetage", "Piquetage réalisé"],
+        ["trouaison", "Trouaison réalisée"],
+        ["mise_en_terre", "Mise en terre réalisée"],
       ];
       setCycle(cycleTypes.map(([code, label]) => {
         const rows = interventions.filter((i: any) =>
@@ -640,14 +640,14 @@ const Dashboard = () => {
 
               {canPlantations && stats.plantations > 0 && cycle.some((c: any) => c.total > 0) && (
                 <section aria-labelledby="dashboard-operations" className="space-y-3">
-                  <div><h2 id="dashboard-operations" className="text-lg font-bold tracking-tight">5. Opérations et suivi technique</h2><p className="text-sm text-muted-foreground">Étapes d'installation et suivi opérationnel.</p></div>
+                  <div><h2 id="dashboard-operations" className="text-lg font-bold tracking-tight">5. Opérations et suivi technique</h2><p className="text-sm text-muted-foreground">Progression réelle des dossiers dans le parcours de plantation.</p></div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <Card>
-                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Cycle d'installation</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Parcours de plantation</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                       {cycle.map((c) => (
                         <div key={c.label}>
-                          <div className="flex justify-between gap-3 text-sm"><span>{c.label}</span><span className="font-medium">{c.done}/{c.total} · {c.pct}%</span></div>
+                          <div className="flex justify-between gap-3 text-sm"><span>{c.label}</span><span className="font-medium tabular-nums">{c.done} / {c.total} dossiers · {c.pct}%</span></div>
                           <Progress className="mt-1" value={c.pct} />
                         </div>
                       ))}
@@ -735,7 +735,7 @@ const Dashboard = () => {
                               <TableCell className="font-mono text-xs">{c.id_unique}</TableCell>
                               <TableCell className="font-medium">{c.nom_complet}</TableCell>
                               <TableCell>{c.nombre_plantations || 0}</TableCell>
-                              <TableCell>{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; return <Badge variant={status === "actif" ? "default" : status === "suspendu" ? "destructive" : "secondary"}>{label}</Badge>; })()}</TableCell>
+                              <TableCell>{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? label + " · Soldé" : label; return <Badge variant={status === "actif" ? "default" : status === "suspendu" ? "destructive" : "secondary"}>{display}</Badge>; })()}</TableCell>
                             </TableRow>
                           )) : <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Aucun client accessible.</TableCell></TableRow>}
                         </TableBody></Table>
