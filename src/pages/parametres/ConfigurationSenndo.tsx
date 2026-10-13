@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,6 +22,11 @@ export default function ConfigurationSenndo() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [testChannel, setTestChannel] = useState<"sms" | "email" | "whatsapp" | "voice">("sms");
+  const [testDestination, setTestDestination] = useState("");
+  const [testSubject, setTestSubject] = useState("Test AgriCapital");
+  const [testMessage, setTestMessage] = useState("Ceci est un message de test de la passerelle de notifications AgriCapital.");
+  const [sendingTest, setSendingTest] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     setLoading(true);
@@ -47,6 +53,38 @@ export default function ConfigurationSenndo() {
       toast.error(error instanceof Error ? error.message : "Connexion Senndo impossible");
     } finally {
       setTesting(false);
+    }
+  };
+
+  const sendTest = async () => {
+    const destination = testDestination.trim();
+    if (!destination) {
+      toast.error(testChannel === "email" ? "Saisissez l'adresse e-mail de destination." : "Saisissez le numéro de destination au format international, par exemple +2250700000000.");
+      return;
+    }
+    if (!testMessage.trim()) {
+      toast.error("Le message de test ne peut pas être vide.");
+      return;
+    }
+    if (testChannel === "email" && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(destination)) {
+      toast.error("L'adresse e-mail de destination est invalide.");
+      return;
+    }
+    if (testChannel !== "email" && !/^\\+?[1-9]\\d{7,14}$/.test(destination.replace(/[\\s().-]/g, ""))) {
+      toast.error("Utilisez un numéro valide au format international, par exemple +2250700000000.");
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("senndo-test-send", {
+        body: { channel: testChannel, to: destination, subject: testSubject.trim(), text: testMessage.trim() },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Envoi de test refusé");
+      toast.success(`Test accepté par Senndo · ${testChannel.toUpperCase()} · Référence : ${data.messageId || "non communiquée"}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Échec de l'envoi de test.");
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -95,6 +133,44 @@ export default function ConfigurationSenndo() {
         <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">+225 05 64 55 17 17 · pas WhatsApp Cloud</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Disponibilité à confirmer sur le compte</p></CardContent></Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tester les envois en conditions réelles</CardTitle>
+          <CardDescription>Envoyez un message de test uniquement au destinataire choisi. Chaque canal est testé séparément ; aucun client de la base n'est ciblé.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="senndo-test-channel">Canal à tester</Label>
+              <select id="senndo-test-channel" value={testChannel} onChange={(e) => setTestChannel(e.target.value as typeof testChannel)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="sms">SMS · Sender ID AgriCapital</option>
+                <option value="email">E-mail · expéditeur vérifié</option>
+                <option value="whatsapp">WhatsApp · numéro Business appairé</option>
+                <option value="voice">Appel vocal · Senndo Voice</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="senndo-test-destination">{testChannel === "email" ? "Adresse e-mail de destination" : "Numéro de destination"}</Label>
+              <Input id="senndo-test-destination" type={testChannel === "email" ? "email" : "tel"} value={testDestination} onChange={(e) => setTestDestination(e.target.value)} placeholder={testChannel === "email" ? "votre.adresse@exemple.ci" : "+2250700000000"} autoComplete="off" />
+              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "Le destinataire doit avoir WhatsApp. L'envoi utilise le canal WhatsApp appairé, pas WhatsApp Cloud." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
+            </div>
+          </div>
+{testChannel === "email" && <div className="space-y-2">
+            <Label htmlFor="senndo-test-subject">Objet de l'e-mail</Label>
+            <Input id="senndo-test-subject" value={testSubject} onChange={(e) => setTestSubject(e.target.value)} maxLength={150} />
+          </div>}
+          <div className="space-y-2">
+            <Label htmlFor="senndo-test-message">Contenu du test</Label>
+            <Textarea id="senndo-test-message" value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={3} maxLength={1000} />
+            <p className="text-xs text-muted-foreground">Ce texte sera envoyé réellement au destinataire choisi. Vérifiez le numéro ou l'adresse avant l'envoi.</p>
+          </div>
+          <Button onClick={() => void sendTest()} disabled={sendingTest || loading || !status.apiKey || !testDestination.trim() || !testMessage.trim()}>
+            <Send className="mr-2 h-4 w-4" />{sendingTest ? "Envoi du test…" : `Envoyer le test ${testChannel.toUpperCase()}`}
+          </Button>
+          <p className="text-xs text-muted-foreground">Le résultat confirme l'acceptation par Senndo, pas nécessairement la livraison finale. Les statuts définitifs dépendent des retours du fournisseur.</p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
