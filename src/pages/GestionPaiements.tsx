@@ -83,8 +83,8 @@ const GestionPaiements = () => {
   const { can } = usePermissions();
   const canFinancialOverview = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("finance.view") || can("paiements.view");
   const canViewClientMoney = canFinancialOverview;
-  const canCreatePayment = hasRole("pdg") || hasRole("dg") || can("paiements.create") || can("paiements.record");
-  const canExecutePayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.execute");
+  const canCreatePayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.create") || can("paiements.record") || can("finance.manage");
+  const canExecutePayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.execute") || can("finance.manage");
   const canTransferPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("paiements.update") || can("finance.manage");
   const canRefundPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.cancel") || can("finance.manage");
   const canManage = canTransferPayment || canRefundPayment;

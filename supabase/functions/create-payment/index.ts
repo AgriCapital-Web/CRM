@@ -2,9 +2,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
 const normalizePhone = (input: unknown) => {
-  let d = String(input ?? "").replace(/\D/g, "").replace(/^00/, "");
-  if (d.startsWith("225") && d.length > 8) d = d.slice(3);
-  return d.replace(/^0+/, "");
+  const raw = String(input ?? "").replace(/\D/g, "").replace(/^00/, "");
+  if (!raw) return "";
+  const hasIvoryCoastCode = raw.startsWith("225");
+  const national = hasIvoryCoastCode ? raw.slice(3) : raw;
+  if (national.length === 10 && /^0[157]\d{8}$/.test(national)) return national.slice(-8);
+  if (national.length === 9 && national.startsWith("0")) return national.slice(1);
+  return hasIvoryCoastCode ? national : national.replace(/^0+/, "");
 };
 const phoneMatches = (a: unknown, b: unknown) => {
   const na = normalizePhone(a), nb = normalizePhone(b);
@@ -405,14 +409,25 @@ serve(async (req) => {
 
       const { data: paiementData } = await supabase
         .from("paiements")
-        .select("*, plantations(*), clients(telephone, nom_complet)")
+        .select("*, plantations(*), clients(id,telephone,whatsapp,telephone_local,whatsapp_local,telephone_indicatif,whatsapp_indicatif,nom_complet)")
         .eq("reference", reference)
         .maybeSingle();
 
       if (!paiementData) throw new Error("Paiement introuvable");
-      if (!phoneMatches(paiementData.clients?.telephone, sessionPhone)) {
+      const paymentPhones = [
+        paiementData.clients?.telephone,paiementData.clients?.whatsapp,
+        paiementData.clients?.telephone_local,paiementData.clients?.whatsapp_local,
+        paiementData.clients?.telephone_indicatif && paiementData.clients?.telephone_local ? String(paiementData.clients.telephone_indicatif)+String(paiementData.clients.telephone_local) : null,
+        paiementData.clients?.whatsapp_indicatif && paiementData.clients?.whatsapp_local ? String(paiementData.clients.whatsapp_indicatif)+String(paiementData.clients.whatsapp_local) : null,
+      ].filter(Boolean);
+      if (!paymentPhones.some((phone:any) => phoneMatches(phone, sessionPhone))) {
         return unauthorized("Accès refusé à ce paiement");
       }
+      // Idempotent retry: an already validated transaction is not a new financial action.
+      if (paiementData.statut === "valide") {
+        return new Response(JSON.stringify({success:true,alreadyConfirmed:true,reference}),{headers:{...corsHeaders,"Content-Type":"application/json"}});
+      }
+      await assertFinancialEligibility(paiementData.client_id);
 
       const kkiapayAmount = verification.amount;
       const trustedMontantPaye = typeof kkiapayAmount === "number" ? kkiapayAmount : paiementData.montant;
