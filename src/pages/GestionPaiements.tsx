@@ -117,7 +117,6 @@ const GestionPaiements = () => {
   const [refundNumero, setRefundNumero] = useState("");
   const [sourcePaiements, setSourcePaiements] = useState<Paiement[]>([]);
 
-  const canManage = hasRole('pdg') || hasRole('dg') || hasRole('comptable') || hasRole('responsable_operations');
 
   // KKiaPay payment handler
   const handleKkiapayPayment = async (paiement: Paiement) => {
