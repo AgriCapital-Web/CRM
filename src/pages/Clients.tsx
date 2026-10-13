@@ -24,9 +24,14 @@ import ClientForm from "@/components/forms/ClientForm";
 import KanbanPipeline from "@/components/acquisitions/KanbanPipeline";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 
 const Clients = () => {
   const { can } = usePermissions();
+  const { profile, userRoles } = useAuth();
+  const serviceClient = (userRoles || []).some((role:string) => ["service_client","chef_equipe_service_client"].includes(role)) || String(profile?.poste || "").toLowerCase().includes("service client") || String(profile?.relation_rh || "").toLowerCase().includes("service client");
+  const canEditClient = can("clients.update") && !serviceClient;
+  const canDeleteClient = can("clients.delete") && !serviceClient;
   const [clients, setClients] = useState<any[]>([]);
   const [attributions, setAttributions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,6 +147,7 @@ const Clients = () => {
     s.telephone?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const handleStatusChange = async (id: string, newStatus: string) => {
+    if (!canEditClient) { toast({variant:"destructive",title:"Action non autorisée",description:"Le Service Client ne peut pas modifier le dossier client."}); return; }
     try {
       const client = clients.find(s => s.id === id);
       const { error } = await offlineUpdate("clients", id, { statut: newStatus, statut_global: newStatus });
@@ -173,7 +179,7 @@ const Clients = () => {
   };
 
   const handleDelete = async () => {
-    if (!clientToDelete) return;
+    if (!canDeleteClient || !clientToDelete) return;
     try {
       const { error } = await offlineDelete("clients", clientToDelete.id);
       if (error) throw error;
@@ -443,34 +449,28 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => {
-                                    setSelectedClient(client);
-                                    setIsFormOpen(true);
-                                  }}>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Modifier
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  {client.statut !== 'actif' && (
+                                  {canEditClient && <DropdownMenuItem onClick={() => { setSelectedClient(client); setIsFormOpen(true); }}><Edit className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>}
+                                  {canEditClient && <DropdownMenuSeparator />}
+                                  {canEditClient && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
                                       <RotateCcw className="mr-2 h-4 w-4 text-green-500" />
                                       Activer
                                     </DropdownMenuItem>
                                   )}
-                                  {client.statut !== 'suspendu' && (
+                                  {canEditClient && client.statut !== 'suspendu' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'suspendu')}>
                                       <Ban className="mr-2 h-4 w-4 text-orange-500" />
                                       Suspendre
                                     </DropdownMenuItem>
                                   )}
-                                  {client.statut !== 'archive' && (
+                                  {canEditClient && client.statut !== 'archive' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'archive')}>
                                       <Archive className="mr-2 h-4 w-4 text-slate-500" />
                                       Archiver
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
+                                  {canDeleteClient && <DropdownMenuSeparator />}
+                                  {canDeleteClient && <DropdownMenuItem 
                                     className="text-destructive"
                                     onClick={() => {
                                       setClientToDelete(client);
@@ -479,7 +479,7 @@ const Clients = () => {
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Supprimer
-                                  </DropdownMenuItem>
+                                  </DropdownMenuItem>}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>

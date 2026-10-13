@@ -73,7 +73,7 @@ interface Paiement {
   date_paiement: string | null;
   created_at: string;
   metadata: any;
-  clients?: { nom_complet: string; telephone: string; statut_global?: string };
+  clients?: { nom_complet: string; telephone: string; statut_global?: string; type_client?: string; is_internal?: boolean };
   plantations?: { id_unique: string; nom_plantation: string };
 }
 
@@ -214,7 +214,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const selectClause = `
         *,
-        clients!inner (nom_complet, telephone, id_unique, statut_global),
+        clients!inner (nom_complet, telephone, id_unique, statut_global, type_client, is_internal),
         plantations (id_unique, nom_plantation)
       `;
       const safeSearch = searchTerm.trim().replace(/[,%()]/g, " ");
@@ -287,7 +287,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("v_client_synthese")
-        .select("compte_actif,montant_total_contrat,total_paye,reste_a_payer")
+        .select("client_id,compte_actif,montant_total_contrat,total_paye,reste_a_payer")
         .eq("compte_actif", true);
       if (error) throw error;
       return data || [];
@@ -310,6 +310,9 @@ const GestionPaiements = () => {
       monnaieDisponible: totalMonnaie,
     };
   }, [financeSynthese, clientsMonnaie]);
+
+  const settledClientIds = useMemo(() => new Set(financeSynthese.filter((row:any)=>Number(row.montant_total_contrat||0)>0&&Number(row.reste_a_payer||0)<=0).map((row:any)=>row.client_id).filter(Boolean)),[financeSynthese]);
+  const financialActionsBlocked = (paiement:Paiement) => settledClientIds.has(paiement.client_id) || paiement.clients?.type_client === "beneficiaire_particulier" || paiement.clients?.is_internal === true;
 
   // Filtered paiements
   const filteredPaiements = useMemo(() => {
@@ -745,7 +748,7 @@ const GestionPaiements = () => {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {canManage && paiement.statut === 'en_attente' && (
+                              {canManage && !financialActionsBlocked(paiement) && paiement.statut === 'en_attente' && (
                                 <Button
                                   variant="default"
                                   size="sm"
@@ -762,7 +765,7 @@ const GestionPaiements = () => {
                                   <span className="hidden sm:inline">Payer</span>
                                 </Button>
                               )}
-                              {canManage && paiement.statut === 'valide' && (
+                              {canManage && !financialActionsBlocked(paiement) && paiement.statut === 'valide' && (
                                 <>
                                   <Button
                                     variant="ghost"
