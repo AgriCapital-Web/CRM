@@ -112,7 +112,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
       const { data: client, error: clientError } = await (supabase as any)
         .from("clients")
-        .select("offre_id")
+        .select("offre_id,paiement_personnalise,paiement_initial_montant,contrat_solde_at")
         .eq("id", clientId)
         .maybeSingle();
       if (clientError) {
@@ -121,7 +121,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       }
       if (!client?.offre_id) {
         setClientOffre(null);
-        setValue("montant_theorique", undefined);
+        const custom = client?.paiement_personnalise?.actif ? client.paiement_personnalise : null;
+        const customInitial = Number(custom?.paiement_initial?.montant ?? custom?.paiement_initial?.montant_theorique ?? client?.paiement_initial_montant ?? 0);
+        setValue("montant_theorique", customInitial > 0 ? customInitial : undefined);
         return;
       }
 
@@ -298,11 +300,26 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           toast({variant:"destructive",title:"Contrat soldé",description:"Aucun nouveau paiement ne peut être créé pour ce contrat."});
           return;
         }
+        const {data:paymentState,error:stateError} = await (supabase as any).rpc("portal_current_payment_state",{_client_id:data.client_id});
+        if (stateError) throw stateError;
         if (data.type_paiement === "PI") {
+          const pi = paymentState?.paiement_initial || {};
+          const due = Math.max(0,Number(pi.solde ?? pi.montant_a_payer ?? validated.montant_theorique ?? data.montant_theorique ?? 0));
           const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
-          const expected = Number(validated.montant_theorique ?? data.montant_theorique ?? 0);
-          if (expected > 0 && Math.abs(amount - expected) > 1) {
-            toast({variant:"destructive",title:"Montant non conforme",description:"Le paiement initial doit respecter le montant calculé depuis l’offre du client."});
+          if (due <= 0) {
+            toast({variant:"destructive",title:"Paiement initial déjà réglé",description:"Aucun paiement initial n’est dû pour ce dossier."});
+            return;
+          }
+          if (Math.abs(amount - due) > 1) {
+            toast({variant:"destructive",title:"Montant non conforme",description:"Le paiement initial doit correspondre au solde réel calculé selon l’offre ou la configuration particulière du client."});
+            return;
+          }
+        } else if (data.type_paiement === "MENSUALITE") {
+          const monthly = paymentState?.mensualite || {};
+          const due = Math.max(0,Number(monthly.montant_a_payer || 0));
+          const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
+          if (due <= 0 || amount <= 0 || amount > due + 1) {
+            toast({variant:"destructive",title:"Montant mensuel non conforme",description:"Le montant ne peut pas dépasser l’échéance réellement due pour cette plantation."});
             return;
           }
         }
