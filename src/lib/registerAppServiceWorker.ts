@@ -33,6 +33,18 @@ export async function registerAppServiceWorker() {
   }
 
   try {
+    // When an already-open PWA receives a new worker, reload once so its
+    // JavaScript bundle matches the newly deployed index.html.
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    if (hadController) {
+      let reloadingForWorkerUpdate = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloadingForWorkerUpdate) return;
+        reloadingForWorkerUpdate = true;
+        window.location.reload();
+      });
+    }
+
     const registration = await navigator.serviceWorker.register("/sw.js", {
       scope: "/",
       updateViaCache: "none",
