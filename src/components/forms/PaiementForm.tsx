@@ -153,13 +153,14 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
   const fetchClients = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from("clients")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+      const [{data,error},{data:summaries,error:summaryError}] = await Promise.all([
+        (supabase as any).from("clients").select("*").eq("compte_actif",true).order("created_at",{ascending:false}),
+        (supabase as any).from("v_client_synthese").select("client_id,montant_total_contrat,reste_a_payer"),
+      ]);
       if (error) throw error;
-      setClients(data || []);
+      if (summaryError) throw summaryError;
+      const settledIds = new Set((summaries||[]).filter((row:any)=>Number(row.montant_total_contrat||0)>0&&Number(row.reste_a_payer||0)<=0).map((row:any)=>row.client_id));
+      setClients((data||[]).filter((client:any)=>client.type_client!=="beneficiaire_particulier"&&!client.is_internal&&!client.contrat_solde_at&&!settledIds.has(client.id)));
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -285,6 +286,27 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         validated[field] = parsed.value;
       }
 
+      if (!paiement) {
+        const selected = clients.find((client:any)=>client.id===data.client_id);
+        if (!selected || selected.type_client==="beneficiaire_particulier" || selected.is_internal || selected.contrat_solde_at) {
+          toast({variant:"destructive",title:"Paiement interdit",description:"Sélectionnez un client éligible à un paiement."});
+          return;
+        }
+        const {data:summary,error:summaryError} = await (supabase as any).from("v_client_synthese").select("montant_total_contrat,reste_a_payer").eq("client_id",data.client_id).maybeSingle();
+        if (summaryError) throw summaryError;
+        if (summary && Number(summary.montant_total_contrat||0)>0 && Number(summary.reste_a_payer||0)<=0) {
+          toast({variant:"destructive",title:"Contrat soldé",description:"Aucun nouveau paiement ne peut être créé pour ce contrat."});
+          return;
+        }
+        if (data.type_paiement === "PI") {
+          const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
+          const expected = Number(validated.montant_theorique ?? data.montant_theorique ?? 0);
+          if (expected > 0 && Math.abs(amount - expected) > 1) {
+            toast({variant:"destructive",title:"Montant non conforme",description:"Le paiement initial doit respecter le montant calculé depuis l’offre du client."});
+            return;
+          }
+        }
+      }
       const user = await supabase.auth.getUser();
 
       const paiementData = {

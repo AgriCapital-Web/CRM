@@ -60,6 +60,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
+import PaiementForm from "@/components/forms/PaiementForm";
 
 interface Paiement {
   id: string;
@@ -73,7 +74,7 @@ interface Paiement {
   date_paiement: string | null;
   created_at: string;
   metadata: any;
-  clients?: { nom_complet: string; telephone: string; statut_global?: string; type_client?: string; is_internal?: boolean };
+  clients?: { nom_complet: string; telephone: string; statut_global?: string };
   plantations?: { id_unique: string; nom_plantation: string };
 }
 
@@ -88,7 +89,7 @@ const GestionPaiements = () => {
   const [selectedPaiement, setSelectedPaiement] = useState<Paiement | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
-  const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
+  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isKkiapayDialogOpen, setIsKkiapayDialogOpen] = useState(false);
   const [kkiapayLoading, setKkiapayLoading] = useState(false);
@@ -111,12 +112,7 @@ const GestionPaiements = () => {
   const [refundNumero, setRefundNumero] = useState("");
   const [sourcePaiements, setSourcePaiements] = useState<Paiement[]>([]);
 
-  // Convert state
-  const [convertPeriod, setConvertPeriod] = useState<'jour' | 'mois' | 'trimestre' | 'semestre' | 'annee'>('mois');
-  const [convertCount, setConvertCount] = useState(1);
-  const [selectedClientId, setSelectedClientId] = useState("");
-
-  const canManage = hasRole('pdg') || hasRole('dg') || hasRole('comptable');
+  const canManage = hasRole('pdg') || hasRole('dg') || hasRole('comptable') || hasRole('responsable_operations');
 
   // KKiaPay payment handler
   const handleKkiapayPayment = async (paiement: Paiement) => {
@@ -214,7 +210,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const selectClause = `
         *,
-        clients!inner (nom_complet, telephone, id_unique, statut_global, type_client, is_internal),
+        clients!inner (nom_complet, telephone, id_unique, statut_global),
         plantations (id_unique, nom_plantation)
       `;
       const safeSearch = searchTerm.trim().replace(/[,%()]/g, " ");
@@ -287,7 +283,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("v_client_synthese")
-        .select("client_id,compte_actif,montant_total_contrat,total_paye,reste_a_payer")
+        .select("compte_actif,montant_total_contrat,total_paye,reste_a_payer")
         .eq("compte_actif", true);
       if (error) throw error;
       return data || [];
@@ -310,9 +306,6 @@ const GestionPaiements = () => {
       monnaieDisponible: totalMonnaie,
     };
   }, [financeSynthese, clientsMonnaie]);
-
-  const settledClientIds = useMemo(() => new Set(financeSynthese.filter((row:any)=>Number(row.montant_total_contrat||0)>0&&Number(row.reste_a_payer||0)<=0).map((row:any)=>row.client_id).filter(Boolean)),[financeSynthese]);
-  const financialActionsBlocked = (paiement:Paiement) => settledClientIds.has(paiement.client_id) || paiement.clients?.type_client === "beneficiaire_particulier" || paiement.clients?.is_internal === true;
 
   // Filtered paiements
   const filteredPaiements = useMemo(() => {
@@ -518,74 +511,6 @@ const GestionPaiements = () => {
     }
   };
 
-  // Handle convert monnaie to payment
-  const handleConvertMonnaie = async () => {
-    if (!canViewClientMoney) return;
-    if (!selectedClientId || convertCount <= 0) return;
-    setLoading(true);
-
-    try {
-      const client = clientsMonnaie.find((s: any) => s?.id === selectedClientId);
-      if (!client) throw new Error('Client non trouvé');
-
-      // Calculate amount based on period
-      const tarifs: Record<string, number> = {
-        jour: 65,
-        mois: 1900,
-        trimestre: 5500,
-        semestre: 10500,
-        annee: 20000
-      };
-      const montant = tarifs[convertPeriod] * convertCount;
-
-      if (montant > (client as any).monnaie) {
-        throw new Error('Monnaie insuffisante pour cette conversion');
-      }
-
-      // Create a new payment record for the conversion
-      const { error } = await supabase
-        .from('paiements')
-        .insert({
-          client_id: selectedClientId,
-          montant: montant,
-          montant_paye: montant,
-          type_paiement: 'MENSUALITE',
-          statut: 'valide',
-          mode_paiement: 'Conversion monnaie',
-          reference: `CONV-${Date.now()}`,
-          date_paiement: new Date().toISOString(),
-          metadata: {
-            conversion: {
-              periode: convertPeriod,
-              nombre: convertCount,
-              montant_converti: montant,
-              date: new Date().toISOString()
-            }
-          }
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Conversion effectuée",
-        description: `${formatMontant(montant)} de monnaie convertis en ${convertCount} ${convertPeriod}(s)`
-      });
-
-      setIsConvertDialogOpen(false);
-      resetForms();
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ['clients-monnaie'] });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: getSafeErrorMessage(error)
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const resetForms = () => {
     setSelectedPaiement(null);
     setSourcePhone("");
@@ -601,8 +526,6 @@ const GestionPaiements = () => {
     setRefundMode("Mobile Money");
     setRefundNumero("");
     setSourcePaiements([]);
-    setSelectedClientId("");
-    setConvertCount(1);
   };
 
   return (
@@ -617,7 +540,7 @@ const GestionPaiements = () => {
                 Gestion des Paiements
               </h1>
               <p className="text-muted-foreground mt-1">
-                Suivi, transferts, remboursements et conversion de monnaie
+                Suivi des paiements, transferts et remboursements.
               </p>
             </div>
           </div>
@@ -663,7 +586,7 @@ const GestionPaiements = () => {
 
           {/* Tabs */}
           <Tabs defaultValue="paiements" className="space-y-4">
-            <TabsList className="grid w-full sm:w-auto grid-cols-1 min-[420px]:grid-cols-3 gap-2">
+            <TabsList className="grid w-full sm:w-auto grid-cols-1 min-[420px]:grid-cols-2 gap-2">
               <TabsTrigger value="paiements" className="gap-2">
                 <CreditCard className="h-4 w-4" />
                 Paiements
@@ -748,7 +671,7 @@ const GestionPaiements = () => {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {canManage && !financialActionsBlocked(paiement) && paiement.statut === 'en_attente' && (
+                              {canManage && paiement.statut === 'en_attente' && (
                                 <Button
                                   variant="default"
                                   size="sm"
@@ -765,7 +688,7 @@ const GestionPaiements = () => {
                                   <span className="hidden sm:inline">Payer</span>
                                 </Button>
                               )}
-                              {canManage && !financialActionsBlocked(paiement) && paiement.statut === 'valide' && (
+                              {canManage && paiement.statut === 'valide' && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -802,71 +725,7 @@ const GestionPaiements = () => {
               </div>
             </TabsContent>
 
-            {/* Monnaie Tab */}
-            {canViewClientMoney && <TabsContent value="monnaie" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Coins className="h-5 w-5 text-amber-600" />
-                    Clients avec solde disponible
-                  </CardTitle>
-                  <CardDescription>
-                    Les montants excédentaires payés par les clients peuvent être convertis en jours/mois de mensualité
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Client</TableHead>
-                          <TableHead>Téléphone</TableHead>
-                          <TableHead>Monnaie client</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {clientsMonnaie.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                              Aucun client avec monnaie disponible
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          clientsMonnaie.map((sous: any) => (
-                            <TableRow key={sous?.id}>
-                              <TableCell className="font-medium">{sous?.nom_complet}</TableCell>
-                              <TableCell>{sous?.telephone}</TableCell>
-                              
-                              <TableCell>
-                                <Badge className="bg-amber-100 text-amber-800">
-                                  {formatMontant(sous?.monnaie || 0)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {canManage && canViewClientMoney && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedClientId(sous?.id);
-                                      setIsConvertDialogOpen(true);
-                                    }}
-                                  >
-                                    <Wallet className="h-4 w-4 mr-1" />
-                                    Convertir
-                                  </Button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>}
+            {/* Monnaie client conservée dans les indicateurs; aucune conversion tarifaire artificielle. */}
 
             {/* Operations Tab */}
             <TabsContent value="operations" className="space-y-4">
@@ -1154,99 +1013,10 @@ const GestionPaiements = () => {
             </DialogContent>
           </Dialog>
 
-          {/* Convert Monnaie Dialog */}
-          <Dialog open={isConvertDialogOpen} onOpenChange={setIsConvertDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Coins className="h-5 w-5 text-amber-600" />
-                  Convertir la monnaie
-                </DialogTitle>
-                <DialogDescription>
-                  Convertir le solde excédentaire en jours/mois de mensualité
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                {!selectedClientId && (
-                  <div className="space-y-2">
-                    <Label>Sélectionner un client</Label>
-                    <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choisir un client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clientsMonnaie.map((sous: any) => (
-                          <SelectItem key={sous?.id} value={sous?.id}>
-                            {sous?.nom_complet} - {formatMontant(sous?.monnaie || 0)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                
-                {selectedClientId && (
-                  <>
-                    <div className="bg-amber-50 p-3 rounded-lg">
-                      <p className="text-sm">
-                        Monnaie disponible: <strong className="text-amber-800">
-                          {formatMontant(clientsMonnaie.find((s: any) => s?.id === selectedClientId)?.monnaie || 0)}
-                        </strong>
-                      </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Période</Label>
-                        <Select value={convertPeriod} onValueChange={(v) => setConvertPeriod(v as any)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="jour">Jour (65 F)</SelectItem>
-                            <SelectItem value="mois">Mois (1 900 F)</SelectItem>
-                            <SelectItem value="trimestre">Trimestre (5 500 F)</SelectItem>
-                            <SelectItem value="semestre">Semestre (10 500 F)</SelectItem>
-                            <SelectItem value="annee">Année (20 000 F)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Nombre</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={convertCount}
-                          onChange={(e) => setConvertCount(parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="bg-muted p-3 rounded-lg">
-                      <p className="text-sm">
-                        Montant à convertir: <strong>
-                          {formatMontant({
-                            jour: 65,
-                            mois: 1900,
-                            trimestre: 5500,
-                            semestre: 10500,
-                            annee: 20000
-                          }[convertPeriod] * convertCount)}
-                        </strong>
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => { setIsConvertDialogOpen(false); setSelectedClientId(''); }}>
-                  Annuler
-                </Button>
-                <Button onClick={handleConvertMonnaie} disabled={loading || !selectedClientId}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Coins className="h-4 w-4 mr-2" />}
-                  Convertir
-                </Button>
-              </DialogFooter>
+          <Dialog open={isCreatePaymentOpen} onOpenChange={setIsCreatePaymentOpen}>
+            <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+              <DialogHeader><DialogTitle>Enregistrer un paiement</DialogTitle></DialogHeader>
+              <PaiementForm onSuccess={() => { setIsCreatePaymentOpen(false); void refetch(); void queryClient.invalidateQueries(); }} onCancel={() => setIsCreatePaymentOpen(false)} />
             </DialogContent>
           </Dialog>
         </div>
