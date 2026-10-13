@@ -197,22 +197,34 @@ const Utilisateurs = () => {
     }
   };
 
-  const handleStatusChange = async (userId: string, newStatus: boolean) => {
+  const handleStatusChange = async (profileId: string, newStatus: boolean) => {
     try {
-      const { error } = await (supabase as any)
-        .from("profiles")
-        .update({ actif: newStatus })
-        .eq("id", userId);
+      const target = utilisateurs.find((item) => item.id === profileId);
+      const authUserId = target?.user_id || target?.id;
+      if (!authUserId) throw new Error("Ce profil n'est pas relié à un compte utilisateur.");
 
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke("admin-manage-user", {
+        body: { action: "set_active", user_id: authUserId, actif: newStatus },
+      });
+      let payload: any = data;
+      if (error && typeof (error as any).context?.json === "function") {
+        try { payload = await (error as any).context.json(); } catch { /* réponse non JSON */ }
+      }
+      if (error || !payload?.success) {
+        throw new Error(payload?.error || error?.message || "La modification du statut n'a pas été confirmée.");
+      }
 
+      // Ne jamais afficher « Succès » sans relire la valeur persistée côté serveur.
+      if (payload.actif !== newStatus) {
+        throw new Error("Le serveur n'a pas confirmé le nouveau statut du compte.");
+      }
       toast({
         title: "Succès",
-        description: `Utilisateur ${newStatus ? "activé" : "suspendu"} avec succès`,
+        description: `Utilisateur ${newStatus ? "activé" : "suspendu"} et statut confirmé.`,
       });
-      fetchUtilisateurs();
+      await fetchUtilisateurs();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
+      toast({ variant: "destructive", title: "Modification non confirmée", description: getSafeErrorMessage(error) });
     }
   };
 
