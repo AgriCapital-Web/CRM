@@ -407,6 +407,8 @@ const Clients = () => {
                               <Badge style={{ backgroundColor: client.offres.couleur }}>
                                 {client.offres.nom}
                               </Badge>
+                            ) : client.formule_nom ? (
+                              <Badge variant="outline">{client.formule_nom}</Badge>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
