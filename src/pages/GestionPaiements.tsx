@@ -609,7 +609,7 @@ const GestionPaiements = () => {
               {canManage && <TabsTrigger value="operations" className="gap-2">
                 <ArrowRightLeft className="h-4 w-4" />
                 Opérations
-              </TabsTrigger>
+              </TabsTrigger>}
             </TabsList>
 
             {/* Paiements Tab */}
@@ -742,9 +742,7 @@ const GestionPaiements = () => {
                       Effectuer un remboursement partiel ou total
                     </p>
                   </CardContent>
-                </Card>
-
-         </Card>
+                </Card>}
               </div>
             </TabsContent>}
           </Tabs>
