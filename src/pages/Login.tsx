@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -116,6 +117,7 @@ const Login = () => {
                 className="h-11"
                 disabled={isLoading}
                 autoComplete="username"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); passwordInputRef.current?.focus(); } }}
               />
             </div>
 
@@ -135,6 +137,7 @@ const Login = () => {
               <div className="relative">
                 <Input
                   id="password"
+                  ref={passwordInputRef}
                   type={showPassword ? "text" : "password"}
                   uppercase={false}
                   placeholder="••••••••"
