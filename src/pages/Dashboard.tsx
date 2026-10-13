@@ -238,9 +238,16 @@ const Dashboard = () => {
         Boolean(p.proprietaire_id) && (p.plantation_partagee_activee === true || activeConventionIds.has(p.convention_id))
       );
       const validatedPartnershipParcelIds = new Set(validatedPartnershipParcels.map((p: any) => p.id));
-      const partnershipHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha || 0), 0);
+      const activeConventionByParcel = new Map<string, any>();
+      conventions.filter((c: any) => String(c.statut || "").toLowerCase() === "active" && c.parcelle_id)
+        .forEach((c: any) => activeConventionByParcel.set(c.parcelle_id, c));
+      const partnershipAreaFor = (p: any) => {
+        const convention = activeConventionByParcel.get(p.id);
+        return Number(convention?.part_agricapital_ha ?? p.surface_agricapital_ha ?? 0);
+      };
+      const partnershipHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + partnershipAreaFor(p), 0);
       const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
-      const agriCapitalAreaHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha || 0), 0);
+      const agriCapitalAreaHa = partnershipHa;
       const foncierPlantedHa = Math.min(agriCapitalAreaHa, plantations
         .filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id))
         .reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0));
@@ -509,14 +516,16 @@ const Dashboard = () => {
         {label:"Superficie AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"}
       ] : []),
     ]},
-    { domain:"agriculture", label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
-      {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
-      {label:"Superficie totale",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
-      {label:"Superficie plantée",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
-      {label:"Superficie restante",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
+    { domain:"agriculture", label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
+      {label:"Plantations totales",value:stats.plantations,href:"/plantations"},
+      {label:"Plantations internes AgriCapital",value:stats.internalPlantations,href:"/plantations"},
+      {label:"Superficie totale AgriCapital",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
+      {label:"Superficie plantée AgriCapital",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
+      {label:"Superficie restante AgriCapital",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
+      {label:"Superficie plantée (toutes plantations)",value:num(stats.plantedHa)+" ha",href:"/plantations"},
+      {label:"Plantations en production",value:stats.production,href:"/plantations?statut=en_production"},
+      {label:"Superficie en production",value:num(stats.productionHa)+" ha",href:"/plantations?statut=en_production"},
     ]},
-    { domain:"agriculture", label:"Plantations", value:stats.plantations.toString(), sub:num(stats.plantedHa)+" ha plantés", icon:Sprout, href:"/plantations", show:canPlantations },
-    { domain:"agriculture", label:"Production", value:stats.production.toString(), sub:num(stats.productionHa)+" ha en production", icon:TrendingUp, href:"/plantations?statut=en_production", show:canPlantations },
   ];
 
   return (
