@@ -70,14 +70,15 @@ export default function ConfigurationSenndo() {
       toast.error("L'adresse e-mail de destination est invalide.");
       return;
     }
-    if (testChannel !== "email" && !/^\d{8,15}$/.test(destination.replace(/\D/g, ""))) {
-      toast.error("Utilisez un numéro valide au format international, par exemple +2250700000000.");
-      return;
-    }
+    // Do not reject phone destinations in the browser based on a duplicated regex.
+    // Normalize formatting and let the server return a precise validation error.
+    const normalizedDestination = testChannel === "email"
+      ? destination
+      : "+" + destination.replace(/\\D/g, "");
     setSendingTest(true);
     try {
       const { data, error } = await supabase.functions.invoke("senndo-test-send", {
-        body: { channel: testChannel, to: destination, subject: testSubject.trim(), text: testMessage.trim() },
+        body: { channel: testChannel, to: normalizedDestination, subject: testSubject.trim(), text: testMessage.trim() },
       });
       if (error || !data?.ok) throw new Error(data?.error || error?.message || "Envoi de test refusé");
       toast.success(`Test accepté par Senndo · ${testChannel.toUpperCase()} · Référence : ${data.messageId || "non communiquée"}`);
