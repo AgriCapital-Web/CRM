@@ -50,14 +50,14 @@ serve(async (req) => {
     if (String(password).length < 8) {
       return json({ error: "Le mot de passe doit contenir au moins 8 caractères.", step: "validate_password" }, 400);
     }
-    if (!/^[a-zA-Z0-9._-]{3,30}$/.test(String(username))) {
-      return json({ error: "Identifiant invalide (3 à 30 caractères : lettres, chiffres, . _ -).", step: "validate_username" }, 400);
+    if (!String(username).trim()) {
+      return json({ error: "Veuillez saisir un nom d'utilisateur.", step: "validate_username" }, 400);
     }
     if (!VALID_ROLES.includes(String(role_souhaite))) {
       return json({ error: `Rôle invalide: ${role_souhaite}`, step: "validate_role" }, 400);
     }
 
-    const cleanUsername = String(username).trim().toLowerCase();
+    const cleanUsername = String(username).trim();
     const cleanEmail = String(email).trim().toLowerCase();
 
     // Username déjà pris ?
