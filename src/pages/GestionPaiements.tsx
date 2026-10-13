@@ -11,7 +11,7 @@ import { useKkiapay } from "@/hooks/useKkiapay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -54,7 +54,6 @@ import {
   AlertTriangle,
   ArrowUpRight,
   ArrowDownLeft,
-  Wallet,
   Smartphone
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -74,15 +73,21 @@ interface Paiement {
   date_paiement: string | null;
   created_at: string;
   metadata: any;
-  clients?: { nom_complet: string; telephone: string; statut_global?: string };
+  clients?: { nom_complet: string; telephone: string; statut_global?: string; type_client?: string; is_internal?: boolean; contrat_solde_at?: string | null };
   plantations?: { id_unique: string; nom_plantation: string };
 }
 
 const GestionPaiements = () => {
   const { toast } = useToast();
   const { hasRole } = useAuth();
-  const canFinancialOverview = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations");
+  const { can } = usePermissions();
+  const canFinancialOverview = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("finance.view") || can("paiements.view");
   const canViewClientMoney = canFinancialOverview;
+  const canCreatePayment = hasRole("pdg") || hasRole("dg") || can("paiements.create") || can("paiements.record");
+  const canExecutePayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.execute");
+  const canTransferPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("paiements.update") || can("finance.manage");
+  const canRefundPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.cancel") || can("finance.manage");
+  const canManage = canTransferPayment || canRefundPayment;
   const queryClient = useQueryClient();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
   const [searchTerm, setSearchTerm] = useState("");
@@ -210,7 +215,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const selectClause = `
         *,
-        clients!inner (nom_complet, telephone, id_unique, statut_global),
+        clients!inner (nom_complet, telephone, id_unique, statut_global, type_client, is_internal, contrat_solde_at),
         plantations (id_unique, nom_plantation)
       `;
       const safeSearch = searchTerm.trim().replace(/[,%()]/g, " ");
@@ -283,7 +288,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("v_client_synthese")
-        .select("compte_actif,montant_total_contrat,total_paye,reste_a_payer")
+        .select("client_id,compte_actif,montant_total_contrat,total_paye,reste_a_payer")
         .eq("compte_actif", true);
       if (error) throw error;
       return data || [];
@@ -306,6 +311,9 @@ const GestionPaiements = () => {
       monnaieDisponible: totalMonnaie,
     };
   }, [financeSynthese, clientsMonnaie]);
+
+  const settledClientIds = useMemo(() => new Set((financeSynthese||[]).filter((row:any)=>Number(row.montant_total_contrat||0)>0&&Number(row.reste_a_payer||0)<=0).map((row:any)=>row.client_id).filter(Boolean)),[financeSynthese]);
+  const financialActionsBlocked = (paiement:Paiement) => settledClientIds.has(paiement.client_id) || Boolean(paiement.clients?.contrat_solde_at) || paiement.clients?.type_client === "beneficiaire_particulier" || paiement.clients?.is_internal === true;
 
   // Filtered paiements
   const filteredPaiements = useMemo(() => {
@@ -545,14 +553,10 @@ const GestionPaiements = () => {
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-                <CreditCard className="h-7 w-7 text-primary" />
-                Gestion des Paiements
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Suivi des paiements, transferts et remboursements.
-              </p>
+              <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2"><CreditCard className="h-7 w-7 text-primary" />Gestion des Paiements</h1>
+              <p className="text-muted-foreground mt-1">Suivi des paiements, transferts et remboursements.</p>
             </div>
+            {canCreatePayment && <Button onClick={() => setIsCreatePaymentOpen(true)} className="gap-2"><CreditCard className="h-4 w-4"/>Enregistrer un paiement</Button>}
           </div>
 
           {canFinancialOverview && (
@@ -601,11 +605,8 @@ const GestionPaiements = () => {
                 <CreditCard className="h-4 w-4" />
                 Paiements
               </TabsTrigger>
-              {canViewClientMoney && <TabsTrigger value="monnaie" className="gap-2">
-                <Coins className="h-4 w-4" />
-                Monnaie
-              </TabsTrigger>}
-              <TabsTrigger value="operations" className="gap-2">
+
+              {canManage && <TabsTrigger value="operations" className="gap-2">
                 <ArrowRightLeft className="h-4 w-4" />
                 Opérations
               </TabsTrigger>
@@ -681,7 +682,7 @@ const GestionPaiements = () => {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {canManage && paiement.statut === 'en_attente' && (
+                              {canExecutePayment && !financialActionsBlocked(paiement) && paiement.statut === 'en_attente' && (
                                 <Button
                                   variant="default"
                                   size="sm"
@@ -698,31 +699,10 @@ const GestionPaiements = () => {
                                   <span className="hidden sm:inline">Payer</span>
                                 </Button>
                               )}
-                              {canManage && paiement.statut === 'valide' && (
+                              {(canTransferPayment || canRefundPayment) && !financialActionsBlocked(paiement) && paiement.statut === 'valide' && (
                                 <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedPaiement(paiement);
-                                      setIsTransferDialogOpen(true);
-                                    }}
-                                    title="Transférer"
-                                  >
-                                    <ArrowRightLeft className="h-4 w-4 text-blue-600" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedPaiement(paiement);
-                                      setRefundAmount(String(paiement.montant_paye || paiement.montant));
-                                      setIsRefundDialogOpen(true);
-                                    }}
-                                    title="Rembourser"
-                                  >
-                                    <ArrowDownLeft className="h-4 w-4 text-red-600" />
-                                  </Button>
+                                  {canTransferPayment && <Button variant="ghost" size="sm" onClick={() => { setSelectedPaiement(paiement); setIsTransferDialogOpen(true); }} title="Transférer"><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
+                                  {canRefundPayment && <Button variant="ghost" size="sm" onClick={() => { setSelectedPaiement(paiement); setRefundAmount(String(paiement.montant_paye || paiement.montant)); setIsRefundDialogOpen(true); }} title="Rembourser"><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
                                 </>
                               )}
                             </div>
@@ -738,9 +718,9 @@ const GestionPaiements = () => {
             {/* Monnaie client conservée dans les indicateurs; aucune conversion tarifaire artificielle. */}
 
             {/* Operations Tab */}
-            <TabsContent value="operations" className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setIsTransferDialogOpen(true)}>
+            {canManage && <TabsContent value="operations" className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                {canTransferPayment && <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setIsTransferDialogOpen(true)}>
                   <CardContent className="p-6 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
                       <ArrowRightLeft className="h-8 w-8 text-blue-600" />
@@ -750,9 +730,9 @@ const GestionPaiements = () => {
                       Transférer un paiement vers un autre compte
                     </p>
                   </CardContent>
-                </Card>
+                </Card>}
 
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setIsRefundDialogOpen(true)}>
+                {canRefundPayment && <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setIsRefundDialogOpen(true)}>
                   <CardContent className="p-6 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
                       <ArrowDownLeft className="h-8 w-8 text-red-600" />
@@ -764,19 +744,9 @@ const GestionPaiements = () => {
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setIsConvertDialogOpen(true)}>
-                  <CardContent className="p-6 text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-full mb-4">
-                      <Coins className="h-8 w-8 text-amber-600" />
-                    </div>
-                    <h3 className="font-semibold text-lg">Conversion monnaie</h3>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Convertir la monnaie en jours/mois de mensualité
-                    </p>
-                  </CardContent>
-                </Card>
+         </Card>
               </div>
-            </TabsContent>
+            </TabsContent>}
           </Tabs>
 
           {/* Details Dialog */}
