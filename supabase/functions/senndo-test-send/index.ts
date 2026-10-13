@@ -74,12 +74,12 @@ Deno.serve(async (req) => {
       }
       const sessions = Array.isArray(sessionsPayload) ? sessionsPayload : Array.isArray(sessionsPayload?.sessions) ? sessionsPayload.sessions : Array.isArray(sessionsPayload?.data) ? sessionsPayload.data : Array.isArray(sessionsPayload?.items) ? sessionsPayload.items : [];
       const digits = (v: unknown) => String(v || "").replace(/\D/g, "");
-      const senderDigits = digits("+2250564551717");
+      const senderDigits = digits("+22564551717");
       const phoneOf = (s: any) => s?.phoneNumber ?? s?.phone ?? s?.displayPhoneNumber ?? s?.number ?? s?.jid ?? "";
       const connected = sessions.filter((s: any) => String(s?.status ?? s?.state ?? s?.connectionStatus ?? "").toLowerCase() === "connected");
       const session = connected.find((s: any) => { const d = digits(phoneOf(s)); return d && (d === senderDigits || d.endsWith(senderDigits.slice(-8)) || senderDigits.endsWith(d.slice(-8))); });
       const senderSessionId = session?.id ?? session?.sessionId ?? session?.senderSessionId ?? session?.uuid;
-      if (typeof senderSessionId !== "string" || !senderSessionId) return reply(req, { error: connected.length ? "Session connectée trouvée, mais impossible d’identifier le numéro AgriCapital +2250564551717. Vérifiez le numéro dans Senndo." : "Aucune session WhatsApp appairée à l’état connected. Reconnectez +2250564551717 dans Senndo.", code: "WHATSAPP_CONNECTED_SESSION_NOT_FOUND", connectedSessions: connected.length }, 409);
+      if (typeof senderSessionId !== "string" || !senderSessionId) return reply(req, { error: connected.length ? "Session connectée trouvée, mais impossible d’identifier le numéro AgriCapital +22564551717. Vérifiez le numéro dans Senndo." : "Aucune session WhatsApp appairée à l’état connected. Reconnectez +22564551717 dans Senndo.", code: "WHATSAPP_CONNECTED_SESSION_NOT_FOUND", connectedSessions: connected.length }, 409);
       const sendResponse = await fetch("https://api.senndo.com/v1/messages", {
         method: "POST",
         headers: { authorization: "Bearer " + apiKey, "content-type": "application/json", accept: "application/json" },
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         const code = typeof sendPayload?.code === "string" ? sendPayload.code.slice(0, 80) : "SEN NDO_VALIDATION";
         return reply(req, { error: "Senndo a refusé l’envoi WhatsApp appairé (HTTP " + sendResponse.status + ")." + (detail ? " " + detail : ""), providerStatus: sendResponse.status, providerCode: code, code: "WHATSAPP_SEND_REJECTED" }, 502);
       }
-      return reply(req, { ok: true, channel: "whatsapp_baileys", accepted: true, messageId: sendPayload?.id ?? sendPayload?.messageId ?? sendPayload?.message?.id ?? null, senderPhone: "+2250564551717", message: "Demande WhatsApp appairée acceptée par Senndo. Vérifiez le statut de livraison pour confirmer la réception." });
+      return reply(req, { ok: true, channel: "whatsapp_baileys", accepted: true, messageId: sendPayload?.id ?? sendPayload?.messageId ?? sendPayload?.message?.id ?? null, senderPhone: "+22564551717", message: "Demande WhatsApp appairée acceptée par Senndo. Vérifiez le statut de livraison pour confirmer la réception." });
     } else if (channel === "sms") {
       // Prefer a configured sender ID; otherwise resolve the registered Senndo sender.
       let senderId = Deno.env.get("SENNDO_SMS_SENDER_ID")?.trim() || "";

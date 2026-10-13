@@ -187,7 +187,7 @@ export default function ConfigurationSenndo() {
             <div className="space-y-2">
               <Label htmlFor="senndo-test-destination">{testChannel === "email" ? "Adresse e-mail de destination" : "Numéro de destination"}</Label>
               <Input id="senndo-test-destination" type={testChannel === "email" ? "email" : "tel"} value={testDestination} onChange={(e) => setTestDestination(e.target.value)} placeholder={testChannel === "email" ? "votre.adresse@exemple.ci" : "+2250700000000"} autoComplete="off" />
-              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "L’envoi utilise votre session Senndo appairée à l’état connected (+2250564551717)." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
+              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "L’envoi utilise votre session Senndo appairée à l’état connected (+22564551717)." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
               {testChannel === "whatsapp" && <p className="text-xs font-medium text-amber-700">WhatsApp appairé : l’API utilise whatsapp_baileys et l’identifiant de session connected obtenu depuis Senndo. Aucun basculement vers Cloud/Twilio.</p>}
             </div>
           </div>
