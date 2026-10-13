@@ -186,7 +186,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          created_by: string
+          created_by?: string
           donnees?: Json | null
           etape_actuelle?: number | null
           id?: string
