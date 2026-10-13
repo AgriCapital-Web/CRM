@@ -79,7 +79,22 @@ export default function ConfigurationSenndo() {
       const { data, error } = await supabase.functions.invoke("senndo-test-send", {
         body: { channel: testChannel, to: destination, subject: testSubject.trim(), text: testMessage.trim() },
       });
-      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Envoi de test refusé");
+      if (error) {
+        // Supabase wraps non-2xx responses in FunctionsHttpError and puts the
+        // JSON response body on context. Read it so users see the real reason.
+        let serverMessage = data?.error;
+        try {
+          const context = (error as any).context;
+          if (context && typeof context.clone === "function") {
+            const payload = await context.clone().json();
+            if (typeof payload?.error === "string" && payload.error.trim()) serverMessage = payload.error;
+          }
+        } catch {
+          // Fall back to the SDK's safe generic message if no JSON body exists.
+        }
+        throw new Error(serverMessage || error.message || "Envoi de test refusé");
+      }
+      if (!data?.ok) throw new Error(data?.error || "Envoi de test refusé");
       toast.success(`Test accepté par Senndo · ${testChannel.toUpperCase()} · Référence : ${data.messageId || "non communiquée"}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Échec de l'envoi de test.");
