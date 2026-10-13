@@ -73,7 +73,6 @@ const Dashboard = () => {
     leadsConverted: 0,
     leadsFollowup: 0,
     conversionRate: 0,
-    partnershipHa: 0,
     ownerAreaHa: 0,
     partnershipTotalHa: 0,
     partnershipPlantedHa: 0,
