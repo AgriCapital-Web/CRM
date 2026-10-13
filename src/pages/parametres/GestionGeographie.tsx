@@ -49,11 +49,15 @@ export default function GestionGeographie() {
       if (dataKey) setData((current) => ({ ...current, [dataKey]: current[dataKey].map((node:any) => node.id === id ? { ...node, [activeColumn]: value } : node) }));
       const {error}=await (supabase as any).from(table).update({[activeColumn]:value}).eq("id",id).select("id").single();
       if(error) throw error;
+      // Confirm the persisted state from the database before reporting success.
+      const { data: persisted, error: verifyError } = await (supabase as any).from(table).select(`id,${activeColumn}`).eq("id", id).single();
+      if (verifyError) throw verifyError;
+      if (persisted?.[activeColumn] !== value) throw new Error("Le statut enregistré ne correspond pas à la valeur demandée.");
       await load(false);
-      toast({title:value?"Élément activé":"Élément désactivé"});
+      toast({title:value?"Élément activé":"Élément désactivé", description:"Modification confirmée en base de données."});
     } catch(e:any) {
       if (dataKey) setData((current) => ({ ...current, [dataKey]: previous }));
-      toast({variant:"destructive",title:"Modification impossible",description:"Le statut n’a pas été modifié. Vérifiez vos droits et réessayez."});
+      toast({variant:"destructive",title:"Modification non confirmée",description:"La base n’a pas confirmé le changement. Actualisez le référentiel et vérifiez les droits avant de réessayer."});
       void load(false);
     }
   };

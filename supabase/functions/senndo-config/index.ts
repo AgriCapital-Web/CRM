@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       const { data: apiKey } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
       const { data: webhookSecret } = await admin.rpc("senndo_get_secret", { p_name: "senndo_webhook_secret" });
       const { data: emailSenderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
-      return reply(req,{ok:true, configured:{apiKey:Boolean(apiKey),webhookSecret:Boolean(webhookSecret),emailSenderId:Boolean(emailSenderId)}, emailSenderId:emailSenderId || "", senderId:"AgriCapital", whatsappNumber:"+2250564551717", provider:"Senndo"});
+      return reply(req,{ok:true, configured:{apiKey:Boolean(apiKey),webhookSecret:Boolean(webhookSecret),emailSenderId:Boolean(emailSenderId)}, emailSenderId:emailSenderId || "", senderId:"AgriCapital", whatsappNumber:"+22564551717", provider:"Senndo"});
     }
     if (mode === "whatsapp_diagnostics") {
       const { data: apiKey, error: keyError } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
