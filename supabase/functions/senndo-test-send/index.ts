@@ -46,7 +46,12 @@ Deno.serve(async (req) => {
     if (!to || to.length > 254) return reply(req, { error: "Destinataire invalide" }, 400);
     if (!text || text.length > 1000) return reply(req, { error: "Le message doit contenir entre 1 et 1000 caractères" }, 400);
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return reply(req, { error: "Adresse e-mail invalide" }, 400);
-    if (channel !== "email" && !/^\+?[1-9]\d{7,14}$/.test(to.replace(/[\s().-]/g, ""))) return reply(req, { error: "Numéro invalide : utilisez le format international" }, 400);
+    if (channel !== "email") {
+      const destinationDigits = to.replace(/\D/g, "");
+      if (!/^[1-9]\d{7,14}$/.test(destinationDigits)) {
+        return reply(req, { error: "Numéro invalide : utilisez le format international, par exemple +2250759566087." }, 400);
+      }
+    }
 
     const { data: apiKey, error: keyError } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
     if (keyError || typeof apiKey !== "string" || !apiKey) return reply(req, { error: "Clé API Senndo non configurée" }, 400);
