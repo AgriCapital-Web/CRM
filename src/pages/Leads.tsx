@@ -322,18 +322,18 @@ export default function Leads() {
       toast({ variant: "destructive", title: "Conversion refusée", description: "Ce prospect appartient à un autre commercial." });
       return;
     }
-    // Pré-remplir acquisition via query params
     const params = new URLSearchParams({
-      lead_id: lead.id,
-      commercial_id: lead.assigned_to || "",
-      nom: lead.nom || "",
-      prenoms: lead.prenoms || "",
-      telephone: lead.telephone || "",
-      whatsapp: lead.whatsapp || "",
-      email: lead.email || "",
-      region: lead.region_residence || "",
+      lead_id: lead.id, commercial_id: lead.assigned_to || "", nom: lead.nom || "",
+      prenoms: lead.prenoms || "", telephone: lead.telephone || "", whatsapp: lead.whatsapp || "",
+      email: lead.email || "", district_id: lead.district_id || "", region_id: lead.region_id || "",
+      departement_id: lead.departement_id || "", sous_prefecture_id: lead.sous_prefecture_id || "",
+      village: lead.campement_quartier || "",
     });
-    navigate(`/nouvelle-acquisition?${params.toString()}`);
+    if (lead.type_lead === "proprietaire_foncier") {
+      navigate("/proprietaires-terres?" + params.toString());
+      return;
+    }
+    navigate("/nouvelle-acquisition?" + params.toString());
   };
 
   const publicUrl = `${window.location.origin}/leads/public`;
@@ -426,7 +426,7 @@ export default function Leads() {
                             setCreateOpen(true);
                           }}>Modifier</Button>
                         )}
-                        {l.statut !== "converti" && l.type_lead !== "proprietaire_foncier" && !isFoncierRole && (
+                        {l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
                           <Button size="sm" onClick={() => convertToClient(l)}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
                         )}
                       </TableCell>
