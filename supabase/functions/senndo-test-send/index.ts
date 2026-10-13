@@ -45,10 +45,6 @@ Deno.serve(async (req) => {
     if (!["sms", "email", "whatsapp", "voice"].includes(channel)) return reply(req, { error: "Canal de test invalide" }, 400);
     if (!to || to.length > 254) return reply(req, { error: "Destinataire invalide" }, 400);
     if (!text || text.length > 1000) return reply(req, { error: "Le message doit contenir entre 1 et 1000 caractères" }, 400);
-    if (channel === "whatsapp") return reply(req, {
-      error: "Le canal WhatsApp appairé n'est pas exposé par le SDK Senndo actuellement utilisé par AgriCapital. L'envoi via ce chemin serait refusé en validation. Lancez « Diagnostiquer WhatsApp » pour vérifier les canaux Cloud/Twilio disponibles ou demandez à Senndo l'endpoint et le contrat API dédiés à la session appairée.",
-      code: "PAIRED_WHATSAPP_UNSUPPORTED_BY_CURRENT_SDK",
-    }, 409);
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return reply(req, { error: "Adresse e-mail invalide" }, 400);
     if (channel !== "email" && !/^\+?[1-9]\d{7,14}$/.test(to.replace(/[\s().-]/g, ""))) return reply(req, { error: "Numéro invalide : utilisez le format international" }, 400);
 
@@ -60,6 +56,38 @@ Deno.serve(async (req) => {
       const { data: senderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
       if (typeof senderId !== "string" || !senderId) return reply(req, { error: "Adresse expéditrice e-mail vérifiée non configurée" }, 400);
       result = await client.sendMessage({ channel: "email", to, subject: subject || "Test AgriCapital", text, senderId, idempotencyKey: crypto.randomUUID() });
+    } else if (channel === "whatsapp") {
+      // Paired WhatsApp uses the REST channel whatsapp_baileys, not generic whatsapp.
+      const sessionsResponse = await fetch("https://api.senndo.com/v1/wa/sessions", {
+        method: "GET", headers: { authorization: "Bearer " + apiKey, accept: "application/json" },
+        signal: AbortSignal.timeout(15000),
+      });
+      const sessionsPayload = await sessionsResponse.json().catch(() => null);
+      if (!sessionsResponse.ok) {
+        const detail = typeof sessionsPayload?.message === "string" ? sessionsPayload.message.slice(0, 250) : "";
+        return reply(req, { error: "Impossible de lire les sessions WhatsApp Senndo (HTTP " + sessionsResponse.status + ")." + (detail ? " " + detail : ""), providerStatus: sessionsResponse.status, code: "WHATSAPP_SESSION_LOOKUP_FAILED" }, 502);
+      }
+      const sessions = Array.isArray(sessionsPayload) ? sessionsPayload : Array.isArray(sessionsPayload?.sessions) ? sessionsPayload.sessions : Array.isArray(sessionsPayload?.data) ? sessionsPayload.data : Array.isArray(sessionsPayload?.items) ? sessionsPayload.items : [];
+      const digits = (v: unknown) => String(v || "").replace(/\\D/g, "");
+      const senderDigits = digits("+2250564551717");
+      const phoneOf = (s: any) => s?.phoneNumber ?? s?.phone ?? s?.displayPhoneNumber ?? s?.number ?? s?.jid ?? "";
+      const connected = sessions.filter((s: any) => String(s?.status ?? s?.state ?? s?.connectionStatus ?? "").toLowerCase() === "connected");
+      const session = connected.find((s: any) => { const d = digits(phoneOf(s)); return d && (d === senderDigits || d.endsWith(senderDigits.slice(-8)) || senderDigits.endsWith(d.slice(-8))); });
+      const senderSessionId = session?.id ?? session?.sessionId ?? session?.senderSessionId ?? session?.uuid;
+      if (typeof senderSessionId !== "string" || !senderSessionId) return reply(req, { error: connected.length ? "Session connectée trouvée, mais impossible d’identifier le numéro AgriCapital +2250564551717. Vérifiez le numéro dans Senndo." : "Aucune session WhatsApp appairée à l’état connected. Reconnectez +2250564551717 dans Senndo.", code: "WHATSAPP_CONNECTED_SESSION_NOT_FOUND", connectedSessions: connected.length }, 409);
+      const sendResponse = await fetch("https://api.senndo.com/v1/messages", {
+        method: "POST",
+        headers: { authorization: "Bearer " + apiKey, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ channel: "whatsapp_baileys", to, text, senderSessionId, idempotencyKey: crypto.randomUUID() }),
+        signal: AbortSignal.timeout(30000),
+      });
+      const sendPayload = await sendResponse.json().catch(() => null);
+      if (!sendResponse.ok) {
+        const detail = typeof sendPayload?.message === "string" ? sendPayload.message.slice(0, 300) : "";
+        const code = typeof sendPayload?.code === "string" ? sendPayload.code.slice(0, 80) : "SEN NDO_VALIDATION";
+        return reply(req, { error: "Senndo a refusé l’envoi WhatsApp appairé (HTTP " + sendResponse.status + ")." + (detail ? " " + detail : ""), providerStatus: sendResponse.status, providerCode: code, code: "WHATSAPP_SEND_REJECTED" }, 502);
+      }
+      return reply(req, { ok: true, channel: "whatsapp_baileys", accepted: true, messageId: sendPayload?.id ?? sendPayload?.messageId ?? sendPayload?.message?.id ?? null, senderPhone: "+2250564551717", message: "Demande WhatsApp appairée acceptée par Senndo. Vérifiez le statut de livraison pour confirmer la réception." });
     } else if (channel === "sms") {
       // Prefer a configured sender ID; otherwise resolve the registered Senndo sender.
       let senderId = Deno.env.get("SENNDO_SMS_SENDER_ID")?.trim() || "";
@@ -76,8 +104,6 @@ Deno.serve(async (req) => {
       const smsText = text.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").slice(0, 150);
       if (!smsText) return reply(req, { error: "Le message ne contient aucun caractère SMS exploitable après normalisation." }, 400);
       result = await client.sendMessage({ channel: "sms", to, text: smsText, senderId, idempotencyKey: crypto.randomUUID() });
-    } else if (channel === "whatsapp") {
-      result = await client.sendMessage({ channel: "whatsapp", to, text, idempotencyKey: crypto.randomUUID() });
     } else {
       result = await client.sendMessage({ channel: "voice", to, text, idempotencyKey: crypto.randomUUID() });
     }
