@@ -96,6 +96,7 @@ const Dashboard = () => {
     documentsPending: 0,
     proprietaires: 0,
     parcelles: 0,
+    proprietaireParcelles: 0,
     beneficiaries: 0,
     activeContracts: 0,
     installationContracts: 0,
@@ -233,10 +234,10 @@ const Dashboard = () => {
         sum + Number(p.surface_totale_ha ?? 0), 0);
       const agriCapitalSurfaceHa = partnershipHa;
       const partnershipParcelleIds = new Set(partnershipParcelles.map((p: any) => p.id));
-      const partnershipPlantedHa = plantations
+      const partnershipPlantedHa = Math.min(partnershipHa, plantations
         .filter((p: any) => partnershipParcelleIds.has(p.parcelle_id))
         .reduce((sum: number, p: any) =>
-          sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+          sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0));
       const partnershipRemainingHa = Math.max(0, partnershipHa - partnershipPlantedHa);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
@@ -301,6 +302,7 @@ const Dashboard = () => {
         documentsPending: docs.filter((d: any) => d.statut === "en_attente").length,
         proprietaires: proprietaires.length,
         parcelles: parcelles.length,
+        proprietaireParcelles: parcelles.filter((p: any) => Boolean(p.proprietaire_id)).length,
         beneficiaries: new Set(beneficiaries.map((b: any) => b.client_id).filter(Boolean)).size,
         activeContracts: activeContracts.length,
         installationContracts: activeContracts.filter((r: any) => r.phase_actuelle === "installation").length,
@@ -412,7 +414,7 @@ const Dashboard = () => {
         const mPlant = plantations.filter((p: any) => {
           const dt = new Date(p.date_plantation || p.date_activation || p.created_at);
           return dt >= d && dt <= end;
-        }).reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
+        }).reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
         const mPay = validPayments.filter((p: any) => {
           const dt = new Date(p.date_paiement || p.created_at);
           return dt >= d && dt <= end;
@@ -491,7 +493,7 @@ const Dashboard = () => {
     ]},
     { label:"Propriétaires fonciers et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Nombre de propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Superficie propriétaire",value:num(stats.ownerSurfaceHa)+" ha",href:"/proprietaires-terres"}] : []),
-      ...(canParcelles ? [{label:"Nombre de parcelles propriétaires",value:stats.parcelles,href:"/parcelles"}] : []),
+      ...(canParcelles ? [{label:"Nombre de parcelles propriétaires",value:stats.proprietaireParcelles,href:"/parcelles"}] : []),
       ...(canParcelles || canPlantations ? [
         {label:"Partenariats validés",value:num(stats.partnershipHa)+" ha",href:"/parcelles"},
         {label:"Superficie AgriCapital",value:num(stats.agriCapitalSurfaceHa)+" ha",href:"/parcelles"},
