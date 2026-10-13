@@ -351,32 +351,38 @@ const GestionPaiements = () => {
     return <Badge variant="outline" className={cls}>{value}</Badge>;
   };
 
+  const financialBlockReason = async (client:any): Promise<string | null> => {
+    if (!client) return "Client introuvable.";
+    if (client.type_client === "beneficiaire_particulier") return "Les bénéficiaires particuliers ne disposent pas d’actions financières.";
+    if (client.is_internal) return "Cet actif AgriCapital n’est pas encore transféré à un client.";
+    if (client.contrat_solde_at) return "Ce contrat est soldé : aucune action financière n’est autorisée.";
+    const {data:summary,error} = await (supabase as any).from("v_client_synthese").select("montant_total_contrat,reste_a_payer").eq("client_id",client.id).maybeSingle();
+    if (error) throw error;
+    if (summary && Number(summary.montant_total_contrat||0)>0 && Number(summary.reste_a_payer||0)<=0) return "Ce contrat est soldé : aucune action financière n’est autorisée.";
+    return null;
+  };
+
   // Search client by phone
   const searchClient = async (phone: string, target: 'source' | 'target') => {
     if (phone.length < 8) return;
-    const { data } = await supabase
-      .from('clients')
-      .select('id, nom_complet, telephone, id_unique')
-      .or(`telephone.ilike.%${phone}%,id_unique.ilike.%${phone}%`)
-      .eq('statut', 'actif')
-      .limit(5);
-    
-    if (data && data.length > 0) {
-      if (target === 'source') {
-        setSourceClient(data[0]);
-        // Fetch paiements for this client
-        const { data: paiements } = await supabase
-          .from('paiements')
-          .select('*')
-          .eq('client_id', data[0].id)
-          .eq('statut', 'valide')
-          .order('created_at', { ascending: false })
-          .limit(10);
-        setSourcePaiements(paiements || []);
-      } else {
-        setTargetClient(data[0]);
-      }
+    const { data, error } = await supabase.from('clients')
+      .select('id,nom_complet,telephone,id_unique,type_client,is_internal,contrat_solde_at,montant_total_contrat')
+      .or(`telephone.ilike.%${phone}%,whatsapp.ilike.%${phone}%,id_unique.ilike.%${phone}%`)
+      .eq('statut','actif').limit(10);
+    if (error) { toast({variant:"destructive",title:"Recherche impossible",description:getSafeErrorMessage(error)}); return; }
+    const candidate = (data||[])[0];
+    if (!candidate) return;
+    const blocked = await financialBlockReason(candidate);
+    if (blocked) {
+      if (target === "source") { setSourceClient(null); setSourcePaiements([]); } else setTargetClient(null);
+      toast({variant:"destructive",title:"Action financière interdite",description:blocked});
+      return;
     }
+    if (target === 'source') {
+      setSourceClient(candidate);
+      const { data: paiements } = await supabase.from('paiements').select('*').eq('client_id',candidate.id).eq('statut','valide').order('created_at',{ascending:false}).limit(10);
+      setSourcePaiements(paiements || []);
+    } else setTargetClient(candidate);
   };
 
   // Handle transfer between accounts
@@ -388,6 +394,8 @@ const GestionPaiements = () => {
     setLoading(true);
     
     try {
+      const [sourceBlocked,targetBlocked] = await Promise.all([financialBlockReason(sourceClient),financialBlockReason(targetClient)]);
+      if (sourceBlocked || targetBlocked) throw new Error(sourceBlocked || targetBlocked || "Action financière interdite.");
       const amount = parseFloat(transferAmount);
       
       // Create transfer record
@@ -455,6 +463,8 @@ const GestionPaiements = () => {
     setLoading(true);
 
     try {
+      const blocked = await financialBlockReason(sourceClient);
+      if (blocked) throw new Error(blocked);
       const amount = parseFloat(refundAmount);
       const sourcePaiement = sourcePaiements.find(p => p.id === refundPaiementId);
       
