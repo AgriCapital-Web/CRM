@@ -74,6 +74,10 @@ const Dashboard = () => {
     leadsFollowup: 0,
     conversionRate: 0,
     partnershipHa: 0,
+    ownerAreaHa: 0,
+    agriCapitalAreaHa: 0,
+    foncierPlantedHa: 0,
+    foncierRemainingHa: 0,
     internalPlantations: 0,
     internalAreaHa: 0,
     internalPlantedHa: 0,
@@ -129,6 +133,7 @@ const Dashboard = () => {
         docsRes,
         proprietairesRes,
         parcellesRes,
+        conventionsRes,
         beneficiariesRes,
         interventionsRes,
         commissionsRes,
@@ -141,7 +146,7 @@ const Dashboard = () => {
           ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut_global,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canPlantations || globalAdmin
-          ? (supabase as any).from("plantations").select("id,id_unique,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
+          ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
           : Promise.resolve({ data: [] }),
         canPayments || globalAdmin
           ? (supabase as any).from("paiements").select("id,client_id,plantation_id,montant,montant_paye,statut,date_paiement,date_echeance,type_paiement,mode_paiement,reference,est_paiement_initial,created_at").order("date_paiement", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
@@ -156,7 +161,10 @@ const Dashboard = () => {
           ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut")
           : Promise.resolve({ data: [] }),
         canParcelles || canPlantations || canClients || globalAdmin
-          ? (supabase as any).from("parcelles").select("id,surface_totale_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
+          ? (supabase as any).from("parcelles").select("id,proprietaire_id,surface_totale_ha,surface_proprietaire_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
+          : Promise.resolve({ data: [] }),
+        canOwners || canParcelles || canPlantations || globalAdmin
+          ? (supabase as any).from("conventions_foncieres").select("id,parcelle_id,proprietaire_id,statut,surface_totale_ha,part_proprietaire_ha,part_agricapital_ha")
           : Promise.resolve({ data: [] }),
         canPlantations || canClients || globalAdmin
           ? (supabase as any).from("beneficiaire_attributions").select("id,client_id,statut,surface_attribuee_ha")
@@ -188,6 +196,7 @@ const Dashboard = () => {
       const docs = docsRes.data || [];
       const proprietaires = proprietairesRes.data || [];
       const parcelles = parcellesRes.data || [];
+      const conventions = conventionsRes.data || [];
       const beneficiaries = beneficiariesRes.data || [];
       const interventions = interventionsRes.data || [];
       const commissions = commissionsRes.data || [];
@@ -205,10 +214,12 @@ const Dashboard = () => {
       });
       const overdueAmount = overdue.reduce((s: number, p: any) => s + Math.max(0, Number(p.montant || 0) - Number(p.montant_paye || 0)), 0);
 
+      const dashboardClientIds = new Set(clients.filter((c: any) => c.id_unique !== "AC-DEMO").map((c: any) => c.id));
       const engagedHa = clients.filter((c:any)=>c.id_unique!=="AC-DEMO").reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
-      const plantedHa = plantations.reduce((s: number, p: any) =>
+      const scopedPlantations = plantations.filter((p: any) => p.client_id && dashboardClientIds.has(p.client_id));
+      const plantedHa = scopedPlantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
-      const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
+      const productionRows = scopedPlantations.filter((p: any) => p.statut_global === "en_production");
       const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       const remainingHa = Math.max(0, engagedHa - plantedHa);
       const clientLeads = leads.filter((l: any) => l.type_lead !== "proprietaire_foncier");
@@ -216,8 +227,23 @@ const Dashboard = () => {
       const newLeads = leads.filter((l: any) => l.statut === "nouveau").length;
       const followupLeads = leads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length;
       const conversionRate = clientLeads.length ? Math.round((convertedLeads / clientLeads.length) * 100) : 0;
-      const partnershipHa = parcelles.filter((p: any) => p.statut === "validee" && (p.plantation_partagee_activee === true || Boolean(p.convention_id)))
-        .reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0), 0);
+      // Audit foncier : chaque indicateur utilise sa propre surface et sa relation validée.
+      // Une surface totale de parcelle ne remplace jamais la quote-part AgriCapital.
+      const activeConventionIds = new Set(conventions
+        .filter((c: any) => String(c.statut || "").toLowerCase() === "active")
+        .map((c: any) => c.id));
+      const validatedPartnershipParcels = parcelles.filter((p: any) =>
+        String(p.statut || "").toLowerCase() === "validee" &&
+        (p.plantation_partagee_activee === true || activeConventionIds.has(p.convention_id))
+      );
+      const validatedPartnershipParcelIds = new Set(validatedPartnershipParcels.map((p: any) => p.id));
+      const partnershipHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
+      const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
+      const agriCapitalAreaHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha || 0), 0);
+      const foncierPlantedHa = plantations
+        .filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id))
+        .reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+      const foncierRemainingHa = Math.max(0, agriCapitalAreaHa - foncierPlantedHa);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
       const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
@@ -259,6 +285,10 @@ const Dashboard = () => {
         leadsFollowup: followupLeads,
         conversionRate,
         partnershipHa,
+        ownerAreaHa,
+        agriCapitalAreaHa,
+        foncierPlantedHa,
+        foncierRemainingHa,
         internalPlantations: internalPlantationRows.length,
         internalAreaHa,
         internalPlantedHa,
@@ -388,7 +418,7 @@ const Dashboard = () => {
         const mPlant = plantations.filter((p: any) => {
           const dt = new Date(p.date_plantation || p.date_activation || p.created_at);
           return dt >= d && dt <= end;
-        }).reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee || p.superficie_activee || p.superficie_ha || 0), 0);
+        }).reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
         const mPay = validPayments.filter((p: any) => {
           const dt = new Date(p.date_paiement || p.created_at);
           return dt >= d && dt <= end;
@@ -448,35 +478,43 @@ const Dashboard = () => {
   useRealtime({ table: "promotions", onChange: refreshSilently });
   useRealtime({ table: "documents_acquisition", onChange: refreshSilently });
   useRealtime({ table: "parcelles", onChange: refreshSilently });
+  useRealtime({ table: "proprietaires_terres", onChange: refreshSilently });
+  useRealtime({ table: "conventions_foncieres", onChange: refreshSilently });
 
   const progress = stats.engagedHa > 0 ? Math.min(100, Math.round((stats.plantedHa / stats.engagedHa) * 100)) : 0;
   const roleLabel = userRoles.map((r) => ROLE_SHORT_LABELS[r] || r).join(" / ");
 
   const kpis: any[] = [
-    { label:"Chiffre d'affaires", value:money(stats.forecastRevenue), sub:"Contrats actifs / prévisionnel", icon:Wallet, show:canFinancialOverview },
-    { label:"Total encaissé", value:money(stats.collected), sub:"Encaissements validés", icon:CreditCard, show:canFinancialOverview },
-    { label:"Reste à encaisser", value:money(stats.dueAmount), sub:"Créances contractuelles", icon:DollarSign, show:canFinancialOverview },
-    { label:"Monnaie client", value:money(stats.clientCredit), sub:"Monnaie réellement enregistrée", icon:Wallet, show:canFinancialOverview },
-    { label:"Acquisitions", value:stats.clients.toString(), sub:"Clients / dossiers", icon:Users, href:"/acquisitions", show:canClients },
-    { label:"Leads", icon:Target, href:"/leads", show:canLeads, metrics:[
+    { domain:"finance", label:"Chiffre d'affaires", value:money(stats.forecastRevenue), sub:"Contrats actifs / prévisionnel", icon:Wallet, show:canFinancialOverview },
+    { domain:"finance", label:"Total encaissé", value:money(stats.collected), sub:"Encaissements validés", icon:CreditCard, show:canFinancialOverview },
+    { domain:"finance", label:"Reste à encaisser", value:money(stats.dueAmount), sub:"Créances contractuelles", icon:DollarSign, show:canFinancialOverview },
+    { domain:"finance", label:"Monnaie client", value:money(stats.clientCredit), sub:"Monnaie réellement enregistrée", icon:Wallet, show:canFinancialOverview },
+    { domain:"commercial", label:"Acquisitions", value:stats.clients.toString(), sub:"Clients / dossiers", icon:Users, href:"/acquisitions", show:canClients },
+    { domain:"commercial", label:"Leads", icon:Target, href:"/leads", show:canLeads, metrics:[
       {label:"Nombre de leads",value:stats.leads,href:"/leads"},
       {label:"Conversion client",value:stats.conversionRate+"%",href:"/leads"},
       {label:"Nouveaux",value:stats.leadsNew,href:"/leads?statut=nouveau"},
       {label:"À relancer",value:stats.leadsFollowup,href:"/leads"},
       {label:"Convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},
     ]},
-    { label:"Propriétaires fonciers", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
-      ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
-      ...(canParcelles || canPlantations ? [{label:"Parcelles",value:stats.parcelles,href:"/parcelles"},{label:"Partenariat validé",value:num(stats.partnershipHa)+" ha",href:"/parcelles"}] : []),
+    { domain:"foncier", label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
+      ...(canOwners ? [{label:"Nombre de propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Superficie totale propriétaires",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
+      ...(canParcelles || canPlantations ? [
+        {label:"Nombre de parcelles",value:stats.parcelles,href:"/parcelles"},
+        {label:"Superficie des partenariats validés",value:num(stats.partnershipHa)+" ha",href:"/parcelles"},
+        {label:"Superficie plantée (partenariats validés)",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},
+        {label:"Superficie restante AgriCapital",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},
+        {label:"Superficie AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"}
+      ] : []),
     ]},
-    { label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
+    { domain:"agriculture", label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
       {label:"Superficie totale",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
       {label:"Superficie plantée",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
       {label:"Superficie restante",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
     ]},
-    { label:"Plantations", value:stats.plantations.toString(), sub:num(stats.plantedHa)+" ha plantés", icon:Sprout, href:"/plantations", show:canPlantations },
-    { label:"Production", value:stats.production.toString(), sub:num(stats.productionHa)+" ha en production", icon:TrendingUp, href:"/plantations?statut=en_production", show:canPlantations },
+    { domain:"agriculture", label:"Plantations", value:stats.plantations.toString(), sub:num(stats.plantedHa)+" ha plantés", icon:Sprout, href:"/plantations", show:canPlantations },
+    { domain:"agriculture", label:"Production", value:stats.production.toString(), sub:num(stats.productionHa)+" ha en production", icon:TrendingUp, href:"/plantations?statut=en_production", show:canPlantations },
   ];
 
   return (
@@ -525,32 +563,42 @@ const Dashboard = () => {
 
           {!isClientOnly && (
             <>
-              <section className="grid min-w-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {kpis.filter((k) => k.show).map((k) => {
-                  const Icon = k.icon;
-                  const card = (
-                    <Card className="h-full min-w-0 overflow-hidden transition-all hover:shadow-md hover:border-primary/50">
-                      <CardContent className="min-w-0 p-3 sm:p-4">
-                        <div className="flex min-w-0 items-start justify-between gap-2">
-                          <span className="min-w-0 break-words text-xs font-semibold text-muted-foreground">{k.label}</span>
-                          <Icon className="h-5 w-5 shrink-0 text-primary" />
-                        </div>
-                        {Array.isArray(k.metrics) ? (
-                          <div className={`mt-3 grid gap-2 ${k.metrics.length > 3 ? "grid-cols-2" : "grid-cols-1"}`}>
-                            {k.metrics.map((metric: any) => <Link key={metric.label} to={metric.href || k.href} className="min-w-0 rounded-lg bg-muted/50 p-2.5 hover:bg-muted"><p className="text-xs text-muted-foreground break-words">{metric.label}</p><p className="mt-1 text-lg font-bold tabular-nums break-words">{loading ? "…" : metric.value}</p></Link>)}
-                          </div>
-                        ) : <>
-                          <div className="mt-3 min-w-0 break-words [overflow-wrap:anywhere] text-xl font-bold leading-tight sm:text-2xl xl:text-3xl tabular-nums">{loading ? "Chargement" : k.value}</div>
-                          <p className="mt-1 break-words text-xs text-muted-foreground">{k.sub}</p>
-                        </>}
-                      </CardContent>
-                    </Card>
-                  );
-                  return Array.isArray(k.metrics) ? <div key={k.label}>{card}</div> : k.href ? <Link key={k.label} to={k.href} className="block">{card}</Link> : <div key={k.label}>{card}</div>;
-                })}
-              </section>
+              {([
+                { id:"commercial", title:"1. Développement commercial", description:"Leads, conversions et dossiers clients" },
+                { id:"foncier", title:"2. Patrimoine foncier et partenariats", description:"Propriétaires, parcelles et surfaces par périmètre" },
+                { id:"agriculture", title:"3. Exploitation agricole", description:"Plantations, surfaces réellement plantées et production" },
+                { id:"finance", title:"4. Pilotage financier", description:"Contrats, encaissements, créances et monnaie client" },
+              ] as const).map((domain) => {
+                const domainKpis = kpis.filter((k) => k.show && k.domain === domain.id);
+                if (!domainKpis.length) return null;
+                return (
+                  <section key={domain.id} aria-labelledby={`dashboard-${domain.id}`} className="space-y-3">
+                    <div><h2 id={`dashboard-${domain.id}`} className="text-lg font-bold tracking-tight">{domain.title}</h2><p className="text-sm text-muted-foreground">{domain.description}</p></div>
+                    <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {domainKpis.map((k) => {
+                        const Icon = k.icon;
+                        const card = (
+                          <Card className="h-full min-w-0 overflow-hidden transition-all hover:shadow-md hover:border-primary/50">
+                            <CardContent className="min-w-0 p-3 sm:p-4">
+                              <div className="flex min-w-0 items-start justify-between gap-2"><span className="min-w-0 break-words text-xs font-semibold text-muted-foreground">{k.label}</span><Icon className="h-5 w-5 shrink-0 text-primary" /></div>
+                              {Array.isArray(k.metrics) ? (
+                                <div className={`mt-3 grid gap-2 ${k.metrics.length > 3 ? "grid-cols-2" : "grid-cols-1"}`}>
+                                  {k.metrics.map((metric: any) => <Link key={metric.label} to={metric.href || k.href} className="min-w-0 rounded-lg bg-muted/50 p-2.5 hover:bg-muted"><p className="text-xs text-muted-foreground break-words">{metric.label}</p><p className="mt-1 text-lg font-bold tabular-nums break-words">{loading ? "…" : metric.value}</p></Link>)}
+                                </div>
+                              ) : <><div className="mt-3 min-w-0 break-words [overflow-wrap:anywhere] text-xl font-bold leading-tight sm:text-2xl xl:text-3xl tabular-nums">{loading ? "Chargement" : k.value}</div><p className="mt-1 break-words text-xs text-muted-foreground">{k.sub}</p></>}
+                            </CardContent>
+                          </Card>
+                        );
+                        return Array.isArray(k.metrics) ? <div key={k.label}>{card}</div> : k.href ? <Link key={k.label} to={k.href} className="block">{card}</Link> : <div key={k.label}>{card}</div>;
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
 
               {canPlantations && (
+                <section aria-labelledby="dashboard-agriculture-overview" className="space-y-3">
+                  <div><h2 id="dashboard-agriculture-overview" className="text-lg font-bold tracking-tight">3. Exploitation agricole — suivi des superficies</h2><p className="text-sm text-muted-foreground">Engagements clients et surfaces réellement plantées.</p></div>
                 <Card>
                   <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><LandPlot className="h-5 w-5 text-primary" />Patrimoine agricole</CardTitle></CardHeader>
                   <CardContent>
@@ -570,9 +618,12 @@ const Dashboard = () => {
                     <div className="mt-4"><Progress value={progress} /><p className="mt-1 text-xs text-muted-foreground">{progress}% de la superficie engagée est réellement plantée.</p></div>
                   </CardContent>
                 </Card>
+                </section>
               )}
 
               {canPlantations && stats.plantations > 0 && cycle.some((c: any) => c.total > 0) && (
+                <section aria-labelledby="dashboard-operations" className="space-y-3">
+                  <div><h2 id="dashboard-operations" className="text-lg font-bold tracking-tight">5. Opérations et suivi technique</h2><p className="text-sm text-muted-foreground">Étapes d'installation et suivi opérationnel.</p></div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Cycle d'installation</CardTitle></CardHeader>
@@ -603,8 +654,11 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
                 </div>
+                </section>
               )}
 
+              <section aria-labelledby="dashboard-performance" className="space-y-3">
+                <div><h2 id="dashboard-performance" className="text-lg font-bold tracking-tight">6. Performance et répartition</h2><p className="text-sm text-muted-foreground">Résultats par équipe, offre, période et territoire.</p></div>
 {teamPerformance.length > 0 && (
                 <Card>
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-5 w-5 text-primary" />Performance par équipe</CardTitle></CardHeader>
@@ -638,8 +692,15 @@ const Dashboard = () => {
                 </Card>
               )}
 
+              </section>
+
+              <section aria-labelledby="dashboard-activity" className="space-y-3">
+                <div><h2 id="dashboard-activity" className="text-lg font-bold tracking-tight">Activité récente</h2><p className="text-sm text-muted-foreground">Derniers dossiers et encaissements validés.</p></div>
               {(canPlantations || canClients) && stats.documentsPending > 0 && (
-                <Card><CardContent className="flex items-center justify-between p-4"><span className="text-sm text-muted-foreground">Documents en attente</span><Badge variant="secondary">{stats.documentsPending}</Badge></CardContent></Card>
+                <section aria-labelledby="dashboard-documents" className="space-y-2">
+                  <h2 id="dashboard-documents" className="text-lg font-bold tracking-tight">5. Opérations — documents à vérifier</h2>
+                  <Card><CardContent className="flex items-center justify-between p-4"><span className="text-sm text-muted-foreground">Documents en attente</span><Badge variant="secondary">{stats.documentsPending}</Badge></CardContent></Card>
+                </section>
               )}
 
               {canPlantations && <PlantationsMap />}
@@ -738,6 +799,7 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               )}
+              </section>
             </>
           )}
 
