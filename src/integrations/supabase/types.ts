@@ -31,6 +31,7 @@ export type Database = {
           poste_souhaite: string | null
           region_id: string | null
           role_souhaite: string
+          sous_prefecture_id: string | null
           statut: string | null
           telephone: string
           traite_le: string | null
@@ -54,6 +55,7 @@ export type Database = {
           poste_souhaite?: string | null
           region_id?: string | null
           role_souhaite: string
+          sous_prefecture_id?: string | null
           statut?: string | null
           telephone: string
           traite_le?: string | null
@@ -77,6 +79,7 @@ export type Database = {
           poste_souhaite?: string | null
           region_id?: string | null
           role_souhaite?: string
+          sous_prefecture_id?: string | null
           statut?: string | null
           telephone?: string
           traite_le?: string | null
@@ -1006,77 +1009,6 @@ export type Database = {
           },
         ]
       }
-      client_enquetes: {
-        Row: {
-          client_id: string
-          created_at: string
-          created_by: string | null
-          id: string
-          niveau_detail: string
-          offre_id: string
-          parcours_code: string | null
-          reponses: Json
-          statut: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          niveau_detail?: string
-          offre_id: string
-          parcours_code?: string | null
-          reponses?: Json
-          statut?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          niveau_detail?: string
-          offre_id?: string
-          parcours_code?: string | null
-          reponses?: Json
-          statut?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_enquetes_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_enquetes_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "v_client_synthese"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_enquetes_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "v_monnaie_clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "client_enquetes_offre_id_fkey"
-            columns: ["offre_id"]
-            isOneToOne: false
-            referencedRelation: "offres"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       client_monnaie_mouvements: {
         Row: {
           client_id: string
@@ -1278,6 +1210,7 @@ export type Database = {
         Row: {
           annee_contrat: number | null
           banque_operateur: string | null
+          campement_id: string | null
           civilite: string | null
           code_sp_contrat: string | null
           commercial_id: string | null
@@ -1288,6 +1221,7 @@ export type Database = {
           contrat_acquisition_statut: string
           contrat_debut_at: string | null
           contrat_fin_at: string | null
+          contrat_solde_at: string | null
           created_at: string | null
           created_by: string | null
           date_delivrance_piece: string | null
@@ -1307,6 +1241,7 @@ export type Database = {
           formule_nom: string | null
           id: string
           id_unique: string | null
+          is_internal: boolean
           jours_contrat_total: number
           jours_payes: number
           jours_retard: number
@@ -1369,6 +1304,7 @@ export type Database = {
         Insert: {
           annee_contrat?: number | null
           banque_operateur?: string | null
+          campement_id?: string | null
           civilite?: string | null
           code_sp_contrat?: string | null
           commercial_id?: string | null
@@ -1379,6 +1315,7 @@ export type Database = {
           contrat_acquisition_statut?: string
           contrat_debut_at?: string | null
           contrat_fin_at?: string | null
+          contrat_solde_at?: string | null
           created_at?: string | null
           created_by?: string | null
           date_delivrance_piece?: string | null
@@ -1398,6 +1335,7 @@ export type Database = {
           formule_nom?: string | null
           id?: string
           id_unique?: string | null
+          is_internal?: boolean
           jours_contrat_total?: number
           jours_payes?: number
           jours_retard?: number
@@ -1460,6 +1398,7 @@ export type Database = {
         Update: {
           annee_contrat?: number | null
           banque_operateur?: string | null
+          campement_id?: string | null
           civilite?: string | null
           code_sp_contrat?: string | null
           commercial_id?: string | null
@@ -1470,6 +1409,7 @@ export type Database = {
           contrat_acquisition_statut?: string
           contrat_debut_at?: string | null
           contrat_fin_at?: string | null
+          contrat_solde_at?: string | null
           created_at?: string | null
           created_by?: string | null
           date_delivrance_piece?: string | null
@@ -1489,6 +1429,7 @@ export type Database = {
           formule_nom?: string | null
           id?: string
           id_unique?: string | null
+          is_internal?: boolean
           jours_contrat_total?: number
           jours_payes?: number
           jours_retard?: number
@@ -1549,6 +1490,20 @@ export type Database = {
           whatsapp_local?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "clients_campement_id_fkey"
+            columns: ["campement_id"]
+            isOneToOne: false
+            referencedRelation: "campements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_campement_id_fkey"
+            columns: ["campement_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_campements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clients_commercial_id_fkey"
             columns: ["commercial_id"]
@@ -3180,6 +3135,7 @@ export type Database = {
       leads: {
         Row: {
           assigned_to: string | null
+          campement_id: string | null
           campement_quartier: string | null
           client_id: string | null
           commentaire: string | null
@@ -3194,13 +3150,16 @@ export type Database = {
           district_id: string | null
           email: string | null
           est_diaspora: boolean
+          formule_code: string | null
           id: string
           id_unique: string | null
           mode_contact_prefere: string | null
           nom: string
+          offre_code: string | null
           pays_diaspora: string | null
           prenoms: string
           prochaine_relance_at: string | null
+          proprietaire_id: string | null
           region_id: string | null
           region_residence: string | null
           source: string
@@ -3210,12 +3169,14 @@ export type Database = {
           superficie_disponible_ha: number | null
           superficie_souhaitee_ha: number | null
           telephone: string
+          type_lead: string
           updated_at: string
           village_id: string | null
           whatsapp: string | null
         }
         Insert: {
           assigned_to?: string | null
+          campement_id?: string | null
           campement_quartier?: string | null
           client_id?: string | null
           commentaire?: string | null
@@ -3230,13 +3191,16 @@ export type Database = {
           district_id?: string | null
           email?: string | null
           est_diaspora?: boolean
+          formule_code?: string | null
           id?: string
           id_unique?: string | null
           mode_contact_prefere?: string | null
           nom: string
+          offre_code?: string | null
           pays_diaspora?: string | null
           prenoms: string
           prochaine_relance_at?: string | null
+          proprietaire_id?: string | null
           region_id?: string | null
           region_residence?: string | null
           source?: string
@@ -3246,12 +3210,14 @@ export type Database = {
           superficie_disponible_ha?: number | null
           superficie_souhaitee_ha?: number | null
           telephone: string
+          type_lead?: string
           updated_at?: string
           village_id?: string | null
           whatsapp?: string | null
         }
         Update: {
           assigned_to?: string | null
+          campement_id?: string | null
           campement_quartier?: string | null
           client_id?: string | null
           commentaire?: string | null
@@ -3266,13 +3232,16 @@ export type Database = {
           district_id?: string | null
           email?: string | null
           est_diaspora?: boolean
+          formule_code?: string | null
           id?: string
           id_unique?: string | null
           mode_contact_prefere?: string | null
           nom?: string
+          offre_code?: string | null
           pays_diaspora?: string | null
           prenoms?: string
           prochaine_relance_at?: string | null
+          proprietaire_id?: string | null
           region_id?: string | null
           region_residence?: string | null
           source?: string
@@ -3282,11 +3251,26 @@ export type Database = {
           superficie_disponible_ha?: number | null
           superficie_souhaitee_ha?: number | null
           telephone?: string
+          type_lead?: string
           updated_at?: string
           village_id?: string | null
           whatsapp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_campement_id_fkey"
+            columns: ["campement_id"]
+            isOneToOne: false
+            referencedRelation: "campements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_campement_id_fkey"
+            columns: ["campement_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_campements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_client_id_fkey"
             columns: ["client_id"]
@@ -3334,6 +3318,13 @@ export type Database = {
             columns: ["district_id"]
             isOneToOne: false
             referencedRelation: "v_geo_districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "proprietaires_terres"
             referencedColumns: ["id"]
           },
           {
@@ -3807,6 +3798,42 @@ export type Database = {
           payload?: Json
           processed?: boolean
           provider_message_id?: string | null
+        }
+        Relationships: []
+      }
+      notification_provider_webhook_receipts: {
+        Row: {
+          event_id: string
+          event_type: string
+          fournisseur: string
+          id: string
+          payload: Json
+          processed_at: string | null
+          processing_error: string | null
+          provider_message_id: string | null
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          fournisseur: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          processing_error?: string | null
+          provider_message_id?: string | null
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          fournisseur?: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          processing_error?: string | null
+          provider_message_id?: string | null
+          received_at?: string
         }
         Relationships: []
       }
@@ -5618,6 +5645,7 @@ export type Database = {
       }
       proprietaires_terres: {
         Row: {
+          campement_id: string | null
           caution_par_ha: number | null
           caution_totale: number | null
           civilite: string | null
@@ -5645,6 +5673,7 @@ export type Database = {
           leader_communautaire_nom: string | null
           leader_communautaire_qualite: string | null
           lieu_naissance: string | null
+          lieu_residence: string | null
           limites_est: string | null
           limites_nord: string | null
           limites_ouest: string | null
@@ -5695,6 +5724,7 @@ export type Database = {
           whatsapp_local: string | null
         }
         Insert: {
+          campement_id?: string | null
           caution_par_ha?: number | null
           caution_totale?: number | null
           civilite?: string | null
@@ -5722,6 +5752,7 @@ export type Database = {
           leader_communautaire_nom?: string | null
           leader_communautaire_qualite?: string | null
           lieu_naissance?: string | null
+          lieu_residence?: string | null
           limites_est?: string | null
           limites_nord?: string | null
           limites_ouest?: string | null
@@ -5772,6 +5803,7 @@ export type Database = {
           whatsapp_local?: string | null
         }
         Update: {
+          campement_id?: string | null
           caution_par_ha?: number | null
           caution_totale?: number | null
           civilite?: string | null
@@ -5799,6 +5831,7 @@ export type Database = {
           leader_communautaire_nom?: string | null
           leader_communautaire_qualite?: string | null
           lieu_naissance?: string | null
+          lieu_residence?: string | null
           limites_est?: string | null
           limites_nord?: string | null
           limites_ouest?: string | null
@@ -5849,6 +5882,20 @@ export type Database = {
           whatsapp_local?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proprietaires_terres_campement_id_fkey"
+            columns: ["campement_id"]
+            isOneToOne: false
+            referencedRelation: "campements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proprietaires_terres_campement_id_fkey"
+            columns: ["campement_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_campements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proprietaires_terres_departement_id_fkey"
             columns: ["departement_id"]
@@ -7253,6 +7300,14 @@ export type Database = {
         Args: { p_client_id: string }
         Returns: string
       }
+      admin_set_profile_active: {
+        Args: { p_actif: boolean; p_user_id: string }
+        Returns: {
+          actif: boolean
+          profile_id: string
+          user_id: string
+        }[]
+      }
       annuaire_staff: {
         Args: never
         Returns: {
@@ -7521,6 +7576,11 @@ export type Database = {
         Returns: string
       }
       resolve_username_email: { Args: { _username: string }; Returns: string }
+      senndo_get_secret: { Args: { p_name: string }; Returns: string }
+      senndo_store_secret: {
+        Args: { p_name: string; p_value: string }
+        Returns: undefined
+      }
       simuler_paiement_fractionne: {
         Args: { _client_id: string; _montant: number }
         Returns: {
@@ -7533,6 +7593,10 @@ export type Database = {
       }
       sync_anstat_admin_2021: { Args: never; Returns: Json }
       sync_profile_poste: { Args: { _user_id: string }; Returns: undefined }
+      transfer_agricapital_plantation: {
+        Args: { p_client_id: string; p_plantation_id: string }
+        Returns: Json
+      }
       username_available: { Args: { _username: string }; Returns: boolean }
       verifier_carte: {
         Args: { _code: string }
