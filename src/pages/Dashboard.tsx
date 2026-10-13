@@ -74,6 +74,10 @@ const Dashboard = () => {
     leadsFollowup: 0,
     conversionRate: 0,
     partnershipHa: 0,
+    ownerSurfaceHa: 0,
+    agriCapitalSurfaceHa: 0,
+    partnershipPlantedHa: 0,
+    partnershipRemainingHa: 0,
     internalPlantations: 0,
     internalAreaHa: 0,
     internalPlantedHa: 0,
@@ -153,10 +157,10 @@ const Dashboard = () => {
           ? (supabase as any).from("documents_acquisition").select("id,statut,obligatoire,created_at")
           : Promise.resolve({ data: [] }),
         canOwners || canPlantations || canClients || globalAdmin
-          ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut")
+          ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,part_proprietaire_ha,part_agricapital_ha,statut")
           : Promise.resolve({ data: [] }),
         canParcelles || canPlantations || canClients || globalAdmin
-          ? (supabase as any).from("parcelles").select("id,surface_totale_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
+          ? (supabase as any).from("parcelles").select("id,proprietaire_id,surface_totale_ha,surface_proprietaire_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
           : Promise.resolve({ data: [] }),
         canPlantations || canClients || globalAdmin
           ? (supabase as any).from("beneficiaire_attributions").select("id,client_id,statut,surface_attribuee_ha")
@@ -216,8 +220,24 @@ const Dashboard = () => {
       const newLeads = leads.filter((l: any) => l.statut === "nouveau").length;
       const followupLeads = leads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length;
       const conversionRate = clientLeads.length ? Math.round((convertedLeads / clientLeads.length) * 100) : 0;
-      const partnershipHa = parcelles.filter((p: any) => p.statut === "validee" && (p.plantation_partagee_activee === true || Boolean(p.convention_id)))
-        .reduce((sum: number, p: any) => sum + Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0), 0);
+      // Les superficies de partenariat sont limitées aux parcelles réellement liées à un propriétaire
+      // et à une convention/plantation partagée. Ne jamais remplacer la part AgriCapital par la surface totale.
+      const partnershipParcelles = parcelles.filter((p: any) =>
+        Boolean(p.proprietaire_id) &&
+        (p.plantation_partagee_activee === true || Boolean(p.convention_id)) &&
+        ["validee", "saturee"].includes(String(p.statut || "").toLowerCase())
+      );
+      const partnershipHa = partnershipParcelles.reduce((sum: number, p: any) =>
+        sum + Number(p.surface_agricapital_ha ?? 0), 0);
+      const ownerSurfaceHa = proprietaires.reduce((sum: number, p: any) =>
+        sum + Number(p.surface_totale_ha ?? 0), 0);
+      const agriCapitalSurfaceHa = partnershipHa;
+      const partnershipParcelleIds = new Set(partnershipParcelles.map((p: any) => p.id));
+      const partnershipPlantedHa = plantations
+        .filter((p: any) => partnershipParcelleIds.has(p.parcelle_id))
+        .reduce((sum: number, p: any) =>
+          sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+      const partnershipRemainingHa = Math.max(0, partnershipHa - partnershipPlantedHa);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
       const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
@@ -259,6 +279,10 @@ const Dashboard = () => {
         leadsFollowup: followupLeads,
         conversionRate,
         partnershipHa,
+        ownerSurfaceHa,
+        agriCapitalSurfaceHa,
+        partnershipPlantedHa,
+        partnershipRemainingHa,
         internalPlantations: internalPlantationRows.length,
         internalAreaHa,
         internalPlantedHa,
@@ -465,9 +489,15 @@ const Dashboard = () => {
       {label:"À relancer",value:stats.leadsFollowup,href:"/leads"},
       {label:"Convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},
     ]},
-    { label:"Propriétaires fonciers", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
-      ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
-      ...(canParcelles || canPlantations ? [{label:"Parcelles",value:stats.parcelles,href:"/parcelles"},{label:"Partenariat validé",value:num(stats.partnershipHa)+" ha",href:"/parcelles"}] : []),
+    { label:"Propriétaires fonciers et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
+      ...(canOwners ? [{label:"Nombre de propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Superficie propriétaire",value:num(stats.ownerSurfaceHa)+" ha",href:"/proprietaires-terres"}] : []),
+      ...(canParcelles ? [{label:"Nombre de parcelles propriétaires",value:stats.parcelles,href:"/parcelles"}] : []),
+      ...(canParcelles || canPlantations ? [
+        {label:"Partenariats validés",value:num(stats.partnershipHa)+" ha",href:"/parcelles"},
+        {label:"Superficie AgriCapital",value:num(stats.agriCapitalSurfaceHa)+" ha",href:"/parcelles"},
+        {label:"Superficie plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
+        {label:"Superficie restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},
+      ] : []),
     ]},
     { label:"AgriCapital · plantations internes", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
