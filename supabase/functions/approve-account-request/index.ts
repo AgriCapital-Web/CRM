@@ -153,12 +153,33 @@ serve(async (req) => {
       actif: true,
     };
     const { data: linkedProfile, error: linkedProfileError } = await admin
-      .from("profiles").select("id").eq("user_id", userId).maybeSingle();
+      .from("profiles").select("id,user_id").eq("user_id", userId).maybeSingle();
     if (linkedProfileError) return json({ error: `Profil: ${linkedProfileError.message}`, step, logs }, 400);
-    const profileWrite = linkedProfile
-      ? await admin.from("profiles").update(profilePayload).eq("user_id", userId)
-      : await admin.from("profiles").insert({ id: userId, ...profilePayload });
-    if (profileWrite.error) return json({ error: `Profil: ${profileWrite.error.message}`, step, logs }, 400);
+    if (linkedProfile) {
+      const { error: profileUpdateError } = await admin.from("profiles").update({
+        email: profilePayload.email,
+        nom_complet: profilePayload.nom_complet,
+        telephone: profilePayload.telephone,
+        username: profilePayload.username,
+        poste: profilePayload.poste,
+        district_id: profilePayload.district_id,
+        region_id: profilePayload.region_id,
+      }).eq("user_id", userId);
+      if (profileUpdateError) return json({ error: `Profil: ${profileUpdateError.message}`, step, logs }, 400);
+    } else {
+      const { error: profileInsertError } = await admin.from("profiles").insert({ id: userId, ...profilePayload });
+      if (profileInsertError) return json({ error: `Profil: ${profileInsertError.message}`, step, logs }, 400);
+    }
+    step = "activate_profile";
+    const { data: activationRows, error: activationError } = await admin.rpc("admin_set_profile_active", {
+      p_user_id: userId,
+      p_actif: true,
+    });
+    if (activationError) return json({ error: `Activation du profil: ${activationError.message}`, step, logs }, 400);
+    const activeProfile = (activationRows ?? []).find((p: any) => p.user_id === userId || p.profile_id === userId);
+    if (!activeProfile || activeProfile.actif !== true) {
+      return json({ error: "Le compte n'a pas été activé de façon persistante.", step, logs }, 500);
+    }
 
     step = "assign_role";
     const { error: roleErr } = await admin
@@ -175,16 +196,23 @@ serve(async (req) => {
     log(`rôles après attribution: ${assigned.join(", ")}`);
 
     step = "update_request";
-    const { error: updErr } = await admin.from("account_requests").update({
+    const { data: updatedRequest, error: updErr } = await admin.from("account_requests").update({
       statut: "approuve",
       auth_user_id: userId,
       role_souhaite: finalRole,
       traite_par: caller.user.id,
       traite_le: new Date().toISOString(),
-    }).eq("id", request_id);
+    }).eq("id", request_id).select("id,statut,auth_user_id").maybeSingle();
     if (updErr) return json({ error: updErr.message, step, logs }, 400);
+    if (!updatedRequest || updatedRequest.statut !== "approuve" || updatedRequest.auth_user_id !== userId) {
+      return json({ error: "La demande n'a pas été enregistrée comme approuvée.", step, logs }, 500);
+    }
+    const { data: finalProfile } = await admin.from("profiles").select("actif").eq("user_id", userId).maybeSingle();
+    if (finalProfile?.actif !== true) {
+      return json({ error: "La demande a été traitée mais le profil reste inactif. L'activation n'a pas été confirmée.", step: "verify_activation", logs }, 500);
+    }
 
-    return json({ success: true, user_id: userId, role: finalRole, roles: assigned, temp_password: tempPassword, logs });
+    return json({ success: true, user_id: userId, role: finalRole, roles: assigned, actif: finalProfile.actif, request_status: updatedRequest.statut, temp_password: tempPassword, logs });
   } catch (e) {
     console.error("approve-account-request error", step, e);
     return json({ error: (e as Error).message, step, logs }, 500);
