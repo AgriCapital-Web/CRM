@@ -233,6 +233,18 @@ const ClientDetail = () => {
     }).format(montant);
   };
 
+  const formatStatusLabel = (raw: unknown) => {
+    const value = String(raw || "").trim().toLowerCase();
+    const labels: Record<string, string> = {
+      actif: "Actif", active: "Actif", a_jour: "À jour", en_retard: "En retard",
+      suspendu: "Suspendu", suspendue: "Suspendu", inactif: "Inactif",
+      archive: "Archivé", radie: "Radié", en_attente: "En attente",
+      en_attente_da: "En attente de validation", da_valide: "Dossier validé",
+      en_cours: "En cours", en_production: "En production", pre_activation: "Pré-activation",
+    };
+    return labels[value] || (value ? value.replaceAll("_", " ") : "—");
+  };
+
   const getStatutBadge = (statut: string) => {
     const colors: any = {
       en_attente_da: "bg-yellow-500",
@@ -389,8 +401,8 @@ const ClientDetail = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Badge className={getStatutBadge(client.statut_global)}>
-                  {client.statut_global === "active" ? "Actif" : (client.statut_global || "—").replaceAll("_", " ")}
+                <Badge className={getStatutBadge(client.statut || client.statut_global)}>
+                  {formatStatusLabel(client.statut || client.statut_global)}
                 </Badge>
               </CardContent>
             </Card>
@@ -457,8 +469,8 @@ const ClientDetail = () => {
                             <TableCell>{plantation.regions?.nom}</TableCell>
                             <TableCell>{plantation.superficie_ha} ha</TableCell>
                             <TableCell>
-                              <Badge className={getStatutBadge(plantation.statut_global)}>
-                                {plantation.statut_global === "active" ? "Actif" : (plantation.statut_global || plantation.statut || "—").replaceAll("_", " ")}
+                              <Badge className={getStatutBadge(plantation.statut || plantation.statut_global)}>
+                                {formatStatusLabel(plantation.statut || plantation.statut_global)}
                               </Badge>
                             </TableCell>
                           </TableRow>
