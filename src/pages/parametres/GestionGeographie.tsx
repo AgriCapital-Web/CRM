@@ -21,8 +21,8 @@ export default function GestionGeographie() {
   const [data, setData] = useState<Record<string, Geo[]>>({ districts: [], regions: [], departements: [], sous: [], villages: [], campements: [] });
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [d,r,de,sp,v,c] = await Promise.all([
         (supabase as any).from("districts").select("id,nom,est_actif").order("nom"),
@@ -42,13 +42,19 @@ export default function GestionGeographie() {
   useEffect(()=>{ void load(); },[]);
 
   const toggle = async (table:string, activeColumn:string, id:string, value:boolean) => {
+    const key: Record<string,string> = { districts:"districts", regions:"regions", departements:"departements", sous_prefectures:"sous", villages:"villages", campements:"campements" };
+    const dataKey = key[table];
+    const previous = dataKey ? data[dataKey] : [];
     try {
-      const {error}=await (supabase as any).from(table).update({[activeColumn]:value}).eq("id",id);
+      if (dataKey) setData((current) => ({ ...current, [dataKey]: current[dataKey].map((node:any) => node.id === id ? { ...node, [activeColumn]: value } : node) }));
+      const {error}=await (supabase as any).from(table).update({[activeColumn]:value}).eq("id",id).select("id").single();
       if(error) throw error;
-      await load();
+      await load(false);
       toast({title:value?"Élément activé":"Élément désactivé"});
     } catch(e:any) {
-      toast({variant:"destructive",title:"Modification impossible",description:e?.message||"Erreur."});
+      if (dataKey) setData((current) => ({ ...current, [dataKey]: previous }));
+      toast({variant:"destructive",title:"Modification impossible",description:"Le statut n’a pas été modifié. Vérifiez vos droits et réessayez."});
+      void load(false);
     }
   };
 
