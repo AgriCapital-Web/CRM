@@ -45,6 +45,10 @@ Deno.serve(async (req) => {
     if (!["sms", "email", "whatsapp", "voice"].includes(channel)) return reply(req, { error: "Canal de test invalide" }, 400);
     if (!to || to.length > 254) return reply(req, { error: "Destinataire invalide" }, 400);
     if (!text || text.length > 1000) return reply(req, { error: "Le message doit contenir entre 1 et 1000 caractères" }, 400);
+    if (channel === "whatsapp") return reply(req, {
+      error: "Le canal WhatsApp appairé n'est pas exposé par le SDK Senndo actuellement utilisé par AgriCapital. L'envoi via ce chemin serait refusé en validation. Lancez « Diagnostiquer WhatsApp » pour vérifier les canaux Cloud/Twilio disponibles ou demandez à Senndo l'endpoint et le contrat API dédiés à la session appairée.",
+      code: "PAIRED_WHATSAPP_UNSUPPORTED_BY_CURRENT_SDK",
+    }, 409);
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return reply(req, { error: "Adresse e-mail invalide" }, 400);
     if (channel !== "email" && !/^\+?[1-9]\d{7,14}$/.test(to.replace(/[\s().-]/g, ""))) return reply(req, { error: "Numéro invalide : utilisez le format international" }, 400);
 
@@ -80,9 +84,10 @@ Deno.serve(async (req) => {
     return reply(req, { ok: true, channel, accepted: true, messageId: result?.id || null, message: "Demande de test acceptée par Senndo. Vérifiez ensuite le statut de livraison auprès du fournisseur." });
   } catch (error) {
     // Never log destination, message body, credentials, or raw provider responses.
-    const err = error as { status?: number; statusCode?: number; code?: string };
+    const err = error as { status?: number; statusCode?: number; code?: string; apiMessage?: string; message?: string };
     const providerStatus = Number(err?.status || err?.statusCode || 0);
-    const providerCode = typeof err?.code === "string" ? err.code.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40) : "";
+    const providerCode = typeof err?.code === "string" ? err.code.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60) : "";
+    const providerMessage = typeof err?.apiMessage === "string" ? err.apiMessage.slice(0, 300) : "";
     console.error("senndo-test-send provider failure", JSON.stringify({
       channel: typeof channel === "string" ? channel : "unknown",
       status: providerStatus || null,
@@ -90,8 +95,16 @@ Deno.serve(async (req) => {
     }));
     const statusHint = providerStatus ? " (réponse fournisseur " + providerStatus + ")" : "";
     const codeHint = providerCode ? " [" + providerCode + "]" : "";
+    const messageHint = providerMessage ? " Détail Senndo : " + providerMessage : "";
+    const guidance = channel === "sms"
+      ? " Vérifiez la clé API, le solde et le Sender ID SMS approuvé."
+      : channel === "voice"
+        ? " Vérifiez l'activation du canal vocal et le format du contenu."
+        : channel === "email"
+          ? " Vérifiez l'expéditeur e-mail vérifié et la configuration du compte."
+          : " Vérifiez le canal WhatsApp réellement activé, le modèle et la fenêtre de conversation.";
     return reply(req, {
-      error: "Senndo n’a pas pu traiter cet envoi" + statusHint + codeHint + ". Vérifiez la clé API, les crédits, le Sender ID SMS et l’activation du canal WhatsApp/appel vocal dans Senndo.",
+      error: "Senndo n’a pas pu traiter cet envoi" + statusHint + codeHint + "." + messageHint + guidance,
       providerStatus: providerStatus || null,
       providerCode: providerCode || null,
     }, 502);
