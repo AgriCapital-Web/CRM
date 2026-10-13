@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, PlayCircle, CheckCircle2, Trash2 } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, PlayCircle, CheckCircle2, Trash2, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import TableSearchInput from "@/components/common/TableSearchInput";
 
@@ -128,6 +128,44 @@ export default function Finance(){
     setSaving(false);
   };
 
+  const exportFinancialReport = () => {
+    const rows = [
+      ["Rapport financier AgriCapital"],
+      ["Généré le", new Date().toLocaleString("fr-FR")],
+      ["Encaissements validés", totals.income],
+      ["Sorties validées", totals.out],
+      ["Solde", totals.balance],
+      ["Opérations validées", transactions.filter((t:any)=>t.status==="valide").length],
+      [],
+      ["Source", "Entrées (FCFA)", "Sorties (FCFA)", "Nombre d'opérations"],
+      ...reportSources.map((r:any)=>[r.source, r.entrees, r.sorties, r.count]),
+      [],
+      ["Date", "Libellé", "Source", "Type", "Montant (FCFA)", "Statut", "Référence"],
+      ...transactions.filter((t:any)=>t.status==="valide").map((t:any)=>[
+        t.transaction_date || t.created_at || "",
+        t.description || t.label || "",
+        t.source || t.source_type || "",
+        t.transaction_type || t.type || "",
+        Number(t.amount || 0),
+        t.status || "",
+        t.reference || ""
+      ])
+    ];
+    const csv = "\\uFEFF" + rows.map((row:any[])=>row.map((cell:any)=>{
+      const value = String(cell ?? "");
+      return '"' + value.replace(/"/g, '""') + '"';
+    }).join(";")).join("\\r\\n");
+    const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8;"}));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "rapport-financier-agricapital-" + new Date().toISOString().slice(0,10) + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast({title:"Export prêt",description:"Le rapport financier a été exporté au format CSV."});
+  };
+
   const generatePayroll=async()=>{
     const [year,month]=period.split("-").map(Number);
     const start=`${period}-01`;
@@ -233,9 +271,9 @@ export default function Finance(){
       </div></TabsContent>
       <TabsContent value="salaires" className="mt-4 min-w-0 space-y-4"><div className="rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-4"><h2 className="font-semibold">Salaires et préparation de la paie</h2><p className="mt-1 text-sm text-muted-foreground">Configurez les salaires de base et préparez la paie par période.</p></div><div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {can("finance.payroll")&&<Card><CardHeader><CardTitle>Paramétrer un salaire</CardTitle></CardHeader><CardContent className="space-y-3">
-          <Select value={salaryForm.profileId} onValueChange={v=>setSalaryForm({...salaryForm,profileId:v})}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select>
-          <Input type="number" placeholder="SALAIRE DE BASE" value={salaryForm.baseSalary} onChange={e=>setSalaryForm({...salaryForm,baseSalary:e.target.value})}/><p className="text-xs text-muted-foreground">Le salaire de base est défini dans Utilisateurs → Relation RH et Département. Seuls les profils ayant un salaire positif apparaissent dans la paie.</p>
-          <Input type="number" min="1" max="31" placeholder="Jour habituel de paiement (28)" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/>
+          <Select value={salaryForm.profileId} onValueChange={v=>{const profile=profiles.find((p:any)=>p.id===v);setSalaryForm({...salaryForm,profileId:v,baseSalary:String(profile?.salaire_base ?? "")});}}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select>
+          <div className="space-y-1"><Label>Salaire de base (synchronisé depuis les RH)</Label><Input type="number" placeholder="Salaire défini dans les RH" value={salaryForm.baseSalary} readOnly disabled/><p className="text-xs text-muted-foreground">Ce montant est défini dans Utilisateurs / RH. Il est affiché automatiquement et ne peut pas être modifié ici.</p></div>
+          <div className="space-y-1"><Label>Jour habituel de paiement (1 à 31)</Label><Input type="number" min="1" max="31" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/><p className="text-xs text-muted-foreground">28 signifie que le paiement du salaire est prévu le 28 de chaque mois.</p></div>
           <Button className="w-full" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
         </CardContent></Card>}
         {can("finance.payroll")&&<Card><CardHeader><CardTitle>Générer la paie</CardTitle></CardHeader><CardContent className="space-y-3"><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><Button className="w-full" onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>GÉNÉRER AUTOMATIQUEMENT</Button><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p></div><div className="flex flex-wrap items-center gap-2">{r.status!=="paye"&&<Button size="sm" onClick={()=>void payRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>DÉCLENCHER</Button>}{canDeleteDraftPayroll && r.status==="brouillon" && <Button size="sm" variant="destructive" onClick={()=>{if(window.confirm("Supprimer définitivement ce brouillon de paie et ses lignes ?")) void deletePayrollDraft(r);}} disabled={saving}><Trash2 className="mr-1 h-4 w-4"/>Supprimer</Button>}</div></div>)}</div></CardContent></Card>}
@@ -251,7 +289,7 @@ export default function Finance(){
         </CardContent></Card>}
         <Card><CardHeader><CardTitle>Associés enregistrés</CardTitle></CardHeader><CardContent className="space-y-2">{associates.map(a=><div key={a.id} className="rounded-lg border p-3 flex items-center justify-between"><div><b>{a.full_name}</b><p className="text-xs text-muted-foreground">{a.role_label}</p></div><Badge variant={a.active?"default":"secondary"}>{a.active?"ACTIF":"INACTIF"}</Badge></div>)}</CardContent></Card>
       </div></TabsContent>
-      <TabsContent value="rapports" className="mt-4 min-w-0 space-y-4"><div className="rounded-xl border-l-4 border-sky-600 bg-sky-600/5 p-4"><h2 className="font-semibold">Rapports financiers</h2><p className="mt-1 text-sm text-muted-foreground">Vue synthétique des entrées, sorties, soldes et sources des opérations.</p></div><div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">ENCAISSEMENTS VALIDÉS</p><p className="text-2xl font-bold">{money(totals.income)}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SORTIES VALIDÉES</p><p className="text-2xl font-bold">{money(totals.out)}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SOLDE</p><p className="text-2xl font-bold">{money(totals.balance)}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">OPÉRATIONS VALIDÉES</p><p className="text-2xl font-bold">{transactions.filter((t:any)=>t.status==="valide").length}</p></CardContent></Card></div><Card><CardHeader><CardTitle>Répartition par source</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Source</th><th className="p-2 text-right">Entrées</th><th className="p-2 text-right">Sorties</th><th className="p-2 text-right">Opérations</th></tr></thead><tbody>{reportSources.map(r=><tr key={r.source} className="border-b last:border-0"><td className="p-2 font-medium">{r.source}</td><td className="p-2 text-right">{money(r.entrees)}</td><td className="p-2 text-right">{money(r.sorties)}</td><td className="p-2 text-right">{r.count}</td></tr>)}{!reportSources.length&&<tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Aucune opération validée</td></tr>}</tbody></table></div></CardContent></Card><Card><CardHeader><CardTitle>Dernières opérations validées</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Date</th><th className="p-2">Libellé</th><th className="p-2">Source</th><th className="p-2 text-right">Montant</th></tr></thead><tbody>{recentValidTransactions.map((t:any)=><tr key={t.id} className="border-b last:border-0"><td className="p-2">{t.transaction_date?new Date(t.transaction_date).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{t.label||"—"}</td><td className="p-2">{String(t.source_type||"MANUEL").toUpperCase()}</td><td className={`p-2 text-right font-semibold ${t.direction==="sortie"?"text-destructive":"text-primary"}`}>{t.direction==="sortie"?"−":"+"}{money(t.amount)}</td></tr>)}{!recentValidTransactions.length&&<tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Aucune opération validée</td></tr>}</tbody></table></div></CardContent></Card></TabsContent>
+      <TabsContent value="rapports" className="mt-4 min-w-0 space-y-4"><div className="flex flex-col gap-3 rounded-xl border-l-4 border-sky-600 bg-sky-600/5 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">Rapports financiers</h2><p className="mt-1 text-sm text-muted-foreground">Vue synthétique des entrées, sorties, soldes et sources des opérations.</p></div><Button onClick={exportFinancialReport}><FileText className="mr-2 h-4 w-4"/>Exporter le rapport (CSV)</Button></div><div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">ENCAISSEMENTS VALIDÉS</p><p className="text-2xl font-bold">{money(totals.income)}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SORTIES VALIDÉES</p><p className="text-2xl font-bold">{money(totals.out)}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SOLDE</p><p className="text-2xl font-bold">{money(totals.balance)}</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">OPÉRATIONS VALIDÉES</p><p className="text-2xl font-bold">{transactions.filter((t:any)=>t.status==="valide").length}</p></CardContent></Card></div><Card><CardHeader><CardTitle>Répartition par source</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Source</th><th className="p-2 text-right">Entrées</th><th className="p-2 text-right">Sorties</th><th className="p-2 text-right">Opérations</th></tr></thead><tbody>{reportSources.map(r=><tr key={r.source} className="border-b last:border-0"><td className="p-2 font-medium">{r.source}</td><td className="p-2 text-right">{money(r.entrees)}</td><td className="p-2 text-right">{money(r.sorties)}</td><td className="p-2 text-right">{r.count}</td></tr>)}{!reportSources.length&&<tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Aucune opération validée</td></tr>}</tbody></table></div></CardContent></Card><Card><CardHeader><CardTitle>Dernières opérations validées</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Date</th><th className="p-2">Libellé</th><th className="p-2">Source</th><th className="p-2 text-right">Montant</th></tr></thead><tbody>{recentValidTransactions.map((t:any)=><tr key={t.id} className="border-b last:border-0"><td className="p-2">{t.transaction_date?new Date(t.transaction_date).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{t.label||"—"}</td><td className="p-2">{String(t.source_type||"MANUEL").toUpperCase()}</td><td className={`p-2 text-right font-semibold ${t.direction==="sortie"?"text-destructive":"text-primary"}`}>{t.direction==="sortie"?"−":"+"}{money(t.amount)}</td></tr>)}{!recentValidTransactions.length&&<tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Aucune opération validée</td></tr>}</tbody></table></div></CardContent></Card></TabsContent>
     </Tabs>
   </div></MainLayout></ProtectedRoute>;
 }
