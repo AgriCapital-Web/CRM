@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 
 type Geo = any;
 const NODE = [
@@ -18,6 +19,8 @@ const NODE = [
 
 export default function GestionGeographie() {
   const { toast } = useToast();
+  const { can } = usePermissions();
+  const canManageGeo = can("parametres.manage_geo");
   const [data, setData] = useState<Record<string, Geo[]>>({ districts: [], regions: [], departements: [], sous: [], villages: [], campements: [] });
   const [loading, setLoading] = useState(true);
 
@@ -86,7 +89,7 @@ export default function GestionGeographie() {
       <span className="min-w-0 flex-1 truncate text-sm font-medium">{node.nom}</span>
       {count!==undefined&&<span className="text-[10px] text-muted-foreground">{count}</span>}
       <Status active={!!node[meta.active]}/>
-      <Switch checked={!!node[meta.active]} disabled={disabled} onClick={e=>e.stopPropagation()} onCheckedChange={v=>void toggle(meta.table,meta.active,node.id,v)}/>
+      <Switch checked={!!node[meta.active]} disabled={disabled || !canManageGeo} onClick={e=>e.stopPropagation()} onCheckedChange={v=>void toggle(meta.table,meta.active,node.id,v)}/>
     </summary>;
   };
 
@@ -95,7 +98,7 @@ export default function GestionGeographie() {
   return <div className="space-y-4">
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><CardTitle className="flex items-center gap-2"><Map className="h-5 w-5"/>Référentiel géographique</CardTitle><p className="mt-1 text-sm text-muted-foreground">District → Région → Département → Sous-préfecture → Village / localité → Campement.</p></div>
+        <div><CardTitle className="flex items-center gap-2"><Map className="h-5 w-5"/>Référentiel géographique</CardTitle></div>
         <Button variant="outline" size="sm" onClick={()=>void load()}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -114,9 +117,9 @@ export default function GestionGeographie() {
                         <div className="space-y-1 pb-2 pl-2">
                           {sp.villages.map((v:any)=><details key={v.id} className="ml-3 border-l pl-3">
                             <Header node={v} level={4} count={data.campements.filter((c:any)=>c.village_noyau_id===v.id).length} disabled={!d.est_actif||!r.est_active||!de.est_actif||!sp.est_active}/>
-                            <div className="space-y-1 pb-2 pl-2">{data.campements.filter((c:any)=>c.village_noyau_id===v.id).map((c:any)=><div key={c.id} className="flex items-center gap-2 rounded-md bg-muted/20 px-2 py-1.5 text-xs"><TentTree className="h-3.5 w-3.5 text-muted-foreground"/><span className="min-w-0 flex-1 truncate">{c.nom}</span><Status active={!!c.est_actif}/></div>)}</div>
+                            <div className="space-y-1 pb-2 pl-2">{data.campements.filter((c:any)=>c.village_noyau_id===v.id).map((c:any)=><div key={c.id} className="flex items-center gap-2 rounded-md bg-muted/20 px-2 py-1.5 text-xs"><TentTree className="h-3.5 w-3.5 text-muted-foreground"/><span className="min-w-0 flex-1 truncate">{c.nom}</span><Status active={!!c.est_actif}/><Switch checked={!!c.est_actif} disabled={!canManageGeo || !d.est_actif || !r.est_active || !de.est_actif || !sp.est_active} onCheckedChange={value=>void toggle("campements","est_actif",c.id,value)}/></div>)}</div>
                           </details>)}
-                          {sp.campements.filter((c:any)=>!c.village_noyau_id).map((c:any)=><div key={c.id} className="flex items-center gap-2 rounded-md bg-muted/20 px-2 py-1.5 text-xs"><TentTree className="h-3.5 w-3.5 text-muted-foreground"/><span className="min-w-0 flex-1 truncate">{c.nom}</span><Status active={!!c.est_actif}/></div>)}
+                          {sp.campements.filter((c:any)=>!c.village_noyau_id).map((c:any)=><div key={c.id} className="flex items-center gap-2 rounded-md bg-muted/20 px-2 py-1.5 text-xs"><TentTree className="h-3.5 w-3.5 text-muted-foreground"/><span className="min-w-0 flex-1 truncate">{c.nom}</span><Status active={!!c.est_actif}/><Switch checked={!!c.est_actif} disabled={!canManageGeo || !d.est_actif || !r.est_active || !de.est_actif || !sp.est_active} onCheckedChange={value=>void toggle("campements","est_actif",c.id,value)}/></div>)}
                         </div>
                       </details>)}
                     </div>

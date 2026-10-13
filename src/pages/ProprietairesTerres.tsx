@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
@@ -48,6 +48,8 @@ const createInitialAnnexStatuses = (): Record<string, "joint" | "a_fournir"> =>
 
 const ProprietairesTerres = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const conversionLeadId = searchParams.get("lead_id");
   const [proprietaires, setProprietaires] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -108,6 +110,23 @@ const ProprietairesTerres = () => {
   };
 
   useEffect(() => { fetchData(); loadDistricts(); }, []);
+  useEffect(() => {
+    if (!conversionLeadId) return;
+    setFormData((current:any) => ({
+      ...current,
+      nom: searchParams.get("nom") || current.nom,
+      prenoms: searchParams.get("prenoms") || current.prenoms,
+      telephone: searchParams.get("telephone") || current.telephone,
+      whatsapp: searchParams.get("whatsapp") || current.whatsapp,
+      email: searchParams.get("email") || current.email,
+      district_id: searchParams.get("district_id") || current.district_id,
+      region_id: searchParams.get("region_id") || current.region_id,
+      departement_id: searchParams.get("departement_id") || current.departement_id,
+      sous_prefecture_id: searchParams.get("sous_prefecture_id") || current.sous_prefecture_id,
+      village: searchParams.get("village") || current.village,
+    }));
+    setIsFormOpen(true);
+  }, [conversionLeadId, searchParams]);
   const loadDistricts = async () => { setDistricts(await fetchFilteredDistricts()); };
 
   const handleDistrictChange = async (v: string) => {
@@ -325,6 +344,12 @@ const ProprietairesTerres = () => {
         for (const d of documents) {
           await addToSyncQueue({ table: 'documents_convention', operation: 'insert', record_id: proprietaire.id + '-' + d.type_document, data: d, timestamp: Date.now() });
         }
+      }
+      if (conversionLeadId && isOnline) {
+        const { error: leadUpdateError } = await (supabase as any).from("leads")
+          .update({ statut: "converti", converti_at: new Date().toISOString(), proprietaire_id: proprietaire.id })
+          .eq("id", conversionLeadId);
+        if (leadUpdateError) throw leadUpdateError;
       }
       toast({
         title: isOnline ? "Succès" : "Enregistré hors ligne",

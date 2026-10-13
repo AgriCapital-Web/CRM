@@ -72,14 +72,37 @@ Deno.serve(async (req) => {
         const detail = typeof sessionsPayload?.message === "string" ? sessionsPayload.message.slice(0, 250) : "";
         return reply(req, { error: "Impossible de lire les sessions WhatsApp Senndo (HTTP " + sessionsResponse.status + ")." + (detail ? " " + detail : ""), providerStatus: sessionsResponse.status, code: "WHATSAPP_SESSION_LOOKUP_FAILED" }, 502);
       }
-      const sessions = Array.isArray(sessionsPayload) ? sessionsPayload : Array.isArray(sessionsPayload?.sessions) ? sessionsPayload.sessions : Array.isArray(sessionsPayload?.data) ? sessionsPayload.data : Array.isArray(sessionsPayload?.items) ? sessionsPayload.items : [];
-      const digits = (v: unknown) => String(v || "").replace(/\D/g, "");
+      const rawSessions = Array.isArray(sessionsPayload) ? sessionsPayload
+        : Array.isArray(sessionsPayload?.sessions) ? sessionsPayload.sessions
+        : Array.isArray(sessionsPayload?.data?.sessions) ? sessionsPayload.data.sessions
+        : Array.isArray(sessionsPayload?.data) ? sessionsPayload.data
+        : Array.isArray(sessionsPayload?.items) ? sessionsPayload.items
+        : Array.isArray(sessionsPayload?.results) ? sessionsPayload.results : [];
+      const sessions = rawSessions.map((item: any) => {
+        if (!item?.session || typeof item.session !== "object") return item;
+        return { ...item.session, id: item.session.id ?? item.id,
+          sessionId: item.session.sessionId ?? item.session.session_id ?? item.sessionId ?? item.session_id,
+          senderSessionId: item.session.senderSessionId ?? item.senderSessionId,
+          uuid: item.session.uuid ?? item.uuid };
+      });
+      const digits = (v: unknown) => String(v ?? "").replace(/\D/g, "");
       const senderDigits = digits("+22564551717");
-      const phoneOf = (s: any) => s?.phoneNumber ?? s?.phone ?? s?.displayPhoneNumber ?? s?.number ?? s?.jid ?? "";
-      const connected = sessions.filter((s: any) => String(s?.status ?? s?.state ?? s?.connectionStatus ?? "").toLowerCase() === "connected");
-      const session = connected.find((s: any) => { const d = digits(phoneOf(s)); return d && (d === senderDigits || d.endsWith(senderDigits.slice(-8)) || senderDigits.endsWith(d.slice(-8))); });
-      const senderSessionId = session?.id ?? session?.sessionId ?? session?.senderSessionId ?? session?.uuid;
-      if (typeof senderSessionId !== "string" || !senderSessionId) return reply(req, { error: connected.length ? "Session connectée trouvée, mais impossible d’identifier le numéro AgriCapital +22564551717. Vérifiez le numéro dans Senndo." : "Aucune session WhatsApp appairée à l’état connected. Reconnectez +22564551717 dans Senndo.", code: "WHATSAPP_CONNECTED_SESSION_NOT_FOUND", connectedSessions: connected.length }, 409);
+      const phoneValues = (s: any) => [
+        s?.phoneNumber,s?.phone_number,s?.phone,s?.displayPhoneNumber,s?.display_phone_number,s?.number,s?.jid,
+        s?.user?.id,s?.user?.jid,s?.me?.id,s?.me?.jid,s?.account?.phone,s?.account?.phoneNumber,s?.profile?.phone,s?.whatsapp?.phone
+      ].filter((v) => typeof v === "string" && v.trim());
+      const statusOf = (s: any) => String(s?.status ?? s?.state ?? s?.connectionStatus ?? s?.connection_status ?? s?.connection?.status ?? s?.session?.status ?? "").trim().toLowerCase();
+      const connected = sessions.filter((s: any) => ["connected","open","ready","authenticated"].includes(statusOf(s)));
+      const matches = connected.filter((s: any) => phoneValues(s).some((v: string) => digits(v) === senderDigits));
+      const session = matches.length === 1 ? matches[0] : matches.length > 1 ? null : connected.length === 1 ? connected[0] : null;
+      const senderSessionId = session?.id ?? session?.sessionId ?? session?.senderSessionId ?? session?.uuid ?? session?.session_id ?? session?.sessionKey ?? session?.session_key;
+      if (!session || typeof senderSessionId !== "string" || !senderSessionId.trim()) return reply(req, {
+        error: connected.length === 0 ? "Aucune session WhatsApp connectée n’a été trouvée dans Senndo."
+          : connected.length > 1 && matches.length !== 1 ? "Plusieurs sessions WhatsApp sont connectées. Une seule doit correspondre au numéro AgriCapital +22564551717."
+          : "Senndo n’a pas fourni d’identifiant de session exploitable pour le numéro AgriCapital +22564551717.",
+        code: connected.length > 1 && matches.length !== 1 ? "WHATSAPP_SESSION_AMBIGUOUS" : "WHATSAPP_SESSION_ID_MISSING",
+        connectedSessions: connected.length
+      }, 409);
       const sendResponse = await fetch("https://api.senndo.com/v1/messages", {
         method: "POST",
         headers: { authorization: "Bearer " + apiKey, "content-type": "application/json", accept: "application/json" },

@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, AlertTriangle, Send } from "lucide-react";
+import { RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
 
 type Status = { apiKey: boolean; webhookSecret: boolean; emailSenderId: boolean };
@@ -27,8 +26,6 @@ export default function ConfigurationSenndo() {
   const [testSubject, setTestSubject] = useState("Test AgriCapital");
   const [testMessage, setTestMessage] = useState("Ceci est un message de test de la passerelle de notifications AgriCapital.");
   const [sendingTest, setSendingTest] = useState(false);
-  const [diagnosingWhatsapp, setDiagnosingWhatsapp] = useState(false);
-  const [whatsappDiagnostics, setWhatsappDiagnostics] = useState<any>(null);
 
   const refreshStatus = useCallback(async () => {
     setLoading(true);
@@ -58,22 +55,6 @@ export default function ConfigurationSenndo() {
     }
   };
 
-  const diagnoseWhatsapp = async () => {
-    setDiagnosingWhatsapp(true);
-    setWhatsappDiagnostics(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("senndo-config", { body: { mode: "whatsapp_diagnostics" } });
-      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Diagnostic Senndo impossible");
-      setWhatsappDiagnostics(data);
-      const cloudCount = data.whatsappCloud?.numbers?.length || 0;
-      const twilioCount = data.whatsappTwilio?.templates?.length || 0;
-      toast.success("Diagnostic terminé : " + cloudCount + " numéro(s) Cloud, " + twilioCount + " modèle(s) Twilio.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Diagnostic WhatsApp impossible.");
-    } finally {
-      setDiagnosingWhatsapp(false);
-    }
-  };
   const sendTest = async () => {
     const destination = testDestination.trim();
     if (!destination) {
@@ -148,30 +129,19 @@ export default function ConfigurationSenndo() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Passerelle Senndo</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Configuration serveur des SMS, e-mails, WhatsApp appairé et appels vocaux AgriCapital.</p>
-      </div>
-
-      <Alert>
-        <ShieldCheck className="h-4 w-4" />
-        <AlertTitle>Secrets protégés côté serveur</AlertTitle>
-        <AlertDescription>
-          La clé API et le secret du webhook sont transmis à une fonction serveur authentifiée puis conservés dans Supabase Vault. Ils ne sont jamais renvoyés à l'interface ni affichés dans les journaux. L'adresse expéditrice vérifiée est conservée côté serveur.
-        </AlertDescription>
-      </Alert>
+      <div><h2 className="text-2xl font-semibold tracking-tight">Passerelle Senndo</h2></div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Sender ID : AgriCapital</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.emailSenderId ? "default" : "secondary"}>{status.emailSenderId ? "Expéditeur configuré" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Adresse vérifiée dans Senndo</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">+225 05 64 55 17 17 · session appairée</p></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Disponibilité à confirmer sur le compte</p></CardContent></Card>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Tester les envois en conditions réelles</CardTitle>
-          <CardDescription>Envoyez un message de test uniquement au destinataire choisi. Chaque canal est testé séparément ; aucun client de la base n'est ciblé.</CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -180,15 +150,14 @@ export default function ConfigurationSenndo() {
               <select id="senndo-test-channel" value={testChannel} onChange={(e) => setTestChannel(e.target.value as typeof testChannel)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="sms">SMS · Sender ID AgriCapital</option>
                 <option value="email">E-mail · expéditeur vérifié</option>
-                <option value="whatsapp">WhatsApp appairé · +225 05 64 55 17 17</option>
+                <option value="whatsapp">WhatsApp appairé · +225 64 55 17 17</option>
                 <option value="voice">Appel vocal · Senndo Voice</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="senndo-test-destination">{testChannel === "email" ? "Adresse e-mail de destination" : "Numéro de destination"}</Label>
               <Input id="senndo-test-destination" type={testChannel === "email" ? "email" : "tel"} value={testDestination} onChange={(e) => setTestDestination(e.target.value)} placeholder={testChannel === "email" ? "votre.adresse@exemple.ci" : "+2250700000000"} autoComplete="off" />
-              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "L’envoi utilise votre session Senndo appairée à l’état connected (+22564551717)." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
-              {testChannel === "whatsapp" && <p className="text-xs font-medium text-amber-700">WhatsApp appairé : l’API utilise whatsapp_baileys et l’identifiant de session connected obtenu depuis Senndo. Aucun basculement vers Cloud/Twilio.</p>}
+
             </div>
           </div>
 {testChannel === "email" && <div className="space-y-2">
@@ -198,67 +167,48 @@ export default function ConfigurationSenndo() {
           <div className="space-y-2">
             <Label htmlFor="senndo-test-message">Contenu du test</Label>
             <Textarea id="senndo-test-message" value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={3} maxLength={1000} />
-            <p className="text-xs text-muted-foreground">Ce texte sera envoyé réellement au destinataire choisi. Vérifiez le numéro ou l'adresse avant l'envoi.</p>
+            
           </div>
           <Button onClick={() => void sendTest()} disabled={sendingTest || loading || !status.apiKey || !testDestination.trim() || !testMessage.trim()}>
             <Send className="mr-2 h-4 w-4" />{sendingTest ? "Envoi du test…" : `Envoyer le test ${testChannel.toUpperCase()}`}
           </Button>
-          <p className="text-xs text-muted-foreground">Le résultat confirme l'acceptation par Senndo, pas nécessairement la livraison finale. Les statuts définitifs dépendent des retours du fournisseur.</p>
+          
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Identifiants API</CardTitle>
-          <CardDescription>Collez les secrets uniquement dans ces champs. Ne les envoyez pas dans un message et ne les ajoutez jamais au code.</CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="senndo-api-key">Clé API Senndo</Label>
             <Input id="senndo-api-key" type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={status.apiKey ? "Clé déjà enregistrée · saisir uniquement pour remplacer" : "sk_live_… ou sk_test_…"} spellCheck={false} autoCapitalize="none" />
-            <p className="text-xs text-muted-foreground">Le serveur ne permet jamais de relire la clé existante. Laissez vide pour la conserver.</p>
+            
           </div>
           <div className="space-y-2">
             <Label htmlFor="senndo-email-sender">Adresse expéditrice e-mail vérifiée</Label>
             <Input id="senndo-email-sender" type="email" autoComplete="email" value={emailSenderId} onChange={(e) => setEmailSenderId(e.target.value)} placeholder={status.emailSenderId ? "Adresse déjà configurée" : "notifications@votre-domaine.ci"} spellCheck={false} autoCapitalize="none" />
-            <p className="text-xs text-muted-foreground">Cette adresse doit déjà être vérifiée dans Senndo. Elle est conservée côté serveur et ne sert qu’aux e-mails sortants.</p>
+            
           </div>
           <div className="space-y-2">
             <Label htmlFor="senndo-webhook-secret">Secret de signature du webhook Senndo</Label>
             <Input id="senndo-webhook-secret" type="password" autoComplete="new-password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={status.webhookSecret ? "Secret déjà enregistré · saisir uniquement pour remplacer" : "Secret communiqué à la création du webhook"} spellCheck={false} autoCapitalize="none" />
-            <p className="text-xs text-muted-foreground">Ce n'est pas l'URL du webhook : c'est le secret signé communiqué par Senndo. Il est nécessaire pour vérifier l'authenticité des événements.</p>
+            
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement sécurisé…" : "Enregistrer côté serveur"}</Button>
             <Button variant="outline" onClick={() => void refreshStatus()} disabled={loading || saving || testing}><RefreshCw className="mr-2 h-4 w-4" />Vérifier l'état</Button>
             <Button variant="outline" onClick={() => void testConnection()} disabled={loading || saving || testing || !status.apiKey}><CheckCircle2 className="mr-2 h-4 w-4" />{testing ? "Test en cours…" : "Tester la connexion API"}</Button>
-            <Button variant="outline" onClick={() => void diagnoseWhatsapp()} disabled={loading || saving || testing || diagnosingWhatsapp || !status.apiKey}><MessageSquare className="mr-2 h-4 w-4" />{diagnosingWhatsapp ? "Diagnostic WhatsApp…" : "Diagnostiquer WhatsApp"}</Button>
+            
           </div>
-          {whatsappDiagnostics && <Alert variant="default">
-            <MessageSquare className="h-4 w-4" />
-            <AlertTitle>Diagnostic technique WhatsApp Senndo</AlertTitle>
-            <AlertDescription>
-              <div className="mt-2 space-y-3 text-sm">
-                <p><b>WhatsApp appairé :</b> le SDK Senndo installé dans le CRM n’expose pas de méthode documentée pour une session WhatsApp appairée. Ce mode ne doit pas être confondu avec WhatsApp Cloud ou WhatsApp Twilio.</p>
-                <div><b>WhatsApp Cloud :</b> {whatsappDiagnostics.whatsappCloud?.available ? (whatsappDiagnostics.whatsappCloud.numbers?.length || 0) + " numéro(s) détecté(s)." : whatsappDiagnostics.whatsappCloud?.error?.message || "Non vérifié."}
-                  {(whatsappDiagnostics.whatsappCloud?.numbers || []).map((n: any) => <p key={n.id} className="ml-2 text-xs">{n.displayPhoneNumber || n.id} · {n.status || "statut inconnu"}</p>)}
-                </div>
-                <div><b>Modèles Cloud :</b> {whatsappDiagnostics.whatsappCloudTemplates?.available ? (whatsappDiagnostics.whatsappCloudTemplates.templates?.length || 0) + " modèle(s), " + (whatsappDiagnostics.whatsappCloudTemplates.templates || []).filter((t: any) => t.status === "approved").length + " approuvé(s)." : whatsappDiagnostics.whatsappCloudTemplates?.error?.message || "Non vérifié."}</div>
-                <div><b>WhatsApp Twilio :</b> {whatsappDiagnostics.whatsappTwilio?.available ? (whatsappDiagnostics.whatsappTwilio.templates?.length || 0) + " modèle(s) disponibles (mode : " + (whatsappDiagnostics.whatsappTwilio.reason || "non précisé") + ")." : whatsappDiagnostics.whatsappTwilio?.error?.message || "Non vérifié."}</div>
-              </div>
-            </AlertDescription>
-          </Alert>}
           <div className="rounded-lg border p-3">
             <div className="mb-2 flex items-center gap-2 font-medium"><Webhook className="h-4 w-4" />URL de réception webhook</div>
             <code className="block break-all text-xs">{webhookUrl}</code>
             <Button className="mt-3" size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(webhookUrl).then(() => toast.success("URL copiée")).catch(() => toast.error("Copie impossible sur cet appareil")); }}>Copier l'URL</Button>
-            <p className="mt-2 text-xs text-muted-foreground">Configurez cette URL dans la console Senndo avec les événements de statut de message et d'appel disponibles pour votre compte. Le secret de signature se saisit ci-dessus.</p>
+            
           </div>
-          <Alert variant="default">
-            {status.apiKey && status.webhookSecret && status.emailSenderId ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-            <AlertTitle>{status.apiKey && status.webhookSecret && status.emailSenderId ? "Configuration enregistrée" : "Configuration incomplète"}</AlertTitle>
-            <AlertDescription>{loading ? "Vérification…" : status.apiKey && status.webhookSecret && status.emailSenderId ? "La clé API, le secret webhook et l’expéditeur e-mail sont enregistrés. Un test réel de chaque canal reste nécessaire avant de considérer les envois comme validés." : "La clé API, le secret webhook et l’adresse expéditrice vérifiée peuvent être enregistrés séparément. Aucun envoi externe n’est considéré comme validé avant les tests."}</AlertDescription>
-          </Alert>
         </CardContent>
       </Card>
     </div>
