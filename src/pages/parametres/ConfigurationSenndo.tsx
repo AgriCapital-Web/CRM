@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ShieldCheck, RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, AlertTriangle, Send } from "lucide-react";
 import { toast } from "sonner";
 
 type Status = { apiKey: boolean; webhookSecret: boolean; emailSenderId: boolean };
