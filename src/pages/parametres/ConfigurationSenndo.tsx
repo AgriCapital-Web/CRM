@@ -88,9 +88,14 @@ export default function ConfigurationSenndo() {
       toast.error("L'adresse e-mail de destination est invalide.");
       return;
     }
-    if (testChannel !== "email" && !/^\+?[1-9]\d{7,14}$/.test(destination.replace(/[\s().-]/g, ""))) {
-      toast.error("Utilisez un numéro valide au format international, par exemple +2250700000000.");
-      return;
+    if (testChannel !== "email") {
+      // Normalize punctuation and spaces before validating E.164 digits.
+      // Ivorian mobile numbers use +225 followed by 10 digits (13 digits total).
+      const destinationDigits = destination.replace(/\D/g, "");
+      if (!/^[1-9]\d{7,14}$/.test(destinationDigits)) {
+        toast.error("Numéro invalide. Saisissez le numéro au format international, par exemple +2250759566087.");
+        return;
+      }
     }
     setSendingTest(true);
     try {
