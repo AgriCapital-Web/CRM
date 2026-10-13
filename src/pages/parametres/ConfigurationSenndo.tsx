@@ -27,6 +27,8 @@ export default function ConfigurationSenndo() {
   const [testSubject, setTestSubject] = useState("Test AgriCapital");
   const [testMessage, setTestMessage] = useState("Ceci est un message de test de la passerelle de notifications AgriCapital.");
   const [sendingTest, setSendingTest] = useState(false);
+  const [diagnosingWhatsapp, setDiagnosingWhatsapp] = useState(false);
+  const [whatsappDiagnostics, setWhatsappDiagnostics] = useState<any>(null);
 
   const refreshStatus = useCallback(async () => {
     setLoading(true);
@@ -56,6 +58,22 @@ export default function ConfigurationSenndo() {
     }
   };
 
+  const diagnoseWhatsapp = async () => {
+    setDiagnosingWhatsapp(true);
+    setWhatsappDiagnostics(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("senndo-config", { body: { mode: "whatsapp_diagnostics" } });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Diagnostic Senndo impossible");
+      setWhatsappDiagnostics(data);
+      const cloudCount = data.whatsappCloud?.numbers?.length || 0;
+      const twilioCount = data.whatsappTwilio?.templates?.length || 0;
+      toast.success("Diagnostic terminé : " + cloudCount + " numéro(s) Cloud, " + twilioCount + " modèle(s) Twilio.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Diagnostic WhatsApp impossible.");
+    } finally {
+      setDiagnosingWhatsapp(false);
+    }
+  };
   const sendTest = async () => {
     const destination = testDestination.trim();
     if (!destination) {
@@ -168,7 +186,7 @@ export default function ConfigurationSenndo() {
             <div className="space-y-2">
               <Label htmlFor="senndo-test-destination">{testChannel === "email" ? "Adresse e-mail de destination" : "Numéro de destination"}</Label>
               <Input id="senndo-test-destination" type={testChannel === "email" ? "email" : "tel"} value={testDestination} onChange={(e) => setTestDestination(e.target.value)} placeholder={testChannel === "email" ? "votre.adresse@exemple.ci" : "+2250700000000"} autoComplete="off" />
-              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "Le destinataire doit avoir WhatsApp. L'envoi utilise le canal WhatsApp appairé, pas WhatsApp Cloud." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
+              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "Le diagnostic doit confirmer le canal réellement pris en charge par votre compte Senndo avant l’envoi." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
             </div>
           </div>
 {testChannel === "email" && <div className="space-y-2">
@@ -212,7 +230,22 @@ export default function ConfigurationSenndo() {
             <Button onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement sécurisé…" : "Enregistrer côté serveur"}</Button>
             <Button variant="outline" onClick={() => void refreshStatus()} disabled={loading || saving || testing}><RefreshCw className="mr-2 h-4 w-4" />Vérifier l'état</Button>
             <Button variant="outline" onClick={() => void testConnection()} disabled={loading || saving || testing || !status.apiKey}><CheckCircle2 className="mr-2 h-4 w-4" />{testing ? "Test en cours…" : "Tester la connexion API"}</Button>
+            <Button variant="outline" onClick={() => void diagnoseWhatsapp()} disabled={loading || saving || testing || diagnosingWhatsapp || !status.apiKey}><MessageSquare className="mr-2 h-4 w-4" />{diagnosingWhatsapp ? "Diagnostic WhatsApp…" : "Diagnostiquer WhatsApp"}</Button>
           </div>
+          {whatsappDiagnostics && <Alert variant="default">
+            <MessageSquare className="h-4 w-4" />
+            <AlertTitle>Diagnostic technique WhatsApp Senndo</AlertTitle>
+            <AlertDescription>
+              <div className="mt-2 space-y-3 text-sm">
+                <p><b>WhatsApp appairé :</b> le SDK Senndo installé dans le CRM n’expose pas de méthode documentée pour une session WhatsApp appairée. Ce mode ne doit pas être confondu avec WhatsApp Cloud ou WhatsApp Twilio.</p>
+                <div><b>WhatsApp Cloud :</b> {whatsappDiagnostics.whatsappCloud?.available ? (whatsappDiagnostics.whatsappCloud.numbers?.length || 0) + " numéro(s) détecté(s)." : whatsappDiagnostics.whatsappCloud?.error?.message || "Non vérifié."}
+                  {(whatsappDiagnostics.whatsappCloud?.numbers || []).map((n: any) => <p key={n.id} className="ml-2 text-xs">{n.displayPhoneNumber || n.id} · {n.status || "statut inconnu"}</p>)}
+                </div>
+                <div><b>Modèles Cloud :</b> {whatsappDiagnostics.whatsappCloudTemplates?.available ? (whatsappDiagnostics.whatsappCloudTemplates.templates?.length || 0) + " modèle(s), " + (whatsappDiagnostics.whatsappCloudTemplates.templates || []).filter((t: any) => t.status === "approved").length + " approuvé(s)." : whatsappDiagnostics.whatsappCloudTemplates?.error?.message || "Non vérifié."}</div>
+                <div><b>WhatsApp Twilio :</b> {whatsappDiagnostics.whatsappTwilio?.available ? (whatsappDiagnostics.whatsappTwilio.templates?.length || 0) + " modèle(s) disponibles (mode : " + (whatsappDiagnostics.whatsappTwilio.reason || "non précisé") + ")." : whatsappDiagnostics.whatsappTwilio?.error?.message || "Non vérifié."}</div>
+              </div>
+            </AlertDescription>
+          </Alert>}
           <div className="rounded-lg border p-3">
             <div className="mb-2 flex items-center gap-2 font-medium"><Webhook className="h-4 w-4" />URL de réception webhook</div>
             <code className="block break-all text-xs">{webhookUrl}</code>
