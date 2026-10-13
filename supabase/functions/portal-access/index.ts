@@ -2,7 +2,17 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 const corsHeaders={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
 const json=(body:any,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
-function normalizePhone(value:unknown){const digits=String(value??"").replace(/\D/g,"");if(digits.length<8||digits.length>15)throw new Error("Numéro de téléphone invalide.");return digits.replace(/^00/,"").replace(/^225(?=\d{8,})/,"").replace(/^0+/,"");}
+function normalizePhone(value:unknown){
+  const raw=String(value??"").replace(/\D/g,"").replace(/^00/,"");
+  if(raw.length<8||raw.length>15)throw new Error("Numéro de téléphone invalide.");
+  const hasIvoryCoastCode=raw.startsWith("225");
+  const national=hasIvoryCoastCode?raw.slice(3):raw;
+  // Côte d’Ivoire: compare historical 8-digit numbers with the newer 10-digit
+  // 01/05/07 operator-prefix format by their shared 8-digit subscriber number.
+  if(national.length===10&&/^0[157]\d{8}$/.test(national))return national.slice(-8);
+  if(national.length===9&&national.startsWith("0"))return national.slice(1);
+  return hasIvoryCoastCode?national:national.replace(/^0+/,"");
+}
 function randomHex(bytes=16){const a=new Uint8Array(bytes);crypto.getRandomValues(a);return Array.from(a).map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function sha256(value:string){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function codeHash(code:string,salt:string){const secret=Deno.env.get("PORTAL_ACCESS_CODE_SECRET")||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";return sha256(code+":"+salt+":"+secret);}
