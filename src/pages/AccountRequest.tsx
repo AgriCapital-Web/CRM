@@ -306,11 +306,11 @@ const AccountRequest = () => {
 
             {errorDetail && (
               <div className="rounded-lg border-2 border-destructive/40 bg-destructive/5 p-4 space-y-2">
-                <p className="text-sm font-semibold text-destructive">Échec de la demande — diagnostic</p>
-                <p className="break-anywhere text-sm"><span className="font-medium">Étape :</span> {errorDetail.etape}</p>
-                <p className="break-anywhere text-sm"><span className="font-medium">Raison :</span> {errorDetail.raison}</p>
-                {errorDetail.statut_http && <p className="text-sm"><span className="font-medium">Code HTTP :</span> {errorDetail.statut_http}</p>}
-                <p className="text-[10px] text-muted-foreground">{errorDetail.horodatage}</p>
+                <p className="text-sm font-semibold text-destructive">Votre demande n’a pas pu être envoyée.</p>
+                
+                <p className="text-sm text-muted-foreground">Vérifiez les informations saisies et réessayez. Si le problème persiste, contactez le service client AgriCapital.</p>
+                
+                
               </div>
             )}
 
