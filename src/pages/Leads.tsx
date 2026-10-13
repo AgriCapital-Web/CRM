@@ -260,7 +260,7 @@ export default function Leads() {
         telephone: leadForm.telephone,
         whatsapp: leadForm.whatsapp || null,
         email: leadForm.email || null,
-        district_id: leadForm.district_id || null, region_id: leadForm.region_id || null, departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null, village_id: leadForm.village_id || null, region_residence: leadForm.region_residence, campement_quartier: leadForm.campement_quartier.trim() || null, campement_quartier: leadForm.campement_quartier.trim() || null,
+        district_id: leadForm.district_id || null, region_id: leadForm.region_id || null, departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null, village_id: leadForm.village_id || null, region_residence: leadForm.region_residence, campement_quartier: leadForm.campement_quartier.trim() || null,
         dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
         superficie_disponible_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_disponible_ha) : null,
         superficie_a_valoriser_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_a_valoriser_ha) : null,

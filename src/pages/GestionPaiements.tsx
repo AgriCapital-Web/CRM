@@ -220,7 +220,7 @@ const GestionPaiements = () => {
       const safeSearch = searchTerm.trim().replace(/[,%()]/g, " ");
 
       if (!safeSearch) {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('paiements')
           .select(selectClause)
           .eq('statut', 'valide')
@@ -231,7 +231,7 @@ const GestionPaiements = () => {
       }
 
       const [paymentSearch, clientSearch] = await Promise.all([
-        supabase
+        (supabase as any)
           .from('paiements')
           .select(selectClause)
           .eq('statut', 'valide')
@@ -372,7 +372,7 @@ const GestionPaiements = () => {
   // Search client by phone
   const searchClient = async (phone: string, target: 'source' | 'target') => {
     if (phone.length < 8) return;
-    const { data, error } = await supabase.from('clients')
+    const { data, error } = await (supabase as any).from('clients')
       .select('id,nom_complet,telephone,id_unique,type_client,is_internal,contrat_solde_at,montant_total_contrat')
       .or(`telephone.ilike.%${phone}%,whatsapp.ilike.%${phone}%,id_unique.ilike.%${phone}%`)
       .eq('statut','actif').limit(10);
@@ -387,7 +387,7 @@ const GestionPaiements = () => {
     }
     if (target === 'source') {
       setSourceClient(candidate);
-      const { data: paiements } = await supabase.from('paiements').select('*').eq('client_id',candidate.id).eq('statut','valide').order('created_at',{ascending:false}).limit(10);
+      const { data: paiements } = await (supabase as any).from('paiements').select('*').eq('client_id',candidate.id).eq('statut','valide').order('created_at',{ascending:false}).limit(10);
       setSourcePaiements(paiements || []);
     } else setTargetClient(candidate);
   };

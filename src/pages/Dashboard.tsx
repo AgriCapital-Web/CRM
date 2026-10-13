@@ -335,7 +335,6 @@ const Dashboard = () => {
         leadsConverted: convertedLeads,
         leadsFollowup: followupLeads,
         conversionRate,
-        partnershipHa,
         ownerAreaHa,
         partnershipTotalHa,
         partnershipPlantedHa,
