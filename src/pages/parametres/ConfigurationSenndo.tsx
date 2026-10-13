@@ -88,19 +88,15 @@ export default function ConfigurationSenndo() {
       toast.error("L'adresse e-mail de destination est invalide.");
       return;
     }
-    if (testChannel !== "email") {
-      // Normalize punctuation and spaces before validating E.164 digits.
-      // Ivorian mobile numbers use +225 followed by 10 digits (13 digits total).
-      const destinationDigits = destination.replace(/\D/g, "");
-      if (!/^[1-9]\d{7,14}$/.test(destinationDigits)) {
-        toast.error("Numéro invalide. Saisissez le numéro au format international, par exemple +2250759566087.");
-        return;
-      }
-    }
+    // Do not reject phone destinations in the browser based on a duplicated regex.
+    // Normalize formatting and let the server return a precise validation error.
+    const normalizedDestination = testChannel === "email"
+      ? destination
+      : "+" + destination.replace(/\\D/g, "");
     setSendingTest(true);
     try {
       const { data, error } = await supabase.functions.invoke("senndo-test-send", {
-        body: { channel: testChannel, to: destination, subject: testSubject.trim(), text: testMessage.trim() },
+        body: { channel: testChannel, to: normalizedDestination, subject: testSubject.trim(), text: testMessage.trim() },
       });
       if (error) {
         // Supabase wraps non-2xx responses in FunctionsHttpError and puts the
