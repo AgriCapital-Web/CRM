@@ -70,7 +70,7 @@ export default function ConfigurationSenndo() {
       toast.error("L'adresse e-mail de destination est invalide.");
       return;
     }
-    if (testChannel !== "email" && !/^\\d{8,15}$/.test(destination.replace(/\\D/g, ""))) {
+    if (testChannel !== "email" && !/^\d{8,15}$/.test(destination.replace(/\D/g, ""))) {
       toast.error("Utilisez un numéro valide au format international, par exemple +2250700000000.");
       return;
     }
