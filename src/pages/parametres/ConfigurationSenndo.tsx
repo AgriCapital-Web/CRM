@@ -163,7 +163,7 @@ export default function ConfigurationSenndo() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Sender ID : AgriCapital</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.emailSenderId ? "default" : "secondary"}>{status.emailSenderId ? "Expéditeur configuré" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Adresse vérifiée dans Senndo</p></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp · diagnostic requis</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">+225 05 64 55 17 17 · mode API à confirmer</p></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">+225 05 64 55 17 17 · session appairée</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Disponibilité à confirmer sur le compte</p></CardContent></Card>
       </div>
 
@@ -179,15 +179,15 @@ export default function ConfigurationSenndo() {
               <select id="senndo-test-channel" value={testChannel} onChange={(e) => setTestChannel(e.target.value as typeof testChannel)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="sms">SMS · Sender ID AgriCapital</option>
                 <option value="email">E-mail · expéditeur vérifié</option>
-                <option value="whatsapp">WhatsApp · vérifier le canal pris en charge</option>
+                <option value="whatsapp">WhatsApp appairé · +225 05 64 55 17 17</option>
                 <option value="voice">Appel vocal · Senndo Voice</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="senndo-test-destination">{testChannel === "email" ? "Adresse e-mail de destination" : "Numéro de destination"}</Label>
               <Input id="senndo-test-destination" type={testChannel === "email" ? "email" : "tel"} value={testDestination} onChange={(e) => setTestDestination(e.target.value)} placeholder={testChannel === "email" ? "votre.adresse@exemple.ci" : "+2250700000000"} autoComplete="off" />
-              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "Le diagnostic doit confirmer le canal réellement pris en charge par votre compte Senndo avant l’envoi." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
-              {testChannel === "whatsapp" && <p className="text-xs font-medium text-amber-700">Avant l’envoi, utilisez « Diagnostiquer WhatsApp ». Le SDK actuel ne documente pas le canal WhatsApp appairé ; le test sera refusé plutôt que de basculer silencieusement vers Cloud/Twilio.</p>}
+              <p className="text-xs text-muted-foreground">{testChannel === "whatsapp" ? "L’envoi utilise votre session Senndo appairée à l’état connected (+2250564551717)." : testChannel === "voice" ? "Le destinataire recevra un appel automatisé si la fonction vocale est activée sur votre compte Senndo." : testChannel === "sms" ? "Format international recommandé, par exemple +225 suivi des 10 chiffres." : "Utilisez une boîte que vous pouvez consulter."}</p>
+              {testChannel === "whatsapp" && <p className="text-xs font-medium text-amber-700">WhatsApp appairé : l’API utilise whatsapp_baileys et l’identifiant de session connected obtenu depuis Senndo. Aucun basculement vers Cloud/Twilio.</p>}
             </div>
           </div>
 {testChannel === "email" && <div className="space-y-2">
