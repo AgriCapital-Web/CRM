@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
         return reply(req, { error: "Impossible de lire les sessions WhatsApp Senndo (HTTP " + sessionsResponse.status + ")." + (detail ? " " + detail : ""), providerStatus: sessionsResponse.status, code: "WHATSAPP_SESSION_LOOKUP_FAILED" }, 502);
       }
       const sessions = Array.isArray(sessionsPayload) ? sessionsPayload : Array.isArray(sessionsPayload?.sessions) ? sessionsPayload.sessions : Array.isArray(sessionsPayload?.data) ? sessionsPayload.data : Array.isArray(sessionsPayload?.items) ? sessionsPayload.items : [];
-      const digits = (v: unknown) => String(v || "").replace(/\\D/g, "");
+      const digits = (v: unknown) => String(v || "").replace(/\D/g, "");
       const senderDigits = digits("+2250564551717");
       const phoneOf = (s: any) => s?.phoneNumber ?? s?.phone ?? s?.displayPhoneNumber ?? s?.number ?? s?.jid ?? "";
       const connected = sessions.filter((s: any) => String(s?.status ?? s?.state ?? s?.connectionStatus ?? "").toLowerCase() === "connected");
