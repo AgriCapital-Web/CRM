@@ -371,10 +371,11 @@ const GestionPaiements = () => {
 
   // Search client by phone
   const searchClient = async (phone: string, target: 'source' | 'target') => {
-    if (phone.length < 8) return;
+    const safe = phone.replace(/[^\p{L}\p{N}\s+\-_.]/gu, "").trim();
+    if (safe.length < 8) return;
     const { data, error } = await (supabase as any).from('clients')
       .select('id,nom_complet,telephone,id_unique,type_client,is_internal,contrat_solde_at,montant_total_contrat')
-      .or(`telephone.ilike.%${phone}%,whatsapp.ilike.%${phone}%,id_unique.ilike.%${phone}%`)
+      .or(`telephone.ilike.%${safe}%,whatsapp.ilike.%${safe}%,id_unique.ilike.%${safe}%`)
       .eq('statut','actif').limit(10);
     if (error) { toast({variant:"destructive",title:"Recherche impossible",description:getSafeErrorMessage(error)}); return; }
     const candidate = (data||[])[0];

@@ -26,16 +26,33 @@ export default function GeographieCascade({
   const [sousPrefectures, setSousPrefectures] = useState<any[]>([]);
   const [villages, setVillages] = useState<any[]>([]);
   const selectedDistrict = districts.find((d) => d.id === districtId);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const channel = supabase.channel(`geo-cascade-${Math.random().toString(36).slice(2)}`);
+    for (const table of ["districts", "regions", "departements", "sous_prefectures", "villages"]) {
+      channel.on("postgres_changes" as any, { event: "*", schema: "public", table }, () => setTick((value) => value + 1));
+    }
+    channel.subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, []);
 
   useEffect(() => {
     let active = true;
     void (async () => {
-      const { data, error } = await (supabase as any).from("v_geo_districts")
-        .select("id,nom").eq("est_actif_effectif", true).order("nom");
-      if (active) setDistricts(error ? [] : (data || []));
+      const [{ data, error }, { data: regionRows }] = await Promise.all([
+        (supabase as any).from("v_geo_districts").select("id,nom").eq("est_actif_effectif", true).order("nom"),
+        (supabase as any).from("regions").select("district_id"),
+      ]);
+      const districtsWithChildren = new Set((regionRows || []).map((row: any) => row.district_id));
+      const sorted = (error ? [] : (data || [])).sort((a: any, b: any) =>
+        Number(districtsWithChildren.has(a.id)) - Number(districtsWithChildren.has(b.id)) ||
+        String(a.nom).localeCompare(String(b.nom), "fr")
+      );
+      if (active) setDistricts(sorted);
     })();
     return () => { active = false; };
-  }, []);
+  }, [tick]);
 
   useEffect(() => {
     if (!districtId) { setRegions([]); return; }
@@ -46,7 +63,7 @@ export default function GeographieCascade({
       if (active) setRegions(error ? [] : (data || []));
     })();
     return () => { active = false; };
-  }, [districtId]);
+  }, [districtId, tick]);
 
   useEffect(() => {
     if (!regionId) { setDepartements([]); return; }
@@ -57,7 +74,7 @@ export default function GeographieCascade({
       if (active) setDepartements(error ? [] : (data || []));
     })();
     return () => { active = false; };
-  }, [regionId]);
+  }, [regionId, tick]);
 
   useEffect(() => {
     if (!departementId) { setSousPrefectures([]); return; }
@@ -68,7 +85,7 @@ export default function GeographieCascade({
       if (active) setSousPrefectures(error ? [] : (data || []));
     })();
     return () => { active = false; };
-  }, [departementId]);
+  }, [departementId, tick]);
 
   useEffect(() => {
     if (!sousPrefectureId) { setVillages([]); return; }
@@ -79,7 +96,7 @@ export default function GeographieCascade({
       if (active) setVillages(error ? [] : (data || []));
     })();
     return () => { active = false; };
-  }, [sousPrefectureId]);
+  }, [sousPrefectureId, tick]);
 
   const hasChildren = !showDistrict || Boolean(districtId);
   return (

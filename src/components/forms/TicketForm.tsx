@@ -43,7 +43,7 @@ const TicketForm = ({ ticket, plantationId, onSuccess, onCancel, readOnly = fals
       const [{ data: clientsData }, { data: plantsData }, { data: regionsData }, { data: techniciansData }] = await Promise.all([
         (supabase as any).from("clients").select("id,id_unique,nom_complet,nom_famille,prenoms,region_id").not("statut","in","(archive,supprime)").order("nom_complet"),
         (supabase as any).from("plantations").select("id,id_unique,nom_plantation,client_id").order("created_at", { ascending: false }),
-        (supabase as any).from("regions").select("id,nom").order("nom"),
+        (supabase as any).from("v_geo_regions").select("id,nom").eq("est_active_effectif", true).order("nom"),
         (supabase as any).rpc("get_technician_directory"),
       ]);
       setClients(clientsData || []);
