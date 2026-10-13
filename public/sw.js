@@ -1,4 +1,4 @@
-const CACHE_NAME = "agricapital-crm-v3";
+const CACHE_NAME = "agricapital-crm-v4";
 const CACHE_PREFIX = "agricapital-crm-";
 
 self.addEventListener("install", (event) => {
