@@ -155,8 +155,9 @@ serve(async (req) => {
         .select("montant_total_contrat,reste_a_payer").eq("client_id", clientId).maybeSingle();
       if (summaryError) throw summaryError;
       const total = Number(summary?.montant_total_contrat ?? client.montant_total_contrat ?? 0);
-      const remaining = Number(summary?.reste_a_payer ?? 0);
-      if (client.contrat_solde_at || (total > 0 && remaining <= 0)) throw new Error("Ce contrat est déjà soldé.");
+      const hasSummary = Boolean(summary);
+      const remaining = Number(summary?.reste_a_payer ?? Number.POSITIVE_INFINITY);
+      if (client.contrat_solde_at || (hasSummary && total > 0 && remaining <= 0)) throw new Error("Ce contrat est déjà soldé.");
     };
 
     // === PI à 0 F : activation automatique sans passer par KKiaPay ===
