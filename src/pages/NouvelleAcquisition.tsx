@@ -267,7 +267,7 @@ const NouvelleAcquisition = () => {
 
   const last=current===activeSteps.length-1&&activeSteps.length>0;
   return <ProtectedRoute requiredPermissionCode="clients.create"><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
-    <div><h1 className="text-3xl font-bold">Nouveau Client</h1><p className="text-muted-foreground">Parcours commercial : offre, informations du Client, cotitulaire / mandataire, documents et confirmation. La parcelle est identifiée par le technicien lors de la première intervention.</p><SyncStatusBadge state={syncState} className="mt-2"/></div>
+    <div><h1 className="text-3xl font-bold">Nouveau Client</h1><SyncStatusBadge state={syncState} className="mt-2"/></div>
     <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>i<=current&&setCurrent(i)}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
     <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:renderStep()}</Card>
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">

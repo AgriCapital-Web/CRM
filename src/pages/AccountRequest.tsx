@@ -256,7 +256,6 @@ const AccountRequest = () => {
                 <Camera className="h-5 w-5 text-primary" />
                 <div className="min-w-0">
                   <Label className="text-sm font-semibold">Photo de profil *</Label>
-                  <p className="text-xs text-muted-foreground">La photo est téléversée automatiquement dès sa sélection, avant même l'envoi du formulaire.</p>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[150px_1fr] sm:items-center">
@@ -301,7 +300,6 @@ const AccountRequest = () => {
                 <Field label="Mot de passe *"><Input required minLength={8} type="password" autoComplete="new-password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="8 caractères minimum" /></Field>
                 <Field label="Confirmer *"><Input required type="password" autoComplete="new-password" value={formData.password_confirm} onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })} placeholder="Répéter le mot de passe" /></Field>
               </div>
-              <p className="text-xs text-muted-foreground">L'accès reste inactif jusqu'au traitement de la demande et à la confirmation de l'adresse email.</p>
             </div>
 
             {errorDetail && (

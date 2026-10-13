@@ -47,7 +47,7 @@ const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: 
       {shown ? <div className="overflow-hidden rounded-md border bg-muted/20">
         {isImage ? <img src={shown} alt={"Aperçu — " + label} className="mx-auto max-h-64 w-full object-contain" /> : preview ? <object data={shown} type="application/pdf" className="h-64 w-full"><a href={shown} target="_blank" rel="noreferrer">Consulter le document</a></object> : <div className="p-3 text-sm text-muted-foreground">Document enregistré</div>}
         <div className="border-t p-2 text-xs text-muted-foreground">{preview ? "Aperçu du fichier sélectionné" : "Fichier enregistré"}</div>
-      </div> : current ? <p className="text-xs text-muted-foreground">Chargement du fichier enregistré…</p> : <p className="text-xs text-muted-foreground">Utilisez la caméra ou choisissez un fichier sur votre appareil.</p>}
+      </div> : current ? <p className="text-xs text-muted-foreground">Chargement du fichier enregistré…</p> : null}
     </div>
   );
 };
@@ -81,7 +81,7 @@ const Profil = () => {
       const res = await uploadFile(bucket, file, user.id);
       if (!res?.path) throw new Error("Le stockage n'a pas confirmé l'enregistrement du fichier.");
       set(field, res.path);
-      toast({ title: "Fichier téléversé", description: "Cliquez sur Enregistrer pour associer le fichier à votre profil." });
+      toast({ title: "Fichier téléversé" });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Envoi impossible", description: error?.message || "Le fichier n'a pas pu être envoyé." });
       throw error;

@@ -194,11 +194,7 @@ const InteractiveMapComponent = ({
             <span className="font-mono text-xs">
               Lat: {position[0].toFixed(6)} | Lng: {position[1].toFixed(6)}
             </span>
-          ) : (
-            <span className="text-muted-foreground">
-              Cliquez sur la carte ou utilisez "Ma position"
-            </span>
-          )}
+          ) : null}
         </div>
       )}
     </div>

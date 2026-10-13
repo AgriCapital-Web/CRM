@@ -94,7 +94,7 @@ export default function PublicLead() {
         <div className="text-center mb-6">
           <img src={logoV2} alt="AgriCapital — Investir la terre. Cultiver l'avenir." className="h-24 md:h-28 w-auto mx-auto mb-4" />
           <h1 className="text-2xl md:text-3xl font-bold">Devenir client</h1>
-          <p className="text-muted-foreground mt-2 text-sm md:text-base">Un conseiller vous rappelle.</p>
+
         </div>
 
         <form onSubmit={submit} className="space-y-6">

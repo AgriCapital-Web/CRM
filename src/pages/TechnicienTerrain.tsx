@@ -51,6 +51,7 @@ const TechnicienTerrain=()=>{
   const [loading,setLoading]=useState(true);
   const [activeTab,setActiveTab]=useState("rapport");
   const [saving,setSaving]=useState(false);
+  const [capturingReportPosition,setCapturingReportPosition]=useState(false);
   const [transferPlantationId,setTransferPlantationId]=useState("");
   const [transferClientId,setTransferClientId]=useState("");
   const [transferSaving,setTransferSaving]=useState(false);
@@ -134,10 +135,7 @@ const TechnicienTerrain=()=>{
     setIntervention((x:any)=>({...x,parcelle_id:parcelId,convention_id:parcel?.convention_id||"",lot_id:""}));
   },[intervention.client_id,technicalOwnLand,parcelles]);
 
-  useEffect(()=>{
-    if(activeTab!=="rapport" || report.localisation_gps_lat || report.localisation_gps_lng || !navigator.geolocation)return;
-    navigator.geolocation.getCurrentPosition(({coords})=>setReport((current:any)=>({...current,localisation_gps_lat:String(coords.latitude),localisation_gps_lng:String(coords.longitude)})),()=>undefined,{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
-  },[activeTab,report.localisation_gps_lat,report.localisation_gps_lng]);
+
 
   useEffect(()=>{
     if(!intervention.parcelle_id)return;
@@ -176,6 +174,22 @@ const TechnicienTerrain=()=>{
   },[plantation,offerConfigs]);
   // Le référentiel technique est partagé avec le Portail : on affiche toujours toutes les étapes actives, dans l'ordre du référentiel.
   const applicableStages=stageRefs;
+
+  const captureReportPosition=()=>{
+    if(!navigator.geolocation){
+      toast({variant:"destructive",title:"Géolocalisation indisponible",description:"Votre appareil ou navigateur ne permet pas de récupérer la position."});
+      return;
+    }
+    setCapturingReportPosition(true);
+    navigator.geolocation.getCurrentPosition(({coords})=>{
+      setReport((current:any)=>({...current,localisation_gps_lat:String(coords.latitude),localisation_gps_lng:String(coords.longitude)}));
+      setCapturingReportPosition(false);
+      toast({title:"Position enregistrée"});
+    },(error)=>{
+      setCapturingReportPosition(false);
+      toast({variant:"destructive",title:"Position non enregistrée",description:error.code===1?"Autorisez l’accès à la position pour enregistrer les coordonnées.":"Impossible de récupérer la position. Vérifiez le GPS puis réessayez."});
+    },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  };
 
   const saveReport=async(submit:boolean)=>{
     if(!report.plantation_id){toast({variant:"destructive",title:"Plantation requise"});return;}
@@ -362,8 +376,8 @@ const TechnicienTerrain=()=>{
           </div>
           <div className="grid md:grid-cols-2 gap-4"><div><Label>Constat</Label><Textarea value={report.constat} onChange={e=>setReport((x:any)=>({...x,constat:e.target.value}))}/></div><div><Label>{!palmInvest?"Actions d’encadrement / suivi":"Travaux réalisés"}</Label><Textarea value={report.travaux_realises} onChange={e=>setReport((x:any)=>({...x,travaux_realises:e.target.value}))}/></div></div>
           <div className="grid md:grid-cols-2 gap-4"><div><Label>Observations</Label><Textarea value={report.observations} onChange={e=>setReport((x:any)=>({...x,observations:e.target.value}))}/></div><div><Label>Recommandations</Label><Textarea value={report.recommandations} onChange={e=>setReport((x:any)=>({...x,recommandations:e.target.value}))}/></div></div>
-          <div><Label>Message destiné au client</Label><Textarea value={report.contenu_client} onChange={e=>setReport((x:any)=>({...x,contenu_client:e.target.value}))} placeholder="Ce message pourra être publié dans l’espace client après validation technique."/></div>
-          <div className="grid md:grid-cols-3 gap-4"><div><Label>Prochaine intervention</Label><Input type="date" value={report.prochaine_intervention} onChange={e=>setReport((x:any)=>({...x,prochaine_intervention:e.target.value}))}/></div><div><Label>Latitude</Label><Input value={report.localisation_gps_lat} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div><div><Label>Longitude</Label><Input value={report.localisation_gps_lng} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div></div>
+          <div><Label>Message destiné au client</Label><Textarea value={report.contenu_client} onChange={e=>setReport((x:any)=>({...x,contenu_client:e.target.value}))}/></div>
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4"><div><Label>Prochaine intervention</Label><Input type="date" value={report.prochaine_intervention} onChange={e=>setReport((x:any)=>({...x,prochaine_intervention:e.target.value}))}/></div><div><Label>Latitude</Label><Input type="number" step="any" value={report.localisation_gps_lat} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div><div><Label>Longitude</Label><Input type="number" step="any" value={report.localisation_gps_lng} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div><div className="flex items-end"><Button type="button" variant="outline" className="w-full" disabled={capturingReportPosition} onClick={captureReportPosition}>{capturingReportPosition?"Localisation…":"Enregistrer ma position"}</Button></div></div>
           <div><MediaUploadVisual label="Photos / vidéos" files={media} onChange={setMedia}/></div>
           <div className="flex gap-3 justify-end"><Button variant="outline" disabled={saving} onClick={()=>saveReport(false)}>Enregistrer brouillon</Button><Button disabled={saving} onClick={()=>saveReport(true)}>Soumettre le rapport</Button></div>
         </CardContent></Card>
@@ -385,7 +399,7 @@ const TechnicienTerrain=()=>{
             <div><Label>Plantation</Label><Select value={intervention.plantation_id||"none"} disabled={!intervention.client_id} onValueChange={v=>{const p=plantations.find(x=>x.id===v);setIntervention((x:any)=>({...x,plantation_id:v==="none"?"":v,parcelle_id:p?.parcelle_id||x.parcelle_id}));}}><SelectTrigger><SelectValue placeholder={intervention.client_id?"Choisir une plantation du client":"Sélectionner d’abord un client"}/></SelectTrigger><SelectContent><SelectItem value="none">Aucune — avant plantation</SelectItem>{plantations.filter(p=>p.client_id===intervention.client_id).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_plantation||p.nom||p.id_unique}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Date *</Label><Input type="date" value={intervention.date_intervention} onChange={e=>setIntervention((x:any)=>({...x,date_intervention:e.target.value}))}/></div>
           </div>
-          {!technicalPalmInvest && !intervention.parcelle_id && !interventionPlantation?.parcelle_id && intervention.client_id && <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-4"><div><h3 className="font-semibold">Identification foncière — première visite</h3><p className="text-sm text-muted-foreground">Parcelle associée à la plantation suivie.</p></div><div className="grid md:grid-cols-3 gap-4"><div><Label>Nom / référence de la parcelle *</Label><Input value={intervention.nouvelle_parcelle_nom||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_nom:e.target.value}))} placeholder="Nom ou référence terrain"/></div><div><Label>Superficie (ha) *</Label><Input type="number" min="0.1" step="0.1" value={intervention.nouvelle_parcelle_surface||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_surface:e.target.value}))}/></div><div><Label>Village / localité *</Label><Input value={intervention.nouvelle_parcelle_village||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_village:e.target.value}))}/></div></div></div>}
+          {!technicalPalmInvest && !intervention.parcelle_id && !interventionPlantation?.parcelle_id && intervention.client_id && <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-4"><div><h3 className="font-semibold">Identification foncière — première visite</h3></div><div className="grid md:grid-cols-3 gap-4"><div><Label>Nom / référence de la parcelle *</Label><Input value={intervention.nouvelle_parcelle_nom||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_nom:e.target.value}))} placeholder="Nom ou référence terrain"/></div><div><Label>Superficie (ha) *</Label><Input type="number" min="0.1" step="0.1" value={intervention.nouvelle_parcelle_surface||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_surface:e.target.value}))}/></div><div><Label>Village / localité *</Label><Input value={intervention.nouvelle_parcelle_village||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_village:e.target.value}))}/></div></div></div>}
           {technicalPalmInvest&&<div className="grid md:grid-cols-2 gap-4 rounded-xl border p-4">
             <div><Label>Convention foncière active *</Label><Select value={intervention.convention_id||""} onValueChange={v=>{const conv=conventions.find((item:any)=>item.id===v);setIntervention((x:any)=>({...x,convention_id:v,lot_id:"",parcelle_id:conv?.parcelle_id||""}));}}><SelectTrigger><SelectValue placeholder="Sélectionner une convention"/></SelectTrigger><SelectContent>{conventions.map(c=><SelectItem key={c.id} value={c.id}>{c.reference} — {c.proprietaire?.nom_complet||"Propriétaire non renseigné"}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Lot disponible *</Label><Select value={intervention.lot_id||""} onValueChange={v=>{const lot=lots.find(l=>l.id===v);setIntervention((x:any)=>({...x,lot_id:v,parcelle_id:lot?.parcelle_id||""}));}} disabled={!intervention.convention_id}><SelectTrigger><SelectValue placeholder="Sélectionner un lot"/></SelectTrigger><SelectContent>{lots.map(l=><SelectItem key={l.id} value={l.id}>{l.reference||("H"+String(l.numero_h).padStart(2,"0"))} — {l.surface_ha} ha</SelectItem>)}</SelectContent></Select></div>
@@ -395,7 +409,7 @@ const TechnicienTerrain=()=>{
             <div><Label>Statut</Label><Select value={intervention.statut} onValueChange={v=>setIntervention((x:any)=>({...x,statut:v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{interventionStatusRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
           </div>
           <div className="rounded-xl border p-4 space-y-4">
-            <div><Label>Localisation GPS</Label><p className="text-xs text-muted-foreground">La localisation de la parcelle est identifiée par le technicien et rattachée au dossier.</p></div>
+            <div><Label>Localisation GPS</Label></div>
             <div className="flex gap-2">
               <Button type="button" variant={localisationMode==="automatic"?"default":"outline"} onClick={()=>setLocalisationMode("automatic")}>Localisation automatique</Button>
               <Button type="button" variant={localisationMode==="manual"?"default":"outline"} onClick={()=>setLocalisationMode("manual")}>Localisation manuelle</Button>
@@ -405,10 +419,10 @@ const TechnicienTerrain=()=>{
               <div><Label>Longitude</Label><Input type="number" step="any" value={intervention.localisation_gps_lng||""} onChange={e=>setIntervention((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div>
             </div>}
             <InteractiveMap mode="pick" position={intervention.localisation_gps_lat&&intervention.localisation_gps_lng?[Number(intervention.localisation_gps_lat),Number(intervention.localisation_gps_lng)]:null} onPositionChange={(lat,lng)=>setIntervention((x:any)=>({...x,localisation_gps_lat:String(lat),localisation_gps_lng:String(lng)}))} height="320px" />
-            {localisationMode==="automatic"&&<p className="text-xs text-muted-foreground">Utilisez « Ma position » sur la carte pour détecter automatiquement les coordonnées du terrain.</p>}
+            
           </div>
           <div className="grid md:grid-cols-2 gap-4"><div><Label>Constat / observations</Label><Textarea value={intervention.observations} onChange={e=>setIntervention((x:any)=>({...x,observations:e.target.value}))}/></div><div><Label>Recommandations</Label><Textarea value={intervention.recommandations} onChange={e=>setIntervention((x:any)=>({...x,recommandations:e.target.value}))}/></div></div>
-           {(intervention.type_intervention==="mise_en_terre"||intervention.type_intervention==="remplacement") && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 rounded-xl border bg-muted/20 p-4"><div><Label>Densité (plants/ha)</Label><Input type="number" min="1" value={intervention.densite_plants} onChange={e=>setIntervention((x:any)=>({...x,densite_plants:e.target.value}))}/><p className="text-[10px] text-muted-foreground mt-1">Valeur de référence fournie par la base de données.</p></div><div><Label>Plants prévus</Label><Input type="number" min="0" value={intervention.nombre_plants_prevus} onChange={e=>setIntervention((x:any)=>({...x,nombre_plants_prevus:e.target.value}))}/></div><div><Label>{intervention.type_intervention==="remplacement"?"Plants remplacés":"Plants mis en terre"}</Label><Input type="number" min="0" value={intervention.type_intervention==="remplacement"?intervention.nombre_plants_remplaces:intervention.nombre_plants_realises} onChange={e=>setIntervention((x:any)=>intervention.type_intervention==="remplacement"?({...x,nombre_plants_remplaces:e.target.value}):({...x,nombre_plants_realises:e.target.value}))}/></div><div><Label>Calcul prévu</Label><div className="h-10 rounded-md border bg-background px-3 flex items-center text-sm">{(()=>{const p=plantations.find(x=>x.id===intervention.plantation_id);const ha=Number(p?.superficie_ha||0);return ha && Number(intervention.densite_plants)>0?`${Math.round(ha*Number(intervention.densite_plants))} plants`:"Renseignez la densité";})()}</div></div></div>}
+           {(intervention.type_intervention==="mise_en_terre"||intervention.type_intervention==="remplacement") && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 rounded-xl border bg-muted/20 p-4"><div><Label>Densité (plants/ha)</Label><Input type="number" min="1" value={intervention.densite_plants} onChange={e=>setIntervention((x:any)=>({...x,densite_plants:e.target.value}))}/></div><div><Label>Plants prévus</Label><Input type="number" min="0" value={intervention.nombre_plants_prevus} onChange={e=>setIntervention((x:any)=>({...x,nombre_plants_prevus:e.target.value}))}/></div><div><Label>{intervention.type_intervention==="remplacement"?"Plants remplacés":"Plants mis en terre"}</Label><Input type="number" min="0" value={intervention.type_intervention==="remplacement"?intervention.nombre_plants_remplaces:intervention.nombre_plants_realises} onChange={e=>setIntervention((x:any)=>intervention.type_intervention==="remplacement"?({...x,nombre_plants_remplaces:e.target.value}):({...x,nombre_plants_realises:e.target.value}))}/></div><div><Label>Calcul prévu</Label><div className="h-10 rounded-md border bg-background px-3 flex items-center text-sm">{(()=>{const p=plantations.find(x=>x.id===intervention.plantation_id);const ha=Number(p?.superficie_ha||0);return ha && Number(intervention.densite_plants)>0?`${Math.round(ha*Number(intervention.densite_plants))} plants`:"Renseignez la densité";})()}</div></div></div>}
           <div className="flex justify-end"><Button disabled={saving} onClick={saveIntervention}>Enregistrer l’intervention</Button></div>
         </CardContent></Card>
       </TabsContent>

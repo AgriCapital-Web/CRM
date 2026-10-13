@@ -233,9 +233,9 @@ export default function Leads() {
           departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
           village_id: leadForm.village_id || null, region_residence: leadForm.region_residence,
           dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
-          superficie_disponible_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_disponible_ha) : null,
-          superficie_a_valoriser_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_a_valoriser_ha) : null,
-          superficie_souhaitee_ha: leadForm.type_lead === "client" ? num(leadForm.superficie_souhaitee_ha) : null,
+          superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
+          superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
+          superficie_souhaitee_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain !== "oui" ? num(leadForm.superficie_souhaitee_ha) : null,
           delai_demarrage: leadForm.delai_demarrage || null,
           date_contact_souhaitee: leadForm.date_contact_souhaitee || null,
           creneau_prefere: leadForm.creneau_prefere || null,
@@ -262,9 +262,9 @@ export default function Leads() {
         email: leadForm.email || null,
         district_id: leadForm.district_id || null, region_id: leadForm.region_id || null, departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null, village_id: leadForm.village_id || null, region_residence: leadForm.region_residence, campement_quartier: leadForm.campement_quartier.trim() || null,
         dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
-        superficie_disponible_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_disponible_ha) : null,
-        superficie_a_valoriser_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui" ? num(leadForm.superficie_a_valoriser_ha) : null,
-        superficie_souhaitee_ha: leadForm.type_lead === "client" ? num(leadForm.superficie_souhaitee_ha) : null,
+        superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
+        superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
+        superficie_souhaitee_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain !== "oui" ? num(leadForm.superficie_souhaitee_ha) : null,
         delai_demarrage: leadForm.delai_demarrage || null,
         date_contact_souhaitee: leadForm.date_contact_souhaitee || null,
         creneau_prefere: leadForm.creneau_prefere || null,
@@ -456,7 +456,7 @@ export default function Leads() {
                     <p><b>Région:</b> {selected.region_residence || "—"}</p>
                     <p><b>Type:</b> {selected.type_lead === "proprietaire_foncier" ? "Propriétaire foncier" : "Client"}</p>
                     {selected.type_lead === "client" && <p><b>Offre / formule:</b> {selected.offre_code || "—"} / {selected.formule_code || "—"}</p>}
-                    <p><b>Terrain:</b> {selected.dispose_terrain ? `Oui — ${selected.superficie_disponible_ha || 0} ha dispo, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : `Non — souhaite ${selected.superficie_souhaitee_ha || 0} ha`}</p>
+                    <p><b>Terrain:</b> {selected.type_lead === "proprietaire_foncier" ? `${selected.superficie_disponible_ha || 0} ha disponibles, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : selected.dispose_terrain ? `Oui — ${selected.superficie_disponible_ha || 0} ha disponibles, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : `Non — souhaite ${selected.superficie_souhaitee_ha || 0} ha`}</p>
                     <p><b>Délai:</b> {selected.delai_demarrage || "—"} • <b>Créneau:</b> {selected.creneau_prefere || "—"} • <b>Mode:</b> {selected.mode_contact_prefere}</p>
                     <p><b>Source:</b> {selected.source}</p>
                     <p><b>Message:</b> {selected.commentaire || "—"}</p>
@@ -528,7 +528,7 @@ export default function Leads() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Label>Type de prospect *</Label>
-                <Select value={leadForm.type_lead} onValueChange={(v) => setLeadForm(x => ({ ...x, type_lead: v, offre_code: v === "client" ? x.offre_code : "", formule_code: v === "client" ? x.formule_code : "", dispose_terrain: v === "proprietaire_foncier" ? "non" : x.dispose_terrain, superficie_disponible_ha: v === "proprietaire_foncier" ? "" : x.superficie_disponible_ha, superficie_a_valoriser_ha: v === "proprietaire_foncier" ? "" : x.superficie_a_valoriser_ha, superficie_souhaitee_ha: v === "proprietaire_foncier" ? "" : x.superficie_souhaitee_ha }))}>
+                <Select value={leadForm.type_lead} onValueChange={(v) => setLeadForm(x => ({ ...x, type_lead: v, offre_code: v === "client" ? x.offre_code : "", formule_code: v === "client" ? x.formule_code : "" }))}>
                   <SelectTrigger><SelectValue placeholder="Choisir le type de prospect" /></SelectTrigger>
                   <SelectContent><SelectItem value="client">Client</SelectItem><SelectItem value="proprietaire_foncier">Propriétaire foncier</SelectItem></SelectContent>
                 </Select>
@@ -562,14 +562,19 @@ export default function Leads() {
                   <SelectContent>{refs("oui_non").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
                 </Select>
               </div>}
-              {leadForm.type_lead === "client" && (leadForm.dispose_terrain === "oui" ? (
+              {leadForm.type_lead === "proprietaire_foncier" ? (
+                <>
+                  <div><Label>Superficie disponible (ha) *</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_disponible_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_disponible_ha: e.target.value })} required /></div>
+                  <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
+                </>
+              ) : leadForm.dispose_terrain === "oui" ? (
                 <>
                   <div><Label>Superficie disponible (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_disponible_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_disponible_ha: e.target.value })} /></div>
                   <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
                 </>
               ) : (
                 <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_souhaitee_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_souhaitee_ha: e.target.value })} /></div>
-              ))}
+              )}
               <div>
                 <Label>Délai de démarrage</Label>
                 <Select value={leadForm.delai_demarrage} onValueChange={(v) => setLeadForm({ ...leadForm, delai_demarrage: v })}>
@@ -620,11 +625,7 @@ export default function Leads() {
                     onChange={(v) => setLeadForm((x) => ({ ...x, assigned_to: v || "" }))}
                     placeholder={hasCommercialAccess && user?.id ? "Moi-même par défaut — choisir un autre commercial" : "Rechercher ou sélectionner un commercial"}
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {isServiceClient
-                      ? "Le Service Client peut attribuer le lead à un commercial terrain."
-                      : "Sélectionnez le commercial terrain responsable du lead."}
-                  </p>
+
                 </div>
               )}
               <div className="sm:col-span-2"><Label>Note / Commentaire</Label><Textarea value={leadForm.commentaire} onChange={(e) => setLeadForm({ ...leadForm, commentaire: e.target.value })} rows={3} /></div>

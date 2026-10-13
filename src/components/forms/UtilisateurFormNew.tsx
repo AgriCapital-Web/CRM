@@ -546,7 +546,6 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           <div className="space-y-2">
             <Label>Salaire de base mensuel (FCFA)</Label>
             <Input type="number" min="0" step="1" {...register("salaire_base")} defaultValue={utilisateur?.salaire_base ?? ""} placeholder="Laisser vide si non salarié" />
-            <p className="text-xs text-muted-foreground">Un salaire positif rend ce profil éligible à la préparation de la paie.</p>
           </div>
 
           {!governanceOnly && showEquipe && <div className="space-y-2">

@@ -227,11 +227,7 @@ const ScanCarteDialog = ({ open, onOpenChange, onCode }: Props) => {
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
             {erreur}
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Lecture automatique haute fréquence : maintenez la carte imprimée devant l’objectif, même à quelques centimètres.
-          </p>
-        )}
+        ) : null}
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Button variant="outline" onClick={() => setEssai((n) => n + 1)} disabled={starting || scanningImage}>
