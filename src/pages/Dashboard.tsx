@@ -76,7 +76,13 @@ const Dashboard = () => {
     partnershipHa: 0,
     ownerAreaHa: 0,
     partnershipTotalHa: 0,
+    partnershipPlantedHa: 0,
+    partnershipRemainingHa: 0,
+    partnerOwnerAreaHa: 0,
+    partnerOwnerPlantedHa: 0,
+    partnerOwnerRemainingHa: 0,
     agriCapitalAreaHa: 0,
+    agriCapitalSoldToClientsHa: 0,
     foncierPlantedHa: 0,
     foncierRemainingHa: 0,
     clientParcelCount: 0,
@@ -250,17 +256,44 @@ const Dashboard = () => {
         return Number(convention?.part_agricapital_ha ?? p.surface_agricapital_ha ?? 0);
       };
       const partnershipTotalHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
-      const partnershipHa = partnershipTotalHa;
       const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
-      const agriCapitalAreaHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + partnershipAreaFor(p), 0);
+      const plantedByPartnershipParcel = new Map<string, number>();
+      plantations.filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id)).forEach((p: any) => {
+        const amount = Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0);
+        plantedByPartnershipParcel.set(p.parcelle_id, (plantedByPartnershipParcel.get(p.parcelle_id) || 0) + amount);
+      });
+      const partnershipMetrics = validatedPartnershipParcels.reduce((acc: any, p: any) => {
+        const convention = activeConventionByParcel.get(p.id);
+        const total = Math.max(0, Number(p.surface_totale_ha || 0));
+        const agriShare = Math.min(total, Math.max(0, partnershipAreaFor(p)));
+        const ownerShare = Math.min(Math.max(0, total - agriShare), Math.max(0, Number(convention?.part_proprietaire_ha ?? p.surface_proprietaire_ha ?? (total - agriShare))));
+        const transferred = Math.min(agriShare, Math.max(0, Number(p.surface_attribuee_ha || 0)));
+        const planted = Math.min(total, Math.max(0, plantedByPartnershipParcel.get(p.id) || 0));
+        const agriPlanted = total > 0 ? Math.min(Math.max(0, agriShare - transferred), planted * agriShare / total) : 0;
+        const ownerPlanted = total > 0 ? Math.min(ownerShare, planted * ownerShare / total) : 0;
+        acc.planted += planted;
+        acc.ownerArea += ownerShare;
+        acc.ownerPlanted += ownerPlanted;
+        acc.ownerRemaining += Math.max(0, ownerShare - ownerPlanted);
+        acc.agriArea += agriShare;
+        acc.agriPlanted += agriPlanted;
+        acc.agriTransferred += transferred;
+        acc.agriRemaining += Math.max(0, agriShare - transferred - agriPlanted);
+        return acc;
+      }, {planted:0,ownerArea:0,ownerPlanted:0,ownerRemaining:0,agriArea:0,agriPlanted:0,agriTransferred:0,agriRemaining:0});
+      const partnershipPlantedHa = partnershipMetrics.planted;
+      const partnershipRemainingHa = partnershipMetrics.ownerRemaining + partnershipMetrics.agriRemaining;
+      const partnerOwnerAreaHa = partnershipMetrics.ownerArea;
+      const partnerOwnerPlantedHa = partnershipMetrics.ownerPlanted;
+      const partnerOwnerRemainingHa = partnershipMetrics.ownerRemaining;
+      const agriCapitalAreaHa = partnershipMetrics.agriArea;
+      const agriCapitalSoldToClientsHa = partnershipMetrics.agriTransferred;
+      const foncierPlantedHa = partnershipMetrics.agriPlanted;
+      const foncierRemainingHa = partnershipMetrics.agriRemaining;
       const clientParcelIds = new Set(clients.filter((c: any) => !c.is_internal && c.type_client !== "beneficiaire_particulier" && c.parcelle_id).map((c: any) => c.parcelle_id).filter((id: string) => !validatedPartnershipParcelIds.has(id)));
       const clientParcelRows = parcelles.filter((p: any) => clientParcelIds.has(p.id));
       const clientParcelCount = clientParcelRows.length;
       const clientParcelAreaHa = clientParcelRows.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
-      const foncierPlantedHa = Math.min(agriCapitalAreaHa, plantations
-        .filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id))
-        .reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0));
-      const foncierRemainingHa = Math.max(0, agriCapitalAreaHa - foncierPlantedHa);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
       const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
@@ -305,7 +338,13 @@ const Dashboard = () => {
         partnershipHa,
         ownerAreaHa,
         partnershipTotalHa,
+        partnershipPlantedHa,
+        partnershipRemainingHa,
+        partnerOwnerAreaHa,
+        partnerOwnerPlantedHa,
+        partnerOwnerRemainingHa,
         agriCapitalAreaHa,
+        agriCapitalSoldToClientsHa,
         foncierPlantedHa,
         foncierRemainingHa,
         clientParcelCount,
@@ -522,7 +561,7 @@ const Dashboard = () => {
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires partenaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface totale déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
-      ...(canParcelles || canPlantations ? [{label:"Parcelles partenaires",value:stats.proprietaireParcelles,href:"/parcelles"},{label:"Surface totale en partenariat",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},{label:"Part AgriCapital restante",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},{label:"Parcelles clients",value:stats.clientParcelCount,href:"/parcelles"},{label:"Surface parcelles clients",value:num(stats.clientParcelAreaHa)+" ha",href:"/parcelles"}] : []),
+      ...(canParcelles || canPlantations ? [{label:"Parcelles partenaires",value:stats.proprietaireParcelles,href:"/parcelles"},{label:"Surface totale en partenariat",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},{label:"Surface partenaire plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},{label:"Surface partenaire restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},{label:"Part propriétaire partenaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/proprietaires-terres"},{label:"Part propriétaire plantée",value:num(stats.partnerOwnerPlantedHa)+" ha",href:"/plantations"},{label:"Part propriétaire restante",value:num(stats.partnerOwnerRemainingHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},{label:"Part AgriCapital attribuée aux clients",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital disponible",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},{label:"Parcelles clients",value:stats.clientParcelCount,href:"/parcelles"},{label:"Surface parcelles clients",value:num(stats.clientParcelAreaHa)+" ha",href:"/parcelles"}] : []),
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations",value:stats.plantations,href:"/plantations"},
