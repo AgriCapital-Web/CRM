@@ -33,16 +33,15 @@ serve(async (req) => {
     if (action === "set_active") {
       step = "set_active";
       if (typeof actif !== "boolean") return json({ error: "Le statut actif doit être un booléen.", step }, 400);
-      const { data: updatedProfiles, error: updateError } = await admin
-        .from("profiles")
-        .update({ actif })
-        .or(`id.eq.${user_id},user_id.eq.${user_id}`)
-        .select("id,user_id,actif");
+      const { data: updatedProfiles, error: updateError } = await admin.rpc("admin_set_profile_active", {
+        p_user_id: user_id,
+        p_actif: actif,
+      });
       if (updateError) return json({ error: updateError.message, step }, 400);
-      const persisted = (updatedProfiles ?? []).find((p: any) => p.user_id === user_id || p.id === user_id);
+      const persisted = (updatedProfiles ?? []).find((p: any) => p.user_id === user_id || p.profile_id === user_id);
       if (!persisted) return json({ error: "Aucun profil correspondant à ce compte n'a été modifié.", step }, 404);
       if (persisted.actif !== actif) return json({ error: "Le statut du compte n'a pas été enregistré correctement.", step }, 500);
-      return json({ success: true, action, user_id, actif: persisted.actif, profile_id: persisted.id });
+      return json({ success: true, action, user_id, actif: persisted.actif, profile_id: persisted.profile_id });
     }
 
     if (action === "set_password") {
