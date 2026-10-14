@@ -93,7 +93,7 @@ export const PlantationsMap = () => {
           lat,
           lng,
           label: names ? `${names} — ${parcel.id_unique || "Parcelle"}` : (parcel.id_unique || parcel.nom || "Parcelle"),
-          info: `${names || "Parcelle"} • ${parcel.surface_agricapital_ha || parcel.surface_totale_ha || 0} ha • ${parcel.village || ""}`,
+          info: `${parcel.surface_agricapital_ha || parcel.surface_totale_ha || 0} ha${parcel.village ? ` • ${parcel.village}` : ""}`,
         });
       }
 
