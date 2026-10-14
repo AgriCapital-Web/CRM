@@ -75,6 +75,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [contactLead, setContactLead] = useState<any>(null);
   const [contactChannel, setContactChannel] = useState("whatsapp");
   const [contactMessage, setContactMessage] = useState("");
+  const [contactSending, setContactSending] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
     nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
@@ -350,27 +351,66 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     setContactMessage(message.slice(0, 200)); setContactOpen(true);
   };
 
-  const sendContact = () => {
+  const sendContact = async () => {
     if (!contactLead) return;
     const phone = String(contactLead.whatsapp || contactLead.telephone || "").replace(/[^0-9]/g, "");
     if (contactChannel === "appel") {
       if (!phone) { toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro avant de lancer l’appel." }); return; }
       window.location.href = `tel:${phone}`; setContactOpen(false); return;
     }
-    if (contactChannel === "whatsapp") {
-      if (!phone) { toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro avant d’ouvrir WhatsApp." }); return; }
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(contactMessage.slice(0, 200))}`, "_blank", "noopener,noreferrer");
-      setContactOpen(false); return;
+    if (!navigator.onLine) {
+      toast({ variant: "destructive", title: "Connexion requise", description: "Connectez-vous à Internet pour envoyer directement via Senndo." });
+      return;
     }
-    if (!contactLead.email) { toast({ variant: "destructive", title: "Adresse email manquante", description: "Ajoutez une adresse email pour préparer le message." }); return; }
-    window.location.href = `mailto:${encodeURIComponent(contactLead.email)}?subject=${encodeURIComponent("Suivi de votre projet de plantation de palmier à huile")}&body=${encodeURIComponent(contactMessage.slice(0, 200))}`;
-    setContactOpen(false);
+    if (contactChannel === "whatsapp" && !phone) {
+      toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro WhatsApp avant l’envoi." }); return;
+    }
+    if (contactChannel === "email" && !contactLead.email) {
+      toast({ variant: "destructive", title: "Adresse email manquante", description: "Ajoutez une adresse email avant l’envoi." }); return;
+    }
+    const message = Array.from(contactMessage).slice(0, 200).join("");
+    if (!message.trim()) {
+      toast({ variant: "destructive", title: "Message vide", description: "Rédigez un message avant l’envoi." }); return;
+    }
+    setContactSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("notification-dispatch", {
+        body: {
+          mode: "manual_contact",
+          lead_id: contactLead.id,
+          channel: contactChannel,
+          content: message,
+          subject: "Suivi de votre projet de plantation de palmier à huile",
+          request_id: crypto.randomUUID(),
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "L’envoi n’a pas été confirmé par Senndo.");
+      toast({
+        title: contactChannel === "whatsapp" ? "WhatsApp envoyé à Senndo" : "Email envoyé à Senndo",
+        description: `Demande acceptée par Senndo · ${data.characterCount ?? message.length}/200 caractères.`,
+      });
+      setContactOpen(false);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Échec de l’envoi", description: getSafeErrorMessage(e) });
+    } finally {
+      setContactSending(false);
+    }
   };
 
-  const convertToClient = (lead: any) => {
+  const convertToClient = async (lead: any) => {
     const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
     if (!isOwner && !canSupervise) {
-      toast({ variant: "destructive", title: "Conversion refusée", description: "Ce prospect appartient à un autre commercial." });
+      toast({ variant: "destructive", title: "Conversion refusée", description: "Ce lead appartient à un autre commercial." });
+      return;
+    }
+    try {
+      const { error } = await offlineUpdate("leads", lead.id, {
+        etape_conversion: lead.etape_pipeline === "prospect" ? "prospect" : "lead",
+      });
+      if (error) throw error;
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Conversion impossible", description: getSafeErrorMessage(e) });
       return;
     }
     const params = new URLSearchParams({
@@ -591,9 +631,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             <div className="space-y-4">
               <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={setContactChannel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
               {(contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Message (200 caractères maximum)</Label><Textarea value={contactMessage} maxLength={200} onChange={e => setContactMessage(e.target.value.slice(0, 200))} rows={4} /><p className="text-right text-xs text-muted-foreground">{contactMessage.length}/200</p></div>}
-              <p className="text-xs text-muted-foreground">{contactChannel === "appel" ? `Le téléphone s’ouvrira avec le numéro ${contactLead?.telephone || "non renseigné"}.` : contactChannel === "whatsapp" ? "WhatsApp s’ouvrira avec le numéro et le message prérempli. Il restera à confirmer l’envoi dans WhatsApp." : "Votre application de messagerie s’ouvrira avec le destinataire, l’objet et le message préremplis."}</p>
+              <p className="text-xs text-muted-foreground">{contactChannel === "appel" ? `Le téléphone s’ouvrira avec le numéro ${contactLead?.telephone || "non renseigné"}.` : contactChannel === "whatsapp" ? "Le message personnalisé sera envoyé directement via Senndo à ce numéro WhatsApp." : "L’email personnalisé sera envoyé directement via Senndo à cette adresse."}</p>
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setContactOpen(false)}>Annuler</Button><Button onClick={sendContact}>{contactChannel === "appel" ? "Lancer l’appel" : contactChannel === "whatsapp" ? "Ouvrir WhatsApp" : "Préparer l’email"}</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={() => setContactOpen(false)} disabled={contactSending}>Annuler</Button><Button onClick={sendContact} disabled={contactSending}>{contactSending ? "Envoi en cours…" : contactChannel === "appel" ? "Lancer l’appel" : contactChannel === "whatsapp" ? "Envoyer via WhatsApp" : "Envoyer par email"}</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
