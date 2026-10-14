@@ -85,18 +85,18 @@ const Login = () => {
           <img
             src={logoV2}
             alt="AgriCapital"
-            className="login-brand-mobile__logo block h-auto object-contain"
+            className="login-brand-mobile__logo mx-auto block h-auto max-w-[min(72vw,20rem)] object-contain"
           />
           
         </div>
 
-        <div className="login-form-card w-full max-w-2xl rounded-3xl border bg-card/95 p-4 sm:p-8 lg:max-w-3xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
-          <div className="login-form-title mb-8 text-center lg:text-left">
+        <div className="login-form-card mx-auto w-full max-w-xl rounded-2xl border bg-card/95 p-4 sm:p-6 lg:max-w-3xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
+          <div className="login-form-title mb-4 text-center lg:mb-6 lg:text-left">
             <h2 className="text-[clamp(2rem,4.4vw,3rem)] font-bold text-foreground">Connexion</h2>
             
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-foreground text-lg font-semibold">
                 Nom d'utilisateur
@@ -108,7 +108,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="login-input h-14 sm:h-16 lg:h-16 text-base sm:text-lg lg:text-xl"
+                className="login-input h-12 sm:h-14 lg:h-16 text-base sm:text-lg lg:text-xl"
                 disabled={isLoading}
                 autoComplete="username"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); passwordInputRef.current?.focus(); } }}
@@ -138,14 +138,14 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="login-input h-14 sm:h-16 lg:h-16 pr-14 text-base sm:text-lg lg:text-xl"
+                  className="login-input h-12 sm:h-14 lg:h-16 pr-14 text-base sm:text-lg lg:text-xl"
                   disabled={isLoading}
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-14 w-14 sm:h-16 sm:w-16 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-12 w-12 sm:h-14 sm:w-14 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -159,7 +159,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="login-submit w-full h-14 sm:h-16 lg:h-[4.25rem] text-lg sm:text-xl font-semibold gap-2"
+              className="login-submit w-full h-12 sm:h-14 lg:h-[4.25rem] text-base sm:text-xl font-semibold gap-2"
               disabled={isLoading}
             >
               <LogIn className="h-4 w-4" />
@@ -179,7 +179,7 @@ const Login = () => {
             </Button>
           </div>
 
-          <div className="login-support mt-8 pt-6 border-t text-center">
+          <div className="login-support mt-4 pt-3 lg:mt-8 lg:pt-6 border-t text-center">
             <p className="text-sm text-muted-foreground">
               Support: <a href="tel:+2250759566087" className="text-primary hover:underline font-medium">+225 07 59 56 60 87</a>
             </p>
