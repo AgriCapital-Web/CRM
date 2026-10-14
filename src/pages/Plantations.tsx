@@ -40,7 +40,7 @@ const Plantations = () => {
           *,
           clients (nom, prenoms, nom_complet, id, id_unique, is_internal, type_client, type_client_foncier, proprietaire_id),
           parcelles (id_unique, nom, village),
-          lots_hectares (id, reference, numero_h, surface_ha, client_id, parcelle_id),
+          lots_hectares (id, reference, numero_h, surface_ha, client_id, parcelle_id, parcelles (id_unique, nom, village)),
           regions (nom),
           departements (nom)
         `)
@@ -183,8 +183,8 @@ const Plantations = () => {
                         </Link>
                       ) : "—"}
                     </TableCell>
-                    <TableCell title={plantation.parcelles?.nom || plantation.parcelles?.id_unique || ""}>
-                      <span className="block max-w-[9rem] truncate">{plantation.parcelles?.nom || plantation.parcelles?.id_unique || plantation.parcelles?.village || "—"}</span>
+                    <TableCell title={plantation.parcelles?.nom || plantation.parcelles?.id_unique || plantation.lots_hectares?.parcelles?.nom || ""}>
+                      <span className="block max-w-[9rem] truncate">{plantation.parcelles?.nom || plantation.parcelles?.id_unique || plantation.parcelles?.village || plantation.lots_hectares?.parcelles?.nom || plantation.lots_hectares?.parcelles?.id_unique || plantation.lots_hectares?.parcelles?.village || "Parcelle partagée"}</span>
                     </TableCell>
                     <TableCell>
                       {plantation.clients?.type_client === "beneficiaire_particulier" && plantation.lots_hectares?.client_id === plantation.clients?.id
