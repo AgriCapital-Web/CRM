@@ -103,6 +103,7 @@ export async function uploadOrQueueFile(opts: {
     createdAt: Date.now(),
   };
   await putItem(STORES.FILES, entry);
+  await notifyFileQueueChanged();
   return { path: opts.path, queued: true, error: null };
 }
 
@@ -143,6 +144,7 @@ export async function retryQueuedFile(id: string): Promise<void> {
   const f = all.find((x) => x.id === id);
   if (!f) return;
   await putItem(STORES.FILES, { ...f, status: 'pending', uploadStartedAt: undefined, nextRetryAt: 0, error: undefined });
+  await notifyFileQueueChanged();
 }
 
 /** Relance toutes les pièces jointes en erreur. */
@@ -150,14 +152,16 @@ export async function retryAllQueuedFiles(): Promise<number> {
   const all = await getAllQueuedFiles();
   const failed = all.filter((f) => f.status === 'error' || f.nextRetryAt > Date.now());
   for (const f of failed) {
-    await putItem(STORES.FILES, { ...f, status: 'pending', nextRetryAt: 0, error: undefined });
+    await putItem(STORES.FILES, { ...f, status: 'pending', uploadStartedAt: undefined, nextRetryAt: 0, error: undefined });
   }
+  if (failed.length) await notifyFileQueueChanged();
   return failed.length;
 }
 
 /** Abandonne définitivement une pièce jointe. */
 export async function discardQueuedFile(id: string): Promise<void> {
   await deleteItem(STORES.FILES, id);
+  await notifyFileQueueChanged();
 }
 
 /**
@@ -196,7 +200,18 @@ export async function getFileQueueStats(): Promise<{ pending: number; error: num
 }
 
 export async function countQueuedFiles(): Promise<number> {
-  return (await getQueuedFiles()).length;
+  // Le compteur inclut aussi les fichiers momentanément en cours d'envoi.
+  return (await getAllQueuedFiles()).length;
+}
+
+async function notifyFileQueueChanged(): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const pendingFiles = await countQueuedFiles();
+    window.dispatchEvent(new CustomEvent("offline-file-queue-updated", { detail: { pendingFiles } }));
+  } catch {
+    // Le suivi de file ne doit jamais interrompre un enregistrement métier.
+  }
 }
 
 /** Vide la file d'attente des fichiers. Retourne le nombre d'uploads réussis. */
@@ -255,6 +270,7 @@ export async function flushFileQueue(): Promise<number> {
     return ok;
   } finally {
     fileFlushInProgress = false;
+    await notifyFileQueueChanged();
   }
 }
 
