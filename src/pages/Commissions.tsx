@@ -106,7 +106,7 @@ export default function Commissions() {
   const groups = useMemo(() => {
     const map = new Map<string, any>();
     for (const row of rows) {
-      const key = row.profile_id || row.profile?.nom_complet || "sans-commercial";
+      const key = [row.profile_id || row.profile?.nom_complet || "sans-commercial", row.commissionTeam?.id || "sans-equipe", row.type_commission || "inconnu"].join(":");
       const current = map.get(key) || {
         key, profile_id: row.profile_id, nom: formatUserShortName(row.profile?.nom_complet || "Collaborateur non renseigné"), type: row.type_commission === "technique" ? "Technicien" : "Commercial", equipe: row.commissionTeam?.nom || "Sans équipe",
         total: 0, base: 0, count: 0, calculee: 0, validee: 0, payee: 0, aPayer: 0, details: []
