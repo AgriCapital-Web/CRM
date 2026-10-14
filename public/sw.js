@@ -182,6 +182,16 @@ function txRequest(db, storeName, mode, action) {
 }
 
 async function runBackgroundHttpSync() {
+  const lockManager = self.navigator && self.navigator.locks;
+  if (lockManager && typeof lockManager.request === "function") {
+    return lockManager.request("agricapital-http-queue-flush", { mode: "exclusive" }, () =>
+      runBackgroundHttpSyncUnlocked()
+    );
+  }
+  return runBackgroundHttpSyncUnlocked();
+}
+
+async function runBackgroundHttpSyncUnlocked() {
   let db;
   try { db = await openOfflineDb(); } catch { return; }
   let rows = [];
