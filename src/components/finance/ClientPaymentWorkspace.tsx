@@ -272,7 +272,7 @@ export default function ClientPaymentWorkspace() {
         amount: paymentAmount,
         name: activeClient.nom_complet || "Client AgriCapital",
         phone: activeClient.telephone || "",
-        paymentMethods: ["momo", "card"],
+        paymentMethods: ["momo", "card", "wallet"],
         data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType, client_id: activeClient.id, souscription_id: activeContract.subscriptionId },
       });
       if (!opened) throw new Error("Le module KKiaPay ne s’est pas ouvert. Vérifiez la connexion et la configuration du compte marchand.");
