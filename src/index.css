@@ -781,3 +781,110 @@ All colors MUST be HSL.
   .login-form-card form > :not([hidden]) ~ :not([hidden]) { gap: 0.35rem !important; margin-top: 0.35rem !important; }
   .login-support { margin-top: 0.2rem !important; padding-top: 0.2rem !important; }
 }
+
+
+/* Final viewport audit: common layouts remain fluid from small phones to ultra-wide displays. */
+@layer base {
+  main,
+  main > *,
+  main > * > *,
+  [role="tabpanel"],
+  [data-radix-card-content],
+  [data-radix-card-header],
+  [data-radix-dialog-content],
+  [data-radix-sheet-content] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .grid,
+  .flex,
+  form,
+  section,
+  article {
+    min-width: 0;
+  }
+
+  .grid > *,
+  .flex > *,
+  form > *,
+  section > *,
+  article > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .card,
+  [data-radix-card] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .responsive-table,
+  [data-radix-scroll-area-viewport] {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (max-width: 767px) {
+    .grid-cols-3,
+    .grid-cols-4,
+    .grid-cols-5,
+    .grid-cols-6,
+    .grid-cols-7,
+    .grid-cols-8 {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    [data-radix-card-content] {
+      padding-inline: clamp(0.625rem, 3vw, 1rem);
+    }
+
+    [data-radix-card-header] {
+      padding-inline: clamp(0.625rem, 3vw, 1rem);
+    }
+
+    .page-header > div,
+    .data-toolbar > div {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .page-header button,
+    .data-toolbar button {
+      max-width: 100%;
+      white-space: normal;
+    }
+
+    input,
+    select,
+    textarea,
+    [role="combobox"] {
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .grid-cols-4,
+    .grid-cols-5,
+    .grid-cols-6,
+    .grid-cols-7,
+    .grid-cols-8 {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .grid-cols-3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .grid-cols-5,
+    .grid-cols-6,
+    .grid-cols-7,
+    .grid-cols-8 {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+  }
+}
