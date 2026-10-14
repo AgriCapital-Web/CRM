@@ -66,7 +66,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const { data: clients = [], isLoading, refetch } = useQuery({
     queryKey: ["gestion-paiements-clients"],
     queryFn: async () => {
-      const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }] = await Promise.all([
+      const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: subscriptions, error: subscriptionsError }] = await Promise.all([
         (supabase as any).from("clients")
           .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares")
           .eq("compte_actif", true)
@@ -74,13 +74,32 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         (supabase as any).from("v_client_synthese")
           .select("client_id,compte_actif,montant_total_contrat,total_paye,reste_a_payer")
           .eq("compte_actif", true),
+        (supabase as any).from("client_souscriptions")
+          .select("client_id,formule_nom,offre_nom,superficie_ha,montant_total_contrat")
+          .order("created_at", { ascending: false }),
       ]);
       if (clientsError) throw clientsError;
       if (summaryError) throw summaryError;
+      if (subscriptionsError) throw subscriptionsError;
       const byClient = new Map<string, any>((summaries || []).map((s: any) => [s.client_id, s]));
-      return (clientRows || []).map((c: any) => ({ ...c, summary: byClient.get(c.id) || null } as ClientFinanceRow))
+      const subscriptionMap = new Map<string, any[]>();
+      (subscriptions || []).forEach((s: any) => { const items = subscriptionMap.get(s.client_id) || []; items.push(s); subscriptionMap.set(s.client_id, items); });
+      return (clientRows || []).map((c: any) => {
+        const clientSubscriptions = subscriptionMap.get(c.id) || [];
+        const subscriptionTotal = clientSubscriptions.reduce((sum: number, s: any) => sum + Number(s.montant_total_contrat || 0), 0);
+        const summary = byClient.get(c.id) || null;
+        const principalTotal = Number(summary?.montant_total_contrat ?? c.montant_total_contrat ?? 0);
+        return {
+          ...c,
+          summary,
+          subscriptionTotal,
+          subscriptions: clientSubscriptions,
+          formule_nom: c.formule_nom || clientSubscriptions.map((s: any) => s.formule_nom || s.offre_nom).filter(Boolean).join(" · "),
+          montant_total_contrat: principalTotal + subscriptionTotal,
+        } as ClientFinanceRow;
+      })
         .filter((c: ClientFinanceRow) => {
-          const total = Number(c.summary?.montant_total_contrat ?? c.montant_total_contrat ?? 0);
+          const total = Number(c.montant_total_contrat ?? c.summary?.montant_total_contrat ?? 0);
           const remaining = Number(c.summary?.reste_a_payer ?? Math.max(0, total - Number(c.summary?.total_paye || 0)));
           const landRole = String(c.type_client_foncier || "").toLowerCase();
           const clientRole = String(c.type_client || "").toLowerCase();
