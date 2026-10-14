@@ -233,7 +233,7 @@ const InfoRow = ({
       display: "grid",
       gridTemplateColumns: "176px minmax(0,1fr)",
       alignItems: "center",
-      minHeight: 43,
+      minHeight: 35,
       columnGap: 8,
       width: "100%",
       boxSizing: "border-box",
@@ -375,7 +375,7 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
           <div
             style={{
               width: 166,
-              height: 166,
+              height: 190,
               margin: "6px auto 0",
               borderRadius: 16,
               overflow: "hidden",
@@ -389,7 +389,7 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
               <img
                 src={photo}
                 alt={nom}
-                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" }}
               />
             ) : (
               <PhotoPlaceholder nom={nom} />
@@ -459,10 +459,27 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
 
           <div style={{ marginTop: 4, flexShrink: 0, width: "100%" }}>
             <InfoRow label="Identifiant" value={carte.matricule} />
-            <InfoRow
-              label="Zone d'intervention"
-              value={carte.zone_intervention || carte.departement || "Côte d'Ivoire"}
-            />
+            {(() => {
+              const roles = normalizeRoles([...(carte.role_codes || []), ...(carte.role_code ? [carte.role_code] : [])]);
+              const roleAvecZone = roles.some((role) =>
+                ["commercial", "responsable_commercial", "chef_equipe_commercial", "directeur_tc",
+                  "technicien", "chef_equipe_technique", "responsable_zone", "mobilisateur_foncier",
+                  "superviseur_zone_fonciere"].includes(role)
+              );
+              return roleAvecZone ? (
+                <InfoRow
+                  label="Zone d'intervention"
+                  value={carte.zone_intervention || carte.departement || "À préciser"}
+                />
+              ) : (
+                <InfoRow
+                  label="Département"
+                  value={carte.departement || "Périmètre global"}
+                />
+              );
+            })()}
+            <InfoRow label="Mission" value={missionAuto(carte)} />
+            <InfoRow label="Contrat" value={contratLabel(carte.type_contrat)} />
             <InfoRow label="Validité" value={validiteTexte(carte)} />
           </div>
 
