@@ -144,7 +144,6 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     const lateDays = Number(m.jours_retard || 0);
     if (arrears > 0 || lateDays > 0) return "RATTRAPAGE";
     if (Number(m.montant_a_payer || 0) > 0) return "MENSUALITE";
-    if (Number(p.solde || 0) > 0) return "PI";
     return "AVANCE";
   };
 
@@ -469,7 +468,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                 <label className="text-sm font-medium">Type de règlement</label>
                 <Select value={paymentType} onValueChange={(v) => choosePaymentType(v as PaymentType)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{piBalance > 0 && <SelectItem value="PI">{Number(pi.montant_paye || pi.deja_paye || 0) > 0 ? "Solde paiement initial" : "Paiement initial"}</SelectItem>}<SelectItem value="RATTRAPAGE" disabled={arrearsAmount <= 0 && daysLate <= 0}>Rattrapage</SelectItem><SelectItem value="MENSUALITE" disabled={Number(monthly.montant_a_payer || 0) <= 0 || arrearsAmount > 0 || daysLate > 0}>Mensualité</SelectItem><SelectItem value="AVANCE" disabled={arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0}>Avance</SelectItem></SelectContent>
+                  <SelectContent>{piBalance > 0 && <SelectItem value="PI">{Number(pi.montant_paye || pi.deja_paye || 0) > 0 || Number(pi.montant_total || pi.montant_initial || 0) > piBalance ? "Solde paiement initial" : "Paiement initial"}</SelectItem>}<SelectItem value="RATTRAPAGE" disabled={arrearsAmount <= 0 && daysLate <= 0}>Rattrapage</SelectItem><SelectItem value="MENSUALITE" disabled={Number(monthly.montant_a_payer || 0) <= 0 || arrearsAmount > 0 || daysLate > 0}>Mensualité</SelectItem><SelectItem value="AVANCE" disabled={arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0}>Avance</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
