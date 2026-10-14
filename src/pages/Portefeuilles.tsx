@@ -24,6 +24,19 @@ const fortnight=(d=new Date())=>d.getDate()<=15
   ? {start:new Date(d.getFullYear(),d.getMonth(),1),end:new Date(d.getFullYear(),d.getMonth(),15)}
   : {start:new Date(d.getFullYear(),d.getMonth(),16),end:endOfMonth(d)};
 const iso=(d:Date)=>format(d,"yyyy-MM-dd");
+
+async function fetchAllRows<T=any>(makeQuery:()=>any,pageSize=1000):Promise<T[]>{
+  const rows:T[]=[];
+  for(let offset=0;;offset+=pageSize){
+    const {data,error}=await makeQuery().range(offset,offset+pageSize-1);
+    if(error)throw error;
+    const page=(data||[]) as T[];
+    rows.push(...page);
+    if(page.length<pageSize)break;
+  }
+  return rows;
+}
+
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
 
 export default function Portefeuilles(){
@@ -49,31 +62,29 @@ export default function Portefeuilles(){
   const load=async()=>{
     setLoading(true);
     try{
-      const [pr,pf,cm,vp,lines]=await Promise.all([
-        (supabase as any).rpc("list_visible_portfolio_profiles"),
-        (supabase as any).from("portefeuilles").select("*").order("updated_at",{ascending:false}).limit(5000),
-        (supabase as any).from("commissions").select("id,profile_id,client_id,paiement_id,type_commission,montant_base,taux_commission,montant_commission,periode,statut,date_calcul,client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),paiement:paiements(id,reference,date_paiement)").order("periode",{ascending:false}).limit(2000),
-        (supabase as any).from("portefeuille_versements").select("*").order("periode_debut",{ascending:false}),
-        (supabase as any).from("portefeuille_versement_lignes").select("commission_id,versement_id"),
+      const [visibleProfileRows,walletRows,commissionsData,versementRows,versementLines]=await Promise.all([
+        fetchAllRows(()=> (supabase as any).rpc("list_visible_portfolio_profiles")),
+        fetchAllRows(()=> (supabase as any).from("portefeuilles").select("*").order("updated_at",{ascending:false})),
+        fetchAllRows(()=> (supabase as any).from("commissions").select("id,profile_id,client_id,paiement_id,type_commission,montant_base,taux_commission,montant_commission,periode,statut,date_calcul,client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),paiement:paiements(id,reference,date_paiement)").order("periode",{ascending:false})),
+        fetchAllRows(()=> (supabase as any).from("portefeuille_versements").select("*").order("periode_debut",{ascending:false})),
+        fetchAllRows(()=> (supabase as any).from("portefeuille_versement_lignes").select("commission_id,versement_id")),
       ]);
-      if(pr.error)throw pr.error;if(pf.error)throw pf.error;if(cm.error)throw cm.error;if(vp.error)throw vp.error;if(lines.error)throw lines.error;
-      const profilesData=(pr.data||[]).map((p:any)=>({...p,roles:p.roles||[],teamMemberships:p.team_memberships||[]}));
-      const commissionsData=cm.data||[];
+      const profilesData=visibleProfileRows.map((p:any)=>({...p,roles:p.roles||[],teamMemberships:p.team_memberships||[]}));
       const paidPayoutsByProfile=new Map<string,number>();
-      (vp.data||[]).filter((v:any)=>v.statut==="paye").forEach((v:any)=>paidPayoutsByProfile.set(v.profile_id,(paidPayoutsByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
+      versementRows.filter((v:any)=>v.statut==="paye").forEach((v:any)=>paidPayoutsByProfile.set(v.profile_id,(paidPayoutsByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
       const commissionTotals=new Map<string,{gagne:number,solde:number,verse:number}>();
       commissionsData.forEach((row:any)=>{const totals=commissionTotals.get(row.profile_id)||{gagne:0,solde:0,verse:0};const amount=Number(row.montant_commission||0);if(["calculee","validee","payee"].includes(row.statut))totals.gagne+=amount;if(["calculee","validee"].includes(row.statut))totals.solde+=amount;commissionTotals.set(row.profile_id,totals);});
-      const walletRows=profilesData.map((profile:any)=>{
-        const wallet=(pf.data||[]).find((x:any)=>x.user_id===profile.user_id);
+      const visibleWalletRows=profilesData.map((profile:any)=>{
+        const wallet=walletRows.find((x:any)=>x.user_id===profile.user_id);
         const totals=commissionTotals.get(profile.id)||{gagne:0,solde:0,verse:0};
         const totalVerse=paidPayoutsByProfile.get(profile.id) ?? Number(wallet?.total_verse||0);
         const row={...(wallet||{}),id:wallet?.id||profile.id,user_id:profile.user_id,profile_id:profile.id,solde_commissions:totals.solde,total_gagne:totals.gagne,total_verse:totalVerse,user:profile};
         return Number(row.solde_commissions)>0||Number(row.total_gagne)>0||Number(row.total_verse)>0?row:null;
       }).filter(Boolean);
       setProfiles(profilesData);
-      setPortefeuilles(walletRows as any[]);
+      setPortefeuilles(visibleWalletRows as any[]);
       setCommissions(commissionsData);
-      setVersements((vp.data||[]).map((v:any)=>({...v,lines:(lines.data||[]).filter((l:any)=>l.versement_id===v.id)})));
+      setVersements(versementRows.map((v:any)=>({...v,lines:versementLines.filter((l:any)=>l.versement_id===v.id)})));
     }catch(e:any){toast({variant:"destructive",title:"Portefeuilles indisponibles",description:e?.message||"Erreur de chargement."});}
     finally{setLoading(false);}
   };
