@@ -49,33 +49,49 @@ const Clients = () => {
       // La liste principale ne dépend d'aucune relation imbriquée : une erreur
       // sur une table secondaire ne doit jamais transformer l'écran en « 0 ».
       const safeSearch = searchTerm.trim().replace(/[,%()]/g, " ");
-      let clientsQuery = supabase
-        .from("clients")
-        .select("*")
-        .order("numero_ordre_global", { ascending: true, nullsFirst: false })
-        .limit(50);
+      // Charger toutes les pages autorisées par la RLS : aucun plafond arbitraire à 50 clients.
+      const baseClients: any[] = [];
+      const CLIENT_PAGE_SIZE = 1000;
+      let clientOffset = 0;
+      while (true) {
+        let clientsQuery = supabase
+          .from("clients")
+          .select("*")
+          .order("numero_ordre_global", { ascending: true, nullsFirst: false })
+          .order("id", { ascending: true })
+          .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
 
-      if (safeSearch) {
-        clientsQuery = clientsQuery.or(
-          `id_unique.ilike.%${safeSearch}%,nom_complet.ilike.%${safeSearch}%,telephone.ilike.%${safeSearch}%`
-        );
+        if (safeSearch) {
+          clientsQuery = clientsQuery.or(
+            `id_unique.ilike.%${safeSearch}%,nom_complet.ilike.%${safeSearch}%,telephone.ilike.%${safeSearch}%`
+          );
+        }
+
+        const { data: pageClients, error: clientsError } = await clientsQuery;
+        if (clientsError) throw clientsError;
+        baseClients.push(...(pageClients || []));
+        if (!pageClients || pageClients.length < CLIENT_PAGE_SIZE) break;
+        clientOffset += CLIENT_PAGE_SIZE;
       }
 
-      const { data: baseClients, error: clientsError } = await clientsQuery;
-
-      if (clientsError) throw clientsError;
-
-      const ids = (baseClients || []).map((c: any) => c.id);
-      const [plantationsRes, attributionsRes, offresRes, regionsRes, teamPerfRes] = await Promise.all([
-        supabase.from("plantations").select("id,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,role_attribution").in("client_id", ids),
-        (supabase as any).from("beneficiaire_attributions").select("id,client_id,plantation_id,surface_attribuee_ha,role_attribution,statut").eq("statut", "active").in("client_id", ids),
+      const ids = baseClients.map((c: any) => c.id);
+      // Découper les identifiants en lots pour éviter des requêtes URL trop longues.
+      const clientIdBatches: string[][] = [];
+      for (let i = 0; i < ids.length; i += 250) clientIdBatches.push(ids.slice(i, i + 250));
+      const [plantationBatches, attributionBatches, offresRes, regionsRes, teamPerfRes] = await Promise.all([
+        Promise.all(clientIdBatches.map((batch) =>
+          supabase.from("plantations").select("id,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,role_attribution").in("client_id", batch)
+        )),
+        Promise.all(clientIdBatches.map((batch) =>
+          (supabase as any).from("beneficiaire_attributions").select("id,client_id,plantation_id,surface_attribuee_ha,role_attribution,statut").eq("statut", "active").in("client_id", batch)
+        )),
         supabase.from("offres").select("id,nom,couleur"),
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
       ]);
 
-      const plantations = plantationsRes.data || [];
-      const attributionsData = attributionsRes.data || [];
+      const plantations = plantationBatches.flatMap((result: any) => result.data || []);
+      const attributionsData = attributionBatches.flatMap((result: any) => result.data || []);
       const offresMap = new Map((offresRes.data || []).map((o: any) => [o.id, o]));
       const regionsMap = new Map((regionsRes.data || []).map((r: any) => [r.id, r]));
 
