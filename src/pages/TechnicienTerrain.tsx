@@ -91,15 +91,31 @@ const TechnicienTerrain=()=>{
         (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
         (supabase as any).from("interventions_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").order("date_intervention",{ascending:false}).limit(100),
         (supabase as any).from("tickets_techniques").select("*,client:clients(nom_complet),plantation:plantations(id_unique,nom_plantation)").eq("assigne_a",profile?.id||"00000000-0000-0000-0000-000000000000").order("created_at",{ascending:false}),
-        (supabase as any).from("profiles").select("id,nom_complet,user_id").eq("actif",true).order("nom_complet"),
+        (supabase as any).from("profiles").select("id,nom_complet,user_id,equipe_id,region_id").eq("actif",true).order("nom_complet"),
         (supabase as any).from("offres").select("id,code,nom,necessite_foncier_client,parcours_code,famille_offre,formule_code").eq("actif",true),
         (supabase as any).from("conventions_foncieres").select("id,parcelle_id,proprietaire_id,statut,part_agricapital_ha,part_proprietaire_ha").order("created_at",{ascending:false}),
+        (supabase as any).from("user_roles").select("user_id,role").in("role",["technicien"]),
+        (supabase as any).from("equipe_membres").select("profile_id,equipe_id,equipe:equipes!equipe_membres_equipe_id_fkey(id,type_equipe)"),
       ]);
       const failed=results.find((result:any)=>result.error);
       if(failed?.error)throw failed.error;
-      const [plantRes,clientRes,subscriptionRes,parcelRes,reportRes,interventionRes,ticketRes,technicienRes,offerRes,conventionRes]=results;
+      const [plantRes,clientRes,subscriptionRes,parcelRes,reportRes,interventionRes,ticketRes,technicienRes,offerRes,conventionRes,technicianRolesRes,membershipRes]=results;
       setPlantations(plantRes.data||[]);setClients(clientRes.data||[]);setClientSubscriptions(subscriptionRes.data||[]);setParcelles(parcelRes.data||[]);setReports(reportRes.data||[]);setInterventions(interventionRes.data||[]);setTickets(ticketRes.data||[]);
-      setTechniciens((technicienRes.data||[]).map((x:any)=>({...x,id:x.id,profile_id:x.id})));
+      const eligibleUserIds=new Set((technicianRolesRes.data||[]).map((role:any)=>role.user_id));
+       const membershipsByProfile=new Map<string,any[]>();
+       (membershipRes.data||[]).forEach((membership:any)=>{const list=membershipsByProfile.get(membership.profile_id)||[];list.push(membership);membershipsByProfile.set(membership.profile_id,list);});
+       const myMemberships=membershipsByProfile.get(profile?.id)||[];
+       const myTeamIds=new Set<string>([profile?.equipe_id,...myMemberships.filter((m:any)=>String(m.equipe?.type_equipe||"").toLowerCase().includes("technique")).map((m:any)=>m.equipe_id)].filter(Boolean));
+       const canAssignAcrossTeams=userRoles.some((role:string)=>["pdg","dg","responsable_operations"].includes(role));
+       const scopedTechnicians=(technicienRes.data||[]).filter((person:any)=>{
+         if(!eligibleUserIds.has(person.user_id))return false;
+         if(canAssignAcrossTeams)return true;
+         if(person.id===profile?.id)return true;
+         if(!myTeamIds.size)return false;
+         const personTeamIds=new Set<string>([person.equipe_id,...(membershipsByProfile.get(person.id)||[]).filter((m:any)=>String(m.equipe?.type_equipe||"").toLowerCase().includes("technique")).map((m:any)=>m.equipe_id)].filter(Boolean));
+         return [...personTeamIds].some((teamId:string)=>myTeamIds.has(teamId));
+       });
+       setTechniciens(scopedTechnicians.map((person:any)=>({...person,id:person.id,profile_id:person.id})));
       setOfferConfigs(offerRes.data||[]);setConventions(conventionRes.data||[]);
     } catch(error:any) {
       toast({variant:"destructive",title:"Chargement technique impossible",description:error?.message||"Vérifiez les accès aux données techniques."});
@@ -384,7 +400,7 @@ const TechnicienTerrain=()=>{
 
   if(!allowed)return <ProtectedRoute><MainLayout><Card><CardHeader><CardTitle>Accès technicien</CardTitle></CardHeader></Card></MainLayout></ProtectedRoute>;
 
-  return <ProtectedRoute><MainLayout><div className="min-w-0 w-full max-w-full space-y-6 overflow-hidden">
+  return <ProtectedRoute><MainLayout><div className="min-w-0 w-full max-w-full space-y-3 overflow-hidden">
     <div><h1 className="text-3xl font-bold">Technique — suivi des plantations</h1></div>
 
     <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 w-full">
@@ -400,9 +416,9 @@ const TechnicienTerrain=()=>{
         </CardContent></Card>
       </TabsContent>
 
-      <TabsContent value="rapport" className="space-y-5">
-        <Card><CardHeader><CardTitle>Nouveau rapport terrain</CardTitle></CardHeader><CardContent className="space-y-5">
-          <div className="grid md:grid-cols-2 gap-4">
+      <TabsContent value="rapport" className="space-y-3">
+        <Card><CardHeader><CardTitle>Nouveau rapport terrain</CardTitle></CardHeader><CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div><Label>Demande support</Label><Select value={report.ticket_id||"none"} onValueChange={v=>setReport((x:any)=>({...x,ticket_id:v==="none"?"":v}))}><SelectTrigger><SelectValue placeholder="Aucune demande liée"/></SelectTrigger><SelectContent><SelectItem value="none">Aucune</SelectItem>{tickets.map(t=><SelectItem key={t.id} value={t.id}>{t.titre}</SelectItem>)}</SelectContent></Select></div><div><Label>Plantation *</Label><Select value={report.plantation_id} onValueChange={v=>setReport((x:any)=>({...x,plantation_id:v}))}><SelectTrigger><SelectValue placeholder="Sélectionner une plantation"/></SelectTrigger><SelectContent>{plantations.map(p=><SelectItem key={p.id} value={p.id}>{p.nom_plantation||p.nom||p.id_unique}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Date et heure *</Label><Input type="datetime-local" value={report.date_visite} onChange={e=>setReport((x:any)=>({...x,date_visite:e.target.value}))}/></div>
             <div><Label>Type de visite</Label><Select value={report.type_visite} onValueChange={v=>setReport((x:any)=>({...x,type_visite:v}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{reportTypeRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
@@ -415,16 +431,17 @@ const TechnicienTerrain=()=>{
   {report.etat_plantation==="autre"&&<Input className="mt-2" value={report.etat_plantation_autre||""} onChange={e=>setReport((x:any)=>({...x,etat_plantation_autre:e.target.value}))} placeholder="Préciser l’état"/>}
 </div>
           </div>
-          <div className="grid md:grid-cols-2 gap-4"><div><Label>Constat</Label><Textarea value={report.constat} onChange={e=>setReport((x:any)=>({...x,constat:e.target.value}))}/></div><div><Label>{!palmInvest?"Actions d’encadrement / suivi":"Travaux réalisés"}</Label><Textarea value={report.travaux_realises} onChange={e=>setReport((x:any)=>({...x,travaux_realises:e.target.value}))}/></div></div>
-          <div className="grid md:grid-cols-2 gap-4"><div><Label>Observations</Label><Textarea value={report.observations} onChange={e=>setReport((x:any)=>({...x,observations:e.target.value}))}/></div><div><Label>Recommandations</Label><Textarea value={report.recommandations} onChange={e=>setReport((x:any)=>({...x,recommandations:e.target.value}))}/></div></div>
-          <div><Label>Message destiné au client</Label><Textarea value={report.contenu_client} onChange={e=>setReport((x:any)=>({...x,contenu_client:e.target.value}))}/></div>
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4"><div><Label>Prochaine intervention</Label><Input type="date" value={report.prochaine_intervention} onChange={e=>setReport((x:any)=>({...x,prochaine_intervention:e.target.value}))}/></div><div><Label>Latitude</Label><Input type="number" step="any" value={report.localisation_gps_lat} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div><div><Label>Longitude</Label><Input type="number" step="any" value={report.localisation_gps_lng} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div><div className="flex items-end"><Button type="button" variant="outline" className="w-full" disabled={capturingReportPosition} onClick={captureReportPosition}>{capturingReportPosition?"Localisation…":"Enregistrer ma position"}</Button></div></div>
+          <div className="grid md:grid-cols-2 gap-3"><div><Label>Constat</Label><Textarea rows={2} value={report.constat} onChange={e=>setReport((x:any)=>({...x,constat:e.target.value}))}/></div><div><Label>{!palmInvest?"Actions d’encadrement / suivi":"Travaux réalisés"}</Label><Textarea rows={2} value={report.travaux_realises} onChange={e=>setReport((x:any)=>({...x,travaux_realises:e.target.value}))}/></div></div>
+          <div className="grid md:grid-cols-2 gap-3"><div><Label>Observations</Label><Textarea rows={2} value={report.observations} onChange={e=>setReport((x:any)=>({...x,observations:e.target.value}))}/></div><div><Label>Recommandations</Label><Textarea rows={2} value={report.recommandations} onChange={e=>setReport((x:any)=>({...x,recommandations:e.target.value}))}/></div></div>
+          <div><Label>Message destiné au client</Label><Textarea rows={2} value={report.contenu_client} onChange={e=>setReport((x:any)=>({...x,contenu_client:e.target.value}))}/></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"><div><Label>Prochaine intervention</Label><Input type="date" value={report.prochaine_intervention} onChange={e=>setReport((x:any)=>({...x,prochaine_intervention:e.target.value}))}/></div><div><Label>Latitude</Label><Input type="number" step="any" value={report.localisation_gps_lat} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div><div><Label>Longitude</Label><Input type="number" step="any" value={report.localisation_gps_lng} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div><div className="flex items-end"><Button type="button" variant="outline" className="w-full" disabled={capturingReportPosition} onClick={captureReportPosition}>{capturingReportPosition?"Localisation…":"Capturer la position GPS"}</Button></div></div>
+          <div className="rounded-lg border p-2"><p className="mb-2 text-xs font-medium text-muted-foreground">Position du rapport — cliquer sur la carte pour ajuster</p><InteractiveMap mode="pick" position={report.localisation_gps_lat&&report.localisation_gps_lng?[Number(report.localisation_gps_lat),Number(report.localisation_gps_lng)]:null} onPositionChange={(lat,lng)=>setReport((current:any)=>({...current,localisation_gps_lat:String(lat),localisation_gps_lng:String(lng)}))} height="220px"/></div>
           <div><MediaUploadVisual label="Photos / vidéos" files={media} onChange={setMedia}/></div>
           <div className="flex gap-3 justify-end"><Button variant="outline" disabled={saving} onClick={()=>saveReport(false)}>Enregistrer brouillon</Button><Button disabled={saving} onClick={()=>saveReport(true)}>Soumettre le rapport</Button></div>
         </CardContent></Card>
       </TabsContent>
 
-      <TabsContent value="intervention" className="space-y-5">
+      <TabsContent value="intervention" className="space-y-3">
         {allowed && <Card><CardHeader><CardTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5"/>Transférer une plantation AgriCapital</CardTitle></CardHeader><CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div><Label>Plantation interne *</Label><Select value={transferPlantationId} onValueChange={setTransferPlantationId}><SelectTrigger><SelectValue placeholder="Choisir une plantation AgriCapital"/></SelectTrigger><SelectContent>{plantations.filter(p=>clients.some(c=>c.id===p.client_id&&c.is_internal===true)).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_plantation||p.nom||p.id_unique} · {Number(p.superficie_ha||0)} ha</SelectItem>)}</SelectContent></Select></div>
@@ -433,8 +450,8 @@ const TechnicienTerrain=()=>{
           <div className="flex justify-end"><Button onClick={transferAgriCapitalPlantation} disabled={transferSaving||!transferPlantationId||!transferClientId}>{transferSaving?"Transfert…":"Transférer la plantation"}</Button></div>
         </CardContent></Card>}
         <CompteRenduIA />
-        <Card><CardHeader><CardTitle>Intervention technique</CardTitle></CardHeader><CardContent className="space-y-5">
-          <div className="grid md:grid-cols-3 gap-4">
+        <Card><CardHeader><CardTitle>Intervention technique</CardTitle></CardHeader><CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             <div><Label>Client / dossier *</Label><Select value={intervention.client_id} onValueChange={v=>setIntervention((x:any)=>({...x,client_id:v,souscription_id:"",parcelle_id:clients.find(c=>c.id===v)?.parcelle_id||"",plantation_id:"",convention_id:"",lot_id:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""}))}><SelectTrigger><SelectValue placeholder="Sélectionner un Client"/></SelectTrigger><SelectContent>{clients.map(c=><SelectItem key={c.id} value={c.id}>{c.nom_complet} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
             {technicalPalmInvest && <div><Label>Parcours foncier</Label><div className="flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm">Foncier AgriCapital — convention / lot</div></div>}
             {pendingClientSubscriptions.length>0 && <div><Label>Souscription à implanter *</Label><Select value={intervention.souscription_id||""} onValueChange={v=>{const sub=clientSubscriptions.find((item:any)=>item.id===v);setIntervention((x:any)=>({...x,souscription_id:v,plantation_id:"",parcelle_id:sub?.parcelle_id||"",convention_id:"",lot_id:sub?.lot_id||"",nombre_plants_prevus:sub?String(Math.round(Number(sub.superficie_ha||0)*Number(x.densite_plants||143))):x.nombre_plants_prevus}));}}><SelectTrigger><SelectValue placeholder="Choisir l’offre et la formule à implanter"/></SelectTrigger><SelectContent>{pendingClientSubscriptions.map((sub:any)=><SelectItem key={sub.id} value={sub.id}>{sub.formule_nom||sub.offre_nom} · {Number(sub.superficie_ha||0)} ha · {sub.formule_code}</SelectItem>)}</SelectContent></Select></div>}
@@ -461,10 +478,10 @@ const TechnicienTerrain=()=>{
               <div><Label>Latitude</Label><Input type="number" step="any" value={intervention.localisation_gps_lat||""} onChange={e=>setIntervention((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div>
               <div><Label>Longitude</Label><Input type="number" step="any" value={intervention.localisation_gps_lng||""} onChange={e=>setIntervention((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div>
             </div>}
-            <InteractiveMap mode="pick" position={intervention.localisation_gps_lat&&intervention.localisation_gps_lng?[Number(intervention.localisation_gps_lat),Number(intervention.localisation_gps_lng)]:null} onPositionChange={(lat,lng)=>setIntervention((x:any)=>({...x,localisation_gps_lat:String(lat),localisation_gps_lng:String(lng)}))} height="320px" />
+            <InteractiveMap mode="pick" position={intervention.localisation_gps_lat&&intervention.localisation_gps_lng?[Number(intervention.localisation_gps_lat),Number(intervention.localisation_gps_lng)]:null} onPositionChange={(lat,lng)=>setIntervention((x:any)=>({...x,localisation_gps_lat:String(lat),localisation_gps_lng:String(lng)}))} height="220px" />
             
           </div>
-          <div className="grid md:grid-cols-2 gap-4"><div><Label>Constat / observations</Label><Textarea value={intervention.observations} onChange={e=>setIntervention((x:any)=>({...x,observations:e.target.value}))}/></div><div><Label>Recommandations</Label><Textarea value={intervention.recommandations} onChange={e=>setIntervention((x:any)=>({...x,recommandations:e.target.value}))}/></div></div>
+          <div className="grid md:grid-cols-2 gap-3"><div><Label>Constat / observations</Label><Textarea rows={2} value={intervention.observations} onChange={e=>setIntervention((x:any)=>({...x,observations:e.target.value}))}/></div><div><Label>Recommandations</Label><Textarea rows={2} value={intervention.recommandations} onChange={e=>setIntervention((x:any)=>({...x,recommandations:e.target.value}))}/></div></div>
            {(intervention.type_intervention==="mise_en_terre"||intervention.type_intervention==="remplacement") && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 rounded-xl border bg-muted/20 p-4"><div><Label>Densité (plants/ha)</Label><Input type="number" min="1" value={intervention.densite_plants} onChange={e=>setIntervention((x:any)=>({...x,densite_plants:e.target.value}))}/></div><div><Label>Plants prévus</Label><Input type="number" min="0" value={intervention.nombre_plants_prevus} onChange={e=>setIntervention((x:any)=>({...x,nombre_plants_prevus:e.target.value}))}/></div><div><Label>{intervention.type_intervention==="remplacement"?"Plants remplacés":"Plants mis en terre"}</Label><Input type="number" min="0" value={intervention.type_intervention==="remplacement"?intervention.nombre_plants_remplaces:intervention.nombre_plants_realises} onChange={e=>setIntervention((x:any)=>intervention.type_intervention==="remplacement"?({...x,nombre_plants_remplaces:e.target.value}):({...x,nombre_plants_realises:e.target.value}))}/></div><div><Label>Calcul prévu</Label><div className="h-10 rounded-md border bg-background px-3 flex items-center text-sm">{(()=>{const p=plantations.find(x=>x.id===intervention.plantation_id);const ha=Number(p?.superficie_ha||0);return ha && Number(intervention.densite_plants)>0?`${Math.round(ha*Number(intervention.densite_plants))} plants`:"Renseignez la densité";})()}</div></div></div>}
           <div className="flex justify-end"><Button disabled={saving} onClick={saveIntervention}>Enregistrer l’intervention</Button></div>
         </CardContent></Card>
