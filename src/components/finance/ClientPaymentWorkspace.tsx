@@ -27,6 +27,7 @@ type ClientFinanceRow = {
   statut?: string | null;
   formule_nom?: string | null;
   montant_total_contrat?: number | null;
+  total_hectares?: number | null;
   summary: any;
 };
 
