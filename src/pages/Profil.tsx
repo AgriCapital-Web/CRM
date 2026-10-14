@@ -81,7 +81,17 @@ const Profil = () => {
       const res = await uploadFile(bucket, file, user.id);
       if (!res?.path) throw new Error("Le stockage n'a pas confirmé l'enregistrement du fichier.");
       set(field, res.path);
-      toast({ title: "Fichier téléversé" });
+      // Le fichier est relié au profil immédiatement : pas besoin de cliquer sur Enregistrer.
+      const { data: saved, error: saveError } = await (supabase as any)
+        .from("profiles")
+        .update({ [field]: res.path, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .select("user_id")
+        .maybeSingle();
+      if (saveError) throw saveError;
+      if (!saved?.user_id) throw new Error("Le fichier est envoyé mais n'a pas pu être relié à votre profil.");
+      if (field === "photo_url") await refreshProfile();
+      toast({ title: "Fichier enregistré dans votre profil" });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Envoi impossible", description: error?.message || "Le fichier n'a pas pu être envoyé." });
       throw error;
