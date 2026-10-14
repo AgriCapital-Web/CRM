@@ -144,7 +144,8 @@ async function staffAuthorized(req: Request) {
   const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", data.user.id);
   return (roles || []).some((r) => [
     "pdg","dg","admin","super_admin","directeur_tc","responsable_operations","responsable_commercial",
-    "chef_equipe_commercial","chef_equipe_technique","service_client","chef_equipe_service_client","comptable"
+    "chef_equipe_commercial","chef_equipe_technique","service_client","chef_equipe_service_client","comptable",
+    "commercial_terrain","mobilisateur_foncier","superviseur_mobilisation_fonciere"
   ].includes(r.role));
 }
 
@@ -547,6 +548,47 @@ serve(async (req) => {
       return json(req, { ok: true, results: await runEvents(events) });
     }
     if (!(await staffAuthorized(req))) return json(req, { error: "Non autorise" }, 401);
+    if (mode === "manual_contact") {
+      const leadId = String(body.lead_id || "").trim();
+      const channel = String(body.channel || "");
+      const content = String(body.content || "").trim();
+      const subject = String(body.subject || "Suivi de votre projet de plantation de palmier à huile").slice(0, 160);
+      const requestId = String(body.request_id || crypto.randomUUID()).replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 100);
+      const messageLength = Array.from(content).length;
+      if (!leadId) return json(req, { error: "lead_id requis" }, 400);
+      if (!["whatsapp", "email"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
+      if (!content || messageLength > 200) return json(req, { error: `Le message doit contenir entre 1 et 200 caractères (actuellement ${messageLength}).` }, 400);
+      const authHeader = req.headers.get("Authorization") || "";
+      if (!authHeader.startsWith("Bearer ")) return json(req, { error: "Authentification requise" }, 401);
+      const { data: authData, error: authError } = await admin.auth.getUser(authHeader.slice(7));
+      const actor = authData?.user;
+      if (authError || !actor) return json(req, { error: "Session invalide" }, 401);
+      const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", actor.id);
+      const supervisor = (roles || []).some((r) => [
+        "pdg", "dg", "admin", "super_admin", "responsable_operations", "responsable_commercial",
+        "chef_equipe_commercial", "service_client", "chef_equipe_service_client"
+      ].includes(r.role));
+      const { data: lead, error: leadError } = await admin.from("leads")
+        .select("id,nom,prenoms,civilite,telephone,whatsapp,email,type_lead,assigned_to,created_by")
+        .eq("id", leadId).maybeSingle();
+      if (leadError) throw leadError;
+      if (!lead) return json(req, { error: "Lead ou prospect introuvable" }, 404);
+      if (!supervisor && lead.assigned_to !== actor.id && lead.created_by !== actor.id) {
+        return json(req, { error: "Vous ne pouvez contacter que vos propres leads ou prospects." }, 403);
+      }
+      const contact: Contact = {
+        source_type: "lead", source_id: lead.id,
+        nom_complet: [lead.prenoms, lead.nom].filter(Boolean).join(" ").trim() || "Contact AgriCapital",
+        email: lead.email || null, telephone: lead.telephone || null, whatsapp: lead.whatsapp || null,
+      };
+      if (channel === "whatsapp" && !(contact.whatsapp || contact.telephone)) return json(req, { error: "Numéro WhatsApp absent" }, 400);
+      if (channel === "email" && !contact.email) return json(req, { error: "Adresse email absente" }, 400);
+      const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || crypto.randomUUID()}`;
+      const result = channel === "whatsapp"
+        ? await sendWhatsApp(contact, content, dedupeKey)
+        : await sendEmail(contact, subject, content, dedupeKey);
+      return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: messageLength });
+    }
     if (mode === "status") return json(req, { ok: true, providers: await providerStatus() });
     if (mode === "preview") {
       const contacts = await resolveContacts(body.criteria || {});
