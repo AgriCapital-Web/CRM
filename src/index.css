@@ -913,14 +913,14 @@ All colors MUST be HSL.
 /* Densité commune CRM : lignes basses, titres lisibles et badges/actions sur une ligne. */
 @layer components {
   table { border-collapse: separate; border-spacing: 0; }
-  table th { font-size: .75rem; font-weight: 600; line-height: 1.15; }
+  table th { font-size: .75rem; font-weight: 600; line-height: 1.15; white-space: nowrap; }
   table td { line-height: 1.15; }
   table td [data-slot="badge"], table td [class*="rounded-full"], table td .badge { white-space: nowrap; flex-shrink: 0; }
   table td .flex { min-width: 0; }
   table td button { flex-shrink: 0; }
   table td .truncate { max-width: 14rem; }
   @media (max-width: 640px) {
-    table th { font-size: .69rem; }
+    table th { font-size: .69rem; white-space: nowrap; }
     table td { font-size: .72rem; }
     table th, table td { padding: .18rem .28rem; }
   }
