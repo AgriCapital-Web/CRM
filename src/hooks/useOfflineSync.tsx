@@ -15,6 +15,7 @@ import { flushOfflineHttpQueue, refreshPendingMutationAuthorization, scheduleBac
 
 const SYNC_INTERVAL = 3 * 60 * 1000; // 3 minutes
 const SLOW_NET_THRESHOLD = 1500; // ms
+let offlinePersistenceRequested = false;
 
 // Reference tables to cache for full offline use
 const REF_TABLES = [
@@ -366,7 +367,8 @@ export function useOfflineSync() {
   useEffect(() => {
     // Demander au navigateur de préserver le cache métier et la file locale.
     // L'API peut refuser la persistance; la synchronisation normale reste active.
-    if ("storage" in navigator && typeof navigator.storage?.persist === "function") {
+    if (!offlinePersistenceRequested && "storage" in navigator && typeof navigator.storage?.persist === "function") {
+      offlinePersistenceRequested = true;
       void navigator.storage.persist().catch(() => false);
     }
     // Reprise persistante des pièces jointes (au démarrage, au retour réseau, périodiquement)
