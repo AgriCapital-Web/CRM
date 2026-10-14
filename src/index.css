@@ -604,6 +604,7 @@ All colors MUST be HSL.
 
 /* CRM tables: prevent narrow columns from breaking words vertically on small screens. */
 @layer components {
+  table[class*="min-w-"] { min-width: 0 !important; }
   .responsive-data-table { width: 100%; min-width: 0; table-layout: auto; }
   .responsive-data-table th, .responsive-data-table td { white-space: normal; word-break: normal; overflow-wrap: anywhere; vertical-align: middle; padding: .35rem .5rem; line-height: 1.25; }
   .responsive-data-table td:nth-child(2), .responsive-data-table th:nth-child(2) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
