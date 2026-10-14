@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRealtime } from "@/hooks/useRealtime";
-import { ROLE_LABELS } from "@/lib/roles";
 import { MapPin, Plus, Trash2, Users } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import TableSearchInput from "@/components/common/TableSearchInput";
@@ -33,18 +32,13 @@ const ZONE_TYPE_LABELS: Record<string, string> = {
   sous_prefecture: "Sous-préfecture",
 };
 
-const ROLE_ZONE_MAP: Record<string, string> = {
-  responsable_commercial: "region",
-  chef_equipe_commercial: "departement",
-  chef_equipe_technique: "departement",
-  commercial: "sous_prefecture",
-  technicien: "sous_prefecture",
-};
-
 const GestionZones = () => {
   const { toast } = useToast();
   const [assignments, setAssignments] = useState<ZoneAssignment[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [roleZoneMap, setRoleZoneMap] = useState<Record<string, string>>({});
+  const [roleNames, setRoleNames] = useState<Record<string, string>>({});
+  const [assignableRoles, setAssignableRoles] = useState<Array<{ code: string; name: string }>>([]);
   const [zones, setZones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -58,18 +52,30 @@ const GestionZones = () => {
 
   const fetchAll = async () => {
     try {
-      const { data: assignData } = await (supabase as any)
-        .from("zone_assignments")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      // Fetch profiles and roles for assignable field staff.
-      const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }] = await Promise.all([
+      const [{ data: assignData, error: assignError }, { data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }, { data: roleDefs, error: roleDefsError }] = await Promise.all([
+        (supabase as any).from("zone_assignments").select("*").order("created_at", { ascending: false }),
         (supabase as any).from("profiles").select("id, user_id, nom_complet, actif").eq("actif", true),
-        (supabase as any).from("user_roles").select("user_id, role").in("role", ["responsable_commercial", "chef_equipe_commercial", "chef_equipe_technique", "commercial", "technicien"]),
+        (supabase as any).from("user_roles").select("user_id, role"),
+        (supabase as any).from("app_roles").select("code, nom, niveau_couverture, libelle_couverture").eq("actif", true),
       ]);
+      if (assignError) throw assignError;
       if (profilesError) throw profilesError;
       if (rolesError) throw rolesError;
+      if (roleDefsError) throw roleDefsError;
+
+      const zoneByRole: Record<string, string> = {};
+      const nameByRole: Record<string, string> = {};
+      const rolesWithCoverage: Array<{ code: string; name: string }> = [];
+      (roleDefs || []).forEach((role: any) => {
+        nameByRole[role.code] = role.nom || role.code;
+        if (["region", "departement", "sous_prefecture", "district"].includes(role.niveau_couverture)) {
+          zoneByRole[role.code] = role.niveau_couverture;
+          rolesWithCoverage.push({ code: role.code, name: role.nom || role.code });
+        }
+      });
+      setRoleZoneMap(zoneByRole);
+      setRoleNames(nameByRole);
+      setAssignableRoles(rolesWithCoverage);
 
       // Fetch all zone names
       const [{ data: districts }, { data: regions }, { data: depts }, { data: sps }] = await Promise.all([
@@ -89,23 +95,21 @@ const GestionZones = () => {
         if (p.user_id) profileMap[p.user_id] = p.nom_complet;
       });
 
-      const roleMap: Record<string, string> = {};
+      const rolesByUser: Record<string, string[]> = {};
       (rolesData || []).forEach((r: any) => {
-        roleMap[r.user_id] = r.role;
+        if (r.user_id && r.role) (rolesByUser[r.user_id] ||= []).push(r.role);
       });
-
-      const enriched = (assignData || []).map((a: any) => ({
-        ...a,
-        zone_name: zoneMap[a.zone_id] || "Inconnu",
-        profile: { nom_complet: profileMap[a.user_id] || "Inconnu" },
-        role: roleMap[a.user_id] || "",
-      }));
+      const enriched = (assignData || []).map((a: any) => {
+        const userRoles = rolesByUser[a.user_id] || [];
+        const matchingRole = userRoles.find((role) => zoneByRole[role] === a.zone_type) || userRoles.find((role) => !!zoneByRole[role]) || "";
+        return { ...a, zone_name: zoneMap[a.zone_id] || "Inconnu", profile: { nom_complet: profileMap[a.user_id] || "Inconnu" }, role: matchingRole };
+      });
 
       setAssignments(enriched);
 
       // Build user list with their roles
       const usersWithRoles = (rolesData || [])
-        .filter((r: any) => r.user_id && profileMap[r.user_id])
+        .filter((r: any) => r.user_id && profileMap[r.user_id] && !!zoneByRole[r.role])
         .map((r: any) => ({
           user_id: r.user_id, role: r.role, nom_complet: profileMap[r.user_id],
         }))
@@ -123,7 +127,7 @@ const GestionZones = () => {
   useRealtime({ table: "zone_assignments", onChange: fetchAll });
 
   const fetchZonesForRole = async (role: string) => {
-    const zoneType = ROLE_ZONE_MAP[role];
+    const zoneType = roleZoneMap[role];
     if (!zoneType) return;
 
     let data: any[] = [];
@@ -152,7 +156,7 @@ const GestionZones = () => {
 
   const handleAssign = async () => {
     if (!selectedUser || !selectedZone || !selectedRole) return;
-    const zoneType = ROLE_ZONE_MAP[selectedRole];
+    const zoneType = roleZoneMap[selectedRole];
     try {
       const payload = { user_id: selectedUser, zone_type: zoneType, zone_id: selectedZone };
       const { error } = editingAssignment
@@ -208,12 +212,8 @@ const GestionZones = () => {
               <SelectTrigger className="w-full sm:w-[250px]">
                 <SelectValue placeholder="Filtrer par rôle" />
               </SelectTrigger>
-              <SelectContent>
-                 <SelectItem value="responsable_commercial">Responsable Commercial</SelectItem>
-                 <SelectItem value="chef_equipe_commercial">Chef d'Équipe Commercial</SelectItem>
-                <SelectItem value="commercial">Commercial</SelectItem>
-                <SelectItem value="technicien">Technicien</SelectItem>
-                 <SelectItem value="chef_equipe_technique">Chef d'Équipe Technique</SelectItem>
+              <SelectContent
+                {assignableRoles.map((role) => <SelectItem key={role.code} value={role.code}>{role.name}</SelectItem>)}
               </SelectContent>
             </Select>
 
@@ -230,7 +230,7 @@ const GestionZones = () => {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label>Utilisateur ({ROLE_LABELS[selectedRole] || selectedRole})</Label>
+                    <Label>Utilisateur ({roleNames[selectedRole] || selectedRole})</Label>
                     <Select value={selectedUser} onValueChange={setSelectedUser}>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner" />
@@ -243,7 +243,7 @@ const GestionZones = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>{ZONE_TYPE_LABELS[ROLE_ZONE_MAP[selectedRole]] || "Zone"}</Label>
+                    <Label>{ZONE_TYPE_LABELS[roleZoneMap[selectedRole]] || "Zone"}</Label>
                     <Select value={selectedZone} onValueChange={setSelectedZone}>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner" />
@@ -289,7 +289,7 @@ const GestionZones = () => {
                       <TableRow key={a.id}>
                         <TableCell className="font-medium">{a.profile?.nom_complet}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{ROLE_LABELS[a.role || ""] || a.role}</Badge>
+                          <Badge variant="secondary">{roleNames[a.role || ""] || a.role}</Badge>
                         </TableCell>
                         <TableCell>{ZONE_TYPE_LABELS[a.zone_type]}</TableCell>
                         <TableCell>{a.zone_name}</TableCell>
@@ -318,8 +318,7 @@ const GestionZones = () => {
 
           <div className="mt-4 pt-4 border-t">
             <p className="text-sm text-muted-foreground">
-              💡 {assignments.length} assignation(s) au total • {assignments.filter(a => a.role === "responsable_commercial").length} RCom • {assignments.filter(a => a.role === "chef_equipe").length} Chef(s) d'équipe • {assignments.filter(a => a.role === "commercial").length} Commercial(aux)
-            </p>
+              💡 {assignments.length} assignation(s) géographique(s) au total</p>
           </div>
         </CardContent>
       </Card>
