@@ -999,3 +999,20 @@ All colors MUST be HSL.
 .client-summary-grid .text-lg { font-size: clamp(.8rem, 1vw, 1rem); line-height: 1.2; overflow-wrap: anywhere; }
 .client-summary-grid button { height: 1.7rem; padding-inline: .45rem; font-size: .7rem; }
 @media (max-width: 1023px) { .client-summary-grid [data-slot="card-header"] { padding: .45rem .5rem .18rem; } .client-summary-grid [data-slot="card-content"] { padding: .18rem .5rem .45rem; } }
+
+
+/* Champs de rapport terrain : ligne de métadonnées basse et compacte sur ordinateur. */
+.technique-report-meta { align-items: end; gap: .4rem !important; }
+.technique-report-meta label { display: block; margin-bottom: .18rem; font-size: .72rem; line-height: 1.05; }
+.technique-report-meta input,
+.technique-report-meta [role="combobox"],
+.technique-report-meta [data-radix-select-trigger] {
+  height: 2.05rem !important;
+  min-height: 2.05rem !important;
+  padding-block: .2rem !important;
+  font-size: .76rem !important;
+}
+.technique-report-meta [data-radix-select-trigger] > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 1023px) {
+  .technique-report-meta { gap: .5rem !important; }
+}
