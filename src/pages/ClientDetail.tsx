@@ -26,6 +26,7 @@ import ClientMessagingPanel from "@/components/clients/ClientMessagingPanel";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
+import { Etape0Offre } from "@/components/forms/acquisition/Etape0Offre";
 
 const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(Math.round(m || 0));
 
@@ -40,6 +41,7 @@ const ClientDetail = () => {
   const [client, setClient] = useState<any>(null);
   const [clientMedia, setClientMedia] = useState<{ photo: string | null; recto: string | null; verso: string | null }>({ photo: null, recto: null, verso: null });
   const [plantations, setPlantations] = useState<any[]>([]);
+  const [clientSouscriptions, setClientSouscriptions] = useState<any[]>([]);
   const [pendingPlantationSubscriptions, setPendingPlantationSubscriptions] = useState<any[]>([]);
   const [paiements, setPaiements] = useState<any[]>([]);
   const [interventions, setInterventions] = useState<any[]>([]);
@@ -54,12 +56,14 @@ const ClientDetail = () => {
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [isNewPlantationOpen, setIsNewPlantationOpen] = useState(false);
   const [availableParcelles, setAvailableParcelles] = useState<any[]>([]);
+  const [clientOwnParcelles, setClientOwnParcelles] = useState<any[]>([]);
   const [availableLots, setAvailableLots] = useState<any[]>([]);
   const [loadingPlantationOptions, setLoadingPlantationOptions] = useState(false);
   const [savingNewPlantation, setSavingNewPlantation] = useState(false);
   const [newPlantationParcelId, setNewPlantationParcelId] = useState("");
   const [newPlantationLotId, setNewPlantationLotId] = useState("");
   const [newPlantationNotes, setNewPlantationNotes] = useState("");
+  const [newSubscriptionFormData, setNewSubscriptionFormData] = useState<any>({ mode_paiement: "echeancier" });
   const [isRachatOpen,setIsRachatOpen]=useState(false);
   const [rachatJours,setRachatJours]=useState("1");
   const [tableSearch,setTableSearch]=useState("");
@@ -77,8 +81,24 @@ const ClientDetail = () => {
   const paginatedPaiements=filteredPaiements.slice((paymentPage-1)*pageSize,paymentPage*pageSize);
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
-  const lotsForSelectedParcel = availableLots.filter((lot: any) => lot.parcelle_id === newPlantationParcelId);
+  const lotsForSelectedParcel = availableLots.filter((lot: any) =>
+    lot.parcelle_id === newPlantationParcelId &&
+    (!Number(newSubscriptionFormData.superficie_prevue) || Math.abs(Number(lot.surface_ha || 0) - Number(newSubscriptionFormData.superficie_prevue)) < 0.0001)
+  );
   const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
+  const selectedOfferNeedsClientLand = newSubscriptionFormData.offre
+    ? !!newSubscriptionFormData.offre.necessite_foncier_client
+    : false;
+  const updateNewSubscriptionFormData = (patch: any) => {
+    setNewSubscriptionFormData((current: any) => {
+      const offerChanged = patch.offre_id && patch.offre_id !== current.offre_id;
+      if (offerChanged) {
+        setNewPlantationLotId("");
+        setNewPlantationParcelId("");
+      }
+      return { ...current, ...patch };
+    });
+  };
   useEffect(()=>{setPlantationPage(1);setPaymentPage(1);setInterventionPage(1);setAttributionPage(1);},[tableSearch,pageSize]);
 
   const uploadClientDocument=async()=>{
@@ -255,63 +275,89 @@ const ClientDetail = () => {
   }, [id, canViewClientMoney, canViewClientPayments]);
 
   useEffect(() => {
-    if (!isNewPlantationOpen) return;
+    if (!isNewPlantationOpen || !id) return;
     let active = true;
     setLoadingPlantationOptions(true);
     void (async () => {
       try {
         const [parcellesResult, lotsResult] = await Promise.all([
           (supabase as any).from("parcelles")
-            .select("id,id_unique,nom,village,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
+            .select("id,id_unique,nom,village,proprietaire_id,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
             .order("id_unique", { ascending: true }),
           (supabase as any).from("lots_hectares")
-            .select("id,reference,numero_h,surface_ha,parcelle_id,statut,client_id")
+            .select("id,reference,numero_h,surface_ha,parcelle_id,statut,client_id,souscription_id")
             .is("client_id", null)
+            .is("souscription_id", null)
             .in("statut", ["disponible", "libre"])
             .order("numero_h", { ascending: true }),
         ]);
         if (!active) return;
         if (parcellesResult.error) throw parcellesResult.error;
         if (lotsResult.error) throw lotsResult.error;
+        const allParcelles = parcellesResult.data || [];
         const lots = lotsResult.data || [];
+        const partnerParcelles = allParcelles.filter((parcel: any) =>
+          !!parcel.proprietaire_id && lots.some((lot: any) => lot.parcelle_id === parcel.id)
+        );
+        const ownParcelles = allParcelles.filter((parcel: any) =>
+          (client?.proprietaire_id && parcel.proprietaire_id === client.proprietaire_id) ||
+          (!client?.proprietaire_id && client?.parcelle_id && parcel.id === client.parcelle_id)
+        );
         setAvailableLots(lots);
-        setAvailableParcelles((parcellesResult.data || []).filter((parcel: any) =>
-          lots.some((lot: any) => lot.parcelle_id === parcel.id)
-        ));
+        setAvailableParcelles(partnerParcelles);
+        setClientOwnParcelles(ownParcelles);
+        setNewPlantationParcelId(client?.parcelle_id && ownParcelles.some((parcel: any) => parcel.id === client.parcelle_id) ? client.parcelle_id : "");
       } catch (error: any) {
-        if (active) toast({ variant: "destructive", title: "Lots indisponibles", description: getSafeErrorMessage(error) });
+        if (active) toast({ variant: "destructive", title: "Référentiel foncier indisponible", description: getSafeErrorMessage(error) });
       } finally {
         if (active) setLoadingPlantationOptions(false);
       }
     })();
     return () => { active = false; };
-  }, [isNewPlantationOpen, toast]);
+  }, [isNewPlantationOpen, id, client?.proprietaire_id, client?.parcelle_id, toast]);
 
   const saveAdditionalPlantation = async () => {
-    if (!id || !newPlantationLotId || savingNewPlantation) return;
+    if (!id || savingNewPlantation) return;
     if (!navigator.onLine) {
-      toast({ variant: "destructive", title: "Connexion requise", description: "Connectez-vous pour réserver un lot et synchroniser cette souscription." });
+      toast({ variant: "destructive", title: "Connexion requise", description: "La disponibilité foncière et le tarif doivent être vérifiés en ligne avant de créer une souscription financière." });
+      return;
+    }
+    const area = Number(newSubscriptionFormData.superficie_prevue);
+    if (!newSubscriptionFormData.offre_id || !newSubscriptionFormData.formule_code || area <= 0) {
+      toast({ variant: "destructive", title: "Souscription incomplète", description: "Choisissez une offre, une formule et une superficie valide." });
+      return;
+    }
+    if (!selectedOfferNeedsClientLand && !newPlantationLotId) {
+      toast({ variant: "destructive", title: "Lot partenaire requis", description: "Choisissez un lot disponible correspondant à la superficie." });
       return;
     }
     setSavingNewPlantation(true);
     try {
-      const { error } = await (supabase as any).rpc("register_additional_client_lot", {
+      const { data, error } = await (supabase as any).rpc("create_client_souscription", {
         p_client_id: id,
-        p_lot_id: newPlantationLotId,
+        p_offre_id: newSubscriptionFormData.offre_id,
+        p_formule_code: newSubscriptionFormData.formule_code,
+        p_superficie_ha: area,
+        p_mode_paiement: newSubscriptionFormData.mode_paiement || "echeancier",
+        p_parcelle_id: newPlantationParcelId || null,
+        p_lot_id: selectedOfferNeedsClientLand ? null : (newPlantationLotId || null),
         p_notes: newPlantationNotes.trim() || null,
       });
       if (error) throw error;
+      const total = Number(data?.montant_total_contrat || 0).toLocaleString("fr-FR");
+      const pi = Number(data?.montant_pi_total || 0).toLocaleString("fr-FR");
       toast({
-        title: "Nouvelle souscription enregistrée",
-        description: "Le lot est attribué au client. La plantation sera créée après validation de la mise en terre par l’équipe technique.",
+        title: "Souscription enregistrée",
+        description: `${newSubscriptionFormData.formule_nom || newSubscriptionFormData.offre?.nom || "Offre"} · ${area} ha · Contrat ${total} FCFA · Paiement initial ${pi} FCFA. La plantation sera créée après l’intervention technique.`,
       });
       setIsNewPlantationOpen(false);
       setNewPlantationParcelId("");
       setNewPlantationLotId("");
       setNewPlantationNotes("");
+      setNewSubscriptionFormData({ mode_paiement: "echeancier" });
       await fetchData();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Ajout impossible", description: getSafeErrorMessage(error) });
+      toast({ variant: "destructive", title: "Souscription impossible", description: getSafeErrorMessage(error) });
     } finally {
       setSavingNewPlantation(false);
     }
