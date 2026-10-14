@@ -361,25 +361,26 @@ All colors MUST be HSL.
 }
 
 
-/* Responsive personnel-card preview: keeps the physical 54×85.6 ratio while fitting any viewport. */
+/* Personnel card preview: larger on desktop, proportional on phones, with no blank scaled area. */
 .id-card-preview {
   flex: 0 0 auto;
   width: 540px;
   max-width: 540px;
   transform-origin: top center;
-  transform: scale(clamp(0.5, calc((100vw - 48px) / 540px), 1));
-  margin-bottom: calc(-856px * (1 - clamp(0.5, calc((100vw - 48px) / 540px), 1)));
+  transform: scale(.58);
+  margin-bottom: calc(-856px * (1 - .58));
+}
+@media (min-width: 380px) {
+  .id-card-preview { transform: scale(.66); margin-bottom: calc(-856px * (1 - .66)); }
+}
+@media (min-width: 480px) and (max-width: 767px) {
+  .id-card-preview { transform: scale(.82); margin-bottom: calc(-856px * (1 - .82)); }
+}
+@media (min-width: 640px) and (max-width: 767px) {
+  .id-card-preview { transform: scale(.95); margin-bottom: calc(-856px * (1 - .95)); }
 }
 @media (min-width: 768px) {
-  .id-card-preview {
-    transform: scale(min(1, calc((100% - 32px) / 540px)));
-    margin-bottom: calc(-856px * (1 - min(1, calc((100% - 32px) / 540px))));
-  }
-}
-@media (max-width: 767px) {
-  .id-card-preview {
-    margin-bottom: calc(-856px * (1 - clamp(0.5, calc((100vw - 48px) / 540px), 1)));
-  }
+  .id-card-preview { transform: scale(1.05); margin-bottom: calc(-856px * (1 - 1.05)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse { animation: none !important; }
