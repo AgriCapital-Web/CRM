@@ -229,6 +229,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       toast({ variant: "destructive", title: "Paiement initial", description: "Le paiement initial doit correspondre au solde exact affiché." });
       return;
     }
+    if (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0) {
+      toast({ variant: "destructive", title: "Mensualité indisponible", description: "Aucune mensualité n’est actuellement exigible pour ce contrat. Le paiement est bloqué pour éviter une mauvaise imputation." });
+      return;
+    }
     if (paymentType === "MENSUALITE" && !selectedPlantationId) {
       toast({ variant: "destructive", title: "Plantation requise", description: "Aucune plantation n’est rattachée à ce contrat. Le paiement ne peut pas être lancé sans rattachement." });
       return;
@@ -274,6 +278,29 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         paiementId = created.id;
       }
       if (!paiementId) throw new Error("Le paiement n’a pas pu être préparé.");
+
+      // Le contrat principal réutilise la validation de couverture de jours du portail.
+      // Les souscriptions ont leur propre échéancier et leur propre état financier.
+      if (paymentType === "MENSUALITE" && !activeContract.subscriptionId) {
+        const { data: clientContract, error: contractError } = await (supabase as any)
+          .from("clients")
+          .select("jours_contrat_total,jours_payes")
+          .eq("id", activeClient.id)
+          .maybeSingle();
+        if (contractError) throw contractError;
+        const remainingDays = Math.max(0, Number(clientContract?.jours_contrat_total || 0) - Number(clientContract?.jours_payes || 0));
+        if (remainingDays > 0) {
+          const { data: coveredDays, error: daysError } = await (supabase as any).rpc("portal_days_for_amount", {
+            _client_id: activeClient.id,
+            _plantation_id: selectedPlantationId,
+            _amount: paymentAmount,
+          });
+          if (daysError) throw daysError;
+          if (Number(coveredDays || 0) > remainingDays) {
+            throw new Error("Le montant dépasse la couverture restante réelle du contrat.");
+          }
+        }
+      }
 
       onSuccess(async (response) => {
         try {
