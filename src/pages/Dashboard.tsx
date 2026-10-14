@@ -696,11 +696,11 @@ const Dashboard = () => {
                 </section>
               )}
 
-              <section aria-labelledby="dashboard-performance" className="space-y-3">
-                <div><h2 id="dashboard-performance" className="text-lg font-bold tracking-tight">6. Performance et répartition</h2></div>
+              <section aria-labelledby="dashboard-performance" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div className="md:col-span-2 xl:col-span-3"><h2 id="dashboard-performance" className="text-lg font-bold tracking-tight">6. Performance et répartition</h2></div>
 {teamPerformance.length > 0 && (
                 <Card>
-                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-5 w-5 text-primary" />Performance par équipe</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Performance par équipe</CardTitle></CardHeader>
                   <CardContent><div className="responsive-auto-grid">{teamPerformance.map((team) => (
                     <div key={team.key} className="rounded-xl border p-3"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" dossier(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-2 text-sm">{num(team.hectares)} ha rattachés</p>}</div>
                   ))}</div></CardContent>
@@ -708,13 +708,13 @@ const Dashboard = () => {
               )}
 
               {offerPerformance.length > 0 && canClients && <Card>
-                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-5 w-5 text-primary" />Performance par offre</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Performance par offre</CardTitle></CardHeader>
                 <CardContent><ResponsiveContainer width="100%" height={Math.max(120, Math.min(190, offerPerformance.length * 30))}><BarChart data={offerPerformance} layout="vertical" margin={{ left: 2, right: 6, top: 2, bottom: 2 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={86} tick={{ fontSize: 9 }} /><Tooltip /><Bar dataKey="clients" name="Clients" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent>
               </Card>}
 
               {(canClients || canFinance) && stats.activeContracts > 0 && (
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Calendar className="h-5 w-5 text-primary" />Parcours des dossiers</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" />Parcours des dossiers</CardTitle></CardHeader>
                   <CardContent>
                     <div className={canFinance ? "grid grid-cols-2 md:grid-cols-4 gap-3" : "grid grid-cols-3 gap-3"}>
                       {canClients && <>
