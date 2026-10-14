@@ -212,7 +212,7 @@ const GestionZones = () => {
               <SelectTrigger className="w-full sm:w-[250px]">
                 <SelectValue placeholder="Filtrer par rôle" />
               </SelectTrigger>
-              <SelectContent
+              <SelectContent>
                 {assignableRoles.map((role) => <SelectItem key={role.code} value={role.code}>{role.name}</SelectItem>)}
               </SelectContent>
             </Select>
