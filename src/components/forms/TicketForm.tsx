@@ -9,19 +9,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { X } from "lucide-react";
+import { X, ImagePlus } from "lucide-react";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 import { getSafeErrorMessage } from "@/lib/safeError";
 
 interface TicketFormProps {
   ticket?: any;
   plantationId?: string;
+  clientId?: string;
+  clientLocation?: string;
   onSuccess: () => void;
   onCancel: () => void;
   readOnly?: boolean;
 }
 
-const TicketForm = ({ ticket, plantationId, onSuccess, onCancel, readOnly = false }: TicketFormProps) => {
+const TicketForm = ({ ticket, plantationId, clientId: fixedClientId, clientLocation, onSuccess, onCancel, readOnly = false }: TicketFormProps) => {
   const { register, handleSubmit, setValue, watch } = useForm({ defaultValues: ticket || {} });
   const { user } = useAuth();
   const { toast } = useToast();
@@ -53,6 +55,13 @@ const TicketForm = ({ ticket, plantationId, onSuccess, onCancel, readOnly = fals
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (fixedClientId) {
+      setValue("client_id", fixedClientId, { shouldValidate: true });
+      if (plantationId) setValue("plantation_id", plantationId, { shouldValidate: true });
+    }
+  }, [fixedClientId, plantationId, setValue]);
 
   useEffect(() => {
     if (clientId) {
@@ -146,25 +155,20 @@ const TicketForm = ({ ticket, plantationId, onSuccess, onCancel, readOnly = fals
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <Card><CardContent className="pt-6 space-y-4">
-        <div className="space-y-2">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 text-sm">
+      <Card><CardContent className="space-y-3 p-3 sm:p-4">
+        <div className="space-y-1.5">
           <Label>Client *</Label>
-          <Select defaultValue={ticket?.client_id} onValueChange={v => setValue("client_id", v)} disabled={readOnly}>
+          {fixedClientId ? <div className="flex min-h-9 items-center rounded-md border bg-muted/50 px-3 text-sm font-medium">{clients.find(c => c.id === fixedClientId)?.id_unique || ""} — {clients.find(c => c.id === fixedClientId)?.nom_complet || "Client de la fiche ouverte"}</div> : <Select defaultValue={ticket?.client_id} onValueChange={v => setValue("client_id", v)} disabled={readOnly}>
             <SelectTrigger><SelectValue placeholder="Sélectionner le client" /></SelectTrigger>
-            <SelectContent>
-              {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.id_unique} — {c.nom_complet || [c.prenoms,c.nom_famille].filter(Boolean).join(" ")}</SelectItem>)}
-            </SelectContent>
-          </Select>
+            <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.id_unique} — {c.nom_complet || [c.prenoms,c.nom_famille].filter(Boolean).join(" ")}</SelectItem>)}</SelectContent>
+          </Select>}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label>Région du client *</Label>
-            <Select value={regionId || ""} onValueChange={v => setValue("region_id", v)} disabled>
-              <SelectTrigger><SelectValue placeholder="Région automatique" /></SelectTrigger>
-              <SelectContent>{regions.map(r => <SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>)}</SelectContent>
-            </Select>
+            <Label>Localisation précise du client</Label>
+            <Input value={clientLocation || regions.find(r => r.id === regionId)?.nom || "Localisation non renseignée"} readOnly className="bg-muted/50" />
           </div>
           <div className="space-y-2">
             <Label>Plantation *</Label>
@@ -212,8 +216,11 @@ const TicketForm = ({ ticket, plantationId, onSuccess, onCancel, readOnly = fals
       </div>
 
       <Card><CardContent className="pt-6">
-        <Label>Photos du problème (optionnel)</Label>
-        <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="mt-2 w-full" disabled={readOnly} />
+        <Label className="flex items-center gap-2"><ImagePlus className="h-4 w-4" /> Photos du problème (optionnel)</Label>
+        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+          <ImagePlus className="h-5 w-5" /> Ajouter une ou plusieurs photos
+          <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="sr-only" disabled={readOnly} />
+        </label>
         {photoPreviews.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">{photoPreviews.map((preview,index)=><div key={index} className="relative"><img src={preview} alt={`Photo ${index+1}`} className="w-full h-24 object-cover rounded border"/><Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={()=>removePhoto(index)}><X className="h-4 w-4"/></Button></div>)}</div>}
       </CardContent></Card>
 
