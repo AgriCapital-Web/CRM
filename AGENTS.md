@@ -1,0 +1,2 @@
+- RLS policies, storage policies and SECURITY INVOKER functions must call role helpers from the `private` schema (private.is_staff, private.has_role, …); public.* role helpers are not executable by signed-in users, and one failing permissive policy blocks the whole query.
+- SELECT policies must also match the row's own `created_by`/owner columns directly, because scope helpers that re-read the table cannot see a row being inserted (INSERT … RETURNING would fail).
