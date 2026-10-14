@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, memo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/ui/button';
@@ -174,6 +174,13 @@ const InteractiveMapComponent = ({
             position={[marker.lat, marker.lng]}
             icon={redIcon}
           >
+            <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
+              <div className="min-w-[180px] max-w-[260px]">
+                <p className="font-semibold">{marker.label}</p>
+                {marker.info && <p className="mt-1 text-xs">{marker.info}</p>}
+                <p className="mt-1 text-[11px] font-mono text-muted-foreground">{marker.lat.toFixed(6)}, {marker.lng.toFixed(6)}</p>
+              </div>
+            </Tooltip>
             <Popup>
               <div className="min-w-[150px]">
                 <p className="font-semibold text-primary">{marker.label}</p>
