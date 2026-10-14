@@ -156,7 +156,7 @@ const Dashboard = () => {
         directoryRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations || globalAdmin
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre,is_demo")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canPlantations || globalAdmin
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
@@ -227,8 +227,8 @@ const Dashboard = () => {
       });
       const overdueAmount = overdue.reduce((s: number, p: any) => s + Math.max(0, Number(p.montant || 0) - Number(p.montant_paye || 0)), 0);
 
-      const dashboardClientIds = new Set(clients.filter((c: any) => c.is_demo !== true).map((c: any) => c.id));
-      const engagedHa = clients.filter((c:any)=>c.is_demo !== true).reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
+      const dashboardClientIds = new Set(clients.filter((c: any) => true).map((c: any) => c.id));
+      const engagedHa = clients.filter((c:any)=>true).reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const scopedPlantations = plantations.filter((p: any) => p.client_id && dashboardClientIds.has(p.client_id));
       const plantedHa = scopedPlantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
@@ -311,7 +311,7 @@ const Dashboard = () => {
       const internalAreaHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
-      const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.is_demo !== true && !c.is_internal && c.type_client !== "beneficiaire_particulier");
+      const activeContracts = clients.filter((c: any) => c.compte_actif === true && !c.is_internal && c.type_client !== "beneficiaire_particulier");
       const contractRows = activeContracts.filter((c: any) => Number(c.montant_total_contrat || 0) > 0);
       const paidByClient = new Map<string, number>();
       validPayments.forEach((p: any) => paidByClient.set(p.client_id, (paidByClient.get(p.client_id) || 0) + Number(p.montant_paye ?? p.montant ?? 0)));
@@ -416,7 +416,7 @@ const Dashboard = () => {
       );
 
       const officialOffers = new Map([["PalmInvest",{name:"PalmInvest",clients:0,hectares:0}],["TerraPalm",{name:"TerraPalm",clients:0,hectares:0}],["PalmTerroir",{name:"PalmTerroir",clients:0,hectares:0}]]);
-      clients.filter((c:any)=>c.is_demo !== true&&!c.is_internal&&c.type_client!=="beneficiaire_particulier"&&officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
+      clients.filter((c:any)=>true&&!c.is_internal&&c.type_client!=="beneficiaire_particulier"&&officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
       setOfferPerformance([...officialOffers.values()].filter((x:any)=>x.clients>0).sort((a,b)=>b.clients-a.clients));
 
       if (canCommercialTeamPerformance || canTechnicalTeamPerformance) {
