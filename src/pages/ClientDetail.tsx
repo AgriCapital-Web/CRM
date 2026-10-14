@@ -524,7 +524,7 @@ const ClientDetail = () => {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-4 sm:gap-3">
+          <div className="client-summary-grid grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 sm:gap-2">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -976,10 +976,10 @@ const ClientDetail = () => {
                         ) : paginatedAttributions.map((a: any) => (
                           <TableRow key={a.id}>
                             <TableCell>{a.parcelles?.nom || a.parcelles?.village || "Parcelle"}{a.parcelles?.village ? <span className="block text-xs text-muted-foreground">{a.parcelles.village}</span> : null}</TableCell>
-                            <TableCell><Badge variant="outline" className="whitespace-normal text-xs">{a.role_attribution === "proprietaire_beneficiaire" ? "Propriétaire + bénéficiaire" : "Bénéficiaire"}</Badge></TableCell>
+                            <TableCell className="whitespace-nowrap"><Badge variant="outline" className="inline-flex max-w-none whitespace-nowrap text-[11px] leading-none">{a.role_attribution === "proprietaire_beneficiaire" ? "Propriétaire + bénéficiaire" : "Bénéficiaire"}</Badge></TableCell>
                             <TableCell className="font-semibold">{Number(a.surface_attribuee_ha || 0).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</TableCell>
                             <TableCell className="max-w-[180px] truncate" title={a.plantations?.nom_plantation || ""}>{a.plantations?.nom_plantation || "Plantation"}</TableCell>
-                            <TableCell className="max-w-[140px] truncate" title={a.reference_acte || ""}>{a.reference_acte || "—"}</TableCell>
+                            <TableCell className="whitespace-nowrap" title={a.reference_acte || "Acte de remise"}>{documents.find((doc:any)=>String(doc.document_type||"").toLowerCase()==="acte_remise"||String(doc.libelle||"").toLowerCase().includes("acte de remise"))?.displayUrl ? <a className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline" href={documents.find((doc:any)=>String(doc.document_type||"").toLowerCase()==="acte_remise"||String(doc.libelle||"").toLowerCase().includes("acte de remise"))?.displayUrl} target="_blank" rel="noreferrer"><ExternalLink className="h-3.5 w-3.5"/>Prévisualiser</a> : (a.reference_acte || "—")}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

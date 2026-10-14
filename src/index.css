@@ -978,3 +978,24 @@ All colors MUST be HSL.
   .technique-page [data-slot="card-content"] { padding: .55rem .7rem .7rem; }
   .technique-page .grid { row-gap: .45rem; column-gap: .5rem; }
 }
+
+
+/* Densité globale obligatoire : toutes les tables du CRM, y compris Paramètres. */
+@layer components {
+  table th, table td { padding-block: .12rem !important; padding-inline: .28rem !important; line-height: 1.08 !important; vertical-align: middle; }
+  table th { font-size: .70rem !important; font-weight: 600; white-space: nowrap; }
+  table td { font-size: .74rem; }
+  table tbody tr { height: auto !important; min-height: 0 !important; }
+  table td p { margin-block: 0; }
+  @media (max-width: 640px) {
+    table th { font-size: .66rem !important; } table td { font-size: .69rem; }
+    table th, table td { padding-block: .1rem !important; padding-inline: .22rem !important; line-height: 1.06 !important; }
+  }
+}
+.client-summary-grid > [data-slot="card"], .client-summary-grid > [data-radix-card] { min-width: 0; }
+.client-summary-grid [data-slot="card-header"] { padding: .5rem .6rem .2rem; }
+.client-summary-grid [data-slot="card-content"] { padding: .2rem .6rem .55rem; }
+.client-summary-grid [data-slot="card-title"] { font-size: .72rem; line-height: 1.1; }
+.client-summary-grid .text-lg { font-size: clamp(.8rem, 1vw, 1rem); line-height: 1.2; overflow-wrap: anywhere; }
+.client-summary-grid button { height: 1.7rem; padding-inline: .45rem; font-size: .7rem; }
+@media (max-width: 1023px) { .client-summary-grid [data-slot="card-header"] { padding: .45rem .5rem .18rem; } .client-summary-grid [data-slot="card-content"] { padding: .18rem .5rem .45rem; } }
