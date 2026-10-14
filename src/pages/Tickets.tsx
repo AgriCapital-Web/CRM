@@ -128,8 +128,9 @@ const Tickets = () => {
                 <TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher un ticket…" />
               </div>
             </CardHeader>
-            <CardContent>
-              <Table>
+            <CardContent className="min-w-0">
+              <div className="w-full min-w-0 overflow-x-auto">
+              <Table className="min-w-[820px] responsive-data-table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
@@ -176,6 +177,7 @@ const Tickets = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
