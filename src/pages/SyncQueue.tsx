@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SyncStatusBadge, OnlineBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { getAllItems, getHttpMutationStats, STORES } from "@/lib/offlineDb";
+import { getAllItems, getHttpMutationStats, getPendingHttpMutations, retryHttpMutation, deleteHttpMutation, STORES } from "@/lib/offlineDb";
 import {
   getAllQueuedFiles, retryQueuedFile, retryAllQueuedFiles, discardQueuedFile,
   getFileQueueStats, startFileQueueResume, flushFileQueue,
@@ -19,12 +19,15 @@ export function SyncQueueContent() {
   const [files, setFiles] = useState<any[]>([]);
   const [fileStats, setFileStats] = useState({ pending: 0, error: 0, waiting: 0, total: 0 });
   const [httpStats, setHttpStats] = useState({ pending: 0, error: 0, total: 0 });
+  const [httpMutations, setHttpMutations] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     const queue = await getAllItems(STORES.SYNC_QUEUE);
     setOps((queue as any[]).filter((o) => o.status !== "synced"));
     setFiles(await getAllQueuedFiles());
     setFileStats(await getFileQueueStats());
+    await getPendingHttpMutations();
+    setHttpMutations(await getAllItems(STORES.HTTP_MUTATIONS));
     setHttpStats(await getHttpMutationStats());
   }, []);
 
@@ -78,7 +81,7 @@ export function SyncQueueContent() {
         </div>
       </div>
 
-      <div className="responsive-auto-grid min-w-0">
+      <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {[
           { l: "Fichiers en file", v: fileStats.total },
           { l: "Prêts à envoyer", v: fileStats.pending },
@@ -94,6 +97,33 @@ export function SyncQueueContent() {
           </Card>
         ))}
       </div>
+
+      <Card className="min-w-0 overflow-hidden">
+        <CardHeader className="pb-2"><CardTitle className="text-base">Requêtes réseau en attente</CardTitle></CardHeader>
+        <CardContent className="min-w-0">
+          {httpMutations.length === 0 ? <p className="text-sm text-muted-foreground">Aucune requête réseau en attente.</p> : (
+            <div className="w-full overflow-x-auto">
+              <Table className="responsive-data-table">
+                <TableHeader><TableRow><TableHead>Méthode</TableHead><TableHead>Endpoint</TableHead><TableHead>État</TableHead><TableHead>En file depuis</TableHead><TableHead>Erreur</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableBody>{httpMutations.map((m: any) => {
+                  let endpoint = m.url || "—"; try { endpoint = new URL(m.url).pathname; } catch { /* URL invalide */ }
+                  return <TableRow key={m.id}>
+                    <TableCell><span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">{m.method}</span></TableCell>
+                    <TableCell className="max-w-[14rem] break-all font-mono text-xs">{endpoint}</TableCell>
+                    <TableCell><SyncStatusBadge state={stateOf(m.status)} /><span className="mt-1 block text-[10px] text-muted-foreground">{m.retries || 0} reprise(s)</span></TableCell>
+                    <TableCell className="text-xs">{m.createdAt ? new Date(m.createdAt).toLocaleString("fr-FR") : "—"}</TableCell>
+                    <TableCell className="max-w-[16rem] break-words text-xs text-destructive">{m.error || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right"><div className="flex justify-end gap-1">
+                      <Button size="sm" variant="outline" aria-label="Réessayer la requête" onClick={async () => { if (!m.id) return; await retryHttpMutation(m.id); await syncNow(); await load(); }} disabled={!isOnline || isSyncing}><RotateCcw className="h-3 w-3" /></Button>
+                      <Button size="sm" variant="ghost" aria-label="Retirer la requête de la file" onClick={async () => { if (!m.id) return; await deleteHttpMutation(m.id); await load(); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    </div></TableCell>
+                  </TableRow>;
+                })}</TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="min-w-0 overflow-hidden">
         <CardHeader><CardTitle className="text-base">Opérations de données</CardTitle></CardHeader>
