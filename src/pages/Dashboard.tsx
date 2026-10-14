@@ -657,7 +657,7 @@ const Dashboard = () => {
                         </span>
                         {k.label}
                       </h2>
-                      <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Développement commercial" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-9" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-11" : "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6"}`}>
+                      <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Développement commercial" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-9" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(82px,1fr))]" : "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6"}`}>
                         {k.metrics.map((metric: any) => (
                           <Link
                             key={metric.label}
