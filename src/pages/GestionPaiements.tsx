@@ -494,7 +494,7 @@ const GestionPaiements = () => {
                   {sourceClient && (
                     <div className="bg-green-50 p-2 rounded border border-green-200">
                       <p className="text-sm font-medium text-green-800">✓ {sourceClient.nom_complet}</p>
-                      <p className="text-xs text-green-600">ID: {sourceClient.id_unique}</p>
+                      <p className="text-xs text-green-600">ID client : {sourceClient.id_unique}</p>
                     </div>
                   )}
                 </div>
@@ -514,7 +514,7 @@ const GestionPaiements = () => {
                   {targetClient && (
                     <div className="bg-blue-50 p-2 rounded border border-blue-200">
                       <p className="text-sm font-medium text-blue-800">✓ {targetClient.nom_complet}</p>
-                      <p className="text-xs text-blue-600">ID: {targetClient.id_unique}</p>
+                      <p className="text-xs text-blue-600">ID client : {targetClient.id_unique}</p>
                     </div>
                   )}
                 </div>
