@@ -506,6 +506,18 @@ export async function retryHttpMutation(id: number): Promise<void> {
   await putItem(STORES.HTTP_MUTATIONS, item);
 }
 
+export async function retryAllHttpMutations(): Promise<void> {
+  const all = (await getAllItems(STORES.HTTP_MUTATIONS)) as HttpMutation[];
+  for (const item of all) {
+    if (item.status !== 'error') continue;
+    item.status = 'pending';
+    item.error = undefined;
+    item.nextRetryAt = 0;
+    item.syncStartedAt = undefined;
+    await putItem(STORES.HTTP_MUTATIONS, item);
+  }
+}
+
 export async function deleteHttpMutation(id: number): Promise<void> {
   await deleteItem(STORES.HTTP_MUTATIONS, id);
 }
