@@ -92,7 +92,7 @@ const ClientDetail = () => {
   const updateNewSubscriptionFormData = (patch: any) => {
     if (patch.offre_id && patch.offre_id !== newSubscriptionFormData.offre_id) {
       setNewPlantationLotId("");
-      setNewPlantationParcelId("");
+      setNewPlantationParcelId(patch.offre?.necessite_foncier_client ? (client?.parcelle_id || "") : "");
     }
     setNewSubscriptionFormData((current: any) => ({ ...current, ...patch }));
   };
