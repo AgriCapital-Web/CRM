@@ -960,3 +960,21 @@ All colors MUST be HSL.
   .finance-page table th,
   .finance-page table td { padding: .18rem .24rem; }
 }
+
+
+/* Technique terrain : forms compactes, map and controls remain usable without excess vertical gaps. */
+.technique-page [data-slot="card-header"] { padding: .7rem .9rem .3rem; }
+.technique-page [data-slot="card-content"] { padding: .65rem .9rem .85rem; }
+.technique-page .grid { row-gap: .55rem; column-gap: .7rem; }
+.technique-page textarea { min-height: 2.4rem; }
+.technique-page .rounded-xl.border.p-4,
+.technique-page .rounded-lg.border.p-4 { padding: .65rem; }
+.technique-page .overflow-x-auto { max-width: 100%; }
+@media (min-width: 1024px) {
+  .technique-page .map-container { min-height: 0; }
+}
+@media (max-width: 640px) {
+  .technique-page [data-slot="card-header"] { padding: .6rem .7rem .25rem; }
+  .technique-page [data-slot="card-content"] { padding: .55rem .7rem .7rem; }
+  .technique-page .grid { row-gap: .45rem; column-gap: .5rem; }
+}
