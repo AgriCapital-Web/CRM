@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall } from "lucide-react";
+import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import ConfigurationSenndo from "@/pages/parametres/ConfigurationSenndo";
 
@@ -19,9 +19,11 @@ type Campaign = {
   segment_id: string | null; criteres: Record<string, unknown>; statut: string; programme_le: string | null;
   total_destinataires: number; total_envoyes: number; total_echecs: number;
 };
+type MediaAttachment = { bucket: string; path: string; name: string; mimeType: string; size: number };
+type NotificationTemplate = { id: string; code: string; nom: string; canal: string; evenement: string; sujet: string | null; contenu: string; actif: boolean; parcours: string | null; media_attachments?: MediaAttachment[] };
 type Automation = {
   id: string; code: string; nom: string; description: string | null; evenement: string; canal: string;
-  sujet: string | null; contenu: string; criteres: Record<string, unknown>; actif: boolean; cooldown_minutes: number;
+  sujet: string | null; contenu: string; criteres: Record<string, unknown>; actif: boolean; cooldown_minutes: number; media_attachments?: MediaAttachment[];
 };
 
 const CHANNELS = [
@@ -62,11 +64,28 @@ const AUDIENCES = [
   ["beneficiaires_particuliers", "Bénéficiaires particuliers"],
 ];
 
-const normalizeSms = (value: string) =>
-  value.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
+const normalizeSms = (value: string) => value.replace(/\s+/g, " ").trim();
+const smsLength = (value: string) => Array.from(normalizeSms(value)).length;
+async function compressVideo(file: File): Promise<File> {
+  if (!file.type.startsWith("video/") || file.size < 5*1024*1024 || typeof MediaRecorder === "undefined") return file;
+  const mime = ["video/mp4","video/webm;codecs=vp9","video/webm"].find((x) => MediaRecorder.isTypeSupported(x)); if (!mime) return file;
+  const url=URL.createObjectURL(file), video=document.createElement("video"); video.src=url; video.muted=true; video.playsInline=true;
+  try { await new Promise<void>((resolve,reject)=>{video.onloadedmetadata=()=>resolve();video.onerror=()=>reject(new Error("Vidéo illisible"));});
+    const scale=Math.min(1,1280/Math.max(video.videoWidth,video.videoHeight)), canvas=document.createElement("canvas");
+    canvas.width=Math.max(2,Math.round(video.videoWidth*scale/2)*2);canvas.height=Math.max(2,Math.round(video.videoHeight*scale/2)*2);
+    const ctx=canvas.getContext("2d"), capture=(video as HTMLVideoElement & {captureStream?:()=>MediaStream}).captureStream;
+    if(!ctx||!canvas.captureStream||!capture)return file;const stream=canvas.captureStream(24);capture.call(video).getAudioTracks().forEach(t=>stream.addTrack(t));const chunks:BlobPart[]=[];
+    const recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:1500000});const blob=await new Promise<Blob>((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onerror=()=>reject(new Error("Compression impossible"));recorder.onstop=()=>resolve(new Blob(chunks,{type:mime}));const draw=()=>{if(video.ended||video.paused)return;ctx.drawImage(video,0,0,canvas.width,canvas.height);requestAnimationFrame(draw)};recorder.start(1000);void video.play().then(draw).catch(reject);video.onended=()=>{if(recorder.state!=="inactive")recorder.stop()}});
+    if(!blob.size||blob.size>=file.size)return file;return new File([blob],file.name.replace(/\.[^.]+$/,"")+(mime.includes("mp4")?".mp4":".webm"),{type:mime,lastModified:Date.now()});
+  } catch { return file; } finally { URL.revokeObjectURL(url);video.src=""; }
+}
 
 const GestionNotifications = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
+  const [campaignMedia, setCampaignMedia] = useState<MediaAttachment[]>([]);
+  const [automationMedia, setAutomationMedia] = useState<MediaAttachment[]>([]);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,20 +100,22 @@ const GestionNotifications = () => {
   const [preview, setPreview] = useState<{ count: number; sample: any[] } | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
-  const smsCount = useMemo(() => normalizeSms(campaign.contenu).length, [campaign.contenu]);
-  const automationSmsCount = useMemo(() => normalizeSms(automation.contenu).length, [automation.contenu]);
+  const smsCount = useMemo(() => smsLength(campaign.contenu), [campaign.contenu]);
+  const automationSmsCount = useMemo(() => smsLength(automation.contenu), [automation.contenu]);
 
   const load = async () => {
     setLoading(true);
-    const [s, c, a] = await Promise.all([
+    const [s, c, a, t] = await Promise.all([
       supabase.from("notification_segments").select("*").order("nom"),
       supabase.from("notification_campaigns").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("notification_automations").select("*").order("nom"),
+      supabase.from("notification_templates").select("id,code,nom,canal,evenement,sujet,contenu,actif,parcours,media_attachments").order("evenement").order("canal"),
     ]);
     if (s.error || c.error || a.error) toast.error("Impossible de charger la communication");
     setSegments((s.data || []) as Segment[]);
     setCampaigns((c.data || []) as Campaign[]);
     setAutomations((a.data || []) as Automation[]);
+    setTemplates((t.data || []) as NotificationTemplate[]);
     setLoading(false);
   };
 
@@ -130,18 +151,19 @@ const GestionNotifications = () => {
 
   const createCampaign = async () => {
     if (!campaign.nom.trim() || !campaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
-    if ((campaign.canal === "sms" || campaign.canal === "email_sms") && smsCount > 150) return toast.error("Le SMS doit faire 150 caracteres maximum");
+    if ((campaign.canal === "sms" || campaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
     const selected = campaign.segment_id || segments.find((s) => s.code === campaign.audience)?.id || null;
     const { error } = await supabase.from("notification_campaigns").insert({
       nom: campaign.nom.trim(), description: campaign.description || null, canal: campaign.canal,
       sujet: campaign.sujet || null, contenu: campaign.canal.includes("sms") ? normalizeSms(campaign.contenu) : campaign.contenu,
-      segment_id: selected, criteres: { audience: campaign.audience },
+      media_attachments: campaignMedia, segment_id: selected, criteres: { audience: campaign.audience },
       statut: campaign.programme_le ? "programme" : "brouillon",
       programme_le: campaign.programme_le ? new Date(campaign.programme_le).toISOString() : null,
     });
     if (error) return toast.error(error.message);
     toast.success(campaign.programme_le ? "Campagne programmee" : "Campagne enregistree");
     setCampaign({ nom: "", description: "", canal: "app", sujet: "", contenu: "", segment_id: "", audience: "tous", programme_le: "" });
+    setCampaignMedia([]);
     await load();
   };
 
@@ -155,18 +177,19 @@ const GestionNotifications = () => {
 
   const saveAutomation = async () => {
     if (!automation.nom.trim() || !automation.code.trim() || !automation.contenu.trim()) return toast.error("Code, nom et contenu obligatoires");
-    if ((automation.canal === "sms" || automation.canal === "email_sms") && automationSmsCount > 150) return toast.error("Le SMS doit faire 150 caracteres maximum");
+    if ((automation.canal === "sms" || automation.canal === "email_sms") && automationSmsCount > 155) return toast.error(`Le SMS fait ${automationSmsCount} caractères : limite 155, espaces et signes compris.`);
     const { error } = await supabase.from("notification_automations").upsert({
       code: automation.code.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_"),
       nom: automation.nom.trim(), description: automation.description || null,
       evenement: automation.evenement, canal: automation.canal, sujet: automation.sujet || null,
       contenu: automation.canal.includes("sms") ? normalizeSms(automation.contenu) : automation.contenu,
-      criteres: { audience: automation.audience }, actif: automation.actif,
+      media_attachments: automationMedia, criteres: { audience: automation.audience }, actif: automation.actif,
       cooldown_minutes: Math.max(0, Number(automation.cooldown_minutes) || 0),
     }, { onConflict: "code" });
     if (error) return toast.error(error.message);
     toast.success("Automatisation enregistree");
     setAutomation({ ...automation, code: "", nom: "", description: "", sujet: "", contenu: "" });
+    setAutomationMedia([]);
     await load();
   };
 
@@ -174,6 +197,19 @@ const GestionNotifications = () => {
     const { error } = await supabase.from("notification_automations").update({ actif: !item.actif }).eq("id", item.id);
     if (error) toast.error(error.message); else await load();
   };
+  const uploadMedia = async (files: FileList | null, target: "campaign" | "automation") => {
+    if (!files?.length) return; const { data: { user } } = await supabase.auth.getUser(); if (!user) return toast.error("Connexion requise.");
+    setUploadingMedia(true); const uploaded: MediaAttachment[]=[];
+    try { for (const original of Array.from(files)) {
+      if(original.size>50*1024*1024)throw new Error(`${original.name} dépasse 50 Mo.`);
+      const file=await compressVideo(original), name=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"), path=`${user.id}/${crypto.randomUUID()}-${name}`;
+      const {error}=await supabase.storage.from("notification-media").upload(path,file,{contentType:file.type||"application/octet-stream"});
+      if(error)throw error; uploaded.push({bucket:"notification-media",path,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size});
+    } if(target==="campaign")setCampaignMedia(v=>[...v,...uploaded]);else setAutomationMedia(v=>[...v,...uploaded]);toast.success("Pièces jointes enregistrées.");}
+    catch(e){toast.error(e instanceof Error?e.message:"Téléversement impossible.");}finally{setUploadingMedia(false);}
+  };
+  const useTemplate = (t: NotificationTemplate) => { setCampaign(v=>({...v,canal:t.canal,sujet:t.sujet||"",contenu:t.contenu,nom:v.nom||t.nom}));setCampaignMedia(t.media_attachments||[]); };
+  const MediaPicker = ({target,items}:{target:"campaign"|"automation";items:MediaAttachment[]}) => <div className="space-y-2"><Label>Pièces jointes</Label><label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"><Paperclip className="h-4 w-4"/>{uploadingMedia?"Téléversement…":"Ajouter des fichiers"}<input type="file" className="hidden" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" disabled={uploadingMedia} onChange={e=>{void uploadMedia(e.target.files,target);e.currentTarget.value="";}}/></label>{items.map(item=><div key={item.path} className="flex items-center gap-2 rounded border p-2 text-sm">{item.mimeType.startsWith("image/")?<ImageIcon className="h-4 w-4"/>:item.mimeType.startsWith("video/")?<Video className="h-4 w-4"/>:<FileText className="h-4 w-4"/>}<span className="min-w-0 flex-1 truncate">{item.name}</span><span>{(item.size/1048576).toFixed(1)} Mo</span><Button size="icon" type="button" variant="ghost" onClick={()=>{if(target==="campaign")setCampaignMedia(v=>v.filter(x=>x.path!==item.path));else setAutomationMedia(v=>v.filter(x=>x.path!==item.path));void supabase.storage.from(item.bucket).remove([item.path]);}}><X className="h-4 w-4"/></Button></div>)}</div>;
 
   return (
     <div className="w-full max-w-full min-w-0 space-y-6">
@@ -204,7 +240,7 @@ const GestionNotifications = () => {
           <TabsList className="inline-flex min-w-max">
             <TabsTrigger value="campaigns"><Send className="mr-2 h-4 w-4" />Campagnes</TabsTrigger>
             <TabsTrigger value="automations"><Zap className="mr-2 h-4 w-4" />Automatisations</TabsTrigger>
-            <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger>
+            <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger><TabsTrigger value="templates"><FileText className="mr-2 h-4 w-4" />Modèles</TabsTrigger>
             <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger>
           </TabsList>
         </div>
@@ -215,12 +251,13 @@ const GestionNotifications = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value })} placeholder="Campagne rentree agricole" /></Field>
+                <Field label="Modèle enregistré"><Select value="" onValueChange={id=>{const t=templates.find(x=>x.id===id);if(t)useTemplate(t);}}><SelectTrigger><SelectValue placeholder="Choisir un modèle"/></SelectTrigger><SelectContent>{templates.filter(t=>t.actif).map(t=><SelectItem key={t.id} value={t.id}>{t.nom} · {t.canal}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Canal"><Select value={campaign.canal} onValueChange={(v) => setCampaign({ ...campaign, canal: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Destinataires"><Select value={campaign.audience} onValueChange={(v) => { setCampaign({ ...campaign, audience: v }); void previewAudience(v); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{AUDIENCES.map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Planification"><Input type="datetime-local" value={campaign.programme_le} onChange={(e) => setCampaign({ ...campaign, programme_le: e.target.value })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={campaign.sujet} onChange={(e) => setCampaign({ ...campaign, sujet: e.target.value })} placeholder="Information AgriCapital" /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, ..." /><div className="mt-1 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"><span>Variables : {"{{prenom}}"}, {"{{nom}}"}, {"{{offre}}"}, {"{{date}}"}</span>{campaign.canal.includes("sms") && <span className={smsCount > 150 ? "font-semibold text-destructive" : ""}>{smsCount}/150 caracteres SMS</span>}</div></Field>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, ..." /><div className="mt-1 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">{campaign.canal.includes("sms") && <span className={smsCount > 155 ? "font-semibold text-destructive" : ""}>{smsCount}/155 caractères SMS</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
               {preview && <Preview count={preview.count} sample={preview.sample} />}
               <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />Enregistrer la campagne</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>
@@ -245,7 +282,7 @@ const GestionNotifications = () => {
                 <Field label="Delai anti-doublon (minutes)"><Input type="number" min={0} value={automation.cooldown_minutes} onChange={(e) => setAutomation({ ...automation, cooldown_minutes: Number(e.target.value) || 0 })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={automation.sujet} onChange={(e) => setAutomation({ ...automation, sujet: e.target.value })} /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 150 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/150 caracteres SMS.</p>}</Field>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 155 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/155 caractères SMS.</p>}</Field><MediaPicker target="automation" items={automationMedia}/>
               <div className="flex items-center gap-2"><Switch checked={automation.actif} onCheckedChange={(v) => setAutomation({ ...automation, actif: v })} /><Label>Activer automatiquement</Label></div>
               <Button onClick={saveAutomation}><Zap className="mr-2 h-4 w-4" />Enregistrer l'automatisation</Button>
             </CardContent>
@@ -258,6 +295,8 @@ const GestionNotifications = () => {
         </TabsContent>
 
         <TabsContent value="senndo" className="space-y-5"><ConfigurationSenndo /></TabsContent>
+
+        <TabsContent value="templates"><Card><CardHeader><CardTitle>Modèles de messages</CardTitle></CardHeader><CardContent className="space-y-3">{templates.map(t=><div key={t.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.nom}</span><Badge variant="outline">{t.canal}</Badge><Badge variant={t.actif?"default":"secondary"}>{t.actif?"Actif":"Inactif"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t.evenement} · {t.code}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{t.contenu.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()}</p></div><Button type="button" variant="outline" onClick={()=>useTemplate(t)}>Utiliser</Button></div>)}{!templates.length&&<p className="py-8 text-center text-muted-foreground">Aucun modèle enregistré en base.</p>}</CardContent></Card></TabsContent>
 
         <TabsContent value="segments">
           <Card><CardHeader><CardTitle>Segments disponibles</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{segments.map((s) => <div key={s.id} className="rounded-lg border p-4"><div className="flex items-start justify-between gap-2"><div><p className="font-medium">{s.nom}</p><p className="text-xs text-muted-foreground">{s.description}</p></div><Badge variant={s.actif ? "default" : "outline"}>{s.actif ? "Actif" : "Inactif"}</Badge></div><Button className="mt-3 w-full" variant="outline" onClick={() => { setCampaign({ ...campaign, audience: String(s.criteres?.audience || "tous"), segment_id: s.id }); void previewAudience(String(s.criteres?.audience || "tous")); }}>Utiliser ce segment</Button></div>)}</div></CardContent></Card>
