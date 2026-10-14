@@ -99,9 +99,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const activeState = activeContract?.state || baseState || {};
   const pi = activeState?.paiement_initial || {};
   const monthly = activeState?.mensualite || {};
-  const arrearsAmount = Number(monthly.montant_arriere ?? (Number(monthly.mensualites_arrivees || 0) > 0 ? monthly.montant_a_payer : 0) ?? 0);
   const monthlyAmount = Number(monthly.montant || 0);
-  const daysLate = Number(monthly.jours_retard ?? (Number(monthly.mensualites_arrivees || 0) * 30));
+  const arrearsAmount = Number(monthly.montant_arriere ?? Math.max(0, Number(monthly.montant_a_payer || 0) - monthlyAmount));
+  const arrearsMonths = monthlyAmount > 0 ? Math.ceil(arrearsAmount / monthlyAmount) : Number(monthly.mensualites_arrivees || 0);
+  const daysLate = Number(monthly.jours_retard ?? (arrearsMonths * 30));
   const remaining = Number(activeState?.reste_contrat ?? activeClient?.summary?.reste_a_payer ?? activeClient?.summary?.montant_total_contrat ?? activeClient?.montant_total_contrat ?? 0);
   const piBalance = Number(pi.solde || 0);
 
@@ -361,7 +362,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                 <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Paiement initial restant</span><strong>{money(piBalance)}</strong></div>
                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Mensualité de référence</span><strong>{money(monthlyAmount)}</strong></div>
-                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Mois en retard (estimation)</span><strong>{Math.ceil(daysLate / 30)}</strong></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Mois d’arriéré</span><strong>{Math.ceil(daysLate / 30)}</strong></div>
                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Échéance à régulariser</span><strong>{money(Number(monthly.montant_a_payer || 0))}</strong></div>
                 </div>
               </div>
@@ -381,7 +382,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Montant à payer (F CFA)</label>
                 <Input type="number" min="1" step="1" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Saisir un montant libre" />
-                <p className="text-xs text-muted-foreground">Le montant sera débité par le parcours sécurisé KKiaPay. Aucun paiement en espèces ou validation manuelle n’est proposé.</p>
+                <p className="text-xs text-muted-foreground">Le widget sécurisé KKiaPay permet de choisir Mobile Money (dont Wave selon disponibilité) ou carte bancaire. Aucun paiement en espèces ou validation manuelle n’est proposé.</p>
               </div>
             </div>
           ) : null}
