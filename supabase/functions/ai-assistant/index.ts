@@ -57,7 +57,7 @@ serve(async (req) => {
     const [{ data: roleRows, error: roleError }, { data: profile }] = await Promise.all([
       authClient.from("user_roles").select("role").eq("user_id", caller.id),
       authClient.from("profiles")
-        .select("nom_complet, departement, equipe_id, region_id, district_id, relation_rh, poste")
+        .select("id, nom_complet, departement, equipe_id, region_id, district_id, relation_rh, poste")
         .eq("user_id", caller.id)
         .maybeSingle(),
     ]);
@@ -68,6 +68,16 @@ serve(async (req) => {
       : { data: [], error: null };
     if (permissionError) throw new Error("Impossible de vérifier les permissions du compte.");
     const permissionCodes = Array.from(new Set((permissionRows || []).map((row: any) => String(row.permission_code || "").trim()).filter(Boolean)));
+    const { data: teamRows, error: teamError } = profile?.id
+      ? await authClient.from("equipe_membres")
+          .select("equipe_id, equipe:equipes!equipe_membres_equipe_id_fkey(nom, type_equipe, region_id)")
+          .eq("profile_id", profile.id)
+      : { data: [], error: null };
+    if (teamError) throw new Error("Impossible de vérifier les équipes du compte.");
+    const verifiedTeams = (teamRows || []).map((row: any) => {
+      const team = Array.isArray(row.equipe) ? row.equipe[0] : row.equipe;
+      return team ? `${team.nom} (${team.type_equipe || "équipe"})` : row.equipe_id;
+    });
     const isGlobalAdmin = roleCodes.some((role: string) => ["pdg", "dg"].includes(role));
     if (mode === "admin" && !isGlobalAdmin) {
       return new Response(JSON.stringify({ error: "Accès réservé au PDG/DG." }), {
@@ -86,6 +96,7 @@ serve(async (req) => {
       "Département: " + String(profile?.departement || "non défini"),
       "Poste: " + String(profile?.poste || "non défini"),
       "Équipe principale: " + String(profile?.equipe_id || "non définie"),
+      "Toutes les équipes affectées: " + (verifiedTeams.join(", ") || "aucune"),
       "Région de rattachement: " + String(profile?.region_id || "non définie"),
       "District de rattachement: " + String(profile?.district_id || "non défini"),
     ].join("\n");
