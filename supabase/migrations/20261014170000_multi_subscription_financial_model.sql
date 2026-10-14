@@ -378,7 +378,7 @@ $function$;
 
 -- Disable Marahoue without deleting it; an authorized user can reactivate it
 -- from Paramètres > Géographie.
-update public.regions set est_active=false,updated_at=now()
+update public.regions set est_active=false
 where id='717529b6-6133-41f4-b247-7c782d300885' and lower(nom)='marahoue';
 
 -- Extend the existing client synthesis with additional subscription totals while
