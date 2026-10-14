@@ -42,7 +42,7 @@ const GestionCartes = () => {
   const [cartes, setCartes] = useState<Row[]>([]);
   const [roles, setRoles] = useState<Record<string, string[]>>({});
   const [roleLevels, setRoleLevels] = useState<Record<string, number>>({});
-  const [roleCoverage, setRoleCoverage] = useState<Record<string, { level: string; label: string }>>({});
+  const [roleCoverage, setRoleCoverage] = useState<Record<string, { level: string; label: string; name: string }>>({});
   const [zoneAssignments, setZoneAssignments] = useState<Row[]>([]);
   const [geoNames, setGeoNames] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
@@ -81,7 +81,7 @@ const GestionCartes = () => {
       (a.data || []).forEach((x: any) => {
         if (!x.code) return;
         levels[x.code] = Number(x.niveau);
-        coverage[x.code] = { level: x.niveau_couverture || "global", label: x.libelle_couverture || "Périmètre" };
+        coverage[x.code] = { level: x.niveau_couverture || "global", label: x.libelle_couverture || "Périmètre", name: x.nom || "" };
       });
       setRoleLevels(levels);
       setRoleCoverage(coverage);
@@ -135,6 +135,7 @@ const GestionCartes = () => {
             departement: c?.departement || p.departement,
             role_code: highestRoleCode(roles[p.user_id] || [], roleLevels),
             role_codes: roles[p.user_id] || [],
+            role_label: roleCoverage[highestRoleCode(roles[p.user_id] || [], roleLevels) || ""]?.name || null,
             type_contrat: c?.type_contrat || null,
             statut_agent: c?.statut_agent || null,
             mission: c?.mission || null,
