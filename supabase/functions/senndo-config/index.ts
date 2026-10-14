@@ -33,7 +33,8 @@ Deno.serve(async (req) => {
       const { data: apiKey } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
       const { data: webhookSecret } = await admin.rpc("senndo_get_secret", { p_name: "senndo_webhook_secret" });
       const { data: emailSenderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
-      return reply(req,{ok:true, configured:{apiKey:Boolean(apiKey),webhookSecret:Boolean(webhookSecret),emailSenderId:Boolean(emailSenderId)}, emailSenderId:emailSenderId || "", senderId:"AgriCapital", whatsappNumber:"+22564551717", provider:"Senndo"});
+      const { data: whatsappSenderPhone } = await admin.rpc("senndo_get_secret", { p_name: "senndo_whatsapp_sender_phone" });
+      return reply(req,{ok:true, configured:{apiKey:Boolean(apiKey),webhookSecret:Boolean(webhookSecret),emailSenderId:Boolean(emailSenderId),whatsappSenderPhone:Boolean(whatsappSenderPhone || apiKey)}, emailSenderId:emailSenderId || "", whatsappSenderPhone:whatsappSenderPhone || "+22564551717", senderId:"AgriCapital", whatsappNumber:whatsappSenderPhone || "+22564551717", provider:"Senndo"});
     }
     if (mode === "whatsapp_diagnostics") {
       const { data: apiKey, error: keyError } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
@@ -81,10 +82,12 @@ Deno.serve(async (req) => {
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
     const webhookSecret = typeof body.webhookSecret === "string" ? body.webhookSecret.trim() : "";
     const emailSenderId = typeof body.emailSenderId === "string" ? body.emailSenderId.trim() : "";
+    const whatsappSenderPhone = typeof body.whatsappSenderPhone === "string" ? body.whatsappSenderPhone.trim() : "";
     if (apiKey && !/^(sk_(test|live)_)[A-Za-z0-9_-]{12,}$/.test(apiKey)) return reply(req,{error:"Format de clé Senndo invalide"},400);
     if (webhookSecret && webhookSecret.length < 16) return reply(req,{error:"Le secret webhook doit contenir au moins 16 caractères"},400);
     if (emailSenderId && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailSenderId)) return reply(req,{error:"L'expéditeur e-mail doit être une adresse valide vérifiée dans Senndo"},400);
-    if (!apiKey && !webhookSecret && !emailSenderId) return reply(req,{error:"Renseigne au moins une valeur à enregistrer"},400);
+    if (whatsappSenderPhone && !/^\+225[0-9]{8,10}$/.test(whatsappSenderPhone.replace(/[\s().-]/g, ""))) return reply(req,{error:"Le numéro WhatsApp doit être au format international +225..."},400);
+    if (!apiKey && !webhookSecret && !emailSenderId && !whatsappSenderPhone) return reply(req,{error:"Renseigne au moins une valeur à enregistrer"},400);
     if (apiKey) {
       const { error } = await admin.rpc("senndo_store_secret", { p_name:"senndo_api_key", p_value:apiKey });
       if (error) throw error;
@@ -97,7 +100,13 @@ Deno.serve(async (req) => {
       const { error } = await admin.rpc("senndo_store_secret", { p_name:"senndo_email_sender_id", p_value:emailSenderId });
       if (error) throw error;
     }
-    return reply(req,{ok:true,message:"Configuration enregistrée dans Supabase Vault.",configured:{apiKey:Boolean(apiKey),webhookSecret:Boolean(webhookSecret),emailSenderId:Boolean(emailSenderId)}});
+    if (whatsappSenderPhone) {
+      const normalizedPhone = whatsappSenderPhone.replace(/[\s().-]/g, "");
+      if (normalizedPhone !== "+22564551717") return reply(req,{error:"Le numéro WhatsApp autorisé pour AgriCapital est +22564551717."},400);
+      const { error } = await admin.rpc("senndo_store_secret", { p_name:"senndo_whatsapp_sender_phone", p_value:normalizedPhone });
+      if (error) throw error;
+    }
+    return reply(req,{ok:true,message:"Configuration enregistrée dans Supabase Vault.",configured:{apiKey:Boolean(apiKey),webhookSecret:Boolean(webhookSecret),emailSenderId:Boolean(emailSenderId),whatsappSenderPhone:Boolean(whatsappSenderPhone)}});
   } catch (e) {
     // Never log request bodies or secret-bearing errors.
     console.error("senndo-config error");
