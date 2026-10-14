@@ -60,7 +60,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const [paying, setPaying] = useState(false);
   const [contracts, setContracts] = useState<ContractState[]>([]);
   const [selectedContractId, setSelectedContractId] = useState("principal");
-  const [paymentType, setPaymentType] = useState<"PI" | "MENSUALITE">("MENSUALITE");
+  type PaymentType = "PI" | "RATTRAPAGE" | "MENSUALITE" | "AVANCE";
+  const [paymentType, setPaymentType] = useState<PaymentType>("MENSUALITE");
   const [amount, setAmount] = useState("");
   const [paymentPhone, setPaymentPhone] = useState("");
   const [selectedPlantationId, setSelectedPlantationId] = useState("");
@@ -135,6 +136,26 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const remaining = Number(activeState?.reste_contrat ?? activeClient?.summary?.reste_a_payer ?? activeClient?.summary?.montant_total_contrat ?? activeClient?.montant_total_contrat ?? 0);
   const piBalance = Number(pi.solde || 0);
   const availablePlantations = plantations.filter((p: any) => activeContract?.subscriptionId ? p.souscription_id === activeContract.subscriptionId : !p.souscription_id);
+
+  const suggestedPaymentType = (state: any): PaymentType => {
+    const p = state?.paiement_initial || {};
+    const m = state?.mensualite || {};
+    const arrears = Number(m.montant_arriere ?? Math.max(0, Number(m.montant_a_payer || 0) - Number(m.montant || 0)));
+    const lateDays = Number(m.jours_retard || 0);
+    if (arrears > 0 || lateDays > 0) return "RATTRAPAGE";
+    if (Number(m.montant_a_payer || 0) > 0) return "MENSUALITE";
+    if (Number(p.solde || 0) > 0) return "PI";
+    return "AVANCE";
+  };
+
+  const amountForPaymentType = (type: PaymentType, state: any) => {
+    const p = state?.paiement_initial || {};
+    const m = state?.mensualite || {};
+    if (type === "PI") return Number(p.solde || 0);
+    if (type === "RATTRAPAGE") return Number(m.montant_a_payer || m.montant_arriere || 0);
+    if (type === "MENSUALITE") return Number(m.montant_a_payer || m.montant || 0);
+    return Number(m.montant || 0);
+  };
 
   const openClientFinance = async (client: ClientFinanceRow) => {
     setActiveClient(client);
@@ -216,9 +237,9 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const initial = firstWithPI || firstWithArrears || firstWithMonthly || firstWithBalance || nextContracts.find(c => c.subscriptionId) || nextContracts[0];
       if (initial) {
         setSelectedContractId(initial.id);
-        const type: "PI" | "MENSUALITE" = Number(initial.state?.paiement_initial?.solde || 0) > 0 ? "PI" : "MENSUALITE";
+        const type = suggestedPaymentType(initial.state);
         setPaymentType(type);
-        setAmount(String(type === "PI" ? Number(initial.state?.paiement_initial?.solde || 0) : Number(initial.state?.mensualite?.montant_a_payer || initial.state?.mensualite?.montant || 0)));
+        setAmount(String(amountForPaymentType(type, initial.state)));
         setSelectedPlantationId(initial.plantationId || "");
       }
     } catch (error: any) {
@@ -232,20 +253,15 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     setSelectedContractId(id);
     const next = contracts.find(c => c.id === id);
     if (!next) return;
-    const type: "PI" | "MENSUALITE" = Number(next.state?.paiement_initial?.solde || 0) > 0 ? "PI" : "MENSUALITE";
+    const type = suggestedPaymentType(next.state);
     setPaymentType(type);
-    setAmount(String(type === "PI" ? Number(next.state?.paiement_initial?.solde || 0) : Number(next.state?.mensualite?.montant_a_payer || next.state?.mensualite?.montant || 0)));
+    setAmount(String(amountForPaymentType(type, next.state)));
     setSelectedPlantationId(next.plantationId || "");
   };
 
-  const setQuickAmount = (kind: "arrears" | "monthly" | "pi") => {
-    if (kind === "pi") {
-      setPaymentType("PI");
-      setAmount(String(piBalance));
-      return;
-    }
-    setPaymentType("MENSUALITE");
-    setAmount(String(kind === "arrears" ? arrearsAmount : monthlyAmount));
+  const choosePaymentType = (type: PaymentType) => {
+    setPaymentType(type);
+    setAmount(String(amountForPaymentType(type, activeState)));
   };
 
   const startKkiapayPayment = async () => {
@@ -267,7 +283,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       toast({ variant: "destructive", title: "Mensualité indisponible", description: "Aucune mensualité n’est actuellement exigible pour ce contrat. Le paiement est bloqué pour éviter une mauvaise imputation." });
       return;
     }
-    const plantationRequired = paymentType === "MENSUALITE" || Boolean(activeContract.subscriptionId);
+    const plantationRequired = paymentType !== "PI" || Boolean(activeContract.subscriptionId);
     if (plantationRequired && !selectedPlantationId) {
       toast({ variant: "destructive", title: "Plantation requise", description: "Une plantation réelle rattachée à ce contrat est nécessaire pour ce type de paiement." });
       return;
@@ -276,7 +292,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     try {
       // Le contrat principal réutilise la validation de couverture de jours du portail.
       // Les souscriptions ont leur propre échéancier et leur propre état financier.
-      if (paymentType === "MENSUALITE" && !activeContract.subscriptionId) {
+      if ((paymentType === "MENSUALITE" || paymentType === "RATTRAPAGE" || paymentType === "AVANCE") && !activeContract.subscriptionId) {
         const { data: clientContract, error: contractError } = await (supabase as any)
           .from("clients")
           .select("jours_contrat_total,jours_payes")
@@ -302,7 +318,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         client_id: activeClient.id,
         souscription_id: activeContract.subscriptionId,
         plantation_id: selectedPlantationId,
-        type_paiement: paymentType,
+        type_paiement: paymentType === "PI" ? "PI" : "MENSUALITE",
         montant: paymentAmount,
         montant_theorique: paymentAmount,
         montant_paye: null,
@@ -314,13 +330,13 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         metadata: {
           payment_provider: "kkiapay",
           source: "crm_financial_sheet",
-          intention: paymentType === "PI" ? "paiement_initial" : "mensualite",
+          intention: paymentType === "PI" ? (Number(pi.montant_paye || pi.deja_paye || 0) > 0 ? "solde_paiement_initial" : "paiement_initial") : paymentType === "RATTRAPAGE" ? "rattrapage" : paymentType === "AVANCE" ? "avance" : "mensualite",
           souscription_id: activeContract.subscriptionId,
           contract_remaining_at_creation: remaining,
         },
       };
       const pendingQuery = (supabase as any).from("paiements").select("id,statut,reference")
-        .eq("client_id", activeClient.id).eq("type_paiement", paymentType).eq("statut", "en_attente");
+        .eq("client_id", activeClient.id).eq("type_paiement", paymentType === "PI" ? "PI" : "MENSUALITE").eq("statut", "en_attente");
       const scopedPending = activeContract.subscriptionId
         ? pendingQuery.eq("souscription_id", activeContract.subscriptionId)
         : pendingQuery.is("souscription_id", null);
@@ -366,7 +382,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         name: activeClient.nom_complet || "Client AgriCapital",
         phone: paymentPhone || activeClient.telephone || "",
         paymentMethods: ["momo", "card"],
-        data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType, client_id: activeClient.id, souscription_id: activeContract.subscriptionId },
+        data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, souscription_id: activeContract.subscriptionId },
       });
       if (!opened) throw new Error("Le module KKiaPay ne s’est pas ouvert. Vérifiez la connexion et la configuration du compte marchand.");
     } catch (error: any) {
@@ -387,7 +403,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="responsive-data-table min-w-[760px]">
+            <Table className="responsive-data-table">
               <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Montant du contrat</TableHead><TableHead>Déjà payé</TableHead><TableHead>Reste à payer</TableHead><TableHead>État</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {isLoading ? <TableRow><TableCell colSpan={7} className="py-8 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></TableCell></TableRow>
@@ -425,14 +441,14 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           {loadingFinance ? <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />Chargement de la situation financière…</div>
           : activeClient ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Reste du contrat</p><p className="mt-1 font-bold">{money(remaining)}</p></CardContent></Card>
-                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Jours d’arriéré</p><p className={`mt-1 font-bold ${daysLate > 0 ? "text-destructive" : ""}`}>{daysLate}</p></CardContent></Card>
-                <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Montant des arriérés</p><p className={`mt-1 font-bold ${arrearsAmount > 0 ? "text-destructive" : ""}`}>{money(arrearsAmount)}</p></CardContent></Card>
+              <div className="grid grid-cols-3 gap-2">
+                <Card><CardContent className="p-2"><p className="text-[11px] text-muted-foreground">Reste contrat</p><p className="mt-1 font-bold">{money(remaining)}</p></CardContent></Card>
+                <Card><CardContent className="p-2"><p className="text-[11px] text-muted-foreground">Jours retard</p><p className={`mt-1 font-bold ${daysLate > 0 ? "text-destructive" : ""}`}>{daysLate}</p></CardContent></Card>
+                <Card><CardContent className="p-2"><p className="text-[11px] text-muted-foreground">Arriérés</p><p className={`mt-1 font-bold ${arrearsAmount > 0 ? "text-destructive" : ""}`}>{money(arrearsAmount)}</p></CardContent></Card>
               </div>
-              <div className="rounded-lg border p-3">
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><CalendarClock className="h-4 w-4 text-primary" />Situation des échéances</div>
-                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+              <div className="rounded-lg border p-2.5">
+                <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><CalendarClock className="h-4 w-4 text-primary" />Situation des échéances</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Paiement initial restant</span><strong>{money(piBalance)}</strong></div>
                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Mensualité de référence</span><strong>{money(monthlyAmount)}</strong></div>
                   <div className="flex justify-between gap-3"><span className="text-muted-foreground">Mois d’arriéré</span><strong>{Math.ceil(daysLate / 30)}</strong></div>
@@ -451,14 +467,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Type de règlement</label>
-                <Select value={paymentType} onValueChange={(v) => { const t = v as "PI" | "MENSUALITE"; setPaymentType(t); setAmount(String(t === "PI" ? piBalance : (Number(monthly.montant_a_payer || 0) || monthlyAmount))); }}>
+                <Select value={paymentType} onValueChange={(v) => choosePaymentType(v as PaymentType)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{piBalance > 0 && <SelectItem value="PI">Paiement initial</SelectItem>}<SelectItem value="MENSUALITE" disabled={Number(monthly.montant_a_payer || 0) <= 0}>Mensualité / rattrapage</SelectItem></SelectContent>
+                  <SelectContent>{piBalance > 0 && <SelectItem value="PI">{Number(pi.montant_paye || pi.deja_paye || 0) > 0 ? "Solde paiement initial" : "Paiement initial"}</SelectItem>}<SelectItem value="RATTRAPAGE" disabled={arrearsAmount <= 0 && daysLate <= 0}>Rattrapage</SelectItem><SelectItem value="MENSUALITE" disabled={Number(monthly.montant_a_payer || 0) <= 0 || arrearsAmount > 0 || daysLate > 0}>Mensualité</SelectItem><SelectItem value="AVANCE" disabled={arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0}>Avance</SelectItem></SelectContent>
                 </Select>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {arrearsAmount > 0 || daysLate > 0 ? <Button type="button" variant="outline" onClick={() => setQuickAmount("arrears")}>Rattraper les arriérés</Button> : monthlyAmount > 0 ? <Button type="button" variant="outline" onClick={() => setQuickAmount("monthly")}>Payer la mensualité</Button> : <Button type="button" variant="outline" onClick={() => { setPaymentType("MENSUALITE"); setAmount(""); }}>Saisir un paiement libre / avance</Button>}
-                {piBalance > 0 && <Button type="button" variant="outline" onClick={() => setQuickAmount("pi")}>Régler le paiement initial</Button>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Numéro de paiement (Mobile Money / Wave)</label>
@@ -466,16 +478,15 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Montant à payer (F CFA)</label>
-                <Input type="number" min="1" step="1" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Saisir un montant libre" />
-                <p className="text-xs text-muted-foreground">Le widget sécurisé KKiaPay permet de choisir Mobile Money (dont Wave selon disponibilité) ou carte bancaire. Aucun paiement en espèces ou validation manuelle n’est proposé.</p>
+                <Input type="number" min="1" step="1" inputMode="numeric" value={amount} readOnly={paymentType !== "AVANCE"} onChange={e => setAmount(e.target.value)} placeholder="Montant calculé automatiquement" />
               </div>
             </div>
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
-            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType === "MENSUALITE" || Boolean(activeContract.subscriptionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0)}>
+            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType !== "PI" || Boolean(activeContract.subscriptionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0) || (paymentType === "RATTRAPAGE" && arrearsAmount <= 0 && daysLate <= 0) || (paymentType === "AVANCE" && (arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0))}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              {paying ? "Ouverture / vérification…" : arrearsAmount > 0 || daysLate > 0 ? "Rattraper avec KKiaPay" : "Payer avec KKiaPay"}
+              {paying ? "Ouverture / vérification…" : paymentType === "RATTRAPAGE" ? "Rattraper le paiement" : paymentType === "PI" ? "Payer le solde initial" : paymentType === "AVANCE" ? "Payer en avance" : "Payer la mensualité"}
             </Button>
           </DialogFooter>
         </DialogContent>
