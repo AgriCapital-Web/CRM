@@ -777,7 +777,7 @@ const Dashboard = () => {
                     <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5 text-primary" />Clients récents</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un client" /></div></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Nom</TableHead><TableHead>Plantations</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
+                        <Table><TableHeader><TableRow><TableHead>ID client</TableHead><TableHead>Nom</TableHead><TableHead>Plantations</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {filteredRecentClients.length ? filteredRecentClients.map((c) => (
                             <TableRow key={c.id_unique}>
@@ -813,8 +813,6 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
                 )}
-              </div>
-
               </div>
               </section>
               <section aria-label="Alertes et indicateurs terrain" className="space-y-3 rounded-xl border border-emerald-600/60 p-3 sm:p-4">
