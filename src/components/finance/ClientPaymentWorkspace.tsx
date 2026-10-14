@@ -239,6 +239,29 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     }
     setPaying(true);
     try {
+      // Le contrat principal réutilise la validation de couverture de jours du portail.
+      // Les souscriptions ont leur propre échéancier et leur propre état financier.
+      if (paymentType === "MENSUALITE" && !activeContract.subscriptionId) {
+        const { data: clientContract, error: contractError } = await (supabase as any)
+          .from("clients")
+          .select("jours_contrat_total,jours_payes")
+          .eq("id", activeClient.id)
+          .maybeSingle();
+        if (contractError) throw contractError;
+        const remainingDays = Math.max(0, Number(clientContract?.jours_contrat_total || 0) - Number(clientContract?.jours_payes || 0));
+        if (remainingDays > 0) {
+          const { data: coveredDays, error: daysError } = await (supabase as any).rpc("portal_days_for_amount", {
+            _client_id: activeClient.id,
+            _plantation_id: selectedPlantationId,
+            _amount: paymentAmount,
+          });
+          if (daysError) throw daysError;
+          if (Number(coveredDays || 0) > remainingDays) {
+            throw new Error("Le montant dépasse la couverture restante réelle du contrat.");
+          }
+        }
+      }
+
       const reference = `CRM-${activeClient.id.slice(0, 8)}-${Date.now()}`;
       const payload = {
         client_id: activeClient.id,
@@ -278,29 +301,6 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         paiementId = created.id;
       }
       if (!paiementId) throw new Error("Le paiement n’a pas pu être préparé.");
-
-      // Le contrat principal réutilise la validation de couverture de jours du portail.
-      // Les souscriptions ont leur propre échéancier et leur propre état financier.
-      if (paymentType === "MENSUALITE" && !activeContract.subscriptionId) {
-        const { data: clientContract, error: contractError } = await (supabase as any)
-          .from("clients")
-          .select("jours_contrat_total,jours_payes")
-          .eq("id", activeClient.id)
-          .maybeSingle();
-        if (contractError) throw contractError;
-        const remainingDays = Math.max(0, Number(clientContract?.jours_contrat_total || 0) - Number(clientContract?.jours_payes || 0));
-        if (remainingDays > 0) {
-          const { data: coveredDays, error: daysError } = await (supabase as any).rpc("portal_days_for_amount", {
-            _client_id: activeClient.id,
-            _plantation_id: selectedPlantationId,
-            _amount: paymentAmount,
-          });
-          if (daysError) throw daysError;
-          if (Number(coveredDays || 0) > remainingDays) {
-            throw new Error("Le montant dépasse la couverture restante réelle du contrat.");
-          }
-        }
-      }
 
       onSuccess(async (response) => {
         try {
