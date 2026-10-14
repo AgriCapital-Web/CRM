@@ -89,7 +89,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     }
     const client = clients.find((s) => s.id === clientId);
     setSelectedClient(client);
-    setValue("souscription_id", "");
+    setValue("souscription_id", paiement?.client_id === clientId ? (paiement?.souscription_id || "") : "");
     setSelectedSubscription(null);
     if (typePaiement === "MENSUALITE") {
       fetchPlantationsByClient(clientId);
