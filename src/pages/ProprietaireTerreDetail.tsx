@@ -123,7 +123,6 @@ const ProprietaireTerreDetail = () => {
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" onClick={() => navigate("/proprietaires-terres")}><ArrowLeft className="mr-2 h-4 w-4" />Retour</Button>
               <div>
-                <p className="text-xs font-mono text-muted-foreground">{owner.id_unique}</p>
                 <h1 className="text-2xl font-bold">{owner.nom_complet}</h1>
               </div>
             </div>
@@ -161,15 +160,14 @@ const ProprietaireTerreDetail = () => {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table className="min-w-[820px]">
-                  <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Localisation</TableHead><TableHead>Total</TableHead><TableHead>Part AgriCapital</TableHead><TableHead>Attribuée</TableHead><TableHead>Disponible</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Localisation</TableHead><TableHead>Total</TableHead><TableHead>Part AgriCapital</TableHead><TableHead>Attribuée</TableHead><TableHead>Disponible</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {parcelles.length === 0 ? <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Aucune parcelle.</TableCell></TableRow> :
+                    {parcelles.length === 0 ? <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Aucune parcelle.</TableCell></TableRow> :
                       parcelles.map(p => {
                         const ac = Number(p.surface_agricapital_ha ?? p.surface_totale_ha ?? 0);
                         const used = Number(p.surface_attribuee_ha || 0);
                         const available = Math.max(0, ac - used);
                         return <TableRow key={p.id}>
-                          <TableCell className="font-mono text-xs">{p.id_unique}</TableCell>
                           <TableCell><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /><span>{[p.village,p.departements?.nom,p.regions?.nom].filter(Boolean).join(", ") || "—"}</span></div></TableCell>
                           <TableCell>{Number(p.surface_totale_ha || 0).toFixed(2)} ha</TableCell>
                           <TableCell>{ac.toFixed(2)} ha</TableCell>
