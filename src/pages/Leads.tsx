@@ -570,7 +570,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                         {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
                           <Button size="sm" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
                         )}
-                        {view === "prospects" && l.etape_pipeline === "prospect" && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
+                        {view === "prospects" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
                           <Button size="sm" onClick={() => void convertToClient(l)}><ArrowRight className="h-3 w-3 mr-1" />Convertir en client</Button>
                         )}
                       </TableCell>
