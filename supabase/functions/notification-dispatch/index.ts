@@ -692,7 +692,11 @@ serve(async (req) => {
       return json(req, { ok: true, results: await runScheduledAutomations() });
     }
     if (mode === "events") {
-      if (!(await internalAuthorized(req))) return json(req, { error: "Non autorise" }, 401);
+      // Les événements déclenchés depuis le CRM peuvent venir d'un utilisateur du personnel.
+      // Les appels cron restent protégés par le secret interne ; un appel manuel exige une session
+      // authentifiée et un rôle du personnel reconnu par staffAuthorized.
+      const authorized = await internalAuthorized(req) || await staffAuthorized(req);
+      if (!authorized) return json(req, { error: "Accès refusé : session du personnel requise." }, 401);
       const events = Array.isArray(body.events) ? body.events : [];
       return json(req, { ok: true, results: await runEvents(events) });
     }
