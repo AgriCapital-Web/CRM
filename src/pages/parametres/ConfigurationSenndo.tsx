@@ -17,7 +17,7 @@ export default function ConfigurationSenndo() {
   const [apiKey, setApiKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [emailSenderId, setEmailSenderId] = useState("");
-  const [whatsappSenderPhone, setWhatsappSenderPhone] = useState("+22564551717");
+  const [whatsappSenderPhone, setWhatsappSenderPhone] = useState("+2250564551717");
   const [status, setStatus] = useState<Status>({ apiKey: false, apiValid: false, webhookSecret: false, emailSenderId: false, whatsappSenderPhone: false, whatsappSession: "unknown" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,11 +32,12 @@ export default function ConfigurationSenndo() {
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("senndo-config", { body: { mode: "status" } });
     if (error || !data?.ok) {
-      toast.error("Impossible de vérifier la configuration Senndo. Vérifiez vos droits administrateur.");
+      setStatus((current) => ({ ...current, apiError: data?.error || error?.message || "Impossible de lire le statut Senndo. Vérifiez les droits administrateur." }));
+      toast.error(data?.error || error?.message || "Impossible de vérifier la configuration Senndo.");
     } else {
       setStatus({ apiKey: Boolean(data.configured?.apiKey), apiValid: Boolean(data.configured?.apiValid), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId), whatsappSenderPhone: Boolean(data.configured?.whatsappSenderPhone), whatsappSession: data.configured?.whatsappSession || "unknown", statusErrors: data.statusErrors || {}, apiError: data.apiError || null });
       setEmailSenderId(typeof data.emailSenderId === "string" ? data.emailSenderId : "");
-      setWhatsappSenderPhone(typeof data.whatsappSenderPhone === "string" && data.whatsappSenderPhone ? data.whatsappSenderPhone : "+22564551717");
+      setWhatsappSenderPhone(typeof data.whatsappSenderPhone === "string" && data.whatsappSenderPhone ? data.whatsappSenderPhone : "+2250564551717");
     }
     setLoading(false);
   }, []);
@@ -194,7 +195,7 @@ export default function ConfigurationSenndo() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="senndo-whatsapp-sender">Numéro WhatsApp appairé AgriCapital</Label>
-            <Input id="senndo-whatsapp-sender" type="tel" value={whatsappSenderPhone} onChange={(e) => setWhatsappSenderPhone(e.target.value)} placeholder="+22564551717" autoComplete="off" spellCheck={false} />
+            <Input id="senndo-whatsapp-sender" type="tel" value={whatsappSenderPhone} onChange={(e) => setWhatsappSenderPhone(e.target.value)} placeholder="+2250564551717" autoComplete="off" spellCheck={false} />
             <p className="text-xs text-muted-foreground">Numéro utilisé pour retrouver automatiquement la session connectée dans Senndo.</p>
           </div>
           <div className="space-y-2">
