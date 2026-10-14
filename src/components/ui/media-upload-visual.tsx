@@ -67,40 +67,23 @@ async function optimizeImage(file: File): Promise<File> {
 }
 
 async function optimizeVideo(file: File): Promise<File> {
-  if (!file.type.startsWith("video/")) return file;
+  // Keep the original video bytes. Browser canvas/MediaRecorder transcoding can
+  // produce black frames on desktop browsers and some integrated graphics.
+  // Validate duration, but let the original codec/container reach storage intact.
   const url = URL.createObjectURL(file);
-  const video = document.createElement("video");
-  video.src = url; video.muted = true; video.playsInline = true; video.preload = "metadata";
   try {
-    await new Promise<void>((resolve, reject) => { video.onloadedmetadata = () => resolve(); video.onerror = () => reject(new Error("Vidéo illisible")); });
-    if (video.duration > MAX_UPLOAD_VIDEO_SECONDS) throw new Error("Une vidéo téléversée ne peut pas dépasser 30 minutes.");
-    if (typeof MediaRecorder === "undefined" || !HTMLCanvasElement.prototype.captureStream) {
-      throw new Error("Cet appareil ne permet pas de supprimer sûrement le son de cette vidéo. Essayez un navigateur récent.");
-    }
-    const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((v) => MediaRecorder.isTypeSupported(v));
-    if (!mime) throw new Error("Format vidéo muet indisponible sur cet appareil.");
-    const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(2, Math.round(video.videoWidth * scale / 2) * 2);
-    canvas.height = Math.max(2, Math.round(video.videoHeight * scale / 2) * 2);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Impossible de préparer la vidéo.");
-    const stream = canvas.captureStream(24); const chunks: BlobPart[] = [];
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1_000_000 });
-      let raf = 0; let settled = false;
-      const cleanup = () => { cancelAnimationFrame(raf); stream.getTracks().forEach((track) => track.stop()); };
-      const draw = () => { if (video.ended || video.paused) return; ctx.drawImage(video, 0, 0, canvas.width, canvas.height); raf = requestAnimationFrame(draw); };
-      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-      recorder.onerror = () => { if (!settled) { settled = true; cleanup(); reject(new Error("Traitement vidéo impossible.")); } };
-      recorder.onstop = () => { if (!settled) { settled = true; cleanup(); resolve(new Blob(chunks, { type: mime })); } };
-      video.onended = () => { if (recorder.state !== "inactive") recorder.stop(); };
-      recorder.start(1000); video.currentTime = 0;
-      void video.play().then(draw).catch((error) => { if (recorder.state !== "inactive") recorder.stop(); reject(error); });
+    const duration = await new Promise<number>((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => resolve(video.duration);
+      video.onerror = () => reject(new Error("Vidéo illisible par ce navigateur."));
+      video.src = url;
     });
-    if (!blob.size) throw new Error("La vidéo traitée est vide.");
-    return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webm`, { type: mime, lastModified: Date.now() });
-  } finally { URL.revokeObjectURL(url); video.pause(); video.src = ""; }
+    if (duration > MAX_UPLOAD_VIDEO_SECONDS) throw new Error("Une vidéo téléversée ne peut pas dépasser 30 minutes.");
+    return file;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export default function MediaUploadVisual({
