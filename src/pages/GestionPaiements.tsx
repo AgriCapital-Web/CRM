@@ -57,7 +57,6 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSafeErrorMessage } from "@/lib/safeError";
-import { getCachedItems, STORES } from "@/lib/offlineDb";
 import ClientPaymentWorkspace from "@/components/finance/ClientPaymentWorkspace";
 
 interface Paiement {
@@ -87,7 +86,6 @@ const GestionPaiements = () => {
   const canManage = canTransferPayment || canRefundPayment;
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPaiement, setSelectedPaiement] = useState<Paiement | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -379,7 +377,6 @@ const GestionPaiements = () => {
   };
 
   const resetForms = () => {
-    setSelectedPaiement(null);
     setSourcePhone("");
     setTargetAccount("");
     setTransferAmount("");
@@ -462,7 +459,25 @@ const GestionPaiements = () => {
 
             {/* Vue financière par client : les paiements se lancent depuis la fiche client via KKiaPay. */}
             <TabsContent value="paiements" className="space-y-4">
-              <ClientPaymentWorkspace />
+              <ClientPaymentWorkspace
+                onTransfer={(client: any) => {
+                  setSourcePhone(client.telephone || "");
+                  setTargetAccount("");
+                  setTransferAmount("");
+                  setTransferNotes("");
+                  void searchClient(client.telephone || "", "source");
+                  setIsTransferDialogOpen(true);
+                }}
+                onRefund={(client: any) => {
+                  setRefundSourcePhone(client.telephone || "");
+                  setRefundPaiementId("");
+                  setRefundAmount("");
+                  setRefundNotes("");
+                  setRefundMode("Mobile Money");
+                  void searchClient(client.telephone || "", "source");
+                  setIsRefundDialogOpen(true);
+                }}
+              />
             </TabsContent>
 
             {/* Monnaie client conservée dans les indicateurs; aucune conversion tarifaire artificielle. */}
