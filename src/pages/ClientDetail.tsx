@@ -373,6 +373,8 @@ const ClientDetail = () => {
   // Keep this detail view synchronized in place when this Client or its linked
   // records change elsewhere in the CRM.
   useRealtime({ table: "clients", filter: id ? `id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "client_souscriptions", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "paiements", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "plantations", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "documents_acquisition", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "beneficiaire_attributions", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
@@ -756,6 +758,38 @@ const ClientDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {clientSouscriptions.length > 0 && (
+                    <div className="mb-4 space-y-3 rounded-xl border p-3 sm:p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold">Souscriptions et engagements financiers</p>
+                        <Badge variant="outline">{clientSouscriptions.length} souscription(s)</Badge>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                        {clientSouscriptions.map((subscription: any) => (
+                          <div key={subscription.id} className="min-w-0 rounded-lg border bg-muted/20 p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold">{subscription.formule_nom || subscription.offre_nom}</p>
+                                <p className="text-xs text-muted-foreground">{subscription.famille_offre || subscription.offre_code} · {subscription.formule_code}</p>
+                              </div>
+                              <Badge variant={subscription.statut_technique === "mise_en_terre_realisee" ? "default" : "secondary"}>
+                                {subscription.statut_technique === "mise_en_terre_realisee" ? "Mise en terre réalisée" : "En attente d’intervention"}
+                              </Badge>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                              <div><p className="text-xs text-muted-foreground">Superficie</p><p className="font-semibold">{Number(subscription.superficie_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                              <div><p className="text-xs text-muted-foreground">Coût contractuel</p><p className="font-semibold">{formatMontant(Number(subscription.montant_total_contrat || 0))} F</p></div>
+                              <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="font-semibold">{formatMontant(Number(subscription.montant_pi_total || 0))} F</p></div>
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs text-muted-foreground">
+                              <span>{subscription.mode_paiement === "comptant" ? "Paiement comptant" : `Échéancier · ${Number(subscription.duree_paiement_mois || 0)} mois`}</span>
+                              <span>{subscription.necessite_foncier_client ? "Terrain du client" : "Parcelle partenaire"}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {pendingPlantationSubscriptions.length > 0 && (
                     <div className="mb-4 space-y-2 rounded-lg border border-dashed p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
