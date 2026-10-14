@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, Upload, X, Video, Square } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Camera, Upload, X, Video, Square, Plus } from "lucide-react";
 
 type Props = {
   label?: string;
@@ -83,6 +84,7 @@ export default function MediaUploadVisual({
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [mediaError, setMediaError] = useState("");
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -208,38 +210,32 @@ export default function MediaUploadVisual({
         onClick={(event) => event.stopPropagation()}
         onChange={handlePickerChange}
       />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            cameraRef.current?.click();
-          }}
-        >
-          <Camera className="mr-2 h-4 w-4" />
-          Prendre une photo
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            fileRef.current?.click();
-          }}
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          Ajouter {multiple ? "des fichiers" : "un fichier"}
-        </Button>
-        <Button type="button" variant={recording ? "destructive" : "outline"} className="w-full" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (recording) stopVideoRecording(); else void startVideoRecording(); }}>
-          {recording ? <Square className="mr-2 h-4 w-4" /> : <Video className="mr-2 h-4 w-4" />}
-          {recording ? "Arrêter la vidéo (" + String(Math.floor(recordSeconds / 60)).padStart(2, "0") + ":" + String(recordSeconds % 60).padStart(2, "0") + ")" : "Enregistrer une vidéo"}
-        </Button>
-      </div>
+      <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing} onClick={(event)=>{event.preventDefault();event.stopPropagation();setMediaDialogOpen(true);}}>
+        <Plus className="mr-2 h-4 w-4"/>Ajouter un média {files.length>0?(`(${files.length})`):""}
+      </Button>
+      <Dialog open={mediaDialogOpen} onOpenChange={setMediaDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ajouter des photos ou vidéos</DialogTitle>
+            <DialogDescription>Choisissez une seule action. Les médias sélectionnés seront ajoutés au rapport.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Button type="button" variant="outline" className="w-full justify-start" onClick={(event)=>{event.preventDefault();event.stopPropagation();setMediaDialogOpen(false);cameraRef.current?.click();}}>
+              <Camera className="mr-2 h-4 w-4"/>Prendre une photo
+            </Button>
+            <Button type="button" variant="outline" className="w-full justify-start" onClick={(event)=>{event.preventDefault();event.stopPropagation();setMediaDialogOpen(false);fileRef.current?.click();}}>
+              <Upload className="mr-2 h-4 w-4"/>Importer depuis l’appareil
+            </Button>
+            <Button type="button" variant={recording?"destructive":"outline"} className="w-full justify-start" disabled={processing} onClick={(event)=>{event.preventDefault();event.stopPropagation();if(recording)stopVideoRecording();else void startVideoRecording();}}>
+              {recording?<Square className="mr-2 h-4 w-4"/>:<Video className="mr-2 h-4 w-4"/>}
+              {recording?"Arrêter la vidéo ("+String(Math.floor(recordSeconds/60)).padStart(2,"0")+":"+String(recordSeconds%60).padStart(2,"0")+")":"Enregistrer une vidéo"}
+            </Button>
+            {recording&&<p className="text-sm font-medium text-destructive">Enregistrement en cours. La limite est de 10 minutes.</p>}
+            {processing&&<p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}
+            {mediaError&&<p role="alert" className="text-sm text-destructive">{mediaError}</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
       {recording && <p className="text-sm font-medium text-destructive">Enregistrement en cours · arrêt automatique à 10 minutes.</p>}
       {processing && <p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}
       {mediaError && <p role="alert" className="text-sm text-destructive">{mediaError}</p>}
