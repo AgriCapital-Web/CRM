@@ -1210,3 +1210,28 @@ All colors MUST be HSL.
   transform-origin: top center;
 }
 
+
+
+/* Final CRM typography safeguard: keep complete words and short status labels on one line. */
+@layer base {
+  label, button, th, td, p, span, a, [role="status"], [role="alert"], [data-slot="badge"], .badge {
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: none;
+  }
+  button, [data-slot="badge"], .badge, [role="status"] {
+    white-space: nowrap;
+  }
+  [data-slot="badge"] *, .badge *, [role="status"] * {
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+  @media (max-width: 640px) {
+    label, th, td, button, [data-slot="badge"], .badge {
+      word-break: normal;
+      overflow-wrap: break-word;
+      hyphens: none;
+    }
+  }
+}
