@@ -88,6 +88,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [contactChannel, setContactChannel] = useState("whatsapp");
   const [contactMessage, setContactMessage] = useState("");
   const [contactMedia, setContactMedia] = useState<File[]>([]);
+  const [contactStoredMedia, setContactStoredMedia] = useState<Array<{ bucket: string; path: string; name: string; mimeType: string; size: number }>>([]);
   const [contactTemplates, setContactTemplates] = useState<any[]>([]);
   const [selectedContactTemplate, setSelectedContactTemplate] = useState("");
   const [contactSending, setContactSending] = useState(false);
@@ -364,7 +365,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     const message = lead.type_lead === "proprietaire_foncier"
       ? `${greeting} ${fullName}, AgriCapital revient vers vous au sujet de la valorisation de votre terrain pour un projet de palmier à huile. Souhaitez-vous être recontacté(e) ? Répondez OUI.`
       : `${greeting} ${fullName}, êtes-vous toujours intéressé(e) par un projet de plantation de palmier à huile avec AgriCapital ? Répondez OUI pour être recontacté(e).`;
-    setContactMessage(message.slice(0, 350)); setContactMedia([]); setSelectedContactTemplate(""); setContactOpen(true);
+    setContactMessage(message.slice(0, 350)); setContactMedia([]); setContactStoredMedia([]); setSelectedContactTemplate(""); setContactOpen(true);
     void (async () => {
       const { data, error } = await (supabase as any).from("notification_templates")
         .select("id,code,nom,canal,evenement,sujet,contenu,media_attachments")
@@ -417,7 +418,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           channel: contactChannel,
           content: message,
           subject: String(contactTemplates.find((item) => item.id === selectedContactTemplate)?.sujet || "Suivi de votre projet de plantation de palmier à huile"),
-          media_attachments: mediaAttachments,
+          media_attachments: [...contactStoredMedia, ...mediaAttachments],
+          template_id: selectedContactTemplate || null,
           request_id: crypto.randomUUID(),
         },
       });
@@ -676,8 +678,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           <DialogContent>
             <DialogHeader><DialogTitle>Contacter {contactLead ? [contactLead.prenoms, contactLead.nom].filter(Boolean).join(" ") : "le contact"}</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={(v) => { setContactChannel(v); setSelectedContactTemplate(""); if (v === "sms") { setContactMessage(normalizeSmsText(contactMessage).slice(0, 155)); setContactMedia([]); } else if (v === "whatsapp") setContactMessage(contactMessage.slice(0, 350)); else if (v === "email") setContactMessage(contactMessage.slice(0, 5000)); else setContactMedia([]); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
-              {(contactChannel === "sms" || contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Modèle enregistré</Label><Select value={selectedContactTemplate} onValueChange={(id) => { const template = contactTemplates.find((item) => item.id === id); if (!template) return; setSelectedContactTemplate(id); const rendered = renderLeadTemplate(String(template.contenu || ""), contactLead).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(); const limit = contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000; setContactMessage((contactChannel === "sms" ? normalizeSmsText(rendered) : rendered).slice(0, limit)); }}><SelectTrigger><SelectValue placeholder="Choisir un modèle de la base" /></SelectTrigger><SelectContent>{contactTemplates.filter((item) => item.canal === contactChannel).map((item) => <SelectItem key={item.id} value={item.id}>{item.nom} · {item.evenement}</SelectItem>)}</SelectContent></Select></div>}
+              <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={(v) => { setContactChannel(v); setSelectedContactTemplate(""); setContactStoredMedia([]); if (v === "sms") { setContactMessage(normalizeSmsText(contactMessage).slice(0, 155)); setContactMedia([]); } else if (v === "whatsapp") setContactMessage(contactMessage.slice(0, 350)); else if (v === "email") setContactMessage(contactMessage.slice(0, 5000)); else setContactMedia([]); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
+              {(contactChannel === "sms" || contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Modèle enregistré</Label><Select value={selectedContactTemplate} onValueChange={(id) => { const template = contactTemplates.find((item) => item.id === id); if (!template) return; setSelectedContactTemplate(id); setContactStoredMedia(Array.isArray(template.media_attachments) ? template.media_attachments : []); const rendered = renderLeadTemplate(String(template.contenu || ""), contactLead).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(); const limit = contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000; setContactMessage((contactChannel === "sms" ? normalizeSmsText(rendered) : rendered).slice(0, limit)); }}><SelectTrigger><SelectValue placeholder="Choisir un modèle de la base" /></SelectTrigger><SelectContent>{contactTemplates.filter((item) => item.canal === contactChannel).map((item) => <SelectItem key={item.id} value={item.id}>{item.nom} · {item.evenement}</SelectItem>)}</SelectContent></Select></div>}
               {(contactChannel === "sms" || contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Message</Label><Textarea value={contactMessage} maxLength={contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000} onChange={e => setContactMessage(contactChannel === "sms" ? normalizeSmsText(e.target.value).slice(0, 155) : e.target.value.slice(0, contactChannel === "whatsapp" ? 350 : 5000))} rows={4} /><p className="text-right text-xs text-muted-foreground">{Array.from(contactChannel === "sms" ? normalizeSmsText(contactMessage) : contactMessage).length}/{contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000} caractères</p></div>}
               {(contactChannel === "whatsapp" || contactChannel === "email") && <MediaUploadVisual label="Pièces jointes" files={contactMedia} onChange={setContactMedia} multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.pptx,.csv,.txt" />}
             </div>
