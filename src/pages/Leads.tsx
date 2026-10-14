@@ -407,7 +407,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       if (!data?.ok) throw new Error(data?.error || "L’envoi n’a pas été confirmé par Senndo.");
       toast({
         title: contactChannel === "whatsapp" ? "WhatsApp envoyé à Senndo" : contactChannel === "sms" ? "SMS envoyé à Senndo" : "Email envoyé à Senndo",
-        description: `Demande acceptée par Senndo · ${data.characterCount ?? message.length}/${contactChannel === "sms" ? 155 : 200} caractères.`,
+        description: `Demande acceptée par Senndo · ${data.characterCount ?? message.length}/${(contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000)} caractères.`,
       });
       setContactOpen(false);
       setContactMedia([]);
@@ -477,7 +477,6 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Prospects</h1>
-            <span className="text-xs text-muted-foreground">Leads et prospects réunis</span>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>
