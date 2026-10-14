@@ -95,7 +95,7 @@ export default function Finance(){
       const {data,error}=await (supabase as any).from("finance_transactions").insert({
         direction:"sortie",category:"DEPENSE",label:expense.category,amount:Number(expense.amount),
         status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        notes:expense.description||null,reference:proofPath
+        notes:expense.description||null
       }).select("id").single();
       if(error) throw error;
       const {error: expenseError}=await (supabase as any).from("finance_expenses").insert({
@@ -104,7 +104,7 @@ export default function Finance(){
         is_direct_cost:expense.direct,proof_path:proofPath,proof_name:expenseProof?.name||null,
         proof_mime_type:expenseProof?.type||null
       });
-      if(expenseError) throw expenseError;
+      if(expenseError) { await (supabase as any).from("finance_transactions").delete().eq("id",data.id); throw expenseError; }
       toast({title:"Dépense enregistrée",description:proofPath ? "Justificatif joint à la dépense." : "Dépense enregistrée sans justificatif."});
       setExpense({category:"AUTRE",amount:"",description:"",supplier:"",clientId:"",plantationId:"",direct:false});
       setExpenseProof(null);
