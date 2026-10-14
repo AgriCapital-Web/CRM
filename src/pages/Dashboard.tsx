@@ -423,8 +423,13 @@ const Dashboard = () => {
         const profileByUser = new Map(directory.map((p: any) => [p.user_id, p]));
         const profileById = new Map(directory.map((p: any) => [p.id, p]));
         const teamMap = new Map<string, any>();
-        if (canCommercialTeamPerformance) clients.filter((cl: any) => !cl.is_internal).forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:"Équipe commerciale",clients:0,hectares:0,interventions:0}; row.clients+=1; row.hectares+=Number(cl.total_hectares||0); teamMap.set(key,row); });
-        if (canTechnicalTeamPerformance) interventions.forEach((i: any) => { const p=profileById.get(i.agent_technique_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="technique:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"technique",nom:"Équipe technique",clients:0,hectares:0,interventions:0}; row.interventions+=1; teamMap.set(key,row); });
+        const membersByTeam = new Map<string, number>();
+        directory.forEach((member: any) => {
+          if (!member.equipe_id) return;
+          membersByTeam.set(member.equipe_id, (membersByTeam.get(member.equipe_id) || 0) + 1);
+        });
+        if (canCommercialTeamPerformance) clients.filter((cl: any) => !cl.is_internal).forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:"Équipe commerciale",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.clients+=1; row.hectares+=Number(cl.total_hectares||0); teamMap.set(key,row); });
+        if (canTechnicalTeamPerformance) interventions.forEach((i: any) => { const p=profileById.get(i.agent_technique_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="technique:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"technique",nom:"Équipe technique",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.interventions+=1; teamMap.set(key,row); });
         setTeamPerformance([...teamMap.values()].sort((a,b)=>(b.clients+b.interventions)-(a.clients+a.interventions)).slice(0,10));
       }
 
@@ -716,7 +721,7 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader className="px-3 pb-1 pt-3"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Équipes</CardTitle></CardHeader>
                   <CardContent className="p-3 pt-1"><div className="responsive-auto-grid">{teamPerformance.map((team) => (
-                    <div key={team.key} className="rounded-lg border p-2"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" dossier(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-1 text-xs text-muted-foreground">{num(team.hectares)} ha</p>}</div>
+                    <div key={team.key} className="rounded-lg border p-2"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" dossier(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-1 text-xs text-muted-foreground">{num(team.hectares)} ha</p>}<div className="my-2 border-t border-border" role="separator" /><div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">Membres de l’équipe</span><span className="font-semibold tabular-nums">{team.members}</span></div></div>
                   ))}</div></CardContent>
                 </Card>
               )}
