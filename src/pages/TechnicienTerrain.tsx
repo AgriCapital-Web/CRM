@@ -477,14 +477,7 @@ const TechnicienTerrain=()=>{
   {r.statut==="soumis"&&<><Button size="sm" onClick={()=>validateReport(r,true)}>Valider & publier</Button><Button size="sm" variant="outline" onClick={()=>validateReport(r,false)}>Refuser</Button></>}
   <Button size="sm" variant="outline" onClick={()=>{setReassignReportId(r.id);setReassignTechnicienId(r.agent_technique_id||"");}}>Réaffecter</Button>
 </div>}
-{manager&&reassignReportId===r.id&&<div className="mt-3 flex flex-col sm:flex-row gap-2">
-  <Select value={reassignTechnicienId||""} onValueChange={setReassignTechnicienId}>
-    <SelectTrigger className="sm:flex-1"><SelectValue placeholder="Nouveau technicien" /></SelectTrigger>
-    <SelectContent>{techniciens.map((t:any)=><SelectItem key={t.id} value={t.id}>{t.nom_complet}</SelectItem>)}</SelectContent>
-  </Select>
-  <Button size="sm" onClick={reassignReport}>Confirmer</Button>
-  <Button size="sm" variant="ghost" onClick={()=>{setReassignReportId("");setReassignTechnicienId("");}}>Annuler</Button>
-</div>}</div>)}</CardContent></Card>
+</div>)}</CardContent></Card>
         <Card><CardHeader><CardTitle>Interventions récentes</CardTitle></CardHeader><CardContent className="space-y-3">{interventions.length===0?"Aucune intervention.":interventions.map(i=><div key={i.id} className="border rounded-lg p-3"><div className="flex justify-between"><p className="font-medium">{i.plantation?.nom_plantation||i.plantation?.id_unique}</p><Badge variant="outline">{i.type_intervention}</Badge></div><p className="text-xs text-muted-foreground mt-1">{new Date(i.date_intervention).toLocaleDateString("fr-FR")} · {i.statut}</p><p className="text-sm mt-2">{i.observations||"—"}</p>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <span className="text-xs text-muted-foreground">Technicien : {i.agent?.nom_complet||"—"}</span>
@@ -500,6 +493,21 @@ const TechnicienTerrain=()=>{
               </div></div>)}</CardContent></Card>
       </div></TabsContent>
     </Tabs>
+      <Dialog open={Boolean(reassignReportId||reassignInterventionId)} onOpenChange={(open)=>{if(!open){setReassignReportId("");setReassignInterventionId("");setReassignTechnicienId("");}}}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Réaffecter à un technicien</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Select value={reassignTechnicienId||""} onValueChange={setReassignTechnicienId}>
+              <SelectTrigger><SelectValue placeholder="Choisir un technicien autorisé"/></SelectTrigger>
+              <SelectContent>{techniciens.map((technicien:any)=><SelectItem key={technicien.id} value={technicien.id}>{technicien.nom_complet}</SelectItem>)}</SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={()=>{setReassignReportId("");setReassignInterventionId("");setReassignTechnicienId("");}}>Annuler</Button>
+              <Button disabled={!reassignTechnicienId} onClick={()=>void (reassignReportId?reassignReport():reassignIntervention())}>Confirmer</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
   </div></MainLayout></ProtectedRoute>;
 };
 export default TechnicienTerrain;
