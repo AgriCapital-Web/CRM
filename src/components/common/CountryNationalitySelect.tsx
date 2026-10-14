@@ -11,6 +11,7 @@ type Props = {
   required?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  compact?: boolean;
 };
 
 export default function CountryNationalitySelect({
@@ -20,6 +21,7 @@ export default function CountryNationalitySelect({
   required = false,
   disabled = false,
   placeholder = "Sélectionner une nationalité",
+  compact = false,
 }: Props) {
   const [countries, setCountries] = useState<Nationality[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,8 +57,8 @@ export default function CountryNationalitySelect({
   const selectedValue = countries.find((country) => country.code === value || country.name === value)?.code || "";
 
   return (
-    <div className="space-y-2 min-w-0">
-      {label && <label className="text-sm font-medium block">{label}{required && " *"}</label>}
+    <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
+      {label && <label className={`block font-medium ${compact ? "text-xs" : "text-sm"}`}>{label}{required && " *"}</label>}
       <SearchableSelect
         value={selectedValue}
         onValueChange={onChange}
@@ -65,6 +67,7 @@ export default function CountryNationalitySelect({
         searchPlaceholder="Rechercher un pays..."
         emptyText="Aucun pays trouvé."
         disabled={disabled || loading || countries.length === 0}
+        className={compact ? "h-8" : undefined}
       />
     </div>
   );
