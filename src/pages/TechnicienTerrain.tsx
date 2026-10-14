@@ -377,9 +377,11 @@ const TechnicienTerrain=()=>{
 
   const validateReport=async(r:any,publish:boolean)=>{
     if(!manager)return;
+    const {error:mediaError}=await (supabase as any).from("rapports_visites_medias").update({client_visible:publish}).eq("rapport_id",r.id);
+    if(mediaError){toast({variant:"destructive",title:"Mise à jour des médias impossible",description:mediaError.message});return;}
     const {error}=await (supabase as any).from("rapports_visites_techniques").update({statut:publish?"valide":"rejete",client_visible:publish}).eq("id",r.id);
     if(error)toast({variant:"destructive",title:"Validation impossible",description:error.message});
-    else{toast({title:publish?"Rapport validé et publié":"Rapport refusé"});load();}
+    else{toast({title:publish?"Rapport validé et médias publiés au client":"Rapport refusé et médias masqués"});load();}
   };
 
   if(!allowed)return <ProtectedRoute><MainLayout><Card><CardHeader><CardTitle>Accès technicien</CardTitle></CardHeader></Card></MainLayout></ProtectedRoute>;
