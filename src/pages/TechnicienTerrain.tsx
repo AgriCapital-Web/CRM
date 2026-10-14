@@ -36,6 +36,7 @@ const TechnicienTerrain=()=>{
   const plantationStateRefs=systemRefs("etat_plantation");
   const [plantations,setPlantations]=useState<any[]>([]);
   const [clients,setClients]=useState<any[]>([]);
+  const [clientSubscriptions,setClientSubscriptions]=useState<any[]>([]);
   const [offerConfigs,setOfferConfigs]=useState<any[]>([]);
   const [parcelles,setParcelles]=useState<any[]>([]);
   const [reports,setReports]=useState<any[]>([]);
@@ -62,7 +63,7 @@ const TechnicienTerrain=()=>{
   });
   const [media,setMedia]=useState<File[]>([]);
   const [intervention,setIntervention]=useState<any>({
-    plantation_id:"",client_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"defrichage",date_intervention:new Date().toISOString().slice(0,10),
+    plantation_id:"",client_id:"",souscription_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"defrichage",date_intervention:new Date().toISOString().slice(0,10),
     observations:"",recommandations:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",
     nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""
   });
@@ -84,7 +85,8 @@ const TechnicienTerrain=()=>{
       const profile=await profileContext();
       const results=await Promise.all([
         (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,parcelle_id,statut_global,prochaine_visite,date_plantation").order("nom_plantation"),
-        (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,is_internal,type_client_foncier").order("nom_complet"),
+        (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,proprietaire_id,is_internal,type_client_foncier").order("nom_complet"),
+        (supabase as any).from("client_souscriptions").select("id,client_id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,necessite_foncier_client,superficie_ha,parcelle_id,lot_id,statut,statut_technique,montant_pi_total,montant_total_contrat").order("created_at",{ascending:false}),
         (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
         (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
         (supabase as any).from("interventions_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").order("date_intervention",{ascending:false}).limit(100),
@@ -95,8 +97,8 @@ const TechnicienTerrain=()=>{
       ]);
       const failed=results.find((result:any)=>result.error);
       if(failed?.error)throw failed.error;
-      const [plantRes,clientRes,parcelRes,reportRes,interventionRes,ticketRes,technicienRes,offerRes,conventionRes]=results;
-      setPlantations(plantRes.data||[]);setClients(clientRes.data||[]);setParcelles(parcelRes.data||[]);setReports(reportRes.data||[]);setInterventions(interventionRes.data||[]);setTickets(ticketRes.data||[]);
+      const [plantRes,clientRes,subscriptionRes,parcelRes,reportRes,interventionRes,ticketRes,technicienRes,offerRes,conventionRes]=results;
+      setPlantations(plantRes.data||[]);setClients(clientRes.data||[]);setClientSubscriptions(subscriptionRes.data||[]);setParcelles(parcelRes.data||[]);setReports(reportRes.data||[]);setInterventions(interventionRes.data||[]);setTickets(ticketRes.data||[]);
       setTechniciens((technicienRes.data||[]).map((x:any)=>({...x,id:x.id,profile_id:x.id})));
       setOfferConfigs(offerRes.data||[]);setConventions(conventionRes.data||[]);
     } catch(error:any) {
@@ -116,16 +118,28 @@ const TechnicienTerrain=()=>{
 
   const interventionClient=useMemo(()=>clients.find(c=>c.id===intervention.client_id)||null,[clients,intervention.client_id]);
   const interventionPlantation=useMemo(()=>plantations.find(p=>p.id===intervention.plantation_id)||null,[plantations,intervention.plantation_id]);
+  const interventionSubscription=useMemo(()=>clientSubscriptions.find((s:any)=>s.id===intervention.souscription_id)||null,[clientSubscriptions,intervention.souscription_id]);
+  const pendingClientSubscriptions=useMemo(()=>clientSubscriptions.filter((s:any)=>s.client_id===intervention.client_id&&s.statut_technique!=="mise_en_terre_realisee"),[clientSubscriptions,intervention.client_id]);
   const interventionOwnerClient=interventionClient || clients.find((c:any)=>c.id===interventionPlantation?.client_id) || null;
-  const clientOffer=offerConfigs.find((o:any)=>o.id===interventionOwnerClient?.offre_id)
-    || offerConfigs.find((o:any)=>o.famille_offre && o.famille_offre===interventionOwnerClient?.famille_offre)
-    || offerConfigs.find((o:any)=>o.code && o.code===interventionOwnerClient?.famille_offre)
+  const clientOffer=offerConfigs.find((o:any)=>o.id===(interventionSubscription?.offre_id||interventionOwnerClient?.offre_id))
+    || offerConfigs.find((o:any)=>o.famille_offre && o.famille_offre===(interventionSubscription?.famille_offre||interventionOwnerClient?.famille_offre))
+    || offerConfigs.find((o:any)=>o.code && o.code===(interventionSubscription?.offre_code||interventionOwnerClient?.famille_offre))
     || null;
-  const technicalPalmInvest=Boolean(clientOffer && [clientOffer.code,clientOffer.famille_offre,clientOffer.formule_code,clientOffer.nom].some((v:any)=>String(v||"").toUpperCase().replace(/[^A-Z]/g,"").includes("PALMINVEST")));
-  const technicalOwnLand=Boolean(clientOffer?.necessite_foncier_client===true);
+  const technicalPalmInvest=interventionSubscription
+    ? !interventionSubscription.necessite_foncier_client
+    : pendingClientSubscriptions.length>0 ? false
+    : Boolean(clientOffer && [clientOffer.code,clientOffer.famille_offre,clientOffer.formule_code,clientOffer.nom].some((v:any)=>String(v||"").toUpperCase().replace(/[^A-Z]/g,"").includes("PALMINVEST")));
+  const technicalOwnLand=interventionSubscription
+    ? !!interventionSubscription.necessite_foncier_client
+    : pendingClientSubscriptions.length>0 ? false
+    : Boolean(clientOffer?.necessite_foncier_client===true);
 
   useEffect(()=>{
     if(!interventionClient)return;
+    if(interventionSubscription){
+      setIntervention((x:any)=>({...x,parcelle_id:interventionSubscription.parcelle_id||interventionClient.parcelle_id||"",convention_id:"",lot_id:interventionSubscription.lot_id||""}));
+      return;
+    }
     if(technicalOwnLand){
       setIntervention((x:any)=>({...x,parcelle_id:interventionClient.parcelle_id||"",convention_id:"",lot_id:""}));
       return;
@@ -133,7 +147,7 @@ const TechnicienTerrain=()=>{
     const parcelId=intervention.parcelle_id||interventionClient.parcelle_id||"";
     const parcel=parcelles.find((p:any)=>p.id===parcelId);
     setIntervention((x:any)=>({...x,parcelle_id:parcelId,convention_id:parcel?.convention_id||"",lot_id:""}));
-  },[intervention.client_id,technicalOwnLand,parcelles]);
+  },[intervention.client_id,intervention.souscription_id,interventionSubscription,technicalOwnLand,parcelles]);
 
 
 
