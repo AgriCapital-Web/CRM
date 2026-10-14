@@ -24,7 +24,7 @@ import CompteRenduIA from "@/components/technique/CompteRenduIA";
 import { ArrowRightLeft } from "lucide-react";
 
 const TechnicienTerrain=()=>{
-  const {user,userRoles}=useAuth();
+  const {user}=useAuth();
   const {toast}=useToast();
   const {can}=usePermissions();
   const allowed=can("rapports.view_technique");
@@ -91,31 +91,15 @@ const TechnicienTerrain=()=>{
         (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
         (supabase as any).from("interventions_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").order("date_intervention",{ascending:false}).limit(100),
         (supabase as any).from("tickets_techniques").select("*,client:clients(nom_complet),plantation:plantations(id_unique,nom_plantation)").eq("assigne_a",profile?.id||"00000000-0000-0000-0000-000000000000").order("created_at",{ascending:false}),
-        (supabase as any).from("profiles").select("id,nom_complet,user_id,equipe_id,region_id").eq("actif",true).order("nom_complet"),
         (supabase as any).from("offres").select("id,code,nom,necessite_foncier_client,parcours_code,famille_offre,formule_code").eq("actif",true),
         (supabase as any).from("conventions_foncieres").select("id,parcelle_id,proprietaire_id,statut,part_agricapital_ha,part_proprietaire_ha").order("created_at",{ascending:false}),
-        (supabase as any).from("user_roles").select("user_id,role").in("role",["technicien"]),
-        (supabase as any).from("equipe_membres").select("profile_id,equipe_id,equipe:equipes!equipe_membres_equipe_id_fkey(id,type_equipe)"),
+        (supabase as any).rpc("list_assignable_technicians"),
       ]);
       const failed=results.find((result:any)=>result.error);
       if(failed?.error)throw failed.error;
-      const [plantRes,clientRes,subscriptionRes,parcelRes,reportRes,interventionRes,ticketRes,technicienRes,offerRes,conventionRes,technicianRolesRes,membershipRes]=results;
+      const [plantRes,clientRes,subscriptionRes,parcelRes,reportRes,interventionRes,ticketRes,offerRes,conventionRes,assignableTechniciansRes]=results;
       setPlantations(plantRes.data||[]);setClients(clientRes.data||[]);setClientSubscriptions(subscriptionRes.data||[]);setParcelles(parcelRes.data||[]);setReports(reportRes.data||[]);setInterventions(interventionRes.data||[]);setTickets(ticketRes.data||[]);
-      const eligibleUserIds=new Set((technicianRolesRes.data||[]).map((role:any)=>role.user_id));
-       const membershipsByProfile=new Map<string,any[]>();
-       (membershipRes.data||[]).forEach((membership:any)=>{const list=membershipsByProfile.get(membership.profile_id)||[];list.push(membership);membershipsByProfile.set(membership.profile_id,list);});
-       const myMemberships=membershipsByProfile.get(profile?.id)||[];
-       const myTeamIds=new Set<string>([profile?.equipe_id,...myMemberships.filter((m:any)=>String(m.equipe?.type_equipe||"").toLowerCase().includes("technique")).map((m:any)=>m.equipe_id)].filter(Boolean));
-       const canAssignAcrossTeams=userRoles.some((role:string)=>["pdg","dg","responsable_operations"].includes(role));
-       const scopedTechnicians=(technicienRes.data||[]).filter((person:any)=>{
-         if(!eligibleUserIds.has(person.user_id))return false;
-         if(canAssignAcrossTeams)return true;
-         if(person.id===profile?.id)return true;
-         if(!myTeamIds.size)return false;
-         const personTeamIds=new Set<string>([person.equipe_id,...(membershipsByProfile.get(person.id)||[]).filter((m:any)=>String(m.equipe?.type_equipe||"").toLowerCase().includes("technique")).map((m:any)=>m.equipe_id)].filter(Boolean));
-         return [...personTeamIds].some((teamId:string)=>myTeamIds.has(teamId));
-       });
-       setTechniciens(scopedTechnicians.map((person:any)=>({...person,id:person.id,profile_id:person.id})));
+       setTechniciens((assignableTechniciansRes.data||[]).map((person:any)=>({...person,id:person.id,profile_id:person.id})));
       setOfferConfigs(offerRes.data||[]);setConventions(conventionRes.data||[]);
     } catch(error:any) {
       toast({variant:"destructive",title:"Chargement technique impossible",description:error?.message||"Vérifiez les accès aux données techniques."});
