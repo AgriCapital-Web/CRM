@@ -135,8 +135,8 @@ export default function GestionRemuneration() {
 
       <TabsContent value="technique" className="space-y-3">
         <Card><CardHeader className="pb-3"><CardTitle className="text-base">Commissions techniques</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-md border p-3"><div className="font-medium">Commission sur réalisation technique</div><p className="mt-1 text-sm text-muted-foreground">Montant à définir.</p></div>
-          <div className="rounded-md border p-3"><div className="font-medium">Commission mensuelle</div><p className="mt-1 text-sm text-muted-foreground">Montant ou taux à définir.</p></div>
+          <div className="rounded-md border p-3"><label className="mb-2 block text-sm font-medium">Commission sur réalisation technique (FCFA)</label><Input type="number" disabled value="" placeholder="—" /></div>
+          <div className="rounded-md border p-3"><label className="mb-2 block text-sm font-medium">Commission mensuelle (%)</label><Input type="number" disabled value="" placeholder="—" /></div>
         </CardContent></Card>
       </TabsContent>
 
