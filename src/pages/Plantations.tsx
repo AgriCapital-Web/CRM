@@ -165,7 +165,7 @@ const Plantations = () => {
           <div className="border rounded-lg overflow-x-auto">
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
-                <TableHead>ID Unique</TableHead><TableHead>Nom</TableHead><TableHead>Client / dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
+                <TableHead>Nom</TableHead><TableHead>Client / dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {loading ? <TableRow><TableCell colSpan={9} className="text-center py-8">Chargement...</TableCell></TableRow>
@@ -173,14 +173,14 @@ const Plantations = () => {
                 : paginatedPlantations.map((plantation) => (
                   <TableRow key={plantation.id} className="hover:bg-muted/40">
                     <TableCell className="font-mono text-sm font-medium">
-                      <Link to={`/plantations/${plantation.id}`} className="text-primary hover:underline">{plantation.id_unique}</Link>
+                      {plantation.nom || plantation.id_unique || "—"}
                     </TableCell>
                     <TableCell className="font-medium"><Link to={`/plantations/${plantation.id}`} className="hover:underline">{plantation.nom_plantation || plantation.nom}</Link></TableCell>
                     <TableCell>
                       {plantation.clients ? (
                         <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline">
                           {plantation.clients.nom_complet || `${plantation.clients.nom || ""} ${plantation.clients.prenoms || ""}`}
-                          <span className="block text-xs text-muted-foreground">{plantation.clients.is_internal ? "Bénéficiaire interne AgriCapital" : plantation.clients.id_unique}</span>
+                          <span className="block text-xs text-muted-foreground">{plantation.clients.is_internal ? "Bénéficiaire interne AgriCapital" : "Client"}</span>
                         </Link>
                       ) : "—"}
                     </TableCell>
