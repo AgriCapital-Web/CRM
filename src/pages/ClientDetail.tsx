@@ -703,7 +703,7 @@ const ClientDetail = () => {
             </DialogContent>
           </Dialog>
 
-          <Tabs defaultValue="plantations"          <Tabs defaultValue="plantations" className="space-y-4">
+          <Tabs defaultValue="plantations" className="space-y-4">
             <TabsList>
               <TabsTrigger value="plantations">
                 <Sprout className="h-4 w-4 mr-2" />
