@@ -586,6 +586,13 @@ const ClientDetail = () => {
                   <p className="text-muted-foreground">Une nouvelle offre et une nouvelle formule seront enregistrées indépendamment de ses souscriptions précédentes.</p>
                 </div>
 
+                <Etape0Offre
+                  formData={newSubscriptionFormData}
+                  updateFormData={updateNewSubscriptionFormData}
+                  showCommercial={false}
+                  surfaceReadOnly={!!newPlantationLotId}
+                />
+
                 <div className="space-y-2">
                   <Label>Mode de paiement</Label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -597,13 +604,6 @@ const ClientDetail = () => {
                     </Button>
                   </div>
                 </div>
-
-                <Etape0Offre
-                  formData={newSubscriptionFormData}
-                  updateFormData={updateNewSubscriptionFormData}
-                  showCommercial={false}
-                  surfaceReadOnly={!!newPlantationLotId}
-                />
 
                 {newSubscriptionFormData.offre_id && selectedOfferNeedsClientLand && (
                   <Card>
