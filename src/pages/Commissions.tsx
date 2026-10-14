@@ -18,7 +18,7 @@ import { fr } from "date-fns/locale";
 import { COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
 
 const money = (n: any) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
-const typeLabel = (t: string) => t === "acquisition" ? "Commercial" : t === "recouvrement_mensuel" ? "Recouvrement mensuel" : t === "technique" ? "Technicien" : t || "—";
+const typeLabel = (t: string) => t === "acquisition" ? "Vente commerciale" : t === "recouvrement_mensuel" ? "Recouvrement mensuel" : t === "technique" ? "Commission technique" : t === "mobilisation_fonciere" ? "Mobilisation foncière" : t || "—";
 const statusLabel = (s: string) => s === "calculee" ? "À valider" : s === "validee" ? "À payer" : s === "payee" ? "Payée" : s === "annule" ? "Annulée" : s || "—";
 const statusVariant = (s: string) => s === "payee" ? "default" : s === "validee" ? "secondary" : s === "calculee" ? "outline" : "destructive";
 
