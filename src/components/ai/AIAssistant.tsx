@@ -51,7 +51,7 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ messages: userMessages, context, mode: mode === "admin" ? "admin" : "client" }),
+      body: JSON.stringify({ messages: userMessages, context, mode }),
     });
 
     if (!resp.ok || !resp.body) {
