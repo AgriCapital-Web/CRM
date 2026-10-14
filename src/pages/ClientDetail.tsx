@@ -92,7 +92,11 @@ const ClientDetail = () => {
   const updateNewSubscriptionFormData = (patch: any) => {
     if (patch.offre_id && patch.offre_id !== newSubscriptionFormData.offre_id) {
       setNewPlantationLotId("");
-      setNewPlantationParcelId(patch.offre?.necessite_foncier_client ? (client?.parcelle_id || "") : "");
+      setNewPlantationParcelId(
+        patch.offre?.necessite_foncier_client && clientOwnParcelles.some((parcel: any) => parcel.id === client?.parcelle_id)
+          ? (client?.parcelle_id || "")
+          : ""
+      );
     }
     setNewSubscriptionFormData((current: any) => ({ ...current, ...patch }));
   };
@@ -571,7 +575,7 @@ const ClientDetail = () => {
               setNewSubscriptionFormData({ commercial_id: client?.commercial_id || "", mode_paiement: "echeancier" });
               setNewPlantationLotId("");
               setNewPlantationNotes("");
-              setNewPlantationParcelId(client?.parcelle_id || "");
+              setNewPlantationParcelId("");
             }
           }}>
             <DialogContent className="max-h-[94dvh] max-w-4xl overflow-y-auto">
