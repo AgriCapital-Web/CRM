@@ -34,7 +34,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Tableau de bord", path: "/dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
-    { icon: Target, label: "Leads", path: "/leads", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Prospects", path: "/prospects", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Acquisitions", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
     { icon: MessageSquare, label: "Messagerie", path: "/messagerie", permission: "messagerie.view" as any },
