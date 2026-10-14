@@ -241,9 +241,7 @@ const Clients = () => {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Acquisitions</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Registre des personnes et dossiers agricoles
-              </p>
+              
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               {can("beneficiaires.create") && (
