@@ -505,7 +505,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
           {[
             { l: "Leads", v: totalLeads, i: Target },
             { l: "Prospects", v: totalProspects, i: Users },
@@ -516,7 +516,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             { l: "Conversion prospects", v: tauxConversionProspects + "%", i: TrendingUp },
           ].map((s, i) => (
             <Card key={i} className="min-w-0 overflow-hidden">
-              <CardContent className="flex min-h-[82px] items-center justify-between gap-2 p-3 sm:p-4">
+              <CardContent className="flex min-h-[68px] items-center justify-between gap-2 p-2.5 sm:p-3">
                 <div className="min-w-0"><p className="text-[11px] leading-tight text-muted-foreground break-words">{s.l}</p><p className="mt-1 text-xl font-bold tabular-nums">{s.v}</p></div>
                 <s.i className="h-4 w-4 shrink-0 text-primary/60 sm:h-5 sm:w-5" />
               </CardContent>
@@ -529,17 +529,17 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           <CardContent>
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
-                <TableHead>ID</TableHead><TableHead>Nom</TableHead><TableHead>Contact</TableHead>
+                <TableHead>Nom</TableHead><TableHead>Contact</TableHead>
                 <TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Relance</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {filteredLeads.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Aucun lead ou prospect enregistré.</TableCell></TableRow>}
+                {filteredLeads.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Aucun lead ou prospect enregistré.</TableCell></TableRow>}
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
                     <TableRow key={l.id}>
-                      <TableCell className="font-mono text-xs">{l.id_unique}</TableCell>
+                      
                       <TableCell><div className="font-medium">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-1 text-[10px]">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
                       <TableCell className="text-sm">{l.telephone}<br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
                       <TableCell className="text-sm">{l.region_residence}</TableCell>
@@ -569,6 +569,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                         <Button size="sm" variant="outline" onClick={() => startContact(l)}><Contact className="h-3 w-3 mr-1" />Contacter</Button>
                         {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
                           <Button size="sm" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
+                        )}
+                        {view === "prospects" && l.etape_pipeline === "prospect" && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
+                          <Button size="sm" onClick={() => void convertToClient(l)}><ArrowRight className="h-3 w-3 mr-1" />Convertir en client</Button>
                         )}
                       </TableCell>
                     </TableRow>
