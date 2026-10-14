@@ -626,7 +626,7 @@ const ClientDetail = () => {
                               <SelectItem value="a-confirmer">À confirmer lors de l’intervention technique</SelectItem>
                               {clientOwnParcelles.map((parcel: any) => (
                                 <SelectItem key={parcel.id} value={parcel.id}>
-                                  {parcel.id_unique || parcel.nom || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
+                                  {parcel.nom || parcel.village || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -656,7 +656,7 @@ const ClientDetail = () => {
                             <SelectContent>
                               {availableParcelles.map((parcel: any) => (
                                 <SelectItem key={parcel.id} value={parcel.id}>
-                                  {parcel.id_unique || parcel.nom || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
+                                  {parcel.nom || parcel.village || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -806,7 +806,7 @@ const ClientDetail = () => {
                         <div key={subscription.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3 text-sm">
                           <div className="min-w-0">
                             <p className="font-medium">{subscription.lot?.reference || (subscription.lot?.numero_h != null ? "Lot H" + String(subscription.lot.numero_h).padStart(2, "0") : "Lot attribué")}</p>
-                            <p className="text-xs text-muted-foreground">{subscription.parcel?.id_unique || subscription.parcel?.nom || "Parcelle"}{subscription.parcel?.village ? " · " + subscription.parcel.village : ""}</p>
+                            <p className="text-xs text-muted-foreground">{subscription.parcel?.nom || subscription.parcel?.village || "Parcelle"}{subscription.parcel?.village ? " · " + subscription.parcel.village : ""}</p>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="font-semibold">{Number(subscription.surface_ha || 0).toLocaleString("fr-FR")} ha</span>
@@ -963,10 +963,10 @@ const ClientDetail = () => {
                           <TableRow><TableCell colSpan={5} className="text-center py-8">Aucune attribution enregistrée</TableCell></TableRow>
                         ) : paginatedAttributions.map((a: any) => (
                           <TableRow key={a.id}>
-                            <TableCell>{a.parcelles?.id_unique || a.parcelles?.nom || "—"}{a.parcelles?.village ? <span className="block text-xs text-muted-foreground">{a.parcelles.village}</span> : null}</TableCell>
+                            <TableCell>{a.parcelles?.nom || a.parcelles?.village || "Parcelle"}{a.parcelles?.village ? <span className="block text-xs text-muted-foreground">{a.parcelles.village}</span> : null}</TableCell>
                             <TableCell><Badge variant="outline">{a.role_attribution === "proprietaire_beneficiaire" ? "Propriétaire + bénéficiaire" : "Bénéficiaire particulier"}</Badge></TableCell>
                             <TableCell className="font-semibold">{Number(a.surface_attribuee_ha || 0).toFixed(2)} ha</TableCell>
-                            <TableCell>{a.plantations?.nom_plantation || a.plantations?.id_unique || "—"}</TableCell>
+                            <TableCell>{a.plantations?.nom_plantation || "Plantation"}</TableCell>
                             <TableCell>{a.reference_acte || "—"}</TableCell>
                           </TableRow>
                         ))}
@@ -994,7 +994,7 @@ const ClientDetail = () => {
                       <CardTitle className="flex items-center gap-2"><LandPlot className="h-5 w-5" /> Parcelle</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <p className="font-mono text-sm">{parcelle?.code_parc || parcelle?.id_unique || "—"}</p>
+                      <p className="font-mono text-sm">{parcelle?.nom || parcelle?.village || "Parcelle"}</p>
                       <p><span className="font-medium">{Number(parcelle?.surface_totale_ha || 0).toFixed(2)} ha</span> · {parcelle?.village || "—"}</p>
                       <p className="text-sm text-muted-foreground">Mode : {parcelle?.mode_surface === "actif_agricole" ? "Actif agricole" : "Foncier"}</p>
                       
