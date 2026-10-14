@@ -137,7 +137,7 @@ const TechnicienTerrain=()=>{
   useEffect(()=>{
     if(!interventionClient)return;
     if(interventionSubscription){
-      setIntervention((x:any)=>({...x,parcelle_id:interventionSubscription.parcelle_id||interventionClient.parcelle_id||"",convention_id:"",lot_id:interventionSubscription.lot_id||""}));
+      setIntervention((x:any)=>({...x,parcelle_id:interventionSubscription.parcelle_id||(interventionSubscription.necessite_foncier_client?"":interventionClient.parcelle_id||""),convention_id:"",lot_id:interventionSubscription.lot_id||""}));
       return;
     }
     if(technicalOwnLand){
@@ -272,7 +272,11 @@ const TechnicienTerrain=()=>{
   const saveIntervention=async()=>{
     const interventionPlantation=plantations.find(p=>p.id===intervention.plantation_id);
     const targetClientId=intervention.client_id||interventionPlantation?.client_id||null;
-    let targetParcelleId=technicalPalmInvest ? (intervention.parcelle_id||interventionPlantation?.parcelle_id||null) : (intervention.parcelle_id||interventionClient?.parcelle_id||interventionPlantation?.parcelle_id||null);
+    let targetParcelleId=interventionSubscription
+      ? (intervention.parcelle_id||interventionSubscription.parcelle_id||null)
+      : technicalPalmInvest
+        ? (intervention.parcelle_id||interventionPlantation?.parcelle_id||null)
+        : (intervention.parcelle_id||interventionClient?.parcelle_id||interventionPlantation?.parcelle_id||null);
     const isPrePlantationStage=["defrichage","piquetage","trouaison","mise_en_terre"].includes(intervention.type_intervention);
     if(isPrePlantationStage && pendingClientSubscriptions.length>0 && !interventionSubscription){
       toast({variant:"destructive",title:"Souscription requise",description:"Choisissez la souscription exacte à implanter afin de conserver sa formule, sa superficie et son échéancier."});return;
@@ -307,7 +311,9 @@ const TechnicienTerrain=()=>{
         }).select("id").single();
         if(parcelCreateError)throw parcelCreateError;
         targetParcelleId=createdParcel.id;
-        const {error:linkClientError}=await (supabase as any).from("clients").update({parcelle_id:targetParcelleId,updated_at:new Date().toISOString()}).eq("id",targetClientId);
+        const {error:linkClientError}=interventionSubscription && interventionClient?.parcelle_id
+           ? {error:null}
+           : await (supabase as any).from("clients").update({parcelle_id:targetParcelleId,updated_at:new Date().toISOString()}).eq("id",targetClientId);
         if(linkClientError)throw linkClientError;
       }
       if(intervention.localisation_gps_lat && intervention.localisation_gps_lng){
@@ -315,8 +321,10 @@ const TechnicienTerrain=()=>{
         if(geoError)throw geoError;
       }
       if(technicalPalmInvest){
-        const {error:clientParcelError}=await (supabase as any).from("clients").update({parcelle_id:targetParcelleId,updated_at:new Date().toISOString()}).eq("id",targetClientId);
-        if(clientParcelError)throw clientParcelError;
+        if(!interventionSubscription){
+          const {error:clientParcelError}=await (supabase as any).from("clients").update({parcelle_id:targetParcelleId,updated_at:new Date().toISOString()}).eq("id",targetClientId);
+          if(clientParcelError)throw clientParcelError;
+        }
         if(interventionSubscription){
           const {data:lotRow,error:lotReadError}=await (supabase as any).from("lots_hectares")
             .select("id,client_id,parcelle_id,convention_id,statut,souscription_id")
