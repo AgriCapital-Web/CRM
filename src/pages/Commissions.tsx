@@ -35,11 +35,39 @@ export default function Commissions() {
     try {
       const { data, error } = await (supabase as any)
         .from("commissions")
-        .select("*,profile:profiles!commissions_profile_id_fkey(nom_complet,telephone,equipe_id,equipe:equipes!profiles_equipe_id_fkey(nom)),plantation:plantations(id_unique,nom_plantation),client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom)")
+        .select("*,profile:profiles!commissions_profile_id_fkey(id,nom_complet,telephone,equipe_id,equipe:equipes!profiles_equipe_id_fkey(id,nom,type_equipe)),plantation:plantations(id_unique,nom_plantation),client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom)")
         .order("periode", { ascending: false })
         .limit(2000);
       if (error) throw error;
       const allRows = data || [];
+      // Les affectations réelles vivent dans equipe_membres : profiles.equipe_id
+      // n'est que l'équipe principale et peut être NULL ou incomplet.
+      const { data: membershipRows, error: membershipError } = await (supabase as any)
+        .from("equipe_membres")
+        .select("profile_id,equipe_id,created_at,equipe:equipes!equipe_membres_equipe_id_fkey(id,nom,type_equipe)");
+      if (membershipError) {
+        // L'affichage conserve le rattachement principal réel si le rôle ne peut pas lire les affectations.
+        console.warn("Affectations d'équipe indisponibles pour les commissions", membershipError.message);
+      }
+      const membershipsByProfile = new Map<string, any[]>();
+      (membershipRows || []).forEach((membership: any) => {
+        const list = membershipsByProfile.get(membership.profile_id) || [];
+        list.push(membership);
+        membershipsByProfile.set(membership.profile_id, list);
+      });
+      const withCommissionTeam = allRows.map((row: any) => {
+        const profile = row.profile || {};
+        const memberships = membershipsByProfile.get(row.profile_id) || [];
+        const expectedType = row.type_commission === "technique" ? "technique" : "commercial";
+        const compatible = memberships.filter((membership: any) =>
+          String(membership.equipe?.type_equipe || "").toLowerCase().includes(expectedType)
+        );
+        const primary = compatible.find((membership: any) => membership.equipe_id === profile.equipe_id);
+        const team = primary?.equipe || compatible[0]?.equipe ||
+          (String(profile.equipe?.type_equipe || "").toLowerCase().includes(expectedType) ? profile.equipe : null) ||
+          profile.equipe || null;
+        return { ...row, commissionTeam: team };
+      });
       const global = userRoles.some((r: string) => ["pdg", "dg"].includes(r));
       const isTech = userRoles.includes("technicien");
       const isTechManager = userRoles.includes("chef_equipe_technique");
@@ -47,15 +75,21 @@ export default function Commissions() {
       const isCommercialManager = userRoles.includes("chef_equipe_commercial") || userRoles.includes("responsable_commercial");
       const isCommercialDirector = userRoles.includes("responsable_commercial");
       const isFinance = userRoles.includes("comptable") || userRoles.includes("responsable_operations");
-      let scopedRows = allRows;
+      let scopedRows = withCommissionTeam;
 
       if (!global && !isFinance && profile?.id) {
         if (isCommercialDirector) {
-          scopedRows = allRows.filter((row: any) => ["acquisition", "recouvrement_mensuel"].includes(row.type_commission));
+          scopedRows = withCommissionTeam.filter((row: any) => ["acquisition", "recouvrement_mensuel"].includes(row.type_commission));
         } else if (isTechManager || isCommercialManager) {
-          scopedRows = allRows.filter((row: any) => row.profile?.equipe_id && row.profile.equipe_id === profile.equipe_id);
+          const myMemberships = membershipsByProfile.get(profile.id) || [];
+          const myTeamIds = new Set<string>([profile.equipe_id, ...myMemberships.map((membership: any) => membership.equipe_id)].filter(Boolean));
+          const requiredTeamType = isTechManager && !isCommercialManager ? "technique" : "commercial";
+          scopedRows = withCommissionTeam.filter((row: any) =>
+            row.commissionTeam?.id && myTeamIds.has(row.commissionTeam.id) &&
+            String(row.commissionTeam.type_equipe || "").toLowerCase().includes(requiredTeamType)
+          );
         } else if (isTech || isCommercial) {
-          scopedRows = allRows.filter((row: any) => row.profile_id === profile.id);
+          scopedRows = withCommissionTeam.filter((row: any) => row.profile_id === profile.id);
         }
       }
       setRows(scopedRows);
@@ -74,7 +108,7 @@ export default function Commissions() {
     for (const row of rows) {
       const key = row.profile_id || row.profile?.nom_complet || "sans-commercial";
       const current = map.get(key) || {
-        key, profile_id: row.profile_id, nom: formatUserShortName(row.profile?.nom_complet || "Collaborateur non renseigné"), type: row.type_commission === "technique" ? "Technicien" : "Commercial", equipe: row.profile?.equipe?.nom || "Sans équipe",
+        key, profile_id: row.profile_id, nom: formatUserShortName(row.profile?.nom_complet || "Collaborateur non renseigné"), type: row.type_commission === "technique" ? "Technicien" : "Commercial", equipe: row.commissionTeam?.nom || "Sans équipe",
         total: 0, base: 0, count: 0, calculee: 0, validee: 0, payee: 0, aPayer: 0, details: []
       };
       current.total += Number(row.montant_commission || 0);
@@ -94,12 +128,13 @@ export default function Commissions() {
   const teamGroups = useMemo(() => {
     const map = new Map<string, any>();
     for (const row of rows) {
-      const key = row.profile?.equipe_id || "sans-equipe";
-      const current = map.get(key) || { key, equipe: row.profile?.equipe?.nom || "Sans équipe", total: 0, payee: 0, aPayer: 0 };
+      const key = row.commissionTeam?.id || row.profile?.equipe_id || "sans-equipe";
+      const current = map.get(key) || { key, equipe: row.commissionTeam?.nom || "Sans équipe", total: 0, aValider: 0, payee: 0, aPayer: 0 };
       const amount = Number(row.montant_commission || 0);
       current.total += amount;
       if (row.statut === "payee") current.payee += amount;
-      else if (row.statut !== "annule") current.aPayer += amount;
+      else if (row.statut === "validee") current.aPayer += amount;
+      else if (row.statut === "calculee") current.aValider += amount;
       map.set(key, current);
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
@@ -130,13 +165,13 @@ export default function Commissions() {
             <Button variant="outline" size="sm" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             {[["Total", stats.total, DollarSign], ["À valider", stats.aValider, Clock3], ["À payer", stats.aPayer, CheckCircle], ["Payées", stats.payees, TrendingUp]].map(([label, value, Icon]: any) =>
-              <Card key={label}><CardContent className="p-4"><div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">{label}</span><Icon className="h-4 w-4 text-primary" /></div><div className="mt-2 text-lg font-bold">{money(value)}</div></CardContent></Card>
+              <Card key={label}><CardContent className="p-3"><div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">{label}</span><Icon className="h-4 w-4 text-primary" /></div><div className="mt-2 text-lg font-bold">{money(value)}</div></CardContent></Card>
             )}
           </div>
 
-          <Card><CardContent className="p-4"><div className="relative max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" /><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un commercial, un client ou une offre" className="pl-10" /></div></CardContent></Card>
+          <Card><CardContent className="p-3"><div className="relative max-w-xl"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" /><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un commercial, un client ou une offre" className="pl-10" /></div></CardContent></Card>
 
           <Card>
             <CardContent className="p-0">
@@ -146,7 +181,7 @@ export default function Commissions() {
                   <TableBody>
                     {loading ? <TableRow><TableCell colSpan={9} className="py-8 text-center">Chargement</TableCell></TableRow> :
                       filtered.length === 0 ? <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Aucune commission.</TableCell></TableRow> :
-                      filtered.map((g: any) => <TableRow key={g.key} className="cursor-pointer hover:bg-muted/40" onClick={() => setSelected(g)}>
+                      filtered.map((g: any) => <TableRow key={g.key} className="h-10 cursor-pointer hover:bg-muted/40" onClick={() => setSelected(g)}>
                         <TableCell className="font-medium">{g.nom}</TableCell>
                         <TableCell><Badge variant="outline">{g.type}</Badge></TableCell>
                         <TableCell>{g.equipe}</TableCell>
@@ -170,8 +205,8 @@ export default function Commissions() {
               <div className="p-4"><h2 className="font-semibold">Commissions par équipe</h2></div>
               <div className="overflow-x-auto">
                 <Table className="responsive-data-table min-w-[560px]">
-                  <TableHeader><TableRow><TableHead>Équipe</TableHead><TableHead>Total commissions</TableHead><TableHead>Payées</TableHead><TableHead>À payer</TableHead></TableRow></TableHeader>
-                  <TableBody>{teamGroups.map((g: any) => <TableRow key={g.key}><TableCell className="font-medium">{g.equipe}</TableCell><TableCell>{money(g.total)}</TableCell><TableCell>{money(g.payee)}</TableCell><TableCell>{money(g.aPayer)}</TableCell></TableRow>)}</TableBody>
+                  <TableHeader><TableRow><TableHead>Équipe</TableHead><TableHead>Total commissions</TableHead><TableHead>À valider</TableHead><TableHead>À payer</TableHead><TableHead>Payées</TableHead></TableRow></TableHeader>
+                  <TableBody>{teamGroups.map((g: any) => <TableRow key={g.key} className="h-10"><TableCell className="py-1 font-medium">{g.equipe}</TableCell><TableCell className="py-1">{money(g.total)}</TableCell><TableCell className="py-1">{money(g.aValider)}</TableCell><TableCell className="py-1">{money(g.aPayer)}</TableCell><TableCell className="py-1">{money(g.payee)}</TableCell></TableRow>)}</TableBody>
                 </Table>
               </div>
             </CardContent>
