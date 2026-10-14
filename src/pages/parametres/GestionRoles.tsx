@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useAppRoles, useDepartementsEntreprise } from "@/hooks/useReferentiels";
 import { useRolePermissionMatrix, usePermissions } from "@/hooks/usePermissions";
-import { PERMISSIONS_BY_MODULE, PERMISSION_CODES } from "@/lib/permissions";
+import { PERMISSION_CATALOG, PermissionDef } from "@/lib/permissions";
 import { ROLES as APP_ROLES, RoleDefinition, roleLabel } from "@/lib/roles";
 import { logAdminAction } from "@/lib/audit";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -60,24 +60,34 @@ const GestionRoles = () => {
 
   const [permDialogRole, setPermDialogRole] = useState<RoleDefinition | null>(null);
   const [permDraft, setPermDraft] = useState<string[]>([]);
+  const [customPermissions, setCustomPermissions] = useState<any[]>([]);
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
+  const [permissionDraft, setPermissionDraft] = useState({ code: "", module: "", action: "", libelle: "", description: "" });
 
   const [roleToDelete, setRoleToDelete] = useState<RoleDefinition | null>(null);
   const [userRoleToRemove, setUserRoleToRemove] = useState<any>(null);
   const [tableSearch, setTableSearch] = useState("");
   const [roleTableSearch, setRoleTableSearch] = useState("");
   const canManageRoles = can("roles.manage_permissions") && rolesFromDb && matrixFromDb;
+  const permissionGroups = useMemo(() => {
+    const all: PermissionDef[] = [...PERMISSION_CATALOG, ...customPermissions.filter((p) => p.actif !== false).map((p) => ({ code: p.code, module: p.module, action: p.action, libelle: p.libelle }))];
+    return all.reduce<Record<string, PermissionDef[]>>((acc, permission) => { (acc[permission.module] ||= []).push(permission); return acc; }, {});
+  }, [customPermissions]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }] = await Promise.all([
+      const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }, { data: permissionData, error: permissionError }] = await Promise.all([
         supabase.from("profiles").select("id, user_id, nom_complet, email, actif, departement").eq("actif", true).order("nom_complet"),
         supabase.from("user_roles").select("*"),
+        (supabase as any).from("app_permissions").select("*").eq("actif", true).order("module").order("code"),
       ]);
       if (profilesError) throw profilesError;
       if (rolesError) throw rolesError;
+      if (permissionError) throw permissionError;
       setProfiles(profilesData || []);
       setUserRoles(rolesData || []);
+      setCustomPermissions(permissionData || []);
     } catch (error: any) {
       console.error("[GestionRoles] chargement impossible", error);
       setProfiles([]); setUserRoles([]);
@@ -305,6 +315,28 @@ const GestionRoles = () => {
     setPermDraft((prev) => (checked ? Array.from(new Set([...prev, ...codes])) : prev.filter((c) => !codes.includes(c))));
   };
 
+  const savePermissionDefinition = async () => {
+    const code = permissionDraft.code.trim().toLowerCase();
+    const validCode = code.split(".").length === 2 && code.split(".").every((part) => /^[a-z][a-z0-9_]*$/.test(part));
+    if (!validCode || !permissionDraft.module.trim() || !permissionDraft.action.trim() || !permissionDraft.libelle.trim()) {
+      toast({ variant: "destructive", title: "Informations invalides", description: "Renseignez un code module.action, le module, l’action et le libellé." });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("app_permissions").insert({ code, module: permissionDraft.module.trim(), action: permissionDraft.action.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"), libelle: permissionDraft.libelle.trim(), description: permissionDraft.description.trim(), actif: true });
+      if (error) throw error;
+      await logAdminAction({ action: "CREATION_PERMISSION", entite: "app_permissions", entite_id: code, cible_libelle: permissionDraft.libelle.trim(), nouvelle_valeur: permissionDraft });
+      const { data, error: reloadError } = await (supabase as any).from("app_permissions").select("*").eq("actif", true).order("module").order("code");
+      if (reloadError) throw reloadError;
+      setCustomPermissions(data || []);
+      setPermissionDraft({ code: "", module: "", action: "", libelle: "", description: "" });
+      setPermissionDialogOpen(false);
+      toast({ title: "Permission créée", description: "Disponible dans la matrice d’attribution des rôles. Les écrans concernés doivent utiliser ce code pour protéger une action." });
+    } catch (error: any) { toast({ variant: "destructive", title: "Création impossible", description: getSafeErrorMessage(error) }); }
+    finally { setSaving(false); }
+  };
+
   const savePermissions = async () => {
     if (!permDialogRole) return;
     setSaving(true);
@@ -514,10 +546,10 @@ const GestionRoles = () => {
               </CardTitle>
             </div>
             {canManageRoles && (
-              <Button onClick={openCreateRole}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau rôle
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => setPermissionDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Nouvelle permission</Button>
+                <Button onClick={openCreateRole}><Plus className="h-4 w-4 mr-2" />Nouveau rôle</Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -620,6 +652,26 @@ const GestionRoles = () => {
         </CardContent>
       </Card>
 
+
+      <Dialog open={permissionDialogOpen} onOpenChange={setPermissionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Créer une permission</DialogTitle>
+            <DialogDescription>Ajoutez un code de permission réutilisable dans la matrice des rôles. Les contrôles applicatifs doivent ensuite utiliser ce code pour protéger une action.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>Code unique (module.action) *</Label><Input value={permissionDraft.code} onChange={(e) => setPermissionDraft({ ...permissionDraft, code: e.target.value })} placeholder="ex. plantations.exporter" /></div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1"><Label>Module *</Label><Input value={permissionDraft.module} onChange={(e) => setPermissionDraft({ ...permissionDraft, module: e.target.value })} placeholder="Plantations" /></div>
+              <div className="space-y-1"><Label>Action *</Label><Input value={permissionDraft.action} onChange={(e) => setPermissionDraft({ ...permissionDraft, action: e.target.value })} placeholder="exporter" /></div>
+            </div>
+            <div className="space-y-1"><Label>Libellé *</Label><Input value={permissionDraft.libelle} onChange={(e) => setPermissionDraft({ ...permissionDraft, libelle: e.target.value })} placeholder="Exporter les plantations" /></div>
+            <div className="space-y-1"><Label>Description</Label><Textarea value={permissionDraft.description} onChange={(e) => setPermissionDraft({ ...permissionDraft, description: e.target.value })} placeholder="Décrivez précisément l’action autorisée." /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setPermissionDialogOpen(false)}>Annuler</Button><Button onClick={savePermissionDefinition} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Créer la permission</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog CRUD rôle */}
       <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
         <DialogContent>
@@ -711,7 +763,7 @@ const GestionRoles = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-5">
-            {Object.entries(PERMISSIONS_BY_MODULE).map(([module, perms]) => {
+            {Object.entries(permissionGroups).map(([module, perms]) => {
               const codes = perms.map((p) => p.code);
               const allChecked = codes.every((c) => permDraft.includes(c));
               return (
@@ -721,8 +773,7 @@ const GestionRoles = () => {
                     <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                       <Checkbox
                         checked={allChecked}
-                        disabled={permDialogRole?.code === APP_ROLES.PDG}
-                        onCheckedChange={(c) => toggleModule(codes, !!c)}
+                                                onCheckedChange={(c) => toggleModule(codes, !!c)}
                       />
                       Tout le module
                     </label>
@@ -733,8 +784,7 @@ const GestionRoles = () => {
                         <Checkbox
                           id={`${permDialogRole?.code}-${permission.code}`}
                           checked={permDraft.includes(permission.code)}
-                          disabled={permDialogRole?.code === APP_ROLES.PDG}
-                          onCheckedChange={() => togglePerm(permission.code)}
+                                                    onCheckedChange={() => togglePerm(permission.code)}
                         />
                         <label htmlFor={`${permDialogRole?.code}-${permission.code}`} className="text-sm cursor-pointer">
                           {permission.libelle}
@@ -753,7 +803,7 @@ const GestionRoles = () => {
             </Button>
             <Button
               onClick={savePermissions}
-              disabled={saving || !canManageRoles || permDialogRole?.code === APP_ROLES.PDG}
+              disabled={saving || !canManageRoles}
             >
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Enregistrer les permissions
