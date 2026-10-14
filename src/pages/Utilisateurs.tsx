@@ -304,7 +304,6 @@ const Utilisateurs = () => {
               <TableRow>
                 <TableHead>Nom Complet</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Identifiant</TableHead>
                 <TableHead>Téléphone</TableHead>
                 <TableHead>Rôles</TableHead>
                 <TableHead>Statut</TableHead>
@@ -316,7 +315,6 @@ const Utilisateurs = () => {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{formatUserShortName(user.nom_complet)}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell className="font-mono text-xs">{user.username || "—"}</TableCell>
                   <TableCell>{user.telephone || "N/A"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1 flex-wrap">
