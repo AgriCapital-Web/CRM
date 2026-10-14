@@ -80,7 +80,7 @@ type Contact = {
   role_code?: string | null; offre_id?: string | null; offre_code?: string | null; offre_nom?: string | null;
 };
 
-const normalizeSms = (value: string) => value.replace(/\s+/g, " ").trim();
+const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const assertSmsLength = (value: string) => {
   const length = Array.from(value).length;
   if (length > 155) throw new Error(`SMS trop long : ${length}/155 caractères, espaces et signes compris.`);
@@ -556,8 +556,13 @@ serve(async (req) => {
       const requestId = String(body.request_id || crypto.randomUUID()).replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 100);
       const messageLength = Array.from(content).length;
       if (!leadId) return json(req, { error: "lead_id requis" }, 400);
-      if (!["whatsapp", "email"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
-      if (!content || messageLength > 200) return json(req, { error: `Le message doit contenir entre 1 et 200 caractères (actuellement ${messageLength}).` }, 400);
+      if (!["whatsapp", "email", "sms"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
+      const normalizedContent = channel === "sms" ? normalizeSms(content) : content;
+      const effectiveLength = Array.from(normalizedContent).length;
+      if (!normalizedContent || (channel === "sms" ? effectiveLength > 155 : effectiveLength > 200)) {
+        const limit = channel === "sms" ? 155 : 200;
+        return json(req, { error: `Le message doit contenir entre 1 et ${limit} caractères (actuellement ${effectiveLength}).` }, 400);
+      }
       const authHeader = req.headers.get("Authorization") || "";
       if (!authHeader.startsWith("Bearer ")) return json(req, { error: "Authentification requise" }, 401);
       const { data: authData, error: authError } = await admin.auth.getUser(authHeader.slice(7));
@@ -582,12 +587,15 @@ serve(async (req) => {
         email: lead.email || null, telephone: lead.telephone || null, whatsapp: lead.whatsapp || null,
       };
       if (channel === "whatsapp" && !(contact.whatsapp || contact.telephone)) return json(req, { error: "Numéro WhatsApp absent" }, 400);
+      if (channel === "sms" && !contact.telephone) return json(req, { error: "Numéro de téléphone absent" }, 400);
       if (channel === "email" && !contact.email) return json(req, { error: "Adresse email absente" }, 400);
       const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || crypto.randomUUID()}`;
       const result = channel === "whatsapp"
-        ? await sendWhatsApp(contact, content, dedupeKey)
-        : await sendEmail(contact, subject, content, dedupeKey);
-      return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: messageLength });
+        ? await sendWhatsApp(contact, normalizedContent, dedupeKey)
+        : channel === "sms"
+          ? await sendSms(contact, assertSmsLength(normalizeSms(normalizedContent)), dedupeKey)
+          : await sendEmail(contact, subject, normalizedContent, dedupeKey);
+      return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: Array.from(channel === "sms" ? normalizeSms(normalizedContent) : normalizedContent).length });
     }
     if (mode === "status") return json(req, { ok: true, providers: await providerStatus() });
     if (mode === "preview") {
