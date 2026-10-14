@@ -87,11 +87,12 @@ const Equipes = () => {
     setMembersEquipe(equipe);
     const targetRole = equipe.type_equipe === "technique" ? "technicien" : "commercial";
 
-    const { data: teamMembers } = await (supabase as any)
-      .from("profiles")
-      .select("id, nom_complet, telephone, user_id")
-      .eq("equipe_id", equipe.id)
-      .eq("actif", true);
+    const { data: membershipRows, error: membershipError } = await (supabase as any)
+      .from("equipe_membres")
+      .select("profile_id, profile:profiles!equipe_membres_profile_id_fkey(id, nom_complet, telephone, user_id, actif)")
+      .eq("equipe_id", equipe.id);
+    if (membershipError) throw membershipError;
+    const teamMembers = (membershipRows || []).map((row: any) => row.profile).filter((p: any) => p?.actif);
 
     const memberIds = (teamMembers || []).map((m:any) => m.user_id).filter(Boolean);
     const { data: memberRoles } = memberIds.length
@@ -102,12 +103,18 @@ const Equipes = () => {
     (memberRoles || []).forEach((r:any) => { (memberRoleMap[r.user_id] ||= []).push(r.role); });
     setMembers((teamMembers || []).map((m:any) => ({ ...m, roles: memberRoleMap[m.user_id] || [] })));
 
-    const { data: available } = await (supabase as any)
+    const { data: alreadyAssignedRows, error: alreadyAssignedError } = await (supabase as any)
+      .from("equipe_membres")
+      .select("profile_id")
+      .eq("equipe_id", equipe.id);
+    if (alreadyAssignedError) throw alreadyAssignedError;
+    const alreadyAssigned = new Set((alreadyAssignedRows || []).map((row: any) => row.profile_id));
+    const { data: available, error: availableError } = await (supabase as any)
       .from("profiles")
-      .select("id, nom_complet, user_id")
+      .select("id, nom_complet, user_id, equipe_id")
       .eq("actif", true)
-      .is("equipe_id", null)
       .not("user_id", "is", null);
+    if (availableError) throw availableError;
 
     const availableIds = (available || []).map((p:any) => p.user_id).filter(Boolean);
     const { data: availableRoles } = availableIds.length
@@ -119,8 +126,9 @@ const Equipes = () => {
 
     setAvailableMembers(
       (available || [])
+        .filter((p: any) => !alreadyAssigned.has(p.id))
         .map((p:any) => ({ ...p, roles: availableRoleMap[p.user_id] || [] }))
-         .filter((p:any) => p.roles.some((role: string) => ["pdg", "dg"].includes(role.toLowerCase())) || p.roles.includes(targetRole) || p.roles.includes(
+        .filter((p:any) => p.roles.some((role: string) => ["pdg", "dg"].includes(role.toLowerCase())) || p.roles.includes(targetRole) || p.roles.includes(
           equipe.type_equipe === "technique" ? "chef_equipe_technique" : "chef_equipe_commercial"
         ))
     );
@@ -138,14 +146,15 @@ const Equipes = () => {
 
       // Vérifier l'état réellement persisté : un retour RPC sans erreur ne suffit pas
       // si la fonction n'a modifié aucune ligne.
-      const { data: persistedProfile, error: verifyError } = await (supabase as any)
-        .from("profiles")
-        .select("id, equipe_id")
-        .eq("id", selectedMemberId)
+      const { data: persistedMembership, error: verifyError } = await (supabase as any)
+        .from("equipe_membres")
+        .select("profile_id, equipe_id")
+        .eq("profile_id", selectedMemberId)
+        .eq("equipe_id", membersEquipe.id)
         .maybeSingle();
       if (verifyError) throw verifyError;
-      if (!persistedProfile || persistedProfile.equipe_id !== membersEquipe.id) {
-        throw new Error("L'affectation n'est pas enregistrée dans la base. Vérifiez la fonction assign_profile_to_equipe et les droits d'accès.");
+      if (!persistedMembership) {
+        throw new Error("L'affectation à cette équipe n'est pas confirmée dans la base.");
       }
 
       toast({ title: "Membre ajouté", description: "L'affectation est confirmée dans la base." });
@@ -158,19 +167,21 @@ const Equipes = () => {
 
   const removeMember = async (profileId: string) => {
     try {
-      const { error } = await (supabase as any).rpc("assign_profile_to_equipe", {
+      if (!membersEquipe) return;
+      const { error } = await (supabase as any).rpc("remove_profile_from_equipe", {
         p_profile_id: profileId,
-        p_equipe_id: null,
+        p_equipe_id: membersEquipe.id,
       });
       if (error) throw error;
-      const { data: persistedProfile, error: verifyError } = await (supabase as any)
-        .from("profiles")
-        .select("id, equipe_id")
-        .eq("id", profileId)
+      const { data: persistedMembership, error: verifyError } = await (supabase as any)
+        .from("equipe_membres")
+        .select("profile_id")
+        .eq("profile_id", profileId)
+        .eq("equipe_id", membersEquipe.id)
         .maybeSingle();
       if (verifyError) throw verifyError;
-      if (!persistedProfile || persistedProfile.equipe_id !== null) {
-        throw new Error("Le retrait n'est pas confirmé dans la base. Vérifiez la fonction assign_profile_to_equipe et les droits d'accès.");
+      if (persistedMembership) {
+        throw new Error("Le retrait du membre de cette équipe n'est pas confirmé.");
       }
       toast({ title: "Membre retiré", description: "Le retrait est confirmé dans la base." });
       if (membersEquipe) await fetchMembers(membersEquipe);
