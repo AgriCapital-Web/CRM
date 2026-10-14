@@ -264,15 +264,17 @@ All colors MUST be HSL.
     }
 
     .login-brand-mobile__logo {
-      width: min(100%, 460px);
+      width: min(100%, 540px);
       max-width: 100%;
-      max-height: clamp(180px, 30vh, 260px);
+      height: clamp(190px, 34vh, 310px);
+      max-height: 34vh;
       object-fit: contain;
+      flex: 0 0 auto;
     }
   }
 
   @media (min-width: 641px) and (max-width: 1023px) {
-    .login-brand-mobile__logo { width: min(100%, 420px); max-height: clamp(190px, 28vh, 240px); }
+    .login-brand-mobile__logo { width: min(100%, 500px); height: clamp(210px, 32vh, 290px); max-height: 32vh; object-fit: contain; }
   }
 
   /* Smooth scrolling */
