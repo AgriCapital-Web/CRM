@@ -117,7 +117,7 @@ const Login = () => {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-foreground text-base font-semibold">
+                <Label htmlFor="password" className="text-foreground text-lg font-semibold">
                   Mot de passe
                 </Label>
                 <button
