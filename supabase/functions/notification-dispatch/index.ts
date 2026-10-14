@@ -12,7 +12,7 @@ const corsHeaders = (req: Request) => {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
   };
-  if (origin && /^https:\/\/([a-z0-9-]+\.)*agricapital\.ci$/i.test(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  if (origin && /^https:\/\/([a-z0-9-]+\.)*(agricapital\.ci|lovableproject\.com|lovable\.app)$/i.test(origin)) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 };
 const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), {
