@@ -77,17 +77,32 @@ export default function Messagerie() {
 
   const loadClients = async (term = "") => {
     setLoadingClients(true);
-    let request = (supabase as any)
-      .from("clients")
-      .select("id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id")
-      .eq("compte_actif", true)
-      .order("nom_complet", { ascending: true })
-      .limit(100);
     const q = term.replace(/[^\p{L}\p{N}\s+\-_.']/gu, "").trim();
-    if (q) request = request.or(`nom_complet.ilike.%${q}%,telephone.ilike.%${q}%,id_unique.ilike.%${q}%`);
-    const { data } = await request;
-    setClients((data || []) as ClientRow[]);
-    setLoadingClients(false);
+    const allClients: ClientRow[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+    try {
+      while (true) {
+        let request = (supabase as any)
+          .from("clients")
+          .select("id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id")
+          .order("nom_complet", { ascending: true })
+          .order("id", { ascending: true })
+          .range(offset, offset + pageSize - 1);
+        if (q) request = request.or(`nom_complet.ilike.%${q}%,telephone.ilike.%${q}%,id_unique.ilike.%${q}%`);
+        const { data, error } = await request;
+        if (error) throw error;
+        allClients.push(...((data || []) as ClientRow[]));
+        if (!data || data.length < pageSize) break;
+        offset += pageSize;
+      }
+      setClients(allClients);
+    } catch (error) {
+      console.error("Impossible de charger la liste complète des clients de la messagerie:", error);
+      setClients([]);
+    } finally {
+      setLoadingClients(false);
+    }
   };
 
   const loadSelected = async (id: string) => {
