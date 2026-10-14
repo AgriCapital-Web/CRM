@@ -38,6 +38,8 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   });
   const [clients, setClients] = useState<any[]>([]);
   const [plantations, setPlantations] = useState<any[]>([]);
+  const [clientSubscriptions, setClientSubscriptions] = useState<any[]>([]);
+  const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [selectedPlantation, setSelectedPlantation] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
@@ -54,6 +56,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   useEffect(() => { if (!typePaiement) { const v=refs("type_paiement")[0]?.code; if (v) setValue("type_paiement", v); } }, [typePaiement, setValue, refs]);
   const clientId = watch("client_id");
   const plantationId = watch("plantation_id");
+  const subscriptionId = watch("souscription_id");
   const typePreuve = watch("type_preuve");
   const montantPaye = watch("montant_paye");
 
@@ -66,29 +69,70 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     if (typePaiement) {
       setValue("client_id", "");
       setValue("plantation_id", "");
+      setValue("souscription_id", "");
       setSelectedClient(null);
       setSelectedPlantation(null);
+      setSelectedSubscription(null);
+      setClientSubscriptions([]);
       setPlantations([]);
     }
   }, [typePaiement, setValue]);
 
   // Quand client change
   useEffect(() => {
-    if (clientId) {
-      const client = clients.find((s) => s.id === clientId);
-      setSelectedClient(client);
-      
-      // Si type = MENSUALITE, charger plantations du client
-      if (typePaiement === "MENSUALITE") {
-        fetchPlantationsByClient(clientId);
-      }
-      
-      // Si type = PI, pas besoin de plantation
-      if (typePaiement === "PI") {
-        setPlantations([]);
-      }
+    if (!clientId) {
+      setSelectedClient(null);
+      setClientSubscriptions([]);
+      setSelectedSubscription(null);
+      return;
     }
-  }, [clientId, typePaiement, clients]);
+    const client = clients.find((s) => s.id === clientId);
+    setSelectedClient(client);
+    setValue("souscription_id", "");
+    setSelectedSubscription(null);
+    if (typePaiement === "MENSUALITE") {
+      fetchPlantationsByClient(clientId);
+      setClientSubscriptions([]);
+      return;
+    }
+    setPlantations([]);
+    if (typePaiement === "PI") {
+      let active = true;
+      void (async () => {
+        const { data: subs, error: subsError } = await (supabase as any)
+          .from("client_souscriptions")
+          .select("id,client_id,offre_id,offre_nom,offre_code,famille_offre,formule_code,formule_nom,superficie_ha,montant_pi_total,montant_total_contrat,mode_paiement,statut,statut_technique")
+          .eq("client_id", clientId)
+          .gt("montant_pi_total", 0)
+          .order("created_at", { ascending: false });
+        if (subsError) {
+          if (active) toast({ variant: "destructive", title: "Souscriptions indisponibles", description: getSafeErrorMessage(subsError) });
+          return;
+        }
+        const ids = (subs || []).map((sub: any) => sub.id);
+        let payments: any[] = [];
+        if (ids.length) {
+          const { data, error } = await (supabase as any)
+            .from("paiements")
+            .select("id,souscription_id,statut,est_paiement_initial")
+            .in("souscription_id", ids)
+            .eq("est_paiement_initial", true);
+          if (error) throw error;
+          payments = data || [];
+        }
+        if (!active) return;
+        const enriched = (subs || []).map((sub: any) => ({
+          ...sub,
+          pi_paye: payments.some((payment: any) => payment.souscription_id === sub.id && ["valide","paye","paid","success","successful","completed"].includes(String(payment.statut || "").toLowerCase())),
+          paiement_initial_id: payments.find((payment: any) => payment.souscription_id === sub.id)?.id || null,
+        }));
+        setClientSubscriptions(enriched);
+      })().catch((error: any) => {
+        if (active) toast({ variant: "destructive", title: "Souscriptions indisponibles", description: getSafeErrorMessage(error) });
+      });
+      return () => { active = false; };
+    }
+  }, [clientId, typePaiement, clients, setValue, toast]);
 
   // Quand plantation change (pour MENSUALITE)
   useEffect(() => {
@@ -105,7 +149,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   useEffect(() => {
     let cancelled = false;
     const loadClientOffer = async () => {
-      if (typePaiement !== "PI" || !clientId) {
+      if (typePaiement !== "PI" || !clientId || subscriptionId) {
         setClientOffre(null);
         return;
       }
@@ -141,7 +185,23 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
     void loadClientOffer();
     return () => { cancelled = true; };
-  }, [typePaiement, clientId, setValue, toast]);
+  }, [typePaiement, clientId, subscriptionId, setValue, toast]);
+
+  useEffect(() => {
+    if (typePaiement !== "PI" || !subscriptionId) {
+      setSelectedSubscription(null);
+      return;
+    }
+    const subscription = clientSubscriptions.find((sub: any) => sub.id === subscriptionId) || null;
+    setSelectedSubscription(subscription);
+    if (subscription) {
+      const amount = Number(subscription.montant_pi_total || 0);
+      setClientOffre(null);
+      setValue("montant_theorique", amount);
+      setValue("montant_paye", amount);
+      setValue("souscription_id", subscription.id);
+    }
+  }, [typePaiement, subscriptionId, clientSubscriptions, setValue]);
 
   useEffect(() => {
     if (typePaiement !== "PI" || !clientOffre) return;
