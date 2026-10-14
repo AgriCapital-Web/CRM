@@ -493,57 +493,6 @@ const GestionPaiements = () => {
             </TabsContent>}
           </Tabs>
 
-          {/* Details Dialog */}
-          <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Détails du paiement</DialogTitle>
-              </DialogHeader>
-              {selectedPaiement && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Référence</p>
-                      <p className="font-mono text-sm">{selectedPaiement.reference}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Statut</p>
-                      {getStatutBadge(selectedPaiement.statut)}
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Type</p>
-                      <p>{selectedPaiement.type_paiement === 'PI' ? "Paiement Initial" : 'mensualité'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Montant</p>
-                      <p className="font-bold text-primary">{formatMontant(selectedPaiement.montant_paye || selectedPaiement.montant)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Client</p>
-                      <p>{selectedPaiement.clients?.nom_complet}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Plantation</p>
-                      <p>{selectedPaiement.plantations?.nom_plantation || selectedPaiement.plantations?.id_unique}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-sm text-muted-foreground">Date</p>
-                      <p>{new Date(selectedPaiement.date_paiement || selectedPaiement.created_at).toLocaleString('fr-FR')}</p>
-                    </div>
-                  </div>
-                  {selectedPaiement.metadata && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Métadonnées</p>
-                      <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-32">
-                        {JSON.stringify(selectedPaiement.metadata, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-
           {/* Transfer Dialog */}
           <Dialog open={isTransferDialogOpen} onOpenChange={(open) => { setIsTransferDialogOpen(open); if (!open) resetForms(); }}>
             <DialogContent className="max-w-lg">
@@ -731,12 +680,6 @@ const GestionPaiements = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isCreatePaymentOpen} onOpenChange={setIsCreatePaymentOpen}>
-            <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-              <DialogHeader><DialogTitle>Enregistrer un paiement</DialogTitle></DialogHeader>
-              <PaiementForm onSuccess={() => { setIsCreatePaymentOpen(false); void refetch(); void queryClient.invalidateQueries(); }} onCancel={() => setIsCreatePaymentOpen(false)} />
-            </DialogContent>
-          </Dialog>
         </div>
       </MainLayout>
     </ProtectedRoute>
