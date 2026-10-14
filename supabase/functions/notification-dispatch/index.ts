@@ -161,7 +161,15 @@ async function providerStatus() {
   const { data: apiKey } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
   const { data: webhookSecret } = await admin.rpc("senndo_get_secret", { p_name: "senndo_webhook_secret" });
   const { data: emailSenderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
-  return { senndo: Boolean(apiKey), webhook: Boolean(webhookSecret), sms: Boolean(apiKey), email: Boolean(apiKey && emailSenderId), whatsapp_paired: Boolean(apiKey), voice: Boolean(apiKey), sender_id: "AgriCapital", whatsapp_business_number: "+2250564551717", email_sender_id: emailSenderId || null, email_provider: apiKey ? "senndo" : null };
+  let whatsapp: { senderPhone: string } | null = null;
+  try { whatsapp = await resolveWhatsAppSenderSession(); } catch { whatsapp = null; }
+  return {
+    senndo: Boolean(apiKey), webhook: Boolean(webhookSecret), sms: Boolean(apiKey),
+    email: Boolean(apiKey && emailSenderId), whatsapp_paired: Boolean(whatsapp),
+    voice: Boolean(apiKey), sender_id: "AgriCapital",
+    whatsapp_business_number: whatsapp?.senderPhone || null,
+    email_sender_id: emailSenderId || null, email_provider: apiKey ? "senndo" : null,
+  };
 }
 async function sendEmail(contact: Contact, subject: string, content: string, dedupeKey: string, attachments: MediaAttachment[] = []) {
   if (!contact.email) throw new Error("Email absent");
@@ -185,13 +193,92 @@ async function sendSms(contact: Contact, content: string, dedupeKey: string) {
   const result = await client.sendMessage({ channel: "sms", to: contact.telephone, text: normalizeSms(content), senderId: Deno.env.get("SENNDO_SMS_SENDER_ID") || "AgriCapital", idempotencyKey: dedupeKey });
   return { provider: "senndo", messageId: result.id || null, content: normalizeSms(content) };
 }
+async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderSessionId: string; senderPhone: string }> {
+  const [{ data: apiKey, error: apiError }, { data: configuredPhone, error: phoneError }] = await Promise.all([
+    admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" }),
+    admin.rpc("senndo_get_secret", { p_name: "senndo_whatsapp_sender_phone" }),
+  ]);
+  if (apiError || typeof apiKey !== "string" || !apiKey) throw new Error("Clé API Senndo non configurée");
+  if (phoneError || typeof configuredPhone !== "string" || !configuredPhone) throw new Error("Numéro de session WhatsApp Senndo non configuré en base.");
+  const response = await fetch("https://api.senndo.com/v1/wa/sessions", {
+    method: "GET", headers: { authorization: "Bearer " + apiKey, accept: "application/json" },
+    signal: AbortSignal.timeout(15000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error("Impossible de lire les sessions WhatsApp Senndo (HTTP " + response.status + ").");
+  const raw = Array.isArray(payload) ? payload
+    : Array.isArray(payload?.sessions) ? payload.sessions
+    : Array.isArray(payload?.data?.sessions) ? payload.data.sessions
+    : Array.isArray(payload?.data) ? payload.data
+    : Array.isArray(payload?.items) ? payload.items
+    : Array.isArray(payload?.results) ? payload.results : [];
+  const sessions = raw.map((item: any) => {
+    if (!item?.session || typeof item.session !== "object") return item;
+    return { ...item.session, id: item.session.id ?? item.id,
+      sessionId: item.session.sessionId ?? item.session.session_id ?? item.sessionId ?? item.session_id,
+      senderSessionId: item.session.senderSessionId ?? item.senderSessionId,
+      uuid: item.session.uuid ?? item.uuid };
+  });
+  const normalizePhone = (value: unknown) => {
+    const rawPhone = String(value ?? "").split("@")[0].split(":")[0].replace(/\D/g, "");
+    if (!rawPhone) return "";
+    const national = rawPhone.startsWith("225") ? rawPhone.slice(3) : rawPhone;
+    if (national.length === 10 && /^0[157]\d{8}$/.test(national)) return "225" + national.slice(-8);
+    if (national.length === 8) return "225" + national;
+    return rawPhone;
+  };
+  const phoneValues = (session: any) => [
+    session?.phoneNumber, session?.phone_number, session?.phone, session?.displayPhoneNumber,
+    session?.display_phone_number, session?.number, session?.jid, session?.user?.id, session?.user?.jid,
+    session?.me?.id, session?.me?.jid, session?.account?.phone, session?.account?.phoneNumber,
+    session?.profile?.phone, session?.whatsapp?.phone, session?.session?.phoneNumber,
+    session?.session?.phone_number, session?.session?.user?.id, session?.session?.me?.id,
+    session?.creds?.me?.id, session?.authState?.creds?.me?.id,
+  ].filter((value) => (typeof value === "string" || typeof value === "number") && String(value).trim());
+  const statusOf = (session: any) => String(session?.status ?? session?.state ?? session?.connectionStatus
+    ?? session?.connection_status ?? session?.connection?.status ?? session?.session?.status ?? "").trim().toLowerCase();
+  const connected = sessions.filter((session: any) => ["connected", "open", "ready", "authenticated"].includes(statusOf(session)));
+  const senderDigits = normalizePhone(configuredPhone);
+  const matches = connected.filter((session: any) => phoneValues(session).some((value: unknown) => normalizePhone(value) === senderDigits));
+  const session = matches.length === 1 ? matches[0] : matches.length > 1 ? null : connected.length === 1 ? connected[0] : null;
+  const candidates = session ? [
+    session.id, session.sessionId, session.session_id, session.senderSessionId, session.sender_session_id,
+    session.uuid, session.sessionKey, session.session_key, session.uniqueSessionId, session.unique_session_id,
+    session.sessionName, session.session_name, session.name, session.key,
+    session.session?.id, session.session?.sessionId, session.session?.session_id, session.session?.uniqueSessionId,
+  ] : [];
+  const senderSessionId = candidates.find((value: unknown) =>
+    (typeof value === "string" && value.trim().length > 0) || (typeof value === "number" && Number.isFinite(value)));
+  if (!session || senderSessionId === undefined || !String(senderSessionId).trim()) {
+    throw new Error(connected.length === 0
+      ? "Aucune session WhatsApp connectée n’a été trouvée dans Senndo."
+      : connected.length > 1 && matches.length !== 1
+        ? "Plusieurs sessions WhatsApp sont connectées sans correspondance unique avec le numéro configuré."
+        : "La session WhatsApp est connectée, mais son identifiant technique est absent.");
+  }
+  return { apiKey, senderSessionId: String(senderSessionId), senderPhone: String(configuredPhone) };
+}
+
 async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string, mediaRef?: string) {
   const recipient = contact.whatsapp || contact.telephone;
   if (!recipient) throw new Error("Numéro WhatsApp absent");
-  const client = await getSenndoClient();
-  const result = await client.sendMessage({ channel: "whatsapp", to: recipient, text: content,
-    ...(mediaRef ? { media: { ref: mediaRef } } : {}), idempotencyKey: dedupeKey });
-  return { provider: "senndo", messageId: result.id || null };
+  const session = await resolveWhatsAppSenderSession();
+  const response = await fetch("https://api.senndo.com/v1/messages", {
+    method: "POST",
+    headers: { authorization: "Bearer " + session.apiKey, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      channel: "whatsapp_baileys", to: recipient, text: content,
+      senderSessionId: session.senderSessionId, idempotencyKey: dedupeKey,
+      ...(mediaRef ? { media: { ref: mediaRef } } : {}),
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = typeof payload?.message === "string" ? payload.message.slice(0, 250) : "";
+    throw new Error("Senndo a refusé l’envoi WhatsApp appairé (HTTP " + response.status + ")." + (detail ? " " + detail : ""));
+  }
+  return { provider: "senndo_whatsapp_baileys", messageId: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null };
 }
 async function sendVoice(contact: Contact, content: string, dedupeKey: string) {
   if (!contact.telephone) throw new Error("Téléphone absent pour l'appel vocal");
