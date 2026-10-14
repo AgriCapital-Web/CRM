@@ -45,17 +45,24 @@ export default function Messagerie() {
   const [selected, setSelected] = useState<ClientRow | null>(null);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [recent, setRecent] = useState<RecentMessage[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [query, setQuery] = useState("");
   const [loadingClients, setLoadingClients] = useState(true);
   const [mobileConversation, setMobileConversation] = useState(Boolean(params.get("client")));
 
   const loadRecent = async () => {
-    const { data } = await (supabase as any)
-      .from("portail_messages")
-      .select("id,client_id,auteur_type,auteur_nom,message,lu,created_at,clients(id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id)")
-      .order("created_at", { ascending: false })
-      .limit(100);
+    const [{ data }, { count, error: unreadError }] = await Promise.all([
+      (supabase as any).from("portail_messages")
+        .select("id,client_id,auteur_type,auteur_nom,message,lu,created_at,clients(id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id)")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      (supabase as any).from("portail_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("auteur_type", "client")
+        .eq("lu", false),
+    ]);
     setRecent((data || []) as RecentMessage[]);
+    if (!unreadError) setUnreadCount(count || 0);
   };
 
   const loadClients = async (term = "") => {
@@ -122,7 +129,6 @@ export default function Messagerie() {
     return clientsCopy;
   }, [clients, recentByClient]);
 
-  const unreadCount = recent.filter((m) => m.auteur_type === "client" && !m.lu).length;
 
   if (!can("messagerie.view")) {
     return <ProtectedRoute requiredPermission={"messagerie.view" as any}><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
