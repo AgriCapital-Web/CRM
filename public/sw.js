@@ -1,4 +1,4 @@
-const CACHE_NAME = "agricapital-crm-v7";
+const CACHE_NAME = "agricapital-crm-v8";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 11;
@@ -311,7 +311,7 @@ self.addEventListener("fetch", (event) => {
         return response;
       } catch {
         const cached = await caches.match("/index.html") || await caches.match("/");
-        return cached || new Response("AC_Teams doit être ouvert au moins une fois avec une connexion pour préparer son mode hors ligne.", {
+        return cached || new Response("AgriCapital est temporairement indisponible hors connexion. Réessayez lorsque le réseau sera disponible.", {
           status: 503,
           headers: { "Content-Type": "text/plain; charset=utf-8" },
         });
