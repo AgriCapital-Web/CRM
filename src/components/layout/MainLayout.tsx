@@ -28,7 +28,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const { isOnline, isSyncing, syncNow, pendingCount, networkQuality } = useOfflineSync();
+  const { isOnline, isSyncing, syncNow, pendingCount, pendingFiles, networkQuality } = useOfflineSync();
+  const queueCount = pendingCount + pendingFiles;
   const photoUrl = useSignedUrl('photos-profils', profile?.photo_url);
   useGlobalRealtime();
 
@@ -98,7 +99,14 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
       <div className="border-t border-primary-foreground/10 p-3">
         <div className="mb-2 rounded-md bg-primary-foreground/10 px-3 py-2">
-          <div className="flex items-center justify-between gap-2"><NetworkIndicator />{pendingCount > 0 && <Badge className="bg-accent text-accent-foreground">{pendingCount}</Badge>}</div>
+          <div className="flex items-center justify-between gap-2">
+            <NetworkIndicator />
+            {queueCount > 0 && (
+              <button type="button" onClick={() => { navigate("/synchronisation"); setOpen(false); }} title="Voir les opérations et pièces jointes en attente" aria-label={`${queueCount} élément(s) en attente de synchronisation`} className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Badge className="bg-accent text-accent-foreground">{queueCount}</Badge>
+              </button>
+            )}
+          </div>
         </div>
         <div className="space-y-1">
           <Button variant="ghost" className={cn("h-10 w-full justify-start gap-3 rounded-md text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground", location.pathname === "/profil" && "bg-primary-foreground/15 text-primary-foreground")} onClick={() => { navigate("/profil"); setOpen(false); }}>
@@ -138,7 +146,11 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <div className="ml-auto flex min-w-0 items-center gap-3">
             <NetworkIndicator />
             <NotificationCenter />
-            {pendingCount > 0 && <Badge variant="outline" className="border-accent text-accent">{pendingCount} en attente</Badge>}
+            {queueCount > 0 && (
+              <button type="button" onClick={() => navigate("/synchronisation")} title="Voir les opérations et pièces jointes en attente" aria-label={`${queueCount} élément(s) en attente de synchronisation`} className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Badge variant="outline" className="border-accent text-accent">{queueCount} en attente</Badge>
+              </button>
+            )}
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={syncNow} disabled={isSyncing || !isOnline} title="Synchroniser">
               <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
             </Button>
