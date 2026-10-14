@@ -35,12 +35,17 @@ export const useNotifications = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await (supabase as any)
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const [{ data, error }, { count: unreadTotal, error: countError }] = await Promise.all([
+        (supabase as any).from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        (supabase as any).from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('read', false),
+      ]);
 
       if (error) {
         console.error('Error fetching notifications:', error);
@@ -50,7 +55,7 @@ export const useNotifications = () => {
       const rows = (data as Notification[]) || [];
       seenIds.current = new Set(rows.map(n => n.id));
       setNotifications(rows);
-      setUnreadCount(rows.filter((n: Notification) => !n.read).length || 0);
+      setUnreadCount(countError ? rows.filter((n: Notification) => !n.read).length : (unreadTotal || 0));
     } catch (error) {
       console.error('Error:', error);
     }
@@ -115,20 +120,23 @@ export const useNotifications = () => {
   }, [user]);
 
   const markAsRead = async (notificationId: string) => {
-    const { error } = await (supabase as any)
+    if (!user) return;
+    const { data, error } = await (supabase as any)
       .from('notifications')
       .update({ read: true })
-      .eq('id', notificationId);
+      .eq('id', notificationId)
+      .eq('user_id', user.id)
+      .eq('read', false)
+      .select('id');
 
     if (error) {
       console.error('Error marking notification as read:', error);
       return;
     }
 
-    setNotifications(prev =>
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
+    if ((data || []).length > 0) setUnreadCount(prev => Math.max(0, prev - 1));
+    else void fetchNotifications();
   };
 
   const markAllAsRead = async () => {
@@ -151,8 +159,16 @@ export const useNotifications = () => {
 
   const openNotification = (notification: Notification) => {
     if (!notification.read) void markAsRead(notification.id);
-    const route = notification.data?.route;
-    const ticketId = notification.data?.ticket_id;
+    const data = notification.data || {};
+    const route = data.route;
+    const ticketId = data.ticket_id;
+    const clientId = data.client_id;
+    const type = String(notification.type || "").toLowerCase();
+    const isMessageNotification = type.includes("message") || String(route || "").toLowerCase().includes("messagerie") || data.source === "portail_messages";
+    if (isMessageNotification && clientId) {
+      navigate(`/messagerie?client=${encodeURIComponent(String(clientId))}`);
+      return;
+    }
     if (route) navigate(ticketId ? `${route}?ticket=${ticketId}` : route);
   };
 
