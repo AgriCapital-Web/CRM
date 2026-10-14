@@ -107,3 +107,6 @@ begin
 end; $function$;
 revoke all on function public.recalculer_commissions_depuis_grille() from public;
 grant execute on function public.recalculer_commissions_depuis_grille() to authenticated;
+
+-- Operations is not a financial role and must not see the wallet/commission page.
+delete from public.role_permissions where role_code='responsable_operations' and permission_code in ('portefeuilles.view','commissions.view');
