@@ -161,6 +161,11 @@ const GestionPaiements = () => {
   const financialBlockReason = async (client:any): Promise<string | null> => {
     if (!client) return "Client introuvable.";
     if (client.type_client === "beneficiaire_particulier") return "Les bénéficiaires particuliers ne disposent pas d’actions financières.";
+    const landRole = String(client.type_client_foncier || "").toLowerCase();
+    const clientRole = String(client.type_client || "").toLowerCase();
+    if (client.proprietaire_id || ["proprietaire_foncier", "propriétaire_foncier", "partenaire_foncier"].includes(landRole) || ["proprietaire_foncier", "propriétaire_foncier", "partenaire"].includes(clientRole)) {
+      return "Les partenaires et propriétaires fonciers n’ont pas d’actions financières dans ce parcours.";
+    }
     if (client.is_internal) return "Cet actif AgriCapital n’est pas encore transféré à un client.";
     const {data:summary,error} = await (supabase as any).from("v_client_synthese").select("montant_total_contrat,reste_a_payer").eq("client_id",client.id).maybeSingle();
     if (error) throw error;
@@ -176,7 +181,7 @@ const GestionPaiements = () => {
     const safe = phone.replace(/[^\p{L}\p{N}\s+\-_.]/gu, "").trim();
     if (safe.length < 8) return;
     const { data, error } = await (supabase as any).from('clients')
-      .select('id,nom_complet,telephone,id_unique,type_client,is_internal,contrat_solde_at,montant_total_contrat')
+      .select('id,nom_complet,telephone,id_unique,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,montant_total_contrat')
       .or(`telephone.ilike.%${safe}%,whatsapp.ilike.%${safe}%,id_unique.ilike.%${safe}%`)
       .eq('statut','actif').limit(10);
     if (error) { toast({variant:"destructive",title:"Recherche impossible",description:getSafeErrorMessage(error)}); return; }
