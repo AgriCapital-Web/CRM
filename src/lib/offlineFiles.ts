@@ -22,10 +22,13 @@ export interface QueuedFile {
   form_id?: string;
   field?: string;
   createdAt: number;
+  uploadStartedAt?: number;
 }
 
 const MAX_IMAGE_SIZE = 1920;
 const IMAGE_QUALITY = 0.78;
+const STALE_UPLOAD_MS = 5 * 60 * 1000;
+let fileFlushInProgress = false;
 
 /** Compresse les photos terrain avant stockage local et envoi. Les PDF restent intacts. */
 export async function compressAttachment(file: File | Blob): Promise<Blob> {
@@ -130,7 +133,7 @@ export async function retryQueuedFile(id: string): Promise<void> {
   const all = await getAllQueuedFiles();
   const f = all.find((x) => x.id === id);
   if (!f) return;
-  await putItem(STORES.FILES, { ...f, status: 'pending', nextRetryAt: 0, error: undefined });
+  await putItem(STORES.FILES, { ...f, status: 'pending', uploadStartedAt: undefined, nextRetryAt: 0, error: undefined });
 }
 
 /** Relance toutes les pièces jointes en erreur. */
@@ -189,52 +192,61 @@ export async function countQueuedFiles(): Promise<number> {
 
 /** Vide la file d'attente des fichiers. Retourne le nombre d'uploads réussis. */
 export async function flushFileQueue(): Promise<number> {
-  if (!navigator.onLine) return 0;
-  const files = (await getQueuedFiles()).filter((f) => !f.nextRetryAt || f.nextRetryAt <= Date.now());
+  if (!navigator.onLine || fileFlushInProgress) return 0;
+  fileFlushInProgress = true;
   let ok = 0;
 
-  for (const f of files) {
-    try {
-      const { error } = await supabase.storage
-        .from(f.bucket)
-        .upload(f.path, f.blob, { upsert: true, contentType: f.contentType });
-      if (error) throw error;
+  try {
+    const files = (await getQueuedFiles()).filter((f) => !f.nextRetryAt || f.nextRetryAt <= Date.now());
 
-      // Les photos de cartes passent par le traitement serveur après l'upload.
-      let storedPath = f.path;
-      if (f.bucket === 'cartes-personnel' && f.table === 'cartes_personnel' && f.record_id && f.column === 'photo_url') {
-        const { data: processed, error: processingError } = await supabase.functions.invoke('process-card-photo', {
-          body: { mode: 'single', cardId: f.record_id, sourcePath: f.path },
-        });
-        if (processingError || !processed?.path) {
-          throw processingError || new Error('Traitement de la photo de carte échoué.');
+    for (const f of files) {
+      try {
+        await putItem(STORES.FILES, { ...f, status: 'uploading', uploadStartedAt: Date.now() });
+        const { error } = await supabase.storage
+          .from(f.bucket)
+          .upload(f.path, f.blob, { upsert: true, contentType: f.contentType });
+        if (error) throw error;
+
+        // Les photos de cartes passent par le traitement serveur après l'upload.
+        let storedPath = f.path;
+        if (f.bucket === 'cartes-personnel' && f.table === 'cartes_personnel' && f.record_id && f.column === 'photo_url') {
+          const { data: processed, error: processingError } = await supabase.functions.invoke('process-card-photo', {
+            body: { mode: 'single', cardId: f.record_id, sourcePath: f.path },
+          });
+          if (processingError || !processed?.path) {
+            throw processingError || new Error('Traitement de la photo de carte échoué.');
+          }
+          storedPath = processed.path as string;
         }
-        storedPath = processed.path as string;
-      }
 
-      // Rattachement du chemin de stockage (jamais d'URL publique pour les buckets privés).
-      if (f.table && f.record_id && f.column) {
-        await (supabase as any)
-          .from(f.table)
-          .update({ [f.column]: storedPath })
-          .eq('id', f.record_id);
-      }
+        // Rattachement du chemin de stockage (jamais d'URL publique pour les buckets privés).
+        if (f.table && f.record_id && f.column) {
+          const { error: linkError } = await (supabase as any)
+            .from(f.table)
+            .update({ [f.column]: storedPath })
+            .eq('id', f.record_id);
+          if (linkError) throw linkError;
+        }
 
-      await deleteItem(STORES.FILES, f.id);
-      ok++;
-    } catch (e: any) {
-      const retries = (f.retries || 0) + 1;
-      const delay = Math.min(60 * 60 * 1000, 15_000 * 2 ** Math.min(retries, 8));
-      await putItem(STORES.FILES, {
-        ...f,
-        status: 'error',
-        retries,
-        nextRetryAt: Date.now() + delay,
-        error: e?.message || 'Upload échoué',
-      });
+        await deleteItem(STORES.FILES, f.id);
+        ok++;
+      } catch (e: any) {
+        const retries = (f.retries || 0) + 1;
+        const delay = Math.min(60 * 60 * 1000, 15_000 * 2 ** Math.min(retries, 8));
+        await putItem(STORES.FILES, {
+          ...f,
+          status: 'error',
+          uploadStartedAt: undefined,
+          retries,
+          nextRetryAt: Date.now() + delay,
+          error: e?.message || 'Upload échoué',
+        });
+      }
     }
+    return ok;
+  } finally {
+    fileFlushInProgress = false;
   }
-  return ok;
 }
 
 let resumeTimer: ReturnType<typeof setInterval> | null = null;
