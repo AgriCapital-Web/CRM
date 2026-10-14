@@ -81,7 +81,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           const remaining = Number(c.summary?.reste_a_payer ?? Math.max(0, total - Number(c.summary?.total_paye || 0)));
           const landRole = String(c.type_client_foncier || "").toLowerCase();
           const isPartner = Boolean(c.proprietaire_id) || ["proprietaire_foncier", "propriétaire_foncier", "partenaire_foncier"].includes(landRole);
-          return c.type_client !== "beneficiaire_particulier" && !isPartner && !c.is_internal && !c.contrat_solde_at && total > 0 && remaining > 0;
+          return c.type_client !== "beneficiaire_particulier" && !isPartner && !c.is_internal && total > 0 && remaining > 0;
         });
     },
     staleTime: 15_000,
@@ -116,7 +116,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     setPaymentType("MENSUALITE");
     setAmount("");
     try {
-      const [stateRes, subsRes, plantationsRes] = await Promise.all([
+      const [stateRes, subsRes, plantationsRes, basePaymentsRes] = await Promise.all([
         (supabase as any).rpc("portal_current_payment_state", { _client_id: client.id }),
         (supabase as any).from("client_souscriptions")
           .select("id,formule_nom,offre_nom,superficie_ha,montant_pi_total,montant_total_contrat,mode_paiement,mensualite_montant,duree_paiement_mois,echeancier,created_at")
@@ -126,19 +126,31 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           .select("id,id_unique,nom_plantation,superficie_ha,souscription_id,statut_global")
           .eq("client_id", client.id)
           .order("created_at", { ascending: true }),
+        (supabase as any).from("paiements")
+          .select("montant,montant_paye")
+          .eq("client_id", client.id)
+          .is("souscription_id", null)
+          .eq("statut", "valide"),
       ]);
       if (stateRes.error) throw stateRes.error;
       if (subsRes.error) throw subsRes.error;
       if (plantationsRes.error) throw plantationsRes.error;
-      setBaseState(stateRes.data || {});
+      if (basePaymentsRes.error) throw basePaymentsRes.error;
+      const basePaid = (basePaymentsRes.data || []).reduce((sum: number, p: any) => sum + Number(p.montant_paye ?? p.montant ?? 0), 0);
+      const baseTotal = Number(client.montant_total_contrat || 0);
+      const normalizedBaseState = {
+        ...(stateRes.data || {}),
+        reste_contrat: baseTotal > 0 ? Math.max(0, baseTotal - basePaid) : Number(client.summary?.reste_a_payer || 0),
+      };
+      setBaseState(normalizedBaseState);
       setPlantations(plantationsRes.data || []);
       const nextContracts: ContractState[] = [{
         id: "principal",
         label: "Contrat initial du client",
         subscriptionId: null,
-        plantationId: (plantationsRes.data || []).find((p: any) => !p.souscription_id)?.id || (plantationsRes.data || [])[0]?.id || null,
-        surface: Number(client.summary?.montant_total_contrat ? client.montant_total_contrat || 0 : 0),
-        state: stateRes.data || {},
+        plantationId: (plantationsRes.data || []).find((p: any) => !p.souscription_id)?.id || null,
+        surface: Number(client.total_hectares || 0),
+        state: normalizedBaseState,
       }];
       for (const sub of (subsRes.data || [])) {
         const [subStateRes] = await Promise.all([
