@@ -1,3 +1,18 @@
+-- Keep the paired WhatsApp sender number in Vault rather than hard-coding it in functions.
+do $$
+begin
+  if not exists (
+    select 1 from vault.decrypted_secrets where name = 'senndo_whatsapp_sender_phone'
+  ) then
+    perform vault.create_secret(
+      '+22564551717',
+      'senndo_whatsapp_sender_phone',
+      'Numéro de la session WhatsApp appairée Senndo utilisée par le CRM'
+    );
+  end if;
+end
+$$;
+
 -- Idempotent configuration fixes for notification delivery.
 -- Keep one active client automation per event to prevent duplicate messages.
 update public.notification_automations
