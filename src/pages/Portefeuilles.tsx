@@ -182,7 +182,7 @@ export default function Portefeuilles(){
 
   return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PORTEFEUILLES}>
     <MainLayout>
-      <div className="min-w-0 space-y-5">
+      <div className="portfolio-page min-w-0 space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div><h1 className="text-2xl font-bold">Portefeuilles</h1></div>
           <Button variant="outline" size="sm" onClick={()=>void load()}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
@@ -207,7 +207,7 @@ export default function Portefeuilles(){
           <CardHeader><CardTitle className="text-base">Portefeuilles</CardTitle><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher un portefeuille…" /></CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table className="min-w-[700px]"><TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Rôle</TableHead><TableHead>Solde</TableHead><TableHead>Total gagné</TableHead><TableHead>Total versé</TableHead></TableRow></TableHeader>
+              <Table className="responsive-data-table min-w-[700px]"><TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Rôle</TableHead><TableHead>Solde</TableHead><TableHead>Total gagné</TableHead><TableHead>Total versé</TableHead></TableRow></TableHeader>
               <TableBody>
                 {loading?<TableRow><TableCell colSpan={5} className="py-8 text-center">Chargement…</TableCell></TableRow>:filtered.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Aucun portefeuille.</TableCell></TableRow>:paginatedPortefeuilles.map((p:any)=><TableRow key={p.id} className="cursor-pointer hover:bg-muted/40" onClick={()=>setSelected(p)}>
                   <TableCell className="font-medium">{formatUserShortName(p.user?.nom_complet||"—")}</TableCell>
@@ -224,7 +224,7 @@ export default function Portefeuilles(){
 
         {canManage&&<Card>
           <CardHeader><CardTitle className="text-base">Versements</CardTitle><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher un versement…" /></CardHeader>
-          <CardContent className="p-0"><div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Période</TableHead><TableHead>Brut</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+          <CardContent className="p-0"><div className="overflow-x-auto"><Table className="responsive-data-table min-w-[720px]"><TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Période</TableHead><TableHead>Brut</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
             <TableBody>{paginatedVersements.map((v:any)=>{
               const p=profiles.find((x:any)=>x.id===v.profile_id);
               return <TableRow key={v.id}><TableCell>{p?.nom_complet||"—"}</TableCell><TableCell>{format(new Date(v.periode_debut),"dd/MM/yyyy")} — {format(new Date(v.periode_fin),"dd/MM/yyyy")}</TableCell><TableCell className="font-semibold">{money(v.montant_brut)}</TableCell><TableCell><Badge>{v.statut}</Badge></TableCell><TableCell className="text-right"><div className="flex flex-wrap justify-end gap-2">{v.statut==="brouillon"&&<Button size="sm" onClick={()=>validatePayout(v)} disabled={saving}>Valider</Button>}{v.statut==="valide"&&<Button size="sm" onClick={()=>markPaid(v)} disabled={saving}>Marquer payé</Button>}</div></TableCell></TableRow>
@@ -244,7 +244,7 @@ export default function Portefeuilles(){
               </div>
               <div className="mb-3"><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher une commission…" /></div>
               <div className="overflow-x-auto">
-                <Table className="min-w-[1000px]"><TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Type</TableHead><TableHead>Paiement</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                <Table className="responsive-data-table min-w-[1000px]"><TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Type</TableHead><TableHead>Paiement</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                 <TableBody>{detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).map((c:any)=><TableRow key={c.id}>
                   <TableCell>{c.client?.nom_complet||"—"}<span className="block text-xs text-muted-foreground">{c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
                   <TableCell>{c.client?.famille_offre||"—"}{c.client?.formule_nom?` · ${c.client.formule_nom}`:""}</TableCell>
