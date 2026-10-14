@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SyncStatusBadge, OnlineBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { getAllItems, getHttpMutationStats, getPendingHttpMutations, retryHttpMutation, deleteHttpMutation, STORES } from "@/lib/offlineDb";
+import { getAllItems, getHttpMutationStats, getPendingHttpMutations, retryHttpMutation, retryAllHttpMutations, deleteHttpMutation, STORES } from "@/lib/offlineDb";
 import {
   getAllQueuedFiles, retryQueuedFile, retryAllQueuedFiles, discardQueuedFile,
   getFileQueueStats, startFileQueueResume, flushFileQueue,
@@ -63,11 +63,11 @@ export function SyncQueueContent() {
             variant="outline"
             size="sm"
             className="w-full sm:flex-1 lg:w-auto"
-            onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await syncNow(); await load(); }}
-            disabled={!isOnline || fileStats.error + fileStats.waiting === 0}
+            onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await retryAllHttpMutations(); await syncNow(); await load(); }}
+            disabled={!isOnline || fileStats.error + fileStats.waiting + httpStats.error === 0}
           >
             <RotateCcw className="mr-2 h-4 w-4" />
-            Relancer les échecs ({fileStats.error + fileStats.waiting})
+            Relancer les échecs ({fileStats.error + fileStats.waiting + httpStats.error})
           </Button>
           <Button
             onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await syncNow(); await load(); }}
