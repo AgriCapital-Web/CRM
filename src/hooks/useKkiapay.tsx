@@ -143,7 +143,7 @@ export const useKkiapay = () => {
     if (amount <= 0) return false;
 
     try {
-      const paymentMethods = config.paymentMethods || config.paymentmethod || ['momo', 'card'];
+      const paymentMethods = config.paymentMethods || config.paymentmethod || ['momo', 'card', 'wallet'];
 
       window.openKkiapayWidget({
         ...config,
