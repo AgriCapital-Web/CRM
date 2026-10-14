@@ -554,13 +554,12 @@ serve(async (req) => {
       const content = String(body.content || "").trim();
       const subject = String(body.subject || "Suivi de votre projet de plantation de palmier à huile").slice(0, 160);
       const requestId = String(body.request_id || crypto.randomUUID()).replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 100);
-      const messageLength = Array.from(content).length;
       if (!leadId) return json(req, { error: "lead_id requis" }, 400);
       if (!["whatsapp", "email", "sms"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
       const normalizedContent = channel === "sms" ? normalizeSms(content) : content;
       const effectiveLength = Array.from(normalizedContent).length;
-      if (!normalizedContent || (channel === "sms" ? effectiveLength > 155 : effectiveLength > 200)) {
-        const limit = channel === "sms" ? 155 : 200;
+      const limit = channel === "sms" ? 155 : channel === "whatsapp" ? 350 : 5000;
+      if (!normalizedContent || effectiveLength > limit) {
         return json(req, { error: `Le message doit contenir entre 1 et ${limit} caractères (actuellement ${effectiveLength}).` }, 400);
       }
       const authHeader = req.headers.get("Authorization") || "";
@@ -568,6 +567,20 @@ serve(async (req) => {
       const { data: authData, error: authError } = await admin.auth.getUser(authHeader.slice(7));
       const actor = authData?.user;
       if (authError || !actor) return json(req, { error: "Session invalide" }, 401);
+      const rawAttachments = Array.isArray(body.media_attachments) ? body.media_attachments : [];
+      if (rawAttachments.length > 6) return json(req, { error: "Six pièces jointes maximum par message." }, 400);
+      if (channel === "sms" && rawAttachments.length) return json(req, { error: "Les SMS ne prennent pas en charge les pièces jointes." }, 400);
+      const allowedMime = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime|3gpp)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.ms-excel)|text\/plain)$/i;
+      const mediaAttachments: MediaAttachment[] = [];
+      for (const item of rawAttachments) {
+        if (!item || typeof item.path !== "string" || typeof item.name !== "string" || typeof item.mimeType !== "string") {
+          return json(req, { error: "Pièce jointe invalide." }, 400);
+        }
+        if (item.bucket && item.bucket !== "notification-media") return json(req, { error: "Bucket de pièce jointe non autorisé." }, 400);
+        if (!item.path.startsWith(`${actor.id}/`) || item.path.includes("..")) return json(req, { error: "Accès refusé à une pièce jointe." }, 403);
+        if (!allowedMime.test(item.mimeType)) return json(req, { error: `Type de fichier non pris en charge : ${item.name}` }, 400);
+        mediaAttachments.push({ bucket: "notification-media", path: item.path, name: item.name.slice(0, 180), mimeType: item.mimeType, size: Number(item.size) || undefined });
+      }
       const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", actor.id);
       const supervisor = (roles || []).some((r) => [
         "pdg", "dg", "admin", "super_admin", "responsable_operations", "responsable_commercial",
@@ -590,12 +603,20 @@ serve(async (req) => {
       if (channel === "sms" && !contact.telephone) return json(req, { error: "Numéro de téléphone absent" }, 400);
       if (channel === "email" && !contact.email) return json(req, { error: "Adresse email absente" }, 400);
       const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || crypto.randomUUID()}`;
-      const result = channel === "whatsapp"
-        ? await sendWhatsApp(contact, normalizedContent, dedupeKey)
-        : channel === "sms"
-          ? await sendSms(contact, assertSmsLength(normalizeSms(normalizedContent)), dedupeKey)
-          : await sendEmail(contact, subject, normalizedContent, dedupeKey);
-      return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: Array.from(channel === "sms" ? normalizeSms(normalizedContent) : normalizedContent).length });
+      let result: { provider: string; messageId: string | null };
+      if (channel === "whatsapp") {
+        assertWhatsAppLength(normalizedContent);
+        const prepared = mediaAttachments.length ? await prepareMedia(mediaAttachments) : [];
+        result = await sendWhatsApp(contact, normalizedContent, dedupeKey, prepared[0]?.ref);
+        for (let i = 1; i < prepared.length; i++) {
+          await sendWhatsApp(contact, "", `${dedupeKey}:media:${i}`, prepared[i].ref);
+        }
+      } else if (channel === "sms") {
+        result = await sendSms(contact, assertSmsLength(normalizeSms(normalizedContent)), dedupeKey);
+      } else {
+        result = await sendEmail(contact, subject, normalizedContent, dedupeKey, mediaAttachments);
+      }
+      return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: Array.from(channel === "sms" ? normalizeSms(normalizedContent) : normalizedContent).length, attachmentsSent: mediaAttachments.length });
     }
     if (mode === "status") return json(req, { ok: true, providers: await providerStatus() });
     if (mode === "preview") {
