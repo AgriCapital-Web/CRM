@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
-  extraField?: React.ReactNode;
+  extraField?: ReactNode;
   districtId?: string | null; regionId?: string | null; departementId?: string | null;
   sousPrefectureId?: string | null; villageId?: string | null;
   onChange: (values: {
