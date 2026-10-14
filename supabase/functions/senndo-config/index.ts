@@ -30,11 +30,53 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const mode = body?.mode;
     if (mode === "status") {
-      const { data: apiKey } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
-      const { data: webhookSecret } = await admin.rpc("senndo_get_secret", { p_name: "senndo_webhook_secret" });
-      const { data: emailSenderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
-      const { data: whatsappSenderPhone } = await admin.rpc("senndo_get_secret", { p_name: "senndo_whatsapp_sender_phone" });
-      return reply(req,{ok:true, configured:{apiKey:Boolean(apiKey),webhookSecret:Boolean(webhookSecret),emailSenderId:Boolean(emailSenderId),whatsappSenderPhone:Boolean(whatsappSenderPhone || apiKey)}, emailSenderId:emailSenderId || "", whatsappSenderPhone:whatsappSenderPhone || "+22564551717", senderId:"AgriCapital", whatsappNumber:whatsappSenderPhone || "+22564551717", provider:"Senndo"});
+      const names = ["senndo_api_key","senndo_webhook_secret","senndo_email_sender_id","senndo_whatsapp_sender_phone"] as const;
+      const reads = await Promise.all(names.map(async (name) => {
+        const result = await admin.rpc("senndo_get_secret", { p_name: name });
+        return { name, value: typeof result.data === "string" ? result.data : "", error: result.error ? "Lecture du secret refusée ou indisponible" : null };
+      }));
+      const values = Object.fromEntries(reads.map((r) => [r.name, r.value])) as Record<string,string>;
+      const errors = Object.fromEntries(reads.filter((r) => r.error).map((r) => [r.name, r.error]));
+      let apiValid = false;
+      let apiError: string | null = null;
+      if (values.senndo_api_key) {
+        try {
+          const client = new SenndoClient({ apiKey: values.senndo_api_key, baseUrl: "https://api.senndo.com", timeoutMs: 12000, maxRetries: 0, userAgent: "AgriCapital-CRM/1.0" });
+          await client.listSenderIds();
+          apiValid = true;
+        } catch {
+          apiError = "La clé est enregistrée, mais Senndo n'a pas confirmé son accès API.";
+        }
+      }
+      let whatsappSessionStatus: "unknown" | "connected" | "disconnected" = "unknown";
+      if (values.senndo_api_key) {
+        try {
+          const response = await fetch("https://api.senndo.com/v1/wa/sessions", { headers: { authorization: "Bearer " + values.senndo_api_key, accept: "application/json" }, signal: AbortSignal.timeout(12000) });
+          if (response.ok) {
+            const payload = await response.json().catch(() => null);
+            const list = Array.isArray(payload) ? payload : Array.isArray(payload?.sessions) ? payload.sessions : Array.isArray(payload?.data?.sessions) ? payload.data.sessions : Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.items) ? payload.items : [];
+            const connected = list.some((s: any) => ["connected","open","ready","authenticated"].includes(String(s?.status ?? s?.state ?? s?.connectionStatus ?? s?.connection_status ?? s?.connection?.status ?? "").toLowerCase()));
+            whatsappSessionStatus = connected ? "connected" : "disconnected";
+          }
+        } catch { /* retain unknown when provider status cannot be queried */ }
+      }
+      return reply(req, {
+        ok: true,
+        configured: {
+          apiKey: Boolean(values.senndo_api_key),
+          apiValid,
+          webhookSecret: Boolean(values.senndo_webhook_secret),
+          emailSenderId: Boolean(values.senndo_email_sender_id),
+          whatsappSenderPhone: Boolean(values.senndo_whatsapp_sender_phone || values.senndo_api_key),
+          whatsappSession: whatsappSessionStatus,
+        },
+        statusErrors: errors,
+        apiError,
+        emailSenderId: values.senndo_email_sender_id || "",
+        whatsappSenderPhone: values.senndo_whatsapp_sender_phone || "+2250564551717",
+        senderId: "AgriCapital", whatsappNumber: values.senndo_whatsapp_sender_phone || "+2250564551717", provider: "Senndo",
+        webhookUrl: "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook",
+      });
     }
     if (mode === "whatsapp_diagnostics") {
       const { data: apiKey, error: keyError } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
@@ -102,7 +144,7 @@ Deno.serve(async (req) => {
     }
     if (whatsappSenderPhone) {
       const normalizedPhone = whatsappSenderPhone.replace(/[\s().-]/g, "");
-      if (normalizedPhone !== "+22564551717") return reply(req,{error:"Le numéro WhatsApp autorisé pour AgriCapital est +22564551717."},400);
+      if (normalizedPhone !== "+2250564551717") return reply(req,{error:"Le numéro WhatsApp autorisé pour AgriCapital est +22564551717."},400);
       const { error } = await admin.rpc("senndo_store_secret", { p_name:"senndo_whatsapp_sender_phone", p_value:normalizedPhone });
       if (error) throw error;
     }
