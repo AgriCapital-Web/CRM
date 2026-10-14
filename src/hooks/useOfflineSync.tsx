@@ -16,6 +16,7 @@ import { flushOfflineHttpQueue, refreshPendingMutationAuthorization, scheduleBac
 const SYNC_INTERVAL = 3 * 60 * 1000; // 3 minutes
 const SLOW_NET_THRESHOLD = 1500; // ms
 let offlinePersistenceRequested = false;
+let legacyPushInProgress = false;
 
 // Reference tables to cache for full offline use
 const REF_TABLES = [
@@ -188,70 +189,84 @@ export function useOfflineSync() {
   // Push pending local changes → Supabase with per-op error handling
   const pushData = useCallback(async () => {
     if (!navigator.onLine) return;
-    const pendingOps = await getPendingSyncOps();
-    if (!pendingOps.length) return;
 
-    // syncNow gère déjà l'indicateur global; les poussées périodiques le gèrent ici.
-    const managesSyncState = !syncLockRef.current;
-    if (managesSyncState) setIsSyncing(true);
-    let syncedCount = 0;
-    let conflictCount = 0;
+    const runQueue = async () => {
+      // Lire la file seulement après avoir obtenu le verrou partagé entre onglets.
+      const pendingOps = await getPendingSyncOps();
+      if (!pendingOps.length) return;
 
-    try {
-      for (const op of pendingOps) {
-        try {
-          await markOpStatus(op.id!, 'syncing');
-          let result: any;
+      const managesSyncState = !syncLockRef.current;
+      if (managesSyncState) setIsSyncing(true);
+      let syncedCount = 0;
+      let conflictCount = 0;
 
-          if (op.operation === 'insert') {
-            // UUID stable + upsert : une reprise ne crée pas de doublon après une interruption.
-            result = await (supabase as any).from(op.table).upsert(op.data, { onConflict: 'id' });
-          } else if (op.operation === 'update') {
-            const res = await resolveUpdateConflict(op.table, op.record_id, op.data, op.timestamp);
-            if (res.conflicted) conflictCount++;
-            if (res.skipped) {
-              await markOpStatus(op.id!, 'synced');
-              syncedCount++;
-              continue;
+      try {
+        for (const op of pendingOps) {
+          try {
+            await markOpStatus(op.id!, 'syncing');
+            let result: any;
+
+            if (op.operation === 'insert') {
+              result = await (supabase as any).from(op.table).upsert(op.data, { onConflict: 'id' });
+            } else if (op.operation === 'update') {
+              const res = await resolveUpdateConflict(op.table, op.record_id, op.data, op.timestamp);
+              if (res.conflicted) conflictCount++;
+              if (res.skipped) {
+                await markOpStatus(op.id!, 'synced');
+                syncedCount++;
+                continue;
+              }
+              result = await (supabase as any).from(op.table).update(res.payload).eq('id', op.record_id);
+            } else if (op.operation === 'delete') {
+              result = await (supabase as any).from(op.table).delete().eq('id', op.record_id);
             }
-            result = await (supabase as any).from(op.table).update(res.payload).eq('id', op.record_id);
-          } else if (op.operation === 'delete') {
-            result = await (supabase as any).from(op.table).delete().eq('id', op.record_id);
+
+            if (result?.error) throw new Error(result.error.message);
+            await markOpStatus(op.id!, 'synced');
+            syncedCount++;
+          } catch (error: any) {
+            console.error('[OfflineSync] Push error for op:', op.id, error);
+            await markOpStatus(op.id!, 'error', error?.message || 'Unknown error');
           }
-
-          if (result?.error) throw new Error(result.error.message);
-          await markOpStatus(op.id!, 'synced');
-          syncedCount++;
-        } catch (error: any) {
-          console.error('[OfflineSync] Push error for op:', op.id, error);
-          await markOpStatus(op.id!, 'error', error?.message || 'Unknown error');
         }
-      }
 
-      await clearSyncedOps();
-      const uploadedFiles = await flushFileQueue();
-      const [fileCount, stats, httpStats] = await Promise.all([
-        countQueuedFiles(),
-        getSyncQueueStats(),
-        getHttpMutationStats(),
-      ]);
-      setPendingFiles(fileCount);
-      setPendingCount(stats.pending + stats.error + httpStats.pending + httpStats.error);
+        await clearSyncedOps();
+        const uploadedFiles = await flushFileQueue();
+        const [fileCount, stats, httpStats] = await Promise.all([
+          countQueuedFiles(),
+          getSyncQueueStats(),
+          getHttpMutationStats(),
+        ]);
+        setPendingFiles(fileCount);
+        setPendingCount(stats.pending + stats.error + httpStats.pending + httpStats.error);
 
-      if (syncedCount > 0 || uploadedFiles > 0) {
-        window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-          detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount },
-        }));
-        toast({
-          title: 'Synchronisation terminée',
-          description: `${syncedCount} modification(s), ${uploadedFiles} fichier(s) envoyé(s)`
-            + `${conflictCount > 0 ? `, ${conflictCount} conflit(s) fusionné(s)` : ''}`
-            + `${stats.error + httpStats.error > 0 ? `, ${stats.error + httpStats.error} erreur(s)` : ''}`,
-        });
+        if (syncedCount > 0 || uploadedFiles > 0) {
+          window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+            detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount },
+          }));
+          toast({
+            title: 'Synchronisation terminée',
+            description: `${syncedCount} modification(s), ${uploadedFiles} fichier(s) envoyé(s)`
+              + `${conflictCount > 0 ? `, ${conflictCount} conflit(s) fusionné(s)` : ''}`
+              + `${stats.error + httpStats.error > 0 ? `, ${stats.error + httpStats.error} erreur(s)` : ''}`,
+          });
+        }
+      } finally {
+        if (managesSyncState) setIsSyncing(false);
       }
-    } finally {
-      if (managesSyncState) setIsSyncing(false);
+    };
+
+    const lockManager = (navigator as any).locks;
+    if (lockManager && typeof lockManager.request === 'function') {
+      await lockManager.request('agricapital-legacy-sync-queue', { mode: 'exclusive' }, runQueue);
+      return;
     }
+
+    // Repli pour les navigateurs sans Web Locks : verrou partagé par les hooks du même onglet.
+    if (legacyPushInProgress) return;
+    legacyPushInProgress = true;
+    try { await runQueue(); }
+    finally { legacyPushInProgress = false; }
   }, [toast]);
   // Full sync: push then pull
   const syncNow = useCallback(async () => {
