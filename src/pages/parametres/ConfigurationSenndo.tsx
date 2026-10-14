@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
 
-type Status = { apiKey: boolean; webhookSecret: boolean; emailSenderId: boolean; whatsappSenderPhone: boolean };
+type Status = { apiKey: boolean; apiValid: boolean; webhookSecret: boolean; emailSenderId: boolean; whatsappSenderPhone: boolean; whatsappSession: "unknown" | "connected" | "disconnected"; statusErrors?: Record<string, string>; apiError?: string | null };
 
 const webhookUrl = "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook";
 
@@ -18,7 +18,7 @@ export default function ConfigurationSenndo() {
   const [webhookSecret, setWebhookSecret] = useState("");
   const [emailSenderId, setEmailSenderId] = useState("");
   const [whatsappSenderPhone, setWhatsappSenderPhone] = useState("+22564551717");
-  const [status, setStatus] = useState<Status>({ apiKey: false, webhookSecret: false, emailSenderId: false, whatsappSenderPhone: false });
+  const [status, setStatus] = useState<Status>({ apiKey: false, apiValid: false, webhookSecret: false, emailSenderId: false, whatsappSenderPhone: false, whatsappSession: "unknown" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -34,7 +34,7 @@ export default function ConfigurationSenndo() {
     if (error || !data?.ok) {
       toast.error("Impossible de vérifier la configuration Senndo. Vérifiez vos droits administrateur.");
     } else {
-      setStatus({ apiKey: Boolean(data.configured?.apiKey), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId), whatsappSenderPhone: Boolean(data.configured?.whatsappSenderPhone) });
+      setStatus({ apiKey: Boolean(data.configured?.apiKey), apiValid: Boolean(data.configured?.apiValid), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId), whatsappSenderPhone: Boolean(data.configured?.whatsappSenderPhone), whatsappSession: data.configured?.whatsappSession || "unknown", statusErrors: data.statusErrors || {}, apiError: data.apiError || null });
       setEmailSenderId(typeof data.emailSenderId === "string" ? data.emailSenderId : "");
       setWhatsappSenderPhone(typeof data.whatsappSenderPhone === "string" && data.whatsappSenderPhone ? data.whatsappSenderPhone : "+22564551717");
     }
@@ -134,10 +134,11 @@ export default function ConfigurationSenndo() {
     <div className="mx-auto w-full max-w-5xl space-y-6">
       <div><h2 className="text-2xl font-semibold tracking-tight">Passerelle Senndo</h2></div>
 
+      {(status.apiError || Object.keys(status.statusErrors || {}).length > 0) && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"><p className="font-medium">Diagnostic de configuration</p>{status.apiError && <p>{status.apiError}</p>}{Object.entries(status.statusErrors || {}).map(([key, message]) => <p key={key}>{key} : {message}</p>)}</div>}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.emailSenderId ? "default" : "secondary"}>{status.emailSenderId ? "Expéditeur configuré" : "À configurer"}</Badge></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey && status.whatsappSenderPhone ? "default" : "secondary"}>{status.apiKey && status.whatsappSenderPhone ? "Configuration enregistrée" : "À configurer"}</Badge></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiValid ? "default" : "secondary"}>{status.apiValid ? "API vérifiée" : status.apiKey ? "Clé enregistrée · test requis" : "Clé à configurer"}</Badge></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.emailSenderId ? "default" : "secondary"}>{status.emailSenderId ? "Expéditeur enregistré" : "Expéditeur à renseigner"}</Badge></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.whatsappSession === "connected" ? "default" : "secondary"}>{status.whatsappSession === "connected" ? "Session connectée" : status.whatsappSession === "disconnected" ? "Session non connectée" : status.apiKey ? "État à vérifier" : "Clé API requise"}</Badge></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge></CardContent></Card>
       </div>
 
@@ -153,7 +154,7 @@ export default function ConfigurationSenndo() {
               <select id="senndo-test-channel" value={testChannel} onChange={(e) => setTestChannel(e.target.value as typeof testChannel)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="sms">SMS · Sender ID AgriCapital</option>
                 <option value="email">E-mail · expéditeur vérifié</option>
-                <option value="whatsapp">WhatsApp appairé · +225 64 55 17 17</option>
+                <option value="whatsapp">WhatsApp appairé · +225 05 64 55 17 17</option>
                 <option value="voice">Appel vocal · Senndo Voice</option>
               </select>
             </div>
@@ -172,7 +173,7 @@ export default function ConfigurationSenndo() {
             <Textarea id="senndo-test-message" value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={3} maxLength={1000} />
             
           </div>
-          <Button onClick={() => void sendTest()} disabled={sendingTest || loading || !status.apiKey || !testDestination.trim() || !testMessage.trim()}>
+          <Button onClick={() => void sendTest()} disabled={sendingTest || loading || !testDestination.trim() || !testMessage.trim()}>
             <Send className="mr-2 h-4 w-4" />{sendingTest ? "Envoi du test…" : `Envoyer le test ${testChannel.toUpperCase()}`}
           </Button>
           
@@ -208,7 +209,7 @@ export default function ConfigurationSenndo() {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement sécurisé…" : "Enregistrer côté serveur"}</Button>
             <Button variant="outline" onClick={() => void refreshStatus()} disabled={loading || saving || testing}><RefreshCw className="mr-2 h-4 w-4" />Vérifier l'état</Button>
-            <Button variant="outline" onClick={() => void testConnection()} disabled={loading || saving || testing || !status.apiKey}><CheckCircle2 className="mr-2 h-4 w-4" />{testing ? "Test en cours…" : "Tester la connexion API"}</Button>
+            <Button variant="outline" onClick={() => void testConnection()} disabled={loading || saving || testing}><CheckCircle2 className="mr-2 h-4 w-4" />{testing ? "Test en cours…" : "Tester la connexion API"}</Button>
             
           </div>
           <div className="rounded-lg border p-3">
