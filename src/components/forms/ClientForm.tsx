@@ -24,6 +24,13 @@ interface ClientFormProps { client?: any; onSuccess: () => void; onCancel: () =>
 
 const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 
+const EXTRA_CLIENT_DOCUMENTS = [
+  { key: "fiche_contrat", label: "Contrat" },
+  { key: "document_foncier", label: "Document foncier" },
+  { key: "enquete_communautaire", label: "Enquête communautaire" },
+  { key: "attestation_exploitation", label: "Attestation d’exploitation" },
+];
+
 const CLIENT_COLUMNS = new Set([
   "civilite","nom_famille","prenoms","nom_complet","nom","date_naissance","lieu_naissance","statut_marital",
   "type_piece","numero_piece","date_delivrance_piece","telephone","whatsapp","email","domicile","domicile_residence",
@@ -45,6 +52,8 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
   const [photoPreview, setPhotoPreview] = useState("");
   const [pieceRectoPreview, setPieceRectoPreview] = useState("");
   const [pieceVersoPreview, setPieceVersoPreview] = useState("");
+  const [extraFiles, setExtraFiles] = useState<Record<string, File | null>>({});
+  const [extraPreviews, setExtraPreviews] = useState<Record<string, string>>({});
   const { byCategory: refs } = useSystemReferences(["civilite","statut_marital"]);
 
   const setField = (key: string, value: any) => setForm((x: any) => ({ ...x, [key]: value }));
@@ -101,6 +110,20 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         if (result) fichier_piece_verso_url = result.url;
       }
 
+      for (const documentType of EXTRA_CLIENT_DOCUMENTS) {
+        const file = extraFiles[documentType.key];
+        if (!file) continue;
+        const result = await uploadFile("documents-fonciers", file);
+        if (!result?.url) throw new Error(`Échec du téléversement : ${documentType.label}`);
+        const { error: documentError } = await (supabase as any).from("documents_souscription").insert({
+          client_id: client.id,
+          type_document: documentType.key,
+          fichier_url: result.url,
+          statut: "en_attente",
+        });
+        if (documentError) throw documentError;
+      }
+
       // IMPORTANT : seules les colonnes métier de clients sont envoyées.
       // Les relations chargées pour l'affichage ne doivent jamais être réinjectées dans UPDATE.
       const clientPayload: any = {};
@@ -142,16 +165,34 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       onFileChange={(_, f, p) => { if (f) onSelect(f); onPreview(p); }}
       onIdentityNumberDetected={ocr ? n => setField("numero_piece", n) : undefined}
       identityDocumentType={form.type_piece}
+      compact
     />
   );
+  const extraFileUpload = (key: string, label: string) => (
+    <div className="space-y-1 min-w-0">
+      <Label className="text-xs">{label}</Label>
+      <FileUploadVisual
+        label={label}
+        field={key}
+        accept="image/*,.pdf"
+        currentFile={extraFiles[key] || null}
+        currentPreview={extraPreviews[key] || ""}
+        compact
+        onFileChange={(_, file, preview) => {
+          setExtraFiles((previous) => ({ ...previous, [key]: file }));
+          setExtraPreviews((previous) => ({ ...previous, [key]: preview }));
+        }}
+      />
+    </div>
+  );
+
   return (
-    <div className="space-y-5">
-      <Card>
-        <CardHeader>
-          <CardTitle>Commercial</CardTitle>
+    <div className="space-y-3">
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Commercial</CardTitle>
           
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-3 pt-0">
           <CommercialCombobox
             value={form.commercial_id || null}
             onChange={(value) => setField("commercial_id", value)}
@@ -160,7 +201,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         </CardContent>
       </Card>
 
-      <div className="rounded-lg border bg-muted/30 p-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="rounded-lg border bg-muted/30 p-2 flex flex-wrap items-center justify-between gap-2">
         <div><p className="text-xs text-muted-foreground">Dossier</p><p className="font-mono font-semibold">{client?.id_unique || "—"}</p></div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"}</Badge>
@@ -169,43 +210,44 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         </div>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>Identité</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Identité</CardTitle></CardHeader>
+        <CardContent className="grid md:grid-cols-3 gap-2 px-4 pb-3 pt-0">
           <div><Label>Civilité</Label><Select value={form.civilite || ""} onValueChange={v=>setField("civilite",v)}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("civilite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
           <div><Label>Nom de famille</Label><Input value={form.nom_famille || form.nom || ""} onChange={e=>{setField("nom_famille",e.target.value);setField("nom_complet",[e.target.value,form.prenoms].filter(Boolean).join(" "));}}/></div>
           <div><Label>Prénoms</Label><Input value={form.prenoms || ""} onChange={e=>{setField("prenoms",e.target.value);setField("nom_complet",[form.nom_famille || form.nom,e.target.value].filter(Boolean).join(" "));}}/></div>
-          <div><Label>Date de naissance</Label><Input type="date" value={form.date_naissance || ""} onChange={e=>setField("date_naissance",e.target.value)}/></div>
-          <div><Label>Lieu de naissance</Label><Input value={form.lieu_naissance || ""} onChange={e=>setField("lieu_naissance",e.target.value)}/></div>
-          <CountryNationalitySelect value={form.nationalite} onChange={v=>setField("nationalite",v)} />
-          <div><Label>Situation matrimoniale</Label><Select value={form.statut_marital || ""} onValueChange={v=>setField("statut_marital",v)}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("statut_marital").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
+          <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            <div className="min-w-0"><Label className="text-xs">Naissance</Label><Input className="h-8" type="date" value={form.date_naissance || ""} onChange={e=>setField("date_naissance",e.target.value)}/></div>
+            <div className="min-w-0"><Label className="text-xs">Lieu de naissance</Label><Input className="h-8" value={form.lieu_naissance || ""} onChange={e=>setField("lieu_naissance",e.target.value)}/></div>
+            <div className="min-w-0"><CountryNationalitySelect value={form.nationalite} onChange={v=>setField("nationalite",v)} /></div>
+            <div className="min-w-0"><Label className="text-xs">Situation matrimoniale</Label><Select value={form.statut_marital || ""} onValueChange={v=>setField("statut_marital",v)}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("statut_marital").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>Coordonnées et résidence</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-4">
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Coordonnées et résidence</CardTitle></CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-2 px-4 pb-3 pt-0">
           <CountryPhoneInput label="Téléphone" required countryCode={form.telephone_indicatif||undefined} localValue={form.telephone_local||form.telephone||""} onChange={v=>{setField("telephone_indicatif",v.callingCode);setField("telephone_local",v.localValue);setField("telephone",v.internationalValue)}}/>
           <CountryPhoneInput label="WhatsApp" countryCode={form.whatsapp_indicatif||undefined} localValue={form.whatsapp_local||form.whatsapp||""} onChange={v=>{setField("whatsapp_indicatif",v.callingCode);setField("whatsapp_local",v.localValue);setField("whatsapp",v.internationalValue)}}/>
-          <div><Label>Email</Label><Input type="email" value={form.email || ""} onChange={e=>setField("email",e.target.value)}/></div>
-          <div><Label>Lieu de résidence</Label><Input value={form.domicile_residence || form.domicile || ""} onChange={e=>{setField("domicile_residence",e.target.value);setField("domicile",e.target.value);}}/></div>
-          <div className="md:col-span-2"><Label>Localisation administrative</Label><GeographieCascade districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} villageId={form.village_id} required onChange={(g)=>setForm((x:any)=>({...x,district_id:g.districtId||null,region_id:g.regionId||null,departement_id:g.departementId||null,sous_prefecture_id:g.sousPrefectureId||null,village_id:g.villageId||null,localite:g.villageName||x.localite||""}))}/></div>
+          <div><Label className="text-xs">Email</Label><Input className="h-8" type="email" value={form.email || ""} onChange={e=>setField("email",e.target.value)}/></div>
+          <div className="md:col-span-2 min-w-0"><GeographieCascade className="grid grid-cols-1 md:grid-cols-3 gap-2" districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} villageId={form.village_id} required extraField={<div className="space-y-1 min-w-0"><Label className="text-xs">Lieu de résidence</Label><Input className="h-8" value={form.domicile_residence || form.domicile || ""} onChange={e=>{setField("domicile_residence",e.target.value);setField("domicile",e.target.value);}} /></div>} onChange={(g)=>setForm((x:any)=>({...x,district_id:g.districtId||null,region_id:g.regionId||null,departement_id:g.departementId||null,sous_prefecture_id:g.sousPrefectureId||null,village_id:g.villageId||null,localite:g.villageName||x.localite||""}))}/></div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>Pièce d’identité</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <div><Label>Type de pièce</Label><PieceTypeSelect value={form.type_piece||""} onChange={v=>setField("type_piece",v)}/></div>
-          <div><Label>Numéro de pièce</Label><Input value={form.numero_piece || ""} onChange={e=>setField("numero_piece",e.target.value)}/></div>
-          <div><Label>Date de délivrance</Label><Input type="date" value={form.date_delivrance_piece || ""} onChange={e=>setField("date_delivrance_piece",e.target.value)}/></div>
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Pièce d’identité</CardTitle></CardHeader>
+        <CardContent className="grid md:grid-cols-3 gap-2 px-4 pb-3 pt-0">
+          <div><Label className="text-xs">Type de pièce</Label><PieceTypeSelect value={form.type_piece||""} onChange={v=>setField("type_piece",v)}/></div>
+          <div><Label className="text-xs">Numéro de pièce</Label><Input className="h-8" value={form.numero_piece || ""} onChange={e=>setField("numero_piece",e.target.value)}/></div>
+          <div><Label className="text-xs">Date de délivrance</Label><Input className="h-8" type="date" value={form.date_delivrance_piece || ""} onChange={e=>setField("date_delivrance_piece",e.target.value)}/></div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>Offre et parcours</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Offre et parcours</CardTitle></CardHeader>
+        <CardContent className="space-y-2 px-4 pb-3 pt-0">
+          <div className="grid md:grid-cols-3 gap-2">
             <div><Label>Type de dossier</Label><Input value={isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"} disabled /></div>
             <div><Label>Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{const selected=offers.find(o=>o.id===v);if(!selected)return;const formulas=Array.isArray(selected.formules_configuration)?selected.formules_configuration:[];const formula=formulas[0]||null;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:formula?.code||selected.formule_code||selected.code,formule_nom:formula?.nom||selected.formule_nom||selected.nom,parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}}><SelectTrigger><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Formule</Label><Select value={selectedFormula?.code || ""} onValueChange={code=>{const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={!offerFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
@@ -214,16 +256,23 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>Documents d’identité</CardTitle></CardHeader>
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <div><Label>Photo profil</Label>{fileUpload("Choisir une photo","photo_profil",photoFile,form.photo_profil_url,photoPreview,setPhotoFile,setPhotoPreview)}</div>
-          <div><Label>Pièce recto</Label>{fileUpload("Choisir recto","piece_recto",pieceRectoFile,form.fichier_piece_recto_url,pieceRectoPreview,setPieceRectoFile,setPieceRectoPreview,true)}</div>
-          <div><Label>Pièce verso</Label>{fileUpload("Choisir verso","piece_verso",pieceVersoFile,form.fichier_piece_verso_url,pieceVersoPreview,setPieceVersoFile,setPieceVersoPreview)}</div>
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Photos et pièces d’identité</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-3 gap-2 px-4 pb-3 pt-0">
+          <div className="min-w-0"><Label className="text-xs">Photo profil</Label>{fileUpload("Photo profil","photo_profil",photoFile,form.photo_profil_url,photoPreview,setPhotoFile,setPhotoPreview)}</div>
+          <div className="min-w-0"><Label className="text-xs">Pièce recto</Label>{fileUpload("Pièce recto","piece_recto",pieceRectoFile,form.fichier_piece_recto_url,pieceRectoPreview,setPieceRectoFile,setPieceRectoPreview,true)}</div>
+          <div className="min-w-0"><Label className="text-xs">Pièce verso</Label>{fileUpload("Pièce verso","piece_verso",pieceVersoFile,form.fichier_piece_verso_url,pieceVersoPreview,setPieceVersoFile,setPieceVersoPreview)}</div>
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-3 sticky bottom-0 bg-background py-3 border-t">
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Contrat et documents complémentaires</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-2 px-4 pb-3 pt-0">
+          {EXTRA_CLIENT_DOCUMENTS.map((documentType) => <div key={documentType.key} className="min-w-0">{extraFileUpload(documentType.key, documentType.label)}</div>)}
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end gap-3 sticky bottom-0 bg-background py-2 border-t">
         <Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button>
         <Button type="button" onClick={onSubmit} disabled={loading}>{loading ? "Enregistrement..." : "Enregistrer les modifications"}</Button>
       </div>
