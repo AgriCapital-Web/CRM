@@ -137,10 +137,21 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
     const unread = baseMessages.filter((m: any) => m.auteur_type === "client" && !m.lu).map((m: any) => m.id);
     if (unread.length) {
       const readAt = new Date().toISOString();
-      await Promise.all(unread.map((messageId: string) =>
-        (supabase as any).rpc("mark_portail_message_read", { p_message_id: messageId, p_client_id: clientId }).catch(() => null)
-      ));
-      setMessages(current => current.map(m => unread.includes(m.id) ? { ...m, lu: true, lu_at: readAt } : m));
+      const results = await Promise.all(unread.map(async (messageId: string) => {
+        const { error: readError } = await (supabase as any).rpc("mark_portail_message_read", {
+          p_message_id: messageId,
+          p_client_id: clientId,
+        });
+        if (readError) {
+          console.warn("Impossible de marquer le message comme lu:", messageId, readError.message);
+          return null;
+        }
+        return messageId;
+      }));
+      const successfullyRead = new Set(results.filter(Boolean));
+      if (successfullyRead.size) {
+        setMessages(current => current.map(m => successfullyRead.has(m.id) ? { ...m, lu: true, lu_at: readAt } : m));
+      }
     }
   }, [clientId]);
 
