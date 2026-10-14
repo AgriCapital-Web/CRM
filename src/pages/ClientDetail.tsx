@@ -14,8 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Sprout, DollarSign, FileText, Settings, Camera, LandPlot, UserRound, ExternalLink, MessageSquare, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Sprout, DollarSign, FileText, Settings, Camera, LandPlot, UserRound, ExternalLink, MessageSquare, Upload, Plus } from "lucide-react";
 import TicketForm from "@/components/forms/TicketForm";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { uploadFile } from "@/utils/storage";
@@ -32,6 +33,7 @@ const ClientDetail = () => {
   const { can } = usePermissions();
   const canViewClientMoney = can("clients.view_money");
   const canViewClientPayments = can("paiements.view");
+  const canCreatePlantationSubscription = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -49,6 +51,14 @@ const ClientDetail = () => {
   const [monnaieClient, setMonnaieClient] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isTicketOpen, setIsTicketOpen] = useState(false);
+  const [isNewPlantationOpen, setIsNewPlantationOpen] = useState(false);
+  const [availableParcelles, setAvailableParcelles] = useState<any[]>([]);
+  const [availableLots, setAvailableLots] = useState<any[]>([]);
+  const [loadingPlantationOptions, setLoadingPlantationOptions] = useState(false);
+  const [savingNewPlantation, setSavingNewPlantation] = useState(false);
+  const [newPlantationParcelId, setNewPlantationParcelId] = useState("");
+  const [newPlantationLotId, setNewPlantationLotId] = useState("");
+  const [newPlantationNotes, setNewPlantationNotes] = useState("");
   const [isRachatOpen,setIsRachatOpen]=useState(false);
   const [rachatJours,setRachatJours]=useState("1");
   const [tableSearch,setTableSearch]=useState("");
@@ -66,6 +76,8 @@ const ClientDetail = () => {
   const paginatedPaiements=filteredPaiements.slice((paymentPage-1)*pageSize,paymentPage*pageSize);
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
+  const lotsForSelectedParcel = availableLots.filter((lot: any) => lot.parcelle_id === newPlantationParcelId);
+  const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
   useEffect(()=>{setPlantationPage(1);setPaymentPage(1);setInterventionPage(1);setAttributionPage(1);},[tableSearch,pageSize]);
 
   const uploadClientDocument=async()=>{
@@ -216,6 +228,69 @@ const ClientDetail = () => {
       fetchData();
     }
   }, [id, canViewClientMoney, canViewClientPayments]);
+
+  useEffect(() => {
+    if (!isNewPlantationOpen) return;
+    let active = true;
+    setLoadingPlantationOptions(true);
+    void (async () => {
+      try {
+        const [parcellesResult, lotsResult] = await Promise.all([
+          (supabase as any).from("parcelles")
+            .select("id,id_unique,nom,village,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
+            .order("id_unique", { ascending: true }),
+          (supabase as any).from("lots_hectares")
+            .select("id,reference,numero_h,surface_ha,parcelle_id,statut,client_id")
+            .is("client_id", null)
+            .in("statut", ["disponible", "libre"])
+            .order("numero_h", { ascending: true }),
+        ]);
+        if (!active) return;
+        if (parcellesResult.error) throw parcellesResult.error;
+        if (lotsResult.error) throw lotsResult.error;
+        const lots = lotsResult.data || [];
+        setAvailableLots(lots);
+        setAvailableParcelles((parcellesResult.data || []).filter((parcel: any) =>
+          lots.some((lot: any) => lot.parcelle_id === parcel.id)
+        ));
+      } catch (error: any) {
+        if (active) toast({ variant: "destructive", title: "Lots indisponibles", description: getSafeErrorMessage(error) });
+      } finally {
+        if (active) setLoadingPlantationOptions(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [isNewPlantationOpen, toast]);
+
+  const saveAdditionalPlantation = async () => {
+    if (!id || !newPlantationLotId || savingNewPlantation) return;
+    if (!navigator.onLine) {
+      toast({ variant: "destructive", title: "Connexion requise", description: "Connectez-vous pour réserver un lot et synchroniser cette souscription." });
+      return;
+    }
+    setSavingNewPlantation(true);
+    try {
+      const { error } = await (supabase as any).rpc("register_additional_client_lot", {
+        p_client_id: id,
+        p_lot_id: newPlantationLotId,
+        p_notes: newPlantationNotes.trim() || null,
+      });
+      if (error) throw error;
+      toast({
+        title: "Nouvelle souscription enregistrée",
+        description: "Le lot est attribué au client. La plantation sera créée après validation de la mise en terre par l’équipe technique.",
+      });
+      setIsNewPlantationOpen(false);
+      setNewPlantationParcelId("");
+      setNewPlantationLotId("");
+      setNewPlantationNotes("");
+      await fetchData();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Ajout impossible", description: getSafeErrorMessage(error) });
+    } finally {
+      setSavingNewPlantation(false);
+    }
+  };
 
   // Keep this detail view synchronized in place when this Client or its linked
   // records change elsewhere in the CRM.
@@ -408,6 +483,70 @@ const ClientDetail = () => {
             </Card>
           </div>
 
+          <Dialog open={isNewPlantationOpen} onOpenChange={setIsNewPlantationOpen}>
+            <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Ajouter une nouvelle plantation</DialogTitle>
+                <DialogDescription>
+                  Enregistrez une souscription supplémentaire pour ce client sans créer une implantation prématurée. La plantation sera créée après la validation technique de la mise en terre.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                  <p className="font-semibold">{client.nom_complet}</p>
+                  <p className="text-muted-foreground">Offre actuelle : {client.formule_nom || client.formule_code || client.famille_offre || "à confirmer selon le dossier"}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Parcelle disponible *</Label>
+                  <Select value={newPlantationParcelId} onValueChange={(value) => { setNewPlantationParcelId(value); setNewPlantationLotId(""); }} disabled={loadingPlantationOptions || availableParcelles.length === 0}>
+                    <SelectTrigger><SelectValue placeholder={loadingPlantationOptions ? "Chargement des parcelles…" : "Sélectionner une parcelle"} /></SelectTrigger>
+                    <SelectContent>
+                      {availableParcelles.map((parcel: any) => (
+                        <SelectItem key={parcel.id} value={parcel.id}>
+                          {parcel.id_unique || parcel.nom || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Lot disponible *</Label>
+                  <Select value={newPlantationLotId} onValueChange={setNewPlantationLotId} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
+                    <SelectTrigger><SelectValue placeholder={!newPlantationParcelId ? "Choisir d’abord une parcelle" : "Sélectionner un lot"} /></SelectTrigger>
+                    <SelectContent>
+                      {lotsForSelectedParcel.map((lot: any) => (
+                        <SelectItem key={lot.id} value={lot.id}>
+                          {lot.reference || (lot.numero_h != null ? "H" + String(lot.numero_h).padStart(2, "0") : "Lot")} · {Number(lot.surface_ha || 0).toLocaleString("fr-FR")} ha
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedNewLot && (
+                  <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-2">
+                    <div><p className="text-xs text-muted-foreground">Superficie du lot</p><p className="font-semibold">{Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                    <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "Village non renseigné"}</p></div>
+                  </div>
+                )}
+                {availableLots.length === 0 && !loadingPlantationOptions && (
+                  <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                    Aucun lot disponible n’est actuellement enregistré. Ajoutez ou libérez un lot dans la gestion des parcelles avant de poursuivre.
+                  </p>
+                )}
+                <div className="space-y-2">
+                  <Label>Note (facultatif)</Label>
+                  <Input value={newPlantationNotes} onChange={(event) => setNewPlantationNotes(event.target.value)} placeholder="Précision sur cette souscription…" />
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setIsNewPlantationOpen(false)} disabled={savingNewPlantation}>Annuler</Button>
+                <Button onClick={() => void saveAdditionalPlantation()} disabled={savingNewPlantation || loadingPlantationOptions || !newPlantationLotId}>
+                  {savingNewPlantation ? "Enregistrement…" : "Enregistrer la souscription"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Tabs defaultValue="plantations" className="space-y-4">
             <TabsList>
               <TabsTrigger value="plantations">
@@ -441,7 +580,17 @@ const ClientDetail = () => {
             <TabsContent value="plantations">
               <Card>
                 <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Plantations</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une plantation…" /></div>
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <CardTitle>Plantations</CardTitle>
+                      {canCreatePlantationSubscription && (
+                        <Button size="sm" onClick={() => setIsNewPlantationOpen(true)}>
+                          <Plus className="mr-2 h-4 w-4" /> Ajouter une nouvelle plantation
+                        </Button>
+                      )}
+                    </div>
+                    <TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une plantation…" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <Table>
