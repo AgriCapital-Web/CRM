@@ -136,7 +136,7 @@ const Parcelles = () => {
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
                     <TableCell>{Number(p.surface_totale_ha || 0).toFixed(2)} ha</TableCell>
-                    <TableCell>{p.proprietaires_terres?.nom_complet ? `Propriétaire partenaire — ${p.proprietaires_terres.nom_complet}` : (ownClient ? parcelClients[0]?.nom_complet || "Client" : "—")}</TableCell>
+                    <TableCell>{p.proprietaires_terres?.nom_complet ? p.proprietaires_terres.nom_complet : (ownClient ? parcelClients[0]?.nom_complet || "Client" : "—")}</TableCell>
                     <TableCell>{Number(p.surface_agricapital_ha || 0).toFixed(2)} ha</TableCell>
                     <TableCell>{parcelLots.length || "—"}</TableCell>
                     <TableCell className="max-w-[280px] text-xs">
