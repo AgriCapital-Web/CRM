@@ -80,7 +80,7 @@ export default function MediaUploadVisual({
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [processing, setProcessing] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [recordSeconds, setRecordSeconds] = useState(0);\n  const [mediaError, setMediaError] = useState("");
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -109,7 +109,7 @@ export default function MediaUploadVisual({
         } else optimized.push(await optimizeImage(original));
       }
       onChange(multiple ? [...files, ...optimized] : [optimized[0]]);
-    } catch (error) { window.dispatchEvent(new CustomEvent("media-upload-error", { detail: error instanceof Error ? error.message : "Traitement média impossible." })); }
+    } catch (error) { setMediaError(error instanceof Error ? error.message : "Traitement média impossible."); }
     finally { setProcessing(false); }
   };
 
@@ -172,7 +172,7 @@ export default function MediaUploadVisual({
           Ajouter {multiple ? "des fichiers" : "un fichier"}
         </Button>
       </div>
-      {processing && <p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}\n      {files.length > 0 && (
+      {processing && <p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}\n      {mediaError && <p role="alert" className="text-sm text-destructive">{mediaError}</p>}\n      {files.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {previews.map(({ file, url }, index) => (
             <div
