@@ -158,7 +158,8 @@ async function deliver(args: {
   context?: Record<string, unknown>; eventKey?: string; mediaAttachments?: MediaAttachment[];
 }) {
   let sent = 0, failed = 0;
-  const preparedMedia = args.mediaAttachments?.length ? await prepareMedia(args.mediaAttachments) : [];
+  const needsSenndoMedia = args.canal === "whatsapp" || (args.canal === "auto" && args.contacts.some((contact) => Boolean(contact.whatsapp)));
+  const preparedMedia = args.mediaAttachments?.length && needsSenndoMedia ? await prepareMedia(args.mediaAttachments) : [];
   for (const contact of args.contacts) {
     const primaryAutoChannel = (() => {
       if (args.canal !== "auto") return null;
