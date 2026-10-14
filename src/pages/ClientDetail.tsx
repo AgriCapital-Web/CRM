@@ -512,7 +512,7 @@ const ClientDetail = () => {
                 </DialogHeader>
                 <TicketForm
                   clientId={client.id}
-                  clientLocation={[client.domicile_residence, client.localite, client.village?.nom, client.campement?.nom].filter(Boolean).join(" · ")}
+                  clientLocation={[client.campement?.nom, client.village?.nom, client.localite, client.domicile_residence].filter(Boolean).join(" · ")}
                   plantationId={plantations[0]?.id}
                   onSuccess={() => {
                     setIsTicketOpen(false);
