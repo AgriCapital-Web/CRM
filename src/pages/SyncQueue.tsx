@@ -105,7 +105,7 @@ export function SyncQueueContent() {
             <p className="text-sm text-muted-foreground">Aucune opération en attente.</p>
           ) : (
             <div className="w-full overflow-x-auto">
-              <Table className="min-w-[720px]">
+              <Table className="responsive-data-table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Table</TableHead>
@@ -176,7 +176,7 @@ export function SyncQueueContent() {
             <p className="text-sm text-muted-foreground">Aucun fichier en attente.</p>
           ) : (
             <div className="w-full overflow-x-auto">
-              <Table className="min-w-[920px]">
+              <Table className="responsive-data-table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Bucket</TableHead>
