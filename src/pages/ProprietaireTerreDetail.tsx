@@ -131,8 +131,8 @@ const ProprietaireTerreDetail = () => {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Parcelles</p><p className="mt-1 text-2xl font-bold">{totals.count}</p></CardContent></Card>
-            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface totale</p><p className="mt-1 text-2xl font-bold">{totals.total.toFixed(2)} ha</p></CardContent></Card>
-            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface disponible</p><p className="mt-1 text-2xl font-bold">{totals.available.toFixed(2)} ha</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface totale</p><p className="mt-1 text-2xl font-bold">{Math.round(totals.total).toLocaleString("fr-FR")} ha</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface disponible</p><p className="mt-1 text-2xl font-bold">{Math.round(totals.available).toLocaleString("fr-FR")} ha</p></CardContent></Card>
           </div>
 
           <Card><CardHeader><CardTitle className="flex items-center justify-between gap-3"><span>Documents fonciers</span><div className="inline-flex"><input id="owner-document-upload" type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{e.stopPropagation();setOwnerDocumentFile(e.currentTarget.files?.[0]||null);e.currentTarget.value="";}}/><Button type="button" variant="outline" size="sm" onClick={(e)=>{e.preventDefault();e.stopPropagation();document.getElementById("owner-document-upload")?.click();}}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button></div></CardTitle></CardHeader><CardContent><div className="mb-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input placeholder="Libellé du document (convention, annexe…)" value={ownerDocumentLabel} onChange={e=>setOwnerDocumentLabel(e.target.value)}/>{ownerDocumentFile&&<Button onClick={()=>void uploadOwnerDocument()}>Enregistrer</Button>}</div><div className="space-y-2">{ownerDocuments.length?ownerDocuments.map((doc:any)=><div key={doc.id} className="flex items-center justify-between gap-3 border rounded-lg p-3"><div><p className="font-medium">{doc.designation||doc.type_document}</p><p className="text-xs text-muted-foreground">{doc.statut||"en_attente"}</p></div>{doc.fichier_url&&<Button variant="outline" size="sm" asChild><a href={doc.fichier_url} target="_blank" rel="noreferrer">Ouvrir</a></Button>}</div>):<p className="text-sm text-muted-foreground">Aucun document enregistré.</p>}</div></CardContent></Card>
@@ -169,10 +169,10 @@ const ProprietaireTerreDetail = () => {
                         const available = Math.max(0, ac - used);
                         return <TableRow key={p.id}>
                           <TableCell><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /><span>{[p.village,p.departements?.nom,p.regions?.nom].filter(Boolean).join(", ") || "—"}</span></div></TableCell>
-                          <TableCell>{Number(p.surface_totale_ha || 0).toFixed(2)} ha</TableCell>
-                          <TableCell>{ac.toFixed(2)} ha</TableCell>
-                          <TableCell>{used.toFixed(2)} ha</TableCell>
-                          <TableCell>{available.toFixed(2)} ha</TableCell>
+                          <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
+                          <TableCell>{Math.round(ac).toLocaleString("fr-FR")} ha</TableCell>
+                          <TableCell>{Math.round(used).toLocaleString("fr-FR")} ha</TableCell>
+                          <TableCell>{Math.round(available).toLocaleString("fr-FR")} ha</TableCell>
                           <TableCell><Badge>{p.statut === "partiellement_attribuee" ? "Partiellement attribuée" : p.statut === "saturee" ? "Saturée" : "Disponible"}</Badge></TableCell>
                         </TableRow>;
                       })
@@ -184,7 +184,7 @@ const ProprietaireTerreDetail = () => {
           </Card>
 
           <div className="flex flex-wrap gap-2 text-sm">
-            <Badge variant="outline"><Ruler className="mr-1 h-3 w-3" />{Number(owner.surface_totale_ha ?? totals.total).toFixed(2)} ha déclarés</Badge>
+            <Badge variant="outline"><Ruler className="mr-1 h-3 w-3" />{Math.round(Number(owner.surface_totale_ha ?? totals.total)).toLocaleString("fr-FR")} ha déclarés</Badge>
             <Badge variant="outline"><Layers className="mr-1 h-3 w-3" />{totals.count} parcelle(s)</Badge>
           </div>
         </div>
