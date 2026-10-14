@@ -6,7 +6,7 @@ import {
   getCachedClients, getCachedPlantations, getCachedItems,
   getPendingSyncOps, clearSyncedOps, addToSyncQueue, markOpStatus,
   getLastSyncTime, setLastSyncTime, getOfflineStats, getSyncQueueStats,
-  STORES, type SyncOperation, getHttpMutationStats,
+  STORES, type SyncOperation, getHttpMutationStats, retryAllHttpMutations,
 } from '@/lib/offlineDb';
 import { useToast } from '@/hooks/use-toast';
 import { resolveUpdateConflict } from '@/lib/offlineConflict';
@@ -284,6 +284,7 @@ export function useOfflineSync() {
       if (sessionData.session?.access_token) {
         await refreshPendingMutationAuthorization(sessionData.session.access_token);
       }
+      await retryAllHttpMutations(); // Une synchronisation manuelle force la reprise des requêtes en erreur.
       await flushOfflineHttpQueue();
       await pushData();
       await flushOfflineHttpQueue();
