@@ -231,19 +231,21 @@ const InfoRow = ({
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "160px minmax(0,1fr)",
+      gridTemplateColumns: "170px minmax(0,1fr)",
       alignItems: "center",
-      minHeight: 43,
+      minHeight: 47,
+      columnGap: 8,
       borderBottom: `1px solid ${GRIS_CLAIR}`,
     }}
   >
     <span
       style={{
         color: VERT,
-        fontSize: 13,
-        fontWeight: 800,
+        fontSize: 14,
+        fontWeight: 900,
         textTransform: "uppercase",
-        letterSpacing: 0.35,
+        letterSpacing: 0.2,
+        lineHeight: "18px",
       }}
     >
       {label}
@@ -251,11 +253,11 @@ const InfoRow = ({
     <span
       style={{
         color: GRIS,
-        fontSize: 14.5,
-        fontWeight: 600,
-        lineHeight: "19px",
-        overflowWrap: "anywhere",
-        wordBreak: "break-word",
+        fontSize: 16,
+        fontWeight: 700,
+        lineHeight: "21px",
+        overflowWrap: "break-word",
+        wordBreak: "normal",
       }}
     >
       {value}
