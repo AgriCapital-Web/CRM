@@ -1163,24 +1163,8 @@ All colors MUST be HSL.
 }
 
 @media (max-width: 767px) {
-  /* 3 cartes par rangée pour les groupes de raccourcis/indicateurs,
-     avec largeur minimale réduite mais contenu toujours visible. */
-  .grid:has(> .rounded-lg.border.bg-card),
-  .grid:has(> .rounded-xl.border.bg-card),
-  .grid:has(> [class*="hover-scale"]) {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    column-gap: .4rem !important;
-    row-gap: .45rem !important;
-  }
-
-  .grid:has(> .rounded-lg.border.bg-card) > *,
-  .grid:has(> .rounded-xl.border.bg-card) > *,
-  .grid:has(> [class*="hover-scale"]) > * {
-    min-width: 0 !important;
-    max-width: 100%;
-  }
-
-  /* Réduire les marges inutiles sans supprimer les informations. */
+  /* Ne jamais imposer une grille de cartes à tous les modules :
+     chaque groupe de cartes conserve sa grille métier déclarée dans la page. */
   [data-radix-card-header], [data-slot="card-header"] {
     padding: .45rem .5rem .2rem !important;
   }
@@ -1190,17 +1174,25 @@ All colors MUST be HSL.
   .page-header { gap: .45rem !important; }
 }
 
-@media (max-width: 380px) {
-  .grid:has(> .rounded-lg.border.bg-card),
-  .grid:has(> .rounded-xl.border.bg-card),
-  .grid:has(> [class*="hover-scale"]) {
-    column-gap: .3rem !important;
-  }
-  .grid:has(> .rounded-lg.border.bg-card) [data-slot="card-title"],
-  .grid:has(> .rounded-xl.border.bg-card) [data-slot="card-title"] {
-    font-size: .68rem !important;
-    line-height: 1.1 !important;
-  }
+/* Les tableaux restent des tableaux sur mobile : aucune transformation en cartes,
+   lignes empilées ou cellules en colonnes. Le conteneur assure le défilement. */
+table {
+  display: table !important;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+thead { display: table-header-group !important; }
+tbody { display: table-row-group !important; }
+tfoot { display: table-footer-group !important; }
+tr { display: table-row !important; }
+th, td { display: table-cell !important; }
+.overflow-auto:has(> table),
+.overflow-x-auto:has(> table),
+.overflow-y-auto:has(> table) {
+  max-width: 100%;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Carte professionnelle : proportions portrait 54 × 85,6 mm (ratio 0,631),
