@@ -527,7 +527,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         <Card>
           <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Suivi des leads et prospects</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un lead ou prospect…" /></div></CardHeader>
           <CardContent>
-            <Table className="responsive-data-table">
+            <Table className="responsive-data-table w-full table-fixed">
               <TableHeader><TableRow>
                 <TableHead className="px-2 py-2">Nom</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Contact</TableHead>
                 <TableHead className="px-2 py-2">Région</TableHead><TableHead className="px-2 py-2">Statut</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Relance</TableHead>
@@ -548,8 +548,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                           <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right">
-                        <Button size="icon" className="h-8 w-8" variant="outline" title="Détails" aria-label="Détails" onClick={() => setSelected(l)}><Eye className="h-4 w-4" /></Button>
+                      <TableCell className="text-right">
+                        <div className="ml-auto flex max-w-[148px] flex-wrap justify-end gap-1">
+                        <Button size="icon" className="h-8 w-8 shrink-0" variant="outline" title="Détails" aria-label="Détails" onClick={() => setSelected(l)}><Eye className="h-4 w-4" /></Button>
                         {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
                           <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => {
                             setEditingLead(l);
@@ -570,8 +571,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                           <Button size="icon" className="h-8 w-8" title="Convertir" aria-label="Convertir" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-4 w-4" /></Button>
                         )}
                         {view === "prospects" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
-                          <Button size="icon" className="h-8 w-8" title="Convertir" aria-label="Convertir" onClick={() => void convertToClient(l)}><ArrowRight className="h-4 w-4" /></Button>
+                          <Button size="icon" className="h-8 w-8 shrink-0" title="Convertir" aria-label="Convertir" onClick={() => void convertToClient(l)}><ArrowRight className="h-4 w-4" /></Button>
                         )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
