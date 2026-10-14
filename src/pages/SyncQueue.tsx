@@ -173,7 +173,6 @@ export function SyncQueueContent() {
               { label: "Stockage local", ok: offlineChecks.indexedDbReady, detail: offlineChecks.indexedDbReady ? "IndexedDB accessible" : "Stockage non prêt", icon: Database },
               { label: "Connexion", ok: isOnline, detail: isOnline ? "En ligne" : "Hors ligne", icon: isOnline ? Wifi : WifiOff },
             ].map((check) => {
-              const Icon = check.icon;
               return <div key={check.label} className="flex min-w-0 items-start gap-2 rounded-lg border p-3">
                 {check.ok ? <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />}
                 <div className="min-w-0"><p className="text-sm font-medium">{check.label}</p><p className="break-words text-xs text-muted-foreground">{check.detail}</p></div>
