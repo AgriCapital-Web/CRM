@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
 
-type Status = { apiKey: boolean; webhookSecret: boolean; emailSenderId: boolean };
+type Status = { apiKey: boolean; webhookSecret: boolean; emailSenderId: boolean; whatsappSenderPhone: boolean };
 
 const webhookUrl = "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook";
 
@@ -17,7 +17,8 @@ export default function ConfigurationSenndo() {
   const [apiKey, setApiKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [emailSenderId, setEmailSenderId] = useState("");
-  const [status, setStatus] = useState<Status>({ apiKey: false, webhookSecret: false, emailSenderId: false });
+  const [whatsappSenderPhone, setWhatsappSenderPhone] = useState("+22564551717");
+  const [status, setStatus] = useState<Status>({ apiKey: false, webhookSecret: false, emailSenderId: false, whatsappSenderPhone: false });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -33,8 +34,9 @@ export default function ConfigurationSenndo() {
     if (error || !data?.ok) {
       toast.error("Impossible de vérifier la configuration Senndo. Vérifiez vos droits administrateur.");
     } else {
-      setStatus({ apiKey: Boolean(data.configured?.apiKey), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId) });
+      setStatus({ apiKey: Boolean(data.configured?.apiKey), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId), whatsappSenderPhone: Boolean(data.configured?.whatsappSenderPhone) });
       setEmailSenderId(typeof data.emailSenderId === "string" ? data.emailSenderId : "");
+      setWhatsappSenderPhone(typeof data.whatsappSenderPhone === "string" && data.whatsappSenderPhone ? data.whatsappSenderPhone : "+22564551717");
     }
     setLoading(false);
   }, []);
@@ -104,7 +106,7 @@ export default function ConfigurationSenndo() {
   };
 
   const save = async () => {
-    if (!apiKey.trim() && !webhookSecret.trim() && !emailSenderId.trim()) {
+    if (!apiKey.trim() && !webhookSecret.trim() && !emailSenderId.trim() && !whatsappSenderPhone.trim()) {
       toast.error("Saisissez au moins une valeur à enregistrer.");
       return;
     }
@@ -114,6 +116,7 @@ export default function ConfigurationSenndo() {
       if (apiKey.trim()) payload.apiKey = apiKey.trim();
       if (webhookSecret.trim()) payload.webhookSecret = webhookSecret.trim();
       if (emailSenderId.trim()) payload.emailSenderId = emailSenderId.trim();
+      if (whatsappSenderPhone.trim()) payload.whatsappSenderPhone = whatsappSenderPhone.trim();
       const { data, error } = await supabase.functions.invoke("senndo-config", { body: payload });
       if (error || !data?.ok) throw new Error(data?.error || error?.message || "Enregistrement refusé");
       setApiKey("");
@@ -134,7 +137,7 @@ export default function ConfigurationSenndo() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.emailSenderId ? "default" : "secondary"}>{status.emailSenderId ? "Expéditeur configuré" : "À configurer"}</Badge></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>WhatsApp appairé</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />Business AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey && status.whatsappSenderPhone ? "default" : "secondary"}>{status.apiKey && status.whatsappSenderPhone ? "Configuration enregistrée" : "À configurer"}</Badge></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiKey ? "default" : "secondary"}>{status.apiKey ? "Clé présente" : "À configurer"}</Badge></CardContent></Card>
       </div>
 
@@ -186,6 +189,11 @@ export default function ConfigurationSenndo() {
             <Label htmlFor="senndo-api-key">Clé API Senndo</Label>
             <Input id="senndo-api-key" type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={status.apiKey ? "Clé déjà enregistrée · saisir uniquement pour remplacer" : "sk_live_… ou sk_test_…"} spellCheck={false} autoCapitalize="none" />
             
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="senndo-whatsapp-sender">Numéro WhatsApp appairé AgriCapital</Label>
+            <Input id="senndo-whatsapp-sender" type="tel" value={whatsappSenderPhone} onChange={(e) => setWhatsappSenderPhone(e.target.value)} placeholder="+22564551717" autoComplete="off" spellCheck={false} />
+            <p className="text-xs text-muted-foreground">Numéro utilisé pour retrouver automatiquement la session connectée dans Senndo.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="senndo-email-sender">Adresse expéditrice e-mail vérifiée</Label>
