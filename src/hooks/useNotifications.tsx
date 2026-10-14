@@ -44,7 +44,7 @@ export const useNotifications = () => {
         (supabase as any).from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('read', false),
+          .or('read.eq.false,read.is.null'),
       ]);
 
       if (error) {
@@ -126,7 +126,7 @@ export const useNotifications = () => {
       .update({ read: true })
       .eq('id', notificationId)
       .eq('user_id', user.id)
-      .eq('read', false)
+      .or('read.eq.false,read.is.null')
       .select('id');
 
     if (error) {
@@ -146,7 +146,7 @@ export const useNotifications = () => {
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id)
-      .eq('read', false);
+      .or('read.eq.false,read.is.null');
 
     if (error) {
       console.error('Error marking all as read:', error);
