@@ -145,8 +145,8 @@ export default function GeographieCascade({
               sousPrefectureName:sousPrefectures.find((s)=>s.id===sousPrefectureId)?.nom||null,villageName:x?.nom||null
             });}} />
         </div>}
-        {extraField}
       </>}
+      {extraField}
     </div>
   );
 }
