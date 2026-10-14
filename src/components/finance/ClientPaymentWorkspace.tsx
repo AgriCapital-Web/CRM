@@ -68,7 +68,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }] = await Promise.all([
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,compte_actif,statut,formule_nom,montant_total_contrat")
+          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares")
           .eq("compte_actif", true)
           .order("nom_complet", { ascending: true }),
         (supabase as any).from("v_client_synthese")
@@ -300,7 +300,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         amount: paymentAmount,
         name: activeClient.nom_complet || "Client AgriCapital",
         phone: paymentPhone || activeClient.telephone || "",
-        paymentMethods: ["momo", "card", "wallet"],
+        paymentMethods: ["momo", "card"],
         data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType, client_id: activeClient.id, souscription_id: activeContract.subscriptionId },
       });
       if (!opened) throw new Error("Le module KKiaPay ne s’est pas ouvert. Vérifiez la connexion et la configuration du compte marchand.");
