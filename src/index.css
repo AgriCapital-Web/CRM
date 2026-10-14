@@ -604,13 +604,15 @@ All colors MUST be HSL.
 
 /* CRM tables: prevent narrow columns from breaking words vertically on small screens. */
 @layer components {
-  .responsive-data-table { width: 100%; min-width: 900px; table-layout: auto; }
-  .responsive-data-table th, .responsive-data-table td { white-space: nowrap; word-break: normal; overflow-wrap: normal; vertical-align: middle; }
-  .responsive-data-table td:nth-child(2), .responsive-data-table th:nth-child(2) { min-width: 150px; white-space: normal; overflow-wrap: anywhere; }
-  .responsive-data-table td:last-child, .responsive-data-table th:last-child { min-width: 110px; }
+  .responsive-data-table { width: 100%; min-width: 0; table-layout: auto; }
+  .responsive-data-table th, .responsive-data-table td { white-space: normal; word-break: normal; overflow-wrap: anywhere; vertical-align: middle; padding: .35rem .5rem; line-height: 1.25; }
+  .responsive-data-table td:nth-child(2), .responsive-data-table th:nth-child(2) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  .responsive-data-table td:last-child, .responsive-data-table th:last-child { min-width: 0; }
+  .responsive-data-table th { font-size: .75rem; font-weight: 600; }
+  .responsive-data-table td { font-size: .8125rem; }
   @media (max-width: 640px) {
-    .responsive-data-table { min-width: 820px; }
-    .responsive-data-table th, .responsive-data-table td { padding: .625rem .75rem; }
+    .responsive-data-table { min-width: 0; }
+    .responsive-data-table th, .responsive-data-table td { padding: .3rem .4rem; }
   }
 }
 
@@ -633,8 +635,8 @@ All colors MUST be HSL.
   input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"], [data-radix-select-trigger] { border-color: #111111 !important; }
   input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:focus, [role="combobox"]:focus, [data-radix-select-trigger]:focus,
   input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-visible, select:focus-visible, [role="combobox"]:focus-visible, [data-radix-select-trigger]:focus-visible { border-color: hsl(var(--primary)) !important; outline-color: hsl(var(--primary)) !important; box-shadow: 0 0 0 1px hsl(var(--primary) / 0.22); }
-  table th, table td { padding-block: 0.375rem; }
-  @media (max-width: 767px) { table th, table td { padding-block: 0.3rem; padding-inline: 0.5rem; } }
+  table th, table td { padding-block: 0.3rem; padding-inline: 0.5rem; line-height: 1.25; }
+  @media (max-width: 767px) { table th, table td { padding-block: 0.28rem; padding-inline: 0.4rem; } }
 }
 
 
