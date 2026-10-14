@@ -757,7 +757,7 @@ const Dashboard = () => {
                               <TableCell className="font-mono text-xs">{c.id_unique}</TableCell>
                               <TableCell className="font-medium">{c.nom_complet}</TableCell>
                               <TableCell>{c.nombre_plantations || 0}</TableCell>
-                              <TableCell>{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? label + " · Soldé" : label; return <Badge variant={status === "actif" ? "default" : status === "suspendu" ? "destructive" : "secondary"}>{display}</Badge>; })()}</TableCell>
+                              <TableCell>{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? "Soldé" : label; const variant = c.contrat_solde_at ? "secondary" : status === "actif" ? "default" : status === "suspendu" ? "destructive" : "secondary"; return <Badge variant={variant}>{display}</Badge>; })()}</TableCell>
                             </TableRow>
                           )) : <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Aucun client accessible.</TableCell></TableRow>}
                         </TableBody></Table>
