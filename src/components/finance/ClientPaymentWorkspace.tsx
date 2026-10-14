@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowUpFromLine, CalendarClock, CheckCircle2, CreditCard, Loader2, RefreshCw, Search, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowRightLeft, ArrowUpFromLine, CalendarClock, CreditCard, Loader2, RefreshCw, Search, Wallet } from "lucide-react";
 
 type ClientFinanceRow = {
   id: string;
