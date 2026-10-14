@@ -646,10 +646,10 @@ const Dashboard = () => {
 
           {!isClientOnly && (
             <>
-              <section aria-label="Indicateurs de pilotage" className="grid min-w-0 items-stretch gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 18rem), 1fr))" }}>
+              <section aria-label="Indicateurs de pilotage" className="min-w-0 columns-1 gap-3 sm:columns-2 lg:columns-3 xl:columns-4">
                 {kpis.filter((k) => k.show && k.metrics.length > 0).map((k) => {
                   const Icon = k.icon;
-                  return <Card key={k.label} className="h-full min-w-0 overflow-hidden">
+                  return <Card key={k.label} className="mb-3 inline-block w-full min-w-0 break-inside-avoid overflow-hidden align-top">
                     <CardHeader className="px-3 pb-2 pt-3 sm:px-4"><CardTitle className="flex min-w-0 items-center gap-2 text-sm sm:text-base"><Icon className="h-4 w-4 shrink-0 text-primary"/><span>{k.label}</span></CardTitle></CardHeader>
                     <CardContent className="px-3 pb-3 pt-0 sm:px-4">
                       <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-3">
