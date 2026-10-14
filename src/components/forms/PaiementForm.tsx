@@ -130,14 +130,14 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
   // Quand plantation change (pour MENSUALITE)
   useEffect(() => {
-    if (plantationId && typePaiement === "MENSUALITE") {
+    if (plantationId && typePaiement === "MENSUALITE" && !subscriptionId) {
       const plantation = plantations.find((p) => p.id === plantationId);
       setSelectedPlantation(plantation);
       
       // Charger l'état financier réel depuis la DB
       chargerEtatPaiementDepuisDb(plantation);
     }
-  }, [plantationId, typePaiement, plantations]);
+  }, [plantationId, typePaiement, plantations, subscriptionId]);
 
   // Pour PI: récupérer l'offre du client puis calculer le PI via le moteur central.
   useEffect(() => {
@@ -184,20 +184,39 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   }, [typePaiement, clientId, subscriptionId, setValue, toast]);
 
   useEffect(() => {
-    if (typePaiement !== "PI" || !subscriptionId) {
+    if (!subscriptionId) {
       setSelectedSubscription(null);
+      setSubscriptionPaymentState(null);
       return;
     }
     const subscription = clientSubscriptions.find((sub: any) => sub.id === subscriptionId) || null;
     setSelectedSubscription(subscription);
-    if (subscription) {
+    if (!subscription) return;
+    if (typePaiement === "PI") {
       const amount = Number(subscription.montant_pi_total || 0);
       setClientOffre(null);
       setValue("montant_theorique", amount);
       setValue("montant_paye", amount);
       setValue("souscription_id", subscription.id);
+      setSubscriptionPaymentState(null);
+    } else if (typePaiement === "MENSUALITE") {
+      let active = true;
+      void (async () => {
+        const { data, error } = await (supabase as any).rpc("subscription_current_payment_state", { _souscription_id: subscription.id });
+        if (error) throw error;
+        if (!active) return;
+        setSubscriptionPaymentState(data || null);
+        const due = Math.max(0, Number(data?.mensualite?.montant_a_payer || 0));
+        setValue("montant_theorique", due);
+        setValue("montant_paye", due > 0 ? due : "");
+        const plantation = plantations.find((item: any) => item.souscription_id === subscription.id);
+        setValue("plantation_id", plantation?.id || "");
+      })().catch((error: any) => {
+        if (active) toast({ variant: "destructive", title: "Échéancier indisponible", description: getSafeErrorMessage(error) });
+      });
+      return () => { active = false; };
     }
-  }, [typePaiement, subscriptionId, clientSubscriptions, setValue]);
+  }, [typePaiement, subscriptionId, clientSubscriptions, plantations, setValue, toast]);
 
   useEffect(() => {
     if (typePaiement !== "PI" || !clientOffre || subscriptionId) return;
