@@ -90,14 +90,11 @@ const ClientDetail = () => {
     ? !!newSubscriptionFormData.offre.necessite_foncier_client
     : false;
   const updateNewSubscriptionFormData = (patch: any) => {
-    setNewSubscriptionFormData((current: any) => {
-      const offerChanged = patch.offre_id && patch.offre_id !== current.offre_id;
-      if (offerChanged) {
-        setNewPlantationLotId("");
-        setNewPlantationParcelId("");
-      }
-      return { ...current, ...patch };
-    });
+    if (patch.offre_id && patch.offre_id !== newSubscriptionFormData.offre_id) {
+      setNewPlantationLotId("");
+      setNewPlantationParcelId("");
+    }
+    setNewSubscriptionFormData((current: any) => ({ ...current, ...patch }));
   };
   useEffect(()=>{setPlantationPage(1);setPaymentPage(1);setInterventionPage(1);setAttributionPage(1);},[tableSearch,pageSize]);
 
@@ -313,7 +310,6 @@ const ClientDetail = () => {
         setAvailableLots(lots);
         setAvailableParcelles(partnerParcelles);
         setClientOwnParcelles(ownParcelles);
-        setNewPlantationParcelId(client?.parcelle_id && ownParcelles.some((parcel: any) => parcel.id === client.parcelle_id) ? client.parcelle_id : "");
       } catch (error: any) {
         if (active) toast({ variant: "destructive", title: "Référentiel foncier indisponible", description: getSafeErrorMessage(error) });
       } finally {
