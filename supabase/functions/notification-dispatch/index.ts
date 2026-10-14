@@ -589,7 +589,7 @@ serve(async (req) => {
       const rawAttachments = Array.isArray(body.media_attachments) ? body.media_attachments : [];
       if (rawAttachments.length > 6) return json(req, { error: "Six pièces jointes maximum par message." }, 400);
       if (channel === "sms" && rawAttachments.length) return json(req, { error: "Les SMS ne prennent pas en charge les pièces jointes." }, 400);
-      const allowedMime = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime|3gpp)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet)|vnd\.ms-excel)|text\/plain)$/i;
+      const allowedMime = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime|3gpp)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel)|text\/(plain|csv))$/i;
       const mediaAttachments: MediaAttachment[] = [];
       for (const item of rawAttachments) {
         if (!item || typeof item.path !== "string" || typeof item.name !== "string" || typeof item.mimeType !== "string") {
