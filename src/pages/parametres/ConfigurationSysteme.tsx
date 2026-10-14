@@ -102,25 +102,23 @@ const ConfigurationSysteme = () => {
 
   const saveAllMutation = useMutation({
     mutationFn: async () => {
-      const entries = Object.entries(editedValues);
+      const entries = Object.entries(editedValues).filter(([id, valeur]) => {
+        const config = configurations?.find((item) => item.id === id);
+        return config && config.modifiable && config.valeur !== valeur;
+      });
       if (!entries.length) return 0;
-      let saved = 0;
-      for (const [id, valeur] of entries) {
-        const { error } = await (supabase as any)
-          .from("configurations_systeme")
-          .update({ valeur, updated_at: new Date().toISOString() })
-          .eq("id", id);
-        if (error) throw new Error(`Échec sur un réglage (${id}) : ${error.message}. Les réglages précédents peuvent déjà être enregistrés.`);
-        saved += 1;
-      }
-      return saved;
+      const changes = entries.map(([id, valeur]) => ({ id, valeur }));
+      const { data, error } = await (supabase as any).rpc("update_configurations_systeme_batch", { p_changes: changes });
+      if (error) throw error;
+      return Number(data ?? entries.length);
     },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ["configurations"] });
       setEditedValues({});
-      toast({ title: "Configurations enregistrées", description: `${saved} réglage(s) sauvegardé(s).` });
+      void logActivity({ tableName: "configurations_systeme", action: "UPDATE", details: `${saved} réglage(s) système modifié(s) via l’enregistrement groupé` });
+      toast({ title: "Configurations enregistrées", description: `${saved} réglage(s) sauvegardé(s) en une seule transaction.` });
     },
-    onError: (err) => toast({ title: "Enregistrement incomplet", description: err instanceof Error ? err.message : "Vérifiez les droits et réessayez.", variant: "destructive" }),
+    onError: (err) => toast({ title: "Enregistrement refusé", description: err instanceof Error ? err.message : "Aucun réglage n’a été enregistré. Vérifiez les droits et les valeurs.", variant: "destructive" }),
   });
 
   const groupedConfigs = useMemo(() => {
@@ -228,7 +226,9 @@ const ConfigurationSysteme = () => {
           <p><strong>2. Lisez la description et la clé.</strong> La description explique l’usage connu ; la clé technique identifie le réglage. Si son effet reste incertain, ne changez pas sa valeur.</p>
           <p><strong>3. Modifiez la valeur.</strong> Un interrupteur sert aux options activées/désactivées ; les autres champs servent aux nombres, adresses ou textes.</p>
           <p><strong>4. Enregistrez.</strong> Utilisez « Enregistrer ce réglage » pour une seule valeur, ou « Enregistrer les modifications » pour toutes les valeurs modifiées. Attendez la confirmation avant de quitter.</p>
-          <p><strong>Important :</strong> les réglages marqués « Lecture seule » ne peuvent pas être modifiés ici. Cette page ne remplace pas les écrans dédiés aux utilisateurs, rôles, offres, commissions détaillées, paiements ou à la passerelle Senndo.</p>
+          <p><strong>Droits et sécurité :</strong> l’enregistrement est réservé aux administrateurs globaux (PDG/DG habilités). La base refuse les écritures non autorisées, les valeurs incompatibles avec leur type et les réglages marqués non modifiables.</p>
+          <p><strong>Propagation :</strong> la valeur enregistrée devient la référence centrale en base. Elle ne change un comportement métier que dans les modules et fonctions qui lisent explicitement cette clé ; les secrets Senndo restent dans Vault et se règlent dans la page Senndo.</p>
+          <p><strong>Enregistrement groupé :</strong> toutes les modifications sont validées et appliquées dans une seule transaction : si une valeur ou un droit échoue, l’ensemble est annulé.</p>
         </CardContent>
       </Card>
 
