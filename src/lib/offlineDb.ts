@@ -409,9 +409,10 @@ export interface HttpMutation {
   responseMode: 'empty' | 'object' | 'array';
   createdAt: number;
   retries: number;
-  status: 'pending' | 'error';
+  status: 'pending' | 'error' | 'syncing';
   error?: string;
   nextRetryAt?: number;
+  syncStartedAt?: number;
 }
 
 export async function cacheHttpResponse(entry: HttpCacheEntry): Promise<void> {
@@ -448,9 +449,25 @@ export async function addHttpMutation(
 export async function getPendingHttpMutations(): Promise<HttpMutation[]> {
   const now = Date.now();
   const all = (await getAllItems(STORES.HTTP_MUTATIONS)) as HttpMutation[];
+  // Recover work interrupted by a tab close, browser crash, or service-worker termination.
+  for (const item of all) {
+    if (item.status === 'syncing' && (!item.syncStartedAt || now - item.syncStartedAt > 120_000)) {
+      item.status = 'pending';
+      item.syncStartedAt = undefined;
+      await putItem(STORES.HTTP_MUTATIONS, item);
+    }
+  }
   return all
     .filter((item) => (item.status === 'pending' || item.status === 'error') && (!item.nextRetryAt || item.nextRetryAt <= now))
     .sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export async function markHttpMutationSyncing(id: number): Promise<void> {
+  const item = (await getItem(STORES.HTTP_MUTATIONS, id)) as HttpMutation | undefined;
+  if (!item) return;
+  item.status = 'syncing';
+  item.syncStartedAt = Date.now();
+  await putItem(STORES.HTTP_MUTATIONS, item);
 }
 
 export async function markHttpMutationError(id: number, error: string): Promise<void> {
