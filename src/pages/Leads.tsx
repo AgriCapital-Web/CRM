@@ -527,7 +527,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         <Card>
           <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Suivi des leads et prospects</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un lead ou prospect…" /></div></CardHeader>
           <CardContent>
-            <Table className="responsive-data-table w-full table-fixed">
+            <Table className="responsive-data-table">
               <TableHeader><TableRow>
                 <TableHead className="px-2 py-2">Nom</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Contact</TableHead>
                 <TableHead className="px-2 py-2">Région</TableHead><TableHead className="px-2 py-2">Statut</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Relance</TableHead>
