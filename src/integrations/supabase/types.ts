@@ -3491,6 +3491,7 @@ export type Database = {
           description: string | null
           evenement: string
           id: string
+          media_attachments: Json
           nom: string
           sujet: string | null
           updated_at: string
@@ -3510,6 +3511,7 @@ export type Database = {
           description?: string | null
           evenement: string
           id?: string
+          media_attachments?: Json
           nom: string
           sujet?: string | null
           updated_at?: string
@@ -3529,6 +3531,7 @@ export type Database = {
           description?: string | null
           evenement?: string
           id?: string
+          media_attachments?: Json
           nom?: string
           sujet?: string | null
           updated_at?: string
@@ -3561,6 +3564,7 @@ export type Database = {
           demarre_le: string | null
           description: string | null
           id: string
+          media_attachments: Json
           nom: string
           programme_le: string | null
           segment_id: string | null
@@ -3582,6 +3586,7 @@ export type Database = {
           demarre_le?: string | null
           description?: string | null
           id?: string
+          media_attachments?: Json
           nom: string
           programme_le?: string | null
           segment_id?: string | null
@@ -3603,6 +3608,7 @@ export type Database = {
           demarre_le?: string | null
           description?: string | null
           id?: string
+          media_attachments?: Json
           nom?: string
           programme_le?: string | null
           segment_id?: string | null
@@ -3639,6 +3645,52 @@ export type Database = {
           },
         ]
       }
+      notification_client_preferences: {
+        Row: {
+          canal_finalisation: string
+          canal_rappel: string
+          client_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          canal_finalisation?: string
+          canal_rappel?: string
+          client_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          canal_finalisation?: string
+          canal_rappel?: string
+          client_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_client_preferences_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_client_preferences_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "v_client_synthese"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "notification_client_preferences_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "v_monnaie_clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       notification_cron_state: {
         Row: {
           id: boolean
@@ -3665,6 +3717,7 @@ export type Database = {
           erreur: string | null
           fournisseur: string | null
           id: string
+          media_attachments: Json
           metadata: Json
           provider_message_id: string | null
           recipient_email: string | null
@@ -3686,6 +3739,7 @@ export type Database = {
           erreur?: string | null
           fournisseur?: string | null
           id?: string
+          media_attachments?: Json
           metadata?: Json
           provider_message_id?: string | null
           recipient_email?: string | null
@@ -3707,6 +3761,7 @@ export type Database = {
           erreur?: string | null
           fournisseur?: string | null
           id?: string
+          media_attachments?: Json
           metadata?: Json
           provider_message_id?: string | null
           recipient_email?: string | null
@@ -3901,6 +3956,7 @@ export type Database = {
           created_by: string | null
           evenement: string
           id: string
+          media_attachments: Json
           nom: string
           parcours: string
           sujet: string | null
@@ -3917,6 +3973,7 @@ export type Database = {
           created_by?: string | null
           evenement: string
           id?: string
+          media_attachments?: Json
           nom: string
           parcours?: string
           sujet?: string | null
@@ -3933,6 +3990,7 @@ export type Database = {
           created_by?: string | null
           evenement?: string
           id?: string
+          media_attachments?: Json
           nom?: string
           parcours?: string
           sujet?: string | null
