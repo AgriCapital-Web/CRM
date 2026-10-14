@@ -22,6 +22,7 @@ import { fr } from "date-fns/locale";
 import html2canvas from "html2canvas";
 
 type Row = Record<string, any>;
+const normalizeGeo = (value: unknown) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
 const STATUTS = [
   { v: "en_attente", l: "En attente" },
@@ -85,9 +86,9 @@ const GestionCartes = () => {
       setRoleLevels(levels);
       setRoleCoverage(coverage);
       const names: Record<string, string> = {};
-      (regions.data || []).forEach((x: any) => { names[`region:${x.id}`] = x.nom; });
-      (departments.data || []).forEach((x: any) => { names[`departement:${x.id}`] = x.nom; });
-      (subPrefectures.data || []).forEach((x: any) => { names[`sous_prefecture:${x.id}`] = x.nom; });
+      (regions.data || []).forEach((x: any) => { names[`region:${x.id}`] = x.nom; names[`region:name:${normalizeGeo(x.nom)}`] = x.nom; });
+      (departments.data || []).forEach((x: any) => { names[`departement:${x.id}`] = x.nom; names[`departement:name:${normalizeGeo(x.nom)}`] = x.nom; });
+      (subPrefectures.data || []).forEach((x: any) => { names[`sous_prefecture:${x.id}`] = x.nom; names[`sous_prefecture:name:${normalizeGeo(x.nom)}`] = x.nom; });
       setGeoNames(names);
     } catch (error: any) {
       console.error("[GestionCartes] chargement impossible", error);
@@ -150,9 +151,16 @@ const GestionCartes = () => {
                 const name = geoNames[`${scope.level}:${assigned.zone_id}`];
                 if (name) return name;
               }
-              if (scope.level === "region" && p.region_id) return geoNames[`region:${p.region_id}`] || "Non renseigné";
-              if (scope.level === "departement") return p.departement || c?.departement || "Non renseigné";
-              if (scope.level === "sous_prefecture") return c?.zone_intervention || "Non renseigné";
+              if (scope.level === "region") {
+                if (p.region_id && geoNames[`region:${p.region_id}`]) return geoNames[`region:${p.region_id}`];
+                return geoNames[`region:name:${normalizeGeo(c?.zone_intervention)}`] || "Non renseigné";
+              }
+              if (scope.level === "departement") {
+                return geoNames[`departement:name:${normalizeGeo(c?.zone_intervention)}`] || geoNames[`departement:name:${normalizeGeo(p.departement)}`] || "Non renseigné";
+              }
+              if (scope.level === "sous_prefecture") {
+                return geoNames[`sous_prefecture:name:${normalizeGeo(c?.zone_intervention)}`] || "Non renseigné";
+              }
               return "Non renseigné";
             })(),
             photo_url: c?.photo_url || p.photo_url || null,
