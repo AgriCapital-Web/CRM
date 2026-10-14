@@ -110,7 +110,7 @@ const ConfigurationSysteme = () => {
           .from("configurations_systeme")
           .update({ valeur, updated_at: new Date().toISOString() })
           .eq("id", id);
-        if (error) throw new Error(`Échec sur un réglage (\${id}) : \${error.message}. Les réglages précédents peuvent déjà être enregistrés.`);
+        if (error) throw new Error(`Échec sur un réglage (${id}) : ${error.message}. Les réglages précédents peuvent déjà être enregistrés.`);
         saved += 1;
       }
       return saved;
@@ -118,7 +118,7 @@ const ConfigurationSysteme = () => {
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ["configurations"] });
       setEditedValues({});
-      toast({ title: "Configurations enregistrées", description: `\${saved} réglage(s) sauvegardé(s).` });
+      toast({ title: "Configurations enregistrées", description: `${saved} réglage(s) sauvegardé(s).` });
     },
     onError: (err) => toast({ title: "Enregistrement incomplet", description: err instanceof Error ? err.message : "Vérifiez les droits et réessayez.", variant: "destructive" }),
   });
@@ -179,7 +179,7 @@ const ConfigurationSysteme = () => {
       <div className="space-y-2 rounded-lg border p-3" key={config.id}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <Label htmlFor={`config-\${config.id}`} className="font-medium">{config.description || config.cle}</Label>
+            <Label htmlFor={`config-${config.id}`} className="font-medium">{config.description || config.cle}</Label>
             <p className="mt-1 break-all text-xs text-muted-foreground">{config.cle}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -188,7 +188,7 @@ const ConfigurationSysteme = () => {
           </div>
         </div>
         <Input
-          id={`config-\${config.id}`}
+          id={`config-${config.id}`}
           type={config.type_valeur === "number" ? "number" : config.type_valeur === "email" ? "email" : config.type_valeur === "url" ? "url" : "text"}
           value={currentValue}
           onChange={(e) => handleValueChange(config.id, e.target.value)}
@@ -235,7 +235,7 @@ const ConfigurationSysteme = () => {
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par nom, clé ou valeur…" aria-label="Rechercher un réglage" /></div>
         <Button variant="outline" onClick={() => { setSearch(""); setActiveCategory(""); void refetch(); }}><RefreshCw className="mr-2 h-4 w-4" />Réinitialiser</Button>
-        {pendingCount > 0 && <Button onClick={() => saveAllMutation.mutate()} disabled={saveAllMutation.isPending || saveOneMutation.isPending}><Save className="mr-2 h-4 w-4" />{saveAllMutation.isPending ? "Enregistrement…" : `Enregistrer les modifications (\${pendingCount})`}</Button>}
+        {pendingCount > 0 && <Button onClick={() => saveAllMutation.mutate()} disabled={saveAllMutation.isPending || saveOneMutation.isPending}><Save className="mr-2 h-4 w-4" />{saveAllMutation.isPending ? "Enregistrement…" : `Enregistrer les modifications (${pendingCount})`}</Button>}
       </div>
 
       {groupedConfigs.length === 0 ? (
