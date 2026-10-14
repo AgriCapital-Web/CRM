@@ -1088,3 +1088,41 @@ All colors MUST be HSL.
     }
   }
 }
+
+
+/* Tables across every CRM page and Settings: compact rows with subtle, visible grid lines. */
+@layer components {
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+  table thead th {
+    background-color: hsl(var(--muted) / 0.55);
+    border-bottom: 1px solid #969da4 !important;
+    border-right: 1px solid #d0d4d8;
+    padding: .16rem .36rem !important;
+    line-height: 1.12 !important;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  table tbody td {
+    border-bottom: 1px solid #c4c9ce !important;
+    border-right: 1px solid #e0e3e6;
+    padding: .14rem .36rem !important;
+    line-height: 1.12 !important;
+    vertical-align: middle;
+  }
+  table tbody tr:last-child td { border-bottom-color: #969da4 !important; }
+  table th:last-child, table td:last-child { border-right: 0; }
+  table tbody tr:hover { background-color: hsl(var(--muted) / 0.35); }
+  table th, table td {
+    writing-mode: horizontal-tb;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  table td p, table td .flex { margin-block: 0; }
+  @media (max-width: 640px) {
+    table thead th { padding: .12rem .24rem !important; font-size: .66rem !important; }
+    table tbody td { padding: .11rem .24rem !important; font-size: .69rem !important; }
+  }
+}
