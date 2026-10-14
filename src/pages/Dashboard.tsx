@@ -572,11 +572,11 @@ const Dashboard = () => {
       ...(canClients ? [{label:"Clients / dossiers",value:stats.clients,href:"/acquisitions"}] : []),
       ...(canLeads ? [
         {label:"Leads",value:stats.leads,href:"/leads"},
-        {label:"Nouveaux leads",value:stats.leadsNew,href:"/leads?statut=nouveau"},
-        {label:"Leads convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},
+        {label:"Nouveaux leads",value:stats.leadsNew,href:"/leads"},
+        {label:"Leads convertis",value:stats.leadsConverted,href:"/leads"},
         {label:"Taux de conversion des leads",value:stats.conversionRate+"%",href:"/leads"},
         {label:"Prospects",value:stats.prospects,href:"/prospects"},
-        {label:"Prospects convertis",value:stats.prospectsConverted,href:"/prospects?statut=converti"},
+        {label:"Prospects convertis",value:stats.prospectsConverted,href:"/prospects"},
         {label:"Taux de conversion des prospects",value:stats.prospectsConversionRate+"%",href:"/prospects"},
         {label:"Leads/prospects à relancer",value:stats.leadsFollowup,href:"/leads"}
       ] : []),
