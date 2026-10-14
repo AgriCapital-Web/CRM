@@ -52,7 +52,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Panneau gauche - Branding (caché sur mobile, visible sur desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary relative flex-col items-center justify-center p-12 overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[52%] bg-primary relative flex-col items-center justify-center px-6 xl:px-10 py-10 overflow-hidden">
         {/* Pattern décoratif */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-40 h-40 rounded-full border-2 border-white/30" />
@@ -60,11 +60,11 @@ const Login = () => {
           <div className="absolute top-1/2 left-1/3 w-20 h-20 rounded-full bg-white/5" />
         </div>
         
-        <div className="relative z-10 text-center w-full max-w-2xl px-2">
+        <div className="relative z-10 flex w-full max-w-3xl flex-col items-center text-center px-2">
           <img
             src={logoWhite}
             alt="AgriCapital"
-            className="w-full max-w-2xl max-h-[58vh] object-contain h-auto mx-auto mb-6 xl:mb-8 drop-shadow-2xl"
+            className="block w-full max-w-[min(44vw,720px)] max-h-[62svh] object-contain mx-auto mb-5 xl:mb-7 drop-shadow-2xl"
           />
           <p className="text-white text-xl xl:text-2xl font-semibold mb-2">Espace équipe</p>
           
@@ -78,21 +78,21 @@ const Login = () => {
 
 
       {/* Panneau droit - Formulaire de connexion */}
-      <div className="relative flex-1 flex flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-b from-background via-background to-primary/5 min-h-screen lg:min-h-0">
+      <div className="relative flex-1 flex flex-col items-center justify-center px-3 py-5 sm:px-6 sm:py-8 lg:px-8 xl:px-12 bg-gradient-to-b from-background via-background to-primary/5 min-h-dvh lg:min-h-0">
 {/* Logo mobile — sans cadre */}
 
-        <div className="login-brand-mobile lg:hidden mb-6 w-full min-w-0 flex flex-col items-center px-2 py-3">
+        <div className="login-brand-mobile lg:hidden mb-5 w-full min-w-0 flex flex-col items-center px-1 py-2">
           <img
             src={logoV2}
             alt="AgriCapital"
-            className="login-brand-mobile__logo block w-full h-auto object-contain"
+            className="login-brand-mobile__logo block h-auto object-contain"
           />
           
         </div>
 
-        <div className="w-full max-w-lg rounded-3xl border bg-card/95 p-5 sm:p-8 lg:p-10 xl:p-12 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
+        <div className="w-full max-w-xl rounded-3xl border bg-card/95 p-4 sm:p-8 lg:max-w-2xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
           <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground">Connexion</h2>
+            <h2 className="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-foreground">Connexion</h2>
             
           </div>
 
@@ -108,7 +108,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="h-14 sm:h-16 text-lg"
+                className="h-14 sm:h-16 lg:h-[3.75rem] text-base sm:text-lg"
                 disabled={isLoading}
                 autoComplete="username"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); passwordInputRef.current?.focus(); } }}
@@ -138,7 +138,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-14 sm:h-16 pr-14 text-lg"
+                  className="h-14 sm:h-16 lg:h-[3.75rem] pr-14 text-base sm:text-lg"
                   disabled={isLoading}
                 />
                 <Button

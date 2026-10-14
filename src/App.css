@@ -50,3 +50,8 @@ html {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Login branding scales with viewport width and height without cropping the logo. */
+.login-brand-mobile__logo { width: min(92vw, 560px); max-height: clamp(130px, 28svh, 270px); }
+@media (max-width: 380px) { .login-brand-mobile__logo { width: 94vw; max-height: 24svh; } }
+@media (min-width: 1024px) { .login-brand-mobile__logo { width: min(44vw, 720px); max-height: 62svh; } }
