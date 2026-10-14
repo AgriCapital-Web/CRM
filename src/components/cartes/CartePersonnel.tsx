@@ -470,16 +470,13 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
             style={{
               marginTop: "auto",
               display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: 18,
-              minHeight: 286,
-              width: "100%",
-              boxSizing: "border-box",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "flex-start",
               gap: 0,
+              minHeight: 286,
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             <div style={{ width: "100%", textAlign: "center", minWidth: 0, marginBottom: 2 }}>
