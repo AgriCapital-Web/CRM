@@ -4,6 +4,7 @@ import SearchableSelect from "@/components/common/SearchableSelect";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
+  extraField?: React.ReactNode;
   districtId?: string | null; regionId?: string | null; departementId?: string | null;
   sousPrefectureId?: string | null; villageId?: string | null;
   onChange: (values: {
@@ -19,6 +20,7 @@ export default function GeographieCascade({
   districtId, regionId, departementId, sousPrefectureId, villageId, onChange,
   required = false, showDistrict = true, showDepartement = true, showSousPrefecture = true, showVillage = true,
   className = "grid md:grid-cols-2 gap-4",
+  extraField,
 }: Props) {
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
@@ -143,6 +145,7 @@ export default function GeographieCascade({
               sousPrefectureName:sousPrefectures.find((s)=>s.id===sousPrefectureId)?.nom||null,villageName:x?.nom||null
             });}} />
         </div>}
+        {extraField}
       </>}
     </div>
   );
