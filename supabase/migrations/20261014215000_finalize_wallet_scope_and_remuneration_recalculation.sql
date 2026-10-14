@@ -13,7 +13,7 @@ as $function$
   or private.has_role(auth.uid(),'comptable')
   or private.has_role_permission('portefeuilles.manage_payouts')
   or private.has_role_permission('commissions.manage_payouts')
-  or p.user_id=auth.uid()
+  or (p.user_id=auth.uid() and private.has_role_permission('commissions.view'))
   or (private.has_role(auth.uid(),'chef_equipe_technique') and exists(
     select 1 from public.profiles viewer join public.equipes et on lower(coalesce(et.type_equipe,'')) like '%technique%'
     where viewer.user_id=auth.uid() and ((viewer.equipe_id=et.id and p.equipe_id=et.id)
