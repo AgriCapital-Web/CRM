@@ -456,9 +456,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                   <SelectContent>{piBalance > 0 && <SelectItem value="PI">Paiement initial</SelectItem>}<SelectItem value="MENSUALITE" disabled={Number(monthly.montant_a_payer || 0) <= 0}>Mensualité / rattrapage</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <Button type="button" variant="outline" disabled={arrearsAmount <= 0} onClick={() => setQuickAmount("arrears")}>Rattraper les arriérés</Button>
-                <Button type="button" variant="outline" disabled={monthlyAmount <= 0} onClick={() => setQuickAmount("monthly")}>Payer la mensualité</Button>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {arrearsAmount > 0 || daysLate > 0 ? <Button type="button" variant="outline" onClick={() => setQuickAmount("arrears")}>Rattraper les arriérés</Button> : monthlyAmount > 0 ? <Button type="button" variant="outline" onClick={() => setQuickAmount("monthly")}>Payer la mensualité</Button> : <Button type="button" variant="outline" onClick={() => { setPaymentType("MENSUALITE"); setAmount(""); }}>Saisir un paiement libre / avance</Button>}
                 {piBalance > 0 && <Button type="button" variant="outline" onClick={() => setQuickAmount("pi")}>Régler le paiement initial</Button>}
               </div>
               <div className="space-y-2">
@@ -476,7 +475,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
             <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType === "MENSUALITE" || Boolean(activeContract.subscriptionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0)}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              {paying ? "Ouverture / vérification…" : "Payer avec KKiaPay"}
+              {paying ? "Ouverture / vérification…" : arrearsAmount > 0 || daysLate > 0 ? "Rattraper avec KKiaPay" : "Payer avec KKiaPay"}
             </Button>
           </DialogFooter>
         </DialogContent>
