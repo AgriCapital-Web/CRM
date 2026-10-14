@@ -45,6 +45,7 @@ export interface CarteData {
   statut_agent?: string | null;
   mission?: string | null;
   zone_intervention?: string | null;
+  zone_intervention_label?: string | null;
   photo_url?: string | null;
   photo_bucket?: string | null;
   date_delivrance?: string | null;
@@ -75,27 +76,7 @@ export const contratLabel = (v?: string | null) => CONTRATS.find((c) => c.v === 
 export const statutAgentLabel = (v?: string | null) =>
   STATUTS_AGENT.find((s) => s.v === v)?.l || "—";
 
-const MISSIONS_PAR_ROLE: Record<string, string> = {
-  admin: "Administration plateforme",
-  responsable_operations: "Pilotage des opérations",
-  directeur_tc: "Direction technico-commerciale",
-  responsable_commercial: "Pilotage de portefeuille",
-  responsable_zone: "Supervision de zone",
-  comptable: "Gestion financière",
-  chef_equipe_commercial: "Encadrement commercial",
-  chef_equipe_technique: "Encadrement technique",
-  chef_equipe_service_client: "Encadrement service client",
-  commercial: "Acquisition clients",
-  technicien: "Suivi des plantations",
-  service_client: "Assistance clients",
-  assistant_administratif: "Appui administratif",
-};
-
-export const missionAuto = (carte: CarteData) =>
-  carte.mission ||
-  MISSIONS_PAR_ROLE[carte.role_code || ""] ||
-  carte.poste ||
-  "—";
+export const missionAuto = (carte: CarteData) => carte.mission || carte.poste || "—";
 
 const fdate = (d?: string | null) => (d ? format(new Date(d), "dd/MM/yyyy", { locale: fr }) : "—");
 
@@ -256,7 +237,7 @@ const InfoRow = ({
     <span
       style={{
         color: GRIS,
-        fontSize: 14,
+        fontSize: value.length > 26 ? 10 : value.length > 21 ? 11 : value.length > 17 ? 12 : 14,
         fontWeight: 700,
         lineHeight: "18px",
         whiteSpace: "nowrap",
@@ -459,25 +440,7 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
 
           <div style={{ marginTop: 4, flexShrink: 0, width: "100%" }}>
             <InfoRow label="Identifiant" value={carte.matricule} />
-            {(() => {
-              const roles = normalizeRoles([...(carte.role_codes || []), ...(carte.role_code ? [carte.role_code] : [])]);
-              const roleAvecZone = roles.some((role) =>
-                ["commercial", "responsable_commercial", "chef_equipe_commercial", "directeur_tc",
-                  "technicien", "chef_equipe_technique", "responsable_zone", "mobilisateur_foncier",
-                  "superviseur_zone_fonciere"].includes(role)
-              );
-              return roleAvecZone ? (
-                <InfoRow
-                  label="Zone d'intervention"
-                  value={carte.zone_intervention || carte.departement || "À préciser"}
-                />
-              ) : (
-                <InfoRow
-                  label="Département"
-                  value={carte.departement || "Périmètre global"}
-                />
-              );
-            })()}
+            <InfoRow label={carte.zone_intervention_label || "Périmètre"} value={carte.zone_intervention || "Non renseigné"} />
             <InfoRow label="Mission" value={missionAuto(carte)} />
             <InfoRow label="Contrat" value={contratLabel(carte.type_contrat)} />
             <InfoRow label="Validité" value={validiteTexte(carte)} />
