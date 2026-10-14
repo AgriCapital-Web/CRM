@@ -10,7 +10,7 @@ import { RefreshCw, Save } from "lucide-react";
 
 const money=(value:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(value||0));
 const roleLabel=(role:string)=>role==="commercial"?"Commercial":role==="mobilisateur_foncier"?"Mobilisateur foncier":role==="equipe_technique"?"Équipe technique":role;
-const typeLabel=(type:string)=>type==="acquisition"?"Prime de vente":type==="recouvrement_mensuel"?"Commission sur mensualité":type==="mobilisation_fonciere"?"Mobilisation foncière":type;
+const typeLabel=(type:string)=>type==="acquisition"?"Prime fixe à la vente":type==="recouvrement_mensuel"?"Commission sur mensualité":type==="mobilisation_fonciere"?"Prime foncière par hectare":type==="commission_technique"?"Commission de mise en terre":type;
 
 export default function GestionRemuneration(){
   const {toast}=useToast();
@@ -50,7 +50,7 @@ export default function GestionRemuneration(){
   };
   return <Card>
     <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><CardTitle>Règles de rémunération et commissions</CardTitle><p className="mt-1 text-xs text-muted-foreground">Les valeurs affichées proviennent de la grille en base. Les modifications enregistrées sont utilisées par les calculs compatibles.</p></div>
+      <div><CardTitle>Règles de rémunération et commissions</CardTitle><p className="mt-1 text-xs text-muted-foreground">Les valeurs proviennent de la base de données. Les codes de règle restent stables : modifier le montant, le taux ou la description ne casse pas le calcul automatique.</p></div>
       <div className="flex gap-2"><Button variant="outline" size="sm" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button><Button size="sm" onClick={()=>void save()} disabled={saving||loading}><Save className="mr-2 h-4 w-4"/>Enregistrer</Button></div>
     </CardHeader>
     <CardContent className="space-y-3">
