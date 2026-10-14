@@ -52,7 +52,7 @@ export default function Portefeuilles(){
     setLoading(true);
     try{
       const [pr,pf,cm,vp,lines,em]=await Promise.all([
-        (supabase as any).from("profiles").select("id,user_id,nom_complet,telephone,equipe_id,region_id,poste,actif").eq("actif",true).order("nom_complet").limit(5000),
+        (supabase as any).from("profiles").select("id,user_id,nom_complet,telephone,equipe_id,region_id,poste,actif,equipe:equipes!profiles_equipe_id_fkey(id,type_equipe)").eq("actif",true).order("nom_complet").limit(5000),
         (supabase as any).from("portefeuilles").select("*").order("updated_at",{ascending:false}).limit(50),
         (supabase as any).from("commissions").select("id,profile_id,client_id,paiement_id,type_commission,montant_base,taux_commission,montant_commission,periode,statut,date_calcul,client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),paiement:paiements(id,reference,date_paiement)").order("periode",{ascending:false}).limit(2000),
         (supabase as any).from("portefeuille_versements").select("*").order("periode_debut",{ascending:false}),
@@ -86,7 +86,7 @@ export default function Portefeuilles(){
     }catch(e:any){toast({variant:"destructive",title:"Portefeuilles indisponibles",description:e?.message||"Erreur de chargement."});}
     finally{setLoading(false);}
   };
-  useEffect(()=>{ const t=window.setTimeout(()=>void load(),250); return ()=>window.clearTimeout(t); },[search]);
+  useEffect(()=>{ void load(); },[]);
 
   const visibleProfiles=useMemo(()=>{
     const me=profiles.find((p:any)=>p.user_id===user?.id);
@@ -97,9 +97,12 @@ export default function Portefeuilles(){
     }
     const managerRoles=me.roles?.filter((r:string)=>TEAM_ROLES.includes(r))||[];
     if(managerRoles.length){
-      const teamIds=new Set<string>([me.equipe_id,...(me.teamMemberships||[]).map((m:any)=>m.equipe_id)].filter(Boolean));
       const teamTypes=managerRoles.flatMap((r:string)=>r==="chef_equipe_technique"?["technique"]:r==="chef_equipe_commercial"||r==="responsable_commercial"?["commercial"]:["commercial","technique"]);
-      return profiles.filter((p:any)=>p.user_id===user?.id||(p.teamMemberships||[]).some((m:any)=>teamIds.has(m.equipe_id)&&teamTypes.some((t:string)=>String(m.equipe?.type_equipe||"").toLowerCase().includes(t)))||Boolean(p.equipe_id&&teamIds.has(p.equipe_id)));
+      const compatibleMemberships=(me.teamMemberships||[]).filter((m:any)=>teamTypes.some((t:string)=>String(m.equipe?.type_equipe||"").toLowerCase().includes(t)));
+      const teamIds=new Set<string>([me.equipe_id,...compatibleMemberships.map((m:any)=>m.equipe_id)].filter(Boolean));
+      return profiles.filter((p:any)=>p.user_id===user?.id
+        ||(p.teamMemberships||[]).some((m:any)=>teamIds.has(m.equipe_id)&&teamTypes.some((t:string)=>String(m.equipe?.type_equipe||"").toLowerCase().includes(t)))
+        ||Boolean(p.equipe_id&&teamIds.has(p.equipe_id)&&teamTypes.some((t:string)=>String(p.equipe?.type_equipe||"").toLowerCase().includes(t))));
     }
     return profiles.filter((p:any)=>p.user_id===user?.id);
   },[profiles,user,isSuperAdmin,isPdg,can]);
