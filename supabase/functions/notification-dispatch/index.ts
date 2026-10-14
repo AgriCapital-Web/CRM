@@ -38,6 +38,12 @@ const assertSmsLength = (value: string) => {
   if (!length) throw new Error("Le SMS ne peut pas être vide.");
   return value;
 };
+const assertWhatsAppLength = (value: string) => {
+  const length = Array.from(value).length;
+  if (length > 350) throw new Error(`Message WhatsApp trop long : ${length}/350 caractères.`);
+  if (!length) throw new Error("Le message WhatsApp ne peut pas être vide.");
+  return value;
+};
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
 async function prepareMedia(attachments: MediaAttachment[] = []) {
   const prepared: Array<{ ref: string; name: string; mimeType: string; path: string }> = [];
@@ -183,6 +189,7 @@ async function deliver(args: {
       const rendered = render(args.content, contact, args.context || {});
       const renderedSubject = render(args.subject || "Information AgriCapital", contact, args.context || {});
       if (channel === "sms") assertSmsLength(normalizeSms(rendered));
+      if (channel === "whatsapp") assertWhatsAppLength(rendered);
       const attachments = args.mediaAttachments || [];
       const mediaForChannel = channel === "whatsapp" ? preparedMedia : [];
       const attachmentMetadata = attachments.map((item) => ({ name: item.name, mimeType: item.mimeType, path: item.path, bucket: item.bucket || "notification-media", size: item.size || null }));
