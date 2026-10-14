@@ -142,8 +142,18 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
           p_message_id: messageId,
           p_client_id: clientId,
         });
-        if (readError) {
-          console.warn("Impossible de marquer le message comme lu:", messageId, readError.message);
+        if (!readError) return messageId;
+
+        // Repli contrôlé si la RPC n'est pas disponible pour cette session CRM.
+        const { error: fallbackError } = await (supabase as any)
+          .from("portail_messages")
+          .update({ lu: true, lu_at: readAt })
+          .eq("id", messageId)
+          .eq("client_id", clientId)
+          .eq("auteur_type", "client")
+          .eq("lu", false);
+        if (fallbackError) {
+          console.warn("Impossible de marquer le message comme lu:", messageId, fallbackError.message);
           return null;
         }
         return messageId;
