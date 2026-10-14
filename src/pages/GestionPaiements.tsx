@@ -462,15 +462,15 @@ const GestionPaiements = () => {
             {/* Vue financière par client : les paiements se lancent depuis la fiche client via KKiaPay. */}
             <TabsContent value="paiements" className="space-y-4">
               <ClientPaymentWorkspace
-                onTransfer={(client: any) => {
+                onTransfer={canTransferPayment ? (client: any) => {
                   setSourcePhone(client.telephone || "");
                   setTargetAccount("");
                   setTransferAmount("");
                   setTransferNotes("");
                   void searchClient(client.telephone || "", "source");
                   setIsTransferDialogOpen(true);
-                }}
-                onRefund={(client: any) => {
+                } : undefined}
+                onRefund={canRefundPayment ? (client: any) => {
                   setRefundSourcePhone(client.telephone || "");
                   setRefundPaiementId("");
                   setRefundAmount("");
@@ -478,7 +478,7 @@ const GestionPaiements = () => {
                   setRefundMode("Mobile Money");
                   void searchClient(client.telephone || "", "source");
                   setIsRefundDialogOpen(true);
-                }}
+                } : undefined}
               />
             </TabsContent>
 
