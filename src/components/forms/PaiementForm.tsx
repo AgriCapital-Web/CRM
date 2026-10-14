@@ -47,6 +47,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   const [filePreview, setFilePreview] = useState("");
   const [arriereInfo, setArriereInfo] = useState<any>(null);
   const [clientOffre, setClientOffre] = useState<any>(null);
+  const [clientSurface, setClientSurface] = useState(0);
   const { byCategory: refs } = useSystemReferences(["type_paiement","mode_paiement","operateur_mobile"]);
   
   // Le montant du PI est toujours dérivé de l'offre réelle du client.
@@ -156,13 +157,14 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
       const { data: client, error: clientError } = await (supabase as any)
         .from("clients")
-        .select("offre_id,paiement_personnalise,paiement_initial_montant,contrat_solde_at")
+        .select("offre_id,paiement_personnalise,paiement_initial_montant,contrat_solde_at,total_hectares")
         .eq("id", clientId)
         .maybeSingle();
       if (clientError) {
         toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(clientError) });
         return;
       }
+      if (!cancelled) setClientSurface(Math.max(0, Number(client?.total_hectares || 0)));
       if (!client?.offre_id) {
         setClientOffre(null);
         const custom = client?.paiement_personnalise?.actif ? client.paiement_personnalise : null;
@@ -204,14 +206,18 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   }, [typePaiement, subscriptionId, clientSubscriptions, setValue]);
 
   useEffect(() => {
-    if (typePaiement !== "PI" || !clientOffre) return;
+    if (typePaiement !== "PI" || !clientOffre || subscriptionId) return;
     const prix = calculPrixEffectif(
       clientOffre,
       promotionActive ? [promotionActive as any] : [],
       { modePaiement: "echeancier" },
     );
-    setValue("montant_theorique", prix.pi_effectif);
-  }, [typePaiement, clientOffre, promotionActive, setValue]);
+    const totalPI = Math.round(Number(prix.pi_effectif || 0) * clientSurface);
+    setValue("montant_theorique", totalPI);
+    if (montantPaye === undefined || montantPaye === null || montantPaye === "" || Number(montantPaye) <= 0) {
+      setValue("montant_paye", totalPI);
+    }
+  }, [typePaiement, clientOffre, promotionActive, subscriptionId, clientSurface, montantPaye, setValue]);
 
   const fetchClients = async () => {
     try {
@@ -424,7 +430,10 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         { modePaiement: "echeancier" },
       )
     : null;
-  const montantCalculePI = prixPI ? prixPI.pi_effectif : null;
+  const montantCalculePI = prixPI ? Math.round(Number(prixPI.pi_effectif || 0) * clientSurface) : null;
+  const availablePiSubscriptions = clientSubscriptions.filter((sub: any) =>
+    Number(sub.montant_pi_total || 0) > 0 && (!sub.pi_paye || sub.id === paiement?.souscription_id)
+  );
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
