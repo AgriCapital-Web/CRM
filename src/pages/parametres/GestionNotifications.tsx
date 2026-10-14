@@ -39,6 +39,7 @@ const CHANNELS = [
 
 const EVENTS = [
   ["paiement_recu", "Paiement recu"],
+  ["solde_regle", "Solde intégralement réglé"],
   ["paiement_echeance", "Echeance de paiement"],
   ["paiement_retard", "Retard de paiement"],
   ["document_valide", "Document valide"],
