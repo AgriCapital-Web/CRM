@@ -67,8 +67,8 @@ const AUDIENCES = [
   ["beneficiaires_particuliers", "Bénéficiaires particuliers"],
 ];
 
-const normalizeSms = (value: string) => value.replace(/\s+/g, " ").trim();
-const smsLength = (value: string) => Array.from(normalizeSms(value)).length;
+const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+const smsLength = (value: string) => Array.from(normalizeSms(value)).length
 async function compressVideo(file: File): Promise<File> {
   if (!file.type.startsWith("video/") || file.size < 5*1024*1024 || typeof MediaRecorder === "undefined") return file;
   const mime = ["video/mp4","video/webm;codecs=vp9","video/webm"].find((x) => MediaRecorder.isTypeSupported(x)); if (!mime) return file;

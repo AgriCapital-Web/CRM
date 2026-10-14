@@ -64,7 +64,7 @@ const Login = () => {
           <img
             src={logoWhite}
             alt="AgriCapital"
-            className="block w-full max-w-[min(48vw,900px)] max-h-[72svh] object-contain mx-auto mb-5 xl:mb-7 drop-shadow-2xl"
+            className="block w-full max-w-[min(62vw,1120px)] max-h-[80svh] object-contain mx-auto mb-5 xl:mb-7 drop-shadow-2xl"
           />
           <p className="text-white text-xl xl:text-2xl font-semibold mb-2">Espace équipe</p>
           
@@ -90,9 +90,9 @@ const Login = () => {
           
         </div>
 
-        <div className="w-full max-w-xl rounded-3xl border bg-card/95 p-4 sm:p-8 lg:max-w-2xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
+        <div className="w-full max-w-2xl rounded-3xl border bg-card/95 p-4 sm:p-8 lg:max-w-3xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
           <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-foreground">Connexion</h2>
+            <h2 className="text-[clamp(2rem,4.4vw,3rem)] font-bold text-foreground">Connexion</h2>
             
           </div>
 
@@ -108,7 +108,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="h-14 sm:h-16 lg:h-[3.75rem] text-base sm:text-lg"
+                className="h-14 sm:h-16 lg:h-16 text-base sm:text-lg lg:text-xl"
                 disabled={isLoading}
                 autoComplete="username"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); passwordInputRef.current?.focus(); } }}
@@ -138,7 +138,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-14 sm:h-16 lg:h-[3.75rem] pr-14 text-base sm:text-lg"
+                  className="h-14 sm:h-16 lg:h-16 pr-14 text-base sm:text-lg lg:text-xl"
                   disabled={isLoading}
                 />
                 <Button
@@ -159,7 +159,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="w-full h-14 sm:h-16 text-lg font-semibold gap-2"
+              className="w-full h-14 sm:h-16 lg:h-[4.25rem] text-lg sm:text-xl font-semibold gap-2"
               disabled={isLoading}
             >
               <LogIn className="h-4 w-4" />

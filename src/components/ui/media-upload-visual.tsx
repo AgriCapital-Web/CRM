@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, Upload, X } from "lucide-react";
+import { Camera, Upload, X, Video, Square } from "lucide-react";
 
 type Props = {
   label?: string;
@@ -85,6 +85,68 @@ export default function MediaUploadVisual({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+
+  const stopVideoRecording = () => {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  };
+
+  const startVideoRecording = async () => {
+    setMediaError("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setMediaError("L’enregistrement vidéo n’est pas pris en charge par cet appareil ou navigateur.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24, max: 30 } }, audio: true });
+      streamRef.current = stream;
+      const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((type) => MediaRecorder.isTypeSupported(type));
+      if (!mimeType) { stream.getTracks().forEach((track) => track.stop()); streamRef.current = null; throw new Error("Format vidéo compatible indisponible."); }
+      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 900_000, audioBitsPerSecond: 64_000 });
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      recorder.onerror = () => setMediaError("Une erreur est survenue pendant l’enregistrement vidéo.");
+      recorder.onstop = () => {
+        if (timerRef.current !== null) window.clearInterval(timerRef.current);
+        timerRef.current = null;
+        const blob = new Blob(chunks, { type: mimeType });
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        recorderRef.current = null;
+        setRecording(false);
+        setRecordSeconds(0);
+        if (blob.size) {
+          const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const file = new File([blob], "video-technique-" + stamp + ".webm", { type: mimeType, lastModified: Date.now() });
+          onChange(multiple ? [...files, file] : [file]);
+        }
+      };
+      recorderRef.current = recorder;
+      setRecordSeconds(0);
+      setRecording(true);
+      recorder.start(1000);
+      timerRef.current = window.setInterval(() => {
+        setRecordSeconds((seconds) => {
+          if (seconds + 1 >= MAX_RECORD_VIDEO_SECONDS) {
+            window.setTimeout(() => stopVideoRecording(), 0);
+            return MAX_RECORD_VIDEO_SECONDS;
+          }
+          return seconds + 1;
+        });
+      }, 1000);
+    } catch (error) {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setRecording(false);
+      setMediaError(error instanceof Error ? error.message : "Impossible d’accéder à la caméra vidéo.");
+    }
+  };
+
+  useEffect(() => () => {
+    if (timerRef.current !== null) window.clearInterval(timerRef.current);
+    if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   // Create object URLs only in an effect (never during render) and always
   // release them. This avoids leaking URLs and makes mobile Safari more stable.
@@ -172,9 +234,13 @@ export default function MediaUploadVisual({
           <Upload className="mr-2 h-4 w-4" />
           Ajouter {multiple ? "des fichiers" : "un fichier"}
         </Button>
+        <Button type="button" variant={recording ? "destructive" : "outline"} className="w-full" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (recording) stopVideoRecording(); else void startVideoRecording(); }}>
+          {recording ? <Square className="mr-2 h-4 w-4" /> : <Video className="mr-2 h-4 w-4" />}
+          {recording ? "Arrêter la vidéo (" + String(Math.floor(recordSeconds / 60)).padStart(2, "0") + ":" + String(recordSeconds % 60).padStart(2, "0") + ")" : "Enregistrer une vidéo"}
+        </Button>
       </div>
+      {recording && <p className="text-sm font-medium text-destructive">Enregistrement en cours · arrêt automatique à 10 minutes.</p>}
       {processing && <p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}
-      {mediaError && <p role="alert" className="text-sm text-destructive">{mediaError}</p>}
       {mediaError && <p role="alert" className="text-sm text-destructive">{mediaError}</p>}
       {files.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

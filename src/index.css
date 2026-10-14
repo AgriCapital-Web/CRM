@@ -266,19 +266,19 @@ All colors MUST be HSL.
     .login-brand-mobile__logo {
       width: min(100%, 640px);
       max-width: 100%;
-      height: clamp(220px, 38svh, 360px);
-      max-height: 38svh;
+      height: clamp(250px, 44svh, 420px);
+      max-height: 44svh;
       object-fit: contain;
       flex: 0 0 auto;
     }
   }
 
   @media (min-width: 641px) and (max-width: 1023px) {
-    .login-brand-mobile__logo { width: min(100%, 620px); height: clamp(240px, 38svh, 340px); max-height: 38svh; object-fit: contain; }
+    .login-brand-mobile__logo { width: min(100%, 760px); height: clamp(260px, 42svh, 400px); max-height: 42svh; object-fit: contain; }
   }
 
   @media (min-width: 1024px) {
-    .login-brand-mobile__logo { width: min(100%, 900px); }
+    .login-brand-mobile__logo { width: min(100%, 1040px); }
   }
 
   /* Smooth scrolling */
