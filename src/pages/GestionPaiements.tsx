@@ -366,36 +366,36 @@ const GestionPaiements = () => {
 
           {canFinancialOverview && (
           <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg"><TrendingUp className="h-5 w-5 text-blue-600" /></div>
-                  <div><p className="text-xs text-muted-foreground">Chiffre d'affaires prévisionnel</p><p className="text-sm font-bold">{formatMontant(stats.caPrevisionnel)}</p></div>
+                <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
+                  <div className="shrink-0 p-2 bg-blue-100 rounded-lg"><TrendingUp className="h-5 w-5 text-blue-600" /></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Chiffre d'affaires prévisionnel</p><p className="break-words text-xs sm:text-sm font-bold leading-snug">{formatMontant(stats.caPrevisionnel)}</p></div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg"><CheckCircle className="h-5 w-5 text-green-600" /></div>
-                  <div><p className="text-xs text-muted-foreground">Montant encaissé</p><p className="text-sm font-bold">{formatMontant(stats.montantTotal)}</p></div>
+                <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
+                  <div className="shrink-0 p-2 bg-green-100 rounded-lg"><CheckCircle className="h-5 w-5 text-green-600" /></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Montant encaissé</p><p className="break-words text-xs sm:text-sm font-bold leading-snug">{formatMontant(stats.montantTotal)}</p></div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-100 rounded-lg"><ArrowUpRight className="h-5 w-5 text-orange-600" /></div>
-                  <div><p className="text-xs text-muted-foreground">Montant restant à encaisser</p><p className="text-sm font-bold">{formatMontant(stats.montantRestant)}</p></div>
+                <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
+                  <div className="shrink-0 p-2 bg-orange-100 rounded-lg"><ArrowUpRight className="h-5 w-5 text-orange-600" /></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Montant restant à encaisser</p><p className="break-words text-xs sm:text-sm font-bold leading-snug">{formatMontant(stats.montantRestant)}</p></div>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-100 rounded-lg"><Coins className="h-5 w-5 text-amber-600" /></div>
-                  {canViewClientMoney && <div><p className="text-xs text-amber-700">Monnaie client</p><p className="text-sm font-bold text-amber-800">{formatMontant(stats.monnaieDisponible)}</p></div>}
+                <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
+                  <div className="shrink-0 p-2 bg-amber-100 rounded-lg"><Coins className="h-5 w-5 text-amber-600" /></div>
+                  {canViewClientMoney && <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-amber-700">Monnaie client</p><p className="break-words text-xs sm:text-sm font-bold leading-snug text-amber-800">{formatMontant(stats.monnaieDisponible)}</p></div>}
                 </div>
               </CardContent>
             </Card>
