@@ -137,7 +137,6 @@ export function SyncQueueContent() {
                   <TableRow>
                     <TableHead>Table</TableHead>
                     <TableHead>Action</TableHead>
-                    <TableHead>Enregistrement</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>État</TableHead>
                   </TableRow>
@@ -147,7 +146,6 @@ export function SyncQueueContent() {
                     <TableRow key={op.id}>
                       <TableCell>{op.table}</TableCell>
                       <TableCell>{op.operation}</TableCell>
-                      <TableCell className="font-mono text-xs">{String(op.record_id).slice(0, 12)}…</TableCell>
                       <TableCell className="text-xs">{new Date(op.timestamp).toLocaleString("fr-FR")}</TableCell>
                       <TableCell>
                         <SyncStatusBadge state={stateOf(op.status)} />
@@ -185,9 +183,9 @@ export function SyncQueueContent() {
                       <TableCell>{f.bucket}</TableCell>
                       <TableCell className="text-xs break-all">{f.path}</TableCell>
                       <TableCell className="text-xs">
-                        {f.table ? `${f.table}.${f.column || "—"}` : "en attente d'ID"}
+                        {f.table ? `${f.table}.${f.column || "—"}` : "sans rattachement"}
                         <br />
-                        <span className="text-muted-foreground">{f.record_id ? String(f.record_id).slice(0, 8) + "…" : f.form_id || "—"}</span>
+                        <span className="text-muted-foreground">{f.record_id || f.form_id ? "Enregistrement lié" : "Sans rattachement"}</span>
                       </TableCell>
                       <TableCell>
                         <SyncStatusBadge state={stateOf(f.status)} />
@@ -198,7 +196,7 @@ export function SyncQueueContent() {
                             {f.nextRetryAt > Date.now() ? ` • reprise à ${new Date(f.nextRetryAt).toLocaleTimeString("fr-FR")}` : " • reprise automatique"}
                           </p>
                         )}
-                        {(f.form_id || f.field) && <p className="mt-1 text-xs text-muted-foreground">Formulaire {f.form_id || "—"} • {f.field || "pièce jointe"}</p>}
+                        {(f.form_id || f.field) && <p className="mt-1 text-xs text-muted-foreground">Formulaire associé • {f.field || "pièce jointe"}</p>}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right">
                         <div className="flex justify-end gap-1">
