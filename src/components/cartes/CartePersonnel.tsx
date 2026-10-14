@@ -335,41 +335,42 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
             zIndex: 1,
             height: "100%",
             boxSizing: "border-box",
-            padding: "18px 24px 16px",
+            padding: "18px 28px 18px",
             display: "flex",
             flexDirection: "column",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 70 }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 82, flexShrink: 0 }}>
             <img
               src={logo}
               alt="AgriCapital — Investir la terre. Cultiver l'avenir."
-              style={{ display: "block", width: 248, height: 70, objectFit: "contain" }}
+              style={{ display: "block", width: 310, maxWidth: "100%", height: 82, objectFit: "contain" }}
             />
           </div>
 
-          <div style={{ marginTop: 10, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
-            <span style={{ width: 46, height: 1, backgroundColor: GRIS_CLAIR }} />
-            <img src={symbole} alt="" style={{ width: 22, height: 22, objectFit: "contain", display: "block" }} />
+          <div style={{ marginTop: 7, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, flexShrink: 0 }}>
+            <span style={{ width: 32, height: 1, backgroundColor: GRIS_CLAIR, flexShrink: 0 }} />
+            <img src={symbole} alt="" style={{ width: 25, height: 25, objectFit: "contain", display: "block", flexShrink: 0 }} />
             <span
               style={{
                 color: VERT,
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 800,
-                letterSpacing: 1.4,
+                letterSpacing: 0.8,
+                whiteSpace: "nowrap",
                 textTransform: "uppercase",
               }}
             >
               Carte professionnelle
             </span>
-            <span style={{ width: 46, height: 1, backgroundColor: GRIS_CLAIR }} />
+            <span style={{ width: 32, height: 1, backgroundColor: GRIS_CLAIR, flexShrink: 0 }} />
           </div>
 
           <div
             style={{
-              width: 174,
-              height: 218,
-              margin: "12px auto 0",
+              width: 166,
+              height: 190,
+              margin: "8px auto 0",
               borderRadius: 16,
               overflow: "hidden",
               border: `3px solid ${VERT}`,
@@ -389,63 +390,68 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
             )}
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 8, minHeight: 60 }}>
+          <div style={{ textAlign: "center", marginTop: 7, minHeight: 64, flexShrink: 0, paddingInline: 2 }}>
             <p
               style={{
                 margin: 0,
                 color: VERT,
-                fontSize: nom.length > 40 ? 16 : nom.length > 32 ? 18 : nom.length > 24 ? 21 : 25,
-                fontWeight: 800,
-                lineHeight: "23px",
+                fontSize: nom.length > 42 ? 18 : nom.length > 34 ? 20 : nom.length > 26 ? 23 : 28,
+                fontWeight: 900,
+                lineHeight: "30px",
                 textTransform: "uppercase",
-                overflowWrap: "anywhere",
-                wordBreak: "break-word",
+                whiteSpace: "normal",
+                overflowWrap: "break-word",
+                wordBreak: "normal",
               }}
             >
               {nom}
             </p>
             <p
               style={{
-                margin: "5px 0 0",
+                margin: "3px 0 0",
                 color: GRIS_MOYEN,
-                fontSize: 13,
-                fontWeight: 700,
-                lineHeight: "17px",
+                fontSize: 16,
+                fontWeight: 800,
+                lineHeight: "20px",
                 textTransform: "uppercase",
-                minHeight: 17,
+                minHeight: 20,
                 whiteSpace: "normal",
-                overflowWrap: "anywhere",
-                wordBreak: "break-word",
+                overflowWrap: "break-word",
+                wordBreak: "normal",
               }}
             >
               {fonction}
             </p>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 6, minHeight: 28 }}>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 5, minHeight: 31, flexShrink: 0 }}>
             <span
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                minWidth: 112,
-                height: 28,
-                padding: "0 15px",
+                minWidth: 140,
+                maxWidth: "100%",
+                minHeight: 31,
+                height: "auto",
+                padding: "5px 18px",
                 boxSizing: "border-box",
                 borderRadius: 15,
                 backgroundColor: VERT,
                 color: BLANC,
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: 0.7,
+                fontSize: 13,
+                lineHeight: "17px",
+                fontWeight: 900,
+                letterSpacing: 0.5,
                 textTransform: "uppercase",
+                whiteSpace: "nowrap",
               }}
             >
               {statutAgentLabel(carte.statut_agent)}
             </span>
           </div>
 
-          <div style={{ marginTop: 7 }}>
+          <div style={{ marginTop: 5, flexShrink: 0 }}>
             <InfoRow label="Identifiant" value={carte.matricule} />
             <InfoRow
               label="Zone d'intervention"
@@ -461,7 +467,7 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
               alignItems: "flex-end",
               justifyContent: "space-between",
               gap: 18,
-              minHeight: 118,
+              minHeight: 146,
             }}
           >
             <div style={{ minWidth: 0 }}>
@@ -469,15 +475,17 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 style={{
                   margin: 0,
                   color: VERT,
-                  fontSize: 9,
-                  fontWeight: 800,
-                  letterSpacing: 0.8,
+                  fontSize: 13,
+                  lineHeight: "17px",
+                  fontWeight: 900,
+                  letterSpacing: 0.3,
+                  whiteSpace: "nowrap",
                   textTransform: "uppercase",
                 }}
               >
                 AgriCapital SARL
               </p>
-              <p style={{ margin: "5px 0 0", color: GRIS_MOYEN, fontSize: 8.5, lineHeight: "12px" }}>
+              <p style={{ margin: "5px 0 0", color: GRIS_MOYEN, fontSize: 11, lineHeight: "15px" }}>
                 Carte personnelle — non transférable
               </p>
             </div>
@@ -488,23 +496,23 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 alignItems: "center",
                 justifyContent: "flex-end",
                 gap: 0,
-                width: 164,
-                height: 100,
+                width: 190,
+                height: 142,
                 flexShrink: 0,
               }}
             >
-              <div style={{ width: 132, height: 43, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <img
-                  src={signature}
-                  alt="Signature de la direction"
-                  style={{ width: 132, height: 43, objectFit: "contain", display: "block" }}
-                />
-              </div>
               <img
                 src={cachet}
                 alt="Cachet AgriCapital"
-                style={{ width: 88, height: 58, objectFit: "contain", display: "block", flexShrink: 0 }}
+                style={{ width: 132, height: 82, objectFit: "contain", display: "block", flexShrink: 0 }}
               />
+              <div style={{ width: 176, height: 55, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: -2 }}>
+                <img
+                  src={signature}
+                  alt="Signature de la direction"
+                  style={{ width: 176, height: 55, objectFit: "contain", display: "block" }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -656,7 +664,7 @@ export const CarteVerso = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 >
                   AgriCapital SARL
                 </p>
-                <p style={{ margin: "6px 0 0", color: GRIS_MOYEN, fontSize: 8.5, lineHeight: "12px" }}>
+                <p style={{ margin: "6px 0 0", color: GRIS_MOYEN, fontSize: 10.5, lineHeight: "15px" }}>
                   Société à Responsabilité Limitée
                   <br />
                   RCCM : CI-DAL-01-2025-B12-13435
@@ -680,10 +688,11 @@ export const CarteVerso = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                     <span
                       style={{
                         color: GRIS,
-                        fontSize: 8.5,
-                        lineHeight: "12px",
-                        overflow: "hidden",
-                        whiteSpace: "normal", overflowWrap: "anywhere",
+                        fontSize: 10.5,
+                        lineHeight: "14px",
+                        minWidth: 0,
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
                       }}
                     >
                       {contact.t}
@@ -691,11 +700,6 @@ export const CarteVerso = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 0, marginTop: 8, minHeight: 112 }}>
-              <img src={signature} alt="Signature de la direction" style={{ display: "block", width: 132, height: 54, objectFit: "contain" }} />
-              <img src={cachet} alt="Cachet AgriCapital" style={{ display: "block", width: 92, height: 78, objectFit: "contain" }} />
             </div>
 
             <div style={{ textAlign: "center", marginTop: 6 }}>
