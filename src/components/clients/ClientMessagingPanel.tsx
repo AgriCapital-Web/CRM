@@ -141,7 +141,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
       .select("id")
       .eq("client_id", clientId)
       .eq("auteur_type", "client")
-      .eq("lu", false);
+      .or("lu.eq.false,lu.is.null");
     if (unreadQueryError) {
       console.warn("Impossible de charger les messages non lus:", unreadQueryError.message);
       return;
@@ -163,7 +163,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
           .eq("id", messageId)
           .eq("client_id", clientId)
           .eq("auteur_type", "client")
-          .eq("lu", false);
+          .or("lu.eq.false,lu.is.null");
         if (fallbackError) {
           console.warn("Impossible de marquer le message comme lu:", messageId, fallbackError.message);
           return null;
