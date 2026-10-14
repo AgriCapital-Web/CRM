@@ -115,11 +115,18 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         if (!file) continue;
         const result = await uploadFile("documents-fonciers", file);
         if (!result?.url) throw new Error(`Échec du téléversement : ${documentType.label}`);
-        const { error: documentError } = await (supabase as any).from("documents_souscription").insert({
+        // documents_souscription does not exist in the live schema.
+        // Store these files in the canonical CRM acquisition-document table.
+        const { error: documentError } = await (supabase as any).from("documents_acquisition").insert({
           client_id: client.id,
           type_document: documentType.key,
+          code_document: documentType.key,
+          categorie: "souscription",
+          source_contractuelle: documentType.key,
           fichier_url: result.url,
           statut: "en_attente",
+          uploaded_by: user.id,
+          metadata: { libelle: documentType.label, source_formulaire: "client" },
         });
         if (documentError) throw documentError;
       }
