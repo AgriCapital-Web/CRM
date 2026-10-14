@@ -162,9 +162,13 @@ export const useNotifications = () => {
     const data = notification.data || {};
     const route = data.route;
     const ticketId = data.ticket_id;
-    const clientId = data.client_id;
+    const clientId = data.client_id || data.clientId || data.client?.id || data.sender_client_id;
     const type = String(notification.type || "").toLowerCase();
-    const isMessageNotification = type.includes("message") || String(route || "").toLowerCase().includes("messagerie") || data.source === "portail_messages";
+    const title = String(notification.title || "").toLowerCase();
+    const message = String(notification.message || "").toLowerCase();
+    const routeIsMessaging = String(route || "").toLowerCase().includes("messagerie");
+    const isMessageNotification = type.includes("message") || routeIsMessaging ||
+      data.source === "portail_messages" || title.includes("message") || message.includes("message");
     if (isMessageNotification && clientId) {
       navigate(`/messagerie?client=${encodeURIComponent(String(clientId))}`);
       return;
