@@ -231,21 +231,24 @@ const InfoRow = ({
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "170px minmax(0,1fr)",
+      gridTemplateColumns: "176px minmax(0,1fr)",
       alignItems: "center",
-      minHeight: 47,
+      minHeight: 43,
       columnGap: 8,
+      width: "100%",
+      boxSizing: "border-box",
       borderBottom: `1px solid ${GRIS_CLAIR}`,
     }}
   >
     <span
       style={{
         color: VERT,
-        fontSize: 14,
+        fontSize: 13.5,
         fontWeight: 900,
         textTransform: "uppercase",
-        letterSpacing: 0.2,
+        letterSpacing: 0,
         lineHeight: "18px",
+        whiteSpace: "nowrap",
       }}
     >
       {label}
@@ -253,10 +256,11 @@ const InfoRow = ({
     <span
       style={{
         color: GRIS,
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 700,
-        lineHeight: "21px",
-        overflowWrap: "break-word",
+        lineHeight: "18px",
+        whiteSpace: "nowrap",
+        overflowWrap: "normal",
         wordBreak: "normal",
       }}
     >
@@ -371,8 +375,8 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
           <div
             style={{
               width: 166,
-              height: 190,
-              margin: "8px auto 0",
+              height: 166,
+              margin: "6px auto 0",
               borderRadius: 16,
               overflow: "hidden",
               border: `3px solid ${VERT}`,
@@ -453,7 +457,7 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
             </span>
           </div>
 
-          <div style={{ marginTop: 5, flexShrink: 0 }}>
+          <div style={{ marginTop: 4, flexShrink: 0, width: "100%" }}>
             <InfoRow label="Identifiant" value={carte.matricule} />
             <InfoRow
               label="Zone d'intervention"
@@ -469,53 +473,43 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
               alignItems: "flex-end",
               justifyContent: "space-between",
               gap: 18,
-              minHeight: 146,
+              minHeight: 286,
+              width: "100%",
+              boxSizing: "border-box",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "flex-start",
+              gap: 0,
             }}
           >
-            <div style={{ minWidth: 0 }}>
+            <div style={{ width: "100%", textAlign: "center", minWidth: 0, marginBottom: 2 }}>
               <p
                 style={{
                   margin: 0,
                   color: VERT,
-                  fontSize: 13,
-                  lineHeight: "17px",
+                  fontSize: 15,
+                  lineHeight: "19px",
                   fontWeight: 900,
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.2,
                   whiteSpace: "nowrap",
-                  textTransform: "uppercase",
                 }}
               >
                 AgriCapital SARL
               </p>
-              <p style={{ margin: "5px 0 0", color: GRIS_MOYEN, fontSize: 11, lineHeight: "15px" }}>
+              <p style={{ margin: "3px 0 0", color: GRIS_MOYEN, fontSize: 11, lineHeight: "14px" }}>
                 Carte personnelle — non transférable
               </p>
             </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: 0,
-                width: 190,
-                height: 142,
-                flexShrink: 0,
-              }}
-            >
-              <img
-                src={cachet}
-                alt="Cachet AgriCapital"
-                style={{ width: 132, height: 82, objectFit: "contain", display: "block", flexShrink: 0 }}
-              />
-              <div style={{ width: 176, height: 55, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: -2 }}>
-                <img
-                  src={signature}
-                  alt="Signature de la direction"
-                  style={{ width: 176, height: 55, objectFit: "contain", display: "block" }}
-                />
-              </div>
-            </div>
+            <img
+              src={cachet}
+              alt="Cachet AgriCapital"
+              style={{ width: 264, height: 164, maxWidth: "100%", objectFit: "contain", display: "block", flexShrink: 0 }}
+            />
+            <img
+              src={signature}
+              alt="Signature de la direction"
+              style={{ width: 352, height: 110, maxWidth: "100%", objectFit: "contain", display: "block", flexShrink: 0, marginTop: -2 }}
+            />
           </div>
         </div>
       </CardShell>
