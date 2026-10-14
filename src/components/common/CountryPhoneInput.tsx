@@ -34,9 +34,10 @@ export interface CountryPhoneInputProps {
   onChange: (v: { countryCode: string; callingCode: string; localValue: string; internationalValue: string }) => void;
   minLocalDigits?: number;
   maxLocalDigits?: number;
+  compact?: boolean;
 }
 
-export const CountryPhoneInput = ({ label, countryCode, localValue = "", required, disabled, onChange, minLocalDigits, maxLocalDigits }: CountryPhoneInputProps) => {
+export const CountryPhoneInput = ({ label, countryCode, localValue = "", required, disabled, onChange, minLocalDigits, maxLocalDigits, compact = false }: CountryPhoneInputProps) => {
   const [selectedCode, setSelectedCode] = useState(() => countryFromCode(countryCode || "+225", COUNTRIES).code);
   const selected = COUNTRIES.find(c => c.code === selectedCode) || countryFromCode(countryCode || "+225", COUNTRIES);
   const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
@@ -57,8 +58,8 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
     onChange({ countryCode: country.code, callingCode: country.callingCode, localValue: normalized, internationalValue });
   };
 
-  return <div className="min-w-0 space-y-2">
-    {label && <label className="block truncate text-sm font-medium">{label}{required && " *"}</label>}
+  return <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
+    {label && <label className={`block truncate font-medium ${compact ? "text-xs" : "text-sm"}`}>{label}{required && " *"}</label>}
     <div className="flex w-full min-w-0 items-stretch gap-2">
       <SearchableSelect
         value={selected.code}
@@ -68,12 +69,12 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         searchPlaceholder="Rechercher un pays..."
         emptyText="Aucun pays trouvé."
         disabled={disabled}
-        className="w-[112px] shrink-0 sm:w-[145px]"
+        className={compact ? "h-8 w-[96px] shrink-0 px-2" : "w-[112px] shrink-0 sm:w-[145px]"}
         triggerLabel={selected.callingCode}
         triggerFlagUrl={flagUrl(selected.code)}
       />
       <Input
-        className="min-w-0 flex-1"
+        className={`min-w-0 flex-1 ${compact ? "h-8" : ""}`}
         type="tel"
         inputMode="tel"
         autoComplete="tel-national"
