@@ -126,18 +126,18 @@ export function useOfflineSync() {
     if (!navigator.onLine || !user) return;
     try {
       // Field-team essentials (incremental by updated_at)
-      const MAIN_TABLES: Array<{ store: string; table: string }> = [
+      const MAIN_TABLES: Array<{ store: string; table: string; ts?: string }> = [
         { store: STORES.CLIENTS, table: 'clients' },
         { store: STORES.PLANTATIONS, table: 'plantations' },
         { store: STORES.PAIEMENTS, table: 'paiements' },
         { store: STORES.LEADS, table: 'leads' },
-        { store: STORES.LEAD_RELANCES, table: 'lead_relances' },
+        { store: STORES.LEAD_RELANCES, table: 'lead_relances', ts: 'created_at' },
         { store: STORES.PROPRIETAIRES_TERRES, table: 'proprietaires_terres' },
         { store: STORES.PARCELLES, table: 'parcelles' },
         { store: STORES.RAPPORTS_VISITES, table: 'rapports_visites_techniques' },
         { store: STORES.RAPPORTS_MEDIAS, table: 'rapports_visites_medias' },
       ];
-      for (const { store, table } of MAIN_TABLES) {
+      for (const { store, table, ts = 'updated_at' } of MAIN_TABLES) {
         try {
           const lastSync = await getLastSyncTime(store);
           const PAGE_SIZE = 1000;
@@ -148,9 +148,9 @@ export function useOfflineSync() {
 
           while (page < MAX_PAGES) {
             let q = (supabase as any).from(table).select('*');
-            if (lastSync) q = q.gte('updated_at', lastSync);
+            if (lastSync) q = q.gte(ts, lastSync);
             const { data, error } = await q
-              .order('updated_at', { ascending: false })
+              .order(ts, { ascending: false })
               .range(offset, offset + PAGE_SIZE - 1);
 
             if (error) throw error;
