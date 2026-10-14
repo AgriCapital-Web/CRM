@@ -469,44 +469,64 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
           <div
             style={{
               marginTop: "auto",
-              display: "flex",
-              flexDirection: "column",
+              display: "grid",
+              gridTemplateColumns: "1fr 226px",
               alignItems: "center",
-              justifyContent: "flex-start",
-              gap: 0,
-              minHeight: 286,
+              columnGap: 8,
+              minHeight: 178,
               width: "100%",
               boxSizing: "border-box",
             }}
           >
-            <div style={{ width: "100%", textAlign: "center", minWidth: 0, marginBottom: 2 }}>
-              <p
-                style={{
-                  margin: 0,
-                  color: VERT,
-                  fontSize: 15,
-                  lineHeight: "19px",
-                  fontWeight: 900,
-                  letterSpacing: 0.2,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                AgriCapital SARL
+            <div style={{ minWidth: 0, alignSelf: "center", paddingRight: 3 }}>
+              <p style={{ margin: 0, color: VERT, fontSize: 14, lineHeight: "18px", fontWeight: 900 }}>
+                AgriCapital S.A.R.L.
               </p>
-              <p style={{ margin: "3px 0 0", color: GRIS_MOYEN, fontSize: 11, lineHeight: "14px" }}>
-                Carte personnelle — non transférable
+              <p style={{ margin: "4px 0 0", color: GRIS, fontSize: 10.5, lineHeight: "14px", fontWeight: 700 }}>
+                Société à responsabilité limitée
+              </p>
+              <p style={{ margin: "3px 0 0", color: GRIS_MOYEN, fontSize: 9.5, lineHeight: "13px" }}>
+                RCCM de Côte d’Ivoire
+              </p>
+              <p style={{ margin: "3px 0 0", color: GRIS_MOYEN, fontSize: 9.5, lineHeight: "13px" }}>
+                CI-DAL-01-2025-B12-13435
+              </p>
+              <p style={{ margin: "3px 0 0", color: GRIS_MOYEN, fontSize: 9.5, lineHeight: "13px" }}>
+                Daloa-Gonaté, Côte d’Ivoire
               </p>
             </div>
-            <img
-              src={cachet}
-              alt="Cachet AgriCapital"
-              style={{ width: 264, height: 164, maxWidth: "100%", objectFit: "contain", display: "block", flexShrink: 0 }}
-            />
-            <img
-              src={signature}
-              alt="Signature de la direction"
-              style={{ width: 352, height: 110, maxWidth: "100%", objectFit: "contain", display: "block", flexShrink: 0, marginTop: -2 }}
-            />
+            <div style={{ position: "relative", width: 226, height: 154, justifySelf: "end", flexShrink: 0 }}>
+              <img
+                src={signature}
+                alt="Signature de la direction"
+                style={{
+                  position: "absolute",
+                  zIndex: 1,
+                  width: 250,
+                  height: 82,
+                  maxWidth: "none",
+                  objectFit: "contain",
+                  top: 2,
+                  left: 10,
+                  display: "block",
+                }}
+              />
+              <img
+                src={cachet}
+                alt="Cachet AgriCapital"
+                style={{
+                  position: "absolute",
+                  zIndex: 2,
+                  width: 220,
+                  height: 137,
+                  maxWidth: "none",
+                  objectFit: "contain",
+                  top: 15,
+                  left: 0,
+                  display: "block",
+                }}
+              />
+            </div>
           </div>
         </div>
       </CardShell>
@@ -571,25 +591,25 @@ export const CarteVerso = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
               alignItems: "center",
             }}
           >
-            <QR code={carte.code_verification} size={215} />
+            <QR code={carte.code_verification} size={322} />
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 10 }}>
+          <div style={{ textAlign: "center", marginTop: 14 }}>
             <p
               style={{
                 margin: 0,
                 color: GRIS,
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: 600,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               Scannez ce code avec votre téléphone pour vérifier l'authenticité et la validité de cette carte.
             </p>
             <div
               style={{
-                marginTop: 8,
-                padding: "8px 12px",
+                marginTop: 10,
+                padding: "9px 12px",
                 borderRadius: 9,
                 backgroundColor: "#F4F6F3",
                 border: `1px solid ${GRIS_CLAIR}`,
@@ -615,8 +635,8 @@ export const CarteVerso = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
 
           <div
             style={{
-              marginTop: 10,
-              padding: "9px 12px",
+              marginTop: 12,
+              padding: "10px 12px",
               borderLeft: `4px solid ${ORANGE}`,
               backgroundColor: "#FAFAFA",
               borderTop: `1px solid ${GRIS_CLAIR}`,
