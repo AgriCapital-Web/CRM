@@ -32,6 +32,8 @@ import { COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
 import { formatUserShortName } from "@/lib/utils";
 
 
+const normalizeSmsText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+
 const STATUTS = [
   { v: "nouveau", l: "Nouveau", color: "bg-blue-100 text-blue-800" },
   { v: "contacte", l: "Contacté", color: "bg-cyan-100 text-cyan-800" },
@@ -76,13 +78,14 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [contactChannel, setContactChannel] = useState("whatsapp");
   const [contactMessage, setContactMessage] = useState("");
   const [contactSending, setContactSending] = useState(false);
+  const [formStage, setFormStage] = useState<"lead" | "prospect">("lead");
   const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
     nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
-    type_lead: "client", civilite: "", etape_pipeline: view === "prospects" ? "prospect" : "lead", offre_code: "", formule_code: "",
+    type_lead: "client", civilite: "", etape_pipeline: "lead", offre_code: "", formule_code: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
-    statut: view === "prospects" ? "qualifie" : "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
+    statut: "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
   };
   const [leadForm, setLeadForm] = useState<Record<string, string>>({ ...emptyLead, assigned_to: "" });
 
@@ -249,7 +252,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           creneau_prefere: leadForm.creneau_prefere || null,
           mode_contact_prefere: leadForm.mode_contact_prefere || null,
           commentaire: leadForm.commentaire || null, statut: leadForm.statut,
-          etape_pipeline: view === "prospects" ? "prospect" : (editingLead.etape_pipeline || "lead"),
+          etape_pipeline: editingLead.etape_pipeline || formStage,
           type_lead: leadForm.type_lead || "client",
           offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
           formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
@@ -283,8 +286,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         type_lead: leadForm.type_lead || "client",
         offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
         formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
-        statut: view === "prospects" ? (leadForm.statut || "qualifie") : (leadForm.statut || "nouveau"),
-        etape_pipeline: view === "prospects" ? "prospect" : "lead",
+        statut: formStage === "prospect" ? (leadForm.statut || "qualifie") : (leadForm.statut || "nouveau"),
+        etape_pipeline: formStage,
         source: leadForm.source || "commercial_terrain",
         created_by: user.id,
         assigned_to: (leadForm.source === "commercial_terrain" && (canSupervise || isServiceClient))
@@ -353,7 +356,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
   const sendContact = async () => {
     if (!contactLead) return;
-    const phone = String(contactLead.whatsapp || contactLead.telephone || "").replace(/[^0-9]/g, "");
+    const phone = String(contactChannel === "whatsapp" ? (contactLead.whatsapp || contactLead.telephone) : (contactLead.telephone || "")).replace(/[^0-9]/g, "");
     if (contactChannel === "appel") {
       if (!phone) { toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro avant de lancer l’appel." }); return; }
       window.location.href = `tel:${phone}`; setContactOpen(false); return;
@@ -362,13 +365,13 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       toast({ variant: "destructive", title: "Connexion requise", description: "Connectez-vous à Internet pour envoyer directement via Senndo." });
       return;
     }
-    if (contactChannel === "whatsapp" && !phone) {
+    if ((contactChannel === "whatsapp" || contactChannel === "sms") && !phone) {
       toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro WhatsApp avant l’envoi." }); return;
     }
     if (contactChannel === "email" && !contactLead.email) {
       toast({ variant: "destructive", title: "Adresse email manquante", description: "Ajoutez une adresse email avant l’envoi." }); return;
     }
-    const message = Array.from(contactMessage).slice(0, 200).join("");
+    const message = contactChannel === "sms" ? Array.from(normalizeSmsText(contactMessage)).slice(0, 155).join("") : Array.from(contactMessage).slice(0, 200).join("");
     if (!message.trim()) {
       toast({ variant: "destructive", title: "Message vide", description: "Rédigez un message avant l’envoi." }); return;
     }
@@ -387,8 +390,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "L’envoi n’a pas été confirmé par Senndo.");
       toast({
-        title: contactChannel === "whatsapp" ? "WhatsApp envoyé à Senndo" : "Email envoyé à Senndo",
-        description: `Demande acceptée par Senndo · ${data.characterCount ?? message.length}/200 caractères.`,
+        title: contactChannel === "whatsapp" ? "WhatsApp envoyé à Senndo" : contactChannel === "sms" ? "SMS envoyé à Senndo" : "Email envoyé à Senndo",
+        description: `Demande acceptée par Senndo · ${data.characterCount ?? message.length}/${contactChannel === "sms" ? 155 : 200} caractères.`,
       });
       setContactOpen(false);
     } catch (e: any) {
@@ -429,7 +432,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
   const publicUrl = `${window.location.origin}/leads/public`;
 
-  const stageLeads = leads.filter((l: any) => view === "prospects" ? l.etape_pipeline === "prospect" : (l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead")) === "lead");
+  const stageLeads = view === "prospects"
+    ? leads.filter((l: any) => ["lead", "prospect"].includes(l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead")))
+    : leads.filter((l: any) => (l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead")) === "lead");
   const filteredLeads = stageLeads.filter((l: any) => JSON.stringify(l).toLowerCase().includes(tableSearch.trim().toLowerCase()));
   const paginatedLeads = filteredLeads.slice((tablePage - 1) * tablePageSize, tablePage * tablePageSize);
   useEffect(() => { setTablePage(1); }, [tableSearch, tablePageSize]);
@@ -441,43 +446,50 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     convertis: leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti").length,
     superficie: stageLeads.reduce((s: number, l: any) => s + (Number(l.superficie_disponible_ha || l.superficie_souhaitee_ha) || 0), 0),
   };
-  const tauxConversion = stats.total ? Math.round((stats.convertis / stats.total) * 100) : 0;
+  const totalLeads = leads.filter((l: any) => (l.etape_pipeline || "lead") === "lead").length;
+  const totalProspects = leads.filter((l: any) => l.etape_pipeline === "prospect").length;
+  const convertedRows = leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti");
+  const leadsConverted = convertedRows.filter((l: any) => l.etape_conversion !== "prospect").length;
+  const prospectsConverted = convertedRows.filter((l: any) => l.etape_conversion === "prospect").length;
+  const tauxConversion = totalLeads + leadsConverted ? Math.round(leadsConverted / (totalLeads + leadsConverted) * 100) : 0;
+  const tauxConversionProspects = totalProspects + prospectsConverted ? Math.round(prospectsConverted / (totalProspects + prospectsConverted) * 100) : 0;
 
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />{view === "prospects" ? "Prospects" : "Leads"}</h1>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Prospects</h1>
+            <span className="text-xs text-muted-foreground">Leads et prospects réunis</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => { setEditingLead(null); setLeadForm({ ...emptyLead, statut: view === "prospects" ? "qualifie" : "nouveau", etape_pipeline: view === "prospects" ? "prospect" : "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />{view === "prospects" ? "Nouveau prospect" : "Nouveau lead"}</Button>
-            {view === "prospects" && <Button variant="outline" onClick={() => navigate("/leads?new=1")}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
-            <Button variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}>
-              <Copy className="h-4 w-4 mr-2" />Lien public
-            </Button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>
+            <Button className="w-full sm:w-auto" variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}><Copy className="h-4 w-4 mr-2" />Lien public</Button>
           </div>
+          <Button className="w-full" onClick={() => { setFormStage("prospect"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
           {[
-            { l: "Total", v: stats.total, i: Users },
-            { l: "Nouveaux", v: stats.nouveaux, i: Target },
+            { l: "Leads", v: totalLeads, i: Target },
+            { l: "Prospects", v: totalProspects, i: Users },
             { l: "À relancer", v: stats.aRelancer, i: PhoneCall },
-            { l: "Convertis", v: stats.convertis, i: TrendingUp },
-            { l: "Taux conv.", v: `${tauxConversion}%`, i: TrendingUp },
+            { l: "Leads convertis", v: leadsConverted, i: TrendingUp },
+            { l: "Conversion leads", v: tauxConversion + "%", i: TrendingUp },
+            { l: "Prospects convertis", v: prospectsConverted, i: TrendingUp },
+            { l: "Conversion prospects", v: tauxConversionProspects + "%", i: TrendingUp },
           ].map((s, i) => (
-            <Card key={i}><CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div><p className="text-xs text-muted-foreground">{s.l}</p><p className="text-xl font-bold">{s.v}</p></div>
-                <s.i className="h-5 w-5 text-primary/60" />
-              </div>
-            </CardContent></Card>
+            <Card key={i} className="min-w-0 overflow-hidden">
+              <CardContent className="flex min-h-[82px] items-center justify-between gap-2 p-3 sm:p-4">
+                <div className="min-w-0"><p className="text-[11px] leading-tight text-muted-foreground break-words">{s.l}</p><p className="mt-1 text-xl font-bold tabular-nums">{s.v}</p></div>
+                <s.i className="h-4 w-4 shrink-0 text-primary/60 sm:h-5 sm:w-5" />
+              </CardContent>
+            </Card>
           ))}
         </div>
 
         <Card>
-          <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>{view === "prospects" ? "Suivi des prospects" : "Leads à contacter et qualifier"}</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder={view === "prospects" ? "Rechercher un prospect…" : "Rechercher un lead…"} /></div></CardHeader>
+          <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Suivi des leads et prospects</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un lead ou prospect…" /></div></CardHeader>
           <CardContent>
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
@@ -486,19 +498,19 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {filteredLeads.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Aucun {view === "prospects" ? "prospect" : "lead"} enregistré.</TableCell></TableRow>}
+                {filteredLeads.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Aucun lead ou prospect enregistré.</TableCell></TableRow>}
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
                     <TableRow key={l.id}>
                       <TableCell className="font-mono text-xs">{l.id_unique}</TableCell>
-                      <TableCell><div className="font-medium">{l.nom} {l.prenoms}</div></TableCell>
+                      <TableCell><div className="font-medium">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-1 text-[10px]">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
                       <TableCell className="text-sm">{l.telephone}<br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
                       <TableCell className="text-sm">{l.region_residence}</TableCell>
                       <TableCell>
                         <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, statut: v })}>
                           <SelectTrigger className="w-40 h-8"><SelectValue /></SelectTrigger>
-                          <SelectContent>{(view === "prospects" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
+                          <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
                       <TableCell className="text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right space-x-2">
@@ -506,6 +518,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                         {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
                           <Button size="sm" variant="secondary" onClick={() => {
                             setEditingLead(l);
+                            setFormStage(l.etape_pipeline === "prospect" ? "prospect" : "lead");
                             setLeadForm({
                               ...emptyLead,
                               ...Object.fromEntries(Object.entries(l).map(([k, v]) => [k, v == null ? "" : String(v)])),
@@ -518,7 +531,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                           }}>Modifier</Button>
                         )}
                         <Button size="sm" variant="outline" onClick={() => startContact(l)}><Contact className="h-3 w-3 mr-1" />Contacter</Button>
-                        {view === "leads" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
+                        {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
                           <Button size="sm" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
                         )}
                       </TableCell>
@@ -629,18 +642,18 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           <DialogContent>
             <DialogHeader><DialogTitle>Contacter {contactLead ? [contactLead.prenoms, contactLead.nom].filter(Boolean).join(" ") : "le contact"}</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={setContactChannel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
-              {(contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Message (200 caractères maximum)</Label><Textarea value={contactMessage} maxLength={200} onChange={e => setContactMessage(e.target.value.slice(0, 200))} rows={4} /><p className="text-right text-xs text-muted-foreground">{contactMessage.length}/200</p></div>}
-              <p className="text-xs text-muted-foreground">{contactChannel === "appel" ? `Le téléphone s’ouvrira avec le numéro ${contactLead?.telephone || "non renseigné"}.` : contactChannel === "whatsapp" ? "Le message personnalisé sera envoyé directement via Senndo à ce numéro WhatsApp." : "L’email personnalisé sera envoyé directement via Senndo à cette adresse."}</p>
+              <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={(v) => { setContactChannel(v); if (v === "sms") setContactMessage(normalizeSmsText(contactMessage).slice(0, 155)); else setContactMessage(contactMessage.slice(0, 200)); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
+              {(contactChannel === "sms" || contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Message ({contactChannel === "sms" ? "155 caractères maximum, sans accents" : "200 caractères maximum"})</Label><Textarea value={contactMessage} maxLength={contactChannel === "sms" ? 155 : 200} onChange={e => setContactMessage(contactChannel === "sms" ? normalizeSmsText(e.target.value).slice(0, 155) : e.target.value.slice(0, 200))} rows={4} /><p className="text-right text-xs text-muted-foreground">{Array.from(contactChannel === "sms" ? normalizeSmsText(contactMessage) : contactMessage).length}/{contactChannel === "sms" ? 155 : 200} caractères</p></div>}
+              <p className="text-xs text-muted-foreground">{contactChannel === "appel" ? `Le téléphone s’ouvrira avec le numéro ${contactLead?.telephone || "non renseigné"}.` : contactChannel === "sms" ? "Le SMS sera envoyé directement via Senndo, sans accents et dans la limite de 155 caractères." : contactChannel === "whatsapp" ? "Le message personnalisé sera envoyé directement via Senndo à ce numéro WhatsApp." : "L’email personnalisé sera envoyé directement via Senndo à cette adresse."}</p>
             </div>
-            <DialogFooter><Button variant="outline" onClick={() => setContactOpen(false)} disabled={contactSending}>Annuler</Button><Button onClick={sendContact} disabled={contactSending}>{contactSending ? "Envoi en cours…" : contactChannel === "appel" ? "Lancer l’appel" : contactChannel === "whatsapp" ? "Envoyer via WhatsApp" : "Envoyer par email"}</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" onClick={() => setContactOpen(false)} disabled={contactSending}>Annuler</Button><Button onClick={sendContact} disabled={contactSending}>{contactSending ? "Envoi en cours…" : contactChannel === "appel" ? "Lancer l’appel" : contactChannel === "sms" ? "Envoyer le SMS" : contactChannel === "whatsapp" ? "Envoyer via WhatsApp" : "Envoyer par email"}</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editingLead ? (view === "prospects" ? "Modifier le prospect" : "Modifier le lead") : (view === "prospects" ? "Nouveau prospect" : "Nouveau lead")}</DialogTitle></DialogHeader>
-            {view === "prospects" ? (
+            <DialogHeader><DialogTitle>{editingLead ? (formStage === "prospect" ? "Modifier le prospect" : "Modifier le lead") : (formStage === "prospect" ? "Nouveau prospect" : "Nouveau lead")}</DialogTitle></DialogHeader>
+            {formStage === "prospect" ? (
                           <div className="grid gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2">
                               <Label>Type de prospect *</Label>
@@ -721,7 +734,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                               <Label>Statut initial</Label>
                               <Select value={leadForm.statut} onValueChange={(v) => setLeadForm({ ...leadForm, statut: v })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>{STATUTS.filter(s => view === "prospects" ? ["qualifie","interesse","tres_interesse","en_discussion","preparation_dossier","pret_souscrire","abandonne"].includes(s.v) : ["nouveau","contacte","abandonne"].includes(s.v)).map((s) => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent>
+                                <SelectContent>{STATUTS.filter(s => formStage === "prospect" ? ["qualifie","interesse","tres_interesse","en_discussion","preparation_dossier","pret_souscrire","abandonne"].includes(s.v) : ["nouveau","contacte","abandonne"].includes(s.v)).map((s) => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
                             <div>
@@ -764,7 +777,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
               <Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button>
               <Button
                 onClick={() => createLead.mutate()}
-                disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || (view === "prospects" && !leadForm.district_id.trim())}
+                disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || (formStage === "prospect" && !leadForm.district_id.trim())}
               >{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button>
             </DialogFooter>
           </DialogContent>
