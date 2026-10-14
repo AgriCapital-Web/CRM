@@ -239,6 +239,54 @@ async function optimisticLocalMutation(url: string, method: string, rawBody: str
 }
 
 
+/**
+ * Met à jour IndexedDB après une mutation réellement acceptée par le serveur.
+ * En ligne, ne jamais fabriquer un UUID local pour un insert déjà créé par Supabase :
+ * cela laisserait un faux doublon local avec un identifiant différent du serveur.
+ */
+async function updateLocalCacheAfterSuccessfulMutation(
+  url: string,
+  method: string,
+  rawBody: string,
+  response: Response,
+): Promise<void> {
+  const table = getTableFromUrl(url);
+  const store = table ? TABLE_TO_OFFLINE_STORE[table] : null;
+  if (!store) return;
+
+  if (method === "DELETE") {
+    const id = getEqIdFromUrl(url);
+    if (id) await deleteItem(store, id);
+    return;
+  }
+
+  let parsedBody: any = null;
+  try { parsedBody = rawBody ? JSON.parse(rawBody) : null; } catch { return; }
+
+  if (method === "POST") {
+    let serverRows: any[] = [];
+    try {
+      const payload = await response.clone().json();
+      serverRows = Array.isArray(payload) ? payload : payload && typeof payload === "object" ? [payload] : [];
+    } catch {
+      // Sans représentation serveur, on ne met en cache que les lignes dont
+      // l'identifiant a été fourni explicitement dans la requête.
+      serverRows = Array.isArray(parsedBody) ? parsedBody : parsedBody && typeof parsedBody === "object" ? [parsedBody] : [];
+    }
+    for (const row of serverRows) {
+      if (row && typeof row === "object" && row.id) await putItem(store, row);
+    }
+    return;
+  }
+
+  if (method === "PATCH" || method === "PUT") {
+    const id = getEqIdFromUrl(url);
+    if (!id || !parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) return;
+    const existing = await getItem(store, id);
+    await putItem(store, { ...(existing || { id }), ...parsedBody, id, updated_at: new Date().toISOString() });
+  }
+}
+
 async function makeQueuedResponse(request: Request): Promise<Response> {
   let parsed: any = null;
   try {
@@ -514,10 +562,10 @@ export function installOfflineFetch(): typeof fetch {
 
         if (response.ok) {
           try {
-            await optimisticLocalMutation(request.url, method, originalBody);
+            await updateLocalCacheAfterSuccessfulMutation(request.url, method, originalBody, response);
             await reconcileHttpCacheForMutation(request.url, method, originalBody);
           } catch {
-            // Local cache is best-effort; server success remains authoritative.
+            // La réponse serveur fait foi; le prochain pull réparera le cache local.
           }
         }
         return response;
