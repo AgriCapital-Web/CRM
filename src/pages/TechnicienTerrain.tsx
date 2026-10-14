@@ -475,21 +475,14 @@ const TechnicienTerrain=()=>{
       <TabsContent value="historique"><div className="grid lg:grid-cols-2 gap-5">
         <Card><CardHeader><CardTitle>Rapports récents</CardTitle></CardHeader><CardContent className="space-y-3">{loading?"Chargement…":reports.length===0?"Aucun rapport.":reports.map(r=><div key={r.id} className="border rounded-lg p-3"><div className="flex justify-between gap-3"><div><p className="font-medium">{r.plantation?.nom_plantation||r.plantation?.id_unique}</p><p className="text-xs text-muted-foreground">{new Date(r.date_visite).toLocaleString("fr-FR")}</p></div><Badge variant={r.client_visible?"default":"outline"}>{r.client_visible?"Publié":"Privé · "+r.statut}</Badge></div><p className="text-sm mt-2">{r.constat||r.observations||"—"}</p>{manager&&<div className="flex flex-wrap gap-2 mt-3">
   {r.statut==="soumis"&&<><Button size="sm" onClick={()=>validateReport(r,true)}>Valider & publier</Button><Button size="sm" variant="outline" onClick={()=>validateReport(r,false)}>Refuser</Button></>}
-  <Button size="sm" variant="outline" onClick={()=>{setReassignReportId(r.id);setReassignTechnicienId(r.agent_technique_id||"");}}>Réaffecter</Button>
+  <Button size="sm" variant="outline" onClick={()=>{setReassignReportId(r.id);setReassignInterventionId("");setReassignTechnicienId(r.agent_technique_id||"");}}>Réaffecter</Button>
 </div>}
 </div>)}</CardContent></Card>
         <Card><CardHeader><CardTitle>Interventions récentes</CardTitle></CardHeader><CardContent className="space-y-3">{interventions.length===0?"Aucune intervention.":interventions.map(i=><div key={i.id} className="border rounded-lg p-3"><div className="flex justify-between"><p className="font-medium">{i.plantation?.nom_plantation||i.plantation?.id_unique}</p><Badge variant="outline">{i.type_intervention}</Badge></div><p className="text-xs text-muted-foreground mt-1">{new Date(i.date_intervention).toLocaleDateString("fr-FR")} · {i.statut}</p><p className="text-sm mt-2">{i.observations||"—"}</p>
               <div className="flex items-center justify-between gap-3 mt-3">
                 <span className="text-xs text-muted-foreground">Technicien : {i.agent?.nom_complet||"—"}</span>
-                {manager && <Button size="sm" variant="outline" onClick={()=>{setReassignInterventionId(i.id);setReassignTechnicienId(i.agent_technique_id||"");}}>Réaffecter</Button>}
-{manager && reassignInterventionId===i.id && <div className="flex flex-col sm:flex-row gap-2 mt-2">
-  <Select value={reassignTechnicienId||""} onValueChange={setReassignTechnicienId}>
-    <SelectTrigger className="sm:flex-1"><SelectValue placeholder="Nouveau technicien" /></SelectTrigger>
-    <SelectContent>{techniciens.map((t:any)=><SelectItem key={t.id} value={t.id}>{t.nom_complet}</SelectItem>)}</SelectContent>
-  </Select>
-  <Button size="sm" onClick={reassignIntervention}>Confirmer</Button>
-  <Button size="sm" variant="ghost" onClick={()=>{setReassignInterventionId("");setReassignTechnicienId("");}}>Annuler</Button>
-</div>}
+                {manager && <Button size="sm" variant="outline" onClick={()=>{setReassignInterventionId(i.id);setReassignReportId("");setReassignTechnicienId(i.agent_technique_id||"");}}>Réaffecter</Button>}
+
               </div></div>)}</CardContent></Card>
       </div></TabsContent>
     </Tabs>
