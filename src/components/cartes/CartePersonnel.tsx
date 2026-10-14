@@ -8,7 +8,7 @@ import signature from "@/assets/signature-direction.png";
 import cachet from "@/assets/cachet-agricapital.png";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { CARTE_BUCKET } from "@/lib/photoCarte";
-import { roleLabel, OFFICIAL_ROLES, normalizeRoles } from "@/lib/roles";
+import { OFFICIAL_ROLES, normalizeRoles } from "@/lib/roles";
 
 /**
  * Nouvelle carte professionnelle AgriCapital.
@@ -40,6 +40,7 @@ export interface CarteData {
   poste?: string | null;
   departement?: string | null;
   role_code?: string | null;
+  role_label?: string | null;
   role_codes?: string[];
   type_contrat?: string | null;
   statut_agent?: string | null;
@@ -309,7 +310,7 @@ const CONTACTS = (carte: CarteData) => [
 
 export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ carte }, ref) => {
   const photo = useSignedUrl(carte.photo_bucket || CARTE_BUCKET, carte.photo_url);
-  const fonction = carte.poste || roleLabel(carte.role_code) || "—";
+  const fonction = carte.poste || carte.role_label || "—";
   const nom = carte.nom_complet || "Nom du titulaire";
 
   return (
