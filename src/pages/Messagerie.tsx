@@ -59,7 +59,7 @@ export default function Messagerie() {
       (supabase as any).from("portail_messages")
         .select("id", { count: "exact", head: true })
         .eq("auteur_type", "client")
-        .eq("lu", false),
+        .or("lu.eq.false,lu.is.null"),
     ]);
     setRecent((data || []) as RecentMessage[]);
     if (!unreadError) setUnreadCount(count || 0);
