@@ -20,6 +20,8 @@ import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 
 const TEAM_ROLES=["chef_equipe_commercial","chef_equipe_technique","responsable_commercial","responsable_operations"];
+const FINANCE_ROLES=["comptable","responsable_operations"];
+const ROLE_LABELS:Record<string,string>={pdg:"PDG",dg:"Directeur général",comptable:"Comptable",responsable_operations:"Responsable opérations",responsable_commercial:"Responsable commercial",chef_equipe_commercial:"Chef d’équipe commerciale",chef_equipe_technique:"Chef d’équipe technique",commercial:"Commercial",technicien:"Technicien",mobilisateur_foncier:"Mobilisateur foncier",superviseur_mobilisation_fonciere:"Superviseur foncier",service_client:"Service client",associe_actionnaire:"Associé actionnaire"};
 const fortnight=(d=new Date())=>d.getDate()<=15
   ? {start:new Date(d.getFullYear(),d.getMonth(),1),end:new Date(d.getFullYear(),d.getMonth(),15)}
   : {start:new Date(d.getFullYear(),d.getMonth(),16),end:endOfMonth(d)};
@@ -49,21 +51,37 @@ export default function Portefeuilles(){
   const load=async()=>{
     setLoading(true);
     try{
-      const [pr,pf,cm,vp,lines]=await Promise.all([
-        (supabase as any).from("profiles").select("id,user_id,nom_complet,telephone,equipe_id,actif").eq("actif",true).ilike("nom_complet", search.trim() ? `%${search.trim()}%` : "%").order("nom_complet").limit(50),
+      const [pr,pf,cm,vp,lines,em]=await Promise.all([
+        (supabase as any).from("profiles").select("id,user_id,nom_complet,telephone,equipe_id,region_id,poste,actif").eq("actif",true).order("nom_complet").limit(5000),
         (supabase as any).from("portefeuilles").select("*").order("updated_at",{ascending:false}).limit(50),
         (supabase as any).from("commissions").select("id,profile_id,client_id,paiement_id,type_commission,montant_base,taux_commission,montant_commission,periode,statut,date_calcul,client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),paiement:paiements(id,reference,date_paiement)").order("periode",{ascending:false}).limit(2000),
         (supabase as any).from("portefeuille_versements").select("*").order("periode_debut",{ascending:false}),
         (supabase as any).from("portefeuille_versement_lignes").select("commission_id,versement_id"),
+        (supabase as any).from("equipe_membres").select("profile_id,equipe_id,equipe:equipes!equipe_membres_equipe_id_fkey(id,type_equipe)"),
       ]);
       if(pr.error)throw pr.error;if(pf.error)throw pf.error;if(cm.error)throw cm.error;if(vp.error)throw vp.error;if(lines.error)throw lines.error;
+      if(em.error)throw em.error;
       const roleRes=await (supabase as any).from("user_roles").select("user_id,role");
       const roleMap:Record<string,string[]>={};
       (roleRes.data||[]).forEach((r:any)=>(roleMap[r.user_id]||=[]).push(r.role));
-      const profilesData=(pr.data||[]).map((p:any)=>({...p,roles:roleMap[p.user_id]||[]}));
+      const membershipsByProfile=new Map<string,any[]>();
+      (em.data||[]).forEach((m:any)=>{const list=membershipsByProfile.get(m.profile_id)||[];list.push(m);membershipsByProfile.set(m.profile_id,list);});
+      const profilesData=(pr.data||[]).map((p:any)=>({...p,roles:roleMap[p.user_id]||[],teamMemberships:membershipsByProfile.get(p.id)||[]}));
+      const commissionsData=cm.data||[];
+      const paidPayoutsByProfile=new Map<string,number>();
+      (vp.data||[]).filter((v:any)=>v.statut==="paye").forEach((v:any)=>paidPayoutsByProfile.set(v.profile_id,(paidPayoutsByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
+      const commissionTotals=new Map<string,{gagne:number,solde:number,verse:number}>();
+      commissionsData.forEach((row:any)=>{const totals=commissionTotals.get(row.profile_id)||{gagne:0,solde:0,verse:0};const amount=Number(row.montant_commission||0);if(["calculee","validee","payee"].includes(row.statut))totals.gagne+=amount;if(["calculee","validee"].includes(row.statut))totals.solde+=amount;commissionTotals.set(row.profile_id,totals);});
+      const walletRows=profilesData.map((profile:any)=>{
+        const wallet=(pf.data||[]).find((x:any)=>x.user_id===profile.user_id);
+        const totals=commissionTotals.get(profile.id)||{gagne:0,solde:0,verse:0};
+        const totalVerse=paidPayoutsByProfile.get(profile.id) ?? Number(wallet?.total_verse||0);
+        const row={...(wallet||{}),id:wallet?.id||profile.id,user_id:profile.user_id,profile_id:profile.id,solde_commissions:totals.solde,total_gagne:totals.gagne,total_verse:totalVerse,user:profile};
+        return Number(row.solde_commissions)>0||Number(row.total_gagne)>0||Number(row.total_verse)>0?row:null;
+      }).filter(Boolean);
       setProfiles(profilesData);
-      setPortefeuilles((pf.data||[]).map((x:any)=>({...x,user:profilesData.find((p:any)=>p.user_id===x.user_id)})));
-      setCommissions(cm.data||[]);
+      setPortefeuilles(walletRows as any[]);
+      setCommissions(commissionsData);
       setVersements((vp.data||[]).map((v:any)=>({...v,lines:(lines.data||[]).filter((l:any)=>l.versement_id===v.id)})));
     }catch(e:any){toast({variant:"destructive",title:"Portefeuilles indisponibles",description:e?.message||"Erreur de chargement."});}
     finally{setLoading(false);}
@@ -71,16 +89,23 @@ export default function Portefeuilles(){
   useEffect(()=>{ const t=window.setTimeout(()=>void load(),250); return ()=>window.clearTimeout(t); },[search]);
 
   const visibleProfiles=useMemo(()=>{
-    if(isSuperAdmin||isPdg||can("portefeuilles.manage_payouts"))return profiles;
     const me=profiles.find((p:any)=>p.user_id===user?.id);
+    if(isSuperAdmin||isPdg||can("portefeuilles.manage_payouts")||me?.roles?.some((r:string)=>FINANCE_ROLES.includes(r)))return profiles;
     if(!me)return [];
-    const manager=me.roles?.some((r:string)=>TEAM_ROLES.includes(r));
-    if(manager&&me.equipe_id)return profiles.filter((p:any)=>p.equipe_id===me.equipe_id);
+    if(me.roles?.includes("superviseur_mobilisation_fonciere")&&me.region_id){
+      return profiles.filter((p:any)=>p.roles?.includes("mobilisateur_foncier")&&p.region_id===me.region_id);
+    }
+    const managerRoles=me.roles?.filter((r:string)=>TEAM_ROLES.includes(r))||[];
+    if(managerRoles.length){
+      const teamIds=new Set<string>([me.equipe_id,...(me.teamMemberships||[]).map((m:any)=>m.equipe_id)].filter(Boolean));
+      const teamTypes=managerRoles.flatMap((r:string)=>r==="chef_equipe_technique"?["technique"]:r==="chef_equipe_commercial"||r==="responsable_commercial"?["commercial"]:["commercial","technique"]);
+      return profiles.filter((p:any)=>p.user_id===user?.id||(p.teamMemberships||[]).some((m:any)=>teamIds.has(m.equipe_id)&&teamTypes.some((t:string)=>String(m.equipe?.type_equipe||"").toLowerCase().includes(t)))||Boolean(p.equipe_id&&teamIds.has(p.equipe_id)));
+    }
     return profiles.filter((p:any)=>p.user_id===user?.id);
   },[profiles,user,isSuperAdmin,isPdg,can]);
 
   const filtered=useMemo(()=>portefeuilles.filter((p:any)=>{
-    if(!visibleProfiles.some((x:any)=>x.user_id===p.user_id))return false;
+    if(!visibleProfiles.some((x:any)=>x.id===p.profile_id||x.user_id===p.user_id))return false;
     const q=search.trim().toLowerCase();
     return !q||p.user?.nom_complet?.toLowerCase().includes(q);
   }),[portefeuilles,visibleProfiles,search]);
@@ -101,7 +126,7 @@ export default function Portefeuilles(){
 
   const detailRows=useMemo(()=>{
     if(!selected)return [];
-    return commissions.filter((c:any)=>c.profile_id===selected.user?.id||c.profile_id===selected.id)
+    return commissions.filter((c:any)=>c.profile_id===selected.profile_id||c.profile_id===selected.user?.id||c.profile_id===selected.id)
       .filter((c:any)=>c.periode>=periodStart&&c.periode<=periodEnd)
       .sort((a:any,b:any)=>String(b.periode||"").localeCompare(String(a.periode||"")));
   },[commissions,selected,periodStart,periodEnd]);
@@ -186,7 +211,7 @@ export default function Portefeuilles(){
               <TableBody>
                 {loading?<TableRow><TableCell colSpan={5} className="py-8 text-center">Chargement…</TableCell></TableRow>:filtered.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Aucun portefeuille.</TableCell></TableRow>:paginatedPortefeuilles.map((p:any)=><TableRow key={p.id} className="cursor-pointer hover:bg-muted/40" onClick={()=>setSelected(p)}>
                   <TableCell className="font-medium">{formatUserShortName(p.user?.nom_complet||"—")}</TableCell>
-                  <TableCell><Badge variant="outline">{p.user?.roles?.includes("commercial")?"Commercial":"Technique / Encadrement"}</Badge></TableCell>
+                  <TableCell><Badge variant="outline">{(p.user?.roles||[]).map((role:string)=>ROLE_LABELS[role]||role).filter(Boolean).slice(0,2).join(" / ")||p.user?.poste||"Rôle non renseigné"}</Badge></TableCell>
                   <TableCell className="font-bold text-primary">{money(p.solde_commissions)}</TableCell>
                   <TableCell>{money(p.total_gagne)}</TableCell>
                   <TableCell>{money(p.total_verse)}</TableCell>
