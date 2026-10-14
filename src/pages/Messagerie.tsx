@@ -92,13 +92,21 @@ export default function Messagerie() {
   useEffect(() => {
     void loadRecent();
     void loadClients();
-    const clientId = params.get("client");
-    if (clientId) void loadSelected(clientId);
     const channel = supabase.channel("crm-messaging-index")
       .on("postgres_changes", { event: "*", schema: "public", table: "portail_messages" }, () => { void loadRecent(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    const clientId = params.get("client");
+    if (!clientId) {
+      setMobileConversation(false);
+      return;
+    }
+    setMobileConversation(true);
+    if (selected?.id !== clientId) void loadSelected(clientId);
+  }, [params, selected?.id]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadClients(query), 220);
