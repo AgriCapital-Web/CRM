@@ -11,7 +11,7 @@ interface NotificationPayload {
   tag?: string;
 }
 
-function decodeVapidKey(value: string) { const padded = value + "=".repeat((4 - value.length % 4) % 4); const raw = atob(padded.replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(raw, (character) => character.charCodeAt(0)); }
+function decodeVapidKey(value: string): ArrayBuffer { const padded = value + "=".repeat((4 - value.length % 4) % 4); const raw = atob(padded.replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(raw, (character) => character.charCodeAt(0)).buffer as ArrayBuffer; }
 
 export const usePushNotifications = () => {
   const { toast } = useToast();
