@@ -37,6 +37,8 @@ const REF_TABLES = [
   { store: STORES.DOCUMENTS_ACQUISITION, table: 'documents_acquisition' },
   { store: STORES.PORTAIL_MESSAGES, table: 'portail_messages' },
   { store: STORES.BENEFICIAIRE_ATTRIBUTIONS, table: 'beneficiaire_attributions' },
+  { store: STORES.CARTES_PERSONNEL, table: 'cartes_personnel' },
+  { store: STORES.TICKETS, table: 'tickets' },
   { store: STORES.COMMISSIONS, table: 'commissions' },
   { store: STORES.PORTEFEUILLES, table: 'portefeuilles' },
   { store: STORES.PORTEFEUILLE_VERSEMENTS, table: 'portefeuille_versements' },
