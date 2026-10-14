@@ -299,6 +299,7 @@ async function deliver(args: {
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         } else if (channel === "whatsapp") {
+          assertWhatsAppLength(rendered);
           const result = await sendWhatsApp(contact, rendered, dedupeKey, mediaForChannel[0]?.ref);
           for (let i = 1; i < mediaForChannel.length; i++) {
             await sendWhatsApp(contact, "", dedupeKey + ":media:" + i, mediaForChannel[i].ref);
@@ -313,7 +314,7 @@ async function deliver(args: {
             sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         } else {
-          const result = await sendSms(contact, assertSmsLength(rendered), dedupeKey);
+          const result = await sendSms(contact, assertSmsLength(normalizeSms(rendered)), dedupeKey);
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: String(result.messageId || ""),
             contenu: result.content, sent_at: new Date().toISOString(),
