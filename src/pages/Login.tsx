@@ -64,7 +64,7 @@ const Login = () => {
           <img
             src={logoWhite}
             alt="AgriCapital"
-            className="block w-full max-w-[min(44vw,720px)] max-h-[62svh] object-contain mx-auto mb-5 xl:mb-7 drop-shadow-2xl"
+            className="block w-full max-w-[min(48vw,900px)] max-h-[72svh] object-contain mx-auto mb-5 xl:mb-7 drop-shadow-2xl"
           />
           <p className="text-white text-xl xl:text-2xl font-semibold mb-2">Espace équipe</p>
           

@@ -2,7 +2,6 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 import webpush from "npm:web-push@3.6.7";
-import webpush from "npm:web-push@3.6.7";
 
 const ALLOWED_ORIGINS = new Set(
   (Deno.env.get("ALLOWED_ORIGINS") || "https://agricapital.ci,https://www.agricapital.ci,https://app.agricapital.ci,https://crm.agricapital.ci,https://portail.agricapital.ci,http://localhost:5173,http://localhost:8080")

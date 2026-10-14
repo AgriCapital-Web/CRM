@@ -264,17 +264,22 @@ All colors MUST be HSL.
     }
 
     .login-brand-mobile__logo {
-      width: min(100%, 540px);
+      width: min(100%, 640px);
       max-width: 100%;
-      height: clamp(190px, 34vh, 310px);
-      max-height: 34vh;
+      height: clamp(220px, 38svh, 360px);
+      max-height: 38svh;
       object-fit: contain;
       flex: 0 0 auto;
     }
   }
 
   @media (min-width: 641px) and (max-width: 1023px) {
-    .login-brand-mobile__logo { width: min(100%, 500px); height: clamp(210px, 32vh, 290px); max-height: 32vh; object-fit: contain; }
+    .login-brand-mobile__logo { width: min(100%, 620px); height: clamp(240px, 38svh, 340px); max-height: 38svh; object-fit: contain; }
+  }
+
+  @media (min-width: 1024px) {
+    .login-brand-mobile__logo { width: min(100%, 900px); }
+  }
   }
 
   /* Smooth scrolling */

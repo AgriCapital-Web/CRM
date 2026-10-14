@@ -11,6 +11,62 @@ type Props = {
 };
 
 type Preview = { file: File; url: string };
+const MAX_UPLOAD_VIDEO_SECONDS = 30 * 60;
+const MAX_RECORD_VIDEO_SECONDS = 10 * 60;
+const MAX_IMAGE_DIMENSION = 2560;
+
+async function optimizeImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.type === "image/gif" || file.size < 700 * 1024) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { bitmap.close(); return file; }
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.88));
+    if (!blob || blob.size >= file.size) return file;
+    const stem = file.name.replace(/\\.[^.]+$/, "");
+    return new File([blob], `${stem}.webp`, { type: "image/webp", lastModified: Date.now() });
+  } catch { return file; }
+}
+
+async function optimizeVideo(file: File): Promise<File> {
+  if (!file.type.startsWith("video/")) return file;
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.src = url; video.muted = true; video.playsInline = true; video.preload = "metadata";
+  try {
+    await new Promise<void>((resolve, reject) => { video.onloadedmetadata = () => resolve(); video.onerror = () => reject(new Error("Vidéo illisible")); });
+    if (video.duration > MAX_UPLOAD_VIDEO_SECONDS) throw new Error("Une vidéo téléversée ne peut pas dépasser 30 minutes.");
+    if (file.size < 12 * 1024 * 1024 || typeof MediaRecorder === "undefined" || !video.captureStream || !HTMLCanvasElement.prototype.captureStream) return file;
+    const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((v) => MediaRecorder.isTypeSupported(v));
+    if (!mime) return file;
+    const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(2, Math.round(video.videoWidth * scale / 2) * 2);
+    canvas.height = Math.max(2, Math.round(video.videoHeight * scale / 2) * 2);
+    const ctx = canvas.getContext("2d"); if (!ctx) return file;
+    const stream = canvas.captureStream(24);
+    const sourceStream = video.captureStream(); sourceStream.getAudioTracks().forEach((track) => stream.addTrack(track));
+    const chunks: BlobPart[] = [];
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 96_000 });
+      let raf = 0;
+      const draw = () => { if (video.ended || video.paused) return; ctx.drawImage(video, 0, 0, canvas.width, canvas.height); raf = requestAnimationFrame(draw); };
+      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      recorder.onerror = () => reject(new Error("Compression vidéo impossible"));
+      recorder.onstop = () => { cancelAnimationFrame(raf); resolve(new Blob(chunks, { type: mime })); };
+      video.onended = () => { if (recorder.state !== "inactive") recorder.stop(); };
+      recorder.start(1000); video.currentTime = 0; void video.play().then(draw).catch(reject);
+    });
+    if (!blob.size || blob.size >= file.size) return file;
+    return new File([blob], `${file.name.replace(/\\.[^.]+$/, "")}.webm`, { type: mime, lastModified: Date.now() });
+  } catch (error) { throw error; } finally { URL.revokeObjectURL(url); video.pause(); video.src = ""; }
+}
 
 export default function MediaUploadVisual({
   label = "Photos / vidéos",
@@ -22,6 +78,12 @@ export default function MediaUploadVisual({
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [previews, setPreviews] = useState<Preview[]>([]);
+  const [processing, setProcessing] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   // Create object URLs only in an effect (never during render) and always
   // release them. This avoids leaking URLs and makes mobile Safari more stable.
@@ -31,9 +93,24 @@ export default function MediaUploadVisual({
     return () => next.forEach(({ url }) => URL.revokeObjectURL(url));
   }, [files]);
 
-  const addFiles = (selected: File[]) => {
+  const addFiles = async (selected: File[]) => {
     if (!selected.length) return;
-    onChange(multiple ? [...files, ...selected] : [selected[0]]);
+    setProcessing(true);
+    try {
+      const optimized: File[] = [];
+      for (const original of selected) {
+        if (original.type.startsWith("video/")) {
+          const url = URL.createObjectURL(original);
+          try {
+            const duration = await new Promise<number>((resolve, reject) => { const v = document.createElement("video"); v.preload = "metadata"; v.onloadedmetadata = () => { const d = v.duration; URL.revokeObjectURL(url); resolve(d); }; v.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Vidéo illisible")); }; v.src = url; });
+            if (duration > MAX_UPLOAD_VIDEO_SECONDS) throw new Error(`${original.name} dépasse la durée maximale de 30 minutes.`);
+          } catch (error) { throw error; }
+          optimized.push(await optimizeVideo(original));
+        } else optimized.push(await optimizeImage(original));
+      }
+      onChange(multiple ? [...files, ...optimized] : [optimized[0]]);
+    } catch (error) { window.dispatchEvent(new CustomEvent("media-upload-error", { detail: error instanceof Error ? error.message : "Traitement média impossible." })); }
+    finally { setProcessing(false); }
   };
 
   const handlePickerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,7 +120,7 @@ export default function MediaUploadVisual({
     const input = event.currentTarget;
     const selected = Array.from(input.files ?? []);
     input.value = "";
-    addFiles(selected);
+    void addFiles(selected);
   };
 
   return (
@@ -67,7 +144,7 @@ export default function MediaUploadVisual({
         onClick={(event) => event.stopPropagation()}
         onChange={handlePickerChange}
       />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <Button
           type="button"
           variant="outline"
@@ -95,7 +172,7 @@ export default function MediaUploadVisual({
           Ajouter {multiple ? "des fichiers" : "un fichier"}
         </Button>
       </div>
-      {files.length > 0 && (
+      {processing && <p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}\n      {files.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {previews.map(({ file, url }, index) => (
             <div
