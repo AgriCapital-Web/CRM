@@ -101,8 +101,8 @@ const Parcelles = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card><CardContent className="p-4 flex items-center gap-3"><Layers className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{parcelles.length}</div><div className="text-xs text-muted-foreground">Parcelles</div></div></CardContent></Card>
-            <Card><CardContent className="p-4 flex items-center gap-3"><MapPin className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{totalSurface.toFixed(1)}</div><div className="text-xs text-muted-foreground">ha référencés</div></div></CardContent></Card>
-            <Card><CardContent className="p-4 flex items-center gap-3"><Sprout className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{totalAgri.toFixed(1)}</div><div className="text-xs text-muted-foreground">ha part AgriCapital</div></div></CardContent></Card>
+            <Card><CardContent className="p-4 flex items-center gap-3"><MapPin className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{Math.round(totalSurface).toLocaleString("fr-FR")}</div><div className="text-xs text-muted-foreground">ha référencés</div></div></CardContent></Card>
+            <Card><CardContent className="p-4 flex items-center gap-3"><Sprout className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{Math.round(totalAgri).toLocaleString("fr-FR")}</div><div className="text-xs text-muted-foreground">ha part AgriCapital</div></div></CardContent></Card>
             <Card><CardContent className="p-4 flex items-center gap-3"><Layers className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{totalLots}</div><div className="text-xs text-muted-foreground">lots AgriCapital</div></div></CardContent></Card>
           </div>
 
@@ -135,9 +135,9 @@ const Parcelles = () => {
                     <TableCell className="font-medium">{p.nom || p.village || "Parcelle"}</TableCell>
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
-                    <TableCell>{Number(p.surface_totale_ha || 0).toFixed(2)} ha</TableCell>
+                    <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
                     <TableCell>{p.proprietaires_terres?.nom_complet ? p.proprietaires_terres.nom_complet : (ownClient ? parcelClients[0]?.nom_complet || "Client" : "—")}</TableCell>
-                    <TableCell>{Number(p.surface_agricapital_ha || 0).toFixed(2)} ha</TableCell>
+                    <TableCell>{Math.round(Number(p.surface_agricapital_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
                     <TableCell>{parcelLots.length || "—"}</TableCell>
                     <TableCell className="max-w-[280px] text-xs">
                       {parcelClients.length ? parcelClients.map(c => <div key={c.id}>{c.nom_complet} · {c.total_hectares} ha</div>) : "—"}
