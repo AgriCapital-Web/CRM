@@ -170,6 +170,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         const custom = client?.paiement_personnalise?.actif ? client.paiement_personnalise : null;
         const customInitial = Number(custom?.paiement_initial?.montant ?? custom?.paiement_initial?.montant_theorique ?? client?.paiement_initial_montant ?? 0);
         setValue("montant_theorique", customInitial > 0 ? customInitial : undefined);
+        if (customInitial > 0 && (montantPaye === undefined || montantPaye === null || montantPaye === "" || Number(montantPaye) <= 0)) setValue("montant_paye", customInitial);
         return;
       }
 
@@ -615,14 +616,14 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Montant unitaire:</span>
                   <span className="font-medium">
-                    {montantCalculePI.toLocaleString()} F
+                    {Number(prixPI?.pi_effectif || 0).toLocaleString()} F / ha
                   </span>
                 </div>
                 {promotionActive && (
                   <div className="flex justify-between text-green-600">
                     <span>Économie:</span>
                     <span className="font-bold">
-                      {((prixPI?.pi_base || 0) - (montantCalculePI || 0)).toLocaleString()} F
+                      {Math.max(0, Number((prixPI?.pi_base || 0) - (prixPI?.pi_effectif || 0)) * clientSurface).toLocaleString()} F
                     </span>
                   </div>
                 )}
