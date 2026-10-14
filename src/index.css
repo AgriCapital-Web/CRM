@@ -887,3 +887,24 @@ All colors MUST be HSL.
 }
 
 }
+
+
+/* Fiche acquisition client : densité maîtrisée sur ordinateur et mobile. */
+.client-detail-compact [data-slot="card-header"] { padding: .65rem .8rem; }
+.client-detail-compact [data-slot="card-content"] { padding: .65rem .8rem; }
+.client-detail-compact [data-slot="card-title"] { font-size: .9rem; line-height: 1.25rem; }
+.client-detail-compact table { width: 100%; table-layout: auto; }
+.client-detail-compact table th,
+.client-detail-compact table td { padding: .38rem .55rem; line-height: 1.25; font-size: .8125rem; }
+.client-detail-compact table tbody tr { height: auto; }
+.client-detail-compact table td { overflow-wrap: anywhere; }
+.client-detail-compact [role="tablist"] { max-width: 100%; }
+.client-detail-compact [role="tab"] { padding: .4rem .55rem; font-size: .8125rem; gap: .3rem; }
+.client-detail-compact img { max-width: 100%; }
+@media (max-width: 640px) {
+  .client-detail-compact [data-slot="card-header"] { padding: .55rem .65rem; }
+  .client-detail-compact [data-slot="card-content"] { padding: .55rem .65rem; }
+  .client-detail-compact table th,
+  .client-detail-compact table td { padding: .32rem .4rem; font-size: .75rem; }
+  .client-detail-compact [role="tab"] { padding: .35rem .45rem; font-size: .75rem; }
+}
