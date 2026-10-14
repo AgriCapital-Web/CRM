@@ -714,31 +714,31 @@ const Dashboard = () => {
                 <div className="md:col-span-2 xl:col-span-3"><h2 id="dashboard-performance" className="text-lg font-extrabold uppercase tracking-wide">Performance et répartition</h2></div>
 {teamPerformance.length > 0 && (
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Performance par équipe</CardTitle></CardHeader>
-                  <CardContent><div className="responsive-auto-grid">{teamPerformance.map((team) => (
-                    <div key={team.key} className="rounded-xl border p-3"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" dossier(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-2 text-sm">{num(team.hectares)} ha rattachés</p>}</div>
+                  <CardHeader className="px-3 pb-1 pt-3"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Équipes</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-1"><div className="responsive-auto-grid">{teamPerformance.map((team) => (
+                    <div key={team.key} className="rounded-lg border p-2"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" dossier(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-1 text-xs text-muted-foreground">{num(team.hectares)} ha</p>}</div>
                   ))}</div></CardContent>
                 </Card>
               )}
 
               {offerPerformance.length > 0 && canClients && <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Performance par offre</CardTitle></CardHeader>
-                <CardContent><ResponsiveContainer width="100%" height={Math.max(120, Math.min(190, offerPerformance.length * 30))}><BarChart data={offerPerformance} layout="vertical" margin={{ left: 2, right: 6, top: 2, bottom: 2 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={86} tick={{ fontSize: 9 }} /><Tooltip /><Bar dataKey="clients" name="Clients" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent>
+                <CardHeader className="px-3 pb-1 pt-3"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Par offre</CardTitle></CardHeader>
+                <CardContent className="px-2 pb-2 pt-0"><ResponsiveContainer width="100%" height={Math.max(105, Math.min(155, offerPerformance.length * 25))}><BarChart data={offerPerformance} layout="vertical" margin={{ left: 0, right: 4, top: 0, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis type="category" dataKey="name" width={74} tick={{ fontSize: 9 }} /><Tooltip /><Bar dataKey="clients" name="Clients" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent>
               </Card>}
 
               {(canClients || canFinance) && stats.activeContracts > 0 && (
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" />Parcours des dossiers</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className={canFinance ? "grid grid-cols-2 md:grid-cols-4 gap-3" : "grid grid-cols-3 gap-3"}>
+                  <CardHeader className="px-3 pb-1 pt-3"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" />État des dossiers</CardTitle></CardHeader>
+                  <CardContent className="p-3 pt-1">
+                    <div className={canFinance ? "grid grid-cols-2 md:grid-cols-4 gap-2" : "grid grid-cols-3 gap-2"}>
                       {canClients && <>
-                        <div className="rounded-xl bg-muted/50 p-3"><p className="text-xs text-muted-foreground">Dossiers actifs</p><p className="text-xl font-bold">{stats.activeContracts}</p></div>
-                        <div className="rounded-xl bg-muted/50 p-3"><p className="text-xs text-muted-foreground">Installation</p><p className="text-xl font-bold">{stats.installationContracts}</p></div>
-                        <div className="rounded-xl bg-muted/50 p-3"><p className="text-xs text-muted-foreground">Production</p><p className="text-xl font-bold">{stats.productionContracts}</p></div>
+                        <div className="rounded-lg bg-muted/50 p-2"><p className="text-[11px] leading-tight text-muted-foreground">Actifs</p><p className="mt-1 text-lg font-bold leading-tight">{stats.activeContracts}</p></div>
+                        <div className="rounded-lg bg-muted/50 p-2"><p className="text-[11px] leading-tight text-muted-foreground">En installation</p><p className="mt-1 text-lg font-bold leading-tight">{stats.installationContracts}</p></div>
+                        <div className="rounded-lg bg-muted/50 p-2"><p className="text-[11px] leading-tight text-muted-foreground">En production</p><p className="mt-1 text-lg font-bold leading-tight">{stats.productionContracts}</p></div>
                       </>}
                       {canFinance && <>
                         
-                        <div className="rounded-xl bg-muted/50 p-3"><p className="text-xs text-muted-foreground">Avancement moyen</p><p className="text-xl font-bold">{stats.avgDaysRemaining == null && stats.avgProgress === 0 ? "—" : stats.avgProgress + "%"}</p></div>
+                        <div className="rounded-lg bg-muted/50 p-2"><p className="text-[11px] leading-tight text-muted-foreground">Paiement moyen</p><p className="mt-1 text-lg font-bold leading-tight">{stats.avgDaysRemaining == null && stats.avgProgress === 0 ? "—" : stats.avgProgress + "%"}</p></div>
                       </>}
                     </div>
                   </CardContent>
