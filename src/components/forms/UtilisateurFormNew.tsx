@@ -99,7 +99,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const showEquipe = isCommercialProfile || isTechniqueProfile || selectedRoles.some((role) => ["pdg", "dg"].includes(role.toLowerCase()));
 
   const equipesFiltrees = useMemo(() => {
-    if (isCommercialProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "commerciale");
+    if (isCommercialProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "commercial");
     if (isTechniqueProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "technique");
     return equipes;
   }, [equipes, isCommercialProfile, isTechniqueProfile]);
