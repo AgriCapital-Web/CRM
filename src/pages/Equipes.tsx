@@ -173,6 +173,7 @@ const Equipes = () => {
       toast({ title: "Membre ajouté", description: "L'affectation est confirmée dans la base." });
       setSelectedMemberId("");
       await fetchMembers(membersEquipe);
+      await fetchData();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
     }
@@ -197,7 +198,10 @@ const Equipes = () => {
         throw new Error("Le retrait du membre de cette équipe n'est pas confirmé.");
       }
       toast({ title: "Membre retiré", description: "Le retrait est confirmé dans la base." });
-      if (membersEquipe) await fetchMembers(membersEquipe);
+      if (membersEquipe) {
+        await fetchMembers(membersEquipe);
+        await fetchData();
+      }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
     }
@@ -385,7 +389,7 @@ const Equipes = () => {
               Nouvelle Équipe
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{selectedEquipe ? "Modifier l'équipe" : "Nouvelle équipe"}</DialogTitle>
             </DialogHeader>
