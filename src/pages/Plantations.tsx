@@ -38,7 +38,7 @@ const Plantations = () => {
         .from("plantations")
         .select(`
           *,
-          clients (nom, prenoms, nom_complet, id, id_unique, is_internal),
+          clients (nom, prenoms, nom_complet, id, id_unique, is_internal, type_client, type_client_foncier, proprietaire_id),
           parcelles (id_unique, nom, village),
           lots_hectares (id, reference, numero_h, surface_ha, client_id, parcelle_id),
           regions (nom),
@@ -152,9 +152,9 @@ const Plantations = () => {
 
           <div className="responsive-auto-grid gap-3">
             <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Nombre</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{nombreTotal}</div><p className="text-xs text-muted-foreground mt-1">plantation(s)</p></CardContent></Card>
-            <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Superficie</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{superficieTotale.toFixed(1)} ha</div><p className="text-xs text-muted-foreground mt-1">rattachée</p></CardContent></Card>
-            <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Superficie plantée</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{superficiePlantee.toFixed(1)} ha</div><p className="text-xs text-muted-foreground mt-1">{superficieTotale > 0 ? `${((superficiePlantee / superficieTotale) * 100).toFixed(0)}%` : "0%"} du total</p></CardContent></Card>
-            <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">En production</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{nombreEnProduction}</div><p className="text-xs text-muted-foreground mt-1">{superficieEnProduction.toFixed(1)} ha</p></CardContent></Card>
+            <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Superficie</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{Math.round(superficieTotale).toLocaleString("fr-FR")} ha</div><p className="text-xs text-muted-foreground mt-1">rattachée</p></CardContent></Card>
+            <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Superficie plantée</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{Math.round(superficiePlantee).toLocaleString("fr-FR")} ha</div><p className="text-xs text-muted-foreground mt-1">{superficieTotale > 0 ? `${((superficiePlantee / superficieTotale) * 100).toFixed(0)}%` : "0%"} du total</p></CardContent></Card>
+            <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">En production</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{nombreEnProduction}</div><p className="text-xs text-muted-foreground mt-1">{Math.round(superficieEnProduction).toLocaleString("fr-FR")} ha</p></CardContent></Card>
           </div>
 
           <div className="relative">
@@ -165,30 +165,35 @@ const Plantations = () => {
           <div className="border rounded-lg overflow-x-auto">
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
-                <TableHead>Nom</TableHead><TableHead>Client / dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
+                <TableHead>P. / client</TableHead><TableHead>Dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement...</TableCell></TableRow>
                 : filteredPlantations.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8">Aucune plantation trouvée</TableCell></TableRow>
                 : paginatedPlantations.map((plantation) => (
                   <TableRow key={plantation.id} className="hover:bg-muted/40">
-                    <TableCell className="font-mono text-sm font-medium">
-                      {plantation.nom || "Plantation"}
+                    <TableCell className="font-mono text-xs font-medium">
+                      <Link to={`/plantations/${plantation.id}`} className="hover:underline" title={plantation.nom_plantation || plantation.nom || "Plantation"}>{plantation.id_unique || plantation.nom || "P."}</Link>
                     </TableCell>
-                    <TableCell className="font-medium"><Link to={`/plantations/${plantation.id}`} className="hover:underline">{plantation.nom_plantation || plantation.nom}</Link></TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium">
                       {plantation.clients ? (
-                        <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline">
-                          {plantation.clients.nom_complet || `${plantation.clients.nom || ""} ${plantation.clients.prenoms || ""}`}
-                          <span className="block text-xs text-muted-foreground">{plantation.clients.is_internal ? "Bénéficiaire interne AgriCapital" : plantation.clients.id_unique}</span>
+                        <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline" title={plantation.clients.nom_complet || [plantation.clients.nom, plantation.clients.prenoms].filter(Boolean).join(" ")}>
+                          <span className="block max-w-[12rem] truncate">{plantation.clients.nom_complet || [plantation.clients.nom, plantation.clients.prenoms].filter(Boolean).join(" ") || "Client"}</span>
+                          <span className="text-[10px] text-muted-foreground">{plantation.clients.id_unique || "Dossier"}</span>
                         </Link>
                       ) : "—"}
                     </TableCell>
-                    <TableCell>{plantation.parcelles?.id_unique || plantation.parcelles?.nom || "—"}</TableCell>
-                    <TableCell>{plantation.lots_hectares?.reference || (plantation.lots_hectares?.numero_h ? `H${String(plantation.lots_hectares.numero_h).padStart(2,"0")}` : "—")}</TableCell>
-                    <TableCell><span className="font-semibold">{Number(plantation.surface_reellement_plantee ?? plantation.superficie_activee ?? plantation.superficie_ha ?? 0).toFixed(2)}</span> ha</TableCell>
-                    <TableCell><div className="flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" /><span className="text-sm">{plantation.regions?.nom || "-"}</span></div></TableCell>
-                    <TableCell><Badge className={getStatutBadge(plantation.statut_global || plantation.statut)}>{formatStatut(plantation.statut_global || plantation.statut || "actif")}</Badge></TableCell>
+                    <TableCell title={plantation.parcelles?.nom || plantation.parcelles?.id_unique || ""}>
+                      <span className="block max-w-[9rem] truncate">{plantation.parcelles?.nom || plantation.parcelles?.id_unique || plantation.parcelles?.village || "—"}</span>
+                    </TableCell>
+                    <TableCell>
+                      {plantation.clients?.type_client === "beneficiaire_particulier" && plantation.lots_hectares?.client_id === plantation.clients?.id
+                        ? (plantation.lots_hectares?.reference || (plantation.lots_hectares?.numero_h != null ? `Lot ${plantation.lots_hectares.numero_h}` : "—"))
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="font-semibold tabular-nums">{Math.round(Number(plantation.surface_reellement_plantee ?? plantation.superficie_activee ?? plantation.superficie_ha ?? 0)).toLocaleString("fr-FR")} ha</TableCell>
+                    <TableCell><div className="flex items-center gap-1 whitespace-nowrap"><MapPin className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="text-xs">{plantation.regions?.nom || "—"}</span></div></TableCell>
+                    <TableCell><Badge className={"whitespace-nowrap text-[10px] px-1.5 py-0 " + getStatutBadge(plantation.statut_global || plantation.statut)}>{formatStatut(plantation.statut_global || plantation.statut || "actif")}</Badge></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" asChild><Link to={`/plantations/${plantation.id}`} title="Voir la fiche"><Eye className="h-4 w-4" /></Link></Button>
