@@ -43,7 +43,9 @@ export default function GestionRemuneration(){
         }).eq("id",row.id);
         if(error)throw error;
       }
-      toast({title:"Règles de rémunération enregistrées",description:"Les modifications sont enregistrées dans la base de données."});
+      const {data:recalculation,error:recalculationError}=await (supabase as any).rpc("recalculer_commissions_depuis_grille");
+      if(recalculationError)throw recalculationError;
+      toast({title:"Règles enregistrées et commissions recalculées",description:`Foncier : ${recalculation?.foncier_recalcule??0} · Technique : ${recalculation?.technique_recalcule??0}. Les commissions déjà payées sont conservées.`});
       await load();
     }catch(error:any){toast({variant:"destructive",title:"Enregistrement impossible",description:error?.message||"Erreur."});}
     finally{setSaving(false);}
