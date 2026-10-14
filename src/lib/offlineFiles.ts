@@ -29,6 +29,7 @@ const MAX_IMAGE_SIZE = 1920;
 const IMAGE_QUALITY = 0.78;
 const STALE_UPLOAD_MS = 5 * 60 * 1000;
 let fileFlushInProgress = false;
+let resumeConsumers = 0;
 
 /** Compresse les photos terrain avant stockage local et envoi. Les PDF restent intacts. */
 export async function compressAttachment(file: File | Blob): Promise<Blob> {
@@ -216,6 +217,17 @@ async function notifyFileQueueChanged(): Promise<void> {
 
 /** Vide la file d'attente des fichiers. Retourne le nombre d'uploads réussis. */
 export async function flushFileQueue(): Promise<number> {
+  if (!navigator.onLine) return 0;
+  const lockManager = (navigator as any).locks;
+  if (lockManager && typeof lockManager.request === "function") {
+    return lockManager.request("agricapital-file-queue-flush", { mode: "exclusive" }, () =>
+      flushFileQueueUnlocked()
+    );
+  }
+  return flushFileQueueUnlocked();
+}
+
+async function flushFileQueueUnlocked(): Promise<number> {
   if (!navigator.onLine || fileFlushInProgress) return 0;
   fileFlushInProgress = true;
   let ok = 0;
@@ -281,12 +293,21 @@ let resumeTimer: ReturnType<typeof setInterval> | null = null;
  * au retour du réseau et périodiquement — sans aucune action de l'utilisateur.
  */
 export function startFileQueueResume(intervalMs = 60_000): () => void {
-  const run = () => { flushFileQueue().catch(() => {}); };
+  let stopped = false;
+  resumeConsumers += 1;
+  const run = () => { void flushFileQueue().catch(() => {}); };
   run();
   window.addEventListener('online', run);
   if (!resumeTimer) resumeTimer = setInterval(run, intervalMs);
   return () => {
+    if (stopped) return;
+    stopped = true;
     window.removeEventListener('online', run);
-    if (resumeTimer) { clearInterval(resumeTimer); resumeTimer = null; }
+    resumeConsumers = Math.max(0, resumeConsumers - 1);
+    // Un composant qui se démonte ne doit pas arrêter la reprise des autres écrans.
+    if (resumeConsumers === 0 && resumeTimer) {
+      clearInterval(resumeTimer);
+      resumeTimer = null;
+    }
   };
 }
