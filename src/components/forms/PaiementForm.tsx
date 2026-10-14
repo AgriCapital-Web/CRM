@@ -228,7 +228,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       if (error) throw error;
       if (summaryError) throw summaryError;
       const settledIds = new Set((summaries||[]).filter((row:any)=>Number(row.montant_total_contrat||0)>0&&Number(row.reste_a_payer||0)<=0).map((row:any)=>row.client_id));
-      setClients((data||[]).filter((client:any)=>client.type_client!=="beneficiaire_particulier"&&!client.is_internal&&!client.contrat_solde_at&&!settledIds.has(client.id)));
+      setClients((data||[]).filter((client:any)=>client.type_client!=="beneficiaire_particulier"&&!client.is_internal&&!settledIds.has(client.id)));
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -467,6 +467,29 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
                 {clients.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.id_unique} - {s.nom_complet}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {typePaiement === "PI" && clientId && clientSubscriptions.length > 0 && (
+          <div>
+            <Label htmlFor="souscription_id">Contrat à régler</Label>
+            <Select
+              value={subscriptionId || "contrat-principal"}
+              onValueChange={(value) => {
+                setValue("souscription_id", value === "contrat-principal" ? "" : value);
+                if (value === "contrat-principal") setSelectedSubscription(null);
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Choisir le contrat concerné" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contrat-principal">Contrat initial du client</SelectItem>
+                {availablePiSubscriptions.map((sub: any) => (
+                  <SelectItem key={sub.id} value={sub.id}>
+                    {sub.formule_nom || sub.offre_nom} · {Number(sub.superficie_ha || 0).toLocaleString("fr-FR")} ha · PI {Number(sub.montant_pi_total || 0).toLocaleString("fr-FR")} F
                   </SelectItem>
                 ))}
               </SelectContent>
