@@ -669,7 +669,7 @@ const Dashboard = () => {
                             return (
                               <section key={groupName} className="min-w-0 rounded-xl border border-border/70 bg-background/60 p-2">
                                 <h3 className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{groupName}</h3>
-                                <div className={groupName === "Relances" || groupName === "Clients" ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"}>
+                                <div className={groupName === "Relances" || groupName === "Clients" ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-1.5 sm:gap-2"}>
                                   {items.map((metric: any) => (
                                     <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                       <span className="hidden whitespace-nowrap text-[10px] leading-snug text-muted-foreground 2xl:block">{metric.label}</span>
@@ -683,7 +683,7 @@ const Dashboard = () => {
                           })}
                         </div>
                       ) : (
-                        <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(82px,1fr))]" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6"}`}>
+                        <div className={`grid min-w-0 gap-1.5 sm:gap-2 ${k.label === "Pilotage financier" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(82px,1fr))]" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6"}`}>
                           {k.metrics.map((metric: any) => (
                             <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                               <span className="text-[10px] leading-snug text-muted-foreground sm:text-[11px]">{metric.label}</span>
@@ -877,8 +877,8 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Tractor className="h-5 w-5 text-primary" />Pilotage technique</CardTitle></CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      {cycle.map((c) => <div key={c.label} className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">{c.label}</p><p className="mt-1 text-lg font-bold">{c.pct}%</p><p className="text-xs text-muted-foreground">{c.done}/{c.total} terminées</p></div>)}
+                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-3">
+                      {cycle.map((c) => <div key={c.label} className="min-w-0 rounded-xl border p-2 sm:p-3"><p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">{c.label}</p><p className="mt-1 text-base font-bold sm:text-lg">{c.pct}%</p><p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">{c.done}/{c.total} terminées</p></div>)}
                     </div>
                   </CardContent>
                 </Card>
