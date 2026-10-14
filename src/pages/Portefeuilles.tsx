@@ -43,6 +43,7 @@ export default function Portefeuilles(){
   const { can,isSuperAdmin,isPdg }=usePermissions();
   const { user }=useAuth();
   const { toast }=useToast();
+  const canViewWallet=isSuperAdmin||isPdg||can("commissions.view")||can("portefeuilles.manage_payouts")||can("commissions.manage_payouts");
   const canManage=isSuperAdmin||isPdg||can("portefeuilles.manage_payouts")||can("commissions.manage_payouts");
   const q=fortnight();
   const [profiles,setProfiles]=useState<any[]>([]);
@@ -60,6 +61,7 @@ export default function Portefeuilles(){
   const [periodEnd,setPeriodEnd]=useState(iso(q.end));
 
   const load=async()=>{
+    if(!canViewWallet){setProfiles([]);setPortefeuilles([]);setCommissions([]);setVersements([]);setLoading(false);return;}
     setLoading(true);
     try{
       const [visibleProfileRows,walletRows,commissionsData,versementRows,versementLines]=await Promise.all([
@@ -88,7 +90,7 @@ export default function Portefeuilles(){
     }catch(e:any){toast({variant:"destructive",title:"Portefeuilles indisponibles",description:e?.message||"Erreur de chargement."});}
     finally{setLoading(false);}
   };
-  useEffect(()=>{ void load(); },[]);
+  useEffect(()=>{ void load(); },[canViewWallet]);
 
   // La RPC applique le périmètre côté base de données; la page ne reconstitue pas les droits côté navigateur.
   const visibleProfiles=useMemo(()=>profiles,[profiles]);
