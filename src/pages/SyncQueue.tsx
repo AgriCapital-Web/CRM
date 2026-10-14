@@ -57,12 +57,12 @@ export function SyncQueueContent() {
             {lastSync ? ` • dernière synchro : ${new Date(lastSync).toLocaleString("fr-FR")}` : ""}
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:items-center">
-          <OnlineBadge isOnline={isOnline} />
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:flex-nowrap lg:items-center">
+          <div className="shrink-0"><OnlineBadge isOnline={isOnline} /></div>
           <Button
             variant="outline"
             size="sm"
-            className="w-full sm:flex-1 lg:w-auto"
+            className="w-full min-w-0 sm:flex-1 lg:w-auto lg:min-w-[230px] lg:flex-none"
             onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await retryAllHttpMutations(); await syncNow(); await load(); }}
             disabled={!isOnline || fileStats.error + fileStats.waiting + httpStats.error === 0}
           >
@@ -73,10 +73,10 @@ export function SyncQueueContent() {
             onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await syncNow(); await load(); }}
             disabled={!isOnline || isSyncing}
             size="sm"
-            className="w-full sm:flex-1 lg:w-auto"
+            className="w-full shrink-0 px-3 sm:w-auto sm:flex-none"
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-            Synchroniser
+            <RefreshCw className={`mr-1.5 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+            <span className="whitespace-nowrap">Synchroniser</span>
           </Button>
         </div>
       </div>
