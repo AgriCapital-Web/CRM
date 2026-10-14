@@ -46,12 +46,15 @@ self.addEventListener("install", (event) => {
       const manifestResponse = await cache.match("/asset-manifest.json");
       if (manifestResponse) {
         const manifest = await manifestResponse.json();
+        const entries = Object.values(manifest).filter((entry) => entry && typeof entry === "object");
         const assets = new Set();
-        for (const entry of Object.values(manifest)) {
-          if (!entry || typeof entry !== "object") continue;
+        // Cache TOUS les chunks du build, pas seulement les imports du premier écran.
+        // Ainsi les pages React chargées à la demande (dynamic imports) sont aussi
+        // disponibles après installation, sans que l'utilisateur les ouvre une par une.
+        for (const entry of entries) {
           const files = [entry.file, ...(entry.css || []), ...(entry.assets || [])];
           for (const file of files) {
-            if (typeof file !== "string" || !/\.(?:js|mjs|css|woff2?|ttf|otf)$/i.test(file.split("?")[0])) continue;
+            if (typeof file !== "string" || !/\.(?:js|mjs|css|woff2?|ttf|otf|png|jpe?g|svg|webp|ico)$/i.test(file.split("?")[0])) continue;
             try {
               const asset = new URL(file.startsWith("/") ? file : "/" + file, self.location.origin);
               if (asset.origin === self.location.origin) assets.add(asset.href);
@@ -59,6 +62,8 @@ self.addEventListener("install", (event) => {
           }
         }
         const urls = Array.from(assets);
+        // Un échec isolé ne bloque pas l'installation du PWA; il sera retenté
+        // lors de la prochaine activation en ligne.
         const concurrency = 4;
         for (let offset = 0; offset < urls.length; offset += concurrency) {
           await Promise.all(urls.slice(offset, offset + concurrency).map(async (url) => {
@@ -66,7 +71,7 @@ self.addEventListener("install", (event) => {
               if (await cache.match(url)) return;
               const response = await fetch(url, { cache: "reload" });
               if (response.ok) await cache.put(url, response);
-            } catch { /* Les chunks manquants seront retentés lors d'une prochaine mise à jour. */ }
+            } catch { /* Une ressource indisponible ne bloque pas les autres. */ }
           }));
         }
       }
