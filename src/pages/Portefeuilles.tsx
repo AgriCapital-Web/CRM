@@ -19,8 +19,6 @@ import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 
-const TEAM_ROLES=["chef_equipe_commercial","chef_equipe_technique","responsable_commercial","responsable_operations"];
-const FINANCE_ROLES=["comptable","responsable_operations"];
 const ROLE_LABELS:Record<string,string>={pdg:"PDG",dg:"Directeur général",comptable:"Comptable",responsable_operations:"Responsable opérations",responsable_commercial:"Responsable commercial",chef_equipe_commercial:"Chef d’équipe commerciale",chef_equipe_technique:"Chef d’équipe technique",commercial:"Commercial",technicien:"Technicien",mobilisateur_foncier:"Mobilisateur foncier",superviseur_mobilisation_fonciere:"Superviseur foncier",service_client:"Service client",associe_actionnaire:"Associé actionnaire"};
 const fortnight=(d=new Date())=>d.getDate()<=15
   ? {start:new Date(d.getFullYear(),d.getMonth(),1),end:new Date(d.getFullYear(),d.getMonth(),15)}
@@ -51,22 +49,15 @@ export default function Portefeuilles(){
   const load=async()=>{
     setLoading(true);
     try{
-      const [pr,pf,cm,vp,lines,em]=await Promise.all([
-        (supabase as any).from("profiles").select("id,user_id,nom_complet,telephone,equipe_id,region_id,poste,actif,equipe:equipes!profiles_equipe_id_fkey(id,type_equipe)").eq("actif",true).order("nom_complet").limit(5000),
-        (supabase as any).from("portefeuilles").select("*").order("updated_at",{ascending:false}).limit(50),
+      const [pr,pf,cm,vp,lines]=await Promise.all([
+        (supabase as any).rpc("list_visible_portfolio_profiles"),
+        (supabase as any).from("portefeuilles").select("*").order("updated_at",{ascending:false}).limit(5000),
         (supabase as any).from("commissions").select("id,profile_id,client_id,paiement_id,type_commission,montant_base,taux_commission,montant_commission,periode,statut,date_calcul,client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),paiement:paiements(id,reference,date_paiement)").order("periode",{ascending:false}).limit(2000),
         (supabase as any).from("portefeuille_versements").select("*").order("periode_debut",{ascending:false}),
         (supabase as any).from("portefeuille_versement_lignes").select("commission_id,versement_id"),
-        (supabase as any).from("equipe_membres").select("profile_id,equipe_id,equipe:equipes!equipe_membres_equipe_id_fkey(id,type_equipe)"),
       ]);
       if(pr.error)throw pr.error;if(pf.error)throw pf.error;if(cm.error)throw cm.error;if(vp.error)throw vp.error;if(lines.error)throw lines.error;
-      if(em.error)throw em.error;
-      const roleRes=await (supabase as any).from("user_roles").select("user_id,role");
-      const roleMap:Record<string,string[]>={};
-      (roleRes.data||[]).forEach((r:any)=>(roleMap[r.user_id]||=[]).push(r.role));
-      const membershipsByProfile=new Map<string,any[]>();
-      (em.data||[]).forEach((m:any)=>{const list=membershipsByProfile.get(m.profile_id)||[];list.push(m);membershipsByProfile.set(m.profile_id,list);});
-      const profilesData=(pr.data||[]).map((p:any)=>({...p,roles:roleMap[p.user_id]||[],teamMemberships:membershipsByProfile.get(p.id)||[]}));
+      const profilesData=(pr.data||[]).map((p:any)=>({...p,roles:p.roles||[],teamMemberships:p.team_memberships||[]}));
       const commissionsData=cm.data||[];
       const paidPayoutsByProfile=new Map<string,number>();
       (vp.data||[]).filter((v:any)=>v.statut==="paye").forEach((v:any)=>paidPayoutsByProfile.set(v.profile_id,(paidPayoutsByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
@@ -88,24 +79,8 @@ export default function Portefeuilles(){
   };
   useEffect(()=>{ void load(); },[]);
 
-  const visibleProfiles=useMemo(()=>{
-    const me=profiles.find((p:any)=>p.user_id===user?.id);
-    if(isSuperAdmin||isPdg||can("portefeuilles.manage_payouts")||me?.roles?.some((r:string)=>FINANCE_ROLES.includes(r)))return profiles;
-    if(!me)return [];
-    if(me.roles?.includes("superviseur_mobilisation_fonciere")&&me.region_id){
-      return profiles.filter((p:any)=>p.roles?.includes("mobilisateur_foncier")&&p.region_id===me.region_id);
-    }
-    const managerRoles=me.roles?.filter((r:string)=>TEAM_ROLES.includes(r))||[];
-    if(managerRoles.length){
-      const teamTypes=managerRoles.flatMap((r:string)=>r==="chef_equipe_technique"?["technique"]:r==="chef_equipe_commercial"||r==="responsable_commercial"?["commercial"]:["commercial","technique"]);
-      const compatibleMemberships=(me.teamMemberships||[]).filter((m:any)=>teamTypes.some((t:string)=>String(m.equipe?.type_equipe||"").toLowerCase().includes(t)));
-      const teamIds=new Set<string>([me.equipe_id,...compatibleMemberships.map((m:any)=>m.equipe_id)].filter(Boolean));
-      return profiles.filter((p:any)=>p.user_id===user?.id
-        ||(p.teamMemberships||[]).some((m:any)=>teamIds.has(m.equipe_id)&&teamTypes.some((t:string)=>String(m.equipe?.type_equipe||"").toLowerCase().includes(t)))
-        ||Boolean(p.equipe_id&&teamIds.has(p.equipe_id)&&teamTypes.some((t:string)=>String(p.equipe?.type_equipe||"").toLowerCase().includes(t))));
-    }
-    return profiles.filter((p:any)=>p.user_id===user?.id);
-  },[profiles,user,isSuperAdmin,isPdg,can]);
+  // La RPC applique le périmètre côté base de données; la page ne reconstitue pas les droits côté navigateur.
+  const visibleProfiles=useMemo(()=>profiles,[profiles]);
 
   const filtered=useMemo(()=>portefeuilles.filter((p:any)=>{
     if(!visibleProfiles.some((x:any)=>x.id===p.profile_id||x.user_id===p.user_id))return false;
