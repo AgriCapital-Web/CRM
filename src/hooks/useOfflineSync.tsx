@@ -190,67 +190,68 @@ export function useOfflineSync() {
     const pendingOps = await getPendingSyncOps();
     if (!pendingOps.length) return;
 
-    setIsSyncing(true);
+    // syncNow gère déjà l'indicateur global; les poussées périodiques le gèrent ici.
+    const managesSyncState = !syncLockRef.current;
+    if (managesSyncState) setIsSyncing(true);
     let syncedCount = 0;
     let conflictCount = 0;
 
-    for (const op of pendingOps) {
-      try {
-        await markOpStatus(op.id!, 'syncing');
-        let result: any;
+    try {
+      for (const op of pendingOps) {
+        try {
+          await markOpStatus(op.id!, 'syncing');
+          let result: any;
 
-        if (op.operation === 'insert') {
-          // Les inserts hors ligne utilisent un UUID client : l'upsert rend la reprise idempotente
-          // si l'application est interrompue après l'écriture serveur mais avant le marquage local.
-          result = await (supabase as any).from(op.table).upsert(op.data, { onConflict: 'id' });
-        } else if (op.operation === 'update') {
-          // Résolution de conflit multi-appareils (merge par champ / last-write-wins)
-          const res = await resolveUpdateConflict(op.table, op.record_id, op.data, op.timestamp);
-          if (res.conflicted) conflictCount++;
-          if (res.skipped) {
-            await markOpStatus(op.id!, 'synced');
-            syncedCount++;
-            continue;
+          if (op.operation === 'insert') {
+            // UUID stable + upsert : une reprise ne crée pas de doublon après une interruption.
+            result = await (supabase as any).from(op.table).upsert(op.data, { onConflict: 'id' });
+          } else if (op.operation === 'update') {
+            const res = await resolveUpdateConflict(op.table, op.record_id, op.data, op.timestamp);
+            if (res.conflicted) conflictCount++;
+            if (res.skipped) {
+              await markOpStatus(op.id!, 'synced');
+              syncedCount++;
+              continue;
+            }
+            result = await (supabase as any).from(op.table).update(res.payload).eq('id', op.record_id);
+          } else if (op.operation === 'delete') {
+            result = await (supabase as any).from(op.table).delete().eq('id', op.record_id);
           }
-          result = await (supabase as any).from(op.table).update(res.payload).eq('id', op.record_id);
-        } else if (op.operation === 'delete') {
-          result = await (supabase as any).from(op.table).delete().eq('id', op.record_id);
-        }
 
-        if (result?.error) {
-          throw new Error(result.error.message);
+          if (result?.error) throw new Error(result.error.message);
+          await markOpStatus(op.id!, 'synced');
+          syncedCount++;
+        } catch (error: any) {
+          console.error('[OfflineSync] Push error for op:', op.id, error);
+          await markOpStatus(op.id!, 'error', error?.message || 'Unknown error');
         }
-
-        await markOpStatus(op.id!, 'synced');
-        syncedCount++;
-      } catch (error: any) {
-        console.error('[OfflineSync] Push error for op:', op.id, error);
-        await markOpStatus(op.id!, 'error', error?.message || 'Unknown error');
       }
-    }
 
-    await clearSyncedOps();
-    // Upload des pièces jointes mises en file
-    const uploadedFiles = await flushFileQueue();
-    setPendingFiles(await countQueuedFiles());
-    const stats = await getSyncQueueStats();
-    setPendingCount(stats.pending + stats.error);
-    setIsSyncing(false);
+      await clearSyncedOps();
+      const uploadedFiles = await flushFileQueue();
+      const [fileCount, stats, httpStats] = await Promise.all([
+        countQueuedFiles(),
+        getSyncQueueStats(),
+        getHttpMutationStats(),
+      ]);
+      setPendingFiles(fileCount);
+      setPendingCount(stats.pending + stats.error + httpStats.pending + httpStats.error);
 
-    if (syncedCount > 0 || uploadedFiles > 0) {
-      // Rafraîchissement des listes/pages concernées sans rechargement
-      window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-        detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount },
-      }));
-      toast({
-        title: 'Synchronisation terminée',
-        description: `${syncedCount} modification(s), ${uploadedFiles} fichier(s) envoyé(s)`
-          + `${conflictCount > 0 ? `, ${conflictCount} conflit(s) fusionné(s)` : ''}`
-          + `${stats.error > 0 ? `, ${stats.error} erreur(s)` : ''}`,
-      });
+      if (syncedCount > 0 || uploadedFiles > 0) {
+        window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+          detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount },
+        }));
+        toast({
+          title: 'Synchronisation terminée',
+          description: `${syncedCount} modification(s), ${uploadedFiles} fichier(s) envoyé(s)`
+            + `${conflictCount > 0 ? `, ${conflictCount} conflit(s) fusionné(s)` : ''}`
+            + `${stats.error + httpStats.error > 0 ? `, ${stats.error + httpStats.error} erreur(s)` : ''}`,
+        });
+      }
+    } finally {
+      if (managesSyncState) setIsSyncing(false);
     }
   }, [toast]);
-
   // Full sync: push then pull
   const syncNow = useCallback(async () => {
     if (syncLockRef.current) return;
@@ -363,6 +364,11 @@ export function useOfflineSync() {
 
   // Network status monitoring
   useEffect(() => {
+    // Demander au navigateur de préserver le cache métier et la file locale.
+    // L'API peut refuser la persistance; la synchronisation normale reste active.
+    if ("storage" in navigator && typeof navigator.storage?.persist === "function") {
+      void navigator.storage.persist().catch(() => false);
+    }
     // Reprise persistante des pièces jointes (au démarrage, au retour réseau, périodiquement)
     const stopResume = startFileQueueResume();
     const handleOnline = async () => {
