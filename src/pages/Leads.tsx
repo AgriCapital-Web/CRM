@@ -506,22 +506,39 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1fr_.55fr]">
           {[
-            { l: "Leads", v: totalLeads, i: Target },
-            { l: "Prospects", v: totalProspects, i: Users },
-            { l: "À relancer", v: stats.aRelancer, i: PhoneCall },
-            { l: "Leads convertis", v: leadsConverted, i: TrendingUp },
-            { l: "Conversion leads", v: tauxConversion + "%", i: TrendingUp },
-            { l: "Prospects convertis", v: prospectsConverted, i: TrendingUp },
-            { l: "Conversion prospects", v: tauxConversionProspects + "%", i: TrendingUp },
-          ].map((s, i) => (
-            <Card key={i} className="min-w-0 overflow-hidden">
-              <CardContent className="flex min-h-[68px] items-center justify-between gap-2 p-2.5 sm:p-3">
-                <div className="min-w-0"><p className="text-[11px] leading-tight text-muted-foreground break-words">{s.l}</p><p className="mt-1 text-xl font-bold tabular-nums">{s.v}</p></div>
-                <s.i className="h-4 w-4 shrink-0 text-primary/60 sm:h-5 sm:w-5" />
-              </CardContent>
-            </Card>
+            { title: "Leads", items: [
+              { l: "Leads", short: "Leads", v: totalLeads, i: Target },
+              { l: "Leads convertis", short: "Leads conv.", v: leadsConverted, i: TrendingUp },
+              { l: "Taux de conversion des leads", short: "Taux conv. leads", v: tauxConversion + "%", i: TrendingUp },
+            ]},
+            { title: "Prospects", items: [
+              { l: "Prospects", short: "Prospects", v: totalProspects, i: Users },
+              { l: "Prospects convertis", short: "Prospects conv.", v: prospectsConverted, i: TrendingUp },
+              { l: "Taux de conversion des prospects", short: "Taux conv. prospects", v: tauxConversionProspects + "%", i: TrendingUp },
+            ]},
+            { title: "Relances", items: [
+              { l: "À relancer", short: "À relancer", v: stats.aRelancer, i: PhoneCall },
+            ]},
+          ].map((group) => (
+            <section key={group.title} className="min-w-0 rounded-xl border border-border/70 p-2.5">
+              <h2 className="mb-2 px-1 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">{group.title}</h2>
+              <div className={group.items.length === 1 ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3"}>
+                {group.items.map((s) => (
+                  <Card key={s.l} className="min-w-0 overflow-hidden">
+                    <CardContent className="flex min-h-[68px] min-w-0 items-center justify-between gap-1.5 p-2 sm:gap-2 sm:p-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="hidden text-[11px] leading-tight text-muted-foreground sm:block xl:hidden 2xl:block">{s.l}</p>
+                        <p className="block whitespace-nowrap text-[10px] leading-tight text-muted-foreground sm:hidden xl:block 2xl:hidden">{s.short}</p>
+                        <p className="mt-1 text-xl font-bold tabular-nums">{s.v}</p>
+                      </div>
+                      <s.i className="h-4 w-4 shrink-0 text-primary/60 sm:h-5 sm:w-5" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
 
