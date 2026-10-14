@@ -200,6 +200,14 @@ const ClientDetail = () => {
       const allPlantations = plantationsData || [];
       setPlantations(allPlantations);
 
+      const { data: subscriptionsData, error: subscriptionsError } = await (supabase as any)
+        .from("client_souscriptions")
+        .select("*")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false });
+      if (subscriptionsError) throw subscriptionsError;
+      setClientSouscriptions(subscriptionsData || []);
+
       const { data: acquisitionLotRows } = await (supabase as any)
         .from("acquisition_lots")
         .select("id,lot_id,date_attribution,surface_ha,notes")
@@ -224,38 +232,37 @@ const ClientDetail = () => {
         });
       setPendingPlantationSubscriptions(pending);
 
-      // Fetch paiements
+      // Paiements liés au client ou à l'une de ses souscriptions, même avant la création physique d'une plantation.
       const plantationIds = allPlantations.map((p: any) => p.id);
+      const { data: paiementsData, error: paiementsError } = await (supabase as any)
+        .from("paiements")
+        .select("*")
+        .eq("client_id", id)
+        .neq("statut", "planifie")
+        .order("created_at", { ascending: false });
+      if (paiementsError) throw paiementsError;
+      setPaiements(paiementsData || []);
+
+      const { data: interventionsData, error: interventionsError } = await (supabase as any)
+        .from("interventions_techniques")
+        .select(`
+          *,
+          agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)
+        `)
+        .eq("client_id", id)
+        .order("date_intervention", { ascending: false });
+      if (interventionsError) throw interventionsError;
+      setInterventions(interventionsData || []);
+
       if (plantationIds.length > 0) {
-        const { data: paiementsData } = await (supabase as any)
-          .from("paiements")
-          .select("*")
-          .in("plantation_id", plantationIds)
-          .neq("statut", "planifie")
-          .order("created_at", { ascending: false });
-
-        setPaiements(paiementsData || []);
-
-        // Fetch interventions
-        const { data: interventionsData } = await (supabase as any)
-          .from("interventions_techniques")
-          .select(`
-            *,
-            agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)
-          `)
-          .in("plantation_id", plantationIds)
-          .order("date_intervention", { ascending: false });
-
-        setInterventions(interventionsData || []);
-
-        // Fetch photos
         const { data: photosData } = await (supabase as any)
           .from("photos_plantation")
           .select("*")
           .in("plantation_id", plantationIds)
           .order("date_prise", { ascending: false });
-
         setPhotos(photosData || []);
+      } else {
+        setPhotos([]);
       }
     } catch (error: any) {
       toast({
