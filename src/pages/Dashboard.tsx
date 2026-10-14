@@ -747,6 +747,7 @@ const Dashboard = () => {
 
               </section>
 
+              {(canPlantations || canClients || canPayments || canTechnical || canLeads) && (
               <section aria-labelledby="dashboard-activity" className="space-y-3 rounded-2xl border-2 border-amber-500/60 bg-amber-50/20 p-3 sm:p-4 dark:bg-amber-950/10">
                 <div><h2 id="dashboard-activity" className="text-lg font-extrabold uppercase tracking-wide">Activités récentes et carte interactive</h2></div>
               {(canPlantations || canClients) && stats.documentsPending > 0 && (
@@ -758,6 +759,7 @@ const Dashboard = () => {
 
               {canPlantations && <PlantationsMap />}
 
+              {((canClients && recentClients.length > 0) || (canPayments && recentPayments.length > 0)) && (
               <div className="rounded-xl border border-orange-500/50 p-2.5 sm:p-3">
                 <h3 className="mb-2 text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -804,7 +806,9 @@ const Dashboard = () => {
                 )}
               </div>
               </div>
+              )}
 
+              {((canPayments || canTechnical || canLeads || canClients) || (canPlantations && regional.length > 0)) && (
               <div className="rounded-xl border border-emerald-600/50 p-2.5 sm:p-3">
                 <h3 className="mb-2 text-sm font-extrabold uppercase tracking-wide">À traiter et indicateurs terrain</h3>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -858,7 +862,9 @@ const Dashboard = () => {
                 </Card>
               )}
               </div>
+              )}
               </section>
+              )}
             </>
           )}
 
