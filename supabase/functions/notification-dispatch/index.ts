@@ -429,12 +429,50 @@ async function dispatchWebPush(context: Record<string, unknown>) {
   return { sent, total: subscriptions.length };
 }
 
+async function dispatchPortalWebPush(context: Record<string, unknown>) {
+  const notificationId = String(context.portal_notification_id || "");
+  const clientId = String(context.client_id || "");
+  if (!notificationId || !clientId) throw new Error("Notification portail incomplète");
+  const { data: notification, error } = await admin.from("portail_notifications")
+    .select("id,client_id,title,message,data,dedupe_key").eq("id", notificationId).maybeSingle();
+  if (error) throw error;
+  if (!notification) return { sent: 0, skipped: true };
+  const { data: subscriptions, error: subError } = await admin.from("push_subscriptions")
+    .select("id,endpoint,p256dh,auth").eq("client_id", clientId).eq("active", true);
+  if (subError) throw subError;
+  if (!subscriptions?.length) return { sent: 0, skipped: true };
+  const { data: config, error: configError } = await admin.rpc("notification_vapid_config");
+  if (configError || !config?.public_key || !config?.private_key || !config?.subject) throw new Error("Configuration VAPID indisponible");
+  webpush.setVapidDetails(config.subject, config.public_key, config.private_key);
+  let sent = 0;
+  for (const sub of subscriptions) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        JSON.stringify({ title: notification.title, body: notification.message, notificationId: notification.id,
+          tag: notification.dedupe_key || notification.id, data: notification.data || {}, url: notification.data?.url || "/" }),
+        { TTL: 3600, urgency: "normal" },
+      );
+      sent++;
+    } catch (error: any) {
+      const statusCode = Number(error?.statusCode || error?.status || 0);
+      if (statusCode === 404 || statusCode === 410) {
+        await admin.from("push_subscriptions").update({ active: false, updated_at: new Date().toISOString() }).eq("id", sub.id);
+      } else console.warn("[WebPush portail] envoi impossible", sub.id, statusCode || "erreur");
+    }
+  }
+  return { sent, total: subscriptions.length };
+}
+
 async function runEvents(events: Array<{ id: string; event_code: string; context: Record<string, unknown> }>) {
   const results = [];
   for (const event of events.slice(0, 20)) {
     try {
       if (event.event_code === "notification_push") {
         const push = await dispatchWebPush(event.context || {});
+        results.push({ id: event.id, ok: true, push });
+      } else if (event.event_code === "portail_notification_push") {
+        const push = await dispatchPortalWebPush(event.context || {});
         results.push({ id: event.id, ok: true, push });
       } else {
         await runEvent(event.event_code, event.context || {});
