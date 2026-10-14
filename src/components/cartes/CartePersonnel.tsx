@@ -231,16 +231,16 @@ const InfoRow = ({
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "138px minmax(0,1fr)",
+      gridTemplateColumns: "150px minmax(0,1fr)",
       alignItems: "center",
-      minHeight: 42,
+      minHeight: 46,
       borderBottom: `1px solid ${GRIS_CLAIR}`,
     }}
   >
     <span
       style={{
         color: VERT,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 800,
         textTransform: "uppercase",
         letterSpacing: 0.45,
@@ -251,9 +251,9 @@ const InfoRow = ({
     <span
       style={{
         color: GRIS,
-        fontSize: 11.5,
+        fontSize: 12.5,
         fontWeight: 600,
-        lineHeight: "15px",
+        lineHeight: "16px",
         overflowWrap: "anywhere",
         wordBreak: "break-word",
       }}
