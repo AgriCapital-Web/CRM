@@ -284,22 +284,27 @@ const ClientDetail = () => {
     setLoadingPlantationOptions(true);
     void (async () => {
       try {
-        const [parcellesResult, lotsResult] = await Promise.all([
+        const [parcellesResult, lotsResult, conventionsResult] = await Promise.all([
           (supabase as any).from("parcelles")
             .select("id,id_unique,nom,village,proprietaire_id,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
             .order("id_unique", { ascending: true }),
           (supabase as any).from("lots_hectares")
-            .select("id,reference,numero_h,surface_ha,parcelle_id,statut,client_id,souscription_id")
+            .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,souscription_id")
             .is("client_id", null)
             .is("souscription_id", null)
             .in("statut", ["disponible", "libre"])
             .order("numero_h", { ascending: true }),
+          (supabase as any).from("conventions_foncieres")
+            .select("id,parcelle_id,proprietaire_id,statut")
+            .eq("statut", "active"),
         ]);
         if (!active) return;
         if (parcellesResult.error) throw parcellesResult.error;
         if (lotsResult.error) throw lotsResult.error;
+        if (conventionsResult.error) throw conventionsResult.error;
         const allParcelles = parcellesResult.data || [];
-        const lots = lotsResult.data || [];
+        const activeConventionIds = new Set((conventionsResult.data || []).map((convention: any) => convention.id));
+        const lots = (lotsResult.data || []).filter((lot: any) => activeConventionIds.has(lot.convention_id));
         const partnerParcelles = allParcelles.filter((parcel: any) =>
           !!parcel.proprietaire_id && lots.some((lot: any) => lot.parcelle_id === parcel.id)
         );
