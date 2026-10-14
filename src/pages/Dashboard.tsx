@@ -29,7 +29,7 @@ import {
 const money = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
 
-const num = (n: number, digits = 1) => Number(n || 0).toFixed(digits);
+const num = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(Number(n || 0)));
 
 const today = () => {
   const d = new Date();
