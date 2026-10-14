@@ -8,7 +8,7 @@ begin
  if new.created_by is null or coalesce(new.total_hectares,0)<=0 then return new; end if;
  select pr.id into v_profile_id from public.profiles pr join public.user_roles ur on ur.user_id=pr.user_id and ur.role='mobilisateur_foncier' where pr.user_id=new.created_by and pr.actif=true limit 1;
  if v_profile_id is null then return new; end if;
- select gr.montant into v_rate from public.grille_remuneration gr where gr.role_cible='mobilisateur_foncier' and gr.type_remuneration='mobilisation_fonciere' and gr.actif order by gr.updated_at desc limit 1;
+ select gr.montant into v_rate from public.grille_remuneration gr where gr.code_regle='MOBILISATEUR_FONCIER_PAR_HA' and gr.actif order by gr.updated_at desc limit 1;
  if coalesce(v_rate,0)<=0 then return new; end if;
  v_amount:=round(coalesce(new.total_hectares,0)*v_rate,2);
  if not exists(select 1 from public.commissions c where c.profile_id=v_profile_id and c.client_id=new.id and c.type_commission='mobilisation_fonciere') then
@@ -27,7 +27,7 @@ begin
  v_client_id:=new.client_id; if v_client_id is null then return new; end if;
  select i.agent_technique_id into v_profile_id from public.interventions_techniques i where i.client_id=v_client_id and i.type_intervention='mise_en_terre' and i.statut='realisee' order by i.date_intervention desc nulls last,i.created_at desc limit 1;
  if v_profile_id is null then return new; end if;
- select gr.montant into v_montant from public.grille_remuneration gr where gr.role_cible='equipe_technique' and gr.type_remuneration='commission_technique' and gr.actif order by gr.updated_at desc limit 1;
+ select gr.montant into v_montant from public.grille_remuneration gr where gr.code_regle='TECHNIQUE_MISE_EN_TERRE' and gr.actif order by gr.updated_at desc limit 1;
  if coalesce(v_montant,0)<=0 then return new; end if;
  if not exists(select 1 from public.commissions c where c.profile_id=v_profile_id and c.client_id=v_client_id and c.type_commission='technique' and c.plantation_id=new.id) then
   insert into public.commissions(profile_id,plantation_id,client_id,type_commission,montant_base,taux_commission,montant_commission,periode,date_calcul,statut) values(v_profile_id,new.id,v_client_id,'technique',v_montant,0,v_montant,coalesce(new.date_plantation,current_date),now(),'validee');
@@ -42,7 +42,7 @@ begin
  v_client_id:=new.client_id; v_plantation_id:=new.plantation_id;
  if v_plantation_id is null and v_client_id is not null then select p.id into v_plantation_id from public.plantations p where p.client_id=v_client_id order by p.date_plantation desc nulls last,p.created_at desc limit 1; end if;
  v_profile_id:=new.agent_technique_id; if v_profile_id is null or v_client_id is null then return new; end if;
- select gr.montant into v_montant from public.grille_remuneration gr where gr.role_cible='equipe_technique' and gr.type_remuneration='commission_technique' and gr.actif order by gr.updated_at desc limit 1;
+ select gr.montant into v_montant from public.grille_remuneration gr where gr.code_regle='TECHNIQUE_MISE_EN_TERRE' and gr.actif order by gr.updated_at desc limit 1;
  if coalesce(v_montant,0)<=0 then return new; end if;
  if not exists(select 1 from public.commissions c where c.profile_id=v_profile_id and c.client_id=v_client_id and c.type_commission='technique' and ((v_plantation_id is not null and c.plantation_id=v_plantation_id) or (v_plantation_id is null and c.plantation_id is null))) then
   insert into public.commissions(profile_id,plantation_id,client_id,type_commission,montant_base,taux_commission,montant_commission,periode,date_calcul,statut) values(v_profile_id,v_plantation_id,v_client_id,'technique',v_montant,0,v_montant,coalesce(new.date_intervention,current_date),now(),'validee');
