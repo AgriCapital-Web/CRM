@@ -110,11 +110,11 @@ const GestionNotifications = () => {
     setLoading(true);
     const [s, c, a, t, cl, prefs] = await Promise.all([
       supabase.from("notification_segments").select("*").order("nom"),
-      supabase.from("notification_campaigns").select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("notification_automations").select("*").order("nom"),
-      supabase.from("notification_templates").select("id,code,nom,canal,evenement,sujet,contenu,actif,parcours,media_attachments").order("evenement").order("canal"),
+      (supabase as any).from("notification_campaigns").select("*").order("created_at", { ascending: false }).limit(100),
+      (supabase as any).from("notification_automations").select("*").order("nom"),
+      (supabase as any).from("notification_templates").select("id,code,nom,canal,evenement,sujet,contenu,actif,parcours,media_attachments").order("evenement").order("canal"),
       supabase.from("clients").select("id,nom_complet,telephone,whatsapp,email").order("nom_complet").limit(500),
-      supabase.from("notification_client_preferences").select("client_id,canal_finalisation,canal_rappel"),
+      (supabase as any).from("notification_client_preferences").select("client_id,canal_finalisation,canal_rappel"),
     ]);
     if (s.error || c.error || a.error) toast.error("Impossible de charger la communication");
     setSegments((s.data || []) as Segment[]);
@@ -160,7 +160,7 @@ const GestionNotifications = () => {
     if (!campaign.nom.trim() || !campaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
     if ((campaign.canal === "sms" || campaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
     const selected = campaign.segment_id || segments.find((s) => s.code === campaign.audience)?.id || null;
-    const { error } = await supabase.from("notification_campaigns").insert({
+    const { error } = await (supabase as any).from("notification_campaigns").insert({
       nom: campaign.nom.trim(), description: campaign.description || null, canal: campaign.canal,
       sujet: campaign.sujet || null, contenu: campaign.canal.includes("sms") ? normalizeSms(campaign.contenu) : campaign.contenu,
       media_attachments: campaignMedia, segment_id: selected, criteres: { audience: campaign.audience },
@@ -185,7 +185,7 @@ const GestionNotifications = () => {
   const saveAutomation = async () => {
     if (!automation.nom.trim() || !automation.code.trim() || !automation.contenu.trim()) return toast.error("Code, nom et contenu obligatoires");
     if ((automation.canal === "sms" || automation.canal === "email_sms") && automationSmsCount > 155) return toast.error(`Le SMS fait ${automationSmsCount} caractères : limite 155, espaces et signes compris.`);
-    const { error } = await supabase.from("notification_automations").upsert({
+    const { error } = await (supabase as any).from("notification_automations").upsert({
       code: automation.code.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_"),
       nom: automation.nom.trim(), description: automation.description || null,
       evenement: automation.evenement, canal: automation.canal, sujet: automation.sujet || null,
@@ -204,7 +204,7 @@ const GestionNotifications = () => {
     setClientPreferences((current) => current.map((item) => item.id === clientId ? { ...item, [field]: value } : item));
     const { data: { user } } = await supabase.auth.getUser();
     const row = clientPreferences.find((item) => item.id === clientId);
-    const { error } = await supabase.from("notification_client_preferences").upsert({
+    const { error } = await (supabase as any).from("notification_client_preferences").upsert({
       client_id: clientId, canal_finalisation: field === "canal_finalisation" ? value : row?.canal_finalisation || "auto",
       canal_rappel: field === "canal_rappel" ? value : row?.canal_rappel || "auto", updated_by: user?.id || null, updated_at: new Date().toISOString(),
     }, { onConflict: "client_id" });
@@ -212,7 +212,7 @@ const GestionNotifications = () => {
   };
 
   const toggleAutomation = async (item: Automation) => {
-    const { error } = await supabase.from("notification_automations").update({ actif: !item.actif }).eq("id", item.id);
+    const { error } = await (supabase as any).from("notification_automations").update({ actif: !item.actif }).eq("id", item.id);
     if (error) toast.error(error.message); else await load();
   };
   const uploadMedia = async (files: FileList | null, target: "campaign" | "automation") => {
