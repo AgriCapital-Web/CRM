@@ -302,6 +302,7 @@ const TechnicienTerrain=()=>{
           surface_totale_ha:Number(intervention.nouvelle_parcelle_surface),
           surface_proprietaire_ha:Number(intervention.nouvelle_parcelle_surface),
           surface_agricapital_ha:0,surface_attribuee_ha:0,surface_disponible_ha:0,
+           proprietaire_id:interventionClient?.proprietaire_id||null,
           village:intervention.nouvelle_parcelle_village.trim(),
           district_id:interventionClient?.district_id||null,region_id:interventionClient?.region_id||null,
           departement_id:interventionClient?.departement_id||null,sous_prefecture_id:interventionClient?.sous_prefecture_id||null,
