@@ -136,7 +136,6 @@ export default function GestionRemuneration() {
       <TabsContent value="technique" className="space-y-3">
         <Card><CardHeader className="pb-3"><CardTitle className="text-base">Commissions techniques</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2"><RuleEditor code={RULES.technical} label="Commission technique sur réalisation / mise en terre" unit="money" /></div>
-          <p className="md:col-span-2 text-sm text-muted-foreground">Modifiez le montant et activez la règle pour appliquer la commission technique aux nouvelles réalisations. L’enregistrement recalcule également les commissions techniques non payées.</p>
         </CardContent></Card>
       </TabsContent>
 
