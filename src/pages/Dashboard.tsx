@@ -565,7 +565,7 @@ const Dashboard = () => {
       {label:"Encaissé",value:money(stats.collected),href:"/paiements"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/paiements"},
       {label:"Clients soldés",value:stats.settledClients,href:"/paiements"},
-      {label:"Monnaie client",value:money(stats.clientCredit),href:"/paiements"},
+      {label:"Avoirs clients",value:money(stats.clientCredit),href:"/paiements"},
       {label:"Échéances en retard",value:stats.overdueCount,href:"/paiements"},
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
