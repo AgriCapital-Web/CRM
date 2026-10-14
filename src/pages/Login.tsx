@@ -50,9 +50,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="login-page min-h-screen flex flex-col lg:flex-row">
       {/* Panneau gauche - Branding (caché sur mobile, visible sur desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-[52%] bg-primary relative flex-col items-center justify-center px-6 xl:px-10 py-10 overflow-hidden">
+      <div className="login-brand-panel hidden lg:flex lg:w-1/2 xl:w-[52%] bg-primary relative flex-col items-center justify-center px-6 xl:px-10 py-10 overflow-hidden">
         {/* Pattern décoratif */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-40 h-40 rounded-full border-2 border-white/30" />
@@ -78,7 +78,7 @@ const Login = () => {
 
 
       {/* Panneau droit - Formulaire de connexion */}
-      <div className="relative flex-1 flex flex-col items-center justify-center px-3 py-5 sm:px-6 sm:py-8 lg:px-8 xl:px-12 bg-gradient-to-b from-background via-background to-primary/5 min-h-dvh lg:min-h-0">
+      <div className="login-form-panel relative flex-1 flex flex-col items-center justify-center px-3 py-5 sm:px-6 sm:py-8 lg:px-8 xl:px-12 bg-gradient-to-b from-background via-background to-primary/5 min-h-dvh lg:min-h-0">
 {/* Logo mobile — sans cadre */}
 
         <div className="login-brand-mobile lg:hidden mb-5 w-full min-w-0 flex flex-col items-center px-1 py-2">
@@ -90,8 +90,8 @@ const Login = () => {
           
         </div>
 
-        <div className="w-full max-w-2xl rounded-3xl border bg-card/95 p-4 sm:p-8 lg:max-w-3xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
-          <div className="mb-8 text-center lg:text-left">
+        <div className="login-form-card w-full max-w-2xl rounded-3xl border bg-card/95 p-4 sm:p-8 lg:max-w-3xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
+          <div className="login-form-title mb-8 text-center lg:text-left">
             <h2 className="text-[clamp(2rem,4.4vw,3rem)] font-bold text-foreground">Connexion</h2>
             
           </div>
@@ -108,7 +108,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="h-14 sm:h-16 lg:h-16 text-base sm:text-lg lg:text-xl"
+                className="login-input h-14 sm:h-16 lg:h-16 text-base sm:text-lg lg:text-xl"
                 disabled={isLoading}
                 autoComplete="username"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); passwordInputRef.current?.focus(); } }}
@@ -138,7 +138,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-14 sm:h-16 lg:h-16 pr-14 text-base sm:text-lg lg:text-xl"
+                  className="login-input h-14 sm:h-16 lg:h-16 pr-14 text-base sm:text-lg lg:text-xl"
                   disabled={isLoading}
                 />
                 <Button
@@ -159,7 +159,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="w-full h-14 sm:h-16 lg:h-[4.25rem] text-lg sm:text-xl font-semibold gap-2"
+              className="login-submit w-full h-14 sm:h-16 lg:h-[4.25rem] text-lg sm:text-xl font-semibold gap-2"
               disabled={isLoading}
             >
               <LogIn className="h-4 w-4" />
@@ -167,7 +167,7 @@ const Login = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="login-account-request mt-6 text-center">
             <Button
               type="button"
               variant="link"
@@ -179,7 +179,7 @@ const Login = () => {
             </Button>
           </div>
 
-          <div className="mt-8 pt-6 border-t text-center">
+          <div className="login-support mt-8 pt-6 border-t text-center">
             <p className="text-sm text-muted-foreground">
               Support: <a href="tel:+2250759566087" className="text-primary hover:underline font-medium">+225 07 59 56 60 87</a>
             </p>
