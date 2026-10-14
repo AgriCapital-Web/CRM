@@ -361,17 +361,16 @@ All colors MUST be HSL.
 }
 
 
-/* Personnel card preview: zoom scales both the artwork and its layout footprint. */
-.id-card-preview {
-  flex: 0 0 auto;
-  width: 540px;
-  max-width: 540px;
-  zoom: .58;
-}
-@media (min-width: 380px) { .id-card-preview { zoom: .66; } }
-@media (min-width: 480px) and (max-width: 767px) { .id-card-preview { zoom: .82; } }
-@media (min-width: 640px) and (max-width: 767px) { .id-card-preview { zoom: .95; } }
-@media (min-width: 768px) { .id-card-preview { zoom: 1.05; } }
+/* Personnel card preview: each face fits the viewport without scrollbars. */
+.id-card-preview { flex: 0 0 auto; width: 540px; max-width: 540px; zoom: .48; }
+@media (min-width: 360px) and (min-height: 700px) { .id-card-preview { zoom: .56; } }
+@media (min-width: 400px) and (min-height: 700px) { .id-card-preview { zoom: .61; } }
+@media (min-width: 480px) and (min-height: 700px) { .id-card-preview { zoom: .78; } }
+@media (min-width: 640px) and (min-height: 700px) { .id-card-preview { zoom: .86; } }
+@media (min-width: 768px) and (min-height: 700px) { .id-card-preview { zoom: .95; } }
+@media (min-width: 1200px) and (min-height: 700px) { .id-card-preview { zoom: 1; } }
+@media (max-height: 699px) { .id-card-preview { zoom: .38; } }
+@media (max-height: 540px) { .id-card-preview { zoom: .3; } }
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse { animation: none !important; }
 }
