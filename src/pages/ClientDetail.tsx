@@ -554,71 +554,156 @@ const ClientDetail = () => {
             </Card>
           </div>
 
-          <Dialog open={isNewPlantationOpen} onOpenChange={setIsNewPlantationOpen}>
-            <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto">
+          <Dialog open={isNewPlantationOpen} onOpenChange={(open) => {
+            setIsNewPlantationOpen(open);
+            if (open) {
+              setNewSubscriptionFormData({ commercial_id: client?.commercial_id || "", mode_paiement: "echeancier" });
+              setNewPlantationLotId("");
+              setNewPlantationNotes("");
+              setNewPlantationParcelId(client?.parcelle_id || "");
+            }
+          }}>
+            <DialogContent className="max-h-[94dvh] max-w-4xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Ajouter une nouvelle plantation</DialogTitle>
                 <DialogDescription>
-                  Enregistrez une souscription supplémentaire pour ce client sans créer une implantation prématurée. La plantation sera créée après la validation technique de la mise en terre.
+                  Cette opération crée une nouvelle souscription pour le client existant. Elle conserve son premier contrat et ne crée pas encore de plantation physique.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/50 p-3 text-sm">
                   <p className="font-semibold">{client.nom_complet}</p>
-                  <p className="text-muted-foreground">Offre actuelle : {client.formule_nom || client.formule_code || client.famille_offre || "à confirmer selon le dossier"}</p>
+                  <p className="text-muted-foreground">Une nouvelle offre et une nouvelle formule seront enregistrées indépendamment de ses souscriptions précédentes.</p>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Parcelle disponible *</Label>
-                  <Select value={newPlantationParcelId} onValueChange={(value) => { setNewPlantationParcelId(value); setNewPlantationLotId(""); }} disabled={loadingPlantationOptions || availableParcelles.length === 0}>
-                    <SelectTrigger><SelectValue placeholder={loadingPlantationOptions ? "Chargement des parcelles…" : "Sélectionner une parcelle"} /></SelectTrigger>
-                    <SelectContent>
-                      {availableParcelles.map((parcel: any) => (
-                        <SelectItem key={parcel.id} value={parcel.id}>
-                          {parcel.id_unique || parcel.nom || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Lot disponible *</Label>
-                  <Select value={newPlantationLotId} onValueChange={setNewPlantationLotId} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
-                    <SelectTrigger><SelectValue placeholder={!newPlantationParcelId ? "Choisir d’abord une parcelle" : "Sélectionner un lot"} /></SelectTrigger>
-                    <SelectContent>
-                      {lotsForSelectedParcel.map((lot: any) => (
-                        <SelectItem key={lot.id} value={lot.id}>
-                          {lot.reference || (lot.numero_h != null ? "H" + String(lot.numero_h).padStart(2, "0") : "Lot")} · {Number(lot.surface_ha || 0).toLocaleString("fr-FR")} ha
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {selectedNewLot && (
-                  <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-2">
-                    <div><p className="text-xs text-muted-foreground">Superficie du lot</p><p className="font-semibold">{Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR")} ha</p></div>
-                    <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "Village non renseigné"}</p></div>
+                  <Label>Mode de paiement</Label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button type="button" variant={newSubscriptionFormData.mode_paiement === "echeancier" ? "default" : "outline"} onClick={() => updateNewSubscriptionFormData({ mode_paiement: "echeancier" })}>
+                      Paiement initial + échéancier
+                    </Button>
+                    <Button type="button" variant={newSubscriptionFormData.mode_paiement === "comptant" ? "default" : "outline"} onClick={() => updateNewSubscriptionFormData({ mode_paiement: "comptant" })}>
+                      Paiement comptant
+                    </Button>
                   </div>
+                </div>
+
+                <Etape0Offre
+                  formData={newSubscriptionFormData}
+                  updateFormData={updateNewSubscriptionFormData}
+                  showCommercial={false}
+                  surfaceReadOnly={!!newPlantationLotId}
+                />
+
+                {newSubscriptionFormData.offre_id && selectedOfferNeedsClientLand && (
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-base">Terrain du client</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Cette offre nécessite le terrain du client. Aucun lot partenaire ne sera réservé. La localisation précise et la validation foncière pourront être complétées pendant l’intervention technique.
+                      </p>
+                      {clientOwnParcelles.length > 0 ? (
+                        <div className="space-y-2">
+                          <Label>Parcelle du client (facultatif si elle doit être confirmée sur le terrain)</Label>
+                          <Select value={newPlantationParcelId || "a-confirmer"} onValueChange={(value) => setNewPlantationParcelId(value === "a-confirmer" ? "" : value)}>
+                            <SelectTrigger><SelectValue placeholder="Sélectionner une parcelle du client" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="a-confirmer">À confirmer lors de l’intervention technique</SelectItem>
+                              {clientOwnParcelles.map((parcel: any) => (
+                                <SelectItem key={parcel.id} value={parcel.id}>
+                                  {parcel.id_unique || parcel.nom || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                          Aucune parcelle propre n’est reliée à cette fiche. La superficie est enregistrée maintenant ; le technicien confirmera la parcelle et la localisation lors de l’intervention.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
-                {availableLots.length === 0 && !loadingPlantationOptions && (
-                  <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                    Aucun lot disponible n’est actuellement enregistré. Ajoutez ou libérez un lot dans la gestion des parcelles avant de poursuivre.
-                  </p>
+
+                {newSubscriptionFormData.offre_id && !selectedOfferNeedsClientLand && (
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-base">Parcelle partenaire et lot disponible</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Cette offre utilise une parcelle partenaire. Choisissez une parcelle, puis un lot dont la superficie correspond exactement à celle de la souscription. Le lot ne sera réservé qu’après confirmation par la base.
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Parcelle partenaire *</Label>
+                          <Select value={newPlantationParcelId} onValueChange={(value) => { setNewPlantationParcelId(value); setNewPlantationLotId(""); }} disabled={loadingPlantationOptions || availableParcelles.length === 0}>
+                            <SelectTrigger><SelectValue placeholder={loadingPlantationOptions ? "Chargement…" : "Choisir une parcelle"} /></SelectTrigger>
+                            <SelectContent>
+                              {availableParcelles.map((parcel: any) => (
+                                <SelectItem key={parcel.id} value={parcel.id}>
+                                  {parcel.id_unique || parcel.nom || "Parcelle"}{parcel.village ? " · " + parcel.village : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Lot disponible correspondant à la superficie *</Label>
+                          <Select value={newPlantationLotId} onValueChange={(value) => {
+                            const lot = availableLots.find((item: any) => item.id === value);
+                            setNewPlantationLotId(value);
+                            if (lot) setNewSubscriptionFormData((current: any) => ({ ...current, superficie_prevue: String(lot.surface_ha || "") }));
+                          }} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
+                            <SelectTrigger><SelectValue placeholder={!newPlantationParcelId ? "Choisir d’abord une parcelle" : "Choisir un lot"} /></SelectTrigger>
+                            <SelectContent>
+                              {lotsForSelectedParcel.map((lot: any) => (
+                                <SelectItem key={lot.id} value={lot.id}>
+                                  {lot.reference || (lot.numero_h != null ? "H" + String(lot.numero_h).padStart(2, "0") : "Lot")} · {Number(lot.surface_ha || 0).toLocaleString("fr-FR")} ha
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {selectedNewLot && (
+                        <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-3">
+                          <div><p className="text-xs text-muted-foreground">Superficie réservée</p><p className="font-semibold">{Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                          <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "À confirmer"}</p></div>
+                          <div><p className="text-xs text-muted-foreground">Propriétaire partenaire</p><p className="font-semibold">Enregistré sur la parcelle</p></div>
+                        </div>
+                      )}
+                      {!loadingPlantationOptions && availableParcelles.length === 0 && (
+                        <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                          Aucune parcelle partenaire avec lot disponible n’est actuellement enregistrée. Vérifiez les propriétaires, parcelles et lots dans la gestion foncière.
+                        </p>
+                      )}
+                      {!!newSubscriptionFormData.superficie_prevue && !newPlantationLotId && (
+                        <p className="text-xs text-muted-foreground">Lots affichés : {Number(newSubscriptionFormData.superficie_prevue).toLocaleString("fr-FR")} ha exactement.</p>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
+
                 <div className="space-y-2">
-                  <Label>Note (facultatif)</Label>
+                  <Label>Note complémentaire (facultatif)</Label>
                   <Input value={newPlantationNotes} onChange={(event) => setNewPlantationNotes(event.target.value)} placeholder="Précision sur cette souscription…" />
                 </div>
               </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setIsNewPlantationOpen(false)} disabled={savingNewPlantation}>Annuler</Button>
-                <Button onClick={() => void saveAdditionalPlantation()} disabled={savingNewPlantation || loadingPlantationOptions || !newPlantationLotId}>
-                  {savingNewPlantation ? "Enregistrement…" : "Enregistrer la souscription"}
+                <Button onClick={() => void saveAdditionalPlantation()} disabled={
+                  savingNewPlantation || loadingPlantationOptions ||
+                  !newSubscriptionFormData.offre_id || !newSubscriptionFormData.formule_code ||
+                  Number(newSubscriptionFormData.superficie_prevue) <= 0 ||
+                  (!selectedOfferNeedsClientLand && !newPlantationLotId)
+                }>
+                  {savingNewPlantation ? "Enregistrement…" : "Confirmer la souscription"}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          <Tabs defaultValue="plantations" className="space-y-4">
+          <Tabs defaultValue="plantations"          <Tabs defaultValue="plantations" className="space-y-4">
             <TabsList>
               <TabsTrigger value="plantations">
                 <Sprout className="h-4 w-4 mr-2" />
