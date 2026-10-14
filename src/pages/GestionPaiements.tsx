@@ -209,10 +209,12 @@ const GestionPaiements = () => {
     if (!client) return "Client introuvable.";
     if (client.type_client === "beneficiaire_particulier") return "Les bénéficiaires particuliers ne disposent pas d’actions financières.";
     if (client.is_internal) return "Cet actif AgriCapital n’est pas encore transféré à un client.";
-    if (client.contrat_solde_at) return "Ce contrat est soldé : aucune action financière n’est autorisée.";
     const {data:summary,error} = await (supabase as any).from("v_client_synthese").select("montant_total_contrat,reste_a_payer").eq("client_id",client.id).maybeSingle();
     if (error) throw error;
-    if (summary && Number(summary.montant_total_contrat||0)>0 && Number(summary.reste_a_payer||0)<=0) return "Ce contrat est soldé : aucune action financière n’est autorisée.";
+    // Le timestamp peut concerner le contrat principal : les souscriptions additionnelles
+    // restent autorisées tant que le solde financier global du client est positif.
+    if (summary && Number(summary.montant_total_contrat||0)>0 && Number(summary.reste_a_payer||0)<=0) return "Le dossier financier du client est soldé : aucune action financière n’est autorisée.";
+    if (!summary && client.contrat_solde_at) return "Le dossier financier du client est soldé : aucune action financière n’est autorisée.";
     return null;
   };
 
