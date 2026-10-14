@@ -1016,3 +1016,75 @@ All colors MUST be HSL.
 @media (max-width: 1023px) {
   .technique-report-meta { gap: .5rem !important; }
 }
+
+
+/* AgriCapital responsive density rules — shared by CRM and all Settings screens. */
+@layer base {
+  /* Keep text horizontal and readable; allow long values to wrap instead of stretching the page. */
+  body, #root, main, section, article, [role="tabpanel"] {
+    writing-mode: horizontal-tb;
+  }
+
+  h1, h2, h3, h4, th, td, label, p, span, a, button {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  /* Compact table cells on every screen while preserving readable horizontal direction. */
+  table th, table td {
+    padding-block: 0.45rem;
+    padding-inline: 0.55rem;
+    line-height: 1.3;
+    vertical-align: middle;
+    writing-mode: horizontal-tb;
+  }
+
+  /* Dense card grids automatically use as many columns as the available width permits. */
+  .grid:has(> .rounded-lg.border.bg-card),
+  .grid:has(> .rounded-xl.border.bg-card),
+  .grid:has(> [class*="hover-scale"]) {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 0.65rem;
+  }
+
+  @media (min-width: 768px) {
+    .grid:has(> .rounded-lg.border.bg-card),
+    .grid:has(> .rounded-xl.border.bg-card),
+    .grid:has(> [class*="hover-scale"]) {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+      gap: 0.75rem;
+    }
+  }
+
+  /* Cards and panels should not introduce unnecessary blank space on narrow screens. */
+  @media (max-width: 767px) {
+    .rounded-lg.border.bg-card > [class*="p-6"],
+    .rounded-xl.border.bg-card > [class*="p-6"] {
+      padding: 0.75rem;
+    }
+
+    .grid {
+      column-gap: 0.5rem;
+      row-gap: 0.5rem;
+    }
+
+    table {
+      font-size: 0.8125rem;
+    }
+
+    table th, table td {
+      padding: 0.4rem 0.45rem;
+    }
+
+    h1 { font-size: 1.35rem; line-height: 1.25; }
+    h2 { font-size: 1.2rem; line-height: 1.3; }
+    h3 { font-size: 1.05rem; line-height: 1.35; }
+  }
+
+  @media (min-width: 768px) {
+    table th, table td {
+      padding-block: 0.5rem;
+      padding-inline: 0.6rem;
+    }
+  }
+}
