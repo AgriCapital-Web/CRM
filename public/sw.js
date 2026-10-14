@@ -54,6 +54,9 @@ self.addEventListener("push", (event) => {
     let payload = {};
     try { payload = event.data ? event.data.json() : {}; }
     catch { payload = { body: event.data?.text?.() || "" }; }
+    const openClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    // The in-app realtime channel handles visible tabs; push is for background/closed app delivery.
+    if (openClients.some((client) => client.visibilityState === "visible")) return;
     const id = payload.notificationId || payload.id || payload.tag || "general";
     await self.registration.showNotification(payload.title || "AgriCapital", {
       body: payload.body || payload.message || "",
@@ -71,14 +74,20 @@ self.addEventListener("notificationclick", (event) => {
   const target = event.notification.data?.url || event.notification.data?.route || "/";
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    let safeTarget = "/";
+    try {
+      const parsed = new URL(target, self.location.origin);
+      if (parsed.origin === self.location.origin) safeTarget = parsed.pathname + parsed.search + parsed.hash;
+    } catch { /* Stay on the CRM home route. */ }
     for (const client of windows) {
       if ("focus" in client) {
+        try { await client.navigate(safeTarget); } catch { /* Some browser clients cannot navigate. */ }
         await client.focus();
         client.postMessage({ type: "OPEN_NOTIFICATION", data: event.notification.data || {} });
         return;
       }
     }
-    if (self.clients.openWindow) await self.clients.openWindow(target);
+    if (self.clients.openWindow) await self.clients.openWindow(safeTarget);
   })());
 });
 
