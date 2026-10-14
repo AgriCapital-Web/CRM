@@ -41,8 +41,8 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
       : children;
 
     return (
-      <div className="relative w-full overflow-auto">
-        <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props}>
+      <div className="relative w-full min-w-0 overflow-x-auto overscroll-x-contain">
+        <table ref={ref} className={cn("w-max min-w-full caption-bottom text-sm", className)} {...props}>
           {renderedChildren}
         </table>
         {paginate && (
