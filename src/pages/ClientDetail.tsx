@@ -138,6 +138,16 @@ const ClientDetail = () => {
         .single();
 
       if (clientError) throw clientError;
+      const [{ data: campementInfo }, { data: villageInfo }] = await Promise.all([
+        clientData.campement_id
+          ? (supabase as any).from("campements").select("id,nom").eq("id", clientData.campement_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        clientData.village_id
+          ? (supabase as any).from("villages").select("id,nom").eq("id", clientData.village_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      clientData.campement = campementInfo;
+      clientData.village = villageInfo;
       setClient(clientData);
 
       // New files use dedicated private buckets. Legacy client files may still
