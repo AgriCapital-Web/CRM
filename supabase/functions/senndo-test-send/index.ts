@@ -17,7 +17,7 @@ function cors(req: Request) {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST,OPTIONS",
   };
-  if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/crm-[a-z0-9-]+-adminagricapitals-projects\.vercel\.app$/i.test(origin))) headers["Access-Control-Allow-Origin"] = origin;
+  if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/crm-[a-z0-9-]+-adminagricapitals-projects\.vercel\.app$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin))) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 }
 function reply(req: Request, body: unknown, status = 200) {

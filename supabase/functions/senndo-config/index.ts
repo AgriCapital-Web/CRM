@@ -8,7 +8,7 @@ const ALLOWED_ORIGINS = new Set((Deno.env.get("ALLOWED_ORIGINS") || "https://agr
 const cors = (req:Request) => {
  const origin = req.headers.get("origin") || "";
  const h:Record<string,string> = { "Content-Type":"application/json", "Cache-Control":"no-store", "X-Content-Type-Options":"nosniff", "Referrer-Policy":"no-referrer", "Vary":"Origin", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST,OPTIONS" };
- if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/crm-[a-z0-9-]+-adminagricapitals-projects\.vercel\.app$/i.test(origin))) h["Access-Control-Allow-Origin"] = origin;
+ if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/crm-[a-z0-9-]+-adminagricapitals-projects\.vercel\.app$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin))) h["Access-Control-Allow-Origin"] = origin;
  return h;
 };
 const reply = (req:Request, body: unknown, status=200) => new Response(JSON.stringify(body), {status, headers:cors(req)});

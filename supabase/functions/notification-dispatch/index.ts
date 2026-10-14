@@ -16,7 +16,7 @@ const corsHeaders = (req: Request) => {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
   };
-  if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin))) headers["Access-Control-Allow-Origin"] = origin;
+  if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin))) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 };
 const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), {
