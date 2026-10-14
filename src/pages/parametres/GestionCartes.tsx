@@ -337,7 +337,7 @@ const GestionCartes = () => {
       </Card>
 
       <Dialog open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
-        <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-3xl overflow-y-auto">
+        <DialogContent className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl flex-col gap-2 overflow-hidden p-2 sm:p-4">
           <DialogHeader><DialogTitle>Carte de {selected?.nom_complet}</DialogTitle></DialogHeader>
           {dataSelection && (
             <>
@@ -345,22 +345,22 @@ const GestionCartes = () => {
               <TabsList>
                 <TabsTrigger value="recto">Recto</TabsTrigger>
                 <TabsTrigger value="verso">Verso</TabsTrigger>
-                <TabsTrigger value="both">Recto / Verso</TabsTrigger>
+                <TabsTrigger className="hidden min-[1200px]:inline-flex" value="both">Recto / Verso</TabsTrigger>
               </TabsList>
-              <TabsContent value="recto" className="flex justify-center overflow-x-auto py-4">
+              <TabsContent value="recto" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden py-1">
                 <div className="id-card-preview"><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
               </TabsContent>
-              <TabsContent value="verso" className="flex justify-center overflow-x-auto py-4">
+              <TabsContent value="verso" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden py-1">
                 <div className="id-card-preview"><CarteVerso ref={versoRef} carte={dataSelection} /></div>
               </TabsContent>
-              <TabsContent value="both" className="flex flex-wrap justify-center gap-4 overflow-x-auto py-4">
+              <TabsContent value="both" className="hidden min-h-0 flex-1 items-center justify-center gap-4 overflow-hidden py-1 min-[1200px]:flex">
                 <div className="id-card-preview"><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
                 <div className="id-card-preview"><CarteVerso ref={versoRef} carte={dataSelection} /></div>
               </TabsContent>
             </Tabs>
             </>
           )}
-          <DialogFooter className="flex-wrap gap-2">
+          <DialogFooter className="shrink-0 flex-wrap gap-2">
             {peutModifierPhoto && <label className="inline-flex">
               <input
                 type="file"
