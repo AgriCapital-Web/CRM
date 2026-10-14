@@ -11,54 +11,52 @@ interface NotificationPayload {
   tag?: string;
 }
 
+function decodeVapidKey(value: string) { const padded = value + "=".repeat((4 - value.length % 4) % 4); const raw = atob(padded.replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(raw, (character) => character.charCodeAt(0)); }
+
 export const usePushNotifications = () => {
   const { toast } = useToast();
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [isEnabling, setIsEnabling] = useState(false);
 
   useEffect(() => {
     // Vérifier si les notifications sont supportées
-    const supported = 'Notification' in window && 'serviceWorker' in navigator;
+    const supported = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
     setIsSupported(supported);
     
     if (supported) {
       setPermission(Notification.permission);
+      void navigator.serviceWorker.ready.then(async (registration) => setPushEnabled(Boolean(await registration.pushManager.getSubscription()) && Notification.permission === 'granted')).catch(() => setPushEnabled(false));
     }
   }, []);
 
   const requestPermission = useCallback(async () => {
-    if (!isSupported) {
-      toast({
-        variant: "destructive",
-        title: "Non supporté",
-        description: "Les notifications ne sont pas supportées sur cet appareil"
-      });
-      return false;
-    }
-
-    try {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-      
-      if (result === 'granted') {
-        toast({
-          title: "Notifications activées",
-          description: "Vous recevrez des alertes pour vos paiements"
-        });
-        return true;
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Notifications refusées",
-          description: "Vous pouvez les activer dans les paramètres de votre navigateur"
-        });
-        return false;
-      }
-    } catch (error) {
-      console.error('Erreur permission notification:', error);
-      return false;
-    }
+    if (!isSupported) { toast({ variant: "destructive", title: "Non supporté", description: "Les notifications push ne sont pas prises en charge sur cet appareil." }); return false; }
+    try { const result = await Notification.requestPermission(); setPermission(result); if (result !== "granted") { toast({ variant: "destructive", title: "Notifications refusées", description: "Autorisez-les dans les paramètres du navigateur." }); return false; } return true; }
+    catch (error) { console.error("[Push] permission", error); return false; }
   }, [isSupported, toast]);
+
+  const enablePush = useCallback(async () => {
+    if (!isSupported || isEnabling) return false; setIsEnabling(true);
+    try {
+      const allowed = permission === "granted" || await requestPermission(); if (!allowed) return false;
+      const registration = await navigator.serviceWorker.ready;
+      const { data: config, error: configError } = await supabase.functions.invoke("push-subscriptions", { body: { action: "config" } });
+      if (configError || !config?.supported || !config?.public_key) throw new Error("Le service push n'est pas configuré côté serveur.");
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeVapidKey(config.public_key) });
+      const { error } = await supabase.functions.invoke("push-subscriptions", { body: { action: "subscribe", subscription: subscription.toJSON() } });
+      if (error) throw error; setPermission("granted"); setPushEnabled(true);
+      toast({ title: "Notifications activées", description: "Les alertes peuvent apparaître même lorsque le CRM est fermé, selon les réglages de l'appareil." }); return true;
+    } catch (error: any) { console.error("[Push] activation", error); toast({ variant: "destructive", title: "Activation impossible", description: error?.message || "Impossible d'activer les notifications." }); return false; }
+    finally { setIsEnabling(false); }
+  }, [isSupported, isEnabling, permission, requestPermission, toast]);
+
+  const disablePush = useCallback(async () => {
+    try { const registration = await navigator.serviceWorker.ready; const subscription = await registration.pushManager.getSubscription(); if (subscription) { await supabase.functions.invoke("push-subscriptions", { body: { action: "unsubscribe", endpoint: subscription.endpoint } }); await subscription.unsubscribe(); } setPushEnabled(false); toast({ title: "Notifications désactivées" }); return true; }
+    catch (error: any) { toast({ variant: "destructive", title: "Désactivation impossible", description: error?.message || "Réessayez." }); return false; }
+  }, [toast]);
 
   const showNotification = useCallback(async (payload: NotificationPayload) => {
     if (permission !== 'granted') {
@@ -80,11 +78,7 @@ export const usePushNotifications = () => {
     } catch (error) {
       // Fallback: notification classique
       console.log('Utilisation notification classique');
-      new Notification(payload.title, {
-        body: payload.body,
-        icon: payload.icon || '/logo-agricapital.png',
-        tag: payload.tag
-      });
+      console.warn('[Push] affichage local indisponible', error);
     }
   }, [permission]);
 
@@ -123,6 +117,10 @@ export const usePushNotifications = () => {
   return {
     permission,
     isSupported,
+    pushEnabled,
+    isEnabling,
+    enablePush,
+    disablePush,
     requestPermission,
     showNotification,
     notifyPaymentSuccess,

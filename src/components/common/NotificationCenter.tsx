@@ -8,11 +8,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications } from "@/hooks/useNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { BellRing } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export const NotificationCenter = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, openNotification } = useNotifications();
+  const { isSupported, pushEnabled, isEnabling, enablePush } = usePushNotifications();
 
   return (
     <Popover>
@@ -31,7 +34,7 @@ export const NotificationCenter = () => {
       </PopoverTrigger>
       <PopoverContent className="w-[calc(100vw-1rem)] max-w-96 p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Notifications</h3>
+          <div className="min-w-0"><h3 className="font-semibold">Notifications</h3>{isSupported && !pushEnabled && <Button variant="outline" size="sm" className="mt-2 h-8 text-xs" disabled={isEnabling} onClick={() => void enablePush()}><BellRing className="mr-1.5 h-3.5 w-3.5" />{isEnabling ? "Activation…" : "Activer sur cet appareil"}</Button>}{pushEnabled && <p className="mt-1 text-xs text-muted-foreground">Alertes push activées sur cet appareil</p>}</div>
           {unreadCount > 0 && (
             <Button 
               variant="ghost" 

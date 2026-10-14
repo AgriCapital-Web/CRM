@@ -1,4 +1,4 @@
-const CACHE_NAME = "agricapital-crm-v4";
+const CACHE_NAME = "agricapital-crm-v5";
 const CACHE_PREFIX = "agricapital-crm-";
 
 self.addEventListener("install", (event) => {
@@ -23,6 +23,21 @@ self.addEventListener("activate", (event) => {
       )
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    let payload = {}; try { payload = event.data ? event.data.json() : {}; } catch { payload = { body: event.data?.text?.() || "" }; }
+    const openClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (openClients.some((client) => client.visibilityState === "visible")) return;
+    const id = payload.notificationId || payload.id || payload.tag || "general";
+    await self.registration.showNotification(payload.title || "AgriCapital", { body: payload.body || payload.message || "", icon: payload.icon || "/icons/icon-app.png", badge: payload.badge || "/icons/icon-96x96.png", tag: "agricapital-notification-" + id, renotify: false, data: { ...(payload.data || {}), url: payload.url || payload.data?.route || "/" } });
+  })());
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close(); const target = event.notification.data?.url || event.notification.data?.route || "/";
+  event.waitUntil((async () => { const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true }); for (const client of windows) { if ("focus" in client) { await client.focus(); client.postMessage({ type: "OPEN_NOTIFICATION", data: event.notification.data || {} }); return; } } if (self.clients.openWindow) await self.clients.openWindow(target); })());
 });
 
 self.addEventListener("message", (event) => {

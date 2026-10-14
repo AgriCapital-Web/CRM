@@ -4,6 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
+// Module-level registry shared by desktop/mobile notification centers.
+const realtimeSideEffectsSeen = new Map<string, number>();
+const claimRealtimeSideEffect = (id: string) => {
+  const now = Date.now();
+  for (const [key, timestamp] of realtimeSideEffectsSeen) if (now - timestamp > 30000) realtimeSideEffectsSeen.delete(key);
+  if (realtimeSideEffectsSeen.has(id)) return false;
+  realtimeSideEffectsSeen.set(id, now); return true;
+};
+
 export interface Notification {
   id: string;
   type: string;
@@ -21,22 +30,6 @@ export const useNotifications = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const seenIds = useRef<Set<string>>(new Set());
-
-// Plusieurs centres de notifications sont montés dans MainLayout (desktop + mobile).
-// Ce registre est partagé entre toutes les instances du hook afin qu'un même INSERT
-// ne déclenche qu'un seul toast / notification navigateur.
-const realtimeSideEffectsSeen = new Map<string, number>();
-const REALTIME_DEDUPE_WINDOW_MS = 15000;
-
-const claimRealtimeSideEffect = (id: string) => {
-  const now = Date.now();
-  for (const [key, timestamp] of realtimeSideEffectsSeen) {
-    if (now - timestamp > REALTIME_DEDUPE_WINDOW_MS) realtimeSideEffectsSeen.delete(key);
-  }
-  if (realtimeSideEffectsSeen.has(id)) return false;
-  realtimeSideEffectsSeen.set(id, now);
-  return true;
-};
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -91,15 +84,10 @@ const claimRealtimeSideEffect = (id: string) => {
           // Le layout CRM monte le centre de notifications dans les vues desktop et mobile.
           // Les deux abonnements reçoivent le même INSERT : une seule instance doit déclencher
           // les effets visibles (toast / notification navigateur), sinon l'utilisateur voit un doublon.
-          if (claimRealtimeSideEffect(newNotification.id)) {
+          if (claimRealtimeSideEffect(`${user.id}:${newNotification.id}`)) {
             if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
               try {
-                new Notification(newNotification.title, {
-                  body: newNotification.message,
-                  icon: '/logo-agricapital.png',
-                  tag: newNotification.id,
-                  data: newNotification.data || {},
-                });
+                void navigator.serviceWorker.ready.then((registration) => registration.showNotification(newNotification.title, { body: newNotification.message, icon: '/icons/icon-app.png', badge: '/icons/icon-96x96.png', tag: `agricapital-notification-${newNotification.id}`, renotify: false, data: { ...(newNotification.data || {}), notificationId: newNotification.id } })).catch((error) => console.warn('[Notifications] affichage impossible', error));
               } catch (error) { console.warn("[Notifications] notification navigateur indisponible", error); }
             }
             toast({ title: newNotification.title, description: newNotification.message });
