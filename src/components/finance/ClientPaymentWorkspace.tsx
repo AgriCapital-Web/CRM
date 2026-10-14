@@ -23,6 +23,10 @@ type ClientFinanceRow = {
   proprietaire_id?: string | null;
   is_internal?: boolean | null;
   contrat_solde_at?: string | null;
+  jours_retard?: number | null;
+  jours_payes?: number | null;
+  contrat_debut_at?: string | null;
+  prochaine_echeance?: string | null;
   compte_actif?: boolean | null;
   statut?: string | null;
   formule_nom?: string | null;
@@ -68,7 +72,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: subscriptions, error: subscriptionsError }] = await Promise.all([
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares")
+          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares")
           .eq("compte_actif", true)
           .order("nom_complet", { ascending: true }),
         (supabase as any).from("v_client_synthese")
@@ -106,7 +110,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           const isPartner = Boolean(c.proprietaire_id) ||
             ["proprietaire_foncier", "propriétaire_foncier", "partenaire_foncier"].includes(landRole) ||
             ["proprietaire_foncier", "propriétaire_foncier", "partenaire"].includes(clientRole);
-          return c.type_client !== "beneficiaire_particulier" && !isPartner && !c.is_internal && total > 0 && remaining > 0;
+          return c.type_client !== "beneficiaire_particulier" && !isPartner && !c.is_internal && total > 0;
         });
     },
     staleTime: 15_000,
@@ -398,11 +402,11 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                     <TableCell>{money(total)}</TableCell>
                     <TableCell>{money(paid)}</TableCell>
                     <TableCell className="font-semibold text-amber-700">{money(remainingClient)}</TableCell>
-                    <TableCell>{(() => { const status = String(client.statut || "").toLowerCase(); const isLate = status.includes("retard") || Number((client as any).jours_retard || 0) > 0; const isAdvance = status.includes("avance") || Number((client as any).jours_avance || 0) > 0; const label = client.contrat_solde_at || remainingClient <= 0 ? "Soldé" : isLate ? "En retard" : isAdvance ? "En avance" : status.includes("actif") ? "Actif" : "À jour"; return <Badge variant={label === "En retard" ? "destructive" : "outline"} className={label === "Soldé" ? "border-emerald-600/30 bg-emerald-600/10 text-emerald-700" : label === "En avance" ? "border-blue-600/30 bg-blue-600/10 text-blue-700" : ""}>{label}</Badge>; })()}</TableCell>
+                    <TableCell>{(() => { const status = String(client.statut || "").toLowerCase(); const isLate = status.includes("retard") || Number(client.jours_retard || 0) > 0; const isAdvance = status.includes("avance") || Number((client as any).jours_avance || 0) > 0; const label = client.contrat_solde_at || remainingClient <= 0 ? "Soldé" : isLate ? "En retard" : isAdvance ? "En avance" : status.includes("actif") ? "Actif" : "À jour"; return <Badge variant={label === "En retard" ? "destructive" : "outline"} className={label === "Soldé" ? "border-emerald-600/30 bg-emerald-600/10 text-emerald-700" : label === "En avance" ? "border-blue-600/30 bg-blue-600/10 text-blue-700" : ""}>{label}</Badge>; })()}</TableCell>
                     <TableCell><div className="flex items-center justify-end gap-1">
-                      {onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${client.nom_complet || "ce client"}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
-                      {onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${client.nom_complet || "ce client"}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
-                      <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${client.nom_complet || "ce client"}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>
+                      {remainingClient > 0 && !client.contrat_solde_at && onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${client.nom_complet || "ce client"}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
+                      {remainingClient > 0 && !client.contrat_solde_at && onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${client.nom_complet || "ce client"}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
+                      {remainingClient > 0 && !client.contrat_solde_at && <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${client.nom_complet || "ce client"}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>}
                     </div></TableCell>
                   </TableRow>;
                 })}
