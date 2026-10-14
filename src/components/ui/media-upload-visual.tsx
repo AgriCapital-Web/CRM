@@ -39,10 +39,11 @@ async function optimizeVideo(file: File): Promise<File> {
   const url = URL.createObjectURL(file);
   const video = document.createElement("video");
   video.src = url; video.muted = true; video.playsInline = true; video.preload = "metadata";
+  const sourceVideo = video as HTMLVideoElement & { captureStream?: () => MediaStream };
   try {
     await new Promise<void>((resolve, reject) => { video.onloadedmetadata = () => resolve(); video.onerror = () => reject(new Error("Vidéo illisible")); });
     if (video.duration > MAX_UPLOAD_VIDEO_SECONDS) throw new Error("Une vidéo téléversée ne peut pas dépasser 30 minutes.");
-    if (file.size < 12 * 1024 * 1024 || typeof MediaRecorder === "undefined" || !video.captureStream || !HTMLCanvasElement.prototype.captureStream) return file;
+    if (file.size < 12 * 1024 * 1024 || typeof MediaRecorder === "undefined" || typeof sourceVideo.captureStream !== "function" || !HTMLCanvasElement.prototype.captureStream) return file;
     const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((v) => MediaRecorder.isTypeSupported(v));
     if (!mime) return file;
     const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
@@ -51,7 +52,7 @@ async function optimizeVideo(file: File): Promise<File> {
     canvas.height = Math.max(2, Math.round(video.videoHeight * scale / 2) * 2);
     const ctx = canvas.getContext("2d"); if (!ctx) return file;
     const stream = canvas.captureStream(24);
-    const sourceStream = video.captureStream(); sourceStream.getAudioTracks().forEach((track) => stream.addTrack(track));
+    const sourceStream = sourceVideo.captureStream(); sourceStream.getAudioTracks().forEach((track) => stream.addTrack(track));
     const chunks: BlobPart[] = [];
     const blob = await new Promise<Blob>((resolve, reject) => {
       const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 96_000 });
