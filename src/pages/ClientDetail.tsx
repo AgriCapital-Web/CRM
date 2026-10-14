@@ -819,7 +819,6 @@ const ClientDetail = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>ID Unique</TableHead>
                         <TableHead>Nom</TableHead>
                         <TableHead>Région</TableHead>
                         <TableHead>Superficie</TableHead>
@@ -829,14 +828,13 @@ const ClientDetail = () => {
                     <TableBody>
                       {filteredPlantations.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8">
+                          <TableCell colSpan={4} className="text-center py-8">
                             Aucune plantation
                           </TableCell>
                         </TableRow>
                       ) : (
                         paginatedPlantations.map((plantation) => (
                           <TableRow key={plantation.id}>
-                            <TableCell className="font-mono">{plantation.id_unique}</TableCell>
                             <TableCell>{plantation.nom_plantation}</TableCell>
                             <TableCell>{plantation.regions?.nom}</TableCell>
                             <TableCell>{plantation.superficie_ha} ha</TableCell>
