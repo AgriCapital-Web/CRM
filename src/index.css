@@ -1016,8 +1016,23 @@ All colors MUST be HSL.
   }
 
   h1, h2, h3, h4, th, td, label, p, span, a, button {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
     word-break: normal;
+    hyphens: none;
+  }
+
+  /* Les cartes doivent pouvoir rétrécir et envelopper les mots entiers,
+     sans colonnes étroites ni texte affiché lettre par lettre. */
+  [data-slot="card"], [data-slot="card-content"], [data-slot="card-header"],
+  [data-slot="card"] > *, .grid > .rounded-lg.border.bg-card,
+  .grid > .rounded-xl.border.bg-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+  [data-slot="card"] p, [data-slot="card"] h3, [data-slot="card"] h4 {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: none;
   }
 
   /* Compact table cells on every screen while preserving readable horizontal direction. */
