@@ -700,7 +700,17 @@ serve(async (req) => {
       const events = Array.isArray(body.events) ? body.events : [];
       return json(req, { ok: true, results: await runEvents(events) });
     }
-    if (!(await staffAuthorized(req))) return json(req, { error: "Non autorise" }, 401);
+    // Le statut ne retourne que des indicateurs de configuration non secrets.
+    // Il est consommé par l'écran de paramètres et ne doit pas provoquer un 401 bloquant
+    // toute l'interface quand le contrôle de rôle n'est pas encore résolu.
+    if (mode === "status") {
+      const auth = req.headers.get("Authorization") || "";
+      if (!auth.startsWith("Bearer ")) return json(req, { error: "Authentification requise" }, 401);
+      const { data: authData, error: authError } = await admin.auth.getUser(auth.slice(7));
+      if (authError || !authData.user) return json(req, { error: "Session invalide" }, 401);
+      return json(req, { ok: true, providers: await providerStatus() });
+    }
+    if (!(await staffAuthorized(req))) return json(req, { error: "Accès refusé : session du personnel requise." }, 401);
     if (mode === "manual_contact") {
       const leadId = String(body.lead_id || "").trim();
       const channel = String(body.channel || "");
@@ -787,7 +797,6 @@ serve(async (req) => {
       }
       return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: Array.from(channel === "sms" ? normalizeSms(normalizedContent) : normalizedContent).length, attachmentsSent: mediaAttachments.length });
     }
-    if (mode === "status") return json(req, { ok: true, providers: await providerStatus() });
     if (mode === "preview") {
       const contacts = await resolveContacts(body.criteria || {});
       return json(req, { ok: true, count: contacts.length, sample: contacts.slice(0,20).map((c) => ({
