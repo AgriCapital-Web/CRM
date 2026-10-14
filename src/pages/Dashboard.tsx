@@ -69,10 +69,13 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     clients: 0,
     leads: 0,
+    prospects: 0,
     leadsNew: 0,
     leadsConverted: 0,
+    prospectsConverted: 0,
     leadsFollowup: 0,
     conversionRate: 0,
+    prospectsConversionRate: 0,
     ownerAreaHa: 0,
     partnershipTotalHa: 0,
     partnershipPlantedHa: 0,
@@ -162,7 +165,7 @@ const Dashboard = () => {
           ? (supabase as any).from("paiements").select("id,client_id,plantation_id,montant,montant_paye,statut,date_paiement,date_echeance,type_paiement,mode_paiement,reference,est_paiement_initial,created_at").order("date_paiement", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
           : Promise.resolve({ data: [] }),
         canLeads || globalAdmin
-          ? (supabase as any).from("leads").select("id,statut,created_at,converti_at,prochaine_relance_at,assigned_to,type_lead")
+          ? (supabase as any).from("leads").select("id,statut,created_at,converti_at,prochaine_relance_at,assigned_to,type_lead,etape_pipeline,etape_conversion")
           : Promise.resolve({ data: [] }),
         canClients || globalAdmin
           ? (supabase as any).from("documents_acquisition").select("id,statut,obligatoire,created_at")
@@ -232,11 +235,20 @@ const Dashboard = () => {
       const productionRows = scopedPlantations.filter((p: any) => p.statut_global === "en_production");
       const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       const remainingHa = Math.max(0, engagedHa - plantedHa);
-      const clientLeads = leads.filter((l: any) => l.type_lead !== "proprietaire_foncier");
-      const convertedLeads = clientLeads.filter((l: any) => l.statut === "converti" || Boolean(l.converti_at)).length;
-      const newLeads = leads.filter((l: any) => l.statut === "nouveau").length;
-      const followupLeads = leads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length;
-      const conversionRate = clientLeads.length ? Math.round((convertedLeads / clientLeads.length) * 100) : 0;
+      const pipelineLeads = leads.filter((l: any) => (l.etape_pipeline || "lead") === "lead");
+      const pipelineProspects = leads.filter((l: any) => l.etape_pipeline === "prospect");
+      const convertedRows = leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti" || Boolean(l.converti_at));
+      const convertedLeads = convertedRows.filter((l: any) => l.etape_conversion !== "prospect").length;
+      const convertedProspects = convertedRows.filter((l: any) => l.etape_conversion === "prospect").length;
+      const newLeads = pipelineLeads.filter((l: any) => l.statut === "nouveau").length;
+      const followupLeads = leads.filter((l: any) =>
+        ["lead", "prospect"].includes(l.etape_pipeline || "lead") &&
+        l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()
+      ).length;
+      const conversionRate = pipelineLeads.length + convertedLeads
+        ? Math.round((convertedLeads / (pipelineLeads.length + convertedLeads)) * 100) : 0;
+      const prospectsConversionRate = pipelineProspects.length + convertedProspects
+        ? Math.round((convertedProspects / (pipelineProspects.length + convertedProspects)) * 100) : 0;
       // Audit foncier : chaque indicateur utilise sa propre surface et sa relation validée.
       // Une surface totale de parcelle ne remplace jamais la quote-part AgriCapital.
       const activeConventionIds = new Set(conventions
@@ -329,11 +341,14 @@ const Dashboard = () => {
 
       setStats({
         clients: clients.filter((c: any) => !c.is_internal).length,
-        leads: leads.length,
+        leads: pipelineLeads.length,
+        prospects: pipelineProspects.length,
         leadsNew: newLeads,
         leadsConverted: convertedLeads,
+        prospectsConverted: convertedProspects,
         leadsFollowup: followupLeads,
         conversionRate,
+        prospectsConversionRate,
         ownerAreaHa,
         partnershipTotalHa,
         partnershipPlantedHa,
@@ -555,7 +570,16 @@ const Dashboard = () => {
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
       ...(canClients ? [{label:"Clients / dossiers",value:stats.clients,href:"/acquisitions"}] : []),
-      ...(canLeads ? [{label:"Prospects",value:stats.leads,href:"/leads"},{label:"Nouveaux",value:stats.leadsNew,href:"/leads?statut=nouveau"},{label:"Convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},{label:"Conversion",value:stats.conversionRate+"%",href:"/leads"},{label:"À relancer",value:stats.leadsFollowup,href:"/leads"}] : []),
+      ...(canLeads ? [
+        {label:"Leads",value:stats.leads,href:"/leads"},
+        {label:"Nouveaux leads",value:stats.leadsNew,href:"/leads?statut=nouveau"},
+        {label:"Leads convertis",value:stats.leadsConverted,href:"/leads?statut=converti"},
+        {label:"Taux de conversion des leads",value:stats.conversionRate+"%",href:"/leads"},
+        {label:"Prospects",value:stats.prospects,href:"/prospects"},
+        {label:"Prospects convertis",value:stats.prospectsConverted,href:"/prospects?statut=converti"},
+        {label:"Taux de conversion des prospects",value:stats.prospectsConversionRate+"%",href:"/prospects"},
+        {label:"Leads/prospects à relancer",value:stats.leadsFollowup,href:"/leads"}
+      ] : []),
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires partenaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface totale déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
