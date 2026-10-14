@@ -339,21 +339,25 @@ export function useOfflineSync() {
   // including background flushes triggered by the network layer itself.
   useEffect(() => {
     const refreshQueueCount = async () => {
-      const [localStats, httpStats] = await Promise.all([
+      const [localStats, httpStats, queuedFiles] = await Promise.all([
         getSyncQueueStats(),
         getHttpMutationStats(),
+        countQueuedFiles(),
       ]);
       setPendingCount(
         localStats.pending + localStats.error + httpStats.pending + httpStats.error
       );
+      setPendingFiles(queuedFiles);
     };
 
     const queued = () => { void refreshQueueCount(); };
     window.addEventListener("offline-mutation-queued", queued);
     window.addEventListener("offline-http-sync-complete", queued);
+    window.addEventListener("offline-file-queue-updated", queued);
     return () => {
       window.removeEventListener("offline-mutation-queued", queued);
       window.removeEventListener("offline-http-sync-complete", queued);
+      window.removeEventListener("offline-file-queue-updated", queued);
     };
   }, []);
 
