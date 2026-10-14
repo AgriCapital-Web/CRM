@@ -628,8 +628,8 @@ const ProprietairesTerres = () => {
                         const ownerHa = total * ownerPct / 100;
                         const lots = Number(formData.nombre_lots_agricapital || 0);
                         return <div className="p-3 rounded-md bg-primary/10 text-sm space-y-1">
-                          <p>Part propriétaire : <strong>{ownerHa.toFixed(2)} ha</strong> ({ownerPct}%)</p>
-                          <p>Part AgriCapital : <strong>{agriHa.toFixed(2)} ha</strong> ({agriPct}%)</p>
+                          <p>Part propriétaire : <strong>{Math.round(ownerHa).toLocaleString("fr-FR")} ha</strong> ({ownerPct}%)</p>
+                          <p>Part AgriCapital : <strong>{Math.round(agriHa).toLocaleString("fr-FR")} ha</strong> ({agriPct}%)</p>
                           <p>Lots AgriCapital : <strong>{lots}</strong> × 1 ha</p>
                           {formData.type_convention === "plante_partage" && <p>Caution foncière : <strong>{(agriHa * 50000).toLocaleString('fr-FR')} FCFA</strong></p>}
                         </div>;
@@ -748,7 +748,7 @@ const ProprietairesTerres = () => {
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-2 bg-green-100 rounded-lg"><MapPin className="h-5 w-5 text-green-600" /></div>
-                <div><div className="text-2xl font-bold">{proprietaires.reduce((s, p) => s + (p.surface_totale_ha || 0), 0).toFixed(1)}</div><div className="text-xs text-muted-foreground">ha total</div></div>
+                <div><div className="text-2xl font-bold">{proprietaires.reduce((s, p) => s + (p.surface_totale_ha || 0), 0).toLocaleString("fr-FR")}</div><div className="text-xs text-muted-foreground">ha total</div></div>
               </CardContent>
             </Card>
           </div>
@@ -787,7 +787,7 @@ const ProprietairesTerres = () => {
                     <TableCell>{p.telephone}</TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
-                    <TableCell>{(p.surface_totale_ha || 0).toFixed(1)}</TableCell>
+                    <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")}</TableCell>
                     <TableCell><Badge className={p.statut === "actif" ? "bg-green-500" : "bg-red-500"}>{p.statut}</Badge></TableCell>
                   </TableRow>
                 ))}
