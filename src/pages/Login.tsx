@@ -66,7 +66,8 @@ const Login = () => {
             alt="AgriCapital"
             className="block w-full max-w-[min(62vw,1120px)] max-h-[80svh] object-contain mx-auto mb-5 xl:mb-7 drop-shadow-2xl"
           />
-          <p className="text-white text-xl xl:text-2xl font-semibold mb-2">Espace équipe</p>
+          <p className="mt-3 mb-0 text-[clamp(1.25rem,2.5vw,2rem)] font-medium leading-tight text-[#F59E0B]">Investir la terre. Cultiver l’avenir.</p>
+          <p className="mt-28 text-xl font-semibold">Espace équipe</p>
           
         </div>
 
