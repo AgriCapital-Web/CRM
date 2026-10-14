@@ -1,9 +1,9 @@
-const CACHE_NAME = "agricapital-crm-v6";
+const CACHE_NAME = "agricapital-crm-v7";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 11;
 const HTTP_QUEUE_STORE = "http_mutations";
-const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json", "/logo-agricapital.png"];
+const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json", "/asset-manifest.json", "/logo-agricapital.png"];
 const FONT_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
 
 self.addEventListener("install", (event) => {
@@ -38,6 +38,39 @@ self.addEventListener("install", (event) => {
         } catch { /* Runtime caching will retry later. */ }
       }));
     } catch { /* Keep the minimal shell if bundle discovery fails. */ }
+
+    // Précharger aussi tous les chunks JavaScript/CSS référencés par le manifeste
+    // Vite : les écrans chargés en lazy-loading restent ouvrables après coupure.
+    // On limite la concurrence et une ressource manquante ne bloque pas l'installation.
+    try {
+      const manifestResponse = await cache.match("/asset-manifest.json");
+      if (manifestResponse) {
+        const manifest = await manifestResponse.json();
+        const assets = new Set();
+        for (const entry of Object.values(manifest)) {
+          if (!entry || typeof entry !== "object") continue;
+          const files = [entry.file, ...(entry.css || []), ...(entry.assets || [])];
+          for (const file of files) {
+            if (typeof file !== "string" || !/\.(?:js|mjs|css|woff2?|ttf|otf)$/i.test(file.split("?")[0])) continue;
+            try {
+              const asset = new URL(file.startsWith("/") ? file : "/" + file, self.location.origin);
+              if (asset.origin === self.location.origin) assets.add(asset.href);
+            } catch { /* Ignorer les références de manifeste invalides. */ }
+          }
+        }
+        const urls = Array.from(assets);
+        const concurrency = 4;
+        for (let offset = 0; offset < urls.length; offset += concurrency) {
+          await Promise.all(urls.slice(offset, offset + concurrency).map(async (url) => {
+            try {
+              if (await cache.match(url)) return;
+              const response = await fetch(url, { cache: "reload" });
+              if (response.ok) await cache.put(url, response);
+            } catch { /* Les chunks manquants seront retentés lors d'une prochaine mise à jour. */ }
+          }));
+        }
+      }
+    } catch { /* Le shell et les bundles directement référencés restent disponibles. */ }
   })());
 });
 
