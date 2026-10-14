@@ -122,7 +122,10 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
     offre_code: contact.offre_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
   };
-  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => vars[key] ?? "");
+  return template.replace(/\{\{\s*([a-zA-Z0-9_ ]+)\s*\}\}|\{\s*([a-zA-Z0-9_ ]+)\s*\}/g, (_match, doubleKey, singleKey) => {
+    const key = String(doubleKey || singleKey || "").trim().replace(/\s+/g, "_");
+    return vars[key] ?? "";
+  });
 };
 
 async function internalAuthorized(req: Request) {
@@ -370,6 +373,21 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
       contacts = contacts.filter((c) => c.source_id === context.proprietaire_id && c.source_type === "proprietaire_foncier");
     }
     if (context.user_id) contacts = contacts.filter((c) => c.user_id === context.user_id);
+    const cooldownMinutes = Math.max(0, Number(automation.cooldown_minutes) || 0);
+    if (cooldownMinutes > 0 && contacts.length) {
+      const cutoff = new Date(Date.now() - cooldownMinutes * 60_000).toISOString();
+      const eligible: Contact[] = [];
+      for (const contact of contacts) {
+        let query = admin.from("notification_deliveries").select("id").eq("automation_id", automation.id)
+          .eq("source_id", contact.source_id).gte("created_at", cutoff)
+          .in("statut", ["en_cours", "envoye", "livre"]).limit(1);
+        if (context.paiement_id) query = query.contains("metadata", { event_key: eventCode + ":" + String(context.paiement_id) });
+        const { data: recent, error: recentError } = await query;
+        if (recentError) throw recentError;
+        if (!recent?.length) eligible.push(contact);
+      }
+      contacts = eligible;
+    }
     let selectedChannel = automation.canal;
     if (selectedChannel === "auto" && context.client_id) {
       const preferenceColumn = eventCode === "solde_regle" ? "canal_finalisation" : "canal_rappel";
