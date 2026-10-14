@@ -96,7 +96,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const isCommercialProfile = departementSelectionne === "Commercial";
 
   const isTechniqueProfile = departementSelectionne === "Technique";
-  const showEquipe = isCommercialProfile || isTechniqueProfile;
+  const showEquipe = isCommercialProfile || isTechniqueProfile || selectedRoles.some((role) => ["pdg", "dg"].includes(role.toLowerCase()));
 
   const equipesFiltrees = useMemo(() => {
     if (isCommercialProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "commerciale");
@@ -548,7 +548,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <Input type="number" min="0" step="1" {...register("salaire_base")} defaultValue={utilisateur?.salaire_base ?? ""} placeholder="Laisser vide si non salarié" />
           </div>
 
-          {!governanceOnly && showEquipe && <div className="space-y-2">
+          {showEquipe && <div className="space-y-2">
             <Label>Équipe</Label>
             <Select
               defaultValue={utilisateur?.equipe_id}
