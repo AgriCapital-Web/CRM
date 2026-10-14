@@ -115,9 +115,9 @@ export default function GestionRemuneration() {
           <CardHeader className="pb-3"><CardTitle className="text-base">Palme Invest et Terra Palm</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             <RuleEditor code={RULES.partnerSale} label="Commission subvention — unique" unit="money" />
-            <RuleEditor code={RULES.partnerYear1} label="Recouvrement mensuel — année 1" unit="percent" />
-            <RuleEditor code={RULES.partnerYear2} label="Recouvrement mensuel — année 2" unit="percent" />
-            <RuleEditor code={RULES.partnerYear3} label="Recouvrement mensuel — année 3" unit="percent" />
+            <RuleEditor code={RULES.partnerYear1} label="Recouvrement mensuel 1-1 — année 1" unit="percent" />
+            <RuleEditor code={RULES.partnerYear2} label="Recouvrement mensuel 1-2 — année 2" unit="percent" />
+            <RuleEditor code={RULES.partnerYear3} label="Recouvrement mensuel 1-3 — année 3" unit="percent" />
           </CardContent>
         </Card>
         <Card>
