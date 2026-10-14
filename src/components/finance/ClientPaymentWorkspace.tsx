@@ -88,14 +88,14 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         const clientSubscriptions = subscriptionMap.get(c.id) || [];
         const subscriptionTotal = clientSubscriptions.reduce((sum: number, s: any) => sum + Number(s.montant_total_contrat || 0), 0);
         const summary = byClient.get(c.id) || null;
-        const principalTotal = Number(summary?.montant_total_contrat ?? c.montant_total_contrat ?? 0);
+        const principalTotal = Number(summary?.montant_total_contrat ?? (Number(c.montant_total_contrat || 0) + subscriptionTotal));
         return {
           ...c,
           summary,
           subscriptionTotal,
           subscriptions: clientSubscriptions,
           formule_nom: c.formule_nom || clientSubscriptions.map((s: any) => s.formule_nom || s.offre_nom).filter(Boolean).join(" · "),
-          montant_total_contrat: principalTotal + subscriptionTotal,
+          montant_total_contrat: principalTotal,
         } as ClientFinanceRow;
       })
         .filter((c: ClientFinanceRow) => {
@@ -165,6 +165,15 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       if (subsRes.error) throw subsRes.error;
       if (plantationsRes.error) throw plantationsRes.error;
       if (basePaymentsRes.error) throw basePaymentsRes.error;
+      const subscriptionIds = (subsRes.data || []).map((s: any) => s.id).filter(Boolean);
+      let allClientPlantations = plantationsRes.data || [];
+      if (subscriptionIds.length) {
+        const { data: subscriptionPlantations, error: subscriptionPlantationsError } = await (supabase as any).from("plantations").select("id,id_unique,nom_plantation,superficie_ha,souscription_id,statut_global").in("souscription_id", subscriptionIds);
+        if (subscriptionPlantationsError) throw subscriptionPlantationsError;
+        const unique = new Map<string, any>();
+        [...allClientPlantations, ...(subscriptionPlantations || [])].forEach((p: any) => unique.set(p.id, p));
+        allClientPlantations = [...unique.values()];
+      }
       const basePaid = (basePaymentsRes.data || []).reduce((sum: number, p: any) => sum + Number(p.montant_paye ?? p.montant ?? 0), 0);
       const baseTotal = Number(client.montant_total_contrat || 0);
       const normalizedBaseState = {
@@ -172,12 +181,12 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         reste_contrat: baseTotal > 0 ? Math.max(0, baseTotal - basePaid) : Number(client.summary?.reste_a_payer || 0),
       };
       setBaseState(normalizedBaseState);
-      setPlantations(plantationsRes.data || []);
+      setPlantations(allClientPlantations);
       const nextContracts: ContractState[] = [{
         id: "principal",
         label: "Contrat initial du client",
         subscriptionId: null,
-        plantationId: (plantationsRes.data || []).find((p: any) => !p.souscription_id)?.id || null,
+        plantationId: allClientPlantations.find((p: any) => !p.souscription_id)?.id || null,
         surface: Number(client.total_hectares || 0),
         state: normalizedBaseState,
       }];
@@ -190,7 +199,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           id: sub.id,
           label: `${sub.formule_nom || sub.offre_nom || "Souscription"} · ${Number(sub.superficie_ha || 0).toLocaleString("fr-FR")} ha`,
           subscriptionId: sub.id,
-          plantationId: (plantationsRes.data || []).find((p: any) => p.souscription_id === sub.id)?.id || null,
+          plantationId: allClientPlantations.find((p: any) => p.souscription_id === sub.id)?.id || null,
           surface: Number(sub.superficie_ha || 0),
           state: subStateRes.data || {},
         });
