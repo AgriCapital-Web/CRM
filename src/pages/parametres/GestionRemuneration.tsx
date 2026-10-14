@@ -122,12 +122,12 @@ export default function GestionRemuneration() {
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule essentielle</CardTitle></CardHeader>
-          <CardContent><RuleEditor code={RULES.essentialSale} label="Commission subvention — unique" unit="money" /><p className="mt-2 text-sm text-muted-foreground">Aucune commission de recouvrement mensuel pour cette formule.</p></CardContent>
+          <CardContent><RuleEditor code={RULES.essentialSale} label="Commission / vente — unique" unit="money" /><p className="mt-2 text-sm text-muted-foreground">Aucune commission de recouvrement mensuel pour cette formule.</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule flexible</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.flexibleSale} label="Commission subvention — unique" unit="money" />
+            <RuleEditor code={RULES.flexibleSale} label="Commission / vente — unique" unit="money" />
             <RuleEditor code={RULES.flexibleRecovery} label="Commission sur chaque mensualité" unit="percent" />
           </CardContent>
         </Card>
