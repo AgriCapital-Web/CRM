@@ -10,7 +10,7 @@ as $function$
   coalesce((select jsonb_agg(jsonb_build_object('profile_id',em.profile_id,'equipe_id',em.equipe_id,'equipe',jsonb_build_object('id',mt.id,'type_equipe',mt.type_equipe))) from public.equipe_membres em join public.equipes mt on mt.id=em.equipe_id where em.profile_id=p.id),'[]'::jsonb)
  from public.profiles p left join public.equipes primary_team on primary_team.id=p.equipe_id
  where p.actif is true and (
-  private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'comptable') or private.has_role(auth.uid(),'responsable_operations') or p.user_id=auth.uid()
+  private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'comptable') or private.has_role_permission('portefeuilles.manage_payouts') or p.user_id=auth.uid()
   or (private.has_role(auth.uid(),'chef_equipe_technique') and exists(
     select 1 from public.profiles viewer join public.equipes t on lower(coalesce(t.type_equipe,'')) like '%technique%'
     where viewer.user_id=auth.uid() and ((viewer.equipe_id=t.id and p.equipe_id=t.id)
