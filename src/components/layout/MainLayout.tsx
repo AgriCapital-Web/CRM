@@ -162,7 +162,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       </main>
 
 
-      <AIAssistant mode="admin" context={`Utilisateur: ${formatUserShortName(profile?.nom_complet)}, Rôles: ${userRoles.join(', ') || 'N/A'}`} />
+      <AIAssistant mode="staff" context={`Utilisateur: ${formatUserShortName(profile?.nom_complet)}; rôles: ${userRoles.join(", ") || "N/A"}; département: ${profile?.departement || "non défini"}; équipe principale: ${profile?.equipe_id || "non définie"}; relation RH: ${profile?.relation_rh || "non définie"}`} />
     </div>
   );
 };
