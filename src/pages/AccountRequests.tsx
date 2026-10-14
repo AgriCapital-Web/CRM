@@ -139,7 +139,7 @@ const AccountRequests = () => {
                 <TableHead>Date</TableHead>
                 <TableHead>Nom</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Identifiant</TableHead>
+                
                 <TableHead>Poste</TableHead>
                 <TableHead>Rôle</TableHead>
                 <TableHead>Statut</TableHead>
@@ -154,7 +154,7 @@ const AccountRequests = () => {
                   </TableCell>
                   <TableCell>{request.nom_complet}</TableCell>
                   <TableCell>{request.email}</TableCell>
-                  <TableCell className="font-mono text-xs">{request.username || '—'}</TableCell>
+                  
                   <TableCell>{request.poste_souhaite}</TableCell>
                   <TableCell>{request.role_souhaite}</TableCell>
                   <TableCell>{getStatusBadge(request.statut)}</TableCell>
