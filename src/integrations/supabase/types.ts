@@ -130,6 +130,20 @@ export type Database = {
             referencedRelation: "v_geo_regions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_requests_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_requests_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_sous_prefectures"
+            referencedColumns: ["id"]
+          },
         ]
       }
       acquisition_lots: {
@@ -167,6 +181,27 @@ export type Database = {
           surface_ha?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "acquisition_lots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acquisition_lots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_synthese"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "acquisition_lots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_monnaie_clients"
+            referencedColumns: ["client_id"]
+          },
           {
             foreignKeyName: "acquisition_lots_lot_id_fkey"
             columns: ["lot_id"]
@@ -3281,7 +3316,15 @@ export type Database = {
           status?: string
           transaction_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kkiapay_events_paiement_id_fkey"
+            columns: ["paiement_id"]
+            isOneToOne: false
+            referencedRelation: "paiements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_historique: {
         Row: {
@@ -5910,6 +5953,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_districts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_equipe_id_fkey"
             columns: ["equipe_id"]
             isOneToOne: false
@@ -5921,6 +5978,20 @@ export type Database = {
             columns: ["equipe_id"]
             isOneToOne: false
             referencedRelation: "v_performance_equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_regions"
             referencedColumns: ["id"]
           },
         ]
@@ -6977,6 +7048,20 @@ export type Database = {
             columns: ["plantation_id"]
             isOneToOne: false
             referencedRelation: "plantations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_regions"
             referencedColumns: ["id"]
           },
         ]
