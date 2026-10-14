@@ -59,7 +59,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
-import PaiementForm from "@/components/forms/PaiementForm";
+import ClientPaymentWorkspace from "@/components/finance/ClientPaymentWorkspace";
 
 interface Paiement {
   id: string;
@@ -94,9 +94,7 @@ const GestionPaiements = () => {
   const [selectedPaiement, setSelectedPaiement] = useState<Paiement | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
-  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [isKkiapayDialogOpen, setIsKkiapayDialogOpen] = useState(false);
   const [kkiapayLoading, setKkiapayLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -118,146 +116,14 @@ const GestionPaiements = () => {
   const [sourcePaiements, setSourcePaiements] = useState<Paiement[]>([]);
 
 
-  // KKiaPay payment handler
-  const handleKkiapayPayment = async (paiement: Paiement) => {
-    setSelectedPaiement(paiement);
-    setKkiapayLoading(true);
-
-    // Setup callbacks before opening
-    onSuccess(async (response) => {
-      console.log('KKiaPay payment success:', response);
-      
-      // Verify the transaction server-side
-      try {
-        // La vérification ET l'enregistrement du paiement sont faits côté serveur :
-        // montant, rattachement et unicité de la transaction y sont contrôlés.
-        const { data, error } = await supabase.functions.invoke('kkiapay-verify-transaction', {
-          body: { transactionId: response.transactionId, paiementId: paiement.id }
-        });
-
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
-
-        if (data?.transaction?.isPaymentSuccessful && data?.applied) {
-          toast({
-            title: "Paiement réussi ✅",
-            description: `${formatMontant(paiement.montant)} payé via KKiaPay`
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Paiement échoué",
-            description: data?.transaction?.failureMessage || "La vérification a échoué"
-          });
-        }
-      } catch (err: any) {
-        console.error('Verification error:', err);
-        toast({
-          variant: "destructive",
-          title: "Erreur de vérification",
-          description: getSafeErrorMessage(err)
-        });
-      }
-
-      setKkiapayLoading(false);
-      queryClient.invalidateQueries({ queryKey: ['gestion-paiements'] });
-    });
-
-    onFailed((error) => {
-      console.error('KKiaPay payment failed:', error);
-      toast({
-        variant: "destructive",
-        title: "Paiement échoué",
-        description: error.reason || "Le paiement a échoué"
-      });
-      setKkiapayLoading(false);
-    });
-
-    onClose(() => {
-      setKkiapayLoading(false);
-    });
-
-    // Open the widget
-    const success = await openPayment({
-      amount: paiement.montant,
-      name: paiement.clients?.nom_complet || 'Client AgriCapital',
-      phone: paiement.clients?.telephone || '',
-      data: {
-        paiement_id: paiement.id,
-        reference: paiement.reference,
-        type: paiement.type_paiement
-      }
-    });
-
-    if (!success) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Le widget KKiaPay n'a pas pu s'ouvrir. Vérifiez votre connexion."
-      });
-      setKkiapayLoading(false);
-    }
-  };
-
   // Realtime refresh: when a payment changes (webhooks / validation), refresh lists + stats
   useRealtime({
     table: 'paiements',
     event: '*',
     onChange: () => {
       queryClient.invalidateQueries({ queryKey: ['gestion-paiements'] });
+      queryClient.invalidateQueries({ queryKey: ['gestion-paiements-clients'] });
       queryClient.invalidateQueries({ queryKey: ['clients-monnaie'] });
-    }
-  });
-
-  const { data: paiements = [], isLoading, refetch } = useQuery({
-    queryKey: ['gestion-paiements', searchTerm.trim()],
-    queryFn: async () => {
-      const selectClause = `
-        *,
-        clients!inner (nom_complet, telephone, id_unique, statut_global, type_client, is_internal, contrat_solde_at),
-        plantations (id_unique, nom_plantation),
-        souscription:client_souscriptions!paiements_souscription_id_fkey (formule_nom, offre_nom, formule_code, superficie_ha)
-      `;
-      const safeSearch = searchTerm.trim().replace(/[,%()]/g, " ");
-
-      if (!safeSearch) {
-        const { data, error } = await (supabase as any)
-          .from('paiements')
-          .select(selectClause)
-          .in('statut', ['valide','en_attente'])
-          .order('created_at', { ascending: false })
-          .limit(50);
-        if (error) throw error;
-        return data as Paiement[];
-      }
-
-      const [paymentSearch, clientSearch] = await Promise.all([
-        (supabase as any)
-          .from('paiements')
-          .select(selectClause)
-          .in('statut', ['valide','en_attente'])
-          .or(`reference.ilike.%${safeSearch}%,id_transaction.ilike.%${safeSearch}%`)
-          .order('created_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('paiements')
-          .select(selectClause)
-          .in('statut', ['valide','en_attente'])
-          .or(`nom_complet.ilike.%${safeSearch}%,telephone.ilike.%${safeSearch}%,id_unique.ilike.%${safeSearch}%`, { referencedTable: 'clients' })
-          .order('created_at', { ascending: false })
-          .limit(50)
-      ]);
-
-      if (paymentSearch.error) throw paymentSearch.error;
-      if (clientSearch.error) throw clientSearch.error;
-
-      const merged = new Map<string, Paiement>();
-      for (const row of [...(paymentSearch.data || []), ...(clientSearch.data || [])]) {
-        merged.set(row.id, row as Paiement);
-      }
-      return Array.from(merged.values())
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 50);
     }
   });
 
@@ -314,18 +180,6 @@ const GestionPaiements = () => {
 
   const settledClientIds = useMemo(() => new Set((financeSynthese||[]).filter((row:any)=>Number(row.montant_total_contrat||0)>0&&Number(row.reste_a_payer||0)<=0).map((row:any)=>row.client_id).filter(Boolean)),[financeSynthese]);
   const financialActionsBlocked = (paiement:Paiement) => settledClientIds.has(paiement.client_id) || Boolean(paiement.clients?.contrat_solde_at) || paiement.clients?.type_client === "beneficiaire_particulier" || paiement.clients?.is_internal === true;
-
-  // Filtered paiements
-  const filteredPaiements = useMemo(() => {
-    if (!searchTerm) return paiements;
-    const term = searchTerm.toLowerCase();
-    return paiements.filter(p => 
-      p.reference?.toLowerCase().includes(term) ||
-      p.clients?.nom_complet?.toLowerCase().includes(term) ||
-      p.clients?.telephone?.includes(term) ||
-      p.plantations?.id_unique?.toLowerCase().includes(term)
-    );
-  }, [paiements, searchTerm]);
 
   const formatMontant = (m: number) => {
     return new Intl.NumberFormat("fr-FR").format(m) + " F CFA";
@@ -451,7 +305,7 @@ const GestionPaiements = () => {
 
       setIsTransferDialogOpen(false);
       resetForms();
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ["gestion-paiements-clients"] });
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -557,7 +411,6 @@ const GestionPaiements = () => {
               <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2"><CreditCard className="h-7 w-7 text-primary" />Gestion des Paiements</h1>
               
             </div>
-            {canCreatePayment && <Button onClick={() => setIsCreatePaymentOpen(true)} className="gap-2"><CreditCard className="h-4 w-4"/>Enregistrer un paiement</Button>}
           </div>
 
           {canFinancialOverview && (
@@ -613,109 +466,9 @@ const GestionPaiements = () => {
               </TabsTrigger>}
             </TabsList>
 
-            {/* Paiements Tab */}
+            {/* Vue financière par client : les paiements se lancent depuis la fiche client via KKiaPay. */}
             <TabsContent value="paiements" className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher par nom, téléphone, référence"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Button variant="outline" onClick={() => refetch()}>
-                  <RefreshCcw className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="border rounded-lg overflow-hidden">
-                <Table className="responsive-data-table">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Client</TableHead>
-                      
-                      <TableHead>Mensualité</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredPaiements.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          Aucun paiement trouvé
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredPaiements.map((paiement) => (
-                        <TableRow key={paiement.id}>
-                          <TableCell className="text-sm">
-                            {new Date(paiement.date_paiement || paiement.created_at).toLocaleDateString('fr-FR')}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{paiement.clients?.nom_complet || '-'}</p>
-                              <p className="text-xs text-muted-foreground">{paiement.clients?.telephone}</p>
-                              {(paiement as any).souscription && <p className="mt-1 text-xs font-medium text-primary">{(paiement as any).souscription.formule_nom || (paiement as any).souscription.offre_nom} · {Number((paiement as any).souscription.superficie_ha || 0).toLocaleString("fr-FR")} ha</p>}
-                              {paiement.statut === "en_attente" && <p className="mt-1 text-xs text-amber-600">En attente de paiement / validation</p>}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-bold">
-                            {formatMontant(paiement.montant_paye || paiement.montant)}
-                          </TableCell>
-                          <TableCell>{getStatutClientBadge(paiement.clients?.statut_global)}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1 flex-wrap">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedPaiement(paiement);
-                                  setIsDetailsDialogOpen(true);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {canExecutePayment && !financialActionsBlocked(paiement) && paiement.statut === 'en_attente' && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="gap-1"
-                                  disabled={kkiapayLoading}
-                                  onClick={() => handleKkiapayPayment(paiement)}
-                                  title="Payer via KKiaPay"
-                                >
-                                  {kkiapayLoading && selectedPaiement?.id === paiement.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Smartphone className="h-3 w-3" />
-                                  )}
-                                  <span className="hidden sm:inline">Payer</span>
-                                </Button>
-                              )}
-                              {(canTransferPayment || canRefundPayment) && !financialActionsBlocked(paiement) && paiement.statut === 'valide' && (
-                                <>
-                                  {canTransferPayment && <Button variant="ghost" size="sm" onClick={() => { setSelectedPaiement(paiement); setIsTransferDialogOpen(true); }} title="Transférer"><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
-                                  {canRefundPayment && <Button variant="ghost" size="sm" onClick={() => { setSelectedPaiement(paiement); setRefundAmount(String(paiement.montant_paye || paiement.montant)); setIsRefundDialogOpen(true); }} title="Rembourser"><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <ClientPaymentWorkspace />
             </TabsContent>
 
             {/* Monnaie client conservée dans les indicateurs; aucune conversion tarifaire artificielle. */}
