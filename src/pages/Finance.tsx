@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, PlayCircle, CheckCircle2, Trash2, FileText, Paperclip, Upload } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import TableSearchInput from "@/components/common/TableSearchInput";
+import { uploadFile } from "@/utils/storage";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
 const today=()=>new Date().toISOString().slice(0,10);
@@ -34,6 +35,7 @@ export default function Finance(){
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [expense,setExpense]=useState({category:"AUTRE",amount:"",description:"",supplier:"",clientId:"",plantationId:"",direct:false});
+  const [expenseProof,setExpenseProof]=useState<File|null>(null);
   const [associateForm,setAssociateForm]=useState({associateId:"",amount:"",type:"apport",reference:"",notes:""});
   const [salaryForm,setSalaryForm]=useState({profileId:"",baseSalary:"",payDay:"28"});
   const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
@@ -83,21 +85,33 @@ export default function Finance(){
   const saveExpense=async()=>{
     if(!expense.category||Number(expense.amount)<=0)return;
     setSaving(true);
-    const {data,error}=await (supabase as any).from("finance_transactions").insert({
-      direction:"sortie",category:"DEPENSE",label:expense.category,amount:Number(expense.amount),
-      status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,notes:expense.description||null
-    }).select("id").single();
-    if(!error&&data){
-      await (supabase as any).from("finance_expenses").insert({
+    try {
+      let proofPath: string | null = null;
+      if (expenseProof) {
+        const uploaded = await uploadFile("documents", expenseProof, "finance/depenses");
+        if (!uploaded?.path) throw new Error("Le justificatif n’a pas pu être téléversé.");
+        proofPath = uploaded.path;
+      }
+      const {data,error}=await (supabase as any).from("finance_transactions").insert({
+        direction:"sortie",category:"DEPENSE",label:expense.category,amount:Number(expense.amount),
+        status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
+        notes:expense.description||null,reference:proofPath
+      }).select("id").single();
+      if(error) throw error;
+      const {error: expenseError}=await (supabase as any).from("finance_expenses").insert({
         transaction_id:data.id,expense_category:expense.category,supplier_name:expense.supplier||null,
         description:expense.description||null,client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        is_direct_cost:expense.direct
+        is_direct_cost:expense.direct,proof_path:proofPath,proof_name:expenseProof?.name||null,
+        proof_mime_type:expenseProof?.type||null
       });
-      toast({title:"Dépense enregistrée"});
+      if(expenseError) throw expenseError;
+      toast({title:"Dépense enregistrée",description:proofPath ? "Justificatif joint à la dépense." : "Dépense enregistrée sans justificatif."});
       setExpense({category:"AUTRE",amount:"",description:"",supplier:"",clientId:"",plantationId:"",direct:false});
+      setExpenseProof(null);
       await load();
-    }else toast({title:"Erreur",description:error?.message||"Impossible d'enregistrer",variant:"destructive"});
-    setSaving(false);
+    } catch(error:any) {
+      toast({title:"Erreur",description:error?.message||"Impossible d'enregistrer la dépense",variant:"destructive"});
+    } finally { setSaving(false); }
   };
 
   const saveAssociateMovement=async()=>{
@@ -265,6 +279,7 @@ export default function Finance(){
           <div><Label>MONTANT</Label><Input type="number" value={expense.amount} onChange={e=>setExpense({...expense,amount:e.target.value})}/></div>
           <div><Label>FOURNISSEUR / BÉNÉFICIAIRE</Label><Input value={expense.supplier} onChange={e=>setExpense({...expense,supplier:e.target.value})}/></div>
           <div><Label>DESCRIPTION</Label><Textarea value={expense.description} onChange={e=>setExpense({...expense,description:e.target.value})}/></div>
+          <div className="space-y-1"><Label htmlFor="expense-proof" className="flex items-center gap-2"><Paperclip className="h-4 w-4"/>Justificatif / reçu / facture</Label><Input id="expense-proof" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setExpenseProof(e.target.files?.[0]||null)} className="text-sm"/>{expenseProof && <p className="text-xs text-muted-foreground">{expenseProof.name}</p>}</div>
           <Button className="w-full" onClick={()=>void saveExpense()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>ENREGISTRER</Button>
         </CardContent></Card>}
         <Card><CardHeader><CardTitle>Dépenses enregistrées</CardTitle></CardHeader><CardContent><div className="space-y-2">{expenses.map(e=><div key={e.id} className="rounded-lg border p-3"><div className="flex justify-between"><b>{e.expense_category}</b><b>{money(e.transaction_id?transactions.find(t=>t.id===e.transaction_id)?.amount:0)}</b></div><p className="text-xs text-muted-foreground">{e.description||"—"} {e.is_direct_cost&&"• COÛT DIRECT"}</p></div>)}</div></CardContent></Card>
