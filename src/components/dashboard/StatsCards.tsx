@@ -46,7 +46,7 @@ export const StatsCards = ({ stats, formatMontant }: StatsCardsProps) => {
         <CardContent>
           <div className="text-3xl font-bold">{stats.totalPlantations}</div>
           <p className="text-sm text-muted-foreground mt-2">
-            {stats.totalSuperficie.toFixed(1)} hectares au total
+            {Math.round(stats.totalSuperficie).toLocaleString("fr-FR")} hectares au total
           </p>
         </CardContent>
       </Card>
