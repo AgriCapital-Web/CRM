@@ -53,6 +53,7 @@ const TechnicienTerrain=()=>{
   const [activeTab,setActiveTab]=useState("rapport");
   const [saving,setSaving]=useState(false);
   const [capturingReportPosition,setCapturingReportPosition]=useState(false);
+  const [capturingInterventionPosition,setCapturingInterventionPosition]=useState(false);
   const [transferPlantationId,setTransferPlantationId]=useState("");
   const [transferClientId,setTransferClientId]=useState("");
   const [transferSaving,setTransferSaving]=useState(false);
@@ -201,6 +202,22 @@ const TechnicienTerrain=()=>{
       toast({title:"Position enregistrée"});
     },(error)=>{
       setCapturingReportPosition(false);
+      toast({variant:"destructive",title:"Position non enregistrée",description:error.code===1?"Autorisez l’accès à la position pour enregistrer les coordonnées.":"Impossible de récupérer la position. Vérifiez le GPS puis réessayez."});
+    },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+  };
+
+  const captureInterventionPosition=()=>{
+    if(!navigator.geolocation){
+      toast({variant:"destructive",title:"Géolocalisation indisponible",description:"Votre appareil ou navigateur ne permet pas de récupérer la position."});
+      return;
+    }
+    setCapturingInterventionPosition(true);
+    navigator.geolocation.getCurrentPosition(({coords})=>{
+      setIntervention((current:any)=>({...current,localisation_gps_lat:String(coords.latitude),localisation_gps_lng:String(coords.longitude)}));
+      setCapturingInterventionPosition(false);
+      toast({title:"Position de l’intervention enregistrée"});
+    },(error)=>{
+      setCapturingInterventionPosition(false);
       toast({variant:"destructive",title:"Position non enregistrée",description:error.code===1?"Autorisez l’accès à la position pour enregistrer les coordonnées.":"Impossible de récupérer la position. Vérifiez le GPS puis réessayez."});
     },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
   };
@@ -386,7 +403,7 @@ const TechnicienTerrain=()=>{
 
   if(!allowed)return <ProtectedRoute><MainLayout><Card><CardHeader><CardTitle>Accès technicien</CardTitle></CardHeader></Card></MainLayout></ProtectedRoute>;
 
-  return <ProtectedRoute><MainLayout><div className="min-w-0 w-full max-w-full space-y-3 overflow-hidden">
+  return <ProtectedRoute><MainLayout><div className="technique-page min-w-0 w-full max-w-full space-y-3 overflow-hidden">
     <div><h1 className="text-3xl font-bold">Technique — suivi des plantations</h1></div>
 
     <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 w-full">
@@ -456,9 +473,10 @@ const TechnicienTerrain=()=>{
           </div>
           <div className="rounded-xl border p-4 space-y-4">
             <div><Label>Localisation GPS</Label></div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button type="button" variant={localisationMode==="automatic"?"default":"outline"} onClick={()=>setLocalisationMode("automatic")}>Localisation automatique</Button>
               <Button type="button" variant={localisationMode==="manual"?"default":"outline"} onClick={()=>setLocalisationMode("manual")}>Localisation manuelle</Button>
+              <Button type="button" variant="outline" disabled={capturingInterventionPosition} onClick={captureInterventionPosition}>{capturingInterventionPosition?"Localisation…":"Capturer la position GPS"}</Button>
             </div>
             {localisationMode==="manual"&&<div className="grid md:grid-cols-2 gap-4">
               <div><Label>Latitude</Label><Input type="number" step="any" value={intervention.localisation_gps_lat||""} onChange={e=>setIntervention((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div>
