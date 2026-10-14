@@ -103,14 +103,26 @@ export async function uploadOrQueueFile(opts: {
   return { path: opts.path, queued: true, error: null };
 }
 
-export async function getQueuedFiles(): Promise<QueuedFile[]> {
-  const all = await getAllItems(STORES.FILES);
-  return (all as QueuedFile[]).filter(f => f.status !== 'uploading');
+/** Récupère la file et répare les marqueurs « uploading » laissés par une fermeture ou un crash. */
+export async function getAllQueuedFiles(): Promise<QueuedFile[]> {
+  const all = (await getAllItems(STORES.FILES)) as QueuedFile[];
+  const normalized: QueuedFile[] = [];
+  for (const file of all) {
+    if (file.status === "uploading") {
+      // La file n'est pas supprimée : le fichier est remis en attente afin de
+      // pouvoir reprendre l'envoi au prochain passage réseau.
+      const recovered: QueuedFile = { ...file, status: "pending", nextRetryAt: 0, error: undefined };
+      await putItem(STORES.FILES, recovered);
+      normalized.push(recovered);
+    } else {
+      normalized.push(file);
+    }
+  }
+  return normalized;
 }
 
-/** Toutes les entrées de la file, y compris celles en cours (écran de suivi détaillé). */
-export async function getAllQueuedFiles(): Promise<QueuedFile[]> {
-  return (await getAllItems(STORES.FILES)) as QueuedFile[];
+export async function getQueuedFiles(): Promise<QueuedFile[]> {
+  return (await getAllQueuedFiles()).filter(f => f.status !== "uploading");
 }
 
 /** Remet une pièce jointe en attente immédiate (reprise manuelle). */
