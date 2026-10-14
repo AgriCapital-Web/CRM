@@ -20,7 +20,7 @@ import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Target, TrendingUp, Users, MapPin, PhoneCall, ArrowRight, Copy, Plus } from "lucide-react";
+import { Target, TrendingUp, Users, MapPin, PhoneCall, ArrowRight, Copy, Plus, Phone, Mail, MessageCircle, Contact } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import GeographieCascade from "@/components/common/GeographieCascade";
@@ -35,6 +35,8 @@ import { formatUserShortName } from "@/lib/utils";
 const STATUTS = [
   { v: "nouveau", l: "Nouveau", color: "bg-blue-100 text-blue-800" },
   { v: "contacte", l: "Contacté", color: "bg-cyan-100 text-cyan-800" },
+  { v: "interesse", l: "Intéressé", color: "bg-teal-100 text-teal-800" },
+  { v: "tres_interesse", l: "Très intéressé", color: "bg-emerald-100 text-emerald-800" },
   { v: "qualifie", l: "Qualifié", color: "bg-indigo-100 text-indigo-800" },
   { v: "en_discussion", l: "En discussion", color: "bg-purple-100 text-purple-800" },
   { v: "preparation_dossier", l: "Prépa dossier", color: "bg-amber-100 text-amber-800" },
@@ -50,7 +52,7 @@ const RESULTATS = [
   { v: "en_reflexion", l: "En réflexion" }, { v: "non_interesse", l: "Non intéressé" },
 ];
 
-export default function Leads() {
+export default function Leads({ view = "leads" }: { view?: "leads" | "prospects" }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -67,13 +69,19 @@ export default function Leads() {
   const [offers, setOffers] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convertLead, setConvertLead] = useState<any>(null);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [contactLead, setContactLead] = useState<any>(null);
+  const [contactChannel, setContactChannel] = useState("whatsapp");
+  const [contactMessage, setContactMessage] = useState("");
   const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
     nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
-    type_lead: "client", offre_code: "", formule_code: "",
+    type_lead: "client", civilite: "", etape_pipeline: view === "prospects" ? "prospect" : "lead", offre_code: "", formule_code: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
-    statut: "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
+    statut: view === "prospects" ? "qualifie" : "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
   };
   const [leadForm, setLeadForm] = useState<Record<string, string>>({ ...emptyLead, assigned_to: "" });
 
@@ -221,13 +229,12 @@ export default function Leads() {
   const createLead = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Non authentifié");
-      if (leadForm.type_lead === "client" && (!leadForm.offre_code || !leadForm.formule_code) && !(editingLead && editingLead.type_lead === "client" && !editingLead.offre_code && !editingLead.formule_code)) throw new Error("Pour un prospect client, sélectionnez une offre et une formule.");
       if (editingLead) {
         const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
         if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
         const num = (v: string) => (v === "" || v == null ? null : Number(v));
         const { error } = await offlineUpdate("leads", editingLead.id, {
-          nom: leadForm.nom, prenoms: leadForm.prenoms, telephone: leadForm.telephone,
+          nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null, telephone: leadForm.telephone,
           whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
           district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
           departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
@@ -241,6 +248,7 @@ export default function Leads() {
           creneau_prefere: leadForm.creneau_prefere || null,
           mode_contact_prefere: leadForm.mode_contact_prefere || null,
           commentaire: leadForm.commentaire || null, statut: leadForm.statut,
+          etape_pipeline: view === "prospects" ? "prospect" : (editingLead.etape_pipeline || "lead"),
           type_lead: leadForm.type_lead || "client",
           offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
           formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
@@ -257,6 +265,7 @@ export default function Leads() {
       const { error } = await offlineInsert("leads", {
         nom: leadForm.nom,
         prenoms: leadForm.prenoms,
+        civilite: leadForm.civilite || null,
         telephone: leadForm.telephone,
         whatsapp: leadForm.whatsapp || null,
         email: leadForm.email || null,
@@ -273,7 +282,8 @@ export default function Leads() {
         type_lead: leadForm.type_lead || "client",
         offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
         formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
-        statut: leadForm.statut || "nouveau",
+        statut: view === "prospects" ? (leadForm.statut || "qualifie") : (leadForm.statut || "nouveau"),
+        etape_pipeline: view === "prospects" ? "prospect" : "lead",
         source: leadForm.source || "commercial_terrain",
         created_by: user.id,
         assigned_to: (leadForm.source === "commercial_terrain" && (canSupervise || isServiceClient))
@@ -316,6 +326,47 @@ export default function Leads() {
     onError: (e: any) => toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(e) }),
   });
 
+  const convertToProspect = async (lead: any) => {
+    const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
+    if (!isOwner && !canSupervise) { toast({ variant: "destructive", title: "Conversion refusée", description: "Ce lead appartient à un autre commercial." }); return; }
+    try {
+      const { error } = await offlineUpdate("leads", lead.id, { etape_pipeline: "prospect", statut: "qualifie" });
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["leads"] });
+      setConvertOpen(false); setConvertLead(null);
+      toast({ title: "Lead converti en prospect", description: "Le dossier complet peut maintenant être enrichi dans Prospects." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Conversion impossible", description: getSafeErrorMessage(e) });
+    }
+  };
+
+  const startContact = (lead: any) => {
+    setContactLead(lead); setContactChannel("whatsapp");
+    const fullName = [lead.prenoms, lead.nom].filter(Boolean).join(" ").trim();
+    const greeting = lead.civilite === "madame" ? "Bonjour Madame" : lead.civilite === "monsieur" ? "Bonjour Monsieur" : "Bonjour";
+    const message = lead.type_lead === "proprietaire_foncier"
+      ? `${greeting} ${fullName}, AgriCapital revient vers vous au sujet de la valorisation de votre terrain pour un projet de palmier à huile. Souhaitez-vous être recontacté(e) ? Répondez OUI.`
+      : `${greeting} ${fullName}, êtes-vous toujours intéressé(e) par un projet de plantation de palmier à huile avec AgriCapital ? Répondez OUI pour être recontacté(e).`;
+    setContactMessage(message.slice(0, 200)); setContactOpen(true);
+  };
+
+  const sendContact = () => {
+    if (!contactLead) return;
+    const phone = String(contactLead.whatsapp || contactLead.telephone || "").replace(/[^0-9]/g, "");
+    if (contactChannel === "appel") {
+      if (!phone) { toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro avant de lancer l’appel." }); return; }
+      window.location.href = `tel:${phone}`; setContactOpen(false); return;
+    }
+    if (contactChannel === "whatsapp") {
+      if (!phone) { toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro avant d’ouvrir WhatsApp." }); return; }
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(contactMessage.slice(0, 200))}`, "_blank", "noopener,noreferrer");
+      setContactOpen(false); return;
+    }
+    if (!contactLead.email) { toast({ variant: "destructive", title: "Adresse email manquante", description: "Ajoutez une adresse email pour préparer le message." }); return; }
+    window.location.href = `mailto:${encodeURIComponent(contactLead.email)}?subject=${encodeURIComponent("Suivi de votre projet de plantation de palmier à huile")}&body=${encodeURIComponent(contactMessage.slice(0, 200))}`;
+    setContactOpen(false);
+  };
+
   const convertToClient = (lead: any) => {
     const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
     if (!isOwner && !canSupervise) {
@@ -338,16 +389,17 @@ export default function Leads() {
 
   const publicUrl = `${window.location.origin}/leads/public`;
 
-  const filteredLeads = leads.filter((l: any) => JSON.stringify(l).toLowerCase().includes(tableSearch.trim().toLowerCase()));
+  const stageLeads = leads.filter((l: any) => view === "prospects" ? l.etape_pipeline === "prospect" : (l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead")) === "lead");
+  const filteredLeads = stageLeads.filter((l: any) => JSON.stringify(l).toLowerCase().includes(tableSearch.trim().toLowerCase()));
   const paginatedLeads = filteredLeads.slice((tablePage - 1) * tablePageSize, tablePage * tablePageSize);
   useEffect(() => { setTablePage(1); }, [tableSearch, tablePageSize]);
 
   const stats = {
-    total: leads.length,
-    nouveaux: leads.filter((l: any) => l.statut === "nouveau").length,
-    aRelancer: leads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length,
-    convertis: leads.filter((l: any) => l.statut === "converti").length,
-    superficie: leads.reduce((s: number, l: any) => s + (Number(l.superficie_disponible_ha || l.superficie_souhaitee_ha) || 0), 0),
+    total: stageLeads.length,
+    nouveaux: stageLeads.filter((l: any) => l.statut === "nouveau").length,
+    aRelancer: stageLeads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length,
+    convertis: leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti").length,
+    superficie: stageLeads.reduce((s: number, l: any) => s + (Number(l.superficie_disponible_ha || l.superficie_souhaitee_ha) || 0), 0),
   };
   const tauxConversion = stats.total ? Math.round((stats.convertis / stats.total) * 100) : 0;
 
@@ -356,10 +408,11 @@ export default function Leads() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Prospects / Leads</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />{view === "prospects" ? "Prospects" : "Leads"}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-2" />Créer un lead</Button>
+            <Button onClick={() => { setEditingLead(null); setLeadForm({ ...emptyLead, statut: view === "prospects" ? "qualifie" : "nouveau", etape_pipeline: view === "prospects" ? "prospect" : "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />{view === "prospects" ? "Nouveau prospect" : "Nouveau lead"}</Button>
+            {view === "prospects" && <Button variant="outline" onClick={() => navigate("/leads?new=1")}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
             <Button variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}>
               <Copy className="h-4 w-4 mr-2" />Lien public
             </Button>
@@ -384,7 +437,7 @@ export default function Leads() {
         </div>
 
         <Card>
-          <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Pipeline commercial</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un lead…" /></div></CardHeader>
+          <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>{view === "prospects" ? "Suivi des prospects" : "Leads à contacter et qualifier"}</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder={view === "prospects" ? "Rechercher un prospect…" : "Rechercher un lead…"} /></div></CardHeader>
           <CardContent>
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
@@ -393,7 +446,7 @@ export default function Leads() {
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {filteredLeads.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Aucun prospect enregistré.</TableCell></TableRow>}
+                {filteredLeads.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Aucun {view === "prospects" ? "prospect" : "lead"} enregistré.</TableCell></TableRow>}
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
@@ -405,8 +458,7 @@ export default function Leads() {
                       <TableCell>
                         <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, statut: v })}>
                           <SelectTrigger className="w-40 h-8"><SelectValue /></SelectTrigger>
-                          <SelectContent>{STATUTS.map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent>
-                        </Select>
+                          <SelectContent>{(view === "prospects" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
                       <TableCell className="text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right space-x-2">
@@ -425,8 +477,9 @@ export default function Leads() {
                             setCreateOpen(true);
                           }}>Modifier</Button>
                         )}
-                        {l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
-                          <Button size="sm" onClick={() => convertToClient(l)}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
+                        <Button size="sm" variant="outline" onClick={() => startContact(l)}><Contact className="h-3 w-3 mr-1" />Contacter</Button>
+                        {view === "leads" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
+                          <Button size="sm" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
                         )}
                       </TableCell>
                     </TableRow>
@@ -521,119 +574,157 @@ export default function Leads() {
           </DialogContent>
         </Dialog>
 
+        <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Convertir le lead</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Choisissez la prochaine étape pour {convertLead ? [convertLead.prenoms, convertLead.nom].filter(Boolean).join(" ") : "ce contact"}.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button variant="outline" className="h-auto justify-start p-4" onClick={() => convertLead && convertToProspect(convertLead)}><Users className="mr-2 h-4 w-4" /><span className="text-left"><span className="block font-semibold">Convertir en prospect</span><span className="block text-xs font-normal">Ouvrir la fiche commerciale complète</span></span></Button>
+              <Button className="h-auto justify-start p-4" onClick={() => { if (convertLead) convertToClient(convertLead); setConvertOpen(false); }}><ArrowRight className="mr-2 h-4 w-4" /><span className="text-left"><span className="block font-semibold">Convertir en client</span><span className="block text-xs font-normal">Démarrer le dossier d’acquisition</span></span></Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Contacter {contactLead ? [contactLead.prenoms, contactLead.nom].filter(Boolean).join(" ") : "le contact"}</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={setContactChannel}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
+              {(contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Message (200 caractères maximum)</Label><Textarea value={contactMessage} maxLength={200} onChange={e => setContactMessage(e.target.value.slice(0, 200))} rows={4} /><p className="text-right text-xs text-muted-foreground">{contactMessage.length}/200</p></div>}
+              <p className="text-xs text-muted-foreground">{contactChannel === "appel" ? `Le téléphone s’ouvrira avec le numéro ${contactLead?.telephone || "non renseigné"}.` : contactChannel === "whatsapp" ? "WhatsApp s’ouvrira avec le numéro et le message prérempli. Il restera à confirmer l’envoi dans WhatsApp." : "Votre application de messagerie s’ouvrira avec le destinataire, l’objet et le message préremplis."}</p>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={() => setContactOpen(false)}>Annuler</Button><Button onClick={sendContact}>{contactChannel === "appel" ? "Lancer l’appel" : contactChannel === "whatsapp" ? "Ouvrir WhatsApp" : "Préparer l’email"}</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editingLead ? "Modifier le lead" : "Créer un lead"}</DialogTitle></DialogHeader>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label>Type de prospect *</Label>
-                <Select value={leadForm.type_lead} onValueChange={(v) => setLeadForm(x => ({ ...x, type_lead: v, offre_code: v === "client" ? x.offre_code : "", formule_code: v === "client" ? x.formule_code : "" }))}>
-                  <SelectTrigger><SelectValue placeholder="Choisir le type de prospect" /></SelectTrigger>
-                  <SelectContent><SelectItem value="client">Client</SelectItem><SelectItem value="proprietaire_foncier">Propriétaire foncier</SelectItem></SelectContent>
-                </Select>
+            <DialogHeader><DialogTitle>{editingLead ? (view === "prospects" ? "Modifier le prospect" : "Modifier le lead") : (view === "prospects" ? "Nouveau prospect" : "Nouveau lead")}</DialogTitle></DialogHeader>
+            {view === "prospects" ? (
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="sm:col-span-2">
+                              <Label>Type de prospect *</Label>
+                              <Select value={leadForm.type_lead} onValueChange={(v) => setLeadForm(x => ({ ...x, type_lead: v, offre_code: v === "client" ? x.offre_code : "", formule_code: v === "client" ? x.formule_code : "" }))}>
+                                <SelectTrigger><SelectValue placeholder="Choisir le type de prospect" /></SelectTrigger>
+                                <SelectContent><SelectItem value="client">Client</SelectItem><SelectItem value="proprietaire_foncier">Propriétaire foncier</SelectItem></SelectContent>
+                              </Select>
+                            </div>
+                            {leadForm.type_lead === "client" && <>
+                              <div><Label>Offre (si connue)</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration.filter((f: any) => f?.code && f?.nom) : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || offer?.formule_code || offer?.code || "" })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.filter((o) => Boolean(o.code && o.nom)).map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
+                              <div><Label>Formule (si connue)</Label><Select value={leadForm.formule_code} onValueChange={(v) => setLeadForm(x => ({ ...x, formule_code: v }))} disabled={!selectedLeadFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule" /></SelectTrigger><SelectContent>{selectedLeadFormulas.map((f: any) => <SelectItem key={f.code} value={f.code}>{f.nom}</SelectItem>)}</SelectContent></Select></div>
+                            </>}
+                            <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={(e) => setLeadForm({ ...leadForm, nom: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
+                            <div><Label>Prénom(s) *</Label><Input value={leadForm.prenoms} onChange={(e) => setLeadForm({ ...leadForm, prenoms: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
+                            <CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif||undefined} localValue={leadForm.telephone_local||""} onChange={v=>setLeadForm(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
+                            <CountryPhoneInput label="WhatsApp" countryCode={leadForm.whatsapp_indicatif||undefined} localValue={leadForm.whatsapp_local||""} onChange={v=>setLeadForm(x=>({...x,whatsapp_indicatif:v.callingCode,whatsapp_local:v.localValue,whatsapp:v.internationalValue}))}/>
+                            <div><Label>Email</Label><Input type="email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} /></div>
+              
+                            <div className="sm:col-span-2">
+                              <GeographieCascade
+                                districtId={leadForm.district_id}
+                                regionId={leadForm.region_id}
+                                departementId={leadForm.departement_id}
+                                sousPrefectureId={leadForm.sous_prefecture_id}
+                                villageId={leadForm.village_id}
+                                required
+                                onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",region_residence:g.regionName||""}))}
+                              />
+                            </div>
+                            <div><Label>Lieu de résidence</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Lieu de résidence" /></div>
+                            {leadForm.type_lead === "client" && <div>
+                              <Label>Dispose d'un terrain ?</Label>
+                              <Select value={leadForm.dispose_terrain} onValueChange={(v) => setLeadForm({ ...leadForm, dispose_terrain: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>{refs("oui_non").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>}
+                            {leadForm.type_lead === "proprietaire_foncier" ? (
+                              <>
+                                <div><Label>Superficie disponible (ha) *</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_disponible_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_disponible_ha: e.target.value })} required /></div>
+                                <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
+                              </>
+                            ) : leadForm.dispose_terrain === "oui" ? (
+                              <>
+                                <div><Label>Superficie disponible (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_disponible_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_disponible_ha: e.target.value })} /></div>
+                                <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
+                              </>
+                            ) : (
+                              <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_souhaitee_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_souhaitee_ha: e.target.value })} /></div>
+                            )}
+                            <div>
+                              <Label>Délai de démarrage</Label>
+                              <Select value={leadForm.delai_demarrage} onValueChange={(v) => setLeadForm({ ...leadForm, delai_demarrage: v })}>
+                                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                                <SelectContent>
+                                  {refs("lead_delai").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div><Label>Date de contact souhaitée</Label><Input type="date" value={leadForm.date_contact_souhaitee} onChange={(e) => setLeadForm({ ...leadForm, date_contact_souhaitee: e.target.value })} /></div>
+                            <div>
+                              <Label>Créneau préféré</Label>
+                              <Select value={leadForm.creneau_prefere} onValueChange={(v) => setLeadForm({ ...leadForm, creneau_prefere: v })}>
+                                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                                <SelectContent>
+                                  {refs("lead_disponibilite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>Mode de contact préféré</Label>
+                              <Select value={leadForm.mode_contact_prefere} onValueChange={(v) => setLeadForm({ ...leadForm, mode_contact_prefere: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>{CANAUX.map((c) => <SelectItem key={c.v} value={c.v}>{c.l}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>Statut initial</Label>
+                              <Select value={leadForm.statut} onValueChange={(v) => setLeadForm({ ...leadForm, statut: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>{STATUTS.filter(s => view === "prospects" ? ["qualifie","interesse","tres_interesse","en_discussion","preparation_dossier","pret_souscrire","abandonne"].includes(s.v) : ["nouveau","contacte","abandonne"].includes(s.v)).map((s) => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>Source</Label>
+                              <Select value={leadForm.source} onValueChange={(v) => setLeadForm({ ...leadForm, source: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {refs("lead_source").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {(canSupervise || isServiceClient || hasCommercialAccess) && leadForm.source === "commercial_terrain" && (
+                              <div className="sm:col-span-2">
+                                <Label>Commercial responsable *</Label>
+                                <CommercialCombobox
+                                  value={leadForm.assigned_to || null}
+                                  onChange={(v) => setLeadForm((x) => ({ ...x, assigned_to: v || "" }))}
+                                  placeholder={hasCommercialAccess && user?.id ? "Moi-même par défaut — choisir un autre commercial" : "Rechercher ou sélectionner un commercial"}
+                                />
+              
+                              </div>
+                            )}
+                            <div className="sm:col-span-2"><Label>Note / Commentaire</Label><Textarea value={leadForm.commentaire} onChange={(e) => setLeadForm({ ...leadForm, commentaire: e.target.value })} rows={3} /></div>
+                          </div>
+              
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2"><Label>Type de contact *</Label><Select value={leadForm.type_lead} onValueChange={v => setLeadForm(x => ({ ...x, type_lead: v, offre_code: "", formule_code: "" }))}><SelectTrigger><SelectValue placeholder="Choisir le type de contact" /></SelectTrigger><SelectContent><SelectItem value="client">Client potentiel</SelectItem><SelectItem value="proprietaire_foncier">Propriétaire foncier</SelectItem></SelectContent></Select></div>
+                <div><Label>Civilité (facultatif)</Label><Select value={leadForm.civilite || "non_precisee"} onValueChange={v => setLeadForm(x => ({ ...x, civilite: v === "non_precisee" ? "" : v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent><SelectItem value="non_precisee">Non précisée</SelectItem><SelectItem value="monsieur">Monsieur</SelectItem><SelectItem value="madame">Madame</SelectItem></SelectContent></Select></div>
+                <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={e => setLeadForm(x => ({ ...x, nom: e.target.value.toLocaleUpperCase("fr-FR") }))} placeholder="Nom de famille" /></div>
+                <div><Label>Prénom(s) *</Label><Input value={leadForm.prenoms} onChange={e => setLeadForm(x => ({ ...x, prenoms: e.target.value.toLocaleUpperCase("fr-FR") }))} placeholder="Prénom(s)" /></div>
+                <div className="sm:col-span-2"><CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif || undefined} localValue={leadForm.telephone_local || leadForm.telephone || ""} onChange={v => setLeadForm(x => ({ ...x, telephone_indicatif: v.callingCode, telephone_local: v.localValue, telephone: v.internationalValue }))} /></div>
+                <div className="sm:col-span-2"><Label>Téléphone WhatsApp ou email complémentaire (facultatif)</Label><Input value={leadForm.email} onChange={e => setLeadForm(x => ({ ...x, email: e.target.value }))} placeholder="Email (facultatif)" type="email" /></div>
+                <div className="sm:col-span-2"><Label>Localité / lieu de résidence (facultatif)</Label><Input value={leadForm.campement_quartier} onChange={e => setLeadForm(x => ({ ...x, campement_quartier: e.target.value, region_residence: e.target.value }))} placeholder="Village, ville, quartier ou campement" /></div>
+                {leadForm.type_lead === "client" && <div className="sm:col-span-2"><Label>Dispose d’un terrain ?</Label><Select value={leadForm.dispose_terrain} onValueChange={v => setLeadForm(x => ({ ...x, dispose_terrain: v }))}><SelectTrigger><SelectValue placeholder="Choisir Oui ou Non" /></SelectTrigger><SelectContent>{refs("oui_non").map((r:any) => <SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>}
+                <div className="sm:col-span-2"><Label>Note rapide (facultatif)</Label><Textarea value={leadForm.commentaire} onChange={e => setLeadForm(x => ({ ...x, commentaire: e.target.value }))} placeholder="Besoin exprimé ou information utile…" rows={2} /></div>
               </div>
-              {leadForm.type_lead === "client" && <>
-                <div><Label>Offre *</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration.filter((f: any) => f?.code && f?.nom) : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || offer?.formule_code || offer?.code || "" })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.filter((o) => Boolean(o.code && o.nom)).map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>Formule *</Label><Select value={leadForm.formule_code} onValueChange={(v) => setLeadForm(x => ({ ...x, formule_code: v }))} disabled={!selectedLeadFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule" /></SelectTrigger><SelectContent>{selectedLeadFormulas.map((f: any) => <SelectItem key={f.code} value={f.code}>{f.nom}</SelectItem>)}</SelectContent></Select></div>
-              </>}
-              <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={(e) => setLeadForm({ ...leadForm, nom: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
-              <div><Label>Prénom(s) *</Label><Input value={leadForm.prenoms} onChange={(e) => setLeadForm({ ...leadForm, prenoms: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
-              <CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif||undefined} localValue={leadForm.telephone_local||""} onChange={v=>setLeadForm(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
-              <CountryPhoneInput label="WhatsApp" countryCode={leadForm.whatsapp_indicatif||undefined} localValue={leadForm.whatsapp_local||""} onChange={v=>setLeadForm(x=>({...x,whatsapp_indicatif:v.callingCode,whatsapp_local:v.localValue,whatsapp:v.internationalValue}))}/>
-              <div><Label>Email</Label><Input type="email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} /></div>
-
-              <div className="sm:col-span-2">
-                <GeographieCascade
-                  districtId={leadForm.district_id}
-                  regionId={leadForm.region_id}
-                  departementId={leadForm.departement_id}
-                  sousPrefectureId={leadForm.sous_prefecture_id}
-                  villageId={leadForm.village_id}
-                  required
-                  onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",region_residence:g.regionName||""}))}
-                />
-              </div>
-              <div><Label>Lieu de résidence</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Lieu de résidence" /></div>
-              {leadForm.type_lead === "client" && <div>
-                <Label>Dispose d'un terrain ?</Label>
-                <Select value={leadForm.dispose_terrain} onValueChange={(v) => setLeadForm({ ...leadForm, dispose_terrain: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{refs("oui_non").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>}
-              {leadForm.type_lead === "proprietaire_foncier" ? (
-                <>
-                  <div><Label>Superficie disponible (ha) *</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_disponible_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_disponible_ha: e.target.value })} required /></div>
-                  <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
-                </>
-              ) : leadForm.dispose_terrain === "oui" ? (
-                <>
-                  <div><Label>Superficie disponible (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_disponible_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_disponible_ha: e.target.value })} /></div>
-                  <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
-                </>
-              ) : (
-                <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_souhaitee_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_souhaitee_ha: e.target.value })} /></div>
-              )}
-              <div>
-                <Label>Délai de démarrage</Label>
-                <Select value={leadForm.delai_demarrage} onValueChange={(v) => setLeadForm({ ...leadForm, delai_demarrage: v })}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                  <SelectContent>
-                    {refs("lead_delai").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Date de contact souhaitée</Label><Input type="date" value={leadForm.date_contact_souhaitee} onChange={(e) => setLeadForm({ ...leadForm, date_contact_souhaitee: e.target.value })} /></div>
-              <div>
-                <Label>Créneau préféré</Label>
-                <Select value={leadForm.creneau_prefere} onValueChange={(v) => setLeadForm({ ...leadForm, creneau_prefere: v })}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                  <SelectContent>
-                    {refs("lead_disponibilite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Mode de contact préféré</Label>
-                <Select value={leadForm.mode_contact_prefere} onValueChange={(v) => setLeadForm({ ...leadForm, mode_contact_prefere: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{CANAUX.map((c) => <SelectItem key={c.v} value={c.v}>{c.l}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Statut initial</Label>
-                <Select value={leadForm.statut} onValueChange={(v) => setLeadForm({ ...leadForm, statut: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUTS.filter(s => s.v !== "converti").map((s) => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Source</Label>
-                <Select value={leadForm.source} onValueChange={(v) => setLeadForm({ ...leadForm, source: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {refs("lead_source").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {(canSupervise || isServiceClient || hasCommercialAccess) && leadForm.source === "commercial_terrain" && (
-                <div className="sm:col-span-2">
-                  <Label>Commercial responsable *</Label>
-                  <CommercialCombobox
-                    value={leadForm.assigned_to || null}
-                    onChange={(v) => setLeadForm((x) => ({ ...x, assigned_to: v || "" }))}
-                    placeholder={hasCommercialAccess && user?.id ? "Moi-même par défaut — choisir un autre commercial" : "Rechercher ou sélectionner un commercial"}
-                  />
-
-                </div>
-              )}
-              <div className="sm:col-span-2"><Label>Note / Commentaire</Label><Textarea value={leadForm.commentaire} onChange={(e) => setLeadForm({ ...leadForm, commentaire: e.target.value })} rows={3} /></div>
-            </div>
+            )}
             <DialogFooter>
               <Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button>
               <Button
                 onClick={() => createLead.mutate()}
-                disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || !leadForm.district_id.trim()}
+                disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || (view === "prospects" && !leadForm.district_id.trim())}
               >{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button>
             </DialogFooter>
           </DialogContent>

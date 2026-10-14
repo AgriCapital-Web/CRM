@@ -195,7 +195,7 @@ const NouvelleAcquisition = () => {
 
       // Si le dossier provient d’un lead, conserver la traçabilité de l’affectation commerciale.
       if(formData.lead_id){
-        const {error:leadError}=await (supabase as any).from("leads").update({client_id:client.id,statut:"converti",converti_at:new Date().toISOString()}).eq("id",formData.lead_id);
+        const {error:leadError}=await (supabase as any).from("leads").update({client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:new Date().toISOString()}).eq("id",formData.lead_id);
         if(leadError) throw leadError;
       }
 

@@ -347,7 +347,7 @@ const ProprietairesTerres = () => {
       }
       if (conversionLeadId && isOnline) {
         const { error: leadUpdateError } = await (supabase as any).from("leads")
-          .update({ statut: "converti", converti_at: new Date().toISOString(), proprietaire_id: proprietaire.id })
+          .update({ statut: "converti", etape_pipeline: "converti", converti_at: new Date().toISOString(), proprietaire_id: proprietaire.id })
           .eq("id", conversionLeadId);
         if (leadUpdateError) throw leadUpdateError;
       }

@@ -30,6 +30,7 @@ import ProprietaireTerreDetail from "./pages/ProprietaireTerreDetail";
 import Parcelles from "./pages/Parcelles";
 import Documents from "./pages/Documents";
 import Leads from "./pages/Leads";
+import Prospects from "./pages/Prospects";
 import SyncQueue from "./pages/SyncQueue";
 import PublicLead from "./pages/PublicLead";
 import VerificationCarte from "./pages/VerificationCarte";
@@ -75,7 +76,8 @@ const DomainRouter = () => {
 
       {/* Routes privées : chaque route porte explicitement sa permission métier. */}
       <Route path="/dashboard" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_DASHBOARD}><Dashboard /></ProtectedRoute>} />
-      <Route path="/leads" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEADS}><Leads /></ProtectedRoute>} />
+      <Route path="/leads" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEADS}><Leads view="leads" /></ProtectedRoute>} />
+      <Route path="/prospects" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEADS}><Prospects /></ProtectedRoute>} />
       <Route path="/synchronisation" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_DASHBOARD}><SyncQueue /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><Clients /></ProtectedRoute>} />
       <Route path="/clients/new" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
