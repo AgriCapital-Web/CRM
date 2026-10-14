@@ -134,7 +134,19 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
       }));
     }
 
-    const unread = baseMessages.filter((m: any) => m.auteur_type === "client" && !m.lu).map((m: any) => m.id);
+    // Charger tous les identifiants non lus du client, pas uniquement les 200
+    // messages affichés, afin que le compteur global reste cohérent.
+    const { data: unreadRows, error: unreadQueryError } = await (supabase as any)
+      .from("portail_messages")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("auteur_type", "client")
+      .eq("lu", false);
+    if (unreadQueryError) {
+      console.warn("Impossible de charger les messages non lus:", unreadQueryError.message);
+      return;
+    }
+    const unread = (unreadRows || []).map((m: any) => m.id as string);
     if (unread.length) {
       const readAt = new Date().toISOString();
       const results = await Promise.all(unread.map(async (messageId: string) => {
@@ -144,7 +156,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
         });
         if (!readError) return messageId;
 
-        // Repli contrôlé si la RPC n'est pas disponible pour cette session CRM.
+        // Repli contrôlé, toujours limité aux messages de ce client.
         const { error: fallbackError } = await (supabase as any)
           .from("portail_messages")
           .update({ lu: true, lu_at: readAt })
