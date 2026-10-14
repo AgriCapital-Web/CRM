@@ -114,7 +114,7 @@ export default function GestionRemuneration() {
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Palme Invest et Terra Palm</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.partnerSale} label="Commission de vente — versée une seule fois" unit="money" />
+            <RuleEditor code={RULES.partnerSale} label="Commission subvention — unique" unit="money" />
             <RuleEditor code={RULES.partnerYear1} label="Recouvrement mensuel — année 1" unit="percent" />
             <RuleEditor code={RULES.partnerYear2} label="Recouvrement mensuel — année 2" unit="percent" />
             <RuleEditor code={RULES.partnerYear3} label="Recouvrement mensuel — année 3" unit="percent" />
@@ -122,12 +122,12 @@ export default function GestionRemuneration() {
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule essentielle</CardTitle></CardHeader>
-          <CardContent><RuleEditor code={RULES.essentialSale} label="Commission de vente — versée une seule fois" unit="money" /><p className="mt-2 text-sm text-muted-foreground">Aucune commission de recouvrement mensuel pour cette formule.</p></CardContent>
+          <CardContent><RuleEditor code={RULES.essentialSale} label="Commission subvention — unique" unit="money" /><p className="mt-2 text-sm text-muted-foreground">Aucune commission de recouvrement mensuel pour cette formule.</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule flexible</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.flexibleSale} label="Commission de vente — versée une seule fois" unit="money" />
+            <RuleEditor code={RULES.flexibleSale} label="Commission subvention — unique" unit="money" />
             <RuleEditor code={RULES.flexibleRecovery} label="Commission sur chaque mensualité" unit="percent" />
           </CardContent>
         </Card>
@@ -144,6 +144,6 @@ export default function GestionRemuneration() {
         <Card><CardHeader className="pb-3"><CardTitle className="text-base">Mobilisation foncière</CardTitle></CardHeader><CardContent><RuleEditor code={RULES.land} label="Prime par hectare — propriétaire validé" unit="money" /></CardContent></Card>
       </TabsContent>
     </Tabs>}
-    <p className="text-xs text-muted-foreground">Les commissions de vente sont uniques. Le paiement des commissions est organisé par quinzaine.</p>
+    <p className="text-xs text-muted-foreground">Les commissions subvention sont versées une seule fois, à la quinzaine.</p>
   </div>;
 }
