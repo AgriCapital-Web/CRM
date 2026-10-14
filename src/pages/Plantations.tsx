@@ -165,7 +165,7 @@ const Plantations = () => {
           <div className="border rounded-lg overflow-x-auto">
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
-                <TableHead>P. / client</TableHead><TableHead>Dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
+                <TableHead>Plantation</TableHead><TableHead>Client / dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement...</TableCell></TableRow>
@@ -173,7 +173,7 @@ const Plantations = () => {
                 : paginatedPlantations.map((plantation) => (
                   <TableRow key={plantation.id} className="hover:bg-muted/40">
                     <TableCell className="font-mono text-xs font-medium">
-                      <Link to={`/plantations/${plantation.id}`} className="hover:underline" title={plantation.nom_plantation || plantation.nom || "Plantation"}>{plantation.id_unique || plantation.nom || "P."}</Link>
+                      <Link to={`/plantations/${plantation.id}`} className="hover:underline" title={plantation.nom_plantation || plantation.nom || "Plantation"}><span className="block max-w-[9rem] truncate">{plantation.nom_plantation || plantation.nom || "Plantation"}</span><span className="text-[10px] text-muted-foreground">{plantation.id_unique || "—"}</span></Link>
                     </TableCell>
                     <TableCell className="font-medium">
                       {plantation.clients ? (
