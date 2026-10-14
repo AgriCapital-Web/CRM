@@ -217,3 +217,7 @@ $function$
 delete from public.role_permissions
 where role_code in ('service_client', 'chef_equipe_service_client')
   and permission_code in ('commissions.view', 'portefeuilles.view');
+
+insert into public.role_permissions (role_code, permission_code)
+values ('service_client', 'plantations.view')
+on conflict do nothing;
