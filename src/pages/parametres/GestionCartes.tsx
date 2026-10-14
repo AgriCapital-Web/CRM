@@ -338,11 +338,11 @@ const GestionCartes = () => {
 
       <Dialog open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
         <DialogContent className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl flex-col gap-2 overflow-hidden p-2 sm:p-4">
-          <DialogHeader><DialogTitle>Carte de {selected?.nom_complet}</DialogTitle></DialogHeader>
+          <DialogHeader className="shrink-0"><DialogTitle>Carte de {selected?.nom_complet}</DialogTitle></DialogHeader>
           {dataSelection && (
             <>
-            <Tabs value={carteTab} onValueChange={setCarteTab}>
-              <TabsList>
+            <Tabs className="flex min-h-0 flex-1 flex-col" value={carteTab} onValueChange={setCarteTab}>
+              <TabsList className="shrink-0">
                 <TabsTrigger value="recto">Recto</TabsTrigger>
                 <TabsTrigger value="verso">Verso</TabsTrigger>
                 <TabsTrigger className="hidden min-[1200px]:inline-flex" value="both">Recto / Verso</TabsTrigger>
