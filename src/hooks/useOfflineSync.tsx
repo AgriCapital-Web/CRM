@@ -11,7 +11,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { resolveUpdateConflict } from '@/lib/offlineConflict';
 import { flushFileQueue, countQueuedFiles, startFileQueueResume } from '@/lib/offlineFiles';
-import { flushOfflineHttpQueue } from '@/lib/offlineHttp';
+import { flushOfflineHttpQueue, refreshPendingMutationAuthorization } from '@/lib/offlineHttp';
 
 const SYNC_INTERVAL = 3 * 60 * 1000; // 3 minutes
 const SLOW_NET_THRESHOLD = 1500; // ms
@@ -258,11 +258,29 @@ export function useOfflineSync() {
     syncLockRef.current = true;
     setIsSyncing(true);
     try {
+      // Replace stale queued credentials with the currently refreshed Supabase session
+      // before replaying mutations that may have waited through an offline period.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session?.access_token) {
+        await refreshPendingMutationAuthorization(sessionData.session.access_token);
+      }
       await flushOfflineHttpQueue();
       await pushData();
       await flushOfflineHttpQueue();
+      await flushFileQueue();
       await pullData();
-      toast({ title: 'Synchronisation complète', description: 'Toutes les données sont à jour.' });
+      const [httpStats, localStats, queuedFiles] = await Promise.all([
+        getHttpMutationStats(),
+        getSyncQueueStats(),
+        countQueuedFiles(),
+      ]);
+      setPendingCount(httpStats.pending + httpStats.error + localStats.pending + localStats.error);
+      setPendingFiles(queuedFiles);
+      if (httpStats.pending + httpStats.error + localStats.pending + localStats.error + queuedFiles === 0) {
+        toast({ title: 'Synchronisation complète', description: 'Les opérations en attente ont été traitées.' });
+      } else {
+        toast({ title: 'Synchronisation partielle', description: `${httpStats.pending + httpStats.error + localStats.pending + localStats.error} opération(s) et ${queuedFiles} fichier(s) restent en attente.` });
+      }
     } finally {
       setIsSyncing(false);
       syncLockRef.current = false;
