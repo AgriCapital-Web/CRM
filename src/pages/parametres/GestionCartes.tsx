@@ -41,6 +41,9 @@ const GestionCartes = () => {
   const [cartes, setCartes] = useState<Row[]>([]);
   const [roles, setRoles] = useState<Record<string, string[]>>({});
   const [roleLevels, setRoleLevels] = useState<Record<string, number>>({});
+  const [roleCoverage, setRoleCoverage] = useState<Record<string, { level: string; label: string }>>({});
+  const [zoneAssignments, setZoneAssignments] = useState<Row[]>([]);
+  const [geoNames, setGeoNames] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Row | null>(null);
@@ -51,13 +54,17 @@ const GestionCartes = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, c, r, a] = await Promise.all([
-        (supabase as any).from("profiles").select("id, user_id, nom_complet, email, telephone, poste, departement, photo_url, actif").eq("actif", true).order("nom_complet"),
+      const [p, c, r, a, z, regions, departments, subPrefectures] = await Promise.all([
+        (supabase as any).from("profiles").select("id, user_id, nom_complet, email, telephone, poste, departement, region_id, district_id, equipe_id, photo_url, actif").eq("actif", true).order("nom_complet"),
         (supabase as any).from("cartes_personnel").select("*"),
         (supabase as any).from("user_roles").select("user_id, role"),
-        (supabase as any).from("app_roles").select("code, niveau"),
+        (supabase as any).from("app_roles").select("code, niveau, niveau_couverture, libelle_couverture").eq("actif", true),
+        (supabase as any).from("zone_assignments").select("user_id, zone_type, zone_id"),
+        (supabase as any).from("v_geo_regions").select("id, nom"),
+        (supabase as any).from("v_geo_departements").select("id, nom, region_id"),
+        (supabase as any).from("v_geo_sous_prefectures").select("id, nom, departement_id, departement_nom, region_nom"),
       ]);
-      const firstError = p.error || c.error || r.error || a.error;
+      const firstError = p.error || c.error || r.error || a.error || z.error || regions.error || departments.error || subPrefectures.error;
       if (firstError) throw firstError;
       const profileRows = (p.data || []) as Row[];
       const cardRows = (c.data || []) as Row[];
@@ -67,12 +74,24 @@ const GestionCartes = () => {
       setProfiles(profileRows);
       setCartes(cardRows);
       setRoles(map);
+      setZoneAssignments((z.data || []) as Row[]);
       const levels: Record<string, number> = {};
-      (a.data || []).forEach((x: any) => { if (x.code) levels[x.code] = Number(x.niveau); });
+      const coverage: Record<string, { level: string; label: string }> = {};
+      (a.data || []).forEach((x: any) => {
+        if (!x.code) return;
+        levels[x.code] = Number(x.niveau);
+        coverage[x.code] = { level: x.niveau_couverture || "global", label: x.libelle_couverture || "Périmètre" };
+      });
       setRoleLevels(levels);
+      setRoleCoverage(coverage);
+      const names: Record<string, string> = {};
+      (regions.data || []).forEach((x: any) => { names[`region:${x.id}`] = x.nom; });
+      (departments.data || []).forEach((x: any) => { names[`departement:${x.id}`] = x.nom; });
+      (subPrefectures.data || []).forEach((x: any) => { names[`sous_prefecture:${x.id}`] = x.nom; });
+      setGeoNames(names);
     } catch (error: any) {
       console.error("[GestionCartes] chargement impossible", error);
-      setProfiles([]); setCartes([]); setRoles({}); setRoleLevels({});
+      setProfiles([]); setCartes([]); setRoles({}); setRoleLevels({}); setRoleCoverage({}); setZoneAssignments([]); setGeoNames({});
       toast.error(error?.message || "Impossible de charger les utilisateurs et les cartes.");
     } finally { setLoading(false); }
   }, []);
@@ -118,7 +137,24 @@ const GestionCartes = () => {
             type_contrat: c?.type_contrat || null,
             statut_agent: c?.statut_agent || null,
             mission: c?.mission || null,
-            zone_intervention: c?.zone_intervention || null,
+            zone_intervention_label: (() => {
+              const code = highestRoleCode(roles[p.user_id] || [], roleLevels);
+              return roleCoverage[code || ""]?.label || "Périmètre";
+            })(),
+            zone_intervention: (() => {
+              const code = highestRoleCode(roles[p.user_id] || [], roleLevels);
+              const scope = roleCoverage[code || ""] || { level: "global", label: "Périmètre" };
+              if (scope.level === "global") return "Global";
+              const assigned = zoneAssignments.find((z) => z.user_id === p.user_id && String(z.zone_type || "").toLowerCase().replace(/-/g, "_") === scope.level);
+              if (assigned) {
+                const name = geoNames[`${scope.level}:${assigned.zone_id}`];
+                if (name) return name;
+              }
+              if (scope.level === "region" && p.region_id) return geoNames[`region:${p.region_id}`] || "Non renseigné";
+              if (scope.level === "departement") return p.departement || c?.departement || "Non renseigné";
+              if (scope.level === "sous_prefecture") return c?.zone_intervention || "Non renseigné";
+              return "Non renseigné";
+            })(),
             photo_url: c?.photo_url || p.photo_url || null,
             photo_bucket: c?.photo_url ? CARTE_BUCKET : "photos-profils",
             date_delivrance: c?.date_delivrance || null,
@@ -129,7 +165,7 @@ const GestionCartes = () => {
           } as CarteData,
         };
       });
-  }, [profiles, carteDe, q, roles, roleLevels]);
+  }, [profiles, carteDe, q, roles, roleLevels, roleCoverage, zoneAssignments, geoNames]);
 
   const nextMatricule = () => {
     const nums = cartes
