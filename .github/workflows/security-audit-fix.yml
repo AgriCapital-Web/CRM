@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 24
       - name: Use compatible npm tooling
-        run: npm install --global npm@10.9.2
+        run: npm install --global npm@12
       - name: Generate lockfile and remediate advisories
         run: |
           npm install --package-lock-only
