@@ -221,7 +221,7 @@ export default function Finance(){
       <div><h1 className="text-2xl font-bold">Finance & Comptabilité</h1></div>
       <Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="responsive-auto-grid gap-3">
       <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">ENTRÉES VALIDÉES</p><p className="mt-2 text-2xl font-bold">{money(totals.income)}</p></CardContent></Card>
       <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SORTIES VALIDÉES</p><p className="mt-2 text-2xl font-bold">{money(totals.out)}</p></CardContent></Card>
       <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SOLDE FINANCIER</p><p className="mt-2 text-2xl font-bold">{money(totals.balance)}</p></CardContent></Card>
