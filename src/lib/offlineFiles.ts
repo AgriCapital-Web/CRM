@@ -110,11 +110,20 @@ export async function uploadOrQueueFile(opts: {
 export async function getAllQueuedFiles(): Promise<QueuedFile[]> {
   const all = (await getAllItems(STORES.FILES)) as QueuedFile[];
   const normalized: QueuedFile[] = [];
+  const now = Date.now();
   for (const file of all) {
-    if (file.status === "uploading") {
-      // La file n'est pas supprimée : le fichier est remis en attente afin de
-      // pouvoir reprendre l'envoi au prochain passage réseau.
-      const recovered: QueuedFile = { ...file, status: "pending", nextRetryAt: 0, error: undefined };
+    const staleUpload = file.status === "uploading" &&
+      (!file.uploadStartedAt || now - file.uploadStartedAt > STALE_UPLOAD_MS);
+    if (staleUpload) {
+      // Ne récupérer que les marqueurs abandonnés : un upload récent peut être
+      // toujours actif dans un autre écran ou onglet. Le fichier n'est jamais supprimé.
+      const recovered: QueuedFile = {
+        ...file,
+        status: "pending",
+        uploadStartedAt: undefined,
+        nextRetryAt: 0,
+        error: undefined,
+      };
       await putItem(STORES.FILES, recovered);
       normalized.push(recovered);
     } else {
