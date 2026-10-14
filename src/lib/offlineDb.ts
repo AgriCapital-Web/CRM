@@ -4,10 +4,11 @@
  */
 
 const DB_NAME = 'agricapital_offline';
-const DB_VERSION = 10;
+const DB_VERSION = 11;
 
 export const STORES = {
   CLIENTS: 'clients',
+  CLIENT_SOUSCRIPTIONS: 'client_souscriptions',
   PLANTATIONS: 'plantations',
   PAIEMENTS: 'paiements',
   OFFRES: 'offres',
@@ -347,6 +348,7 @@ export async function getOfflineStats(): Promise<Record<string, number>> {
 
 export const TABLE_TO_OFFLINE_STORE: Record<string, string> = {
   clients: STORES.CLIENTS,
+  client_souscriptions: STORES.CLIENT_SOUSCRIPTIONS,
   plantations: STORES.PLANTATIONS,
   paiements: STORES.PAIEMENTS,
   offres: STORES.OFFRES,
