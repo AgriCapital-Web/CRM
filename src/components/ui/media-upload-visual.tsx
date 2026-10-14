@@ -29,7 +29,7 @@ async function optimizeImage(file: File): Promise<File> {
     bitmap.close();
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.88));
     if (!blob || blob.size >= file.size) return file;
-    const stem = file.name.replace(/\\.[^.]+$/, "");
+    const stem = file.name.replace(/\.[^.]+$/, "");
     return new File([blob], `${stem}.webp`, { type: "image/webp", lastModified: Date.now() });
   } catch { return file; }
 }
@@ -64,7 +64,7 @@ async function optimizeVideo(file: File): Promise<File> {
       recorder.start(1000); video.currentTime = 0; void video.play().then(draw).catch(reject);
     });
     if (!blob.size || blob.size >= file.size) return file;
-    return new File([blob], `${file.name.replace(/\\.[^.]+$/, "")}.webm`, { type: mime, lastModified: Date.now() });
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webm`, { type: mime, lastModified: Date.now() });
   } catch (error) { throw error; } finally { URL.revokeObjectURL(url); video.pause(); video.src = ""; }
 }
 
@@ -80,7 +80,8 @@ export default function MediaUploadVisual({
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [processing, setProcessing] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);\n  const [mediaError, setMediaError] = useState("");
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [mediaError, setMediaError] = useState("");
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -172,7 +173,10 @@ export default function MediaUploadVisual({
           Ajouter {multiple ? "des fichiers" : "un fichier"}
         </Button>
       </div>
-      {processing && <p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}\n      {mediaError && <p role="alert" className="text-sm text-destructive">{mediaError}</p>}\n      {files.length > 0 && (
+      {processing && <p className="text-sm text-muted-foreground">Optimisation des médias en cours…</p>}
+      {mediaError && <p role="alert" className="text-sm text-destructive">{mediaError}</p>}
+      {mediaError && <p role="alert" className="text-sm text-destructive">{mediaError}</p>}
+      {files.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {previews.map(({ file, url }, index) => (
             <div
