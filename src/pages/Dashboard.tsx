@@ -561,9 +561,9 @@ const Dashboard = () => {
 
   const kpis: any[] = [
     { label:"Pilotage financier", icon:Wallet, href:"/paiements", show:canFinancialOverview, metrics:[
-      {label:"Chiffre d’affaires",value:money(stats.forecastRevenue),href:"/paiements"},
+      {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/paiements"},
       {label:"Encaissé",value:money(stats.collected),href:"/paiements"},
-      {label:"Reste à encaisser",value:money(stats.dueAmount),href:"/paiements"},
+      {label:"À encaisser",value:money(stats.dueAmount),href:"/paiements"},
       {label:"Clients soldés",value:stats.settledClients,href:"/paiements"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/paiements"},
       {label:"Échéances en retard",value:stats.overdueCount,href:"/paiements"},
@@ -650,22 +650,22 @@ const Dashboard = () => {
                 {kpis.filter((k) => k.show && k.metrics.length > 0).map((k) => {
                   const Icon = k.icon;
                   return (
-                    <div key={k.label} className="min-w-0 space-y-2.5">
-                      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground sm:text-base">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Icon className="h-4 w-4" />
+                    <div key={k.label} className={`min-w-0 rounded-2xl border-2 p-3 sm:p-4 ${k.label === "Pilotage financier" ? "border-amber-500/70 bg-amber-50/20 dark:bg-amber-950/10" : k.label === "Développement commercial" ? "border-orange-500/70 bg-orange-50/20 dark:bg-orange-950/10" : k.label === "Patrimoine foncier et partenariats" ? "border-emerald-600/70 bg-emerald-50/20 dark:bg-emerald-950/10" : "border-violet-500/70 bg-violet-50/20 dark:bg-violet-950/10"}`}>
+                      <h2 className="mb-3 flex items-center gap-2.5 text-base font-extrabold uppercase tracking-wide text-foreground sm:text-lg">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background/80 text-primary shadow-sm">
+                          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                         </span>
                         {k.label}
                       </h2>
-                      <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+                      <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Développement commercial" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-7" : "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6"}`}>
                         {k.metrics.map((metric: any) => (
                           <Link
                             key={metric.label}
                             to={metric.href || k.href}
-                            className="group flex min-h-[82px] min-w-0 flex-col justify-between rounded-xl border border-border/70 bg-card p-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="group flex min-h-[68px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            <span className="text-[11px] leading-snug text-muted-foreground sm:text-xs">{metric.label}</span>
-                            <span className="mt-2 block break-words text-base font-bold leading-tight tabular-nums text-foreground sm:text-lg">{loading ? "…" : metric.value}</span>
+                            <span className="text-[10px] leading-snug text-muted-foreground sm:text-[11px]">{metric.label}</span>
+                            <span className="mt-1.5 block break-words text-sm font-bold leading-tight tabular-nums text-foreground sm:text-base">{loading ? "…" : metric.value}</span>
                           </Link>
                         ))}
                       </div>
@@ -675,8 +675,8 @@ const Dashboard = () => {
               </section>
 
               {canPlantations && stats.plantations > 0 && cycle.some((c: any) => c.total > 0) && (
-                <section aria-labelledby="dashboard-operations" className="space-y-3">
-                  <div><h2 id="dashboard-operations" className="text-lg font-bold tracking-tight">5. Opérations et suivi technique</h2></div>
+                <section aria-labelledby="dashboard-operations" className="space-y-3 rounded-2xl border-2 border-sky-500/60 bg-sky-50/20 p-3 sm:p-4 dark:bg-sky-950/10">
+                  <div><h2 id="dashboard-operations" className="text-lg font-extrabold uppercase tracking-wide">Opérations et suivi technique</h2></div>
                 <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
                   <Card>
                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Parcours de plantation</CardTitle></CardHeader>
@@ -710,8 +710,8 @@ const Dashboard = () => {
                 </section>
               )}
 
-              <section aria-labelledby="dashboard-performance" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <div className="md:col-span-2 xl:col-span-3"><h2 id="dashboard-performance" className="text-lg font-bold tracking-tight">6. Performance et répartition</h2></div>
+              <section aria-labelledby="dashboard-performance" className="grid min-w-0 grid-cols-1 gap-3 rounded-2xl border-2 border-violet-500/60 bg-violet-50/20 p-3 md:grid-cols-2 xl:grid-cols-3 sm:p-4 dark:bg-violet-950/10">
+                <div className="md:col-span-2 xl:col-span-3"><h2 id="dashboard-performance" className="text-lg font-extrabold uppercase tracking-wide">Performance et répartition</h2></div>
 {teamPerformance.length > 0 && (
                 <Card>
                   <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Performance par équipe</CardTitle></CardHeader>
@@ -747,8 +747,8 @@ const Dashboard = () => {
 
               </section>
 
-              <section aria-labelledby="dashboard-activity" className="space-y-3">
-                <div><h2 id="dashboard-activity" className="text-lg font-bold tracking-tight">Activité récente</h2></div>
+              <section aria-labelledby="dashboard-activity" className="space-y-3 rounded-2xl border-2 border-amber-500/60 bg-amber-50/20 p-3 sm:p-4 dark:bg-amber-950/10">
+                <div><h2 id="dashboard-activity" className="text-lg font-extrabold uppercase tracking-wide">Activités récentes et carte interactive</h2></div>
               {(canPlantations || canClients) && stats.documentsPending > 0 && (
                 <section aria-labelledby="dashboard-documents" className="space-y-2">
                   <h2 id="dashboard-documents" className="text-lg font-bold tracking-tight">5. Opérations — documents à vérifier</h2>
@@ -758,7 +758,9 @@ const Dashboard = () => {
 
               {canPlantations && <PlantationsMap />}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-orange-500/50 p-2.5 sm:p-3">
+                <h3 className="mb-2 text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {canClients && recentClients.length > 0 && (
                   <Card>
                     <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5 text-primary" />Clients récents</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un client" /></div></CardHeader>
@@ -801,8 +803,11 @@ const Dashboard = () => {
                   </Card>
                 )}
               </div>
+              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-emerald-600/50 p-2.5 sm:p-3">
+                <h3 className="mb-2 text-sm font-extrabold uppercase tracking-wide">À traiter et indicateurs terrain</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 {(canPayments || canTechnical || canLeads || canClients) && (
                   <Card className="lg:col-span-1">
                     <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Bell className="h-5 w-5 text-orange-500" />À traiter</CardTitle></CardHeader>
@@ -852,6 +857,7 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               )}
+              </div>
               </section>
             </>
           )}
