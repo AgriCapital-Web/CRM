@@ -1121,6 +1121,15 @@ All colors MUST be HSL.
     word-break: normal;
   }
   table td p, table td .flex { margin-block: 0; }
+
+  table button, table [role="button"], table a {
+    min-height: 1.45rem !important;
+    min-width: 0 !important;
+    height: auto;
+    padding-block: .08rem !important;
+    padding-inline: .28rem !important;
+    line-height: 1.1 !important;
+  }
   @media (max-width: 640px) {
     table thead th { padding: .12rem .24rem !important; font-size: .66rem !important; }
     table tbody td { padding: .11rem .24rem !important; font-size: .69rem !important; }
