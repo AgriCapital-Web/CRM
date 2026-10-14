@@ -84,12 +84,10 @@ export const useNotifications = () => {
           // Le layout CRM monte le centre de notifications dans les vues desktop et mobile.
           // Les deux abonnements reçoivent le même INSERT : une seule instance doit déclencher
           // les effets visibles (toast / notification navigateur), sinon l'utilisateur voit un doublon.
-          if (claimRealtimeSideEffect(`${user.id}:${newNotification.id}`)) {
-            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-              try {
-                void navigator.serviceWorker.ready.then((registration) => registration.showNotification(newNotification.title, { body: newNotification.message, icon: '/icons/icon-app.png', badge: '/icons/icon-96x96.png', tag: `agricapital-notification-${newNotification.id}`, renotify: false, data: { ...(newNotification.data || {}), notificationId: newNotification.id } })).catch((error) => console.warn('[Notifications] affichage impossible', error));
-              } catch (error) { console.warn("[Notifications] notification navigateur indisponible", error); }
-            }
+          if (claimRealtimeSideEffect(`${user.id}:${newNotification.id}`) && document.visibilityState === "visible") {
+            // The service worker displays the server Web Push when the app is in
+            // the background. Realtime only displays the in-app toast, so one
+            // event can never create both a browser notification and a toast-driven push.
             toast({ title: newNotification.title, description: newNotification.message });
           }
         }
