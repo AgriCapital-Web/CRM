@@ -2458,33 +2458,39 @@ export type Database = {
           created_at: string | null
           id: string
           nom: string
+          photo_url: string | null
           region_id: string | null
           responsable_id: string | null
           superviseur_id: string | null
           type_equipe: string | null
           updated_at: string | null
+          zone_couverture: string | null
         }
         Insert: {
           actif?: boolean | null
           created_at?: string | null
           id?: string
           nom: string
+          photo_url?: string | null
           region_id?: string | null
           responsable_id?: string | null
           superviseur_id?: string | null
           type_equipe?: string | null
           updated_at?: string | null
+          zone_couverture?: string | null
         }
         Update: {
           actif?: boolean | null
           created_at?: string | null
           id?: string
           nom?: string
+          photo_url?: string | null
           region_id?: string | null
           responsable_id?: string | null
           superviseur_id?: string | null
           type_equipe?: string | null
           updated_at?: string | null
+          zone_couverture?: string | null
         }
         Relationships: [
           {
@@ -2938,6 +2944,7 @@ export type Database = {
         Row: {
           actif: boolean | null
           annee_application: number | null
+          code_regle: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -2950,6 +2957,7 @@ export type Database = {
         Insert: {
           actif?: boolean | null
           annee_application?: number | null
+          code_regle?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -2962,6 +2970,7 @@ export type Database = {
         Update: {
           actif?: boolean | null
           annee_application?: number | null
+          code_regle?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -7745,6 +7754,32 @@ export type Database = {
       is_finance_staff: { Args: { _user_id: string }; Returns: boolean }
       is_rh: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      list_assignable_technicians: {
+        Args: never
+        Returns: {
+          equipe_id: string
+          id: string
+          nom_complet: string
+          region_id: string
+          user_id: string
+        }[]
+      }
+      list_visible_portfolio_profiles: {
+        Args: never
+        Returns: {
+          actif: boolean
+          equipe: Json
+          equipe_id: string
+          id: string
+          nom_complet: string
+          poste: string
+          region_id: string
+          roles: string[]
+          team_memberships: Json
+          telephone: string
+          user_id: string
+        }[]
+      }
       mark_overdue_payments: { Args: never; Returns: undefined }
       mark_portail_message_read: {
         Args: { p_client_id?: string; p_message_id: string }
