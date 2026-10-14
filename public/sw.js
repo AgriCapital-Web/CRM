@@ -189,6 +189,16 @@ async function runBackgroundHttpSync() {
   catch { db.close(); return; }
 
   const now = Date.now();
+  // Récupérer les mutations abandonnées si le navigateur a arrêté le worker
+  // au milieu d'un envoi. Les entrées anciennes sans syncStartedAt sont récupérées aussi.
+  for (const item of rows) {
+    if (item.status === "syncing" && (!item.syncStartedAt || now - item.syncStartedAt > 120_000)) {
+      item.status = "pending";
+      item.syncStartedAt = undefined;
+      item.nextRetryAt = 0;
+      try { await txRequest(db, HTTP_QUEUE_STORE, "readwrite", (store) => store.put(item)); } catch { /* reprise au prochain événement */ }
+    }
+  }
   const queue = rows.filter((item) =>
     (item.status === "pending" || item.status === "error") &&
     (!item.nextRetryAt || item.nextRetryAt <= now)
