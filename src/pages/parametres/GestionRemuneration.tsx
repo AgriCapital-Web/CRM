@@ -114,7 +114,7 @@ export default function GestionRemuneration() {
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Palme Invest et Terra Palm</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.partnerSale} label="Commission subvention — unique" unit="money" />
+            <RuleEditor code={RULES.partnerSale} label="Commission / vente — unique" unit="money" />
             <RuleEditor code={RULES.partnerYear1} label="Recouvrement mensuel 1-1 — année 1" unit="percent" />
             <RuleEditor code={RULES.partnerYear2} label="Recouvrement mensuel 1-2 — année 2" unit="percent" />
             <RuleEditor code={RULES.partnerYear3} label="Recouvrement mensuel 1-3 — année 3" unit="percent" />
@@ -135,8 +135,8 @@ export default function GestionRemuneration() {
 
       <TabsContent value="technique" className="space-y-3">
         <Card><CardHeader className="pb-3"><CardTitle className="text-base">Commissions techniques</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-md border p-3"><label className="mb-2 block text-sm font-medium">Commission sur réalisation technique (FCFA)</label><Input type="number" disabled value="" placeholder="—" /></div>
-          <div className="rounded-md border p-3"><label className="mb-2 block text-sm font-medium">Commission mensuelle (%)</label><Input type="number" disabled value="" placeholder="—" /></div>
+          <div className="md:col-span-2"><RuleEditor code={RULES.technical} label="Commission technique sur réalisation / mise en terre" unit="money" /></div>
+          <p className="md:col-span-2 text-sm text-muted-foreground">Modifiez le montant et activez la règle pour appliquer la commission technique aux nouvelles réalisations. L’enregistrement recalcule également les commissions techniques non payées.</p>
         </CardContent></Card>
       </TabsContent>
 
@@ -144,6 +144,6 @@ export default function GestionRemuneration() {
         <Card><CardHeader className="pb-3"><CardTitle className="text-base">Mobilisation foncière</CardTitle></CardHeader><CardContent><RuleEditor code={RULES.land} label="Prime par hectare — propriétaire validé" unit="money" /></CardContent></Card>
       </TabsContent>
     </Tabs>}
-    <p className="text-xs text-muted-foreground">Les commissions subvention sont versées une seule fois, à la quinzaine.</p>
+    <p className="text-xs text-muted-foreground">Les commissions / vente sont versées une seule fois, à la quinzaine.</p>
   </div>;
 }
