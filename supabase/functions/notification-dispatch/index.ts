@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 import webpush from "npm:web-push@3.6.7";
+import webpush from "npm:web-push@3.6.7";
 
 const ALLOWED_ORIGINS = new Set(
   (Deno.env.get("ALLOWED_ORIGINS") || "https://agricapital.ci,https://www.agricapital.ci,https://app.agricapital.ci,https://crm.agricapital.ci,https://portail.agricapital.ci,http://localhost:5173,http://localhost:8080")
@@ -25,6 +26,54 @@ const json = (req: Request, body: unknown, status = 200) => new Response(JSON.st
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(supabaseUrl, serviceKey);
+
+async function sendWebPush(contact: Contact, title: string, body: string, dedupeKey: string, data: Record<string, unknown> = {}) {
+  const isStaff = contact.source_type === "equipe" && Boolean(contact.user_id);
+  const ownerId = isStaff ? contact.user_id : contact.source_id;
+  if (!ownerId) return 0;
+
+  let query = admin.from("push_subscriptions")
+    .select("id,endpoint,p256dh,auth")
+    .eq("active", true);
+  query = isStaff ? query.eq("user_id", ownerId) : query.eq("client_id", ownerId);
+  const { data: subscriptions, error } = await query;
+  if (error) throw error;
+  if (!subscriptions?.length) return 0;
+
+  const { data: vapid, error: vapidError } = await admin.rpc("notification_vapid_config");
+  if (vapidError || !vapid?.public_key || !vapid?.private_key) {
+    throw new Error("Configuration VAPID indisponible côté serveur.");
+  }
+  webpush.setVapidDetails(vapid.subject || "mailto:contact@agricapital.ci", vapid.public_key, vapid.private_key);
+
+  let sent = 0;
+  for (const subscription of subscriptions) {
+    try {
+      await webpush.sendNotification({
+        endpoint: subscription.endpoint,
+        keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+      }, JSON.stringify({
+        title,
+        body,
+        tag: dedupeKey,
+        dedupe_key: dedupeKey,
+        url: isStaff ? "/dashboard" : "/",
+        data,
+      }), { TTL: 86400, urgency: "normal" });
+      sent++;
+    } catch (error) {
+      const statusCode = Number((error as { statusCode?: number })?.statusCode || 0);
+      if (statusCode === 404 || statusCode === 410) {
+        await admin.from("push_subscriptions").update({
+          active: false, updated_at: new Date().toISOString(),
+        }).eq("id", subscription.id);
+      } else {
+        console.error("[WebPush] envoi impossible", { statusCode, subscriptionId: subscription.id });
+      }
+    }
+  }
+  return sent;
+}
 
 type Contact = {
   source_type: string; source_id: string; user_id?: string | null;
@@ -180,39 +229,69 @@ async function deliver(args: {
         ? [primaryAutoChannel || "email", "email"]
         : [args.canal];
     for (const channel of [...new Set(channels)]) {
-      if (channel === "app" && !contact.user_id) continue;
+      if (channel === "app" && !contact.user_id && contact.source_type === "equipe") continue;
       const dedupeKey = (args.campaignId || args.automationId || "manual") + ":" +
         (args.eventKey || "") + ":" + (contact.user_id || contact.source_id) + ":" + channel;
       const { data: existing } = await admin.from("notification_deliveries")
-        .select("id,statut").eq("dedupe_key", dedupeKey).maybeSingle();
-      if (existing?.statut === "envoye" || existing?.statut === "livre") continue;
+        .select("id,statut,created_at").eq("dedupe_key", dedupeKey).maybeSingle();
 
-      const rendered = render(args.content, contact, args.context || {});
-      const renderedSubject = render(args.subject || "Information AgriCapital", contact, args.context || {});
-      if (channel === "sms") assertSmsLength(normalizeSms(rendered));
-      if (channel === "whatsapp") assertWhatsAppLength(rendered);
-      const attachments = args.mediaAttachments || [];
-      const mediaForChannel = channel === "whatsapp" ? preparedMedia : [];
-      const attachmentMetadata = attachments.map((item) => ({ name: item.name, mimeType: item.mimeType, path: item.path, bucket: item.bucket || "notification-media", size: item.size || null }));
-      const { data: delivery, error: insertError } = await admin.from("notification_deliveries").upsert({
+      if (existing?.statut === "envoye" || existing?.statut === "livre" || existing?.statut === "en_cours") continue;
+
+      const deliveryPayload = {
         campaign_id: args.campaignId || null, automation_id: args.automationId || null,
         user_id: contact.user_id || null, source_type: contact.source_type, source_id: contact.source_id,
         recipient_name: contact.nom_complet || null, recipient_email: contact.email || null,
-        recipient_phone: contact.telephone || null, canal: channel, statut: "en_attente",
+        recipient_phone: contact.telephone || null, canal: channel, statut: "en_cours",
         contenu: channel === "sms" ? assertSmsLength(normalizeSms(rendered)) : rendered, dedupe_key: dedupeKey,
         media_attachments: attachmentMetadata,
         metadata: { event_key: args.eventKey || null },
-      }, { onConflict: "dedupe_key" }).select("id").single();
-      if (insertError) { failed++; continue; }
+      };
 
+      let delivery: { id: string };
+      if (existing) {
+        // Conditional update is the atomic claim: only one worker may deliver.
+        const ageMs = Date.now() - new Date(existing.created_at).getTime();
+        if (existing.statut === "en_attente" && ageMs < 5 * 60 * 1000) continue;
+        if (existing.statut !== "echoue" && existing.statut !== "en_attente") continue;
+        const { data: claimed, error: claimError } = await admin.from("notification_deliveries")
+          .update({ statut: "en_cours", erreur: null })
+          .eq("id", existing.id).eq("statut", existing.statut)
+          .select("id").maybeSingle();
+        if (claimError) { failed++; continue; }
+        if (!claimed) continue;
+        delivery = claimed;
+      } else {
+        const { data: inserted, error: insertError } = await admin.from("notification_deliveries")
+          .insert(deliveryPayload).select("id").maybeSingle();
+        if (insertError?.code === "23505") continue;
+        if (insertError || !inserted) { failed++; continue; }
+        delivery = inserted;
+      }
       try {
         if (channel === "app") {
-          if (!contact.user_id) throw new Error("Destinataire app sans user_id");
-          const { error } = await admin.from("notifications").insert({
-            user_id: contact.user_id, type: "communication", title: renderedSubject,
-            message: rendered, data: { campaign_id: args.campaignId, automation_id: args.automationId, dedupe_key: dedupeKey }, dedupe_key: dedupeKey,
+          if (contact.user_id) {
+            const { error } = await admin.from("notifications").insert({
+              user_id: contact.user_id, type: "communication", title: renderedSubject,
+              message: rendered, data: { campaign_id: args.campaignId, automation_id: args.automationId, dedupe_key: dedupeKey }, dedupe_key: dedupeKey,
+            });
+            if (error) {
+              if (error.code === "23505") {
+                await admin.from("notification_deliveries").update({ statut: "envoye", sent_at: new Date().toISOString() }).eq("id", delivery.id);
+                sent++;
+                continue;
+              }
+              throw error;
+            }
+          }
+
+          const pushCount = await sendWebPush(contact, renderedSubject, rendered, dedupeKey, {
+            campaign_id: args.campaignId || null,
+            automation_id: args.automationId || null,
+            event_key: args.eventKey || null,
           });
-          if (error) throw error;
+          if (!contact.user_id && pushCount === 0) {
+            throw new Error("Aucun abonnement Push actif pour ce destinataire. Il doit activer les notifications depuis son PWA.");
+          }
           await admin.from("notification_deliveries").update({ statut: "envoye", sent_at: new Date().toISOString() }).eq("id", delivery.id);
         } else if (channel === "email") {
           const result = await sendEmail(contact, renderedSubject, rendered, dedupeKey, attachments);
