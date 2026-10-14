@@ -237,7 +237,7 @@ export default function Portefeuilles(){
                 <TableBody>{detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).map((c:any)=><TableRow key={c.id}>
                   <TableCell>{c.client?.nom_complet||"—"}<span className="block text-xs text-muted-foreground">{c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
                   <TableCell>{c.client?.famille_offre||"—"}{c.client?.formule_nom?` · ${c.client.formule_nom}`:""}</TableCell>
-                  <TableCell><Badge variant="outline">{c.type_commission==="acquisition"?"Acquisition":"Recouvrement mensuel"}</Badge></TableCell>
+                  <TableCell><Badge variant="outline">{c.type_commission==="acquisition"?"Vente commerciale":c.type_commission==="recouvrement_mensuel"?"Recouvrement mensuel":c.type_commission==="technique"?"Commission technique":c.type_commission==="mobilisation_fonciere"?"Mobilisation foncière":c.type_commission||"—"}</Badge></TableCell>
                   <TableCell>{c.paiement?.reference||"—"}</TableCell>
                   <TableCell>{money(c.montant_base)}</TableCell>
                   <TableCell>{Number(c.taux_commission||0)>0?`${c.taux_commission}%`:"—"}</TableCell>
