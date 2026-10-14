@@ -83,7 +83,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           const total = Number(c.summary?.montant_total_contrat ?? c.montant_total_contrat ?? 0);
           const remaining = Number(c.summary?.reste_a_payer ?? Math.max(0, total - Number(c.summary?.total_paye || 0)));
           const landRole = String(c.type_client_foncier || "").toLowerCase();
-          const isPartner = Boolean(c.proprietaire_id) || ["proprietaire_foncier", "propriétaire_foncier", "partenaire_foncier"].includes(landRole);
+          const clientRole = String(c.type_client || "").toLowerCase();
+          const isPartner = Boolean(c.proprietaire_id) ||
+            ["proprietaire_foncier", "propriétaire_foncier", "partenaire_foncier"].includes(landRole) ||
+            ["proprietaire_foncier", "propriétaire_foncier", "partenaire"].includes(clientRole);
           return c.type_client !== "beneficiaire_particulier" && !isPartner && !c.is_internal && total > 0 && remaining > 0;
         });
     },
