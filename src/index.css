@@ -280,7 +280,6 @@ All colors MUST be HSL.
   @media (min-width: 1024px) {
     .login-brand-mobile__logo { width: min(100%, 900px); }
   }
-  }
 
   /* Smooth scrolling */
   html {
