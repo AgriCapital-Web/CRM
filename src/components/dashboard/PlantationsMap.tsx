@@ -32,16 +32,18 @@ export const PlantationsMap = () => {
     };
     try {
       // Toute plantation ou parcelle localisée doit apparaître, sans limite.
-      const [plantRes, clientRes, parcelRes] = await Promise.all([
+      const [plantRes, clientRes, parcelRes, campementRes, villageRes] = await Promise.all([
         (supabase as any)
           .from("plantations")
-          .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,superficie_ha,village_nom,localite,parcelle_id,client_id")
+          .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,superficie_ha,surface_reellement_plantee,village_nom,village,localite,parcelle_id,client_id")
           .range(0, 99999),
-        (supabase as any).from("clients").select("id,nom_complet,parcelle_id").range(0, 99999),
+        (supabase as any).from("clients").select("id,nom_complet,parcelle_id,campement_id,village_id,localite,total_hectares").range(0, 99999),
         (supabase as any)
           .from("parcelles")
           .select("id,id_unique,nom,localisation_gps_lat,localisation_gps_lng,surface_totale_ha,surface_agricapital_ha,village")
           .range(0, 99999),
+        (supabase as any).from("campements").select("id,nom").range(0, 99999),
+        (supabase as any).from("villages").select("id,nom").range(0, 99999),
       ]);
       if (plantRes.error) console.error(plantRes.error);
       if (clientRes.error) console.error(clientRes.error);
@@ -49,6 +51,8 @@ export const PlantationsMap = () => {
       const plantations = plantRes.data || [];
       const clients = clientRes.data || [];
       const parcels = parcelRes.data || [];
+      const campementById = new Map<string, any>((campementRes.data || []).map((row: any) => [row.id, row]));
+      const villageById = new Map<string, any>((villageRes.data || []).map((row: any) => [row.id, row]));
 
       const clientById = new Map<string, any>(clients.map((c: any) => [c.id, c]));
       const clientsByParcel = new Map<string, any[]>();
@@ -67,12 +71,14 @@ export const PlantationsMap = () => {
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
         if (p.parcelle_id) parcelsWithPlantation.add(p.parcelle_id);
         const client = clientById.get(p.client_id);
+        const campement = campementById.get(client?.campement_id);
+        const village = villageById.get(client?.village_id);
+        const locality = campement?.nom || p.localite || client?.localite || village?.nom || p.village_nom || p.village || parcel?.village || "Localité non renseignée";
+        const area = p.superficie_ha ?? p.surface_reellement_plantee ?? client?.total_hectares ?? parcel?.surface_totale_ha ?? parcel?.surface_agricapital_ha ?? 0;
         out.push({
-          id: p.id,
-          lat,
-          lng,
-          label: p.nom_plantation || p.id_unique || parcel?.id_unique || "Plantation",
-          info: `${client?.nom_complet || "—"} • ${p.superficie_ha || parcel?.surface_agricapital_ha || parcel?.surface_totale_ha || 0} ha • ${p.village_nom || p.localite || parcel?.village || ""}`,
+          id: p.id, lat, lng,
+          label: client?.nom_complet || p.nom_plantation || p.id_unique || parcel?.id_unique || "Client non renseigné",
+          info: "Superficie : " + area + " ha • Localité : " + locality,
         });
       }
 
