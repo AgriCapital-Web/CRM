@@ -21,6 +21,7 @@ interface FileUploadVisualProps {
   onFileChange: (field: string, file: File | null, preview: string) => void;
   onIdentityNumberDetected?: (numero: string) => void;
   identityDocumentType?: string;
+  compact?: boolean;
 }
 
 export const FileUploadVisual = ({
@@ -33,6 +34,7 @@ export const FileUploadVisual = ({
   onFileChange,
   onIdentityNumberDetected,
   identityDocumentType,
+  compact = false,
 }: FileUploadVisualProps) => {
   const [preview, setPreview] = useState<string>(currentPreview || "");
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -81,18 +83,17 @@ export const FileUploadVisual = ({
   const isVideo = currentFile?.type?.startsWith("video/") || preview.startsWith("data:video");
 
   return (
-    <div className="space-y-2">
-      <Label>{label} {required && "*"}</Label>
+    <div className={compact ? "space-y-1" : "space-y-2"}>
+      {!compact && <Label>{label} {required && "*"}</Label>}
       {!preview ? (
-        <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
+        <div className={`border-2 border-dashed rounded-lg ${compact ? "p-1" : "p-6"} text-center hover:border-primary transition-colors cursor-pointer`}>
           <Input ref={inputRef} type="file" accept={accept} onChange={(e) => { e.stopPropagation(); handleFileSelect(e.currentTarget.files?.[0] || null); }} className="hidden" id={`upload-${field}`} />
           <Input ref={fileInputRef} type="file" accept={accept} onChange={(e) => { e.stopPropagation(); setSourceDialogOpen(false); handleFileSelect(e.currentTarget.files?.[0] || null); }} className="hidden" />
           <Input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => { setSourceDialogOpen(false); handleFileSelect(e.target.files?.[0] || null); }} className="hidden" />
-          <button type="button" onClick={() => accept.includes("image") ? setSourceDialogOpen(true) : inputRef.current?.click()} className="w-full border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
-            <div className="space-y-2">
-              {accept.includes("image") ? <Camera className="h-10 w-10 mx-auto text-muted-foreground" /> : <Upload className="h-10 w-10 mx-auto text-muted-foreground" />}
-              <p className="text-sm text-muted-foreground">Ajouter une photo ou un fichier</p>
-              <p className="text-xs text-muted-foreground">Choisissez entre la caméra et le gestionnaire de fichiers</p>
+          <button type="button" aria-label={label} title={label} onClick={() => accept.includes("image") ? setSourceDialogOpen(true) : inputRef.current?.click()} className={`w-full border-2 border-dashed rounded-lg ${compact ? "p-2 min-h-10" : "p-6"} text-center hover:border-primary transition-colors cursor-pointer flex items-center justify-center`}>
+            <div className={compact ? "flex items-center justify-center" : "space-y-2"}>
+              {accept.includes("image") ? <Camera className={`${compact ? "h-5 w-5" : "h-10 w-10 mx-auto"} text-muted-foreground`} /> : <Upload className={`${compact ? "h-5 w-5" : "h-10 w-10 mx-auto"} text-muted-foreground`} />}
+              {!compact && <><p className="text-sm text-muted-foreground">Ajouter une photo ou un fichier</p><p className="text-xs text-muted-foreground">Choisissez entre la caméra et le gestionnaire de fichiers</p></>}
             </div>
           </button>
           {accept.includes("image") && (
@@ -100,11 +101,11 @@ export const FileUploadVisual = ({
               <DialogContent className="max-w-sm">
                 <DialogHeader><DialogTitle>Ajouter une photo</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-1 gap-3">
-                  <Button type="button" onClick={() => cameraInputRef.current?.click()} className="h-12 justify-start">
-                    <Camera className="mr-3 h-5 w-5" /> Prendre une photo avec la caméra
+                  <Button type="button" aria-label="Prendre une photo avec la caméra" onClick={() => cameraInputRef.current?.click()} className={compact ? "h-9 w-full justify-center" : "h-12 justify-start"}>
+                    <Camera className={compact ? "h-4 w-4" : "mr-3 h-5 w-5"} /> {!compact && "Prendre une photo avec la caméra"}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="h-12 justify-start">
-                    <Upload className="mr-3 h-5 w-5" /> Choisir depuis le gestionnaire de fichiers
+                  <Button type="button" variant="outline" aria-label="Choisir depuis le gestionnaire de fichiers" onClick={() => fileInputRef.current?.click()} className={compact ? "h-9 w-full justify-center" : "h-12 justify-start"}>
+                    <Upload className={compact ? "h-4 w-4" : "mr-3 h-5 w-5"} /> {!compact && "Choisir depuis le gestionnaire de fichiers"}
                   </Button>
                 </div>
               </DialogContent>
@@ -112,43 +113,49 @@ export const FileUploadVisual = ({
           )}
         </div>
       ) : (
-        <div className="relative border rounded-lg p-4">
+        <div className={`relative border rounded-lg ${compact ? "p-1" : "p-4"}`}>
           {isImage ? (
             <img
               src={preview}
               alt="Aperçu"
-              className="w-full h-48 object-contain rounded"
+              className={`w-full ${compact ? "h-20" : "h-48"} object-contain rounded`}
             />
           ) : isVideo ? (
-            <video src={preview} controls className="w-full h-48 object-contain rounded" />
+            <video src={preview} controls className={`w-full ${compact ? "h-20" : "h-48"} object-contain rounded`} />
           ) : (
-            <div className="flex items-center justify-center h-48 bg-muted rounded">
+            <div className={`flex items-center justify-center ${compact ? "h-16" : "h-48"} bg-muted rounded`}>
               <div className="text-center">
-                <FileText className="h-12 w-12 mx-auto text-primary mb-2" />
-                <p className="text-sm font-medium">{currentFile?.name || "Document PDF"}</p>
+                <FileText className={`${compact ? "h-6 w-6" : "h-12 w-12 mb-2"} mx-auto text-primary`} />
+                <p className={`text-xs font-medium ${compact ? "truncate max-w-36" : ""}`}>{currentFile?.name || "Document PDF"}</p>
               </div>
             </div>
           )}
           {ocrLoading && <p className="mt-2 text-xs text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-3 w-3 animate-spin"/> {ocrMessage}</p>}
           {!ocrLoading && ocrMessage && <p className="mt-2 text-xs text-muted-foreground flex items-center justify-center gap-2"><ScanText className="h-3 w-3"/> {ocrMessage}</p>}
-          <div className="flex gap-2 mt-3 justify-center">
+          <div className={`flex gap-1 ${compact ? "mt-1" : "mt-3"} justify-center`}>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className={compact ? "h-7 w-7 p-0" : ""}
+              aria-label="Visualiser"
+              title="Visualiser"
               onClick={() => window.open(preview, "_blank")}
             >
-              <Eye className="h-4 w-4 mr-1" />
-              Visualiser
+              <Eye className="h-4 w-4" />
+              {!compact && "Visualiser"}
             </Button>
             <Button
               type="button"
               variant="destructive"
               size="sm"
+              className={compact ? "h-7 w-7 p-0" : ""}
+              aria-label="Supprimer"
+              title="Supprimer"
               onClick={clearFile}
             >
-              <X className="h-4 w-4 mr-1" />
-              Supprimer
+              <X className="h-4 w-4" />
+              {!compact && "Supprimer"}
             </Button>
           </div>
         </div>
