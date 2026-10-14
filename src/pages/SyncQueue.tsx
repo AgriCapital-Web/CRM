@@ -42,7 +42,7 @@ export function SyncQueueContent() {
   }, [load]);
 
   const stateOf = (status: string): SyncState =>
-    status === "error" ? "error" : status === "syncing" ? "syncing" : "queued";
+    status === "error" ? "error" : status === "syncing" || status === "uploading" ? "syncing" : "queued";
 
   return (
     <div className="min-w-0 space-y-6">
@@ -160,7 +160,7 @@ export function SyncQueueContent() {
                         <span className="text-muted-foreground">{f.record_id ? String(f.record_id).slice(0, 8) + "…" : f.form_id || "—"}</span>
                       </TableCell>
                       <TableCell>
-                        <SyncStatusBadge state={f.status === "error" ? "error" : "queued"} />
+                        <SyncStatusBadge state={stateOf(f.status)} />
                         {f.error && <p className="mt-1 text-xs text-destructive break-words">{f.error}</p>}
                         {f.retries > 0 && (
                           <p className="mt-1 text-xs text-muted-foreground">
