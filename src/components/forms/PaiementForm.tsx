@@ -354,39 +354,101 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         validated[field] = parsed.value;
       }
 
+      let pendingPaymentToUpdate: string | null = null;
       if (!paiement) {
-        const selected = clients.find((client:any)=>client.id===data.client_id);
-        if (!selected || selected.type_client==="beneficiaire_particulier" || selected.is_internal || selected.contrat_solde_at) {
-          toast({variant:"destructive",title:"Paiement interdit",description:"Sélectionnez un client éligible à un paiement."});
+        const selected = clients.find((client: any) => client.id === data.client_id);
+        if (!selected || selected.type_client === "beneficiaire_particulier" || selected.is_internal ||
+            (selected.contrat_solde_at && !data.souscription_id)) {
+          toast({ variant: "destructive", title: "Paiement interdit", description: "Sélectionnez un client ayant encore un contrat ou une souscription à régler." });
           return;
         }
-        const {data:summary,error:summaryError} = await (supabase as any).from("v_client_synthese").select("montant_total_contrat,reste_a_payer").eq("client_id",data.client_id).maybeSingle();
-        if (summaryError) throw summaryError;
-        if (summary && Number(summary.montant_total_contrat||0)>0 && Number(summary.reste_a_payer||0)<=0) {
-          toast({variant:"destructive",title:"Contrat soldé",description:"Aucun nouveau paiement ne peut être créé pour ce contrat."});
-          return;
-        }
-        const {data:paymentState,error:stateError} = await (supabase as any).rpc("portal_current_payment_state",{_client_id:data.client_id});
-        if (stateError) throw stateError;
-        if (data.type_paiement === "PI") {
-          const pi = paymentState?.paiement_initial || {};
-          const due = Math.max(0,Number(pi.solde ?? pi.montant_a_payer ?? validated.montant_theorique ?? data.montant_theorique ?? 0));
+
+        if (data.type_paiement === "PI" && data.souscription_id) {
+          const subscription = clientSubscriptions.find((sub: any) => sub.id === data.souscription_id);
+          if (!subscription || subscription.client_id !== data.client_id) {
+            toast({ variant: "destructive", title: "Souscription invalide", description: "Choisissez une souscription appartenant au client sélectionné." });
+            return;
+          }
+          const due = Math.max(0, Number(subscription.montant_pi_total || 0));
           const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
-          if (due <= 0) {
-            toast({variant:"destructive",title:"Paiement initial déjà réglé",description:"Aucun paiement initial n’est dû pour ce dossier."});
+          if (subscription.pi_paye || due <= 0) {
+            toast({ variant: "destructive", title: "Paiement initial déjà réglé", description: "Cette souscription ne présente plus de paiement initial à régler." });
             return;
           }
           if (Math.abs(amount - due) > 1) {
-            toast({variant:"destructive",title:"Montant non conforme",description:"Le paiement initial doit correspondre au solde réel calculé selon l’offre ou la configuration particulière du client."});
+            toast({ variant: "destructive", title: "Montant non conforme", description: "Le montant doit correspondre au paiement initial de cette offre et de cette superficie." });
             return;
           }
-        } else if (data.type_paiement === "MENSUALITE") {
-          const monthly = paymentState?.mensualite || {};
-          const due = Math.max(0,Number(monthly.montant_a_payer || 0));
-          const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
-          if (due <= 0 || amount <= 0 || amount > due + 1) {
-            toast({variant:"destructive",title:"Montant mensuel non conforme",description:"Le montant ne peut pas dépasser l’échéance réellement due pour cette plantation."});
+          const { data: existing, error: existingError } = await (supabase as any)
+            .from("paiements")
+            .select("id,statut")
+            .eq("souscription_id", subscription.id)
+            .eq("est_paiement_initial", true)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (existingError) throw existingError;
+          if (existing && ["valide", "paye", "paid", "success", "successful", "completed"].includes(String(existing.statut || "").toLowerCase())) {
+            toast({ variant: "destructive", title: "Paiement déjà validé", description: "Le paiement initial de cette souscription a déjà été validé." });
             return;
+          }
+          pendingPaymentToUpdate = existing?.id || null;
+          data.montant = due;
+          data.montant_theorique = due;
+          data.est_paiement_initial = true;
+          data.phase = "paiement_initial";
+          data.parcours = subscription.famille_offre || subscription.offre_code;
+        } else {
+          const { data: summary, error: summaryError } = await (supabase as any)
+            .from("v_client_synthese")
+            .select("montant_total_contrat,reste_a_payer")
+            .eq("client_id", data.client_id)
+            .maybeSingle();
+          if (summaryError) throw summaryError;
+          if (summary && Number(summary.montant_total_contrat || 0) > 0 && Number(summary.reste_a_payer || 0) <= 0) {
+            toast({ variant: "destructive", title: "Contrat soldé", description: "Aucun paiement ne reste dû sur le contrat initial ou ses souscriptions." });
+            return;
+          }
+          const { data: paymentState, error: stateError } = await (supabase as any)
+            .rpc("portal_current_payment_state", { _client_id: data.client_id });
+          if (stateError) throw stateError;
+          if (data.type_paiement === "PI") {
+            const pi = paymentState?.paiement_initial || {};
+            const due = Math.max(0, Number(pi.solde ?? pi.montant_a_payer ?? validated.montant_theorique ?? data.montant_theorique ?? 0));
+            const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
+            if (due <= 0) {
+              toast({ variant: "destructive", title: "Paiement initial déjà réglé", description: "Aucun paiement initial n’est dû pour le contrat principal." });
+              return;
+            }
+            if (Math.abs(amount - due) > 1) {
+              toast({ variant: "destructive", title: "Montant non conforme", description: "Le montant doit correspondre au solde réel du paiement initial du contrat principal." });
+              return;
+            }
+            const { data: existing, error: existingError } = await (supabase as any)
+              .from("paiements")
+              .select("id,statut")
+              .eq("client_id", data.client_id)
+              .is("souscription_id", null)
+              .eq("est_paiement_initial", true)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (existingError) throw existingError;
+            if (existing && !["valide", "paye", "paid", "success", "successful", "completed"].includes(String(existing.statut || "").toLowerCase())) {
+              pendingPaymentToUpdate = existing.id;
+            }
+            data.montant = due;
+            data.montant_theorique = due;
+            data.est_paiement_initial = true;
+            data.phase = "paiement_initial";
+          } else if (data.type_paiement === "MENSUALITE") {
+            const monthly = paymentState?.mensualite || {};
+            const due = Math.max(0, Number(monthly.montant_a_payer || 0));
+            const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
+            if (due <= 0 || amount <= 0 || amount > due + 1) {
+              toast({ variant: "destructive", title: "Montant mensuel non conforme", description: "Le montant ne peut pas dépasser l’échéance réellement due pour cette plantation." });
+              return;
+            }
           }
         }
       }
@@ -395,6 +457,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       const paiementData = {
         ...data,
         ...validated,
+        souscription_id: data.souscription_id || null,
+        client_id: data.client_id,
+        plantation_id: data.plantation_id || null,
         created_by: user.data.user?.id,
         statut: "en_attente",
         date_upload_preuve: new Date().toISOString(),
@@ -402,6 +467,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
       if (paiement) {
         const { error } = await offlineUpdate("paiements", paiement.id, paiementData);
+        if (error) throw error;
+      } else if (pendingPaymentToUpdate) {
+        const { error } = await offlineUpdate("paiements", pendingPaymentToUpdate, paiementData);
         if (error) throw error;
       } else {
         const { error } = await offlineInsert("paiements", paiementData);
