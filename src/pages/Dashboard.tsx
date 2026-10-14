@@ -646,17 +646,31 @@ const Dashboard = () => {
 
           {!isClientOnly && (
             <>
-              <section aria-label="Indicateurs de pilotage" className="responsive-auto-grid min-w-0">
+              <section aria-label="Indicateurs de pilotage" className="min-w-0 space-y-5">
                 {kpis.filter((k) => k.show && k.metrics.length > 0).map((k) => {
                   const Icon = k.icon;
-                  return <Card key={k.label} className="h-full min-w-0 overflow-hidden">
-                    <CardHeader className="px-3 pb-2 pt-3 sm:px-4"><CardTitle className="flex min-w-0 items-center gap-2 text-sm sm:text-base"><Icon className="h-4 w-4 shrink-0 text-primary"/><span>{k.label}</span></CardTitle></CardHeader>
-                    <CardContent className="px-3 pb-3 pt-0 sm:px-4">
-                      <div className="grid min-w-0 grid-cols-2 gap-2 xl:grid-cols-3">
-                        {k.metrics.map((metric:any)=><Link key={metric.label} to={metric.href||k.href} className="min-w-0 rounded-lg bg-muted/50 p-2 hover:bg-muted"><p className="text-[11px] leading-tight text-muted-foreground">{metric.label}</p><p className="mt-1 break-words text-sm font-bold leading-tight tabular-nums sm:text-base">{loading?"…":metric.value}</p></Link>)}
+                  return (
+                    <div key={k.label} className="min-w-0 space-y-2.5">
+                      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight text-foreground sm:text-base">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        {k.label}
+                      </h2>
+                      <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+                        {k.metrics.map((metric: any) => (
+                          <Link
+                            key={metric.label}
+                            to={metric.href || k.href}
+                            className="group flex min-h-[82px] min-w-0 flex-col justify-between rounded-xl border border-border/70 bg-card p-3 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <span className="text-[11px] leading-snug text-muted-foreground sm:text-xs">{metric.label}</span>
+                            <span className="mt-2 block break-words text-base font-bold leading-tight tabular-nums text-foreground sm:text-lg">{loading ? "…" : metric.value}</span>
+                          </Link>
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>;
+                    </div>
+                  );
                 })}
               </section>
 
