@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Sprout, DollarSign, FileText, Settings, Camera, LandPlot, UserRound, ExternalLink, MessageSquare, Upload, Plus } from "lucide-react";
+import { ArrowLeft, Sprout, DollarSign, FileText, Settings, Camera, LandPlot, UserRound, ExternalLink, MessageSquare, Upload, Plus, Download } from "lucide-react";
 import TicketForm from "@/components/forms/TicketForm";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { uploadFile } from "@/utils/storage";
@@ -449,7 +449,7 @@ const ClientDetail = () => {
   return (
     <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}>
       <MainLayout>
-        <div className="space-y-6">
+        <div className="client-detail-compact space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               <Button
@@ -501,6 +501,8 @@ const ClientDetail = () => {
                   <DialogTitle>Créer un ticket technique</DialogTitle>
                 </DialogHeader>
                 <TicketForm
+                  clientId={client.id}
+                  clientLocation={[client.domicile_residence, client.localite, client.village?.nom, client.campement?.nom].filter(Boolean).join(" · ")}
                   plantationId={plantations[0]?.id}
                   onSuccess={() => {
                     setIsTicketOpen(false);
@@ -512,7 +514,7 @@ const ClientDetail = () => {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-4 sm:gap-3">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -718,8 +720,8 @@ const ClientDetail = () => {
             </DialogContent>
           </Dialog>
 
-          <Tabs defaultValue="plantations" className="space-y-4">
-            <TabsList>
+          <Tabs defaultValue="plantations" className="space-y-3">
+            <TabsList className="h-auto min-h-9 flex-wrap justify-start gap-1 p-1">
               <TabsTrigger value="plantations">
                 <Sprout className="h-4 w-4 mr-2" />
                 Plantations
@@ -955,7 +957,7 @@ const ClientDetail = () => {
                           <TableHead>Rôle</TableHead>
                           <TableHead>Quote-part</TableHead>
                           <TableHead>Plantation liée</TableHead>
-                          <TableHead>Référence acte</TableHead>
+                          <TableHead>Acte</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -964,10 +966,10 @@ const ClientDetail = () => {
                         ) : paginatedAttributions.map((a: any) => (
                           <TableRow key={a.id}>
                             <TableCell>{a.parcelles?.nom || a.parcelles?.village || "Parcelle"}{a.parcelles?.village ? <span className="block text-xs text-muted-foreground">{a.parcelles.village}</span> : null}</TableCell>
-                            <TableCell><Badge variant="outline">{a.role_attribution === "proprietaire_beneficiaire" ? "Propriétaire + bénéficiaire" : "Bénéficiaire particulier"}</Badge></TableCell>
-                            <TableCell className="font-semibold">{Number(a.surface_attribuee_ha || 0).toFixed(2)} ha</TableCell>
-                            <TableCell>{a.plantations?.nom_plantation || "Plantation"}</TableCell>
-                            <TableCell>{a.reference_acte || "—"}</TableCell>
+                            <TableCell><Badge variant="outline" className="whitespace-normal text-xs">{a.role_attribution === "proprietaire_beneficiaire" ? "Propriétaire + bénéficiaire" : "Bénéficiaire"}</Badge></TableCell>
+                            <TableCell className="font-semibold">{Number(a.surface_attribuee_ha || 0).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</TableCell>
+                            <TableCell className="max-w-[180px] truncate" title={a.plantations?.nom_plantation || ""}>{a.plantations?.nom_plantation || "Plantation"}</TableCell>
+                            <TableCell className="max-w-[140px] truncate" title={a.reference_acte || ""}>{a.reference_acte || "—"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1010,17 +1012,24 @@ const ClientDetail = () => {
                         {documents.length === 0 ? (
                           <p className="text-sm text-muted-foreground">Aucun document enregistré.</p>
                         ) : documents.map((doc: any) => (
-                          <div key={doc.id} className="flex items-center justify-between gap-3 border rounded-lg p-3">
-                            <div>
-                              <p className="font-medium">{doc.libelle}</p>
+                          <div key={doc.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 border rounded-lg p-2 sm:flex-nowrap">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium" title={doc.libelle}>{doc.libelle}</p>
                               <p className="text-xs text-muted-foreground">{doc.categorie} · {doc.statut}</p>
                             </div>
                             {doc.displayUrl ? (
-                              <Button variant="outline" size="sm" asChild>
-                                <a href={doc.displayUrl} target="_blank" rel="noreferrer">
-                                  <ExternalLink className="h-4 w-4 mr-2" /> Ouvrir
-                                </a>
-                              </Button>
+                              <div className="flex shrink-0 gap-1">
+                                <Button variant="outline" size="sm" asChild>
+                                  <a href={doc.displayUrl} target="_blank" rel="noreferrer">
+                                    <ExternalLink className="mr-1 h-3.5 w-3.5" /> Aperçu
+                                  </a>
+                                </Button>
+                                <Button variant="ghost" size="sm" asChild>
+                                  <a href={doc.displayUrl} download>
+                                    <Download className="mr-1 h-3.5 w-3.5" /> Télécharger
+                                  </a>
+                                </Button>
+                              </div>
                             ) : (
                               <Badge variant="outline">À ajouter</Badge>
                             )}
