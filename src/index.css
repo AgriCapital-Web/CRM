@@ -938,3 +938,25 @@ All colors MUST be HSL.
   .commission-page .responsive-data-table th,
   .commission-page .responsive-data-table td { padding: .16rem .25rem !important; font-size: .68rem; }
 }
+
+
+/* Compact financial and wallet tables: keep scrolling inside table containers. */
+.portfolio-page .responsive-data-table th,
+.portfolio-page .responsive-data-table td {
+  padding: .18rem .32rem !important;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.portfolio-page .responsive-data-table th { font-size: .69rem; }
+.portfolio-page .responsive-data-table td { font-size: .73rem; }
+.portfolio-page .responsive-data-table tbody tr { height: 2.1rem; }
+.finance-page table { width: 100%; font-size: .76rem; }
+.finance-page table th,
+.finance-page table td { padding: .22rem .32rem; line-height: 1.15; vertical-align: middle; }
+.finance-page .rounded-lg.border { min-width: 0; }
+@media (max-width: 640px) {
+  .portfolio-page .responsive-data-table th,
+  .portfolio-page .responsive-data-table td { padding: .15rem .24rem !important; font-size: .67rem; }
+  .finance-page table th,
+  .finance-page table td { padding: .18rem .24rem; }
+}
