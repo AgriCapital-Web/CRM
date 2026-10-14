@@ -574,16 +574,15 @@ const Dashboard = () => {
       {label:"Échéances en retard",value:stats.overdueCount,href:"/paiements"},
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
-      ...(canClients ? [{label:"Clients / dossiers",value:stats.clients,href:"/acquisitions"}] : []),
+      ...(canClients ? [{group:"Clients",label:"Clients / dossiers",shortLabel:"Clients",value:stats.clients,href:"/acquisitions"}] : []),
       ...(canLeads ? [
-        {label:"Leads",value:stats.leads,href:"/leads"},
-        {label:"Nouveaux leads",value:stats.leadsNew,href:"/leads"},
-        {label:"Leads convertis",value:stats.leadsConverted,href:"/leads"},
-        {label:"Tx. conversion lead",value:stats.conversionRate+"%",href:"/leads"},
-        {label:"Prospects",value:stats.prospects,href:"/prospects"},
-        {label:"Prospects conv.",value:stats.prospectsConverted,href:"/prospects"},
-        {label:"Tx. conversion prospect",value:stats.prospectsConversionRate+"%",href:"/prospects"},
-        {label:"À relancer",value:stats.leadsFollowup,href:"/leads"}
+        {group:"Leads",label:"Leads",shortLabel:"Leads",value:stats.leads,href:"/leads"},
+        {group:"Leads",label:"Leads convertis",shortLabel:"Leads conv.",value:stats.leadsConverted,href:"/leads"},
+        {group:"Leads",label:"Taux de conversion des leads",shortLabel:"Taux conv. leads",value:stats.conversionRate+"%",href:"/leads"},
+        {group:"Prospects",label:"Prospects",shortLabel:"Prospects",value:stats.prospects,href:"/prospects"},
+        {group:"Prospects",label:"Prospects convertis",shortLabel:"Prospects conv.",value:stats.prospectsConverted,href:"/prospects"},
+        {group:"Prospects",label:"Taux de conversion des prospects",shortLabel:"Taux conv. prospects",value:stats.prospectsConversionRate+"%",href:"/prospects"},
+        {group:"Relances",label:"À relancer",shortLabel:"À relancer",value:stats.leadsFollowup,href:"/leads"}
       ] : []),
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
@@ -662,18 +661,37 @@ const Dashboard = () => {
                         </span>
                         {k.label}
                       </h2>
-                      <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Développement commercial" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-9" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(82px,1fr))]" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6"}`}>
-                        {k.metrics.map((metric: any) => (
-                          <Link
-                            key={metric.label}
-                            to={metric.href || k.href}
-                            className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <span className="text-[10px] leading-snug text-muted-foreground sm:text-[11px]">{metric.label}</span>
-                            <span className="mt-1.5 block break-words text-sm font-bold leading-tight tabular-nums text-foreground sm:text-base">{loading ? "…" : metric.value}</span>
-                          </Link>
-                        ))}
-                      </div>
+                      {k.label === "Développement commercial" ? (
+                        <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
+                          {["Clients", "Leads", "Prospects", "Relances"].map((groupName) => {
+                            const items = k.metrics.filter((metric: any) => metric.group === groupName);
+                            if (!items.length) return null;
+                            return (
+                              <section key={groupName} className="min-w-0 rounded-xl border border-border/70 bg-background/60 p-2">
+                                <h3 className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{groupName}</h3>
+                                <div className={groupName === "Relances" || groupName === "Clients" ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"}>
+                                  {items.map((metric: any) => (
+                                    <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                      <span className="hidden whitespace-nowrap text-[10px] leading-snug text-muted-foreground 2xl:block">{metric.label}</span>
+                                      <span className="block whitespace-nowrap text-[10px] leading-snug text-muted-foreground 2xl:hidden">{metric.shortLabel || metric.label}</span>
+                                      <span className="mt-1.5 block text-sm font-bold leading-tight tabular-nums text-foreground sm:text-base">{loading ? "…" : metric.value}</span>
+                                    </Link>
+                                  ))}
+                                </div>
+                              </section>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(82px,1fr))]" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6"}`}>
+                          {k.metrics.map((metric: any) => (
+                            <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                              <span className="text-[10px] leading-snug text-muted-foreground sm:text-[11px]">{metric.label}</span>
+                              <span className="mt-1.5 block break-words text-sm font-bold leading-tight tabular-nums text-foreground sm:text-base">{loading ? "…" : metric.value}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
