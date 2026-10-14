@@ -11,7 +11,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { resolveUpdateConflict } from '@/lib/offlineConflict';
 import { flushFileQueue, countQueuedFiles, startFileQueueResume } from '@/lib/offlineFiles';
-import { flushOfflineHttpQueue, refreshPendingMutationAuthorization } from '@/lib/offlineHttp';
+import { flushOfflineHttpQueue, refreshPendingMutationAuthorization, scheduleBackgroundOfflineSync } from '@/lib/offlineHttp';
 
 const SYNC_INTERVAL = 3 * 60 * 1000; // 3 minutes
 const SLOW_NET_THRESHOLD = 1500; // ms
@@ -389,10 +389,16 @@ export function useOfflineSync() {
     }
 
     // Load pending count
-    Promise.all([getSyncQueueStats(), getHttpMutationStats()]).then(([s, h]) =>
-      setPendingCount(s.pending + s.error + h.pending + h.error)
-    );
-    countQueuedFiles().then(setPendingFiles);
+    Promise.all([getSyncQueueStats(), getHttpMutationStats()]).then(([s, h]) => {
+      const totalPending = s.pending + s.error + h.pending + h.error;
+      setPendingCount(totalPending);
+      // Register the existing queue too, not only new writes created after this release.
+      if (totalPending > 0) void scheduleBackgroundOfflineSync();
+    });
+    countQueuedFiles().then((count) => {
+      setPendingFiles(count);
+      if (count > 0) void scheduleBackgroundOfflineSync();
+    });
 
     syncIntervalRef.current = setInterval(async () => {
       if (navigator.onLine && user && !syncLockRef.current) {
