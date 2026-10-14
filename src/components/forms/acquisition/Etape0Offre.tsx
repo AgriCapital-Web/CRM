@@ -18,6 +18,8 @@ type Offre = Tables<"offres">;
 interface Etape0Props {
   formData: any;
   updateFormData: (data: any) => void;
+  showCommercial?: boolean;
+  surfaceReadOnly?: boolean;
 }
 
 const getFormulaConfig = (offer: any, code?: string) => {
@@ -43,7 +45,7 @@ const applyFormulaConfig = (offer: any, formula: any) => {
   return next;
 };
 
-export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
+export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false }: Etape0Props) => {
   const { data: promotionActive } = usePromotionActive(formData.offre_id);
   const [loadingCommercialDefault, setLoadingCommercialDefault] = useState(false);
 
@@ -105,7 +107,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
     const ha = Number(formData.superficie_prevue);
     const o = offre as any;
     const tranches = Array.isArray(o.tranches_paiement) ? o.tranches_paiement : [];
-    const pricingMode = "echeancier";
+    const pricingMode = formData.mode_paiement === "comptant" ? "comptant" : "echeancier";
     const prix = calculPrixEffectif(o, promotionActive ? [promotionActive as any] : [], { modePaiement: pricingMode });
 
     const piUnitaireBase = Number((prix as any).depot_initial_base || 0);
@@ -134,26 +136,27 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
       promoReduction: Number(prix.reduction_pct || 0),
       promotionAppliquee: !!prix.promotion_id,
     };
-  }, [formData.offre_id, formData.formule_code, formData.superficie_prevue, promotionActive, offres]);
+  }, [formData.offre_id, formData.formule_code, formData.superficie_prevue, formData.mode_paiement, promotionActive, offres]);
 
   if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base sm:text-lg">Commercial</CardTitle>
-          
-        </CardHeader>
-        <CardContent>
-          <CommercialCombobox
-            value={formData.commercial_id || null}
-            onChange={(value) => updateFormData({ commercial_id: value })}
-            placeholder={loadingCommercialDefault ? "Détermination du commercial" : (formData.lead_id && !formData.commercial_id ? "Choisir le commercial ayant réalisé la vente" : "Rechercher ou sélectionner un commercial")}
-            disabled={loadingCommercialDefault || (!!formData.lead_id && !!formData.commercial_id)}
-          />
-        </CardContent>
-      </Card>
+      {showCommercial && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Commercial</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CommercialCombobox
+              value={formData.commercial_id || null}
+              onChange={(value) => updateFormData({ commercial_id: value })}
+              placeholder={loadingCommercialDefault ? "Détermination du commercial" : (formData.lead_id && !formData.commercial_id ? "Choisir le commercial ayant réalisé la vente" : "Rechercher ou sélectionner un commercial")}
+              disabled={loadingCommercialDefault || (!!formData.lead_id && !!formData.commercial_id)}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {promotionActive && (
         <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-4">
@@ -277,6 +280,8 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
               value={formData.superficie_prevue || ""}
               onChange={(e) => updateFormData({ superficie_prevue: e.target.value })}
               placeholder=""
+              readOnly={surfaceReadOnly}
+              disabled={surfaceReadOnly}
               required
             />
           </div>
@@ -284,9 +289,9 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
           {calculs && (
             <div className="p-4 bg-primary/10 rounded-lg space-y-3">
               <div className="flex justify-between text-sm"><span>Superficie:</span><span className="font-medium">{calculs.ha} ha</span></div>
-              <div className="flex justify-between text-sm"><span>Paiement Initial{calculs.promoCible === "paiement_initial" ? " (promo)" : ""}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
+              <div className="flex justify-between text-sm"><span>{calculs.modePaiement === "comptant" ? "Paiement comptant" : `Paiement initial${calculs.promoCible === "paiement_initial" ? " (promo)" : ""}`}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
               <div className="border-t pt-2 flex justify-between"><span className="font-semibold">Coût global contractuel{calculs.promoCible === "cout_global" ? " (promo)" : ""}:</span><span className="text-lg font-bold text-primary">{formatMontant(calculs.totalFinal)} F</span></div>
-              <div className="border-t pt-3 space-y-2">
+              {calculs.modePaiement !== "comptant" && <div className="border-t pt-3 space-y-2">
                 <div className="flex justify-between text-sm"><span>Durée de paiement :</span><span className="font-semibold">{calculs.duree} mois</span></div>
                 {calculs.tranches.filter((tranche: any) => Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0) > 0).map((tranche: any, index: number) => (
                   <div key={tranche.annee || index} className="flex justify-between gap-3 text-xs text-muted-foreground">
@@ -294,7 +299,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
                     <span className="font-medium text-foreground">{formatMontant(Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0))} F/ha/mois</span>
                   </div>
                 ))}
-              </div>
+              </div>}
               {calculs.promotionAppliquee && <div className="flex items-center gap-1 text-xs text-amber-600"><Sparkles className="h-3 w-3" /><span>Promo -{calculs.promoReduction}% appliquée sur {calculs.promoCible}</span></div>}
             </div>
           )}
