@@ -40,6 +40,7 @@ const ClientDetail = () => {
   const [client, setClient] = useState<any>(null);
   const [clientMedia, setClientMedia] = useState<{ photo: string | null; recto: string | null; verso: string | null }>({ photo: null, recto: null, verso: null });
   const [plantations, setPlantations] = useState<any[]>([]);
+  const [pendingPlantationSubscriptions, setPendingPlantationSubscriptions] = useState<any[]>([]);
   const [paiements, setPaiements] = useState<any[]>([]);
   const [interventions, setInterventions] = useState<any[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
@@ -178,6 +179,30 @@ const ClientDetail = () => {
 
       const allPlantations = plantationsData || [];
       setPlantations(allPlantations);
+
+      const { data: acquisitionLotRows } = await (supabase as any)
+        .from("acquisition_lots")
+        .select("id,lot_id,date_attribution,surface_ha,notes")
+        .eq("client_id", id)
+        .order("created_at", { ascending: false });
+      const acquiredLotIds = (acquisitionLotRows || []).map((row: any) => row.lot_id).filter(Boolean);
+      const lotMetaResult = acquiredLotIds.length
+        ? await (supabase as any).from("lots_hectares").select("id,reference,numero_h,parcelle_id").in("id", acquiredLotIds)
+        : { data: [] };
+      const lotMeta = lotMetaResult.data || [];
+      const parcelIds = [...new Set(lotMeta.map((lot: any) => lot.parcelle_id).filter(Boolean))];
+      const parcelMetaResult = parcelIds.length
+        ? await (supabase as any).from("parcelles").select("id,id_unique,nom,village").in("id", parcelIds)
+        : { data: [] };
+      const parcelMeta = parcelMetaResult.data || [];
+      const pending = (acquisitionLotRows || [])
+        .filter((row: any) => !allPlantations.some((plantation: any) => plantation.lot_id === row.lot_id))
+        .map((row: any) => {
+          const lot = lotMeta.find((item: any) => item.id === row.lot_id);
+          const parcel = parcelMeta.find((item: any) => item.id === lot?.parcelle_id);
+          return { ...row, lot, parcel };
+        });
+      setPendingPlantationSubscriptions(pending);
 
       // Fetch paiements
       const plantationIds = allPlantations.map((p: any) => p.id);
@@ -593,6 +618,26 @@ const ClientDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {pendingPlantationSubscriptions.length > 0 && (
+                    <div className="mb-4 space-y-2 rounded-lg border border-dashed p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold">Souscriptions en attente de mise en terre</p>
+                        <Badge variant="outline">{pendingPlantationSubscriptions.length}</Badge>
+                      </div>
+                      {pendingPlantationSubscriptions.map((subscription: any) => (
+                        <div key={subscription.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3 text-sm">
+                          <div className="min-w-0">
+                            <p className="font-medium">{subscription.lot?.reference || (subscription.lot?.numero_h != null ? "Lot H" + String(subscription.lot.numero_h).padStart(2, "0") : "Lot attribué")}</p>
+                            <p className="text-xs text-muted-foreground">{subscription.parcel?.id_unique || subscription.parcel?.nom || "Parcelle"}{subscription.parcel?.village ? " · " + subscription.parcel.village : ""}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">{Number(subscription.surface_ha || 0).toLocaleString("fr-FR")} ha</span>
+                            <Badge variant="secondary">À implanter</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <Table>
                     <TableHeader>
                       <TableRow>
