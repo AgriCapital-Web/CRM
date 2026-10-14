@@ -671,10 +671,9 @@ const Dashboard = () => {
                                 <h3 className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{groupName}</h3>
                                 <div className={groupName === "Relances" || groupName === "Clients" ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-1.5 sm:gap-2"}>
                                   {items.map((metric: any) => (
-                                    <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                      <span className="hidden whitespace-nowrap text-[10px] leading-snug text-muted-foreground 2xl:block">{metric.label}</span>
-                                      <span className="block whitespace-nowrap text-[10px] leading-snug text-muted-foreground 2xl:hidden">{metric.shortLabel || metric.label}</span>
-                                      <span className="mt-1.5 block text-sm font-bold leading-tight tabular-nums text-foreground sm:text-base">{loading ? "…" : metric.value}</span>
+                                    <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 sm:p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                      <span className="block min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[10px]">{metric.shortLabel || metric.label}</span>
+                                      <span className="mt-1 block whitespace-nowrap text-xs font-bold leading-tight tabular-nums text-foreground sm:text-sm">{loading ? "…" : metric.value}</span>
                                     </Link>
                                   ))}
                                 </div>
@@ -685,9 +684,9 @@ const Dashboard = () => {
                       ) : (
                         <div className={`grid min-w-0 gap-1.5 sm:gap-2 ${k.label === "Pilotage financier" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(82px,1fr))]" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6"}`}>
                           {k.metrics.map((metric: any) => (
-                            <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                              <span className="text-[10px] leading-snug text-muted-foreground sm:text-[11px]">{metric.label}</span>
-                              <span className="mt-1.5 block break-words text-sm font-bold leading-tight tabular-nums text-foreground sm:text-base">{loading ? "…" : metric.value}</span>
+                            <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 sm:p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                              <span className={`min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[11px] ${k.label === "Pilotage financier" ? "whitespace-nowrap" : ""}`}>{k.label === "Pilotage financier" && metric.label === "CA prévisionnel" ? <><span className="sm:hidden">CA prév.</span><span className="hidden sm:inline">{metric.label}</span></> : metric.label}</span>
+                              <span className={`mt-1 block min-w-0 text-xs font-bold leading-tight tabular-nums text-foreground sm:text-base ${k.label === "Pilotage financier" ? "whitespace-nowrap text-[10px] sm:text-sm" : "break-words"}`}>{loading ? "…" : metric.value}</span>
                             </Link>
                           ))}
                         </div>
@@ -703,7 +702,7 @@ const Dashboard = () => {
                 <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
                   <Card>
                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Parcours de plantation</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                       {cycle.map((c) => (
                         <div key={c.label}>
                           <div className="flex justify-between gap-3 text-sm"><span>{c.label}</span><span className="font-medium tabular-nums">{c.done} / {c.total} dossiers · {c.pct}%</span></div>
