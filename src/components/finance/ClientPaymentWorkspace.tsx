@@ -57,6 +57,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const [selectedContractId, setSelectedContractId] = useState("principal");
   const [paymentType, setPaymentType] = useState<"PI" | "MENSUALITE">("MENSUALITE");
   const [amount, setAmount] = useState("");
+  const [paymentPhone, setPaymentPhone] = useState("");
+  const [selectedPlantationId, setSelectedPlantationId] = useState("");
   const [baseState, setBaseState] = useState<any>(null);
   const [plantations, setPlantations] = useState<any[]>([]);
 
@@ -105,6 +107,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const daysLate = Number(monthly.jours_retard ?? (arrearsMonths * 30));
   const remaining = Number(activeState?.reste_contrat ?? activeClient?.summary?.reste_a_payer ?? activeClient?.summary?.montant_total_contrat ?? activeClient?.montant_total_contrat ?? 0);
   const piBalance = Number(pi.solde || 0);
+  const availablePlantations = plantations.filter((p: any) => activeContract?.subscriptionId ? p.souscription_id === activeContract.subscriptionId : !p.souscription_id);
 
   const openClientFinance = async (client: ClientFinanceRow) => {
     setActiveClient(client);
@@ -116,6 +119,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     setSelectedContractId("principal");
     setPaymentType("MENSUALITE");
     setAmount("");
+    setPaymentPhone(client.telephone || "");
+    setSelectedPlantationId("");
     try {
       const [stateRes, subsRes, plantationsRes, basePaymentsRes] = await Promise.all([
         (supabase as any).rpc("portal_current_payment_state", { _client_id: client.id }),
@@ -176,6 +181,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         const type: "PI" | "MENSUALITE" = Number(initial.state?.paiement_initial?.solde || 0) > 0 ? "PI" : "MENSUALITE";
         setPaymentType(type);
         setAmount(String(type === "PI" ? Number(initial.state?.paiement_initial?.solde || 0) : Number(initial.state?.mensualite?.montant_a_payer || initial.state?.mensualite?.montant || 0)));
+        setSelectedPlantationId(initial.plantationId || "");
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Fiche financière indisponible", description: getSafeErrorMessage(error, "Impossible de charger les informations financières du client.") });
@@ -191,6 +197,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     const type: "PI" | "MENSUALITE" = Number(next.state?.paiement_initial?.solde || 0) > 0 ? "PI" : "MENSUALITE";
     setPaymentType(type);
     setAmount(String(type === "PI" ? Number(next.state?.paiement_initial?.solde || 0) : Number(next.state?.mensualite?.montant_a_payer || next.state?.mensualite?.montant || 0)));
+    setSelectedPlantationId(next.plantationId || "");
   };
 
   const setQuickAmount = (kind: "arrears" | "monthly" | "pi") => {
@@ -218,7 +225,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       toast({ variant: "destructive", title: "Paiement initial", description: "Le paiement initial doit correspondre au solde exact affiché." });
       return;
     }
-    if (paymentType === "MENSUALITE" && !activeContract.plantationId) {
+    if (paymentType === "MENSUALITE" && !selectedPlantationId) {
       toast({ variant: "destructive", title: "Plantation requise", description: "Aucune plantation n’est rattachée à ce contrat. Le paiement ne peut pas être lancé sans rattachement." });
       return;
     }
@@ -228,7 +235,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const payload = {
         client_id: activeClient.id,
         souscription_id: activeContract.subscriptionId,
-        plantation_id: paymentType === "MENSUALITE" ? activeContract.plantationId : activeContract.plantationId,
+        plantation_id: selectedPlantationId || activeContract.plantationId || null,
         type_paiement: paymentType,
         montant: paymentAmount,
         montant_theorique: paymentAmount,
@@ -291,7 +298,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const opened = await openPayment({
         amount: paymentAmount,
         name: activeClient.nom_complet || "Client AgriCapital",
-        phone: activeClient.telephone || "",
+        phone: paymentPhone || activeClient.telephone || "",
         paymentMethods: ["momo", "card", "wallet"],
         data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType, client_id: activeClient.id, souscription_id: activeContract.subscriptionId },
       });
@@ -367,6 +374,17 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                 </div>
               </div>
               {contracts.length > 1 && <div className="space-y-2"><label className="text-sm font-medium">Contrat / souscription à régler</label><Select value={selectedContractId} onValueChange={chooseContract}><SelectTrigger><SelectValue placeholder="Choisir le contrat" /></SelectTrigger><SelectContent>{contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent></Select></div>}
+              {paymentType === "MENSUALITE" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Plantation concernée</label>
+                  {availablePlantations.length > 0 ? (
+                    <Select value={selectedPlantationId} onValueChange={setSelectedPlantationId}>
+                      <SelectTrigger><SelectValue placeholder="Choisir la plantation" /></SelectTrigger>
+                      <SelectContent>{availablePlantations.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nom_plantation || p.id_unique || "Plantation"} · {Number(p.superficie_ha || 0).toLocaleString("fr-FR")} ha</SelectItem>)}</SelectContent>
+                    </Select>
+                  ) : <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">Aucune plantation n’est rattachée à ce contrat. Le paiement mensuel reste bloqué pour éviter un mauvais rattachement.</p>}
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Type de règlement</label>
                 <Select value={paymentType} onValueChange={(v) => { const t = v as "PI" | "MENSUALITE"; setPaymentType(t); setAmount(String(t === "PI" ? piBalance : (Number(monthly.montant_a_payer || 0) || monthlyAmount))); }}>
@@ -380,6 +398,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                 {piBalance > 0 && <Button type="button" variant="outline" onClick={() => setQuickAmount("pi")}>Régler le paiement initial</Button>}
               </div>
               <div className="space-y-2">
+                <label className="text-sm font-medium">Numéro de paiement (Mobile Money / Wave)</label>
+                <Input type="tel" inputMode="tel" value={paymentPhone} onChange={e => setPaymentPhone(e.target.value)} placeholder="Numéro à débiter, modifiable dans KKiaPay" />
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Montant à payer (F CFA)</label>
                 <Input type="number" min="1" step="1" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Saisir un montant libre" />
                 <p className="text-xs text-muted-foreground">Le widget sécurisé KKiaPay permet de choisir Mobile Money (dont Wave selon disponibilité) ou carte bancaire. Aucun paiement en espèces ou validation manuelle n’est proposé.</p>
@@ -388,7 +410,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
-            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0}>
+            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || (paymentType === "MENSUALITE" && !selectedPlantationId)}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {paying ? "Ouverture / vérification…" : "Payer avec KKiaPay"}
             </Button>
