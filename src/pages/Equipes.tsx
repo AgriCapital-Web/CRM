@@ -120,7 +120,7 @@ const Equipes = () => {
     setAvailableMembers(
       (available || [])
         .map((p:any) => ({ ...p, roles: availableRoleMap[p.user_id] || [] }))
-         .filter((p:any) => p.roles.includes("pdg") || p.roles.includes(targetRole) || p.roles.includes(
+         .filter((p:any) => p.roles.some((role: string) => ["pdg", "dg"].includes(role.toLowerCase())) || p.roles.includes(targetRole) || p.roles.includes(
           equipe.type_equipe === "technique" ? "chef_equipe_technique" : "chef_equipe_commercial"
         ))
     );
