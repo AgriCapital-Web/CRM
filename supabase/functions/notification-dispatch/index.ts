@@ -3,10 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 import webpush from "npm:web-push@3.6.7";
 
-const ALLOWED_ORIGINS = new Set(
-  (Deno.env.get("ALLOWED_ORIGINS") || "https://agricapital.ci,https://www.agricapital.ci,https://app.agricapital.ci,https://crm.agricapital.ci,https://portail.agricapital.ci,http://localhost:5173,http://localhost:8080")
-    .split(",").map((v) => v.trim()).filter(Boolean),
-);
 const corsHeaders = (req: Request) => {
   const origin = req.headers.get("origin") || "";
   const headers: Record<string, string> = {
@@ -16,7 +12,7 @@ const corsHeaders = (req: Request) => {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
   };
-  if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin))) headers["Access-Control-Allow-Origin"] = origin;
+  if (origin && /^https:\/\/([a-z0-9-]+\.)*agricapital\.ci$/i.test(origin)) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 };
 const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -173,10 +169,10 @@ async function providerStatus() {
 }
 async function sendEmail(contact: Contact, subject: string, content: string, dedupeKey: string, attachments: MediaAttachment[] = []) {
   if (!contact.email) throw new Error("Email absent");
-  const client = await getSenndoClient();
-  const { data: configuredSenderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
-  const senderId = typeof configuredSenderId === "string" && configuredSenderId ? configuredSenderId : Deno.env.get("SENNDO_EMAIL_SENDER_ID");
-  if (!senderId) throw new Error("Adresse expéditrice Senndo non configurée");
+  const { data: apiKey, error: apiKeyError } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
+  const { data: senderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
+  if (apiKeyError || typeof apiKey !== "string" || !apiKey) throw new Error("Clé API Senndo non configurée");
+  if (typeof senderId !== "string" || !senderId || !senderId.toLowerCase().endsWith("@agricapital.ci")) throw new Error("L’expéditeur e-mail doit être une adresse vérifiée du domaine agricapital.ci dans Senndo.");
   const links: string[] = [];
   for (const item of attachments) {
     const { data, error } = await admin.storage.from(item.bucket || "notification-media").createSignedUrl(item.path, 7 * 24 * 60 * 60);
@@ -184,13 +180,13 @@ async function sendEmail(contact: Contact, subject: string, content: string, ded
   }
   const plain = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   const text = links.length ? `${plain}\n\nPièces jointes :\n${links.join("\n")}` : plain;
-  const result = await client.sendMessage({ channel: "email", to: contact.email, subject: subject || "Notification AgriCapital", text, senderId, idempotencyKey: dedupeKey });
+  const result = await sendBrandedEmail({ apiKey, to: contact.email, subject: subject || "Notification AgriCapital", content: text, senderId, idempotencyKey: dedupeKey });
   return { provider: "senndo", messageId: result.id || null };
 }
 async function sendSms(contact: Contact, content: string, dedupeKey: string) {
   if (!contact.telephone) throw new Error("Téléphone absent");
   const client = await getSenndoClient();
-  const result = await client.sendMessage({ channel: "sms", to: contact.telephone, text: normalizeSms(content), senderId: Deno.env.get("SENNDO_SMS_SENDER_ID") || "AgriCapital", idempotencyKey: dedupeKey });
+  const result = await client.sendMessage({ channel: "sms", to: contact.telephone, text: normalizeSms(content), senderId: "AgriCapital", idempotencyKey: dedupeKey });
   return { provider: "senndo", messageId: result.id || null, content: normalizeSms(content) };
 }
 async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderSessionId: string; senderPhone: string }> {
@@ -238,9 +234,10 @@ async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderS
   const statusOf = (session: any) => String(session?.status ?? session?.state ?? session?.connectionStatus
     ?? session?.connection_status ?? session?.connection?.status ?? session?.session?.status ?? "").trim().toLowerCase();
   const connected = sessions.filter((session: any) => ["connected", "open", "ready", "authenticated"].includes(statusOf(session)));
-  const senderDigits = normalizePhone(configuredPhone);
+  if (normalizePhone(configuredPhone) !== normalizePhone("+2250564551717")) throw new Error("La session WhatsApp autorisée doit être +2250564551717.");
+  const senderDigits = normalizePhone("+2250564551717");
   const matches = connected.filter((session: any) => phoneValues(session).some((value: unknown) => normalizePhone(value) === senderDigits));
-  const session = matches.length === 1 ? matches[0] : matches.length > 1 ? null : connected.length === 1 ? connected[0] : null;
+  const session = matches.length === 1 ? matches[0] : null;
   const candidates = session ? [
     session.id, session.sessionId, session.session_id, session.senderSessionId, session.sender_session_id,
     session.uuid, session.sessionKey, session.session_key, session.uniqueSessionId, session.unique_session_id,
@@ -638,6 +635,52 @@ async function runScheduledAutomations() {
 
   return results;
 }
+
+
+const BRAND_LOGO_URL = "https://www.agricapital.ci/logo-agricapital.png";
+function escapeEmailHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function buildAgriCapitalEmailHtml(content: string) {
+  const body = /<\/?[a-z][\s\S]*>/i.test(content) ? content : escapeEmailHtml(content).replace(/\r?\n/g, "<br>");
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#f3f5f4;font-family:Arial,Helvetica,sans-serif;color:#27332d;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">AgriCapital — Investir la terre. Cultiver l’avenir.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f4;padding:24px 10px;"><tr><td align="center">
+  <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border:1px solid #e1e7e3;border-radius:12px;overflow:hidden;">
+  <tr><td style="height:6px;background:#16834a;font-size:0;line-height:0;">&nbsp;</td></tr>
+  <tr><td align="center" style="padding:24px;"><a href="https://www.agricapital.ci/" style="text-decoration:none;">
+  <img src="${BRAND_LOGO_URL}" width="250" alt="AgriCapital — Investir la terre. Cultiver l’avenir." style="display:block;width:250px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;"></a></td></tr>
+  <tr><td style="padding:0 28px 28px;font-size:15px;line-height:1.75;overflow-wrap:anywhere;">${body}</td></tr>
+  <tr><td style="padding:20px 24px;background:#f8faf8;border-top:1px solid #e6ebe7;text-align:center;font-size:12px;line-height:1.7;color:#66736b;">
+  <strong style="font-size:14px;color:#176b45;">AgriCapital SARL</strong><br>Investir la terre. Cultiver l’avenir.<br>
+  <a href="https://www.agricapital.ci/" style="color:#176b45;">www.agricapital.ci</a> ·
+  <a href="mailto:contact@agricapital.ci" style="color:#176b45;">contact@agricapital.ci</a><br>Daloa – Gonaté, Haut-Sassandra, Côte d’Ivoire</td></tr>
+  </table><div style="max-width:560px;padding:12px 10px;color:#8a958e;font-size:11px;line-height:1.5;text-align:center;">Message envoyé par AgriCapital via Senndo.</div>
+  </td></tr></table></body></html>`;
+}
+function emailPlainText(content: string) {
+  return content.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?\s*>/gi, "\n").replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n").replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+async function sendBrandedEmail(input: { apiKey: string; to: string; subject: string; content: string; senderId: string; idempotencyKey: string }) {
+  const response = await fetch("https://api.senndo.com/v1/messages", {
+    method: "POST", headers: { authorization: "Bearer " + input.apiKey, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ channel: "email", to: input.to, subject: input.subject, text: emailPlainText(input.content),
+      html: buildAgriCapitalEmailHtml(input.content), senderId: input.senderId, replyTo: "contact@agricapital.ci", idempotencyKey: input.idempotencyKey }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const err = new Error("Senndo a refusé l’envoi e-mail (HTTP " + response.status + "). " +
+      (typeof payload?.message === "string" ? payload.message.slice(0, 250) : "Vérifiez l’expéditeur vérifié et la configuration e-mail Senndo."));
+    (err as any).status = response.status; (err as any).code = typeof payload?.code === "string" ? payload.code : "SENNDO_EMAIL_REJECTED"; throw err;
+  }
+  return { id: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null, status: payload?.status ?? payload?.message?.status ?? "accepted" };
+}
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(req) });

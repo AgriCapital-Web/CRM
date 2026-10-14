@@ -4,7 +4,6 @@ import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-const ALLOWED_ORIGINS = new Set((Deno.env.get("ALLOWED_ORIGINS") || "https://agricapital.ci,https://www.agricapital.ci,https://app.agricapital.ci,https://crm.agricapital.ci,http://localhost:5173,http://localhost:8080").split(",").map((v) => v.trim()).filter(Boolean));
 
 function cors(req: Request) {
   const origin = req.headers.get("origin") || "";
@@ -17,7 +16,7 @@ function cors(req: Request) {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST,OPTIONS",
   };
-  if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/crm-[a-z0-9-]+-adminagricapitals-projects\.vercel\.app$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin))) headers["Access-Control-Allow-Origin"] = origin;
+  if (origin && /^https:\/\/([a-z0-9-]+\.)*agricapital\.ci$/i.test(origin)) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 }
 function reply(req: Request, body: unknown, status = 200) {
@@ -32,6 +31,52 @@ async function authorize(req: Request) {
   if (roleError) return false;
   return (roles || []).some((r) => ["pdg", "dg", "admin", "super_admin"].includes(String(r.role).toLowerCase()));
 }
+
+const BRAND_LOGO_URL = "https://www.agricapital.ci/logo-agricapital.png";
+function escapeEmailHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function buildAgriCapitalEmailHtml(content: string) {
+  const body = /<\/?[a-z][\s\S]*>/i.test(content) ? content : escapeEmailHtml(content).replace(/\r?\n/g, "<br>");
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#f3f5f4;font-family:Arial,Helvetica,sans-serif;color:#27332d;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">AgriCapital — Investir la terre. Cultiver l’avenir.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f4;padding:24px 10px;"><tr><td align="center">
+  <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border:1px solid #e1e7e3;border-radius:12px;overflow:hidden;">
+  <tr><td style="height:6px;background:#16834a;font-size:0;line-height:0;">&nbsp;</td></tr>
+  <tr><td align="center" style="padding:24px;"><a href="https://www.agricapital.ci/" style="text-decoration:none;">
+  <img src="${BRAND_LOGO_URL}" width="250" alt="AgriCapital — Investir la terre. Cultiver l’avenir." style="display:block;width:250px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;"></a></td></tr>
+  <tr><td style="padding:0 28px 28px;font-size:15px;line-height:1.75;overflow-wrap:anywhere;">${body}</td></tr>
+  <tr><td style="padding:20px 24px;background:#f8faf8;border-top:1px solid #e6ebe7;text-align:center;font-size:12px;line-height:1.7;color:#66736b;">
+  <strong style="font-size:14px;color:#176b45;">AgriCapital SARL</strong><br>Investir la terre. Cultiver l’avenir.<br>
+  <a href="https://www.agricapital.ci/" style="color:#176b45;">www.agricapital.ci</a> ·
+  <a href="mailto:contact@agricapital.ci" style="color:#176b45;">contact@agricapital.ci</a><br>Daloa – Gonaté, Haut-Sassandra, Côte d’Ivoire</td></tr>
+  </table><div style="max-width:560px;padding:12px 10px;color:#8a958e;font-size:11px;line-height:1.5;text-align:center;">Message envoyé par AgriCapital via Senndo.</div>
+  </td></tr></table></body></html>`;
+}
+function emailPlainText(content: string) {
+  return content.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?\s*>/gi, "\n").replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n").replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+async function sendBrandedEmail(input: { apiKey: string; to: string; subject: string; content: string; senderId: string; idempotencyKey: string }) {
+  const response = await fetch("https://api.senndo.com/v1/messages", {
+    method: "POST", headers: { authorization: "Bearer " + input.apiKey, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ channel: "email", to: input.to, subject: input.subject, text: emailPlainText(input.content),
+      html: buildAgriCapitalEmailHtml(input.content), senderId: input.senderId, replyTo: "contact@agricapital.ci", idempotencyKey: input.idempotencyKey }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const err = new Error("Senndo a refusé l’envoi e-mail (HTTP " + response.status + "). " +
+      (typeof payload?.message === "string" ? payload.message.slice(0, 250) : "Vérifiez l’expéditeur vérifié et la configuration e-mail Senndo."));
+    (err as any).status = response.status; (err as any).code = typeof payload?.code === "string" ? payload.code : "SENNDO_EMAIL_REJECTED"; throw err;
+  }
+  return { id: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null, status: payload?.status ?? payload?.message?.status ?? "accepted" };
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req) });
   if (req.method !== "POST") return reply(req, { error: "POST requis" }, 405);
@@ -60,7 +105,10 @@ Deno.serve(async (req) => {
     if (channel === "email") {
       const { data: senderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
       if (typeof senderId !== "string" || !senderId) return reply(req, { error: "Adresse expéditrice e-mail vérifiée non configurée" }, 400);
-      result = await client.sendMessage({ channel: "email", to, subject: subject || "Test AgriCapital", text, senderId, idempotencyKey: crypto.randomUUID() });
+      if (!senderId.toLowerCase().endsWith("@agricapital.ci")) return reply(req, { error: "L’expéditeur e-mail doit être une adresse vérifiée du domaine agricapital.ci dans Senndo." }, 400);
+      const { data: apiKeyForEmail, error: apiKeyError } = await admin.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
+      if (apiKeyError || typeof apiKeyForEmail !== "string" || !apiKeyForEmail) return reply(req, { error: "Clé API Senndo non configurée" }, 400);
+      result = await sendBrandedEmail({ apiKey: apiKeyForEmail, to, subject: subject || "Test AgriCapital", content: text, senderId, idempotencyKey: crypto.randomUUID() });
     } else if (channel === "whatsapp") {
       // Paired WhatsApp uses the REST channel whatsapp_baileys, not generic whatsapp.
       const sessionsResponse = await fetch("https://api.senndo.com/v1/wa/sessions", {
@@ -105,7 +153,7 @@ Deno.serve(async (req) => {
       const statusOf = (s: any) => String(s?.status ?? s?.state ?? s?.connectionStatus ?? s?.connection_status ?? s?.connection?.status ?? s?.session?.status ?? "").trim().toLowerCase();
       const connected = sessions.filter((s: any) => ["connected","open","ready","authenticated"].includes(statusOf(s)));
       const matches = connected.filter((s: any) => phoneValues(s).some((v: string) => normalizePhone(v) === senderDigits));
-      const session = matches.length === 1 ? matches[0] : matches.length > 1 ? null : connected.length === 1 ? connected[0] : null;
+      const session = matches.length === 1 ? matches[0] : null;
       const idCandidates = session ? [
         session.id,session.sessionId,session.session_id,session.senderSessionId,session.sender_session_id,
         session.uuid,session.sessionKey,session.session_key,session.uniqueSessionId,session.unique_session_id,
@@ -138,17 +186,11 @@ Deno.serve(async (req) => {
       return reply(req, { ok: true, channel: "whatsapp_baileys", accepted: true, messageId: sendPayload?.id ?? sendPayload?.messageId ?? sendPayload?.message?.id ?? null, senderPhone: "+22564551717", message: "Demande WhatsApp appairée acceptée par Senndo. Vérifiez le statut de livraison pour confirmer la réception." });
     } else if (channel === "sms") {
       // Prefer a configured sender ID; otherwise resolve the registered Senndo sender.
-      let senderId = Deno.env.get("SENNDO_SMS_SENDER_ID")?.trim() || "";
-      if (!senderId) {
-        const senderResult = await client.listSenderIds();
-        const senders = Array.isArray(senderResult?.senderIds) ? senderResult.senderIds : [];
-        const matching = senders.find((item: any) =>
-          String(item?.value || "").toLowerCase() === "agricapital" &&
-          !/reject|inactive|pending|blocked/i.test(String(item?.lifecycleStatus || ""))
-        );
-        senderId = String(matching?.value || "");
-      }
-      if (!senderId) return reply(req, { error: "Aucun Sender ID SMS AgriCapital actif n’est enregistré chez Senndo. Vérifiez/validez le Sender ID dans Senndo avant le test." }, 409);
+      const senderResult = await client.listSenderIds();
+      const senders = Array.isArray(senderResult?.senderIds) ? senderResult.senderIds : [];
+      const senderId = senders.find((item: any) => String(item?.value || "") === "AgriCapital" &&
+        !/reject|inactive|pending|blocked/i.test(String(item?.lifecycleStatus || "")))?.value;
+      if (senderId !== "AgriCapital") return reply(req, { error: "Le Sender ID exact AgriCapital doit être actif et validé dans Senndo." }, 409);
       const smsText = text.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").slice(0, 150);
       if (!smsText) return reply(req, { error: "Le message ne contient aucun caractère SMS exploitable après normalisation." }, 400);
       result = await client.sendMessage({ channel: "sms", to, text: smsText, senderId, idempotencyKey: crypto.randomUUID() });

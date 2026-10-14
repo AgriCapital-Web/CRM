@@ -4,11 +4,10 @@ import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 const URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(URL, SERVICE_KEY);
-const ALLOWED_ORIGINS = new Set((Deno.env.get("ALLOWED_ORIGINS") || "https://agricapital.ci,https://www.agricapital.ci,https://app.agricapital.ci,https://crm.agricapital.ci,http://localhost:5173,http://localhost:8080").split(",").map((x)=>x.trim()).filter(Boolean));
 const cors = (req:Request) => {
  const origin = req.headers.get("origin") || "";
  const h:Record<string,string> = { "Content-Type":"application/json", "Cache-Control":"no-store", "X-Content-Type-Options":"nosniff", "Referrer-Policy":"no-referrer", "Vary":"Origin", "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods":"POST,OPTIONS" };
- if (origin && (ALLOWED_ORIGINS.has(origin) || /^https:\/\/crm-[a-z0-9-]+-adminagricapitals-projects\.vercel\.app$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin) || /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin))) h["Access-Control-Allow-Origin"] = origin;
+ if (origin && /^https:\/\/([a-z0-9-]+\.)*agricapital\.ci$/i.test(origin)) h["Access-Control-Allow-Origin"] = origin;
  return h;
 };
 const reply = (req:Request, body: unknown, status=200) => new Response(JSON.stringify(body), {status, headers:cors(req)});
