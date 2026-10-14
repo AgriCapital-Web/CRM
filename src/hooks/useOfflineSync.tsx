@@ -42,7 +42,7 @@ const REF_TABLES = [
   { store: STORES.PORTEFEUILLE_VERSEMENTS, table: 'portefeuille_versements' },
   { store: STORES.PORTEFEUILLE_VERSEMENT_LIGNES, table: 'portefeuille_versement_lignes' },
   { store: STORES.INTERVENTIONS_TECHNIQUES, table: 'interventions_techniques' },
-  { store: STORES.TICKETS, table: 'tickets' },
+  
   { store: STORES.TICKETS_TECHNIQUES, table: 'tickets_techniques' },
   { store: STORES.FINANCE_TRANSACTIONS, table: 'finance_transactions' },
   { store: STORES.FINANCE_EXPENSES, table: 'finance_expenses' },
