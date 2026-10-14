@@ -324,7 +324,7 @@ export async function refreshPendingMutationAuthorization(accessToken: string): 
   }
 }
 
-async function requestBackgroundSync(): Promise<void> {
+export async function scheduleBackgroundOfflineSync(): Promise<void> {
   try {
     if (!("serviceWorker" in navigator)) return;
     const registration = await navigator.serviceWorker.ready;
@@ -549,7 +549,7 @@ export function installOfflineFetch(): typeof fetch {
         });
 
         window.dispatchEvent(new CustomEvent("offline-mutation-queued"));
-        void requestBackgroundSync();
+        void scheduleBackgroundOfflineSync();
         const syntheticRequest = new Request(request.url, {
           method,
           headers: request.headers,
@@ -563,6 +563,16 @@ export function installOfflineFetch(): typeof fetch {
   };
 
   const resumeQueue = () => { void flushOfflineHttpQueue(); };
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type === "OFFLINE_BACKGROUND_SYNC_COMPLETE") {
+        window.dispatchEvent(new CustomEvent("offline-http-sync-complete", {
+          detail: { synced: Number(event.data.synced) || 0, background: true },
+        }));
+        if (navigator.onLine) void flushOfflineHttpQueue();
+      }
+    });
+  }
   window.addEventListener("online", resumeQueue);
   window.addEventListener("focus", resumeQueue);
   document.addEventListener("visibilitychange", () => {
