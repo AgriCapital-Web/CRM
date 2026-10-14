@@ -67,7 +67,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
   // Quand type de paiement change
   useEffect(() => {
-    if (typePaiement) {
+    if (typePaiement && !paiement) {
       setValue("client_id", "");
       setValue("plantation_id", "");
       setValue("souscription_id", "");
