@@ -676,6 +676,17 @@ serve(async (req) => {
       const rawAttachments = Array.isArray(body.media_attachments) ? body.media_attachments : [];
       if (rawAttachments.length > 6) return json(req, { error: "Six pièces jointes maximum par message." }, 400);
       if (channel === "sms" && rawAttachments.length) return json(req, { error: "Les SMS ne prennent pas en charge les pièces jointes." }, 400);
+      const templateId = String(body.template_id || "").trim();
+      let templateMedia: Array<Record<string, unknown>> = [];
+      if (templateId) {
+        const { data: selectedTemplate, error: templateError } = await admin.from("notification_templates")
+          .select("id,canal,actif,media_attachments").eq("id", templateId).maybeSingle();
+        if (templateError) throw templateError;
+        if (!selectedTemplate || !selectedTemplate.actif || selectedTemplate.canal !== channel) {
+          return json(req, { error: "Le modèle sélectionné n’est plus disponible pour ce canal." }, 400);
+        }
+        templateMedia = Array.isArray(selectedTemplate.media_attachments) ? selectedTemplate.media_attachments : [];
+      }
       const allowedMime = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime|3gpp)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel)|text\/(plain|csv))$/i;
       const mediaAttachments: MediaAttachment[] = [];
       for (const item of rawAttachments) {
@@ -683,7 +694,12 @@ serve(async (req) => {
           return json(req, { error: "Pièce jointe invalide." }, 400);
         }
         if (item.bucket && item.bucket !== "notification-media") return json(req, { error: "Bucket de pièce jointe non autorisé." }, 400);
-        if (!item.path.startsWith(`${actor.id}/`) || item.path.includes("..")) return json(req, { error: "Accès refusé à une pièce jointe." }, 403);
+        const ownedByActor = item.path.startsWith(`${actor.id}/`);
+        const belongsToSelectedTemplate = templateMedia.some((stored: any) =>
+          stored?.path === item.path && (stored?.bucket || "notification-media") === (item.bucket || "notification-media"));
+        if ((!ownedByActor && !belongsToSelectedTemplate) || item.path.includes("..")) {
+          return json(req, { error: "Accès refusé à une pièce jointe." }, 403);
+        }
         if (!allowedMime.test(item.mimeType)) return json(req, { error: `Type de fichier non pris en charge : ${item.name}` }, 400);
         mediaAttachments.push({ bucket: "notification-media", path: item.path, name: item.name.slice(0, 180), mimeType: item.mimeType, size: Number(item.size) || undefined });
       }
