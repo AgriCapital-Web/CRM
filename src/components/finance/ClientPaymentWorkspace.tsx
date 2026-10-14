@@ -38,7 +38,6 @@ type ContractState = {
 };
 
 const money = (value: unknown) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0)) + " F CFA";
-const paidStatuses = new Set(["valide", "paye", "paid", "success", "successful", "completed"]);
 
 export default function ClientPaymentWorkspace() {
   const { toast } = useToast();
@@ -227,7 +226,7 @@ export default function ClientPaymentWorkspace() {
           contract_remaining_at_creation: remaining,
         },
       };
-      const pendingQuery = (supabase as any).from("paiements").select("id,statut")
+      const pendingQuery = (supabase as any).from("paiements").select("id,statut,reference")
         .eq("client_id", activeClient.id).eq("type_paiement", paymentType).eq("statut", "en_attente");
       const scopedPending = activeContract.subscriptionId
         ? pendingQuery.eq("souscription_id", activeContract.subscriptionId)
