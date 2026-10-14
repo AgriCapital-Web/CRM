@@ -126,7 +126,7 @@ const PlantationDetail = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Superficie</p><p className="mt-1 text-xl font-bold">{Number(plantation.superficie_ha || 0).toFixed(2)} ha</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Superficie</p><p className="mt-1 text-xl font-bold">{Math.round(Number(plantation.superficie_ha || 0)).toLocaleString("fr-FR")} ha</p></CardContent></Card>
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Offre</p><p className="mt-1 font-semibold">{client?.famille_offre || client?.parcours_code || "—"}</p></CardContent></Card>
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Formule</p><p className="mt-1 font-semibold">{client?.formule_nom || client?.formule_code || "—"}</p></CardContent></Card>
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Paiements réalisés</p><p className="mt-1 text-xl font-bold">{formatMoney(paidTotal)}</p></CardContent></Card>
@@ -155,7 +155,7 @@ const PlantationDetail = () => {
                 <div><span className="text-muted-foreground">Lot : </span>{plantation?.lots_hectares?.reference || (plantation?.lots_hectares?.numero_h ? `H${String(plantation.lots_hectares.numero_h).padStart(2,"0")}` : "—")}</div>
                 <div><span className="text-muted-foreground">Parcelle : </span>{parcelle?.id_unique || "—"}</div>
                 <div><span className="text-muted-foreground">Village : </span>{parcelle?.village || plantation.village || "—"}</div>
-                <div><span className="text-muted-foreground">Surface : </span>{parcelle?.surface_totale_ha ? `${Number(parcelle.surface_totale_ha).toFixed(2)} ha` : "—"}</div>
+                <div><span className="text-muted-foreground">Surface : </span>{parcelle?.surface_totale_ha ? `${Math.round(Number(parcelle.surface_totale_ha)).toLocaleString("fr-FR")} ha` : "—"}</div>
               </CardContent>
             </Card>
           ) : null}
@@ -165,7 +165,7 @@ const PlantationDetail = () => {
               <CardHeader><CardTitle>Attribution</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div><p className="text-xs text-muted-foreground">Surface attribuée</p><p className="font-semibold">{Number(attributions.find(a => a.clients?.id === client?.id)?.surface_attribuee_ha || plantation.superficie_ha || 0).toFixed(2)} ha</p></div>
+                  <div><p className="text-xs text-muted-foreground">Surface attribuée</p><p className="font-semibold">{Math.round(Number(attributions.find(a => a.clients?.id === client?.id)?.surface_attribuee_ha || plantation.superficie_ha || 0)).toLocaleString("fr-FR")} ha</p></div>
                   <div><p className="text-xs text-muted-foreground">Rôle</p><p className="font-semibold">Bénéficiaire</p></div>
                   <div><p className="text-xs text-muted-foreground">Parcelle</p><p className="font-semibold">{parcelle?.id_unique || "—"}</p></div>
                 </div>
@@ -179,7 +179,7 @@ const PlantationDetail = () => {
               <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                 <div><span className="text-muted-foreground">Offre : </span>{client?.famille_offre || client?.parcours_code}</div>
                 <div><span className="text-muted-foreground">Formule : </span>{client?.formule_nom || client?.formule_code || "—"}</div>
-                <div><span className="text-muted-foreground">Hectares : </span>{Number(client?.total_hectares || plantation.superficie_ha || 0).toFixed(2)}</div>
+                <div><span className="text-muted-foreground">Hectares : </span>{Math.round(Number(client?.total_hectares || plantation.superficie_ha || 0)).toLocaleString("fr-FR")}</div>
               </CardContent>
             </Card>
           )}
