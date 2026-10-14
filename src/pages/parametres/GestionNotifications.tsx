@@ -74,6 +74,7 @@ async function compressVideo(file: File): Promise<File> {
   const mime = ["video/mp4","video/webm;codecs=vp9","video/webm"].find((x) => MediaRecorder.isTypeSupported(x)); if (!mime) return file;
   const url=URL.createObjectURL(file), video=document.createElement("video"); video.src=url; video.muted=true; video.playsInline=true;
   try { await new Promise<void>((resolve,reject)=>{video.onloadedmetadata=()=>resolve();video.onerror=()=>reject(new Error("Vidéo illisible"));});
+    if(video.duration>30*60)throw new Error("Une vidéo jointe ne peut pas dépasser 30 minutes.");
     const scale=Math.min(1,1280/Math.max(video.videoWidth,video.videoHeight)), canvas=document.createElement("canvas");
     canvas.width=Math.max(2,Math.round(video.videoWidth*scale/2)*2);canvas.height=Math.max(2,Math.round(video.videoHeight*scale/2)*2);
     const ctx=canvas.getContext("2d"), capture=(video as HTMLVideoElement & {captureStream?:()=>MediaStream}).captureStream;
@@ -225,7 +226,7 @@ const GestionNotifications = () => {
     if (!files?.length) return; const { data: { user } } = await supabase.auth.getUser(); if (!user) return toast.error("Connexion requise.");
     setUploadingMedia(true); const uploaded: MediaAttachment[]=[];
     try { for (const original of Array.from(files)) {
-      if(original.size>50*1024*1024)throw new Error(`${original.name} dépasse 50 Mo.`);
+      if(original.type.startsWith("video/")) { const probeUrl=URL.createObjectURL(original); try { const duration=await new Promise<number>((resolve,reject)=>{const probe=document.createElement("video");probe.preload="metadata";probe.onloadedmetadata=()=>resolve(probe.duration);probe.onerror=()=>reject(new Error("Vidéo illisible : "+original.name));probe.src=probeUrl;}); if(duration>30*60)throw new Error(original.name+" dépasse la durée maximale de 30 minutes."); } finally { URL.revokeObjectURL(probeUrl); } }
       const file=await compressVideo(original), name=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"), path=`${user.id}/${crypto.randomUUID()}-${name}`;
       const {error}=await supabase.storage.from("notification-media").upload(path,file,{contentType:file.type||"application/octet-stream"});
       if(error)throw error; uploaded.push({bucket:"notification-media",path,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size});
