@@ -83,10 +83,10 @@ export default function Commissions() {
         } else if (isTechManager || isCommercialManager) {
           const myMemberships = membershipsByProfile.get(profile.id) || [];
           const myTeamIds = new Set<string>([profile.equipe_id, ...myMemberships.map((membership: any) => membership.equipe_id)].filter(Boolean));
-          const requiredTeamType = isTechManager && !isCommercialManager ? "technique" : "commercial";
+          const requiredTeamTypes = [isTechManager ? "technique" : null, isCommercialManager ? "commercial" : null].filter(Boolean) as string[];
           scopedRows = withCommissionTeam.filter((row: any) =>
             row.commissionTeam?.id && myTeamIds.has(row.commissionTeam.id) &&
-            String(row.commissionTeam.type_equipe || "").toLowerCase().includes(requiredTeamType)
+            requiredTeamTypes.some((teamType) => String(row.commissionTeam.type_equipe || "").toLowerCase().includes(teamType))
           );
         } else if (isTech || isCommercial) {
           scopedRows = withCommissionTeam.filter((row: any) => row.profile_id === profile.id);
@@ -123,7 +123,7 @@ export default function Commissions() {
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [rows]);
 
-  const canSeeTeamCommission = userRoles.some((r: string) => ["pdg","dg","responsable_operations","responsable_commercial","chef_equipe_commercial","chef_equipe_technique"].includes(r));
+  const canSeeTeamCommission = userRoles.some((r: string) => ["pdg","dg","comptable","responsable_operations","responsable_commercial","chef_equipe_commercial","chef_equipe_technique"].includes(r));
 
   const teamGroups = useMemo(() => {
     const map = new Map<string, any>();
