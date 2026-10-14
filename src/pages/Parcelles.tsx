@@ -133,7 +133,7 @@ const Parcelles = () => {
                   const ownClient = String(p.mode_surface || "").toLowerCase() === "propriete_client";
                   return <TableRow key={p.id}>
                     <TableCell className="font-mono text-xs font-semibold">{p.id_unique || "—"}</TableCell>
-                    <TableCell><Badge variant={ownClient ? "secondary" : "default"}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
+                    <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
                     <TableCell>{Number(p.surface_totale_ha || 0).toFixed(2)} ha</TableCell>
                     <TableCell>{p.proprietaires_terres?.nom_complet ? `Propriétaire partenaire — ${p.proprietaires_terres.nom_complet}` : (ownClient ? parcelClients[0]?.nom_complet || "Client" : "—")}</TableCell>
