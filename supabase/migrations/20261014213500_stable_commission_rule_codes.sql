@@ -1,0 +1,14 @@
+-- Stable rule codes prevent edits to human-readable descriptions from breaking commission calculations.
+alter table public.grille_remuneration add column if not exists code_regle text;
+update public.grille_remuneration set code_regle='COMMERCIAL_ACQUISITION_FLEXIBLE' where role_cible='commercial' and type_remuneration='acquisition' and lower(coalesce(description,'')) like '%flexible%';
+update public.grille_remuneration set code_regle='COMMERCIAL_ACQUISITION_ESSENTIEL' where role_cible='commercial' and type_remuneration='acquisition' and (lower(coalesce(description,'')) like '%essentiel%' or lower(coalesce(description,'')) like '%palmterroir%');
+update public.grille_remuneration set code_regle='COMMERCIAL_ACQUISITION_PARTENAIRE' where role_cible='commercial' and type_remuneration='acquisition' and (lower(coalesce(description,'')) like '%palminvest%' or lower(coalesce(description,'')) like '%terrapalm%');
+update public.grille_remuneration set code_regle='COMMERCIAL_REC_FLEXIBLE_AN1' where role_cible='commercial' and type_remuneration='recouvrement_mensuel' and annee_application=1 and lower(coalesce(description,'')) like '%flexible%';
+update public.grille_remuneration set code_regle='COMMERCIAL_REC_FLEXIBLE_AN2' where role_cible='commercial' and type_remuneration='recouvrement_mensuel' and annee_application=2 and lower(coalesce(description,'')) like '%flexible%';
+update public.grille_remuneration set code_regle='COMMERCIAL_REC_FLEXIBLE_AN3' where role_cible='commercial' and type_remuneration='recouvrement_mensuel' and annee_application=3 and lower(coalesce(description,'')) like '%flexible%';
+update public.grille_remuneration set code_regle='COMMERCIAL_REC_PARTENAIRE_AN1' where role_cible='commercial' and type_remuneration='recouvrement_mensuel' and annee_application=1 and (lower(coalesce(description,'')) like '%palminvest%' or lower(coalesce(description,'')) like '%terrapalm%');
+update public.grille_remuneration set code_regle='COMMERCIAL_REC_PARTENAIRE_AN2' where role_cible='commercial' and type_remuneration='recouvrement_mensuel' and annee_application=2 and (lower(coalesce(description,'')) like '%palminvest%' or lower(coalesce(description,'')) like '%terrapalm%');
+update public.grille_remuneration set code_regle='COMMERCIAL_REC_PARTENAIRE_AN3' where role_cible='commercial' and type_remuneration='recouvrement_mensuel' and annee_application=3 and (lower(coalesce(description,'')) like '%palminvest%' or lower(coalesce(description,'')) like '%terrapalm%');
+update public.grille_remuneration set code_regle='MOBILISATEUR_FONCIER_PAR_HA' where role_cible='mobilisateur_foncier' and type_remuneration='mobilisation_fonciere';
+update public.grille_remuneration set code_regle='TECHNIQUE_MISE_EN_TERRE' where role_cible='equipe_technique' and type_remuneration='commission_technique';
+create unique index if not exists grille_remuneration_code_regle_uidx on public.grille_remuneration(code_regle) where code_regle is not null;
