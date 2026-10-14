@@ -233,8 +233,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       toast({ variant: "destructive", title: "Mensualité indisponible", description: "Aucune mensualité n’est actuellement exigible pour ce contrat. Le paiement est bloqué pour éviter une mauvaise imputation." });
       return;
     }
-    if (paymentType === "MENSUALITE" && !selectedPlantationId) {
-      toast({ variant: "destructive", title: "Plantation requise", description: "Aucune plantation n’est rattachée à ce contrat. Le paiement ne peut pas être lancé sans rattachement." });
+    if (!selectedPlantationId) {
+      toast({ variant: "destructive", title: "Plantation requise", description: "Le parcours KKiaPay exige une plantation réelle rattachée à ce contrat." });
       return;
     }
     setPaying(true);
@@ -266,7 +266,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const payload = {
         client_id: activeClient.id,
         souscription_id: activeContract.subscriptionId,
-        plantation_id: paymentType === "MENSUALITE" ? selectedPlantationId : null,
+        plantation_id: selectedPlantationId,
         type_paiement: paymentType,
         montant: paymentAmount,
         montant_theorique: paymentAmount,
@@ -405,8 +405,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                 </div>
               </div>
               {contracts.length > 1 && <div className="space-y-2"><label className="text-sm font-medium">Contrat / souscription à régler</label><Select value={selectedContractId} onValueChange={chooseContract}><SelectTrigger><SelectValue placeholder="Choisir le contrat" /></SelectTrigger><SelectContent>{contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent></Select></div>}
-              {paymentType === "MENSUALITE" && (
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <label className="text-sm font-medium">Plantation concernée</label>
                   {availablePlantations.length > 0 ? (
                     <Select value={selectedPlantationId} onValueChange={setSelectedPlantationId}>
@@ -414,8 +413,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                       <SelectContent>{availablePlantations.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nom_plantation || p.id_unique || "Plantation"} · {Number(p.superficie_ha || 0).toLocaleString("fr-FR")} ha</SelectItem>)}</SelectContent>
                     </Select>
                   ) : <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">Aucune plantation n’est rattachée à ce contrat. Le paiement mensuel reste bloqué pour éviter un mauvais rattachement.</p>}
-                </div>
-              )}
+              </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Type de règlement</label>
                 <Select value={paymentType} onValueChange={(v) => { const t = v as "PI" | "MENSUALITE"; setPaymentType(t); setAmount(String(t === "PI" ? piBalance : (Number(monthly.montant_a_payer || 0) || monthlyAmount))); }}>
@@ -441,7 +439,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
-            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || (paymentType === "MENSUALITE" && (Number(monthly.montant_a_payer || 0) <= 0 || !selectedPlantationId))}>
+            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || !selectedPlantationId || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0)}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {paying ? "Ouverture / vérification…" : "Payer avec KKiaPay"}
             </Button>
