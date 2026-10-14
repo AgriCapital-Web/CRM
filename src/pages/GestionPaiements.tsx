@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtime } from "@/hooks/useRealtime";
-import { useKkiapay } from "@/hooks/useKkiapay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -83,19 +82,14 @@ const GestionPaiements = () => {
   const { can } = usePermissions();
   const canFinancialOverview = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("finance.view") || can("paiements.view");
   const canViewClientMoney = canFinancialOverview;
-  const canCreatePayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.create") || can("paiements.record") || can("finance.manage");
-  const canExecutePayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.execute") || can("finance.manage");
   const canTransferPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("paiements.update") || can("finance.manage");
   const canRefundPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.cancel") || can("finance.manage");
   const canManage = canTransferPayment || canRefundPayment;
   const queryClient = useQueryClient();
-  const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPaiement, setSelectedPaiement] = useState<Paiement | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [kkiapayLoading, setKkiapayLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Transfer state
@@ -372,7 +366,7 @@ const GestionPaiements = () => {
 
       setIsRefundDialogOpen(false);
       resetForms();
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ["gestion-paiements-clients"] });
     } catch (error: any) {
       toast({
         variant: "destructive",
