@@ -420,7 +420,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                 <label className="text-sm font-medium">Type de règlement</label>
                 <Select value={paymentType} onValueChange={(v) => { const t = v as "PI" | "MENSUALITE"; setPaymentType(t); setAmount(String(t === "PI" ? piBalance : (Number(monthly.montant_a_payer || 0) || monthlyAmount))); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{piBalance > 0 && <SelectItem value="PI">Paiement initial</SelectItem>}<SelectItem value="MENSUALITE">Mensualité / rattrapage</SelectItem></SelectContent>
+                  <SelectContent>{piBalance > 0 && <SelectItem value="PI">Paiement initial</SelectItem>}<SelectItem value="MENSUALITE" disabled={Number(monthly.montant_a_payer || 0) <= 0}>Mensualité / rattrapage</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -441,7 +441,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
-            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || (paymentType === "MENSUALITE" && !selectedPlantationId)}>
+            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || (paymentType === "MENSUALITE" && (Number(monthly.montant_a_payer || 0) <= 0 || !selectedPlantationId))}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {paying ? "Ouverture / vérification…" : "Payer avec KKiaPay"}
             </Button>
