@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { logActivity } from "@/utils/traceability";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -26,6 +26,16 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 
+const formatHectares = (value: unknown) => {
+  const hectares = Number(value || 0);
+  return hectares.toLocaleString("fr-FR", { maximumFractionDigits: 2, minimumFractionDigits: 0 });
+};
+
+const getOfferDisplayName = (client: any) => {
+  const name = String(client?.offres?.nom || client?.formule_nom || client?.formule_code || "—").trim();
+  return /^essential$/i.test(name) ? "Offre 1.3" : name;
+};
+
 const Clients = () => {
   const { can } = usePermissions();
   const { profile, userRoles } = useAuth();
@@ -41,7 +51,22 @@ const Clients = () => {
   const [teamPerformance,setTeamPerformance]=useState<any[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<any>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const [tableContentWidth, setTableContentWidth] = useState(1600);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const container = tableScrollRef.current;
+    if (!container) return;
+    const updateWidth = () => setTableContentWidth(container.scrollWidth);
+    updateWidth();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateWidth) : null;
+    observer?.observe(container);
+    const table = container.querySelector("table");
+    if (table) observer?.observe(table);
+    return () => observer?.disconnect();
+  }, [clients.length, loading]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -279,62 +304,15 @@ const Clients = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Personnes / dossiers
-                </CardTitle>
-                <FileText className="h-5 w-5 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.total}</div>
-                <div className="text-xs text-muted-foreground mt-1">{stats.clientsOfficiels} Client(s) · {stats.beneficiaires} bénéficiaire(s)</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Actifs
-                </CardTitle>
-                <CheckCircle className="h-5 w-5 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.actifs}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Inactifs/Suspendus
-                </CardTitle>
-                <Clock className="h-5 w-5 text-gray-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.inactifs}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Hectares
-                </CardTitle>
-                <FileText className="h-5 w-5 text-accent" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalHectares.toFixed(2)} ha</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><UsersRound className="h-4 w-4 text-primary"/>Clients officiels</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.clientsOfficiels}</div><p className="text-xs text-muted-foreground">dossiers commerciaux</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><UserRound className="h-4 w-4 text-primary"/>Bénéficiaires particuliers</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.beneficiaires}</div><p className="text-xs text-muted-foreground">personnes rattachées</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Sprout className="h-4 w-4 text-primary"/>Plantations</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.plantations}</div><p className="text-xs text-muted-foreground">actifs agricoles distincts</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><LandPlot className="h-4 w-4 text-primary"/>Superficie rattachée</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.totalHectares.toFixed(2)} ha</div><p className="text-xs text-muted-foreground">toutes personnes confondues</p></CardContent></Card>
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Personnes</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Dossiers</p><p className="mt-1 text-[10px] leading-tight text-muted-foreground whitespace-nowrap">{stats.clientsOfficiels} clients · {stats.beneficiaires} B. part.</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Actifs</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.actifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statut actif</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Inactifs / suspendus</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.inactifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statuts inactifs</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Total hectares</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Surface cumulée</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Clients officiels</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.clientsOfficiels}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Dossiers commerciaux</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">B. particuliers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.beneficiaires}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Personnes rattachées</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Plantations</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.plantations}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Actifs agricoles</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Superficie rattachée</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Toutes personnes</p></CardContent></Card>
           </div>
 
           {teamPerformance.length > 0 && (
@@ -374,20 +352,24 @@ const Clients = () => {
             </TabsContent>
 
             <TabsContent value="table">
-              <div className="border rounded-lg overflow-x-auto">
-                <Table className="responsive-data-table">
+              <div className="space-y-1">
+                <div ref={topScrollRef} className="h-4 overflow-x-auto overflow-y-hidden rounded-md border bg-muted/30" aria-label="Défilement horizontal du tableau" onScroll={(event) => { if (tableScrollRef.current) tableScrollRef.current.scrollLeft = event.currentTarget.scrollLeft; }}>
+                  <div style={{ width: tableContentWidth, height: 1 }} />
+                </div>
+                <div ref={tableScrollRef} className="border rounded-lg overflow-x-auto" onScroll={(event) => { if (topScrollRef.current) topScrollRef.current.scrollLeft = event.currentTarget.scrollLeft; }}>
+                <Table className="responsive-data-table min-w-[1500px] text-xs">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID client</TableHead>
-                      <TableHead>Nom Complet</TableHead>
-                      <TableHead>Téléphone</TableHead>
-                      <TableHead>Type / rôle</TableHead>
-                      <TableHead>Offre</TableHead>
-                      <TableHead>Plantations</TableHead>
-                      <TableHead>Hectares</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">ID client</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Nom complet</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Téléphone</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Type / rôle</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Offre</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Plantations</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Hectares</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Statut</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Date</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -405,51 +387,47 @@ const Clients = () => {
                       </TableRow>
                     ) : (
                       filteredClients.map((client) => (
-                        <TableRow key={client.id}>
-                          <TableCell className="font-mono text-sm font-medium">
+                        <TableRow key={client.id} className="[&>td]:px-2 [&>td]:py-1">
+                          <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {client.nom_complet || `${client.nom} ${client.prenoms || ''}`}
+                          <TableCell className="font-medium text-xs whitespace-nowrap">
+                            {client.nom_complet || [client.nom, client.prenoms].filter(Boolean).join(" ")}
                           </TableCell>
-                          <TableCell>{client.telephone}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">{client.telephone || "—"}</TableCell>
                           <TableCell>
                             {client.type_client === "beneficiaire_particulier" ? (
-                              <Badge variant="secondary">Bénéficiaire particulier</Badge>
+                              <Badge variant="secondary" className="whitespace-nowrap">B. particulier</Badge>
                             ) : (
-                              <Badge variant="outline">Client officiel</Badge>
+                              <Badge variant="outline" className="whitespace-nowrap">Client officiel</Badge>
                             )}
                           </TableCell>
                           <TableCell>
                             {client.type_client === "beneficiaire_particulier" ? (
-                              <span className="text-muted-foreground">{client.formule_nom || "Actif agricole"}</span>
+                              <span className="text-muted-foreground whitespace-nowrap">{client.formule_nom || "Actif agricole"}</span>
                             ) : client.offres ? (
-                              <Badge style={{ backgroundColor: client.offres.couleur }}>
-                                {client.offres.nom}
-                              </Badge>
+                              <Badge className="whitespace-nowrap" style={{ backgroundColor: client.offres.couleur }}>{getOfferDisplayName(client)}</Badge>
                             ) : client.formule_nom ? (
-                              <Badge variant="outline">{client.formule_nom}</Badge>
+                              <Badge variant="outline" className="whitespace-nowrap">{getOfferDisplayName(client)}</Badge>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap">
                             <Badge variant="outline">
                               {client.nombre_plantations || 0}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            {Number(client.total_hectares || 0).toFixed(2)} ha
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatutBadge(client.statut || client.statut_global)}>
+                          <TableCell className="whitespace-nowrap">{formatHectares(client.total_hectares)} ha</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge className={getStatutBadge(client.statut || client.statut_global) + " whitespace-nowrap"}>
                               {client.statut || client.statut_global || 'actif'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
+                          <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
                             {format(new Date(client.created_at), "dd MMM yyyy", { locale: fr })}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap">
                             <div className="flex items-center gap-1">
                               <Link to={`/acquisitions/${client.id}`}>
                                 <Button variant="ghost" size="sm">
@@ -503,7 +481,7 @@ const Clients = () => {
                     )}
                   </TableBody>
                 </Table>
-
+                </div>
               </div>
             </TabsContent>
           </Tabs>
