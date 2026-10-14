@@ -574,10 +574,10 @@ const Dashboard = () => {
         {label:"Leads",value:stats.leads,href:"/leads"},
         {label:"Nouveaux",value:stats.leadsNew,href:"/leads"},
         {label:"Leads convertis",value:stats.leadsConverted,href:"/leads"},
-        {label:"Conv. leads",value:stats.conversionRate+"%",href:"/leads"},
+        {label:"Tx. conversion lead",value:stats.conversionRate+"%",href:"/leads"},
         {label:"Prospects",value:stats.prospects,href:"/prospects"},
         {label:"Prospects conv.",value:stats.prospectsConverted,href:"/prospects"},
-        {label:"Conv. prospects",value:stats.prospectsConversionRate+"%",href:"/prospects"},
+        {label:"Tx. conversion prospect",value:stats.prospectsConversionRate+"%",href:"/prospects"},
         {label:"À relancer",value:stats.leadsFollowup,href:"/leads"}
       ] : []),
     ]},
@@ -591,10 +591,10 @@ const Dashboard = () => {
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
       {label:"Taux de plantation",value:progress+"%",href:"/plantations"},
-      {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
-      {label:"Surface interne",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
-      {label:"Plantée interne",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
-      {label:"Restante interne",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
+      {label:"Nb plantations int.",value:stats.internalPlantations,href:"/plantations"},
+      {label:"S. interne",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
+      {label:"S. plantée interne",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
+      {label:"S. restante interne",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
       {label:"En production",value:stats.production,href:"/plantations?statut=en_production"},
       {label:"Surface en production",value:num(stats.productionHa)+" ha",href:"/plantations?statut=en_production"},
     ]},
@@ -650,19 +650,19 @@ const Dashboard = () => {
                 {kpis.filter((k) => k.show && k.metrics.length > 0).map((k) => {
                   const Icon = k.icon;
                   return (
-                    <div key={k.label} className={`min-w-0 rounded-2xl border-2 p-3 sm:p-4 ${k.label === "Pilotage financier" ? "border-amber-500/70 bg-amber-50/20 dark:bg-amber-950/10" : k.label === "Développement commercial" ? "border-orange-500/70 bg-orange-50/20 dark:bg-orange-950/10" : k.label === "Patrimoine foncier et partenariats" ? "border-emerald-600/70 bg-emerald-50/20 dark:bg-emerald-950/10" : "border-violet-500/70 bg-violet-50/20 dark:bg-violet-950/10"}`}>
+                    <div key={k.label} className={`min-w-0 rounded-2xl border-2 p-2.5 sm:p-3 ${k.label === "Pilotage financier" ? "border-amber-500/70 bg-amber-50/20 dark:bg-amber-950/10" : k.label === "Développement commercial" ? "border-orange-500/70 bg-orange-50/20 dark:bg-orange-950/10" : k.label === "Patrimoine foncier et partenariats" ? "border-emerald-600/70 bg-emerald-50/20 dark:bg-emerald-950/10" : "border-violet-500/70 bg-violet-50/20 dark:bg-violet-950/10"}`}>
                       <h2 className="mb-3 flex items-center gap-2.5 text-base font-extrabold uppercase tracking-wide text-foreground sm:text-lg">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background/80 text-primary shadow-sm">
                           <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                         </span>
                         {k.label}
                       </h2>
-                      <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Développement commercial" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-7" : "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6"}`}>
+                      <div className={`grid min-w-0 gap-2 ${k.label === "Pilotage financier" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Développement commercial" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-9" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-11" : "grid-cols-2 sm:grid-cols-4 xl:grid-cols-6"}`}>
                         {k.metrics.map((metric: any) => (
                           <Link
                             key={metric.label}
                             to={metric.href || k.href}
-                            className="group flex min-h-[68px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             <span className="text-[10px] leading-snug text-muted-foreground sm:text-[11px]">{metric.label}</span>
                             <span className="mt-1.5 block break-words text-sm font-bold leading-tight tabular-nums text-foreground sm:text-base">{loading ? "…" : metric.value}</span>
@@ -768,16 +768,15 @@ const Dashboard = () => {
                     <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5 text-primary" />Clients récents</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un client" /></div></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <Table><TableHeader><TableRow><TableHead>ID client</TableHead><TableHead>Nom</TableHead><TableHead>Plantations</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
+                        <Table><TableHeader><TableRow><TableHead>Nom</TableHead><TableHead>Plantations</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {filteredRecentClients.length ? filteredRecentClients.map((c) => (
                             <TableRow key={c.id_unique}>
-                              <TableCell className="font-mono text-xs">{c.id_unique}</TableCell>
-                              <TableCell className="font-medium">{c.nom_complet}</TableCell>
+                              <TableCell className="text-xs sm:text-sm font-medium">{c.nom_complet}</TableCell>
                               <TableCell>{c.nombre_plantations || 0}</TableCell>
-                              <TableCell>{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? "Soldé" : label; const variant = c.contrat_solde_at ? "secondary" : status === "actif" ? "default" : status === "suspendu" ? "destructive" : "secondary"; return <Badge variant={variant}>{display}</Badge>; })()}</TableCell>
+                              <TableCell>{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? "Soldé" : label; const className = c.contrat_solde_at ? "whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" : status === "actif" ? "whitespace-nowrap border-emerald-200 bg-emerald-100/70 text-emerald-800 hover:bg-emerald-100/70" : status === "en_retard" || status === "retard" ? "whitespace-nowrap border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100" : "whitespace-nowrap"; return <Badge variant={c.contrat_solde_at || status === "actif" ? "outline" : status === "suspendu" ? "destructive" : "secondary"} className={className}>{display}</Badge>; })()}</TableCell>
                             </TableRow>
-                          )) : <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Aucun client accessible.</TableCell></TableRow>}
+                          )) : <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Aucun client accessible.</TableCell></TableRow>}
                         </TableBody></Table>
                       </div>
                     </CardContent>
@@ -793,10 +792,10 @@ const Dashboard = () => {
                         <TableBody>
                           {filteredRecentPayments.length ? filteredRecentPayments.map((p) => (
                             <TableRow key={p.id}>
-                              <TableCell className="font-medium">{p.client_nom}</TableCell>
-                              <TableCell>{money(Number(p.montant_paye ?? p.montant ?? 0))}</TableCell>
-                              <TableCell className="text-xs">{p.mode_paiement || "—"}</TableCell>
-                              <TableCell><Badge variant="default">Validé</Badge></TableCell>
+                              <TableCell className="text-xs sm:text-sm font-medium">{p.client_nom}</TableCell>
+                              <TableCell className="whitespace-nowrap text-xs sm:text-sm">{money(Number(p.montant_paye ?? p.montant ?? 0))}</TableCell>
+                              <TableCell className="whitespace-nowrap text-xs">{(["content", "comptant", "cash", "espèces", "especes"].includes(String(p.mode_paiement || "").trim().toLowerCase()) ? "Cash" : p.mode_paiement || "—")}</TableCell>
+                              <TableCell><Badge variant="outline" className="whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Validé</Badge></TableCell>
                             </TableRow>
                           )) : <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Aucun paiement validé dans votre périmètre.</TableCell></TableRow>}
                         </TableBody></Table>

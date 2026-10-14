@@ -127,7 +127,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   return (
     <div className="flex min-h-screen bg-muted/35">
-      <aside className="hidden h-screen w-64 flex-shrink-0 md:sticky md:top-0 md:flex"><SidebarContent /></aside>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-64 flex-shrink-0 md:flex"><SidebarContent /></aside>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-background/95 px-3 backdrop-blur md:hidden">
@@ -141,7 +141,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <SheetContent side="left" className="w-72 p-0"><SidebarContent /></SheetContent>
       </Sheet>
 
-      <main className="min-w-0 flex-1 overflow-x-hidden pt-14 md:pt-0 bg-muted/20">
+      <main className="min-w-0 flex-1 overflow-x-hidden pt-14 md:ml-64 md:pt-0 bg-muted/20">
         <header className="sticky top-0 z-30 hidden h-16 items-center gap-4 border-b bg-background/80 px-6 backdrop-blur-xl shadow-sm md:flex">
           <div className="ml-auto flex min-w-0 items-center gap-3">
             <NetworkIndicator />
