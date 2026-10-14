@@ -20,7 +20,7 @@ import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Target, TrendingUp, Users, MapPin, PhoneCall, ArrowRight, Copy, Plus, Phone, Mail, MessageCircle, Contact } from "lucide-react";
+import { Target, TrendingUp, Users, MapPin, PhoneCall, ArrowRight, Copy, Plus, Phone, Mail, MessageCircle, Contact, Eye, Pencil } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import GeographieCascade from "@/components/common/GeographieCascade";
@@ -529,30 +529,29 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           <CardContent>
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
-                <TableHead>Nom</TableHead><TableHead>Contact</TableHead>
-                <TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Relance</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="px-2 py-2">Nom</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Contact</TableHead>
+                <TableHead className="px-2 py-2">Région</TableHead><TableHead className="px-2 py-2">Statut</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Relance</TableHead>
+                <TableHead className="whitespace-nowrap px-2 py-2 text-right">Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filteredLeads.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">Aucun lead ou prospect enregistré.</TableCell></TableRow>}
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
-                    <TableRow key={l.id}>
-                      
-                      <TableCell><div className="font-medium">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-1 text-[10px]">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
-                      <TableCell className="text-sm">{l.telephone}<br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
-                      <TableCell className="text-sm">{l.region_residence}</TableCell>
-                      <TableCell>
+                    <TableRow key={l.id} className="[&>td]:py-1.5 [&>td]:px-2">
+                      <TableCell><div className="font-medium leading-tight">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
+                      <TableCell className="text-sm"><span className="whitespace-nowrap">{l.telephone}</span><br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
+                      <TableCell className="min-w-0">
                         <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, statut: v })}>
-                          <SelectTrigger className="w-40 h-8"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 w-28 max-w-28 overflow-hidden px-2 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
-                      <TableCell className="text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button size="sm" variant="outline" onClick={() => setSelected(l)}>Détails</Button>
+                      <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right">
+                        <Button size="icon" className="h-8 w-8" variant="outline" title="Détails" aria-label="Détails" onClick={() => setSelected(l)}><Eye className="h-4 w-4" /></Button>
                         {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
-                          <Button size="sm" variant="secondary" onClick={() => {
+                          <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => {
                             setEditingLead(l);
                             setFormStage(l.etape_pipeline === "prospect" ? "prospect" : "lead");
                             setLeadForm({
@@ -564,14 +563,14 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                               whatsapp_indicatif: "", whatsapp_local: l.whatsapp || "",
                             });
                             setCreateOpen(true);
-                          }}>Modifier</Button>
+                          }}><Pencil className="h-4 w-4" /></Button>
                         )}
-                        <Button size="sm" variant="outline" onClick={() => startContact(l)}><Contact className="h-3 w-3 mr-1" />Contacter</Button>
+                        <Button size="icon" className="h-8 w-8" variant="outline" title="Contacter" aria-label="Contacter" onClick={() => startContact(l)}><Contact className="h-4 w-4" /></Button>
                         {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
-                          <Button size="sm" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-3 w-3 mr-1" />Convertir</Button>
+                          <Button size="icon" className="h-8 w-8" title="Convertir" aria-label="Convertir" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-4 w-4" /></Button>
                         )}
                         {view === "prospects" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
-                          <Button size="sm" onClick={() => void convertToClient(l)}><ArrowRight className="h-3 w-3 mr-1" />Convertir en client</Button>
+                          <Button size="icon" className="h-8 w-8" title="Convertir" aria-label="Convertir" onClick={() => void convertToClient(l)}><ArrowRight className="h-4 w-4" /></Button>
                         )}
                       </TableCell>
                     </TableRow>
