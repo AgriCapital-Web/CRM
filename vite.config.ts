@@ -16,6 +16,9 @@ export default defineConfig(() => ({
   },
   build: {
     outDir: "dist",
+    // Manifest utilisé par le service worker pour précharger aussi les chunks lazy
+    // (routes/pages ouvertes pour la première fois avant une coupure réseau).
+    manifest: "asset-manifest.json",
     sourcemap: false,
     minify: "esbuild" as const,
     rollupOptions: {
