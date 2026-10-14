@@ -47,7 +47,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(self), microphone=(), geolocation=(self), payment=()"
+          "value": "camera=(self), microphone=(self), geolocation=(self), payment=()"
         },
         {
           "key": "Cache-Control",
