@@ -1,6 +1,6 @@
 {
-  "name": "AC_Teams",
-  "short_name": "AC_Teams",
+  "name": "ACTIME",
+  "short_name": "ACTIME",
   "description": "Système de Gestion des Clients & Plantations - CRM AgriCapital",
   "theme_color": "#00643C",
   "background_color": "#ffffff",
@@ -23,10 +23,7 @@
       "purpose": "any"
     }
   ],
-  "categories": [
-    "business",
-    "productivity"
-  ],
+  "categories": ["business", "productivity"],
   "lang": "fr-FR",
   "dir": "ltr",
   "author": "Inocent KOFFI",
