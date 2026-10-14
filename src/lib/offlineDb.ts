@@ -203,6 +203,7 @@ export interface SyncOperation {
   retries: number;
   error_message?: string;
   next_retry_at?: number;
+  sync_started_at?: number;
 }
 
 export async function addToSyncQueue(op: Omit<SyncOperation, 'id' | 'status' | 'retries'>): Promise<void> {
@@ -211,7 +212,17 @@ export async function addToSyncQueue(op: Omit<SyncOperation, 'id' | 'status' | '
 
 export async function getPendingSyncOps(): Promise<SyncOperation[]> {
   const now = Date.now();
-  const all = await getAllItems(STORES.SYNC_QUEUE);
+  const all = await getAllItems(STORES.SYNC_QUEUE) as SyncOperation[];
+  // Reprendre les opérations interrompues par fermeture, crash ou arrêt du worker.
+  // Les anciennes entrées "syncing" sans horodatage sont récupérées immédiatement.
+  for (const op of all) {
+    if (op.status === 'syncing' && (!op.sync_started_at || now - op.sync_started_at > 120_000)) {
+      op.status = 'pending';
+      op.sync_started_at = undefined;
+      op.next_retry_at = 0;
+      await putItem(STORES.SYNC_QUEUE, op);
+    }
+  }
   return all
     .filter(op => op.status === 'pending' || op.status === 'error')
     .filter(op => !op.next_retry_at || op.next_retry_at <= now)
@@ -222,6 +233,8 @@ export async function markOpStatus(id: number, status: SyncOperation['status'], 
   const item = await getItem(STORES.SYNC_QUEUE, id);
   if (item) {
     item.status = status;
+    if (status === 'syncing') item.sync_started_at = Date.now();
+    else item.sync_started_at = undefined;
     if (errorMsg) item.error_message = errorMsg;
     if (status === 'error') {
       item.retries = (item.retries || 0) + 1;
@@ -249,7 +262,7 @@ export async function clearSyncedOps(): Promise<void> {
 export async function getSyncQueueStats(): Promise<{ pending: number; error: number; total: number }> {
   const all = await getAllItems(STORES.SYNC_QUEUE);
   return {
-    pending: all.filter(o => o.status === 'pending').length,
+    pending: all.filter(o => o.status === 'pending' || o.status === 'syncing').length,
     error: all.filter(o => o.status === 'error').length,
     total: all.length,
   };
