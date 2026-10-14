@@ -137,10 +137,13 @@ function txRequest(db, storeName, mode, action) {
     const tx = db.transaction(storeName, mode);
     const store = tx.objectStore(storeName);
     let request;
+    let result;
     try { request = action(store); }
     catch (error) { reject(error); return; }
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => { result = request.result; };
     request.onerror = () => reject(request.error);
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = () => reject(tx.error || new Error("IndexedDB transaction failed"));
     tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
   });
 }
