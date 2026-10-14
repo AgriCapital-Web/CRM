@@ -46,22 +46,32 @@ export default function Messagerie() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [recent, setRecent] = useState<RecentMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadByClient, setUnreadByClient] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
   const [loadingClients, setLoadingClients] = useState(true);
   const [mobileConversation, setMobileConversation] = useState(Boolean(params.get("client")));
 
   const loadRecent = async () => {
-    const [{ data }, { count, error: unreadError }] = await Promise.all([
+    const [{ data }, { data: unreadRows, error: unreadRowsError }, { count, error: unreadError }] = await Promise.all([
       (supabase as any).from("portail_messages")
         .select("id,client_id,auteur_type,auteur_nom,message,lu,created_at,clients(id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id)")
         .order("created_at", { ascending: false })
         .limit(100),
+      (supabase as any).from("portail_messages")
+        .select("id,client_id")
+        .eq("auteur_type", "client")
+        .or("lu.eq.false,lu.is.null"),
       (supabase as any).from("portail_messages")
         .select("id", { count: "exact", head: true })
         .eq("auteur_type", "client")
         .or("lu.eq.false,lu.is.null"),
     ]);
     setRecent((data || []) as RecentMessage[]);
+    if (!unreadRowsError) {
+      const counts: Record<string, number> = {};
+      (unreadRows || []).forEach((row: any) => { counts[row.client_id] = (counts[row.client_id] || 0) + 1; });
+      setUnreadByClient(counts);
+    }
     if (!unreadError) setUnreadCount(count || 0);
   };
 
@@ -187,7 +197,7 @@ export default function Messagerie() {
                             <span className="mt-0.5 block truncate text-xs text-muted-foreground">{client.telephone || typeLabel(client)}</span>
                             <span className="mt-1 block truncate text-xs text-muted-foreground">{last?.message || typeLabel(client)}</span>
                           </span>
-                          {last?.auteur_type === "client" && !last.lu && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Message non lu" />}
+                          {(unreadByClient[client.id] || 0) > 0 && <Badge className="mt-0.5 shrink-0" aria-label={`${unreadByClient[client.id]} messages non lus`}>{unreadByClient[client.id]}</Badge>}
                         </button>
                       );
                     })}
