@@ -239,7 +239,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const payload = {
         client_id: activeClient.id,
         souscription_id: activeContract.subscriptionId,
-        plantation_id: selectedPlantationId || activeContract.plantationId || null,
+        plantation_id: paymentType === "MENSUALITE" ? selectedPlantationId : null,
         type_paiement: paymentType,
         montant: paymentAmount,
         montant_theorique: paymentAmount,
