@@ -386,6 +386,19 @@ export async function scheduleBackgroundOfflineSync(): Promise<void> {
 }
 
 export async function flushOfflineHttpQueue(): Promise<number> {
+  if (!navigator.onLine) return 0;
+  const lockManager = (navigator as any).locks;
+  if (lockManager && typeof lockManager.request === "function") {
+    // Même verrou que le service worker : évite qu'un onglet et le worker
+    // rejouent simultanément la même mutation persistée.
+    return lockManager.request("agricapital-http-queue-flush", { mode: "exclusive" }, () =>
+      flushOfflineHttpQueueUnlocked()
+    );
+  }
+  return flushOfflineHttpQueueUnlocked();
+}
+
+async function flushOfflineHttpQueueUnlocked(): Promise<number> {
   if (flushing || !navigator.onLine) return 0;
   flushing = true;
   let flushed = 0;
