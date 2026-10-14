@@ -233,8 +233,9 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       toast({ variant: "destructive", title: "Mensualité indisponible", description: "Aucune mensualité n’est actuellement exigible pour ce contrat. Le paiement est bloqué pour éviter une mauvaise imputation." });
       return;
     }
-    if (!selectedPlantationId) {
-      toast({ variant: "destructive", title: "Plantation requise", description: "Le parcours KKiaPay exige une plantation réelle rattachée à ce contrat." });
+    const plantationRequired = paymentType === "MENSUALITE" || Boolean(activeContract.subscriptionId);
+    if (plantationRequired && !selectedPlantationId) {
+      toast({ variant: "destructive", title: "Plantation requise", description: "Une plantation réelle rattachée à ce contrat est nécessaire pour ce type de paiement." });
       return;
     }
     setPaying(true);
@@ -412,7 +413,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                       <SelectTrigger><SelectValue placeholder="Choisir la plantation" /></SelectTrigger>
                       <SelectContent>{availablePlantations.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nom_plantation || p.id_unique || "Plantation"} · {Number(p.superficie_ha || 0).toLocaleString("fr-FR")} ha</SelectItem>)}</SelectContent>
                     </Select>
-                  ) : <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">Aucune plantation n’est rattachée à ce contrat. Le paiement mensuel reste bloqué pour éviter un mauvais rattachement.</p>}
+                  ) : <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">Aucune plantation n’est rattachée à ce contrat. Les mensualités et les paiements initiaux d’une souscription restent bloqués. Le paiement initial du contrat principal peut toutefois être réglé sur le dossier client.</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Type de règlement</label>
@@ -439,7 +440,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
-            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || !selectedPlantationId || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0)}>
+            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType === "MENSUALITE" || Boolean(activeContract.subscriptionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0)}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {paying ? "Ouverture / vérification…" : "Payer avec KKiaPay"}
             </Button>
