@@ -361,27 +361,17 @@ All colors MUST be HSL.
 }
 
 
-/* Personnel card preview: larger on desktop, proportional on phones, with no blank scaled area. */
+/* Personnel card preview: zoom scales both the artwork and its layout footprint. */
 .id-card-preview {
   flex: 0 0 auto;
   width: 540px;
   max-width: 540px;
-  transform-origin: top center;
-  transform: scale(.58);
-  margin-bottom: calc(-856px * (1 - .58));
+  zoom: .58;
 }
-@media (min-width: 380px) {
-  .id-card-preview { transform: scale(.66); margin-bottom: calc(-856px * (1 - .66)); }
-}
-@media (min-width: 480px) and (max-width: 767px) {
-  .id-card-preview { transform: scale(.82); margin-bottom: calc(-856px * (1 - .82)); }
-}
-@media (min-width: 640px) and (max-width: 767px) {
-  .id-card-preview { transform: scale(.95); margin-bottom: calc(-856px * (1 - .95)); }
-}
-@media (min-width: 768px) {
-  .id-card-preview { transform: scale(1.05); margin-bottom: calc(-856px * (1 - 1.05)); }
-}
+@media (min-width: 380px) { .id-card-preview { zoom: .66; } }
+@media (min-width: 480px) and (max-width: 767px) { .id-card-preview { zoom: .82; } }
+@media (min-width: 640px) and (max-width: 767px) { .id-card-preview { zoom: .95; } }
+@media (min-width: 768px) { .id-card-preview { zoom: 1.05; } }
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse { animation: none !important; }
 }
