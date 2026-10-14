@@ -416,7 +416,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           lead_id: contactLead.id,
           channel: contactChannel,
           content: message,
-          subject: "Suivi de votre projet de plantation de palmier à huile",
+          subject: String(contactTemplates.find((item) => item.id === selectedContactTemplate)?.sujet || "Suivi de votre projet de plantation de palmier à huile"),
           media_attachments: mediaAttachments,
           request_id: crypto.randomUUID(),
         },
