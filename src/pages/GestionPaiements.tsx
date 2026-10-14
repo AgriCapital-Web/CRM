@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,14 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -37,23 +29,16 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Search, 
-  CreditCard, 
-  Coins, 
-  ArrowRightLeft, 
-  RefreshCcw,
+import {
+  CreditCard,
+  Coins,
+  ArrowRightLeft,
   CheckCircle,
-  XCircle,
-  Clock,
-  Eye,
   Loader2,
   TrendingUp,
-  Users,
   AlertTriangle,
   ArrowUpRight,
   ArrowDownLeft,
-  Smartphone
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSafeErrorMessage } from "@/lib/safeError";
@@ -85,7 +70,6 @@ const GestionPaiements = () => {
   const canRefundPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.cancel") || can("finance.manage");
   const canManage = canTransferPayment || canRefundPayment;
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState("");
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -170,39 +154,8 @@ const GestionPaiements = () => {
     };
   }, [financeSynthese, clientsMonnaie]);
 
-  const settledClientIds = useMemo(() => new Set((financeSynthese||[]).filter((row:any)=>Number(row.montant_total_contrat||0)>0&&Number(row.reste_a_payer||0)<=0).map((row:any)=>row.client_id).filter(Boolean)),[financeSynthese]);
-  const financialActionsBlocked = (paiement:Paiement) => settledClientIds.has(paiement.client_id) || Boolean(paiement.clients?.contrat_solde_at) || paiement.clients?.type_client === "beneficiaire_particulier" || paiement.clients?.is_internal === true;
-
   const formatMontant = (m: number) => {
     return new Intl.NumberFormat("fr-FR").format(m) + " F CFA";
-  };
-
-  const getStatutBadge = (statut: string) => {
-    switch (statut) {
-      case 'valide':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Validé</Badge>;
-      case 'en_attente':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />En attente</Badge>;
-      case 'echoue':
-      case 'rejete':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Échoué</Badge>;
-      default:
-        return <Badge variant="outline">{statut}</Badge>;
-    }
-  };  const getStatutClientBadge = (statut: string) => {
-    const normalized = String(statut || "").toLowerCase();
-    const value = normalized === "a_jour" || normalized === "actif" ? "À jour" :
-      normalized === "retard" ? "En retard" :
-      normalized === "suspendu" ? "Suspendu" :
-      normalized === "ferme" ? "Fermé" : "À jour";
-    const cls = normalized === "retard"
-      ? "bg-red-100 text-red-800 border-red-200"
-      : normalized === "suspendu"
-      ? "bg-amber-100 text-amber-800 border-amber-200"
-      : normalized === "ferme"
-      ? "bg-slate-100 text-slate-700 border-slate-200"
-      : "bg-green-100 text-green-800 border-green-200";
-    return <Badge variant="outline" className={cls}>{value}</Badge>;
   };
 
   const financialBlockReason = async (client:any): Promise<string | null> => {
