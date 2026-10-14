@@ -178,8 +178,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       }
       setContracts(nextContracts);
       const firstWithPI = nextContracts.find(c => Number(c.state?.paiement_initial?.solde || 0) > 0);
+      const firstWithArrears = nextContracts.find(c => Number(c.state?.mensualite?.montant_arriere || 0) > 0);
       const firstWithMonthly = nextContracts.find(c => Number(c.state?.mensualite?.montant_a_payer || 0) > 0);
-      const initial = firstWithPI || firstWithMonthly || nextContracts[0];
+      const firstWithBalance = nextContracts.find(c => Number(c.state?.reste_contrat || c.state?.montant_total_contrat || 0) > 0);
+      const initial = firstWithPI || firstWithArrears || firstWithMonthly || firstWithBalance || nextContracts.find(c => c.subscriptionId) || nextContracts[0];
       if (initial) {
         setSelectedContractId(initial.id);
         const type: "PI" | "MENSUALITE" = Number(initial.state?.paiement_initial?.solde || 0) > 0 ? "PI" : "MENSUALITE";
@@ -368,11 +370,11 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                     <TableCell>{money(total)}</TableCell>
                     <TableCell>{money(paid)}</TableCell>
                     <TableCell className="font-semibold text-amber-700">{money(remainingClient)}</TableCell>
-                    <TableCell><Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">Paiement en cours</Badge></TableCell>
+                    <TableCell>{(() => { const status = String(client.statut || "").toLowerCase(); const isLate = status.includes("retard") || Number((client as any).jours_retard || 0) > 0; const isAdvance = status.includes("avance") || Number((client as any).jours_avance || 0) > 0; const label = client.contrat_solde_at || remainingClient <= 0 ? "Soldé" : isLate ? "En retard" : isAdvance ? "En avance" : status.includes("actif") ? "Actif" : "À jour"; return <Badge variant={label === "En retard" ? "destructive" : "outline"} className={label === "Soldé" ? "border-emerald-600/30 bg-emerald-600/10 text-emerald-700" : label === "En avance" ? "border-blue-600/30 bg-blue-600/10 text-blue-700" : ""}>{label}</Badge>; })()}</TableCell>
                     <TableCell><div className="flex items-center justify-end gap-1">
                       {onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${client.nom_complet || "ce client"}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
                       {onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${client.nom_complet || "ce client"}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
-                      <Button type="button" size="sm" className="gap-2" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /><span>Nouveau paiement</span></Button>
+                      <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${client.nom_complet || "ce client"}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>
                     </div></TableCell>
                   </TableRow>;
                 })}
