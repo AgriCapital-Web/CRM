@@ -78,7 +78,7 @@ export function SyncQueueContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-5">
+      <div className="responsive-auto-grid min-w-0">
         {[
           { l: "Fichiers en file", v: fileStats.total },
           { l: "Prêts à envoyer", v: fileStats.pending },
@@ -86,8 +86,8 @@ export function SyncQueueContent() {
           { l: "Échecs fichiers", v: fileStats.error },
           { l: "Écritures réseau", v: httpStats.total },
         ].map((s) => (
-          <Card key={s.l}>
-            <CardContent className="p-4">
+          <Card key={s.l} className="min-w-0">
+            <CardContent className="p-3 sm:p-4">
               <p className="text-xs text-muted-foreground">{s.l}</p>
               <p className="text-xl font-bold">{s.v}</p>
             </CardContent>
