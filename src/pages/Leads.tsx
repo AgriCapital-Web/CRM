@@ -28,6 +28,7 @@ import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
+import MediaUploadVisual from "@/components/ui/media-upload-visual";
 import { COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
 import { formatUserShortName } from "@/lib/utils";
 
@@ -77,6 +78,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [contactLead, setContactLead] = useState<any>(null);
   const [contactChannel, setContactChannel] = useState("whatsapp");
   const [contactMessage, setContactMessage] = useState("");
+  const [contactMedia, setContactMedia] = useState<File[]>([]);
   const [contactSending, setContactSending] = useState(false);
   const [formStage, setFormStage] = useState<"lead" | "prospect">("lead");
   const [editingLead, setEditingLead] = useState<any>(null);
@@ -351,7 +353,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     const message = lead.type_lead === "proprietaire_foncier"
       ? `${greeting} ${fullName}, AgriCapital revient vers vous au sujet de la valorisation de votre terrain pour un projet de palmier à huile. Souhaitez-vous être recontacté(e) ? Répondez OUI.`
       : `${greeting} ${fullName}, êtes-vous toujours intéressé(e) par un projet de plantation de palmier à huile avec AgriCapital ? Répondez OUI pour être recontacté(e).`;
-    setContactMessage(message.slice(0, 200)); setContactOpen(true);
+    setContactMessage(message.slice(0, 350)); setContactMedia([]); setContactOpen(true);
   };
 
   const sendContact = async () => {
@@ -371,12 +373,25 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     if (contactChannel === "email" && !contactLead.email) {
       toast({ variant: "destructive", title: "Adresse email manquante", description: "Ajoutez une adresse email avant l’envoi." }); return;
     }
-    const message = contactChannel === "sms" ? Array.from(normalizeSmsText(contactMessage)).slice(0, 155).join("") : Array.from(contactMessage).slice(0, 200).join("");
+    const messageLimit = contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000;
+    const message = contactChannel === "sms" ? Array.from(normalizeSmsText(contactMessage)).slice(0, 155).join("") : Array.from(contactMessage).slice(0, messageLimit).join("");
     if (!message.trim()) {
       toast({ variant: "destructive", title: "Message vide", description: "Rédigez un message avant l’envoi." }); return;
     }
     setContactSending(true);
     try {
+      const mediaAttachments: Array<{ bucket: string; path: string; name: string; mimeType: string; size: number }> = [];
+      if (contactChannel === "whatsapp" || contactChannel === "email") {
+        for (const file of contactMedia) {
+          const { data: authData } = await supabase.auth.getUser();
+          if (!authData.user) throw new Error("Session expirée. Reconnectez-vous.");
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `${authData.user.id}/manual-${crypto.randomUUID()}-${safeName}`;
+          const { error: uploadError } = await supabase.storage.from("notification-media").upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
+          if (uploadError) throw uploadError;
+          mediaAttachments.push({ bucket: "notification-media", path, name: file.name, mimeType: file.type || "application/octet-stream", size: file.size });
+        }
+      }
       const { data, error } = await supabase.functions.invoke("notification-dispatch", {
         body: {
           mode: "manual_contact",
@@ -384,6 +399,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           channel: contactChannel,
           content: message,
           subject: "Suivi de votre projet de plantation de palmier à huile",
+          media_attachments: mediaAttachments,
           request_id: crypto.randomUUID(),
         },
       });
@@ -394,6 +410,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         description: `Demande acceptée par Senndo · ${data.characterCount ?? message.length}/${contactChannel === "sms" ? 155 : 200} caractères.`,
       });
       setContactOpen(false);
+      setContactMedia([]);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Échec de l’envoi", description: getSafeErrorMessage(e) });
     } finally {
@@ -642,9 +659,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           <DialogContent>
             <DialogHeader><DialogTitle>Contacter {contactLead ? [contactLead.prenoms, contactLead.nom].filter(Boolean).join(" ") : "le contact"}</DialogTitle></DialogHeader>
             <div className="space-y-4">
-              <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={(v) => { setContactChannel(v); if (v === "sms") setContactMessage(normalizeSmsText(contactMessage).slice(0, 155)); else setContactMessage(contactMessage.slice(0, 200)); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
-              {(contactChannel === "sms" || contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Message ({contactChannel === "sms" ? "155 caractères maximum, sans accents" : "200 caractères maximum"})</Label><Textarea value={contactMessage} maxLength={contactChannel === "sms" ? 155 : 200} onChange={e => setContactMessage(contactChannel === "sms" ? normalizeSmsText(e.target.value).slice(0, 155) : e.target.value.slice(0, 200))} rows={4} /><p className="text-right text-xs text-muted-foreground">{Array.from(contactChannel === "sms" ? normalizeSmsText(contactMessage) : contactMessage).length}/{contactChannel === "sms" ? 155 : 200} caractères</p></div>}
-              <p className="text-xs text-muted-foreground">{contactChannel === "appel" ? `Le téléphone s’ouvrira avec le numéro ${contactLead?.telephone || "non renseigné"}.` : contactChannel === "sms" ? "Le SMS sera envoyé directement via Senndo, sans accents et dans la limite de 155 caractères." : contactChannel === "whatsapp" ? "Le message personnalisé sera envoyé directement via Senndo à ce numéro WhatsApp." : "L’email personnalisé sera envoyé directement via Senndo à cette adresse."}</p>
+              <div><Label>Canal de contact</Label><Select value={contactChannel} onValueChange={(v) => { setContactChannel(v); if (v === "sms") { setContactMessage(normalizeSmsText(contactMessage).slice(0, 155)); setContactMedia([]); } else if (v === "whatsapp") setContactMessage(contactMessage.slice(0, 350)); else if (v === "email") setContactMessage(contactMessage.slice(0, 5000)); else setContactMedia([]); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="appel">Appel téléphonique</SelectItem><SelectItem value="sms">SMS</SelectItem><SelectItem value="whatsapp">WhatsApp</SelectItem><SelectItem value="email">Email</SelectItem></SelectContent></Select></div>
+              {(contactChannel === "sms" || contactChannel === "whatsapp" || contactChannel === "email") && <div className="space-y-2"><Label>Message</Label><Textarea value={contactMessage} maxLength={contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000} onChange={e => setContactMessage(contactChannel === "sms" ? normalizeSmsText(e.target.value).slice(0, 155) : e.target.value.slice(0, contactChannel === "whatsapp" ? 350 : 5000))} rows={4} /><p className="text-right text-xs text-muted-foreground">{Array.from(contactChannel === "sms" ? normalizeSmsText(contactMessage) : contactMessage).length}/{contactChannel === "sms" ? 155 : contactChannel === "whatsapp" ? 350 : 5000} caractères</p></div>}
+              {(contactChannel === "whatsapp" || contactChannel === "email") && <MediaUploadVisual label="Pièces jointes" files={contactMedia} onChange={setContactMedia} multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />}
             </div>
             <DialogFooter><Button variant="outline" onClick={() => setContactOpen(false)} disabled={contactSending}>Annuler</Button><Button onClick={sendContact} disabled={contactSending}>{contactSending ? "Envoi en cours…" : contactChannel === "appel" ? "Lancer l’appel" : contactChannel === "sms" ? "Envoyer le SMS" : contactChannel === "whatsapp" ? "Envoyer via WhatsApp" : "Envoyer par email"}</Button></DialogFooter>
           </DialogContent>
