@@ -234,7 +234,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const firstWithArrears = nextContracts.find(c => Number(c.state?.mensualite?.montant_arriere || 0) > 0);
       const firstWithMonthly = nextContracts.find(c => Number(c.state?.mensualite?.montant_a_payer || 0) > 0);
       const firstWithBalance = nextContracts.find(c => Number(c.state?.reste_contrat || c.state?.montant_total_contrat || 0) > 0);
-      const initial = firstWithPI || firstWithArrears || firstWithMonthly || firstWithBalance || nextContracts.find(c => c.subscriptionId) || nextContracts[0];
+      const initial = firstWithArrears || firstWithMonthly || firstWithPI || firstWithBalance || nextContracts.find(c => c.subscriptionId) || nextContracts[0];
       if (initial) {
         setSelectedContractId(initial.id);
         const type = suggestedPaymentType(initial.state);
