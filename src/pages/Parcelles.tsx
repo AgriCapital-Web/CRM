@@ -96,9 +96,7 @@ const Parcelles = () => {
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Parcelles</h1>
-            <p className="text-muted-foreground mt-1">
-              Référentiel automatique des parcelles, de leur propriété et des lots AgriCapital.
-            </p>
+            
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

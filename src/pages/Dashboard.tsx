@@ -638,7 +638,7 @@ const Dashboard = () => {
 
               {canPlantations && stats.plantations > 0 && cycle.some((c: any) => c.total > 0) && (
                 <section aria-labelledby="dashboard-operations" className="space-y-3">
-                  <div><h2 id="dashboard-operations" className="text-lg font-bold tracking-tight">5. Opérations et suivi technique</h2><p className="text-sm text-muted-foreground">Progression réelle des dossiers dans le parcours de plantation.</p></div>
+                  <div><h2 id="dashboard-operations" className="text-lg font-bold tracking-tight">5. Opérations et suivi technique</h2></div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Parcours de plantation</CardTitle></CardHeader>
@@ -673,7 +673,7 @@ const Dashboard = () => {
               )}
 
               <section aria-labelledby="dashboard-performance" className="space-y-3">
-                <div><h2 id="dashboard-performance" className="text-lg font-bold tracking-tight">6. Performance et répartition</h2><p className="text-sm text-muted-foreground">Résultats par équipe, offre, période et territoire.</p></div>
+                <div><h2 id="dashboard-performance" className="text-lg font-bold tracking-tight">6. Performance et répartition</h2></div>
 {teamPerformance.length > 0 && (
                 <Card>
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-5 w-5 text-primary" />Performance par équipe</CardTitle></CardHeader>
@@ -710,7 +710,7 @@ const Dashboard = () => {
               </section>
 
               <section aria-labelledby="dashboard-activity" className="space-y-3">
-                <div><h2 id="dashboard-activity" className="text-lg font-bold tracking-tight">Activité récente</h2><p className="text-sm text-muted-foreground">Derniers dossiers et encaissements validés.</p></div>
+                <div><h2 id="dashboard-activity" className="text-lg font-bold tracking-tight">Activité récente</h2></div>
               {(canPlantations || canClients) && stats.documentsPending > 0 && (
                 <section aria-labelledby="dashboard-documents" className="space-y-2">
                   <h2 id="dashboard-documents" className="text-lg font-bold tracking-tight">5. Opérations — documents à vérifier</h2>

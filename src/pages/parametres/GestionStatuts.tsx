@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -87,9 +87,7 @@ const GestionStatuts = () => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Gestion des Statuts</CardTitle>
-              <CardDescription>
-                Gérer les statuts des différentes entités du système
-              </CardDescription>
+              
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
@@ -103,9 +101,7 @@ const GestionStatuts = () => {
                   <DialogTitle>
                     {editingStatut ? "Modifier le statut" : "Nouveau statut"}
                   </DialogTitle>
-                  <DialogDescription>
-                    Définir un nouveau statut pour le système
-                  </DialogDescription>
+                  
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">

@@ -69,9 +69,7 @@ const VerificationCarte = () => {
           <h1 className="text-lg font-bold text-primary-foreground sm:text-2xl">
             Vérification d'une carte professionnelle
           </h1>
-          <p className="max-w-md text-xs text-primary-foreground/80 sm:text-sm">
-            Saisissez ou scannez le code figurant sur la carte pour confirmer son authenticité.
-          </p>
+          
         </div>
 
         <Card className="w-full">
@@ -171,10 +169,7 @@ const VerificationCarte = () => {
               </div>
             )}
 
-            <p className="text-[11px] leading-snug text-muted-foreground">
-              Seules les informations strictement nécessaires à la vérification sont affichées. En cas de doute,
-              contactez AgriCapital.
-            </p>
+            
           </CardContent>
         </Card>
       </div>

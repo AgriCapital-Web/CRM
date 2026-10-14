@@ -554,7 +554,7 @@ const GestionPaiements = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2"><CreditCard className="h-7 w-7 text-primary" />Gestion des Paiements</h1>
-              <p className="text-muted-foreground mt-1">Suivi des paiements, transferts et remboursements.</p>
+              
             </div>
             {canCreatePayment && <Button onClick={() => setIsCreatePaymentOpen(true)} className="gap-2"><CreditCard className="h-4 w-4"/>Enregistrer un paiement</Button>}
           </div>
@@ -726,9 +726,7 @@ const GestionPaiements = () => {
                       <ArrowRightLeft className="h-8 w-8 text-blue-600" />
                     </div>
                     <h3 className="font-semibold text-lg">Transfert</h3>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Transférer un paiement vers un autre compte
-                    </p>
+                    
                   </CardContent>
                 </Card>}
 
@@ -738,9 +736,7 @@ const GestionPaiements = () => {
                       <ArrowDownLeft className="h-8 w-8 text-red-600" />
                     </div>
                     <h3 className="font-semibold text-lg">Remboursement</h3>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Effectuer un remboursement partiel ou total
-                    </p>
+                    
                   </CardContent>
                 </Card>}
               </div>
@@ -806,9 +802,7 @@ const GestionPaiements = () => {
                   <ArrowRightLeft className="h-5 w-5 text-blue-600" />
                   Transférer un paiement
                 </DialogTitle>
-                <DialogDescription>
-                  Transférer un montant d'un compte vers un autre
-                </DialogDescription>
+                
               </DialogHeader>
               <div className="space-y-4">
                 {/* Source - Débiteur */}
@@ -887,9 +881,7 @@ const GestionPaiements = () => {
                   <ArrowDownLeft className="h-5 w-5 text-red-600" />
                   Effectuer un remboursement
                 </DialogTitle>
-                <DialogDescription>
-                  Sélectionnez le paiement source et le montant à rembourser
-                </DialogDescription>
+                
               </DialogHeader>
               <div className="space-y-4">
                 {/* Source - Client */}
@@ -976,9 +968,7 @@ const GestionPaiements = () => {
 
                 <div className="bg-yellow-50 p-3 rounded-lg flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
-                  <p className="text-sm text-yellow-800">
-                    Le remboursement sera enregistré. Le paiement effectif doit être fait manuellement.
-                  </p>
+                  
                 </div>
               </div>
               <DialogFooter>

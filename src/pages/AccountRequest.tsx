@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -239,7 +239,6 @@ const AccountRequest = () => {
             <img src={logoGreen} alt="AgriCapital Logo" className="h-16 sm:h-24 w-auto max-w-full" />
           </div>
           <CardTitle className="text-xl sm:text-2xl">Demande de Création de Compte</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Remplissez ce formulaire pour demander un accès à AgriCapital.</CardDescription>
         </CardHeader>
 
         <CardContent className="px-4 sm:px-6">

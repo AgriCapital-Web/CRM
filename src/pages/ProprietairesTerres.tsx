@@ -690,7 +690,7 @@ const ProprietairesTerres = () => {
                       </div>
 
                       <h4 className="font-semibold mt-4 flex items-center gap-2"><FileText className="h-4 w-4" /> Annexes de la Convention</h4>
-                      <p className="text-sm text-muted-foreground">Cochez “Joint” uniquement si le document est disponible : l’upload devient alors obligatoire.</p>
+                      
                       <div className="space-y-3 text-sm">
                         {ANNEXES_CONVENTION.map((annexe, index) => {
                           const isJoint = annexStatuses[annexe.field] === "joint";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { logActivity } from "@/utils/traceability";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -238,9 +238,6 @@ const ConfigurationSysteme = () => {
               <Globe className="h-5 w-5" />
               Configuration Système
             </CardTitle>
-            <CardDescription>
-              Configuration globale de la plateforme AgriCapital
-            </CardDescription>
           </div>
           {hasUnsavedChanges && (
             <Button 
@@ -262,9 +259,6 @@ const ConfigurationSysteme = () => {
             <div className="text-center py-12">
               <Settings className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">Aucune configuration disponible</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Les configurations seront automatiquement créées
-              </p>
             </div>
           ) : (
             <Tabs defaultValue={Object.keys(groupedConfigs || {})[0]} className="space-y-4">
@@ -293,9 +287,6 @@ const ConfigurationSysteme = () => {
                         {getCategoryIcon(category)}
                         {getCategoryLabel(category)}
                       </CardTitle>
-                      <CardDescription>
-                        {configs.length} paramètre(s) dans cette catégorie
-                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {configs.map((config) => (

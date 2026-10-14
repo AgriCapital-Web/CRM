@@ -126,7 +126,7 @@ export default function Commissions() {
       <MainLayout>
         <div className="min-w-0 space-y-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div><h1 className="text-2xl font-bold">Commissions</h1><p className="text-sm text-muted-foreground">Suivi des commissions commerciales et techniques.</p></div>
+            <div><h1 className="text-2xl font-bold">Commissions</h1></div>
             <Button variant="outline" size="sm" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
           </div>
 
@@ -167,7 +167,7 @@ export default function Commissions() {
           {canSeeTeamCommission && (
           <Card>
             <CardContent className="p-0">
-              <div className="p-4"><h2 className="font-semibold">Commissions par équipe</h2><p className="text-sm text-muted-foreground">Total des commissions rattachées à chaque équipe.</p></div>
+              <div className="p-4"><h2 className="font-semibold">Commissions par équipe</h2></div>
               <div className="overflow-x-auto">
                 <Table className="responsive-data-table min-w-[560px]">
                   <TableHeader><TableRow><TableHead>Équipe</TableHead><TableHead>Total commissions</TableHead><TableHead>Payées</TableHead><TableHead>À payer</TableHead></TableRow></TableHeader>

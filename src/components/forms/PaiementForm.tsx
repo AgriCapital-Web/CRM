@@ -485,9 +485,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
               readOnly
               className="bg-muted font-bold text-lg"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Le PI complet de l'offre sélectionnée est obligatoire (pas de paiement partiel).
-            </p>
+            
           </div>
         )}
 
@@ -523,9 +521,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
               })}
               placeholder="Montant réellement payé"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Saisissez uniquement le montant réellement encaissé. Aucun échéancier futur n'est créé.
-            </p>
+            
           </div>
         )}
 

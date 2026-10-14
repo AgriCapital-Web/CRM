@@ -239,7 +239,7 @@ const BeneficiaireParticulier = () => {
               <Label>Photos de remise de l’acte</Label>
               <div className="border-2 border-dashed rounded-lg p-5">
                 <MediaUploadVisual label="Photos de remise de l’acte" files={remisePhotos} onChange={setRemisePhotos}/>
-                <p className="text-xs text-muted-foreground mt-2">Plusieurs photos peuvent être ajoutées. Les photos du propriétaire et de la parcelle pourront être ajoutées plus tard.</p>
+                
               </div>
             </div>
           </CardContent>

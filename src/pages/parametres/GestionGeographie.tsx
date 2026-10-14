@@ -131,6 +131,5 @@ export default function GestionGeographie() {
         )}
       </CardContent>
     </Card>
-    <p className="text-xs text-muted-foreground">Les éléments désactivés restent visibles uniquement dans ce référentiel d'administration. Les formulaires opérationnels utilisent la cascade active et ne doivent jamais proposer un élément désactivé.</p>
   </div>;
 }

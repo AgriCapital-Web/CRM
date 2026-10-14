@@ -161,10 +161,7 @@ const Profil = () => {
         <div className="mx-auto w-full max-w-5xl space-y-5">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Mon profil</h1>
-            <p className="text-sm text-muted-foreground">
-              <Lock className="inline h-4 w-4 mr-1" />
-              {isAdmin ? "Accès total à votre profil." : "Email principal, téléphone principal, nom d'utilisateur et poste sont verrouillés : seul l'administrateur peut les modifier."}
-            </p>
+            
           </div>
 
           <Card>

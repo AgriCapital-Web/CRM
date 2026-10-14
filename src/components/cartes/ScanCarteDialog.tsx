@@ -206,9 +206,7 @@ const ScanCarteDialog = ({ open, onOpenChange, onCode }: Props) => {
             <ScanLine className="h-5 w-5" />
             Scanner une carte AgriCapital
           </DialogTitle>
-          <DialogDescription>
-            La caméra arrière se lance automatiquement. Placez simplement le QR code devant l’objectif.
-          </DialogDescription>
+          
         </DialogHeader>
 
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black">

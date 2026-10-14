@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -437,7 +437,7 @@ const Offres = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">Offres & Promotions</h2>
-          <p className="text-muted-foreground">Gérez les offres clients et les promotions</p>
+          
         </div>
       </div>
 
@@ -508,7 +508,7 @@ const Offres = () => {
             <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-3xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Détails et configuration de l'offre</DialogTitle>
-                <DialogDescription>Les modalités tarifaires communes de PalmInvest et TerraPalm s'appliquent automatiquement à leurs deux formules. Les différences de gestion restent propres à chaque formule.</DialogDescription>
+                
               </DialogHeader>
               {detailsFamily && (
                 <div className="space-y-3">
@@ -584,7 +584,7 @@ const Offres = () => {
             <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Modifier la configuration {editOffre?.famille_offre || editOffre?.nom}</DialogTitle>
-                <DialogDescription>PalmInvest et TerraPalm partagent une grille tarifaire. PalmTerroir conserve une grille distincte pour Essentielle et Flexible (+).</DialogDescription>
+                
               </DialogHeader>
               {editOffre && (
                 <div className="space-y-4">
@@ -598,7 +598,7 @@ const Offres = () => {
                         <div key={formula.code} className="rounded-xl border p-3 space-y-3">
                           <div>
                             <p className="font-semibold">{formula.nom}</p>
-                            <p className="text-xs text-muted-foreground">Grille tarifaire propre à cette formule · FCFA par hectare</p>
+                            
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div><Label>Paiement initial / ha (F)</Label><Input type="number" min="0" value={formula.montant_pi_par_ha ?? ""} onChange={e => {
@@ -614,7 +614,7 @@ const Offres = () => {
                               setEditOffre({...editOffre,formules_configuration:next} as any);
                             }} /></div>
                           </div>
-                          <p className="text-xs text-muted-foreground">Total calculé à l'enregistrement : paiement initial + mensualités × durée.</p>
+                          
                         </div>
                       ))}
                     </div>
@@ -658,9 +658,7 @@ const Offres = () => {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-lg font-semibold">Gestion des promotions</h3>
-              <p className="text-sm text-muted-foreground">
-                Les promotions s'appliquent automatiquement à toutes les offres
-              </p>
+              
             </div>
             
             <Dialog open={isPromoDialogOpen} onOpenChange={(open) => {
@@ -678,9 +676,7 @@ const Offres = () => {
                   <DialogTitle>
                     {editingPromo ? "Modifier la promotion" : "Créer une promotion"}
                   </DialogTitle>
-                  <DialogDescription>
-                    La réduction sera appliquée automatiquement sur le Paiement Initial (PI) ou le Coût Global (CG), selon le choix ci-dessous.
-                  </DialogDescription>
+                  
                 </DialogHeader>
                 
                 <form onSubmit={handleSubmitPromo} className="space-y-4">
@@ -706,11 +702,7 @@ const Offres = () => {
                         {refs("offre_tarification_mode").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {promoFormData.cible === "paiement_initial"
-                        ? "La remise porte uniquement sur le Paiement Initial."
-                        : "La remise porte sur le prix global du contrat. Le PI et les mensualités sont recalculés."}
-                    </p>
+                    
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

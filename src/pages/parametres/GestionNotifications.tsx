@@ -211,7 +211,7 @@ const GestionNotifications = () => {
 
         <TabsContent value="campaigns" className="space-y-5">
           <Card>
-            <CardHeader><CardTitle>Nouvelle campagne</CardTitle><CardDescription>Choisissez le canal, les destinataires et le moment d'envoi.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Nouvelle campagne</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value })} placeholder="Campagne rentree agricole" /></Field>
@@ -234,7 +234,7 @@ const GestionNotifications = () => {
 
         <TabsContent value="automations" className="space-y-5">
           <Card>
-            <CardHeader><CardTitle>Automatisation conditionnelle</CardTitle><CardDescription>Un evenement peut declencher automatiquement une notification ciblee.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Automatisation conditionnelle</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Code"><Input value={automation.code} onChange={(e) => setAutomation({ ...automation, code: e.target.value })} placeholder="paiement_recu_client" /></Field>
@@ -245,7 +245,7 @@ const GestionNotifications = () => {
                 <Field label="Delai anti-doublon (minutes)"><Input type="number" min={0} value={automation.cooldown_minutes} onChange={(e) => setAutomation({ ...automation, cooldown_minutes: Number(e.target.value) || 0 })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={automation.sujet} onChange={(e) => setAutomation({ ...automation, sujet: e.target.value })} /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 150 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/150 caracteres SMS, accents supprimes automatiquement.</p>}<p className="text-xs text-muted-foreground">Variables disponibles : {"{{prenom}}"}, {"{{nom}}"}, {"{{surface}}"}, {"{{village}}"}, {"{{lot_reference}}"}, {"{{date_activation}}"}. Le canal « Automatique » applique le routage AgriCapital et le fallback email.</p></Field>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 150 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/150 caracteres SMS.</p>}</Field>
               <div className="flex items-center gap-2"><Switch checked={automation.actif} onCheckedChange={(v) => setAutomation({ ...automation, actif: v })} /><Label>Activer automatiquement</Label></div>
               <Button onClick={saveAutomation}><Zap className="mr-2 h-4 w-4" />Enregistrer l'automatisation</Button>
             </CardContent>
@@ -260,7 +260,7 @@ const GestionNotifications = () => {
         <TabsContent value="senndo" className="space-y-5"><ConfigurationSenndo /></TabsContent>
 
         <TabsContent value="segments">
-          <Card><CardHeader><CardTitle>Segments disponibles</CardTitle><CardDescription>Les destinataires sont resolus au moment de l'envoi. Une campagne reste donc dynamique.</CardDescription></CardHeader><CardContent><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{segments.map((s) => <div key={s.id} className="rounded-lg border p-4"><div className="flex items-start justify-between gap-2"><div><p className="font-medium">{s.nom}</p><p className="text-xs text-muted-foreground">{s.description}</p></div><Badge variant={s.actif ? "default" : "outline"}>{s.actif ? "Actif" : "Inactif"}</Badge></div><Button className="mt-3 w-full" variant="outline" onClick={() => { setCampaign({ ...campaign, audience: String(s.criteres?.audience || "tous"), segment_id: s.id }); void previewAudience(String(s.criteres?.audience || "tous")); }}>Utiliser ce segment</Button></div>)}</div></CardContent></Card>
+          <Card><CardHeader><CardTitle>Segments disponibles</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{segments.map((s) => <div key={s.id} className="rounded-lg border p-4"><div className="flex items-start justify-between gap-2"><div><p className="font-medium">{s.nom}</p><p className="text-xs text-muted-foreground">{s.description}</p></div><Badge variant={s.actif ? "default" : "outline"}>{s.actif ? "Actif" : "Inactif"}</Badge></div><Button className="mt-3 w-full" variant="outline" onClick={() => { setCampaign({ ...campaign, audience: String(s.criteres?.audience || "tous"), segment_id: s.id }); void previewAudience(String(s.criteres?.audience || "tous")); }}>Utiliser ce segment</Button></div>)}</div></CardContent></Card>
         </TabsContent>
       </Tabs>
     </div>

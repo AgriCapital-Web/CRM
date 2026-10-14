@@ -139,7 +139,7 @@ export default function Messagerie() {
                 <h1 className="truncate text-2xl font-semibold sm:text-3xl">Messagerie</h1>
                 {unreadCount > 0 && <Badge className="shrink-0">{unreadCount} non lu(s)</Badge>}
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">Retrouvez chaque personne à gauche et échangez dans sa conversation à droite.</p>
+             
             </div>
           </header>
 
@@ -203,7 +203,7 @@ export default function Messagerie() {
                 <CardContent className="flex min-h-[360px] flex-1 flex-col items-center justify-center px-5 py-10 text-center">
                   <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground"><MessageSquare className="h-5 w-5" /></span>
                   <p className="font-medium">Aucune conversation sélectionnée</p>
-                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">Choisissez un client dans la liste pour afficher ses messages et lui répondre.</p>
+                  
                   <Button variant="outline" className="mt-4 lg:hidden" onClick={() => setMobileConversation(false)}>Voir les clients</Button>
                 </CardContent>
               )}

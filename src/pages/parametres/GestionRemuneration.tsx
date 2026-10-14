@@ -33,7 +33,7 @@ export default function GestionRemuneration(){
   };
   return <Card>
     <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><CardTitle>Rémunération commerciale</CardTitle><p className="mt-1 text-sm text-muted-foreground">Règles utilisées automatiquement pour le calcul des commissions et des versements.</p></div>
+      <div><CardTitle>Rémunération commerciale</CardTitle></div>
       <div className="flex gap-2"><Button variant="outline" size="sm" onClick={()=>void load()}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button><Button size="sm" onClick={save} disabled={saving}><Save className="mr-2 h-4 w-4"/>Enregistrer</Button></div>
     </CardHeader>
     <CardContent className="space-y-3">

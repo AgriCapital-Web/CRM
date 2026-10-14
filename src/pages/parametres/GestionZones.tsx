@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SearchableSelect from "@/components/common/SearchableSelect";
@@ -199,9 +199,7 @@ const GestionZones = () => {
             <MapPin className="h-5 w-5" />
             Assignation des Zones de Couverture
           </CardTitle>
-          <CardDescription>
-             Responsable de zone → une région • Chef d'équipe → un département • Commercial/technicien → une ou plusieurs sous-préfectures
-          </CardDescription>
+          
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import logoGreen from "@/assets/logo-green.png";
@@ -70,9 +70,7 @@ const ResetPassword = () => {
           <CardTitle className="text-2xl font-bold text-primary">
             Nouveau mot de passe
           </CardTitle>
-          <CardDescription>
-            Choisissez un nouveau mot de passe sécurisé
-          </CardDescription>
+          
         </CardHeader>
         
         <CardContent>
@@ -109,7 +107,7 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">Vous avez confirmé votre demande par email. Définissez maintenant votre nouveau mot de passe.</p>
+            
 
             <Button 
               type="submit" 

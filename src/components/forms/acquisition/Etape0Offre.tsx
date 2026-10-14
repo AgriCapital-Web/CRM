@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -143,7 +143,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base sm:text-lg">Commercial</CardTitle>
-          <CardDescription>Commercial ayant réalisé la vente. Recherchez un commercial ou sélectionnez-le dans la liste.</CardDescription>
+          
         </CardHeader>
         <CardContent>
           <CommercialCombobox
@@ -177,7 +177,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-base sm:text-lg">Choisissez votre offre</CardTitle>
-          <CardDescription>Sélectionnez une offre puis sa formule. Les détails s'affichent uniquement après sélection.</CardDescription>
+          
         </CardHeader>
         {formData.offre_id && (
           <CardContent className="pt-0 pb-3">
@@ -264,7 +264,7 @@ export const Etape0Offre = ({ formData, updateFormData }: Etape0Props) => {
       <Card>
         <CardHeader>
           <CardTitle>Superficie prévue</CardTitle>
-          <CardDescription>Indiquez la superficie pour calculer automatiquement le Paiement Initial, les mensualités et le coût total selon la formule sélectionnée.</CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

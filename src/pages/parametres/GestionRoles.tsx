@@ -368,7 +368,6 @@ const GestionRoles = () => {
                 <Users className="h-5 w-5" />
                 Attribution des Rôles aux Utilisateurs
               </CardTitle>
-              <CardDescription>Assignez les rôles officiels aux utilisateurs de la plateforme</CardDescription>
             </div>
             <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
               <DialogTrigger asChild>
@@ -380,7 +379,6 @@ const GestionRoles = () => {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Assigner un rôle</DialogTitle>
-                  <DialogDescription>Sélectionnez un utilisateur et le rôle à lui attribuer</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -514,9 +512,6 @@ const GestionRoles = () => {
                 <Shield className="h-5 w-5" />
                 Définition des Rôles et Permissions
               </CardTitle>
-              <CardDescription>
-                Créez, modifiez et paramétrez les permissions réellement appliquées dans l'application
-              </CardDescription>
             </div>
             {canManageRoles && (
               <Button onClick={openCreateRole}>
@@ -630,7 +625,7 @@ const GestionRoles = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingCode ? "Modifier le rôle" : "Nouveau rôle"}</DialogTitle>
-            <DialogDescription>Le code du rôle est utilisé par les règles d'accès de la base.</DialogDescription>
+            
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

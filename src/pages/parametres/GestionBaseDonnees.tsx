@@ -272,9 +272,6 @@ const GestionBaseDonnees = () => {
                 <Download className="h-5 w-5" />
                 Exporter les données
               </CardTitle>
-              <CardDescription>
-                Sélectionnez les tables à exporter et le format souhaité
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -357,9 +354,6 @@ const GestionBaseDonnees = () => {
                 <Database className="h-5 w-5" />
                 Schéma de la Base de Données
               </CardTitle>
-              <CardDescription>
-                Vue d'ensemble des tables et de leurs relations
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -393,9 +387,6 @@ const GestionBaseDonnees = () => {
                 <Cloud className="h-5 w-5" />
                 Sauvegarde Automatique
               </CardTitle>
-              <CardDescription>
-                Une copie locale automatique des données critiques est créée au maximum une fois toutes les 24 heures sur cet appareil. Les exports manuels restent disponibles pour une sauvegarde externe.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between p-4 border rounded-lg">

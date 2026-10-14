@@ -116,7 +116,7 @@ const AccountRequests = () => {
   if (!(hasRole('pdg') || hasRole('dg') || hasRole('responsable_operations'))) {
     return (
       <div className="p-8 text-center">
-        <p className="text-muted-foreground">Accès réservé à la Direction et à la responsabilité des opérations</p>
+        
       </div>
     );
   }
@@ -284,9 +284,7 @@ const AccountRequests = () => {
                   <p className="mt-1 text-sm">
                     Le rôle sera attribué automatiquement à partir du poste demandé : <span className="font-semibold">{selectedRequest.role_souhaite || "à déterminer"}</span>.
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Le rôle est enregistré dans user_roles au moment de l'activation du compte.
-                  </p>
+                  
                 </div>
               )}
 

@@ -100,8 +100,7 @@ const Documents = () => {
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <FileCheck className="h-7 w-7 text-primary" /> Documents
             </h1>
-            <p className="text-muted-foreground">Validation des pièces réellement téléversées dans les dossiers clients.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">En attente</p><p className="mt-1 text-2xl font-bold">{pendingCount}</p></CardContent></Card>
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Validés</p><p className="mt-1 text-2xl font-bold">{validCount}</p></CardContent></Card>
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Refusés</p><p className="mt-1 text-2xl font-bold">{rejectedCount}</p></CardContent></Card>

@@ -10,7 +10,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 import { offlineInsert } from "@/lib/offlineWrite";
 import { uploadOrQueueFile } from "@/lib/offlineFiles";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -341,16 +341,16 @@ const TechnicienTerrain=()=>{
     else{toast({title:publish?"Rapport validé et publié":"Rapport refusé"});load();}
   };
 
-  if(!allowed)return <ProtectedRoute><MainLayout><Card><CardHeader><CardTitle>Accès technicien</CardTitle><CardDescription>Cette interface est réservée aux accès techniques autorisés.</CardDescription></CardHeader></Card></MainLayout></ProtectedRoute>;
+  if(!allowed)return <ProtectedRoute><MainLayout><Card><CardHeader><CardTitle>Accès technicien</CardTitle></CardHeader></Card></MainLayout></ProtectedRoute>;
 
   return <ProtectedRoute><MainLayout><div className="min-w-0 w-full max-w-full space-y-6 overflow-hidden">
-    <div><h1 className="text-3xl font-bold">Technique — suivi des plantations</h1><p className="text-muted-foreground">Visites, interventions, rapports et médias des plantations.</p></div>
+    <div><h1 className="text-3xl font-bold">Technique — suivi des plantations</h1></div>
 
     <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0 w-full">
       <div className="w-full min-w-0 overflow-x-auto pb-1"><TabsList className="inline-flex min-w-max whitespace-nowrap"><TabsTrigger value="demandes">Demandes à traiter {tickets.length>0&&<Badge className="ml-2">{tickets.length}</Badge>}</TabsTrigger><TabsTrigger value="rapport">Rapport de visite</TabsTrigger><TabsTrigger value="intervention">Intervention</TabsTrigger><TabsTrigger value="historique">Historique</TabsTrigger></TabsList></div>
 
       <TabsContent value="demandes" className="space-y-4">
-        <Card><CardHeader><CardTitle>Demandes clients à traiter</CardTitle><CardDescription>Les demandes qui vous sont affectées apparaissent ici. Ouvrez une demande pour préparer directement votre rapport.</CardDescription></CardHeader><CardContent className="space-y-3">
+        <Card><CardHeader><CardTitle>Demandes clients à traiter</CardTitle></CardHeader><CardContent className="space-y-3">
           {tickets.length===0?<p className="text-sm text-muted-foreground">Aucune demande en attente.</p>:tickets.map(t=><div key={t.id} className="border rounded-lg p-4">
             <div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{t.titre}</p><p className="text-sm text-muted-foreground">{t.client?.nom_complet||"Client"} · {t.plantation?.nom_plantation||t.plantation?.id_unique||"Plantation"}</p></div><Badge>{t.priorite}</Badge></div>
             <p className="text-sm mt-2">{t.description}</p>
@@ -360,7 +360,7 @@ const TechnicienTerrain=()=>{
       </TabsContent>
 
       <TabsContent value="rapport" className="space-y-5">
-        <Card><CardHeader><CardTitle>Nouveau rapport terrain</CardTitle><CardDescription>Le rapport reste privé jusqu’à validation technique.</CardDescription></CardHeader><CardContent className="space-y-5">
+        <Card><CardHeader><CardTitle>Nouveau rapport terrain</CardTitle></CardHeader><CardContent className="space-y-5">
           <div className="grid md:grid-cols-2 gap-4">
             <div><Label>Demande support</Label><Select value={report.ticket_id||"none"} onValueChange={v=>setReport((x:any)=>({...x,ticket_id:v==="none"?"":v}))}><SelectTrigger><SelectValue placeholder="Aucune demande liée"/></SelectTrigger><SelectContent><SelectItem value="none">Aucune</SelectItem>{tickets.map(t=><SelectItem key={t.id} value={t.id}>{t.titre}</SelectItem>)}</SelectContent></Select></div><div><Label>Plantation *</Label><Select value={report.plantation_id} onValueChange={v=>setReport((x:any)=>({...x,plantation_id:v}))}><SelectTrigger><SelectValue placeholder="Sélectionner une plantation"/></SelectTrigger><SelectContent>{plantations.map(p=><SelectItem key={p.id} value={p.id}>{p.nom_plantation||p.nom||p.id_unique}</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Date et heure *</Label><Input type="datetime-local" value={report.date_visite} onChange={e=>setReport((x:any)=>({...x,date_visite:e.target.value}))}/></div>
@@ -384,7 +384,7 @@ const TechnicienTerrain=()=>{
       </TabsContent>
 
       <TabsContent value="intervention" className="space-y-5">
-        {allowed && <Card><CardHeader><CardTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5"/>Transférer une plantation AgriCapital</CardTitle><CardDescription>Attribuez une plantation interne à un client PalmInvest sans recréer la plantation ni perdre son historique.</CardDescription></CardHeader><CardContent className="space-y-4">
+        {allowed && <Card><CardHeader><CardTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5"/>Transférer une plantation AgriCapital</CardTitle></CardHeader><CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div><Label>Plantation interne *</Label><Select value={transferPlantationId} onValueChange={setTransferPlantationId}><SelectTrigger><SelectValue placeholder="Choisir une plantation AgriCapital"/></SelectTrigger><SelectContent>{plantations.filter(p=>clients.some(c=>c.id===p.client_id&&c.is_internal===true)).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_plantation||p.nom||p.id_unique} · {Number(p.superficie_ha||0)} ha</SelectItem>)}</SelectContent></Select></div>
             <div><Label>Client PalmInvest destinataire *</Label><Select value={transferClientId} onValueChange={setTransferClientId}><SelectTrigger><SelectValue placeholder="Choisir un client PalmInvest"/></SelectTrigger><SelectContent>{clients.filter(c=>!c.is_internal&&(String(c.famille_offre||"").toUpperCase()==="PALMINVEST"||String(c.formule_code||"").toUpperCase().includes("PALMINVEST")||String(c.formule_nom||"").toUpperCase().includes("PALMINVEST"))).map(c=><SelectItem key={c.id} value={c.id}>{c.nom_complet||c.id_unique} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
@@ -392,7 +392,7 @@ const TechnicienTerrain=()=>{
           <div className="flex justify-end"><Button onClick={transferAgriCapitalPlantation} disabled={transferSaving||!transferPlantationId||!transferClientId}>{transferSaving?"Transfert…":"Transférer la plantation"}</Button></div>
         </CardContent></Card>}
         <CompteRenduIA />
-        <Card><CardHeader><CardTitle>Intervention technique</CardTitle><CardDescription>Enregistrez l’intervention selon le dossier et l’étape technique.</CardDescription></CardHeader><CardContent className="space-y-5">
+        <Card><CardHeader><CardTitle>Intervention technique</CardTitle></CardHeader><CardContent className="space-y-5">
           <div className="grid md:grid-cols-3 gap-4">
             <div><Label>Client / dossier *</Label><Select value={intervention.client_id} onValueChange={v=>setIntervention((x:any)=>({...x,client_id:v,parcelle_id:clients.find(c=>c.id===v)?.parcelle_id||"",plantation_id:"",convention_id:"",lot_id:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""}))}><SelectTrigger><SelectValue placeholder="Sélectionner un Client"/></SelectTrigger><SelectContent>{clients.map(c=><SelectItem key={c.id} value={c.id}>{c.nom_complet} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
             {technicalPalmInvest && <div><Label>Parcours foncier</Label><div className="flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm">Foncier AgriCapital — convention / lot</div></div>}

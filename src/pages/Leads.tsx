@@ -357,7 +357,6 @@ export default function Leads() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Prospects / Leads</h1>
-            <p className="text-muted-foreground text-sm">Suivi commercial jusqu'à la conversion en client.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-2" />Créer un lead</Button>

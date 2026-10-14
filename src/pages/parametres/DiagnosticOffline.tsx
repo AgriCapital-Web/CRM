@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -203,7 +203,7 @@ const DiagnosticOffline = () => {
             <FileDown className="h-5 w-5" />
             Export CSV hors ligne
           </CardTitle>
-          <CardDescription>Téléchargez les données en cache au format CSV pour sauvegarde locale</CardDescription>
+          
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -232,7 +232,7 @@ const DiagnosticOffline = () => {
       <Card>
         <CardHeader>
           <CardTitle>Détail du cache IndexedDB</CardTitle>
-          <CardDescription>Nombre d'éléments cachés par table et dernière synchronisation</CardDescription>
+          
         </CardHeader>
         <CardContent>
           <Table>
@@ -270,7 +270,7 @@ const DiagnosticOffline = () => {
         <Card>
           <CardHeader>
             <CardTitle>Opérations en attente de synchronisation</CardTitle>
-            <CardDescription>{pendingOps.length} opération(s) en file d'attente</CardDescription>
+            
           </CardHeader>
           <CardContent>
             <Table>

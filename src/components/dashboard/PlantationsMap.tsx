@@ -124,9 +124,7 @@ export const PlantationsMap = () => {
             <p className="text-muted-foreground text-center">
               Aucune plantation ou parcelle avec coordonnées GPS
             </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">
-              Les plantations et parcelles apparaîtront ici dès que leurs coordonnées GPS sont réellement enregistrées
-            </p>
+            
           </div>
         ) : (
           <Suspense fallback={

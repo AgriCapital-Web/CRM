@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import CountryNationalitySelect from "@/components/common/CountryNationalitySelect";
@@ -149,7 +149,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       <Card>
         <CardHeader>
           <CardTitle>Commercial</CardTitle>
-          <CardDescription>Commercial ayant réalisé la vente. La recherche et la liste sont disponibles.</CardDescription>
+          
         </CardHeader>
         <CardContent>
           <CommercialCombobox
@@ -170,7 +170,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Identité</CardTitle><CardDescription>Informations personnelles du dossier.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Identité</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div><Label>Civilité</Label><Select value={form.civilite || ""} onValueChange={v=>setField("civilite",v)}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("civilite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
           <div><Label>Nom de famille</Label><Input value={form.nom_famille || form.nom || ""} onChange={e=>{setField("nom_famille",e.target.value);setField("nom_complet",[e.target.value,form.prenoms].filter(Boolean).join(" "));}}/></div>
@@ -183,7 +183,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Coordonnées et résidence</CardTitle><CardDescription>Coordonnées utilisées pour le dossier et le portail.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Coordonnées et résidence</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-4">
           <CountryPhoneInput label="Téléphone" required countryCode={form.telephone_indicatif||undefined} localValue={form.telephone_local||form.telephone||""} onChange={v=>{setField("telephone_indicatif",v.callingCode);setField("telephone_local",v.localValue);setField("telephone",v.internationalValue)}}/>
           <CountryPhoneInput label="WhatsApp" countryCode={form.whatsapp_indicatif||undefined} localValue={form.whatsapp_local||form.whatsapp||""} onChange={v=>{setField("whatsapp_indicatif",v.callingCode);setField("whatsapp_local",v.localValue);setField("whatsapp",v.internationalValue)}}/>
@@ -194,7 +194,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Pièce d’identité</CardTitle><CardDescription>Informations d’identification du Client.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Pièce d’identité</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div><Label>Type de pièce</Label><PieceTypeSelect value={form.type_piece||""} onChange={v=>setField("type_piece",v)}/></div>
           <div><Label>Numéro de pièce</Label><Input value={form.numero_piece || ""} onChange={e=>setField("numero_piece",e.target.value)}/></div>
@@ -203,7 +203,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Offre et parcours</CardTitle><CardDescription>L’offre détermine notamment le parcours foncier et technique. Les éléments contractuels déjà activés ne sont pas recalculés ici.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Offre et parcours</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
             <div><Label>Type de dossier</Label><Input value={isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"} disabled /></div>
@@ -215,7 +215,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Documents d’identité</CardTitle><CardDescription>Remplacez uniquement les fichiers nécessaires.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Documents d’identité</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-4">
           <div><Label>Photo profil</Label>{fileUpload("Choisir une photo","photo_profil",photoFile,form.photo_profil_url,photoPreview,setPhotoFile,setPhotoPreview)}</div>
           <div><Label>Pièce recto</Label>{fileUpload("Choisir recto","piece_recto",pieceRectoFile,form.fichier_piece_recto_url,pieceRectoPreview,setPieceRectoFile,setPieceRectoPreview,true)}</div>

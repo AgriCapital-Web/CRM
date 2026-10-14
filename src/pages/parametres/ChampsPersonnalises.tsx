@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,7 @@ const ChampsPersonnalises = () => {
       <Card>
         <CardHeader>
           <CardTitle>Champs Personnalisés</CardTitle>
-          <CardDescription>
-            Ajouter de nouveaux champs dans les formulaires existants
-          </CardDescription>
+          
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

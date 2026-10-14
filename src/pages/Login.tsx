@@ -60,16 +60,14 @@ const Login = () => {
           <div className="absolute top-1/2 left-1/3 w-20 h-20 rounded-full bg-white/5" />
         </div>
         
-        <div className="relative z-10 text-center max-w-md">
+        <div className="relative z-10 text-center w-full max-w-xl">
           <img
             src={logoWhite}
             alt="AgriCapital"
-            className="w-full max-w-md h-auto mx-auto mb-8 drop-shadow-2xl"
+            className="w-full max-w-xl h-auto mx-auto mb-8 drop-shadow-2xl"
           />
-          <p className="text-white text-xl font-semibold mb-2">Espace équipe</p>
-          <p className="text-white/80 text-base">
-            Connectez-vous pour accéder à votre espace de travail.
-          </p>
+          <p className="text-white text-xl xl:text-2xl font-semibold mb-2">Espace équipe</p>
+          
         </div>
 
         <p className="absolute bottom-6 text-white/50 text-xs">
@@ -89,22 +87,20 @@ const Login = () => {
             alt="AgriCapital"
             className="login-brand-mobile__logo block w-full h-auto object-contain"
           />
-          <p className="text-muted-foreground text-sm mt-3 text-center">
+          <p className="text-muted-foreground text-base sm:text-lg mt-3 text-center">
             Gestion des clients & plantations
           </p>
         </div>
 
-        <div className="w-full max-w-sm rounded-3xl border bg-card/95 p-5 shadow-lg sm:p-7 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+        <div className="w-full max-w-md rounded-3xl border bg-card/95 p-5 shadow-lg sm:p-8 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
           <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-2xl font-bold text-foreground">Connexion</h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Connectez-vous avec votre nom d'utilisateur
-            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Connexion</h2>
+            
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-foreground font-medium">
+              <Label htmlFor="username" className="text-foreground text-base font-semibold">
                 Nom d'utilisateur
               </Label>
               <Input
@@ -114,7 +110,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="h-11"
+                className="h-12 sm:h-14 text-base"
                 disabled={isLoading}
                 autoComplete="username"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); passwordInputRef.current?.focus(); } }}
@@ -123,13 +119,13 @@ const Login = () => {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-foreground font-medium">
+                <Label htmlFor="password" className="text-foreground text-base font-semibold">
                   Mot de passe
                 </Label>
                 <button
                   type="button"
                   onClick={() => navigate('/forgot-password')}
-                  className="text-xs text-primary hover:underline font-medium"
+                  className="text-sm text-primary hover:underline font-semibold"
                 >
                   Mot de passe oublié ?
                 </button>
@@ -144,14 +140,14 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-11 pr-10"
+                  className="h-12 sm:h-14 pr-12 text-base"
                   disabled={isLoading}
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-11 w-11 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-12 w-12 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -165,7 +161,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="w-full h-11 font-semibold gap-2"
+              className="w-full h-12 sm:h-14 text-base font-semibold gap-2"
               disabled={isLoading}
             >
               <LogIn className="h-4 w-4" />
@@ -178,7 +174,7 @@ const Login = () => {
               type="button"
               variant="link"
               onClick={() => navigate('/account-request')}
-              className="text-primary text-sm gap-1"
+              className="text-primary text-base gap-2"
             >
               <UserPlus className="h-3.5 w-3.5" />
               Demander la création d'un compte
@@ -186,7 +182,7 @@ const Login = () => {
           </div>
 
           <div className="mt-8 pt-6 border-t text-center">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Support: <a href="tel:+2250759566087" className="text-primary hover:underline font-medium">+225 07 59 56 60 87</a>
             </p>
           </div>

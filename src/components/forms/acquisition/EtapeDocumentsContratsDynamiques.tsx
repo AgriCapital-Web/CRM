@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUploadVisual } from "@/components/ui/file-upload-visual";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,9 +64,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
       <Card>
         <CardHeader>
           <CardTitle>Documents du Client</CardTitle>
-          <CardDescription>
-            Les pièces affichées sont déterminées par l’offre choisie et les documents contractuels applicables.
-          </CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-4">
           {visibleDocuments.length === 0 && (
@@ -108,9 +106,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
         <Card>
           <CardHeader>
             <CardTitle>Contrats et annexes</CardTitle>
-            <CardDescription>
-              Les contrats applicables sont regroupés ici avec les autres pièces du dossier. Le CRM utilise « Client » ; les termes « acquéreur » et « acquisition » restent ceux des documents officiels.
-            </CardDescription>
+            
           </CardHeader>
           <CardContent className="space-y-3">
             {contracts.map((contract) => (

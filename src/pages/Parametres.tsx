@@ -65,9 +65,6 @@ const Parametres = () => {
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Paramètres</h1>
-            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-              Configuration et gestion de la plateforme
-            </p>
           </div>
 
           <Tabs defaultValue={activeDefault} className="space-y-4">

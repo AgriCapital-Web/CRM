@@ -6,7 +6,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { logAdminAction } from "@/lib/audit";
 import { uploaderPhotoCarte, CARTE_BUCKET } from "@/lib/photoCarte";
 import { CarteRecto, CarteVerso, CONTRATS, STATUTS_AGENT, contratLabel, CarteData, highestRoleCode } from "@/components/cartes/CartePersonnel";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -215,7 +215,7 @@ const GestionCartes = () => {
   };
 
   if (!peutGerer) {
-    return <p className="p-6 text-sm text-muted-foreground">Accès réservé à l'administrateur et au responsable des opérations.</p>;
+    return ;
   }
 
   const carteSelection = selected ? carteDe(selected.id) : null;
@@ -229,7 +229,7 @@ const GestionCartes = () => {
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2"><IdCard className="h-5 w-5" />Cartes du personnel</CardTitle>
-            <CardDescription>Génération, validation et impression des cartes professionnelles — nouveau format portrait 54 × 85,6 mm, haute résolution 1080 × 1712 px.</CardDescription>
+            
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <div className="relative w-full sm:w-48">

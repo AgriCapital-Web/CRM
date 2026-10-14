@@ -146,9 +146,7 @@ const Plantations = () => {
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
                 {productionOnly ? "Plantations en production" : "Registre des Plantations"}
               </h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                {productionOnly ? "Plantations actuellement en phase de production." : "Suivi des plantations enregistrées."}
-              </p>
+              
             </div>
           </div>
 
