@@ -215,7 +215,8 @@ const GestionPaiements = () => {
       const selectClause = `
         *,
         clients!inner (nom_complet, telephone, id_unique, statut_global, type_client, is_internal, contrat_solde_at),
-        plantations (id_unique, nom_plantation)
+        plantations (id_unique, nom_plantation),
+        souscription:client_souscriptions!paiements_souscription_id_fkey (formule_nom, offre_nom, formule_code, superficie_ha)
       `;
       const safeSearch = searchTerm.trim().replace(/[,%()]/g, " ");
 
@@ -223,7 +224,7 @@ const GestionPaiements = () => {
         const { data, error } = await (supabase as any)
           .from('paiements')
           .select(selectClause)
-          .eq('statut', 'valide')
+          .in('statut', ['valide','en_attente'])
           .order('created_at', { ascending: false })
           .limit(50);
         if (error) throw error;
@@ -234,14 +235,14 @@ const GestionPaiements = () => {
         (supabase as any)
           .from('paiements')
           .select(selectClause)
-          .eq('statut', 'valide')
+          .in('statut', ['valide','en_attente'])
           .or(`reference.ilike.%${safeSearch}%,id_transaction.ilike.%${safeSearch}%`)
           .order('created_at', { ascending: false })
           .limit(50),
         supabase
           .from('paiements')
           .select(selectClause)
-          .eq('statut', 'valide')
+          .in('statut', ['valide','en_attente'])
           .or(`nom_complet.ilike.%${safeSearch}%,telephone.ilike.%${safeSearch}%,id_unique.ilike.%${safeSearch}%`, { referencedTable: 'clients' })
           .order('created_at', { ascending: false })
           .limit(50)
@@ -664,6 +665,8 @@ const GestionPaiements = () => {
                             <div>
                               <p className="font-medium">{paiement.clients?.nom_complet || '-'}</p>
                               <p className="text-xs text-muted-foreground">{paiement.clients?.telephone}</p>
+                              {(paiement as any).souscription && <p className="mt-1 text-xs font-medium text-primary">{(paiement as any).souscription.formule_nom || (paiement as any).souscription.offre_nom} · {Number((paiement as any).souscription.superficie_ha || 0).toLocaleString("fr-FR")} ha</p>}
+                              {paiement.statut === "en_attente" && <p className="mt-1 text-xs text-amber-600">En attente de paiement / validation</p>}
                             </div>
                           </TableCell>
                           <TableCell className="font-bold">
