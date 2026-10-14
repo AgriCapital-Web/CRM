@@ -567,6 +567,19 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           </Card>
         )}
 
+        {selectedSubscription && typePaiement === "PI" && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Paiement initial de la souscription</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Offre / formule</span><strong className="text-right">{selectedSubscription.formule_nom || selectedSubscription.offre_nom}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Superficie</span><strong>{Number(selectedSubscription.superficie_ha || 0).toLocaleString("fr-FR")} ha</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Coût du contrat</span><strong>{Number(selectedSubscription.montant_total_contrat || 0).toLocaleString("fr-FR")} F</strong></div>
+              <div className="flex justify-between gap-3 border-t pt-2"><span className="font-semibold">Paiement initial</span><strong className="text-primary">{Number(selectedSubscription.montant_pi_total || 0).toLocaleString("fr-FR")} F</strong></div>
+              <p className="text-xs text-muted-foreground">Ce paiement sera rattaché uniquement à cette souscription, sans modifier le premier contrat du client.</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* MONTANT (PI uniquement - lecture seule) */}
         {typePaiement === "PI" && clientId && (
           <div>
@@ -578,6 +591,21 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
               className="bg-muted font-bold text-lg"
             />
             
+          </div>
+        )}
+
+        {typePaiement === "PI" && clientId && (
+          <div>
+            <Label htmlFor="montant_paye">Montant réellement versé (F CFA) *</Label>
+            <Input
+              type="number"
+              {...register("montant_paye", {
+                required: true,
+                onChange: (e) => setValue("montant_paye", e.target.value),
+              })}
+              className="font-semibold"
+              placeholder="Montant réellement versé"
+            />
           </div>
         )}
 
