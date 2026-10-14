@@ -150,7 +150,7 @@ const Plantations = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="responsive-auto-grid gap-3">
             <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Nombre</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{nombreTotal}</div><p className="text-xs text-muted-foreground mt-1">plantation(s)</p></CardContent></Card>
             <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Superficie</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{superficieTotale.toFixed(1)} ha</div><p className="text-xs text-muted-foreground mt-1">rattachée</p></CardContent></Card>
             <Card><CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">Superficie plantée</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{superficiePlantee.toFixed(1)} ha</div><p className="text-xs text-muted-foreground mt-1">{superficieTotale > 0 ? `${((superficiePlantee / superficieTotale) * 100).toFixed(0)}%` : "0%"} du total</p></CardContent></Card>
