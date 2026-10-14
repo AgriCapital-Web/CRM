@@ -8,7 +8,7 @@ as $function$
   case when t.id is null then null else jsonb_build_object('id',t.id,'type_equipe',t.type_equipe,'zone_couverture',t.zone_couverture) end,
   coalesce((select jsonb_agg(jsonb_build_object('profile_id',em.profile_id,'equipe_id',em.equipe_id,'equipe',jsonb_build_object('id',mt.id,'type_equipe',mt.type_equipe,'zone_couverture',mt.zone_couverture))) from public.equipe_membres em join public.equipes mt on mt.id=em.equipe_id where em.profile_id=p.id),'[]'::jsonb)
  from public.profiles p left join public.equipes t on t.id=p.equipe_id
- where p.actif is true and (
+ where (
   private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'pdg') or private.has_role(auth.uid(),'dg')
   or private.has_role(auth.uid(),'comptable')
   or private.has_role_permission('portefeuilles.manage_payouts')
