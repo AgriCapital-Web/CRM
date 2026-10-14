@@ -96,11 +96,16 @@ begin
  for p in select id from public.paiements where lower(coalesce(statut,''))='valide' loop
   perform public.compute_commission_for_paiement(p.id);
  end loop;
- update public.commissions c set montant_commission=round(coalesce(c.montant_base,0)*coalesce(g.montant,0),2),taux_commission=0,taux_applique=0,date_calcul=now()
- from public.grille_remuneration g where c.type_commission='mobilisation_fonciere' and c.statut in ('calculee','validee') and g.code_regle='MOBILISATEUR_FONCIER_PAR_HA' and g.actif;
+ update public.commissions c set
+  montant_commission=round(coalesce(c.montant_base,0)*coalesce((select g.montant from public.grille_remuneration g where g.code_regle='MOBILISATEUR_FONCIER_PAR_HA' and g.actif limit 1),0),2),
+  taux_commission=0,taux_applique=0,date_calcul=now()
+ where c.type_commission='mobilisation_fonciere' and c.statut in ('calculee','validee');
  get diagnostics foncier_count=row_count;
- update public.commissions c set montant_base=g.montant,montant_commission=g.montant,taux_commission=0,taux_applique=0,date_calcul=now()
- from public.grille_remuneration g where c.type_commission='technique' and c.statut in ('calculee','validee') and g.code_regle='TECHNIQUE_MISE_EN_TERRE' and g.actif;
+ update public.commissions c set
+  montant_base=coalesce((select g.montant from public.grille_remuneration g where g.code_regle='TECHNIQUE_MISE_EN_TERRE' and g.actif limit 1),0),
+  montant_commission=coalesce((select g.montant from public.grille_remuneration g where g.code_regle='TECHNIQUE_MISE_EN_TERRE' and g.actif limit 1),0),
+  taux_commission=0,taux_applique=0,date_calcul=now()
+ where c.type_commission='technique' and c.statut in ('calculee','validee');
  get diagnostics technique_count=row_count;
  perform public.recalculer_portefeuilles_commissions();
  return jsonb_build_object('ok',true,'foncier_recalcule',foncier_count,'technique_recalcule',technique_count);
