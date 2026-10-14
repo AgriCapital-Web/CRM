@@ -45,6 +45,7 @@ const EVENTS = [
   ["document_valide", "Document valide"],
   ["compte_active", "Compte active"],
   ["visite_technique", "Visite technique"],
+  ["intervention_technique", "Intervention technique"],
   ["recolte", "Recolte"],
   ["nouveau_client", "Nouveau client"],
   ["lot_attribue", "Lot activé sur une parcelle Planté-Partagé"],
