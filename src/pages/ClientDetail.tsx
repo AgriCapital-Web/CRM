@@ -1067,13 +1067,13 @@ const ClientDetail = () => {
                       Aucune photo disponible
                     </p>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                       {photos.map((photo) => (
-                        <div key={photo.id} className="space-y-2">
+                        <div key={photo.id} className="min-w-0 space-y-1">
                           <img
                             src={photo.url}
                             alt={photo.description || "Photo plantation"}
-                            className="w-full h-40 object-cover rounded-lg"
+                            className="h-24 w-full rounded-lg object-cover sm:h-28"
                           />
                           <p className="text-xs text-muted-foreground">
                             {new Date(photo.date_prise).toLocaleDateString("fr-FR")}
