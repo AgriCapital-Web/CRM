@@ -286,7 +286,7 @@ const ClientDetail = () => {
       try {
         const [parcellesResult, lotsResult, conventionsResult] = await Promise.all([
           (supabase as any).from("parcelles")
-            .select("id,id_unique,nom,village,proprietaire_id,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
+            .select("id,id_unique,nom,village,proprietaire_id,mode_surface,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
             .order("id_unique", { ascending: true }),
           (supabase as any).from("lots_hectares")
             .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,souscription_id")
@@ -310,7 +310,8 @@ const ClientDetail = () => {
         );
         const ownParcelles = allParcelles.filter((parcel: any) =>
           (client?.proprietaire_id && parcel.proprietaire_id === client.proprietaire_id) ||
-          (!client?.proprietaire_id && client?.parcelle_id && parcel.id === client.parcelle_id)
+          (!client?.proprietaire_id && client?.parcelle_id && parcel.id === client.parcelle_id &&
+            ["foncier", "propriete_client"].includes(String(parcel.mode_surface || "").toLowerCase()))
         );
         setAvailableLots(lots);
         setAvailableParcelles(partnerParcelles);
