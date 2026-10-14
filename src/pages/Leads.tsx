@@ -418,7 +418,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           channel: contactChannel,
           content: message,
           subject: String(contactTemplates.find((item) => item.id === selectedContactTemplate)?.sujet || "Suivi de votre projet de plantation de palmier à huile"),
-          media_attachments: [...contactStoredMedia, ...mediaAttachments],
+          media_attachments: [...((contactChannel === "whatsapp" || contactChannel === "email") ? contactStoredMedia : []), ...mediaAttachments],
           template_id: selectedContactTemplate || null,
           request_id: crypto.randomUUID(),
         },
