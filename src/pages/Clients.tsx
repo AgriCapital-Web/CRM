@@ -362,7 +362,7 @@ const Clients = () => {
                 <Table className="responsive-data-table">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID Unique</TableHead>
+                      <TableHead>ID client</TableHead>
                       <TableHead>Nom Complet</TableHead>
                       <TableHead>Téléphone</TableHead>
                       <TableHead>Type / rôle</TableHead>
