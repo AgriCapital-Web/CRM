@@ -562,7 +562,7 @@ const ClientDetail = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold">
-                  {client.total_hectares?.toFixed(2) || 0} ha
+                  {Math.round(Number(client.total_hectares || 0)).toLocaleString("fr-FR")} ha
                 </p>
               </CardContent>
             </Card>
@@ -1007,7 +1007,7 @@ const ClientDetail = () => {
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <p className="font-mono text-sm">{parcelle?.nom || parcelle?.village || "Parcelle"}</p>
-                      <p><span className="font-medium">{Number(parcelle?.surface_totale_ha || 0).toFixed(2)} ha</span> · {parcelle?.village || "—"}</p>
+                      <p><span className="font-medium">{Math.round(Number(parcelle?.surface_totale_ha || 0)).toLocaleString("fr-FR")} ha</span> · {parcelle?.village || "—"}</p>
                       <p className="text-sm text-muted-foreground">Mode : {parcelle?.mode_surface === "actif_agricole" ? "Actif agricole" : "Foncier"}</p>
                       
                     </CardContent>
