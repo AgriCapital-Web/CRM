@@ -19,6 +19,8 @@ type ClientFinanceRow = {
   nom_complet?: string | null;
   telephone?: string | null;
   type_client?: string | null;
+  type_client_foncier?: string | null;
+  proprietaire_id?: string | null;
   is_internal?: boolean | null;
   contrat_solde_at?: string | null;
   compte_actif?: boolean | null;
@@ -39,7 +41,10 @@ type ContractState = {
 
 const money = (value: unknown) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0)) + " F CFA";
 
-export default function ClientPaymentWorkspace() {
+export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
+  onTransfer?: (client: ClientFinanceRow) => void;
+  onRefund?: (client: ClientFinanceRow) => void;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
@@ -60,7 +65,7 @@ export default function ClientPaymentWorkspace() {
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }] = await Promise.all([
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,telephone,type_client,is_internal,contrat_solde_at,compte_actif,statut,formule_nom,montant_total_contrat")
+          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,compte_actif,statut,formule_nom,montant_total_contrat")
           .eq("compte_actif", true)
           .order("nom_complet", { ascending: true }),
         (supabase as any).from("v_client_synthese")
@@ -74,7 +79,9 @@ export default function ClientPaymentWorkspace() {
         .filter((c: ClientFinanceRow) => {
           const total = Number(c.summary?.montant_total_contrat ?? c.montant_total_contrat ?? 0);
           const remaining = Number(c.summary?.reste_a_payer ?? Math.max(0, total - Number(c.summary?.total_paye || 0)));
-          return c.type_client !== "beneficiaire_particulier" && !c.is_internal && !c.contrat_solde_at && total > 0 && remaining > 0;
+          const landRole = String(c.type_client_foncier || "").toLowerCase();
+          const isPartner = Boolean(c.proprietaire_id) || ["proprietaire_foncier", "propriétaire_foncier", "partenaire_foncier"].includes(landRole);
+          return c.type_client !== "beneficiaire_particulier" && !isPartner && !c.is_internal && !c.contrat_solde_at && total > 0 && remaining > 0;
         });
     },
     staleTime: 15_000,
@@ -92,7 +99,7 @@ export default function ClientPaymentWorkspace() {
   const activeState = activeContract?.state || baseState || {};
   const pi = activeState?.paiement_initial || {};
   const monthly = activeState?.mensualite || {};
-  const arrearsAmount = Number(monthly.montant_arriere ?? monthly.montant_a_payer ?? 0);
+  const arrearsAmount = Number(monthly.montant_arriere ?? (Number(monthly.mensualites_arrivees || 0) > 0 ? monthly.montant_a_payer : 0) ?? 0);
   const monthlyAmount = Number(monthly.montant || 0);
   const daysLate = Number(monthly.jours_retard ?? (Number(monthly.mensualites_arrivees || 0) * 30));
   const remaining = Number(activeState?.reste_contrat ?? activeClient?.summary?.reste_a_payer ?? activeClient?.summary?.montant_total_contrat ?? activeClient?.montant_total_contrat ?? 0);
@@ -310,7 +317,11 @@ export default function ClientPaymentWorkspace() {
                     <TableCell>{money(paid)}</TableCell>
                     <TableCell className="font-semibold text-amber-700">{money(remainingClient)}</TableCell>
                     <TableCell><Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">Paiement en cours</Badge></TableCell>
-                    <TableCell><div className="flex justify-end"><Button size="sm" className="gap-2" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /><span>Nouveau paiement</span></Button></div></TableCell>
+                    <TableCell><div className="flex items-center justify-end gap-1">
+                      {onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${client.nom_complet || "ce client"}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
+                      {onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${client.nom_complet || "ce client"}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
+                      <Button type="button" size="sm" className="gap-2" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /><span>Nouveau paiement</span></Button>
+                    </div></TableCell>
                   </TableRow>;
                 })}
               </TableBody>
