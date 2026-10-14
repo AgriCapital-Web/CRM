@@ -11,7 +11,7 @@ import {
   getAllQueuedFiles, retryQueuedFile, retryAllQueuedFiles, discardQueuedFile,
   getFileQueueStats, startFileQueueResume, flushFileQueue,
 } from "@/lib/offlineFiles";
-import { RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { RefreshCw, RotateCcw, Trash2, Wifi, WifiOff, Database, HardDrive, ShieldCheck, AlertTriangle } from "lucide-react";
 
 export function SyncQueueContent() {
   const { isOnline, isSyncing, syncNow, pendingCount, pendingFiles, lastSync } = useOfflineSync();
@@ -20,6 +20,69 @@ export function SyncQueueContent() {
   const [fileStats, setFileStats] = useState({ pending: 0, error: 0, waiting: 0, total: 0 });
   const [httpStats, setHttpStats] = useState({ pending: 0, error: 0, total: 0 });
   const [httpMutations, setHttpMutations] = useState<any[]>([]);
+  const [offlineChecks, setOfflineChecks] = useState({
+    serviceWorkerSupported: typeof navigator !== "undefined" && "serviceWorker" in navigator,
+    serviceWorkerReady: false,
+    shellCached: false,
+    indexedDbReady: false,
+    storageEstimate: null as number | null,
+    checking: true,
+    error: "",
+  });
+
+  const checkOfflineReadiness = useCallback(async () => {
+    setOfflineChecks((current) => ({ ...current, checking: true, error: "" }));
+    try {
+      const serviceWorkerSupported = "serviceWorker" in navigator;
+      let serviceWorkerReady = false;
+      if (serviceWorkerSupported) {
+        const registration = await navigator.serviceWorker.getRegistration("/");
+        serviceWorkerReady = Boolean(registration?.active || navigator.serviceWorker.controller);
+      }
+      let shellCached = false;
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        for (const key of keys.filter((item) => item.startsWith("agricapital-crm-"))) {
+          const cache = await caches.open(key);
+          if (await cache.match("/index.html") || await cache.match("/")) {
+            shellCached = true;
+            break;
+          }
+        }
+      }
+      let indexedDbReady = false;
+      try {
+        const request = indexedDB.open("agricapital_offline");
+        indexedDbReady = await new Promise<boolean>((resolve) => {
+          request.onsuccess = () => { request.result.close(); resolve(true); };
+          request.onerror = () => resolve(false);
+          request.onblocked = () => resolve(false);
+        });
+      } catch { indexedDbReady = false; }
+      let storageEstimate: number | null = null;
+      if (navigator.storage?.estimate) {
+        const estimate = await navigator.storage.estimate();
+        storageEstimate = estimate.usage ?? null;
+      }
+      setOfflineChecks({ serviceWorkerSupported, serviceWorkerReady, shellCached, indexedDbReady, storageEstimate, checking: false, error: "" });
+    } catch (error) {
+      setOfflineChecks((current) => ({ ...current, checking: false, error: error instanceof Error ? error.message : "Vérification impossible" }));
+    }
+  }, []);
+
+  const prepareOfflineMode = useCallback(async () => {
+    if (!navigator.onLine) {
+      await checkOfflineReadiness();
+      return;
+    }
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration("/");
+      if (registration) await registration.update();
+      await checkOfflineReadiness();
+    } catch {
+      await checkOfflineReadiness();
+    }
+  }, [checkOfflineReadiness]);
 
   const load = useCallback(async () => {
     const queue = await getAllItems(STORES.SYNC_QUEUE);
@@ -33,6 +96,7 @@ export function SyncQueueContent() {
 
   useEffect(() => {
     void load();
+    void checkOfflineReadiness();
     const stopResume = startFileQueueResume();
     const onDone = () => void load();
     window.addEventListener("offline-sync-complete", onDone);
@@ -42,7 +106,17 @@ export function SyncQueueContent() {
       window.removeEventListener("offline-sync-complete", onDone);
       clearInterval(t);
     };
-  }, [load]);
+  }, [load, checkOfflineReadiness]);
+
+  useEffect(() => {
+    const refresh = () => { void checkOfflineReadiness(); };
+    window.addEventListener("online", refresh);
+    window.addEventListener("offline", refresh);
+    return () => {
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("offline", refresh);
+    };
+  }, [checkOfflineReadiness]);
 
   const stateOf = (status: string): SyncState =>
     status === "error" ? "error" : status === "syncing" || status === "uploading" ? "syncing" : "queued";
@@ -80,6 +154,45 @@ export function SyncQueueContent() {
           </Button>
         </div>
       </div>
+
+      <Card className="min-w-0 overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            {isOnline ? <Wifi className="h-5 w-5 text-emerald-600" /> : <WifiOff className="h-5 w-5 text-amber-600" />}
+            Diagnostic du mode hors ligne
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Vérifie que le navigateur a préparé les éléments nécessaires pour rouvrir le CRM sans réseau. Faites ce contrôle avant de couper Internet.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: "Service worker", ok: offlineChecks.serviceWorkerSupported && offlineChecks.serviceWorkerReady, detail: offlineChecks.serviceWorkerReady ? "Actif" : offlineChecks.serviceWorkerSupported ? "Pas encore actif" : "Non supporté", icon: ShieldCheck },
+              { label: "Application en cache", ok: offlineChecks.shellCached, detail: offlineChecks.shellCached ? "Écran de démarrage en cache" : "Ouvrir en ligne puis réessayer", icon: HardDrive },
+              { label: "Stockage local", ok: offlineChecks.indexedDbReady, detail: offlineChecks.indexedDbReady ? "IndexedDB accessible" : "Stockage non prêt", icon: Database },
+              { label: "Connexion", ok: isOnline, detail: isOnline ? "En ligne" : "Hors ligne", icon: isOnline ? Wifi : WifiOff },
+            ].map((check) => {
+              const Icon = check.icon;
+              return <div key={check.label} className="flex min-w-0 items-start gap-2 rounded-lg border p-3">
+                {check.ok ? <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />}
+                <div className="min-w-0"><p className="text-sm font-medium">{check.label}</p><p className="break-words text-xs text-muted-foreground">{check.detail}</p></div>
+              </div>;
+            })}
+          </div>
+          {offlineChecks.storageEstimate !== null && <p className="text-xs text-muted-foreground">Stockage utilisé par le site : {(offlineChecks.storageEstimate / (1024 * 1024)).toFixed(1)} Mo. Le navigateur peut appliquer ses propres limites de stockage.</p>}
+          {offlineChecks.error && <p className="text-sm text-destructive">{offlineChecks.error}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => void checkOfflineReadiness()} disabled={offlineChecks.checking}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${offlineChecks.checking ? "animate-spin" : ""}`} />Vérifier le mode hors ligne
+            </Button>
+            <Button size="sm" onClick={() => void prepareOfflineMode()} disabled={!isOnline || offlineChecks.checking}>
+              <HardDrive className="mr-2 h-4 w-4" />Préparer / actualiser le cache
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Limite importante : la première ouverture, la connexion initiale et les données jamais chargées nécessitent Internet. Les données mises en cache et les opérations prises en charge peuvent rester disponibles hors ligne, puis se synchroniser au retour du réseau.</p>
+        </CardContent>
+      </Card>
 
       <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {[
