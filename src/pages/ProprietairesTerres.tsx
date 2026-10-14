@@ -759,7 +759,7 @@ const ProprietairesTerres = () => {
           </div>
 
           <div className="border rounded-lg overflow-x-auto">
-            <Table className="responsive-data-table">
+            <Table className="responsive-data-table owners-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Type</TableHead>
@@ -783,7 +783,7 @@ const ProprietairesTerres = () => {
                         {p.type_proprietaire === 'personne_morale' ? 'Morale' : p.type_proprietaire === 'famille_groupement' ? 'Famille' : 'Physique'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium"><Link to={`/proprietaires-terres/${p.id}`} className="hover:underline">{p.nom_complet}</Link></TableCell>
+                    <TableCell className="font-medium whitespace-nowrap"><Link to={`/proprietaires-terres/${p.id}`} className="whitespace-nowrap hover:underline">{p.nom_complet}</Link></TableCell>
                     <TableCell>{p.telephone}</TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>

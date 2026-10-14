@@ -1126,3 +1126,88 @@ All colors MUST be HSL.
     table tbody td { padding: .11rem .24rem !important; font-size: .69rem !important; }
   }
 }
+
+/* Règle globale non négociable : tous les textes restent horizontaux, dans toutes les pages et Paramètres. */
+@layer base {
+  :where(*):not(svg):not(svg *) {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+}
+
+/* Correctifs transversaux CRM — cartes denses, textes horizontaux et contenus jamais tronqués. */
+@layer base {
+  html, body, #root, main, section, article, div, span, p, label, button, a, th, td {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+
+  /* Les noms restent lisibles horizontalement : la table peut défiler dans son conteneur,
+     mais aucun nom ne doit être découpé caractère par caractère. */
+  table { width: 100%; table-layout: auto; }
+  table th, table td,
+  table th *, table td * {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
+  table th, table td { vertical-align: middle; }
+  table td :is(span, p, a, div) { max-width: none; }
+  table td .truncate { max-width: 18rem; }
+
+  /* Les tableaux gardent leurs colonnes et défilent horizontalement dans leur propre zone,
+     au lieu d'écraser les noms en colonnes de lettres. */
+  .overflow-x-auto { max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .overflow-x-auto > table { min-width: max-content; }
+}
+
+@media (max-width: 767px) {
+  /* 3 cartes par rangée pour les groupes de raccourcis/indicateurs,
+     avec largeur minimale réduite mais contenu toujours visible. */
+  .grid:has(> .rounded-lg.border.bg-card),
+  .grid:has(> .rounded-xl.border.bg-card),
+  .grid:has(> [class*="hover-scale"]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    column-gap: .4rem !important;
+    row-gap: .45rem !important;
+  }
+
+  .grid:has(> .rounded-lg.border.bg-card) > *,
+  .grid:has(> .rounded-xl.border.bg-card) > *,
+  .grid:has(> [class*="hover-scale"]) > * {
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+
+  /* Réduire les marges inutiles sans supprimer les informations. */
+  [data-radix-card-header], [data-slot="card-header"] {
+    padding: .45rem .5rem .2rem !important;
+  }
+  [data-radix-card-content], [data-slot="card-content"] {
+    padding: .35rem .5rem .5rem !important;
+  }
+  .page-header { gap: .45rem !important; }
+}
+
+@media (max-width: 380px) {
+  .grid:has(> .rounded-lg.border.bg-card),
+  .grid:has(> .rounded-xl.border.bg-card),
+  .grid:has(> [class*="hover-scale"]) {
+    column-gap: .3rem !important;
+  }
+  .grid:has(> .rounded-lg.border.bg-card) [data-slot="card-title"],
+  .grid:has(> .rounded-xl.border.bg-card) [data-slot="card-title"] {
+    font-size: .68rem !important;
+    line-height: 1.1 !important;
+  }
+}
+
+/* Carte professionnelle : proportions portrait 54 × 85,6 mm (ratio 0,631),
+   aucun zoom CSS qui rogne les textes, et aperçu complet sans espace vide forcé. */
+.id-card-preview {
+  transform: none !important;
+  transform-origin: top center;
+}
+

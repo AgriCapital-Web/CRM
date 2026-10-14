@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +21,7 @@ import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Target, TrendingUp, Users, MapPin, PhoneCall, ArrowRight, Copy, Plus, Phone, Mail, MessageCircle, Contact, Eye, Pencil } from "lucide-react";
+import { Target, TrendingUp, Users, MapPin, PhoneCall, ArrowRight, Copy, Plus, Phone, Mail, MessageCircle, Contact, Eye, Pencil, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import GeographieCascade from "@/components/common/GeographieCascade";
@@ -549,7 +550,43 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right">
-                        <div className="ml-auto flex max-w-[148px] flex-wrap justify-end gap-1">
+                        {view === "prospects" && (
+                          <div className="flex justify-end sm:hidden">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="outline" className="h-8 w-8" aria-label={`Actions pour ${l.prenoms || ""} ${l.nom || ""}`.trim()} title="Actions">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onSelect={() => setSelected(l)}><Eye className="mr-2 h-4 w-4" />Détail</DropdownMenuItem>
+                                {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
+                                  <DropdownMenuItem onSelect={() => {
+                                    setEditingLead(l);
+                                    setFormStage(l.etape_pipeline === "prospect" ? "prospect" : "lead");
+                                    setLeadForm({
+                                      ...emptyLead,
+                                      ...Object.fromEntries(Object.entries(l).map(([k, v]) => [k, v == null ? "" : String(v)])),
+                                      dispose_terrain: l.dispose_terrain ? "oui" : "non",
+                                      assigned_to: l.assigned_to || "",
+                                      telephone_indicatif: "", telephone_local: l.telephone || "",
+                                      whatsapp_indicatif: "", whatsapp_local: l.whatsapp || "",
+                                    });
+                                    setCreateOpen(true);
+                                  }}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onSelect={() => startContact(l)}><Contact className="mr-2 h-4 w-4" />Contacter</DropdownMenuItem>
+                                {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
+                                  <DropdownMenuItem onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
+                                )}
+                                {view === "prospects" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
+                                  <DropdownMenuItem onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />Convertir en client</DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )}
+                        <div className={view === "prospects" ? "ml-auto hidden max-w-[148px] flex-wrap justify-end gap-1 sm:flex" : "ml-auto flex max-w-[148px] flex-wrap justify-end gap-1"}>
                         <Button size="icon" className="h-8 w-8 shrink-0" variant="outline" title="Détails" aria-label="Détails" onClick={() => setSelected(l)}><Eye className="h-4 w-4" /></Button>
                         {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
                           <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => {
