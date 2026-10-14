@@ -3093,6 +3093,7 @@ export type Database = {
         Row: {
           agent_technique_id: string | null
           client_id: string | null
+          contenu_client: string | null
           convention_id: string | null
           cout: number | null
           created_at: string
@@ -3116,6 +3117,7 @@ export type Database = {
         Insert: {
           agent_technique_id?: string | null
           client_id?: string | null
+          contenu_client?: string | null
           convention_id?: string | null
           cout?: number | null
           created_at?: string
@@ -3139,6 +3141,7 @@ export type Database = {
         Update: {
           agent_technique_id?: string | null
           client_id?: string | null
+          contenu_client?: string | null
           convention_id?: string | null
           cout?: number | null
           created_at?: string
@@ -7911,6 +7914,7 @@ export type Database = {
         Args: { _new_profile_id: string; _ticket_id: string }
         Returns: undefined
       }
+      recalculer_commissions_depuis_grille: { Args: never; Returns: Json }
       recalculer_parametres_financiers_client: {
         Args: { _client_id: string }
         Returns: undefined
