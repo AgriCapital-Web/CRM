@@ -762,7 +762,6 @@ const ProprietairesTerres = () => {
             <Table className="responsive-data-table">
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Nom Complet</TableHead>
                   <TableHead>Téléphone</TableHead>
@@ -779,7 +778,6 @@ const ProprietairesTerres = () => {
                   <TableRow><TableCell colSpan={8} className="text-center py-8">Aucun propriétaire</TableCell></TableRow>
                 ) : filtered.map(p => (
                   <TableRow key={p.id} className="cursor-pointer hover:bg-muted/40">
-                    <TableCell className="font-mono text-xs"><Link to={`/proprietaires-terres/${p.id}`} className="text-primary hover:underline">{p.id_unique}</Link></TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">
                         {p.type_proprietaire === 'personne_morale' ? 'Morale' : p.type_proprietaire === 'famille_groupement' ? 'Famille' : 'Physique'}
