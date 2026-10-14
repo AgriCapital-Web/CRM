@@ -572,30 +572,30 @@ const Dashboard = () => {
       ...(canClients ? [{label:"Clients / dossiers",value:stats.clients,href:"/acquisitions"}] : []),
       ...(canLeads ? [
         {label:"Leads",value:stats.leads,href:"/leads"},
-        {label:"Nouveaux leads",value:stats.leadsNew,href:"/leads"},
+        {label:"Nouveaux",value:stats.leadsNew,href:"/leads"},
         {label:"Leads convertis",value:stats.leadsConverted,href:"/leads"},
-        {label:"Taux de conversion des leads",value:stats.conversionRate+"%",href:"/leads"},
+        {label:"Conv. leads",value:stats.conversionRate+"%",href:"/leads"},
         {label:"Prospects",value:stats.prospects,href:"/prospects"},
-        {label:"Prospects convertis",value:stats.prospectsConverted,href:"/prospects"},
-        {label:"Taux de conversion des prospects",value:stats.prospectsConversionRate+"%",href:"/prospects"},
-        {label:"Leads/prospects à relancer",value:stats.leadsFollowup,href:"/leads"}
+        {label:"Prospects conv.",value:stats.prospectsConverted,href:"/prospects"},
+        {label:"Conv. prospects",value:stats.prospectsConversionRate+"%",href:"/prospects"},
+        {label:"À relancer",value:stats.leadsFollowup,href:"/leads"}
       ] : []),
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
-      ...(canOwners ? [{label:"Propriétaires partenaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface totale déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
-      ...(canParcelles || canPlantations ? [{label:"Parcelles partenaires",value:stats.proprietaireParcelles,href:"/parcelles"},{label:"Surface totale en partenariat",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},{label:"Surface partenaire plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},{label:"Surface partenaire restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},{label:"Part propriétaire partenaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/proprietaires-terres"},{label:"Part propriétaire plantée",value:num(stats.partnerOwnerPlantedHa)+" ha",href:"/plantations"},{label:"Part propriétaire restante",value:num(stats.partnerOwnerRemainingHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},{label:"Part AgriCapital attribuée aux clients",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital disponible",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},{label:"Parcelles clients",value:stats.clientParcelCount,href:"/parcelles"},{label:"Surface parcelles clients",value:num(stats.clientParcelAreaHa)+" ha",href:"/parcelles"}] : []),
+      ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
+      ...(canParcelles || canPlantations ? [{label:"Parcelles",value:stats.proprietaireParcelles,href:"/parcelles"},{label:"Surface partenaire",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},{label:"Plantée partenaire",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},{label:"Restante partenaire",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},{label:"Part propriétaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/proprietaires-terres"},{label:"Plantée propriétaire",value:num(stats.partnerOwnerPlantedHa)+" ha",href:"/plantations"},{label:"Restante propriétaire",value:num(stats.partnerOwnerRemainingHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},{label:"Part AgriCapital cédée",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital disponible",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},{label:"Parcelles clients",value:stats.clientParcelCount,href:"/parcelles"},{label:"Surface parcelles clients",value:num(stats.clientParcelAreaHa)+" ha",href:"/parcelles"}] : []),
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations",value:stats.plantations,href:"/plantations"},
-      {label:"Surface engagée clients",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
-      {label:"Surface plantée clients",value:num(stats.plantedHa)+" ha",href:"/plantations"},
-      {label:"Surface restante clients",value:num(stats.remainingHa)+" ha",href:"/plantations"},
+      {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
+      {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
+      {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
       {label:"Taux de plantation",value:progress+"%",href:"/plantations"},
       {label:"Plantations internes",value:stats.internalPlantations,href:"/plantations"},
-      {label:"Surface interne totale",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
-      {label:"Surface interne plantée",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
-      {label:"Surface interne restante",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
-      {label:"Plantations en production",value:stats.production,href:"/plantations?statut=en_production"},
+      {label:"Surface interne",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
+      {label:"Plantée interne",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
+      {label:"Restante interne",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
+      {label:"En production",value:stats.production,href:"/plantations?statut=en_production"},
       {label:"Surface en production",value:num(stats.productionHa)+" ha",href:"/plantations?statut=en_production"},
     ]},
   ];
@@ -766,7 +766,7 @@ const Dashboard = () => {
                     <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-base"><Users className="h-5 w-5 text-primary" />Clients récents</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un client" /></div></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <Table><TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Nom</TableHead><TableHead>Plantations</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
+                        <Table><TableHeader><TableRow><TableHead>ID client</TableHead><TableHead>Nom</TableHead><TableHead>Plantations</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {filteredRecentClients.length ? filteredRecentClients.map((c) => (
                             <TableRow key={c.id_unique}>
