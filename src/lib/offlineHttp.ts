@@ -6,6 +6,7 @@ import {
   getAllHttpCacheEntries,
   getPendingHttpMutations,
   markHttpMutationError,
+  markHttpMutationSyncing,
   type HttpMutation,
   getItem,
   putItem,
@@ -314,6 +315,28 @@ async function prepareOfflineMutationBody(url: string, method: string, body: str
   return body;
 }
 
+export async function refreshPendingMutationAuthorization(accessToken: string): Promise<void> {
+  if (!accessToken) return;
+  const queue = await getPendingHttpMutations();
+  for (const item of queue) {
+    const headers = { ...item.headers, authorization: `Bearer ${accessToken}` };
+    await putItem("http_mutations", { ...item, headers });
+  }
+}
+
+async function requestBackgroundSync(): Promise<void> {
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const registration = await navigator.serviceWorker.ready;
+    const syncManager = (registration as any).sync;
+    if (syncManager && typeof syncManager.register === "function") {
+      await syncManager.register("agricapital-http-mutations");
+    }
+  } catch {
+    // Background Sync is not supported by every browser; foreground sync remains enabled.
+  }
+}
+
 export async function flushOfflineHttpQueue(): Promise<number> {
   if (flushing || !navigator.onLine) return 0;
   flushing = true;
@@ -326,8 +349,40 @@ export async function flushOfflineHttpQueue(): Promise<number> {
       if (!navigator.onLine || !item.id) break;
 
       try {
+        await markHttpMutationSyncing(item.id);
         const headers = new Headers(item.headers);
         headers.set("x-agri-offline-replay", "1");
+        // Replayed inserts carry a stable client UUID; upsert makes retries idempotent.
+        if (item.method.toUpperCase() === "POST" && item.body) {
+          try {
+            const payload = JSON.parse(item.body);
+            const rows = Array.isArray(payload) ? payload : [payload];
+            if (rows.length && rows.every((row) => row && typeof row === "object" && row.id)) {
+              headers.set("prefer", [headers.get("prefer"), "resolution=merge-duplicates"].filter(Boolean).join(","));
+              const replayUrl = new URL(item.url);
+              if (!replayUrl.searchParams.has("on_conflict")) replayUrl.searchParams.set("on_conflict", "id");
+              const response = await baseFetch(replayUrl.toString(), {
+                method: item.method,
+                headers,
+                body: item.body,
+              });
+              if (response.ok) {
+                await deleteHttpMutation(item.id);
+                flushed++;
+                continue;
+              }
+              const message = await response.clone().text().catch(() => response.statusText);
+              await markHttpMutationError(item.id, message || ("HTTP " + response.status));
+              continue;
+            }
+          } catch (error) {
+            if (error instanceof SyntaxError) {
+              // Non-JSON payload: replay below without changing its semantics.
+            } else {
+              throw error;
+            }
+          }
+        }
 
         const response = await baseFetch(item.url, {
           method: item.method,
@@ -494,6 +549,7 @@ export function installOfflineFetch(): typeof fetch {
         });
 
         window.dispatchEvent(new CustomEvent("offline-mutation-queued"));
+        void requestBackgroundSync();
         const syntheticRequest = new Request(request.url, {
           method,
           headers: request.headers,
@@ -506,13 +562,13 @@ export function installOfflineFetch(): typeof fetch {
     return baseFetch(request);
   };
 
-  window.addEventListener("online", () => {
-    void flushOfflineHttpQueue();
+  const resumeQueue = () => { void flushOfflineHttpQueue(); };
+  window.addEventListener("online", resumeQueue);
+  window.addEventListener("focus", resumeQueue);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") resumeQueue();
   });
-
-  window.setInterval(() => {
-    void flushOfflineHttpQueue();
-  }, 60_000);
+  window.setInterval(resumeQueue, 30_000);
 
   return wrapped as typeof fetch;
 }
