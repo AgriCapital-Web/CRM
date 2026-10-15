@@ -94,18 +94,34 @@ Deno.serve(async (req) => {
   // Il organise les notes fournies, mais ne prétend pas comprendre comme un grand modèle.
   const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const clean = (value: string) => value.replace(/\s+/g, " ").trim().replace(/[.;, ]+$/, "");
-  const chunks = description.split(/(?<=[.!?])\s+|\n+/).map(clean).filter(Boolean);
   const source = description.trim();
+  const normalizeKey = (value: string) => normalize(value).replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const unique = (values: string[]) => {
+    const seen = new Set<string>();
+    return values.map(clean).filter((line) => {
+      const key = normalizeKey(line);
+      if (!key || seen.has(key)) return false;
+      // L'en-tête, la date et l'identité sont ajoutés par le formulaire.
+      if (/^(rapport de visite|rapport de visite technique|rapport d intervention|observations|travaux realises)$/i.test(key)) return false;
+      if (/^rapport de (visite|visite technique|intervention) du /.test(key)) return false;
+      if (/^par /.test(key) || /\[nom complet du technicien\]/i.test(line)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const rawChunks = description.split(/(?<=[.!?])\s+|\n+/).map(clean).filter(Boolean);
+  const chunks = unique(rawChunks);
   const normalized = normalize(source);
-  const pick = (patterns: RegExp[]) => chunks.filter((line) => patterns.some((pattern) => pattern.test(normalize(line))));
+  const pick = (patterns: RegExp[]) => unique(chunks.filter((line) => patterns.some((pattern) => pattern.test(normalize(line)))));
   const actionLines = pick([/\b(j ai|j'ai|nous avons|effectue|realise|nettoye|plante|remplace|taille|desherbe|desherbage|mesure|controle|verifie|installe|repare|applique|pose|termine|acheve)\b/]);
   const problemLines = pick([/\b(probleme|malade|jaune|seche|mort|manquant|mauvais|envahi|mauvais etat|ravageur|attaque|adventice|mauvaises herbes|retard|casse|absence|defaut|difficulte)\b/]);
-  const recommendationLines = pick([/\b(recomm|prevoir|doit|devrait|il faut|a faire|programmer|planifier|dans [0-9]+ jours|semaine prochaine|suivi|surveiller|nettoyer|entretenir|proteger)\b/]).filter((line) => !actionLines.includes(line));
+  const recommendationLines = pick([/\b(recomm|prevoir|doit|devrait|il faut|a faire|programmer|planifier|dans [0-9]+ jours|semaine prochaine|suivi|surveiller|nettoyer|entretenir|proteger)\b/]).filter((line) => !actionLines.some((action) => normalizeKey(action) === normalizeKey(line)));
   const knownCounts = source.match(/\b\d+\s*(?:plants?|palmiers?|pieds?)\b/ig) || [];
   const countMatch = knownCounts.join(" ").match(/\d+/);
   const title = /intervention/i.test(contexte) ? "Rapport d'intervention" : "Rapport de visite technique";
-  const observations = chunks.filter((line) => !actionLines.includes(line) && !recommendationLines.includes(line));
+  const observations = unique(chunks.filter((line) => !actionLines.some((action) => normalizeKey(action) === normalizeKey(line)) && !recommendationLines.some((recommendation) => normalizeKey(recommendation) === normalizeKey(line))));
   const resume = clean(observations[0] || chunks[0] || source);
+  const complementaryObservations = observations.filter((line) => normalizeKey(line) !== normalizeKey(resume));
   const missing: string[] = [];
   if (!observations.length) missing.push("Préciser les observations réellement constatées sur le terrain.");
   if (!actionLines.length) missing.push("Préciser les travaux effectivement réalisés, ou indiquer qu'aucun travail n'a été réalisé.");
@@ -115,7 +131,7 @@ Deno.serve(async (req) => {
     type_intervention: contexte.slice(0, 300),
     resume,
     actions_realisees: actionLines,
-    observations: observations.join(" "),
+    observations: complementaryObservations.join(" "),
     problemes_constates: problemLines,
     recommandations: recommendationLines,
     nombre_plants_realises: countMatch ? Number(countMatch[0]) : null,
