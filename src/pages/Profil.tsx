@@ -11,40 +11,26 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Shield, KeyRound, Save, Upload, UserRound, Camera, Check } from "lucide-react";
-import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { formatUserProfileName } from "@/lib/utils";
 import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 
-const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: (f: File) => Promise<void> | void; current?: string | null; bucket: string }) => {
-  const currentUrl = useSignedUrl(bucket, current);
+const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File) => Promise<void> | void; current?: string | null; bucket: string }) => {
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string>("");
-  const [previewIsImage, setPreviewIsImage] = useState(false);
   const isPhoto = label.toLocaleLowerCase("fr-FR").includes("photo");
   const handleFile = (file?: File) => {
     if (!file) return;
-    setPreviewIsImage(file.type.startsWith("image/"));
-    const reader = new FileReader();
-    reader.onload = () => setPreview(String(reader.result || ""));
-    reader.onerror = () => setPreview("");
-    reader.readAsDataURL(file);
-    void Promise.resolve(onPick(file)).catch(() => setPreview(''));
+    void Promise.resolve(onPick(file)).catch(() => undefined);
   };
-  const shown = preview || currentUrl || "";
-  const isImage = preview ? previewIsImage : isPhoto || [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".heic"].some((ext) => (current || "").toLowerCase().includes(ext));
   return (
-    <div className="min-w-0 space-y-2">
-      <input ref={cameraRef} type="file" accept="image/*" capture={isPhoto ? "user" : "environment"} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      <input ref={fileRef} type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      <div className="flex min-w-0 items-center gap-1.5">
-        {isPhoto && <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={"Prendre " + label} aria-label={"Prendre " + label} onClick={() => cameraRef.current?.click()}><Camera className="h-4 w-4" /></Button>}
-        <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={current ? "Remplacer le fichier" : "Ajouter un fichier"} aria-label={current ? "Remplacer le fichier" : "Ajouter un fichier"} onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4" /></Button>
-        {current && <span className="text-xs text-muted-foreground" title="Fichier enregistré"><Check className="h-3.5 w-3.5 text-green-600" /></span>}
-      </div>
-
+    <div className="flex min-w-0 items-center gap-1.5">
+      <input ref={cameraRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
+      <input ref={fileRef} type="file" accept={isPhoto ? "image/*" : "image/*,application/pdf"} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
+      {isPhoto && <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={"Prendre " + label} aria-label={"Prendre " + label} onClick={() => cameraRef.current?.click()}><Camera className="h-4 w-4" /></Button>}
+      <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={current ? "Remplacer le fichier" : "Ajouter un fichier"} aria-label={current ? "Remplacer le fichier" : "Ajouter un fichier"} onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4" /></Button>
+      {current && <span className="text-xs text-muted-foreground" title="Fichier enregistré"><Check className="h-3.5 w-3.5 text-green-600" /></span>}
     </div>
   );
 };
@@ -157,8 +143,8 @@ const Profil = () => {
     }
   };
 
-  const photoUrl = useSignedUrl("photos-profils", profile.photo_url);
-  const urgPhotoUrl = useSignedUrl("photos-profils", profile.contact_urgence_photo_url);
+  const photoUrl = profile.photo_url ? undefined : undefined;
+  const urgPhotoUrl = undefined;
   const initials = formatUserProfileName(profile.nom_complet || "AgriCapital").split(/[\s,]+/).filter(Boolean).map((x: string) => x[0]).join("").slice(0, 2);
   const lockHint = isAdmin ? undefined : "Modifiable uniquement par l'administrateur";
 
