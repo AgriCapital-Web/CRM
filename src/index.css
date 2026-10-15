@@ -1419,3 +1419,40 @@ table td :is(span, p, a, div) { min-width: 0; }
     min-width: 0;
   }
 }
+
+
+/* RÈGLE GLOBALE TABLEAUX CRM : aucune cellule ni aucun en-tête ne passe sur deux lignes.
+   Les tableaux gardent la largeur nécessaire et défilent horizontalement dans leur conteneur. */
+@layer base {
+  table th,
+  table td,
+  table th *,
+  table td * {
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
+
+  table {
+    min-width: max-content !important;
+    width: max-content !important;
+    max-width: none !important;
+    table-layout: auto !important;
+  }
+
+  .overflow-x-auto > table,
+  .overflow-auto > table,
+  .overflow-y-auto > table {
+    min-width: max-content !important;
+    width: max-content !important;
+    max-width: none !important;
+  }
+
+  .overflow-x-auto,
+  .overflow-auto,
+  .overflow-y-auto {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+}
