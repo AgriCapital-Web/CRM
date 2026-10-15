@@ -112,7 +112,7 @@ const GestionRoles = () => {
   const getUserRoles = (profileId: string) => {
     const profile = profiles.find((p) => p.id === profileId);
     const uid = profile?.user_id;
-    return userRoles.filter((ur) => ur.user_id === uid);
+    return userRoles.filter((ur) => ur.user_id === uid).sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)));
   };
 
   /** Utilisateurs dont le rôle n'appartient pas au catalogue officiel en base */
@@ -225,6 +225,14 @@ const GestionRoles = () => {
     try {
       const { error } = await (supabase as any).from("user_roles").delete().eq("id", userRoleToRemove.id);
       if (error) throw error;
+      if (userRoleToRemove.is_primary) {
+        const { data: remainingRoles, error: remainingError } = await (supabase as any).from("user_roles").select("id").eq("user_id", userRoleToRemove.user_id).order("created_at", { ascending: true }).limit(1);
+        if (remainingError) throw remainingError;
+        if (remainingRoles?.[0]?.id) {
+          const { error: primaryError } = await (supabase as any).from("user_roles").update({ is_primary: true }).eq("id", remainingRoles[0].id);
+          if (primaryError) throw primaryError;
+        }
+      }
       await logAdminAction({
         action: "RETRAIT_ROLE",
         entite: "user_roles",
@@ -535,7 +543,7 @@ const GestionRoles = () => {
                                   onClick={() => setUserRoleToRemove(ur)}
                                   title="Cliquer pour retirer"
                                 >
-                                  {roles.find((r) => r.code === ur.role)?.nom || ur.role} ×
+                                  {roles.find((r) => r.code === ur.role)?.nom || ur.role}{ur.is_primary ? " · Principal" : ""} ×
                                 </Badge>
                               ))
                             )}
