@@ -10,9 +10,8 @@ type CR = { titre: string; type_intervention: string; resume: string; actions_re
 type Props = { contexte?: string; compact?: boolean; onApply?: (compteRendu: CR, description: string) => void; };
 const List = ({ title, items }: { title: string; items: string[] }) => items?.length ? <div><p className="text-sm font-semibold">{title}</p><ul className="ml-5 list-disc text-sm">{items.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null;
 export default function CompteRenduIA({ contexte, compact = false, onApply }: Props) {
-  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const segmentBaseRef = useRef(""); const restartTimerRef = useRef<number | null>(null);
+  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const segmentBaseRef = useRef("");
   const releaseMicrophone = () => {
-    if (restartTimerRef.current !== null) { window.clearTimeout(restartTimerRef.current); restartTimerRef.current = null; }
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
     if (recognition) {
@@ -49,8 +48,6 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       recognition.maxAlternatives = 1;
       let segmentFinalResults: string[] = [];
       let lastInterim = "";
-      let restartAttempts = 0;
-      let restartPending = false;
       const renderTranscript = () => {
         const finalText = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
         finalTranscriptRef.current = finalText;
@@ -72,43 +69,27 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
         renderTranscript();
       };
       recognition.onerror = (event: any) => {
-        // Mobile speech engines frequently end a segment after silence or transient network errors.
-        // Keep the session armed and do not change the button to "start" until the user stops it.
+        // Do not cycle the microphone automatically. Keep the transcript and report real errors.
         if (event?.error === "not-allowed" || event?.error === "service-not-allowed" || event?.error === "audio-capture") {
           listeningRef.current = false;
           setListening(false);
-          releaseMicrophone();
-          toast({ variant: "destructive", title: "Accès au microphone refusé", description: "Vérifiez l’autorisation du microphone dans le navigateur puis relancez la dictée." });
+          toast({ variant: "destructive", title: "Accès au microphone interrompu", description: "Le texte déjà transcrit est conservé. Vérifiez l’autorisation du microphone." });
         }
       };
       recognition.onend = () => {
-        if (!listeningRef.current || recognitionRef.current !== recognition) {
-          if (recognitionRef.current === recognition) releaseMicrophone();
-          return;
-        }
-        if (restartPending) return;
+        if (recognitionRef.current !== recognition) return;
         segmentBaseRef.current = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
         segmentFinalResults = [];
-        // Preserve the latest interim hypothesis while the engine rolls to a new segment.
+        lastInterim = "";
         renderTranscript();
-        restartPending = true;
-        const scheduleRestart = (delay: number) => {
-          if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
-          restartTimerRef.current = window.setTimeout(() => {
-            restartTimerRef.current = null;
-            if (!listeningRef.current || recognitionRef.current !== recognition) { restartPending = false; return; }
-            try {
-              recognition.start();
-              restartPending = false;
-              restartAttempts = 0;
-            } catch {
-              restartAttempts += 1;
-              if (restartAttempts <= 20 && listeningRef.current) scheduleRestart(Math.min(1800, 250 + restartAttempts * 100));
-              else restartPending = false;
-            }
-          }, delay);
-        };
-        scheduleRestart(500);
+        recognitionRef.current = null;
+        listeningRef.current = false;
+        setListening(false);
+        // Web Speech may end a session on its own on mobile. Never restart it silently:
+        // that causes repeated mic activation/deactivation sounds. Preserve all recognized text.
+        if (voiceBaseRef.current || finalTranscriptRef.current) {
+          toast({ variant: "destructive", title: "Session vocale terminée", description: "Le navigateur a terminé la dictée. Le texte reconnu reste dans le champ." });
+        }
       };
       recognitionRef.current = recognition;
       listeningRef.current = true;
