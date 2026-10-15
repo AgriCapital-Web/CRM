@@ -59,7 +59,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
   };
 
   return <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
-    {label && <label className={`block truncate font-medium ${compact ? "text-xs" : "text-sm"}`}>{label}{required && " *"}</label>}
+    {label && <label className={`block font-medium leading-tight ${compact ? "whitespace-normal break-words text-xs" : "text-sm"}`}>{label}{required && " *"}</label>}
     <div className={`flex w-full min-w-0 items-stretch ${compact ? "gap-1" : "gap-2"}`}>
       <SearchableSelect
         value={selected.code}
@@ -69,7 +69,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         searchPlaceholder="Rechercher un pays..."
         emptyText="Aucun pays trouvé."
         disabled={disabled}
-        className={compact ? "h-8 w-[68px] shrink-0 px-1" : "w-[112px] shrink-0 sm:w-[145px]"}
+        className={compact ? "h-8 w-[76px] shrink-0 px-1 [&_svg]:hidden" : "w-[112px] shrink-0 sm:w-[145px]"}
         triggerLabel={selected.callingCode}
         triggerFlagUrl={flagUrl(selected.code)}
       />
