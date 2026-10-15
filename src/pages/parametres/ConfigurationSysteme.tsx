@@ -32,8 +32,6 @@ const CATEGORY_META: Record<string, { label: string; help: string; icon: React.E
   agronomie: { label: "Agronomie", help: "Paramètres métier utilisés pour le suivi technique des plantations. Ne modifiez les valeurs agronomiques qu’après validation par le responsable technique.", icon: Sprout, order: 2 },
   alertes: { label: "Alertes", help: "Seuils et conditions pouvant déclencher des avertissements dans le CRM. Une valeur inadaptée peut créer trop d’alertes ou en masquer.", icon: AlertTriangle, order: 3 },
   alerte: { label: "Alertes", help: "Seuils et conditions pouvant déclencher des avertissements dans le CRM. Une valeur inadaptée peut créer trop d’alertes ou en masquer.", icon: AlertTriangle, order: 3 },
-  commissions: { label: "Commissions", help: "Règles de calcul et paramètres de rémunération liés aux commissions. Contrôlez les taux et leur unité avant d’enregistrer.", icon: Percent, order: 4 },
-  commission: { label: "Commissions", help: "Règles de calcul et paramètres de rémunération liés aux commissions. Contrôlez les taux et leur unité avant d’enregistrer.", icon: Percent, order: 4 },
   contact: { label: "Contacts", help: "Coordonnées et informations de contact utilisées par l’application. Vérifiez les adresses et numéros avant de les changer.", icon: Mail, order: 5 },
   contacts: { label: "Contacts", help: "Coordonnées et informations de contact utilisées par l’application. Vérifiez les adresses et numéros avant de les changer.", icon: Mail, order: 5 },
   general: { label: "Général", help: "Informations générales et valeurs communes de l’organisation. Ces réglages peuvent apparaître dans plusieurs écrans.", icon: Building2, order: 6 },
@@ -125,6 +123,7 @@ const ConfigurationSysteme = () => {
     const grouped = new Map<string, Configuration[]>();
     for (const config of configurations ?? []) {
       const key = config.categorie || "autres";
+      if (["commission", "commissions"].includes(normalizeCategory(key))) continue;
       grouped.set(key, [...(grouped.get(key) ?? []), config]);
     }
     return [...grouped.entries()].sort((a, b) => {
@@ -226,7 +225,7 @@ const ConfigurationSysteme = () => {
           <p><strong>2. Lisez la description et la clé.</strong> La description explique l’usage connu ; la clé technique identifie le réglage. Si son effet reste incertain, ne changez pas sa valeur.</p>
           <p><strong>3. Modifiez la valeur.</strong> Un interrupteur sert aux options activées/désactivées ; les autres champs servent aux nombres, adresses ou textes.</p>
           <p><strong>4. Enregistrez.</strong> Utilisez « Enregistrer ce réglage » pour une seule valeur, ou « Enregistrer les modifications » pour toutes les valeurs modifiées. Attendez la confirmation avant de quitter.</p>
-          <p><strong>Où régler quoi ?</strong> Les pourcentages généraux sont ici dans « Commissions », mais les règles de rémunération par formule, équipe et type de commission se règlent dans Paramètres → Rémunération. Les canaux et modèles de notification se règlent dans Paramètres → Notifications et dans la configuration Senndo. Les coordonnées de l’entreprise se règlent dans « Contacts » et « Général ».</p>
+          <p><strong>Où régler quoi ?</strong> Les taux, barèmes et règles de commission se gèrent exclusivement dans Paramètres → Rémunération. Les canaux et modèles de notification se règlent dans Paramètres → Notifications et dans la configuration Senndo. Les coordonnées de l’entreprise se règlent dans « Contacts » et « Général ».</p>
           <p><strong>Attention :</strong> après avoir activé/désactivé une option ou modifié un champ, cliquez sur « Enregistrer les modifications ». Cliquer sur un interrupteur seul ne sauvegarde pas la valeur.</p>
           <p><strong>Droits et sécurité :</strong> l’enregistrement est réservé aux administrateurs globaux (PDG/DG habilités). La base refuse les écritures non autorisées, les valeurs incompatibles avec leur type et les réglages marqués non modifiables.</p>
           <p><strong>Propagation :</strong> la valeur enregistrée devient la référence centrale en base. Elle ne change un comportement métier que dans les modules et fonctions qui lisent explicitement cette clé ; les secrets Senndo restent dans Vault et se règlent dans la page Senndo.</p>
