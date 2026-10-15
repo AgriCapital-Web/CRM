@@ -1288,3 +1288,23 @@ table td :is(span, p, a, div) { min-width: 0; }
   min-width: 0 !important;
   max-width: 100% !important;
 }
+
+/* Sur mobile, les libellés de tableaux peuvent revenir à la ligne pour éviter le scroll inutile. */
+@media (max-width: 767px) {
+  .overflow-x-auto > table { table-layout: fixed !important; }
+  .overflow-x-auto > table th,
+  .overflow-x-auto > table td {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    min-width: 0 !important;
+  }
+  .overflow-x-auto > table .whitespace-nowrap,
+  .overflow-x-auto > table .tabular-nums,
+  .overflow-x-auto > table [data-slot="badge"] {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+  }
+  .overflow-x-auto > table td button,
+  .overflow-x-auto > table td a[role="button"] { white-space: nowrap !important; }
+}
