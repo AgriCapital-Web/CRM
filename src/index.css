@@ -1265,6 +1265,27 @@ table td :is(span, p, a, div) { min-width: 0; }
   }
 }
 
+/* RÈGLE GLOBALE : les montants et devises ne doivent jamais être coupés sur plusieurs lignes.
+   Ajouter money-value aux affichages monétaires dans tous les modules. */
+.money-value,
+.currency-value,
+.amount-value,
+[data-money="true"],
+.tabular-nums {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+.money-value,
+.currency-value,
+.amount-value,
+[data-money="true"] {
+  display: inline-block;
+  max-width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Compacité transversale : réduire les espaces verticaux sans imposer une grille unique. */
 @layer components {
   [data-slot="card-header"] { padding-block: .7rem; }
