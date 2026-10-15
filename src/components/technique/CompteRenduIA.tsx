@@ -43,37 +43,61 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
+      let segmentFinalResults: string[] = [];
+      let lastInterim = "";
+      let restartAttempts = 0;
+      const renderTranscript = () => {
+        const finalText = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
+        finalTranscriptRef.current = finalText;
+        setDescription([voiceBaseRef.current, finalText, lastInterim].filter(Boolean).join(" ").trim());
+      };
       recognition.onresult = (event: any) => {
-        let finalForSegment = "";
-        let interim = "";
-        for (let i = 0; i < event.results.length; i++) {
+        // Keep every final result from this recognition segment; interim results are replaceable.
+        for (let i = event.resultIndex ?? 0; i < event.results.length; i++) {
           const result = event.results[i];
           const part = String(result?.[0]?.transcript || "").trim();
           if (!part) continue;
-          if (result.isFinal) finalForSegment = [finalForSegment, part].filter(Boolean).join(" ");
-          else interim = [interim, part].filter(Boolean).join(" ");
+          if (result.isFinal) {
+            if (part && segmentFinalResults[segmentFinalResults.length - 1] !== part) segmentFinalResults.push(part);
+          } else {
+            lastInterim = part;
+          }
         }
-        // Each browser recognition session reports its own result list. Replace that
-        // session's text instead of appending it repeatedly on every onresult event.
-        finalTranscriptRef.current = [segmentBaseRef.current, finalForSegment].filter(Boolean).join(" ").trim();
-        setDescription([voiceBaseRef.current, finalTranscriptRef.current, interim].filter(Boolean).join(" ").trim());
+        restartAttempts = 0;
+        renderTranscript();
       };
       recognition.onerror = (event: any) => {
-        // Mobile engines routinely emit no-speech/network at segment boundaries.
-        // Do not turn the recording off; keep the microphone stream open until the user stops.
+        // Silence and brief mobile network errors are normal while the dictation remains active.
         if (event?.error === "no-speech" || event?.error === "network" || event?.error === "aborted") return;
         if (listeningRef.current) {
-          toast({ title: "Dictée toujours active", description: "Le microphone reste ouvert. Si la transcription tarde, continuez à parler." });
+          toast({ title: "Dictée active", description: "La transcription reprend automatiquement. Appuyez sur « Arrêter la dictée » pour terminer." });
         }
       };
       recognition.onend = () => {
         if (!listeningRef.current) { setListening(false); return; }
+        // Save this segment before restarting the browser's recognition service.
+        segmentBaseRef.current = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
+        segmentFinalResults = [];
+        lastInterim = "";
+        renderTranscript();
         if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
-        segmentBaseRef.current = finalTranscriptRef.current;
         restartTimerRef.current = window.setTimeout(() => {
-          if (!listeningRef.current || !recognitionRef.current) return;
-          try { recognitionRef.current.start(); } catch { /* engine is already restarting */ }
-        }, 250);
+          if (!listeningRef.current || recognitionRef.current !== recognition) return;
+          try {
+            recognition.start();
+            restartAttempts = 0;
+          } catch {
+            // Some Android WebView builds report "already started" during lifecycle changes.
+            // Retry without changing the user's explicit listening state.
+            restartAttempts += 1;
+            if (restartAttempts <= 8 && listeningRef.current) {
+              restartTimerRef.current = window.setTimeout(() => {
+                if (!listeningRef.current || recognitionRef.current !== recognition) return;
+                try { recognition.start(); } catch { /* next onend will retry */ }
+              }, Math.min(1200, 200 + restartAttempts * 150));
+            }
+          }
+        }, 350);
       };
       recognitionRef.current = recognition;
       listeningRef.current = true;
