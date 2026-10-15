@@ -259,7 +259,7 @@ export default function Finance(){
       </TabsList>
       <TabsContent value="entrees" className="mt-3 min-w-0 space-y-3">
         <div className="rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-3"><h2 className="font-semibold">Entrées financières</h2><p className="text-xs text-muted-foreground">Financements, prêts, dons, apports, ventes et autres recettes.</p></div>
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           {[
             {label:"Entrées validées",value:transactions.filter(t=>t.status==="valide"&&t.direction==="entree").reduce((a,t)=>a+Number(t.amount||0),0)},
             {label:"Financements",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="financement").reduce((a,t)=>a+Number(t.amount||0),0)},
