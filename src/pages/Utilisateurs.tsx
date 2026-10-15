@@ -40,6 +40,7 @@ const Utilisateurs = () => {
   const [adminAction, setAdminAction] = useState<null | "roles" | "password" | "username">(null);
   const [adminTarget, setAdminTarget] = useState<any>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [primaryRole, setPrimaryRole] = useState<string>("");
   const [newPassword, setNewPassword] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [busy, setBusy] = useState(false);
@@ -134,7 +135,9 @@ const Utilisateurs = () => {
   const openAdminAction = (user: any, action: "roles" | "password" | "username") => {
     setAdminTarget(user);
     setAdminAction(action);
-    setSelectedRoles(getRoles(user));
+    const assignedRoles = getRoles(user);
+    setSelectedRoles(assignedRoles);
+    setPrimaryRole(user.user_roles?.find((r: any) => r.is_primary)?.role || assignedRoles[0] || "");
     setNewPassword("");
     setNewUsername(user.username || "");
   };
@@ -180,7 +183,7 @@ const Utilisateurs = () => {
       }
 
       const body: any = { user_id: adminTarget.user_id };
-      if (adminAction === "roles") { body.action = "set_roles"; body.roles = selectedRoles; }
+      if (adminAction === "roles") { body.action = "set_roles"; body.roles = selectedRoles; body.primary_role = primaryRole; }
       if (adminAction === "password") { body.action = "set_password"; body.password = newPassword; }
       if (adminAction === "username") { body.action = "set_username"; body.username = newUsername; }
 
@@ -451,15 +454,19 @@ const Utilisateurs = () => {
           {adminAction === "roles" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {appRoles.map((r) => (
-                <label key={r.code} className="flex items-center gap-2 text-sm rounded border p-2 cursor-pointer">
-                  <Checkbox
-                    checked={selectedRoles.includes(r.code)}
-                    onCheckedChange={(c) =>
-                      setSelectedRoles((prev) => (c ? [...prev, r.code] : prev.filter((x) => x !== r.code)))
-                    }
-                  />
-                  {r.nom}
-                </label>
+                <div key={r.code} className="rounded border p-2">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox checked={selectedRoles.includes(r.code)} onCheckedChange={(c) => {
+                      if (c) { setSelectedRoles((prev) => prev.includes(r.code) ? prev : [...prev, r.code]); if (!primaryRole) setPrimaryRole(r.code); }
+                      else { setSelectedRoles((prev) => prev.filter((x) => x !== r.code)); if (primaryRole === r.code) setPrimaryRole(selectedRoles.find((x) => x !== r.code) || ""); }
+                    }} />
+                    <span>{r.nom}</span>
+                  </label>
+                  {selectedRoles.includes(r.code) && <label className="mt-2 flex items-center gap-2 border-t pt-2 pl-1 text-xs text-muted-foreground cursor-pointer">
+                    <Checkbox checked={primaryRole === r.code} onCheckedChange={(c) => c && setPrimaryRole(r.code)} />
+                    <span>Rôle principal</span>
+                  </label>}
+                </div>
               ))}
             </div>
           )}
