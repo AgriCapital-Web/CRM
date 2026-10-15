@@ -466,8 +466,9 @@ const Utilisateurs = () => {
 
           {adminAction === "password" && (
             <div className="space-y-2">
-              <Label>Mot de passe (8 caractères minimum)</Label>
-              <Input type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              <Label>Nouveau mot de passe (choix libre)</Label>
+              <Input type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Saisir le mot de passe choisi par le PDG" />
+              <p className="text-xs text-muted-foreground">Aucune règle de composition imposée par AgriCapital. L’utilisateur devra le modifier à sa prochaine connexion.</p>
             </div>
           )}
 
