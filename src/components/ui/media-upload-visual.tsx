@@ -264,6 +264,9 @@ export default function MediaUploadVisual({
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [processing, setProcessing] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const videoPreviewRef = useRef<HTMLVideoElement>(null);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [mediaError, setMediaError] = useState("");
   const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
@@ -287,32 +290,59 @@ export default function MediaUploadVisual({
     if (recorder && recorder.state !== "inactive") recorder.stop();
   };
 
-  const startVideoRecording = async () => {
+  const openVideoCamera = async (facing: "environment" | "user" = facingMode) => {
     setMediaError("");
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      setMediaError("Traitement indisponible sur cet appareil.");
+      setMediaError("La caméra vidéo n’est pas prise en charge sur cet appareil.");
       return;
     }
     try {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24, max: 30 } },
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24, max: 30 } },
         audio: false,
       });
       streamRef.current = stream;
+      setFacingMode(facing);
+      setCameraOpen(true);
+      window.setTimeout(() => {
+        if (videoPreviewRef.current) {
+          videoPreviewRef.current.srcObject = stream;
+          void videoPreviewRef.current.play().catch(() => undefined);
+        }
+      }, 0);
+    } catch (error: any) {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      setCameraOpen(false);
+      setMediaError(error?.name === "NotAllowedError" ? "Autorisez l’accès à la caméra dans les réglages du navigateur." : "Impossible d’ouvrir la caméra vidéo. Vérifiez les autorisations de l’appareil.");
+    }
+  };
+
+  const startVideoRecording = async () => {
+    setMediaError("");
+    const stream = streamRef.current;
+    if (!stream || !cameraOpen) {
+      await openVideoCamera("environment");
+      return;
+    }
+    try {
       const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) => MediaRecorder.isTypeSupported(type));
-      if (!mimeType) throw new Error("Traitement indisponible sur cet appareil.");
+      if (!mimeType) throw new Error("Format vidéo non pris en charge sur cet appareil.");
       const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 900_000 });
       const chunks: BlobPart[] = [];
       recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-      recorder.onerror = () => setMediaError("Traitement en cours impossible. Réessayez.");
+      recorder.onerror = () => setMediaError("Enregistrement vidéo impossible. Réessayez.");
       recorder.onstop = () => {
         if (timerRef.current !== null) window.clearInterval(timerRef.current);
         timerRef.current = null;
         const blob = new Blob(chunks, { type: mimeType });
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
+        if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
         recorderRef.current = null;
         setRecording(false);
+        setCameraOpen(false);
         setRecordSeconds(0);
         if (blob.size) {
           const stamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -329,12 +359,25 @@ export default function MediaUploadVisual({
           return Math.min(MAX_RECORD_VIDEO_SECONDS, seconds + 1);
         });
       }, 1000);
-    } catch {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      setRecording(false);
-      setMediaError("Traitement indisponible sur cet appareil.");
+    } catch (error: any) {
+      setMediaError(error?.message || "Enregistrement vidéo impossible.");
     }
+  };
+
+  const closeVideoCamera = () => {
+    if (recording) return;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoPreviewRef.current) videoPreviewRef.current.srcObject = null;
+    setCameraOpen(false);
+  };
+
+  const switchCamera = async () => {
+    if (recording) {
+      setMediaError("Arrêtez l’enregistrement avant de changer de caméra.");
+      return;
+    }
+    await openVideoCamera(facingMode === "environment" ? "user" : "environment");
   };
 
   useEffect(() => () => {
@@ -450,8 +493,9 @@ export default function MediaUploadVisual({
       <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing || selectionCount >= MAX_CANDIDATES} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(true); }}>
         <Plus className="mr-2 h-4 w-4" />Ajouter des médias {files.length ? `(${files.length})` : ""}
       </Button>
-      <Dialog open={mediaDialogOpen} onOpenChange={setMediaDialogOpen}>
-        <DialogContent className="max-w-sm">
+      <Dialog open={mediaDialogOpen} onOpenChange={(open) => { setMediaDialogOpen(open); document.body.classList.toggle("media-dialog-open", open); if (!open && !recording) closeVideoCamera(); }}>
+        <DialogContent className="z-[101] max-w-sm">
+          <style>{`[data-radix-dialog-overlay] { z-index: 100 !important; } body.media-dialog-open [data-floating-ai-assistant] { display: none !important; }`}</style>
           <DialogHeader>
             <DialogTitle>Ajouter des photos ou vidéos</DialogTitle>
             <DialogDescription>Vous pouvez sélectionner jusqu’à 50 fichiers. Ils sont analysés et optimisés automatiquement avant tout envoi.</DialogDescription>
@@ -463,11 +507,23 @@ export default function MediaUploadVisual({
             <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(false); fileRef.current?.click(); }}>
               <Upload className="mr-2 h-4 w-4" />Importer depuis l’appareil
             </Button>
-            <Button type="button" variant={recording ? "destructive" : "outline"} className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (recording) stopVideoRecording(); else void startVideoRecording(); }}>
-              {recording ? <Square className="mr-2 h-4 w-4" /> : <Video className="mr-2 h-4 w-4" />}
-              {recording ? "Arrêter la vidéo (" + String(Math.floor(recordSeconds / 60)).padStart(2, "0") + ":" + String(recordSeconds % 60).padStart(2, "0") + ")" : "Enregistrer une vidéo"}
-            </Button>
-            {recording && <p className="text-sm font-medium text-destructive">Enregistrement en cours · arrêt automatique à 10 minutes.</p>}
+            {!cameraOpen && <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); void openVideoCamera("environment"); }}>
+              <Video className="mr-2 h-4 w-4" />Ouvrir la caméra vidéo
+            </Button>}
+            {cameraOpen && <div className="space-y-2 rounded-lg border p-2">
+              <video ref={videoPreviewRef} autoPlay muted playsInline className="aspect-video w-full rounded-md bg-black object-contain" />
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" disabled={recording || processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); void switchCamera(); }}>
+                  <Camera className="mr-2 h-4 w-4" />{facingMode === "environment" ? "Caméra avant" : "Caméra arrière"}
+                </Button>
+                <Button type="button" variant={recording ? "destructive" : "default"} disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (recording) stopVideoRecording(); else void startVideoRecording(); }}>
+                  {recording ? <Square className="mr-2 h-4 w-4" /> : <Video className="mr-2 h-4 w-4" />}
+                  {recording ? "Arrêter (" + String(Math.floor(recordSeconds / 60)).padStart(2, "0") + ":" + String(recordSeconds % 60).padStart(2, "0") + ")" : "Démarrer l’enregistrement"}
+                </Button>
+              </div>
+              {!recording && <Button type="button" variant="ghost" className="w-full" onClick={(event) => { event.preventDefault(); event.stopPropagation(); closeVideoCamera(); }}>Fermer la caméra</Button>}
+              {recording && <p className="text-sm font-medium text-destructive">Enregistrement en cours · arrêt automatique à 10 minutes.</p>}
+            </div>}
             {processing && <p className="text-sm text-muted-foreground">Analyse et optimisation en cours…</p>}
             {mediaError && <p role="status" className="text-sm text-muted-foreground">{mediaError}</p>}
           </div>
