@@ -43,7 +43,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "flex h-10 w-full rounded-md border border-gray-400 bg-background px-3 py-2 text-base ring-offset-background focus-visible:border-green-700 focus-visible:ring-green-700 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "flex h-8 min-h-0 w-full rounded-md border border-gray-400 bg-background px-2 py-1 text-sm ring-offset-background focus-visible:border-green-700 focus-visible:ring-green-700 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
           shouldUppercase && "uppercase",
           className,
         )}
