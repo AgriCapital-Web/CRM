@@ -1354,3 +1354,90 @@ table td :is(span, p, a, div) { min-width: 0; }
     overflow-wrap: normal !important;
   }
 }
+
+
+/* Formulaire Modifier l'utilisateur : présentation compacte, responsive et sans libellés redondants. */
+.user-edit-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.user-edit-compact > [data-slot="card"] {
+  min-width: 0;
+  border-radius: 0.65rem;
+}
+.user-edit-compact > [data-slot="card"] > [data-slot="card-header"] {
+  padding: 0.55rem 0.75rem 0.25rem;
+}
+.user-edit-compact > [data-slot="card"] > [data-slot="card-header"] [data-slot="card-title"] {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+.user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
+  padding: 0.5rem 0.75rem 0.75rem;
+  gap: 0.55rem;
+}
+.user-edit-compact .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.3rem;
+}
+.user-edit-compact label {
+  font-size: 0.75rem;
+  line-height: 1.15;
+}
+.user-edit-compact input:not([type="checkbox"]):not([type="file"]),
+.user-edit-compact [data-slot="select-trigger"] {
+  min-height: 2rem;
+  height: 2rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  font-size: 0.8125rem;
+}
+.user-edit-compact [data-slot="checkbox"] {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+.user-edit-compact [data-slot="badge"] {
+  font-size: 0.6rem;
+  padding: 0.05rem 0.3rem;
+}
+.user-edit-compact .grid.gap-4 {
+  gap: 0.55rem;
+}
+.user-edit-compact .grid.gap-3 {
+  gap: 0.4rem;
+}
+.user-edit-compact .border.rounded-lg.p-4 {
+  padding: 0.5rem;
+}
+.user-edit-compact button[type="submit"],
+.user-edit-compact button[type="button"] {
+  min-height: 2rem;
+}
+.user-edit-compact .text-xs.text-muted-foreground {
+  line-height: 1.15;
+}
+@media (min-width: 640px) {
+  .user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
+    padding-top: 0.45rem;
+  }
+  .user-edit-compact .grid.grid-cols-1.sm\\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .user-edit-compact {
+    gap: 0.4rem;
+  }
+  .user-edit-compact > [data-slot="card"] > [data-slot="card-header"] {
+    padding: 0.45rem 0.6rem 0.2rem;
+  }
+  .user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
+    padding: 0.4rem 0.6rem 0.6rem;
+  }
+  .user-edit-compact .grid.grid-cols-1.sm\\:grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .user-edit-compact .grid.grid-cols-1.sm\\:grid-cols-2 > * {
+    min-width: 0;
+  }
+}
