@@ -86,11 +86,11 @@ const Tickets = () => {
   return (
     <ProtectedRoute>
       <MainLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-8 w-8 text-primary" />
-              <h1 className="text-3xl font-bold">Support</h1>
+        <div className="space-y-4 sm:space-y-6">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <AlertCircle className="h-6 w-6 shrink-0 text-primary sm:h-8 sm:w-8" />
+              <h1 className="whitespace-nowrap text-2xl font-bold tracking-tight sm:text-3xl">Support</h1>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               {canCreate && (
