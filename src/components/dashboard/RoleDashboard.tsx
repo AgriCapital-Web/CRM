@@ -145,7 +145,7 @@ export const RoleDashboard = () => {
               </div>
               <div className="text-center p-2 bg-background rounded-lg">
                 <DollarSign className="h-4 w-4 mx-auto text-amber-600 mb-1" />
-                <div className="text-sm font-bold">{formatMontant(stats.totalPaiements)}</div>
+                <div className="money-value text-sm font-bold">{formatMontant(stats.totalPaiements)}</div>
                 <div className="text-xs text-muted-foreground">Encaissés — zone</div>
               </div>
             </>

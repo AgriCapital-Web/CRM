@@ -1332,3 +1332,25 @@ table td :is(span, p, a, div) { min-width: 0; }
   .overflow-x-auto > table td button,
   .overflow-x-auto > table td a[role="button"] { white-space: nowrap !important; }
 }
+
+/* Final priority, including nested currency units and mobile financial cells. */
+:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums),
+:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums) * {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount]) {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 767px) {
+  .overflow-x-auto > table:has(:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums)) {
+    table-layout: auto !important;
+    min-width: 100% !important;
+  }
+  .overflow-x-auto > table :is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums) {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+  }
+}

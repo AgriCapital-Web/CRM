@@ -259,6 +259,7 @@ export default function MediaUploadVisual({
   files,
   onChange,
   multiple = true,
+  existingMedia = [],
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);

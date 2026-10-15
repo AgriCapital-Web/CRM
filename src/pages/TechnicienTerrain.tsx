@@ -284,7 +284,7 @@ const TechnicienTerrain=()=>{
         if(error)throw error;
         for(const file of media){
           const path="plantations/"+report.plantation_id+"/rapports/"+editingReportId+"/"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-          const uploaded=await uploadFile({bucket:"rapports-techniques",path,file});
+          const uploaded=await uploadOrQueueFile({bucket:"rapports-techniques",path,file});
           await offlineInsert("rapports_visites_medias",{
             id:crypto.randomUUID(),rapport_id:editingReportId,plantation_id:report.plantation_id,
             media_type:file.type.startsWith("video/")?"video":"photo",storage_path:uploaded.path,

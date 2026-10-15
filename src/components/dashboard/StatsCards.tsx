@@ -74,7 +74,7 @@ export const StatsCards = ({ stats, formatMontant }: StatsCardsProps) => {
           <CreditCard className="h-5 w-5 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatMontant(stats.totalPaiements)}</div>
+          <div className="money-value text-2xl font-bold">{formatMontant(stats.totalPaiements)}</div>
           {stats.paiementsEnAttente > 0 && (
             <p className="text-sm text-orange-600 mt-2 flex items-center gap-1">
               <AlertCircle className="h-4 w-4" />

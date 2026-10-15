@@ -338,7 +338,7 @@ const Utilisateurs = () => {
                   <TableCell>
                     {getHighestRole(user) ? (
                       <Badge variant="outline" className="whitespace-nowrap text-xs">
-                        {appRoles.find((item) => item.code === getHighestRole(user))?.nom || getHighestRole(user)!.replace(/_/g, " ")}
+                        {appRoles.find((item) => item.code === getHighestRole(user))?.nom || String(getHighestRole(user) ?? "").replace(/_/g, " ")}
                       </Badge>
                     ) : (
                       <Badge variant="destructive" className="text-xs">Aucun rôle</Badge>

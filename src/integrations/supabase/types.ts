@@ -346,6 +346,39 @@ export type Database = {
         }
         Relationships: []
       }
+      app_permissions: {
+        Row: {
+          actif: boolean
+          action: string
+          code: string
+          created_at: string
+          description: string
+          libelle: string
+          module: string
+          updated_at: string
+        }
+        Insert: {
+          actif?: boolean
+          action: string
+          code: string
+          created_at?: string
+          description?: string
+          libelle: string
+          module: string
+          updated_at?: string
+        }
+        Update: {
+          actif?: boolean
+          action?: string
+          code?: string
+          created_at?: string
+          description?: string
+          libelle?: string
+          module?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_roles: {
         Row: {
           actif: boolean
@@ -353,7 +386,9 @@ export type Database = {
           court: string | null
           created_at: string
           description: string | null
+          libelle_couverture: string
           niveau: number
+          niveau_couverture: string
           niveau_label: string | null
           nom: string
           updated_at: string
@@ -364,7 +399,9 @@ export type Database = {
           court?: string | null
           created_at?: string
           description?: string | null
+          libelle_couverture?: string
           niveau?: number
+          niveau_couverture?: string
           niveau_label?: string | null
           nom: string
           updated_at?: string
@@ -375,7 +412,9 @@ export type Database = {
           court?: string | null
           created_at?: string
           description?: string | null
+          libelle_couverture?: string
           niveau?: number
+          niveau_couverture?: string
           niveau_label?: string | null
           nom?: string
           updated_at?: string
@@ -1423,7 +1462,6 @@ export type Database = {
           created_by: string | null
           date_delivrance_piece: string | null
           date_naissance: string | null
-          demo_access_code: string | null
           departement_id: string | null
           district_id: string | null
           documents_valides_at: string | null
@@ -1442,9 +1480,11 @@ export type Database = {
           jours_contrat_total: number
           jours_payes: number
           jours_retard: number
+          latitude: number | null
           lieu_delivrance_piece: string | null
           lieu_naissance: string | null
           localite: string | null
+          longitude: number | null
           mensualite_montant: number | null
           mode_paiement: string
           montant_promo_applique: number
@@ -1517,7 +1557,6 @@ export type Database = {
           created_by?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
-          demo_access_code?: string | null
           departement_id?: string | null
           district_id?: string | null
           documents_valides_at?: string | null
@@ -1536,9 +1575,11 @@ export type Database = {
           jours_contrat_total?: number
           jours_payes?: number
           jours_retard?: number
+          latitude?: number | null
           lieu_delivrance_piece?: string | null
           lieu_naissance?: string | null
           localite?: string | null
+          longitude?: number | null
           mensualite_montant?: number | null
           mode_paiement?: string
           montant_promo_applique?: number
@@ -1611,7 +1652,6 @@ export type Database = {
           created_by?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
-          demo_access_code?: string | null
           departement_id?: string | null
           district_id?: string | null
           documents_valides_at?: string | null
@@ -1630,9 +1670,11 @@ export type Database = {
           jours_contrat_total?: number
           jours_payes?: number
           jours_retard?: number
+          latitude?: number | null
           lieu_delivrance_piece?: string | null
           lieu_naissance?: string | null
           localite?: string | null
+          longitude?: number | null
           mensualite_montant?: number | null
           mode_paiement?: string
           montant_promo_applique?: number
@@ -7188,18 +7230,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_primary: boolean
           role: string
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_primary?: boolean
           role: string
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_primary?: boolean
           role?: string
           user_id?: string
         }
@@ -7503,12 +7548,15 @@ export type Database = {
           created_at: string | null
           departement_actif: boolean | null
           departement_id: string | null
+          departement_nom: string | null
           district_actif: boolean | null
+          district_nom: string | null
           est_active: boolean | null
           est_active_effectif: boolean | null
           id: string | null
           nom: string | null
           region_actif: boolean | null
+          region_nom: string | null
           sp_assigned_at: string | null
         }
         Relationships: [
@@ -7838,7 +7886,6 @@ export type Database = {
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_demo: { Args: { _user_id: string }; Returns: boolean }
       is_finance_staff: { Args: { _user_id: string }; Returns: boolean }
       is_rh: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
@@ -8069,6 +8116,10 @@ export type Database = {
       transfer_agricapital_plantation: {
         Args: { p_client_id: string; p_plantation_id: string }
         Returns: Json
+      }
+      update_configurations_systeme_batch: {
+        Args: { p_changes: Json }
+        Returns: number
       }
       username_available: { Args: { _username: string }; Returns: boolean }
       verifier_carte: {

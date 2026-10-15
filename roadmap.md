@@ -1,0 +1,3 @@
+- [ ] Renforcer la règle globale sans retour à la ligne pour les montants.
+- [ ] Corriger les erreurs qui bloquent la mise à jour de l’aperçu.
+- [ ] Vérifier l’aperçu et les montants sur écran étroit.
