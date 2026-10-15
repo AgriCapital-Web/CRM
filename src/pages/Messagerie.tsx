@@ -202,17 +202,15 @@ export default function Messagerie() {
                 ) : (
                   <div className="space-y-1">
                     {orderedClients.map((client) => {
-                      const last = recentByClient.get(client.id);
                       const active = selected?.id === client.id;
                       return (
-                        <button key={client.id} type="button" onClick={() => choose(client)} className={`flex min-h-[66px] w-full min-w-0 items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-primary/10 ring-1 ring-primary/20" : ""}`}>
-                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserRound className="h-4 w-4" /></span>
+                        <button key={client.id} type="button" onClick={() => choose(client)} className={`flex min-h-[52px] w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-primary/10 ring-1 ring-primary/20" : ""}`}>
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserRound className="h-4 w-4" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold">{client.nom_complet || "Dossier sans nom"}</span>
-                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{client.telephone || typeLabel(client)}</span>
-                            <span className="mt-1 block truncate text-xs text-muted-foreground">{last?.message || typeLabel(client)}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{client.telephone || typeLabel(client)}</span>
                           </span>
-                          {(unreadByClient[client.id] || 0) > 0 && <Badge className="mt-0.5 shrink-0" aria-label={`${unreadByClient[client.id]} messages non lus`}>{unreadByClient[client.id]}</Badge>}
+                          {(unreadByClient[client.id] || 0) > 0 && <Badge className="shrink-0" aria-label={`${unreadByClient[client.id]} messages non lus`}>{unreadByClient[client.id]}</Badge>}
                         </button>
                       );
                     })}
