@@ -653,12 +653,12 @@ const Dashboard = () => {
           </div>
 
           {!isClientOnly && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {canCreateAcquisition && <Button asChild className="h-11"><Link to="/nouvelle-acquisition"><Plus className="mr-2 h-4 w-4" />Nouveau client</Link></Button>}
-              {canLeads && <Button asChild variant="outline" className="h-11"><Link to="/leads?new=1"><Plus className="mr-2 h-4 w-4" />Nouveau lead</Link></Button>}
-              {canPayments && <Button asChild variant="outline" className="h-11"><Link to="/paiements"><CreditCard className="mr-2 h-4 w-4" />Paiement</Link></Button>}
-              {canPlantations && <Button asChild variant="outline" className="h-11"><Link to="/plantations"><Sprout className="mr-2 h-4 w-4" />Plantations</Link></Button>}
-              {canValidateDocuments && <Button asChild variant="outline" className="h-11"><Link to="/documents"><FileCheck className="mr-2 h-4 w-4" />Documents</Link></Button>}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {canCreateAcquisition && <Button asChild className="col-span-2 h-11 w-full min-w-0 sm:col-span-1"><Link className="w-full" to="/nouvelle-acquisition"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau client</Link></Button>}
+              {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/leads?new=1"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
+              {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/paiements"><CreditCard className="mr-2 h-4 w-4 shrink-0" />Paiement</Link></Button>}
+              {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/plantations"><Sprout className="mr-2 h-4 w-4 shrink-0" />Plantations</Link></Button>}
+              {canValidateDocuments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/documents"><FileCheck className="mr-2 h-4 w-4 shrink-0" />Documents</Link></Button>}
             </div>
           )}
 
