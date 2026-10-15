@@ -49,6 +49,9 @@ const Tickets = () => {
       if (requestedId) {
         const found = (data || []).find((t:any) => t.id === requestedId);
         if (found) { setSelectedTicket(found); setDialogOpen(true); }
+      } else if (searchParams.get("create") === "1" && canCreate) {
+        setSelectedTicket(null);
+        setDialogOpen(true);
       }
     }
   };
