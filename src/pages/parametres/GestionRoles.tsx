@@ -252,7 +252,12 @@ const GestionRoles = () => {
       setSelectedPrimaryRole(true);
       fetchData();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
+      console.error("[GestionRoles] attribution du rôle impossible", error);
+      toast({
+        variant: "destructive",
+        title: "Attribution impossible",
+        description: error?.message || getSafeErrorMessage(error),
+      });
     } finally {
       setSaving(false);
     }
@@ -282,7 +287,12 @@ const GestionRoles = () => {
       setUserRoleToRemove(null);
       fetchData();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
+      console.error("[GestionRoles] retrait du rôle impossible", error);
+      toast({
+        variant: "destructive",
+        title: "Retrait impossible",
+        description: error?.message || getSafeErrorMessage(error),
+      });
     } finally {
       setSaving(false);
     }
