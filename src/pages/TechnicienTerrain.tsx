@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
-import { offlineInsert } from "@/lib/offlineWrite";
+import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { uploadOrQueueFile } from "@/lib/offlineFiles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -403,7 +403,7 @@ const TechnicienTerrain=()=>{
     }
     setSaving(true);
     try{
-      const {error}=await (supabase as any).from("interventions_techniques").update({statut:"soumise"}).eq("id",item.id);
+      const {error}=await offlineUpdate("interventions_techniques",item.id,{statut:"soumise"});
       if(error)throw error;
       toast({title:"Intervention soumise",description:"Le brouillon a été soumis sans modifier sa date ni son technicien."});
       await load();
