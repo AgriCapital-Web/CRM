@@ -29,16 +29,19 @@ const uniqueText = (values: unknown[]): string[] => {
 };
 
 const normalizeCR = (input: CR): CR => {
-  const resume = cleanText(input.resume);
-  const observations = cleanText(input.observations);
-  const cleanResume = observations && observations.toLocaleLowerCase("fr-FR") === resume.toLocaleLowerCase("fr-FR") ? resume : resume;
-  const cleanObservations = observations.toLocaleLowerCase("fr-FR") === cleanResume.toLocaleLowerCase("fr-FR") ? "" : observations;
+  const resumeText = cleanText(input.resume);
+  const resume = resumeText.split(/\\n{2,}/)[0].trim();
+  const observationsText = cleanText(input.observations);
+  const observations = observationsText.toLocaleLowerCase("fr-FR") === resumeText.toLocaleLowerCase("fr-FR") ||
+    observationsText.toLocaleLowerCase("fr-FR") === resume.toLocaleLowerCase("fr-FR")
+    ? ""
+    : observationsText.split(/\\n{2,}/)[0].trim();
   return {
     ...input,
     titre: cleanText(input.titre),
     type_intervention: cleanText(input.type_intervention),
-    resume: cleanResume,
-    observations: cleanObservations,
+    resume,
+    observations,
     actions_realisees: uniqueText(input.actions_realisees || []),
     problemes_constates: uniqueText(input.problemes_constates || []),
     recommandations: uniqueText(input.recommandations || []),
