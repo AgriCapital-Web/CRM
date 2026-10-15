@@ -217,14 +217,14 @@ export default function Finance(){
   if(!canView)return null;
 
   return <ProtectedRoute><MainLayout><div className="finance-page min-w-0 space-y-3 overflow-x-hidden">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h1 className="text-2xl font-bold">Finance & Comptabilité</h1></div>
-      <Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
+    <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0"><h1 className="whitespace-nowrap text-lg font-bold leading-tight sm:text-2xl">Finance & Comptabilité</h1></div>
+      <Button variant="outline" size="sm" className="shrink-0 px-2 text-xs sm:px-3 sm:text-sm" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-1 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4"/>Actualiser</Button>
     </div>
-    <div className="responsive-auto-grid gap-3">
-      <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">ENTRÉES VALIDÉES</p><p className="mt-2 text-2xl font-bold">{money(totals.income)}</p></CardContent></Card>
-      <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SORTIES VALIDÉES</p><p className="mt-2 text-2xl font-bold">{money(totals.out)}</p></CardContent></Card>
-      <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">SOLDE FINANCIER</p><p className="mt-2 text-2xl font-bold">{money(totals.balance)}</p></CardContent></Card>
+    <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
+      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">ENTRÉES VALIDÉES</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(totals.income)}</p></CardContent></Card>
+      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">SORTIES VALIDÉES</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(totals.out)}</p></CardContent></Card>
+      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">SOLDE FINANCIER</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(totals.balance)}</p></CardContent></Card>
     </div>
     <Tabs defaultValue="journal">
       <TabsList className="grid h-auto w-full min-w-0 grid-cols-2 gap-2 rounded-xl bg-muted/70 p-2 sm:grid-cols-3 lg:grid-cols-5">
