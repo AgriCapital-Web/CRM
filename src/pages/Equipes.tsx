@@ -380,20 +380,17 @@ const Equipes = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Gestion des Équipes</h1>
-          
-        </div>
+      <div className="flex w-full min-w-0 flex-row items-center justify-between gap-2">
+        <h1 className="min-w-0 whitespace-nowrap text-base font-bold sm:text-3xl">Gestion des Équipes</h1>
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => {
+            <Button size="sm" className="shrink-0 whitespace-nowrap px-2 text-xs sm:px-3 sm:text-sm" aria-label="Nouvelle Équipe" title="Nouvelle Équipe" onClick={() => {
               setSelectedEquipe(null);
               setFormData({ nom: "", responsable_id: "", region_id: "", type_equipe: activeTab as any, actif: true, zone_couverture: "", photo_url: "" });
               setLogoFile(null);
               setLogoPreview("");
             }}>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-1 h-4 w-4 sm:mr-2" />
               Nouvelle Équipe
             </Button>
           </DialogTrigger>
