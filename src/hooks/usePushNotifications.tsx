@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,6 +19,8 @@ export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [isEnabling, setIsEnabling] = useState(false);
+  const [pushConfig, setPushConfig] = useState<{ supported: boolean; public_key: string } | null>(null);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
     // Vérifier si les notifications sont supportées
@@ -27,7 +29,23 @@ export const usePushNotifications = () => {
     
     if (supported) {
       setPermission(Notification.permission);
-      void navigator.serviceWorker.ready.then(async (registration) => setPushEnabled(Boolean(await registration.pushManager.getSubscription()) && Notification.permission === 'granted')).catch(() => setPushEnabled(false));
+      // Préparer le service worker et la clé VAPID avant le clic utilisateur.
+      // Cela évite d'attendre une requête réseau au milieu du geste d'activation,
+      // ce qui peut faire échouer PushManager.subscribe sur certains navigateurs.
+      void navigator.serviceWorker.ready.then(async (registration) => {
+        registrationRef.current = registration;
+        setPushEnabled(Boolean(await registration.pushManager.getSubscription()) && Notification.permission === 'granted');
+      }).catch(() => setPushEnabled(false));
+
+      void supabase.functions.invoke("push-subscriptions", { body: { action: "config" } })
+        .then(({ data, error }) => {
+          if (!error && data?.supported && typeof data?.public_key === "string" && data.public_key.length > 0) {
+            setPushConfig({ supported: true, public_key: data.public_key });
+          } else {
+            console.warn("[Push] configuration indisponible", error || data);
+          }
+        })
+        .catch((error) => console.warn("[Push] préparation configuration", error));
     }
   }, []);
 
@@ -41,9 +59,20 @@ export const usePushNotifications = () => {
     if (!isSupported || isEnabling) return false; setIsEnabling(true);
     try {
       const allowed = permission === "granted" || await requestPermission(); if (!allowed) return false;
-      const registration = await navigator.serviceWorker.ready;
-      const { data: config, error: configError } = await supabase.functions.invoke("push-subscriptions", { body: { action: "config" } });
-      if (configError || !config?.supported || !config?.public_key) throw new Error("Le service push n'est pas configuré côté serveur.");
+      let registration = registrationRef.current;
+      if (!registration?.active) {
+        registration = await navigator.serviceWorker.ready;
+        registrationRef.current = registration;
+      }
+      // La configuration est préchargée pendant que l'utilisateur consulte l'application.
+      // Ne refaire l'appel réseau qu'en dernier recours.
+      let config = pushConfig;
+      if (!config?.supported || !config.public_key) {
+        const { data, error } = await supabase.functions.invoke("push-subscriptions", { body: { action: "config" } });
+        if (error || !data?.supported || !data?.public_key) throw new Error("Le service push n'est pas configuré côté serveur. Réessayez après quelques secondes.");
+        config = { supported: true, public_key: data.public_key };
+        setPushConfig(config);
+      }
       const applicationServerKey = decodeVapidKey(String(config.public_key).trim());
       if (applicationServerKey.byteLength !== 65 || new Uint8Array(applicationServerKey)[0] !== 4) {
         throw new Error("La clé publique VAPID fournie par le serveur est invalide. Vérifiez la configuration des notifications.");
@@ -78,7 +107,7 @@ export const usePushNotifications = () => {
       return false;
     }
     finally { setIsEnabling(false); }
-  }, [isSupported, isEnabling, permission, requestPermission, toast]);
+  }, [isSupported, isEnabling, permission, requestPermission, toast, pushConfig]);
 
   const disablePush = useCallback(async () => {
     try { const registration = await navigator.serviceWorker.ready; const subscription = await registration.pushManager.getSubscription(); if (subscription) { await supabase.functions.invoke("push-subscriptions", { body: { action: "unsubscribe", endpoint: subscription.endpoint } }); await subscription.unsubscribe(); } setPushEnabled(false); toast({ title: "Notifications désactivées" }); return true; }
@@ -146,6 +175,7 @@ export const usePushNotifications = () => {
     isSupported,
     pushEnabled,
     isEnabling,
+    pushConfigReady: Boolean(pushConfig?.supported && pushConfig.public_key),
     enablePush,
     disablePush,
     requestPermission,
