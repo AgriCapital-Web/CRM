@@ -46,50 +46,57 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
-      let segmentFinalResults: string[] = [];
+      // Index each final result instead of appending blindly: some mobile engines replay
+      // previously finalized results after a pause, which otherwise duplicates words.
+      const finalSegments = new Map<number, string>();
       let lastInterim = "";
+      let lastInterimIndex = -1;
       const renderTranscript = () => {
-        const finalText = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
+        const finalText = [segmentBaseRef.current, ...Array.from(finalSegments.entries()).sort((a, b) => a[0] - b[0]).map(([, value]) => value)].filter(Boolean).join(" ").trim();
         finalTranscriptRef.current = finalText;
         setDescription([voiceBaseRef.current, finalText, lastInterim].filter(Boolean).join(" ").trim());
       };
       recognition.onresult = (event: any) => {
-        // Snapshot final segments once; interim hypotheses are replaced, never appended repeatedly.
+        // Keep one value per browser result index. Interim hypotheses are replaced in place.
         for (let i = event.resultIndex ?? 0; i < event.results.length; i++) {
           const result = event.results[i];
           const part = String(result?.[0]?.transcript || "").trim();
           if (!part) continue;
           if (result.isFinal) {
-            if (part && segmentFinalResults[segmentFinalResults.length - 1] !== part) segmentFinalResults.push(part);
-            lastInterim = "";
+            finalSegments.set(i, part);
+            if (lastInterimIndex === i) {
+              lastInterim = "";
+              lastInterimIndex = -1;
+            }
           } else {
             lastInterim = part;
+            lastInterimIndex = i;
           }
         }
         renderTranscript();
       };
       recognition.onerror = (event: any) => {
-        // Do not cycle the microphone automatically. Keep the transcript and report real errors.
+        // Permission/device failures need action; ordinary service/network interruptions do not.
         if (event?.error === "not-allowed" || event?.error === "service-not-allowed" || event?.error === "audio-capture") {
           listeningRef.current = false;
           setListening(false);
-          toast({ variant: "destructive", title: "Accès au microphone interrompu", description: "Le texte déjà transcrit est conservé. Vérifiez l’autorisation du microphone." });
+          toast({ variant: "destructive", title: "Microphone indisponible", description: "Le texte déjà transcrit est conservé. Vérifiez l’autorisation du microphone et réessayez." });
         }
       };
       recognition.onend = () => {
         if (recognitionRef.current !== recognition) return;
-        segmentBaseRef.current = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
-        segmentFinalResults = [];
+        // Fold the final segments into the stable base exactly once before releasing the session.
+        const stableSegment = Array.from(finalSegments.entries()).sort((a, b) => a[0] - b[0]).map(([, value]) => value).join(" ").trim();
+        segmentBaseRef.current = [segmentBaseRef.current, stableSegment].filter(Boolean).join(" ").trim();
+        finalSegments.clear();
         lastInterim = "";
+        lastInterimIndex = -1;
         renderTranscript();
         recognitionRef.current = null;
         listeningRef.current = false;
         setListening(false);
-        // Web Speech may end a session on its own on mobile. Never restart it silently:
-        // that causes repeated mic activation/deactivation sounds. Preserve all recognized text.
-        if (voiceBaseRef.current || finalTranscriptRef.current) {
-          toast({ variant: "destructive", title: "Session vocale terminée", description: "Le navigateur a terminé la dictée. Le texte reconnu reste dans le champ." });
-        }
+        // Mobile browsers can end native speech recognition without warning. Keep the transcript
+        // silently; do not show a frightening red error or restart the microphone in a loop.
       };
       recognitionRef.current = recognition;
       listeningRef.current = true;
