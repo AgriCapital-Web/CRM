@@ -264,7 +264,8 @@ export default function Finance(){
             {label:"Entrées validées",value:transactions.filter(t=>t.status==="valide"&&t.direction==="entree").reduce((a,t)=>a+Number(t.amount||0),0)},
             {label:"Financements",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="financement").reduce((a,t)=>a+Number(t.amount||0),0)},
             {label:"Dons",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="don").reduce((a,t)=>a+Number(t.amount||0),0)},
-            {label:"Prêts reçus",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="pret").reduce((a,t)=>a+Number(t.amount||0),0)}
+            {label:"Prêts reçus",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="pret").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Apports associés",value:transactions.filter(t=>t.direction==="entree"&&(t.source_type==="apport_associe"||t.category==="ASSOCIE")).reduce((a,t)=>a+Number(t.amount||0),0)}
           ].map(item=><Card key={item.label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{item.label}</p><p className="whitespace-nowrap text-base font-bold tabular-nums">{money(item.value)}</p></CardContent></Card>)}
         </div>
         <Card><CardHeader className="pb-2"><CardTitle>Nouvelle entrée</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
