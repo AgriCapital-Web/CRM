@@ -122,7 +122,7 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
     return (
       <Button
         data-floating-ai-assistant="true"
-        onClick={() => setIsOpen(true)
+        onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl bg-gradient-to-br from-primary to-accent hover:scale-110 transition-transform"
         size="icon"
       >
