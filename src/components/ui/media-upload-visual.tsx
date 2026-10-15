@@ -381,6 +381,7 @@ export default function MediaUploadVisual({
   };
 
   useEffect(() => () => {
+    document.body.classList.remove("media-dialog-open");
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -493,7 +494,7 @@ export default function MediaUploadVisual({
       <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing || selectionCount >= MAX_CANDIDATES} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(true); }}>
         <Plus className="mr-2 h-4 w-4" />Ajouter des médias {files.length ? `(${files.length})` : ""}
       </Button>
-      <Dialog open={mediaDialogOpen} onOpenChange={(open) => { setMediaDialogOpen(open); document.body.classList.toggle("media-dialog-open", open); if (!open && !recording) closeVideoCamera(); }}>
+      <Dialog open={mediaDialogOpen} onOpenChange={(open) => { setMediaDialogOpen(open); document.body.classList.toggle("media-dialog-open", open); if (!open) { if (recording) stopVideoRecording(); else closeVideoCamera(); } }}>
         <DialogContent className="z-[101] max-w-sm">
           <style>{`[data-radix-dialog-overlay] { z-index: 100 !important; } body.media-dialog-open [data-floating-ai-assistant] { display: none !important; }`}</style>
           <DialogHeader>
