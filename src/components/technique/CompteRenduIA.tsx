@@ -10,7 +10,7 @@ type CR = { titre: string; type_intervention: string; resume: string; actions_re
 type Props = { contexte?: string; compact?: boolean; onApply?: (compteRendu: CR, description: string) => void; };
 const List = ({ title, items }: { title: string; items: string[] }) => items?.length ? <div><p className="text-sm font-semibold">{title}</p><ul className="ml-5 list-disc text-sm">{items.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null;
 export default function CompteRenduIA({ contexte, compact = false, onApply }: Props) {
-  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const micStreamRef = useRef<MediaStream | null>(null); const restartTimerRef = useRef<number | null>(null);
+  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const segmentBaseRef = useRef(""); const micStreamRef = useRef<MediaStream | null>(null); const restartTimerRef = useRef<number | null>(null);
   const releaseMicrophone = () => {
     if (restartTimerRef.current !== null) { window.clearTimeout(restartTimerRef.current); restartTimerRef.current = null; }
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -19,7 +19,7 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
     recognitionRef.current = null;
   };
   useEffect(() => () => { listeningRef.current = false; releaseMicrophone(); }, []);
-  const toggleVoice = () => {
+  const toggleVoice = async () => {
     if (listeningRef.current) {
       listeningRef.current = false;
       setListening(false);
@@ -32,6 +32,7 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
     try {
       voiceBaseRef.current = description.trim();
       finalTranscriptRef.current = "";
+      segmentBaseRef.current = "";
       // Keep one microphone stream alive for the entire dictation session.
       // Browser audio processing filters steady background noise and wind where supported.
       micStreamRef.current = await navigator.mediaDevices.getUserMedia({
@@ -43,17 +44,18 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
       recognition.onresult = (event: any) => {
+        let finalForSegment = "";
         let interim = "";
         for (let i = 0; i < event.results.length; i++) {
           const result = event.results[i];
           const part = String(result?.[0]?.transcript || "").trim();
           if (!part) continue;
-          if (result.isFinal) {
-            // Browser may resend a result after a restart; append only new final segments.
-            const current = finalTranscriptRef.current;
-            if (!current.endsWith(part)) finalTranscriptRef.current = [current, part].filter(Boolean).join(" ").trim();
-          } else interim = [interim, part].filter(Boolean).join(" ");
+          if (result.isFinal) finalForSegment = [finalForSegment, part].filter(Boolean).join(" ");
+          else interim = [interim, part].filter(Boolean).join(" ");
         }
+        // Each browser recognition session reports its own result list. Replace that
+        // session's text instead of appending it repeatedly on every onresult event.
+        finalTranscriptRef.current = [segmentBaseRef.current, finalForSegment].filter(Boolean).join(" ").trim();
         setDescription([voiceBaseRef.current, finalTranscriptRef.current, interim].filter(Boolean).join(" ").trim());
       };
       recognition.onerror = (event: any) => {
@@ -67,6 +69,7 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       recognition.onend = () => {
         if (!listeningRef.current) { setListening(false); return; }
         if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
+        segmentBaseRef.current = finalTranscriptRef.current;
         restartTimerRef.current = window.setTimeout(() => {
           if (!listeningRef.current || !recognitionRef.current) return;
           try { recognitionRef.current.start(); } catch { /* engine is already restarting */ }
