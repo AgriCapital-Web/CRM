@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Search, Users, Plus, Edit, MoreHorizontal, CheckCircle, XCircle, UserPlus, UserMinus, Briefcase, Wrench, ImagePlus, X } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
+import { OFFICIAL_ROLES, roleLabel } from "@/lib/roles";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 
 const ROLE_SHORT: Record<string, string> = {
@@ -24,6 +25,13 @@ const ROLE_SHORT: Record<string, string> = {
   technicien: "Technicien",
   chef_equipe: "CE",
   superviseur_tc: "STC",
+};
+
+const highestVisibleRole = (roles: string[] = []) => {
+  const levels = new Map(OFFICIAL_ROLES.map((r) => [r.code, r.niveau]));
+  return [...new Set(roles)].sort((a, b) =>
+    (levels.get(a) ?? 999) - (levels.get(b) ?? 999) || a.localeCompare(b)
+  )[0] || null;
 };
 
 const Equipes = () => {
@@ -544,7 +552,7 @@ const Equipes = () => {
               <SelectContent>
                 {availableMembers.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {formatUserShortName(p.nom_complet)} ({p.roles.map((r: string) => ROLE_SHORT[r] || r).join(", ")})
+                    {formatUserShortName(p.nom_complet)} ({(() => { const role = highestVisibleRole(p.roles || []); return role ? (ROLE_SHORT[role] || roleLabel(role)) : "Aucun rôle"; })()})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -562,12 +570,12 @@ const Equipes = () => {
                 <div key={m.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium text-sm">{formatUserShortName(m.nom_complet)}</p>
-                    <div className="flex gap-1 mt-1">
-                      {m.roles.map((r: string) => (
-                        <Badge key={r} variant="secondary" className="text-xs">
-                          {ROLE_SHORT[r] || r}
+                    <div className="mt-1">
+                      {highestVisibleRole(m.roles || []) && (
+                        <Badge variant="secondary" className="whitespace-nowrap text-xs">
+                          {ROLE_SHORT[highestVisibleRole(m.roles || [])!] || roleLabel(highestVisibleRole(m.roles || [])!)}
                         </Badge>
-                      ))}
+                      )}
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => removeMember(m.id)} className="text-destructive">
