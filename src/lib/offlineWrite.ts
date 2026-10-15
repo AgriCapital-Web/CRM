@@ -20,6 +20,23 @@ const TABLE_TO_STORE: Record<string, string> = {
   cartes_personnel: STORES.CARTES_PERSONNEL,
   rapports_visites_techniques: STORES.RAPPORTS_VISITES,
   rapports_visites_medias: STORES.RAPPORTS_MEDIAS,\n  interventions_techniques: STORES.INTERVENTIONS_TECHNIQUES,\n  tickets_techniques: STORES.TICKETS_TECHNIQUES,\n  client_souscriptions: STORES.CLIENT_SOUSCRIPTIONS,\n  conventions_foncieres: STORES.CONVENTIONS_FONCIERES,\n  lots_hectares: STORES.LOTS_HECTARES,\n  portail_messages: STORES.PORTAIL_MESSAGES,\n  documents_acquisition: STORES.DOCUMENTS_ACQUISITION,\n  commissions: STORES.COMMISSIONS,\n  proprietaires_terres: STORES.PROPRIETAIRES_TERRES,\n  finance_transactions: STORES.FINANCE_TRANSACTIONS,\n  finance_expenses: STORES.FINANCE_EXPENSES,
+  finance_associates: STORES.FINANCE_ASSOCIATES,
+  finance_salary_profiles: STORES.FINANCE_SALARY_PROFILES,
+  finance_payroll_runs: STORES.FINANCE_PAYROLL_RUNS,
+  finance_payroll_items: STORES.FINANCE_PAYROLL_ITEMS,
+  portefeuilles: STORES.PORTEFEUILLES,
+  portefeuille_versements: STORES.PORTEFEUILLE_VERSEMENTS,
+  portefeuille_versement_lignes: STORES.PORTEFEUILLE_VERSEMENT_LIGNES,
+  beneficiaire_attributions: STORES.BENEFICIAIRE_ATTRIBUTIONS,
+  acquisitions_brouillon: STORES.ACQUISITIONS_BROUILLON,
+  offre_formulaire_etapes: STORES.OFFRE_FORM_ETAPES,
+  offre_formulaire_documents: STORES.OFFRE_FORM_DOCUMENTS,
+  offre_formulaire_contrats: STORES.OFFRE_FORM_CONTRATS,
+  offres: STORES.OFFRES,
+  profiles: STORES.PROFILES,
+  user_roles: STORES.USER_ROLES,
+  role_permissions: STORES.ROLE_PERMISSIONS,
+  departements_entreprise: STORES.DEPARTEMENTS_ENTREPRISE,
 };
 
 function isNetworkError(error: any): boolean {
