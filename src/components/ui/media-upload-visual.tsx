@@ -567,7 +567,13 @@ export default function MediaUploadVisual({
             body.media-dialog-open [title*="position" i],
             body.media-dialog-open button:has(svg.lucide-crosshair),
             body.media-dialog-open button:has(svg.lucide-map-pin),
-            body.media-dialog-open button:has(svg.lucide-map-pinned) { display: none !important; }
+            body.media-dialog-open button:has(svg.lucide-map-pinned),
+            body.media-dialog-open button:has(svg.lucide-locate),
+            body.media-dialog-open button:has(svg.lucide-locate-fixed),
+            body.media-dialog-open button:has(svg.lucide-navigation),
+            body.media-dialog-open [data-radix-popper-content-wrapper],
+            body.media-dialog-open [data-radix-popover-content],
+            body.media-dialog-open [role="tooltip"] { display: none !important; }
             body.media-camera-fullscreen [data-floating-ai-assistant],
             body.media-camera-fullscreen [data-location-control],
             body.media-camera-fullscreen [data-location-widget],
@@ -575,7 +581,13 @@ export default function MediaUploadVisual({
             body.media-camera-fullscreen [title*="position" i],
             body.media-camera-fullscreen button:has(svg.lucide-crosshair),
             body.media-camera-fullscreen button:has(svg.lucide-map-pin),
-            body.media-camera-fullscreen button:has(svg.lucide-map-pinned) { display: none !important; }
+            body.media-camera-fullscreen button:has(svg.lucide-map-pinned),
+            body.media-camera-fullscreen button:has(svg.lucide-locate),
+            body.media-camera-fullscreen button:has(svg.lucide-locate-fixed),
+            body.media-camera-fullscreen button:has(svg.lucide-navigation),
+            body.media-camera-fullscreen [data-radix-popper-content-wrapper],
+            body.media-camera-fullscreen [data-radix-popover-content],
+            body.media-camera-fullscreen [role="tooltip"] { display: none !important; }
           `}</style>
           {cameraOpen ? (
             <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-black">
