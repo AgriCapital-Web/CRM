@@ -729,9 +729,9 @@ const Dashboard = () => {
                 <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
                   <Card>
                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Parcours de plantation</CardTitle></CardHeader>
-                    <CardContent className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-4">
+                    <CardContent className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-4 md:grid-cols-1">
                       {cycle.map((c, index) => (
-                        <div key={c.label} className={`min-w-0 ${index === cycle.length - 1 ? "col-span-2 sm:col-span-1" : ""}`}>
+                        <div key={c.label} className={`min-w-0 ${index === cycle.length - 1 ? "col-span-2 md:col-span-1" : ""}`}>
                           <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1 text-sm"><span className="min-w-0">{c.label}</span><span className="font-medium tabular-nums whitespace-nowrap">{c.done} / {c.total} dossiers · {c.pct}%</span></div>
                           <Progress className="mt-1" value={c.pct} />
                         </div>
