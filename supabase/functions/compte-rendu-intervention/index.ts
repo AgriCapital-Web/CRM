@@ -1,5 +1,3 @@
-import { createOpenAI } from "npm:@ai-sdk/openai";
-import { streamText, Output, jsonSchema } from "npm:ai";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = {
@@ -92,52 +90,38 @@ Deno.serve(async (req) => {
   if (description.length < 10) return json({ error: "Décrivez l'intervention (au moins quelques mots)." }, 400);
   if (description.length > 8000) return json({ error: "Description trop longue (8000 caractères max)." }, 400);
 
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return json({ error: "IA non configurée" }, 500);
+  // Moteur interne déterministe : aucune API de modèle externe, aucun crédit IA consommé.
+  // Il organise les notes fournies, mais ne prétend pas comprendre comme un grand modèle.
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+  const clean = (value: string) => value.replace(/\\s+/g, " ").trim().replace(/[.;, ]+$/, "");
+  const chunks = description.split(/(?<=[.!?])\\s+|\\n+/).map(clean).filter(Boolean);
+  const source = description.trim();
+  const normalized = normalize(source);
+  const pick = (patterns: RegExp[]) => chunks.filter((line) => patterns.some((pattern) => pattern.test(normalize(line))));
+  const actionLines = pick([/\\b(j ai|j'ai|nous avons|effectue|realise|nettoye|plante|remplace|taille|desherbe|desherbage|mesure|controle|verifie|installe|repare|applique|pose|termine|acheve)\\b/]);
+  const problemLines = pick([/\\b(probleme|malade|jaune|seche|mort|manquant|mauvais|envahi|mauvais etat|ravageur|attaque|adventice|mauvaises herbes|retard|casse|absence|defaut|difficulte)\\b/]);
+  const recommendationLines = pick([/\\b(recomm|prevoir|doit|devrait|il faut|a faire|programmer|planifier|dans [0-9]+ jours|semaine prochaine|suivi|surveiller|nettoyer|entretenir|proteger)\\b/]).filter((line) => !actionLines.includes(line));
+  const knownCounts = source.match(/\\b\\d+\\s*(?:plants?|palmiers?|pieds?)\\b/ig) || [];
+  const countMatch = knownCounts.join(" ").match(/\\d+/);
+  const title = /intervention/i.test(contexte) ? "Rapport d'intervention" : "Rapport de visite technique";
+  const observations = chunks.filter((line) => !actionLines.includes(line) && !recommendationLines.includes(line));
+  const resume = clean(observations[0] || chunks[0] || source);
+  const missing: string[] = [];
+  if (!observations.length) missing.push("Préciser les observations réellement constatées sur le terrain.");
+  if (!actionLines.length) missing.push("Préciser les travaux effectivement réalisés, ou indiquer qu'aucun travail n'a été réalisé.");
+  if (!recommendationLines.length) missing.push("Ajouter une prochaine étape ou confirmer qu'aucune action complémentaire n'est nécessaire.");
+  const output = {
+    titre: title,
+    type_intervention: contexte.slice(0, 300),
+    resume,
+    actions_realisees: actionLines,
+    observations: observations.join(" "),
+    problemes_constates: problemLines,
+    recommandations: recommendationLines,
+    nombre_plants_realises: countMatch ? Number(countMatch[0]) : null,
+    informations_manquantes: missing,
+    complet: missing.length === 0,
+  };
+  return json({ compte_rendu: output, moteur: "AgriCapital Interne", mode: "regles", avertissement: "Brouillon structuré par règles. Vérifiez les observations, les actions et les recommandations avant publication." });
 
-  let runId = req.headers.get("X-Lovable-AIG-Run-ID")?.trim() || undefined;
-  const provider = createOpenAI({
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    apiKey,
-    headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-    fetch: async (input, init) => {
-      const headers = new Headers(init?.headers);
-      if (runId && !headers.has("X-Lovable-AIG-Run-ID")) headers.set("X-Lovable-AIG-Run-ID", runId);
-      const res = await fetch(input, { ...init, headers });
-      runId ??= res.headers.get("X-Lovable-AIG-Run-ID")?.trim() || undefined;
-      return res;
-    },
-  });
-
-  let streamError: any = null;
-  try {
-    const result = streamText({
-      model: provider.responses("openai/gpt-6-astra"),
-      system: INSTRUCTIONS,
-      messages: [{ role: "user", content: `${contexte ? `Contexte connu : ${contexte}\n\n` : ""}Description de l'agent :\n${description}` }],
-      output: Output.object({ schema }),
-      abortSignal: req.signal,
-      onError: ({ error }) => { streamError = error; },
-      providerOptions: {
-        openai: {
-          store: false,
-          forceReasoning: true,
-          reasoningEffort: "low",
-          reasoningSummary: "auto",
-          include: ["reasoning.encrypted_content"],
-        },
-      },
-    });
-    const output = await result.output;
-    return json({ compte_rendu: output }, 200, runId ? { "X-Lovable-AIG-Run-ID": runId } : {});
-  } catch (e: any) {
-    const err = streamError || e;
-    const status = Number(err?.statusCode || err?.status || 0);
-    if (req.signal.aborted) return json({ error: "Annulé" }, 499);
-    if (status === 429) return json({ error: "Trop de demandes, réessayez dans un instant." }, 429);
-    if (status === 402) return json({ error: "Crédits IA épuisés. Ajoutez des crédits dans l'espace de travail Lovable." }, 402);
-    if (status === 403) return json({ error: "Accès à l'IA refusé pour cet espace de travail." }, 403);
-    console.error("compte-rendu error", err);
-    return json({ error: "Génération impossible pour le moment." }, status >= 400 ? status : 500);
-  }
 });
