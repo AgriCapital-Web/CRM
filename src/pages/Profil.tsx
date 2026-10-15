@@ -183,7 +183,6 @@ const Profil = () => {
                 </Avatar>
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">{formatUserProfileName(profile.nom_complet || "AgriCapital")}</h2>
-                  <p className="text-sm text-muted-foreground">{profile.poste || "—"}</p>
                   <p className="text-sm text-muted-foreground">{profile.email || user?.email || "—"}</p>
                 </div>
                 <div className="w-full sm:w-64">
@@ -208,7 +207,6 @@ const Profil = () => {
                   onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }}
                 />
               </div>
-              <div className="md:col-span-2"><Label>Poste (selon vos rôles)</Label><Input value={profile.poste || ""} disabled title="Mis à jour automatiquement depuis les rôles attribués par l'administrateur" /></div>
               <div><Label>Email secondaire</Label><Input type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
               <CountryPhoneInput
                 label="Téléphone secondaire"
