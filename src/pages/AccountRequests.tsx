@@ -241,7 +241,7 @@ const AccountRequests = () => {
                 </div>
                 <div>
                   <Label>Téléphone</Label>
-                  <p className="text-sm">{selectedRequest.telephone}</p>
+                  <p className="text-sm">{selectedRequest.telephone || [selectedRequest.telephone_indicatif, selectedRequest.telephone_local].filter(Boolean).join(" ") || "—"}</p>
                 </div>
                 <div>
                   <Label>Poste souhaité</Label>
