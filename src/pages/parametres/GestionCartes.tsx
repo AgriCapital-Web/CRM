@@ -312,14 +312,13 @@ const GestionCartes = () => {
                 <TableBody>
                   {lignes.map(({ profile, carte, data }) => (
                     <TableRow key={profile.id}>
-                      <TableCell className="font-medium">
-                        {profile.nom_complet}
-                        <div className="text-xs text-muted-foreground">{profile.email}</div>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {profile.nom_complet || "—"}
                       </TableCell>
-                      <TableCell className="text-sm">{data.poste || roleLabel(data.role_code)}</TableCell>
-                      <TableCell className="text-sm">{carte ? data.matricule : <span className="text-muted-foreground">—</span>}</TableCell>
-                      <TableCell className="text-sm">{carte ? contratLabel(data.type_contrat) : "—"}</TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm whitespace-nowrap">{data.poste || roleLabel(data.role_code)}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{carte ? data.matricule : <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{carte ? contratLabel(data.type_contrat) : "—"}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">
                         {data.date_expiration ? format(new Date(data.date_expiration), "dd/MM/yyyy", { locale: fr }) : "—"}
                       </TableCell>
                       <TableCell>
@@ -335,7 +334,7 @@ const GestionCartes = () => {
                           <Badge variant="destructive">Révoquée</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="space-x-1 text-right">
+                      <TableCell className="space-x-1 text-right whitespace-nowrap">
                         {carte ? (
                           <Button size="sm" variant="outline" onClick={() => setSelected(profile)}>Voir la carte</Button>
                         ) : (
