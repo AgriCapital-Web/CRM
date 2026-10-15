@@ -42,7 +42,7 @@ export default function SearchableSelect({
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className={cn("w-full justify-between font-normal", triggerIconOnly && "justify-center p-0", className)}>
           <span className="flex min-w-0 items-center justify-center gap-2 truncate">{triggerFlagUrl && <img src={triggerFlagUrl} alt="" aria-hidden="true" className="h-4 w-6 shrink-0 rounded-[2px] border object-cover" loading="lazy" />}{!triggerIconOnly && <span className="truncate">{triggerLabel ?? selected?.label ?? placeholder}</span>}</span>
-          {!triggerIconOnly && <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          {!triggerIconOnly ? <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /> : null}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
