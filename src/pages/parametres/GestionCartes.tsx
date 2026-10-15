@@ -131,8 +131,9 @@ const GestionCartes = () => {
         const isCommercialDepartment = /commercial/.test(departmentName) || /commercial/.test(roleAndDepartment);
         const isTechnicalDepartment = /technique|technicien/.test(departmentName) || /technique|technicien|chef equipe technique/.test(roleAndDepartment);
         const isLandMobilizer = /mobilisateur foncier|mobilisateur_foncier/.test(roleAndDepartment);
+        const isClientSupportRole = /service_client|relation client|support client/.test(normalizeGeo(primaryRoleCode + " " + primaryRoleName));
         const isCommercialDirector = /direct(eur|rice) commercial/.test(roleAndDepartment) || /directeur_commercial|directrice_commerciale/.test(primaryRoleCode);
-        const hasGeographicScope = isCommercialDepartment || isTechnicalDepartment || isLandMobilizer;
+        const hasGeographicScope = !isClientSupportRole && (isCommercialDepartment || isTechnicalDepartment || isLandMobilizer);
         const scope = roleCoverage[primaryRoleCode] || { level: "global", label: "Zone d’intervention" };
         const scopeValue = (() => {
           if (isCommercialDirector) return "National — toute la Côte d’Ivoire";
@@ -171,7 +172,7 @@ const GestionCartes = () => {
             statut_agent: c?.statut_agent || null,
             mission: c?.mission || null,
             zone_intervention_label: hasGeographicScope ? (isCommercialDirector ? "Zone d’intervention" : (scope.label || "Zone d’intervention")) : "Fonction",
-            zone_intervention: hasGeographicScope ? scopeValue : (p.poste || primaryRoleName || p.departement || "Administration"),
+            zone_intervention: hasGeographicScope ? scopeValue : (primaryRoleName || p.poste || p.departement || "Administration"),
             photo_url: c?.photo_url || p.photo_url || null,
             photo_bucket: c?.photo_url ? CARTE_BUCKET : "photos-profils",
             date_delivrance: c?.date_delivrance || null,
