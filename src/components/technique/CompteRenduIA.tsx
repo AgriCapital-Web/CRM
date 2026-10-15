@@ -9,19 +9,24 @@ import { useToast } from "@/hooks/use-toast";
 type CR = { titre: string; type_intervention: string; resume: string; actions_realisees: string[]; observations: string; problemes_constates: string[]; recommandations: string[]; nombre_plants_realises: number | null; informations_manquantes: string[]; complet: boolean; };
 type Props = { contexte?: string; compact?: boolean; onApply?: (compteRendu: CR, description: string) => void; };
 
-const cleanText = (value: unknown): string => String(value ?? "")
-  .replace(/\\r/g, "")
-  .split("\\n")
-  .filter((line) => !/^\\s*(?:RAPPORT (?:DE VISITE|D['’]INTERVENTION)|PAR\\s*:|OBSERVATIONS?\\s*:|\\d+\\.\\s+(?:OBJET|CONSTAT|ACTIONS|SUIVI|PRIORITÉ|PRIORITE))/i.test(line.trim()))
-  .join("\\n")
-  .replace(/[ \\t]+/g, " ")
-  .replace(/\\n{3,}/g, "\\n\\n")
-  .trim();
+const cleanText = (value: unknown): string => {
+  const raw = String(value ?? "").replace(/\\r/g, "");
+  const lines = raw.split(/\\n+/).map(line => line.replace(/[ \\t]+/g, " ").trim()).filter(Boolean);
+  const seen = new Set<string>();
+  const kept = lines.filter(line => {
+    if (/^(?:RAPPORT (?:DE VISITE|D['’]INTERVENTION)|PAR\\s*:|OBSERVATIONS?\\s*:|TRAVAUX RÉALISÉS\\s*:|\\d+\\.\\s+(?:OBJET|CONSTAT|ACTIONS|SUIVI|PRIORITÉ|PRIORITE))/i.test(line)) return false;
+    const key = line.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("fr-FR").replace(/[^\\p{L}\\p{N}]+/gu, " ").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return kept.join("\\n").replace(/\\n{3,}/g, "\\n\\n").trim();
+};
 
 const uniqueText = (values: unknown[]): string[] => {
   const seen = new Set<string>();
   return values.map(cleanText).filter((value) => {
-    const key = value.toLocaleLowerCase("fr-FR").replace(/[.!?;:,]+$/g, "").trim();
+    const key = value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("fr-FR").replace(/[^\\p{L}\\p{N}]+/gu, " ").trim();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -29,21 +34,21 @@ const uniqueText = (values: unknown[]): string[] => {
 };
 
 const normalizeCR = (input: CR): CR => {
-  const resumeText = cleanText(input.resume);
-  const resume = resumeText.split(/\\n{2,}/)[0].trim();
-  const observationsText = cleanText(input.observations);
-  const observations = observationsText.toLocaleLowerCase("fr-FR") === resumeText.toLocaleLowerCase("fr-FR") ||
-    observationsText.toLocaleLowerCase("fr-FR") === resume.toLocaleLowerCase("fr-FR")
-    ? ""
-    : observationsText.split(/\\n{2,}/)[0].trim();
+  const resume = cleanText(input.resume);
+  const observationsCandidate = cleanText(input.observations);
+  const observations = observationsCandidate && observationsCandidate !== resume ? observationsCandidate : "";
+  const actions = uniqueText(input.actions_realisees || []);
+  const problems = uniqueText(input.problemes_constates || []);
+  const actionKeys = new Set(actions.map(x => x.toLocaleLowerCase("fr-FR")));
+  const problemsFiltered = problems.filter(x => !actionKeys.has(x.toLocaleLowerCase("fr-FR")));
   return {
     ...input,
     titre: cleanText(input.titre),
     type_intervention: cleanText(input.type_intervention),
     resume,
     observations,
-    actions_realisees: uniqueText(input.actions_realisees || []),
-    problemes_constates: uniqueText(input.problemes_constates || []),
+    actions_realisees: actions,
+    problemes_constates: problemsFiltered,
     recommandations: uniqueText(input.recommandations || []),
     informations_manquantes: uniqueText(input.informations_manquantes || []),
   };
