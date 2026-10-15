@@ -97,7 +97,7 @@ const TechnicienTerrain=()=>{
       const technicianNameParts=rawTechnicianName.split(/\s+/).filter(Boolean);
       // Accepte les deux formes courantes : « KOFFI Inocent » (nom d'abord)
       // et « Inocent KOFFI » (prénom d'abord). Affichage final : Prénom NOM.
-      const firstPartIsSurname=technicianNameParts.length>1 && technicianNameParts[0]===technicianNameParts[0].toLocaleUpperCase("fr-FR") && technicianNameParts[0]!==technicianNameParts[0].toLocaleLowerCase("fr-FR") && technicianNameParts.slice(1).some((part:string)=>part!==part.toLocaleUpperCase("fr-FR"));
+      const firstPartIsSurname=technicianNameParts.length>1 && technicianNameParts[0]===technicianNameParts[0].toLocaleUpperCase("fr-FR") && technicianNameParts[0]!==technicianNameParts[0].toLocaleLowerCase("fr-FR");
       const givenNames=firstPartIsSurname?technicianNameParts.slice(1):technicianNameParts.slice(0,-1);
       const surname=firstPartIsSurname?technicianNameParts[0]:technicianNameParts[technicianNameParts.length-1];
       const titleCase=(value:string)=>value.toLocaleLowerCase("fr-FR").replace(/(^|[-'’])(\p{L})/gu,(_match:string,prefix:string,letter:string)=>prefix+letter.toLocaleUpperCase("fr-FR"));
