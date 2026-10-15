@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -11,21 +11,24 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requiredRole, requiredPermission, requiredPermissionCode }: ProtectedRouteProps) => {
-  const { user, loading, hasRole } = useAuth();
+  const { user, profile, loading, hasRole } = useAuth();
   const { can, loading: permissionsLoading } = usePermissions();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading && !permissionsLoading) {
       if (!user) {
         navigate('/login', { replace: true });
+      } else if (profile?.password_change_required === true && location.pathname !== '/change-password-required') {
+        navigate('/change-password-required', { replace: true });
       } else if (requiredRole && !hasRole(requiredRole)) {
         navigate('/dashboard', { replace: true });
       } else if (requiredPermissionCode ? !can(requiredPermissionCode) : requiredPermission && !can(requiredPermission)) {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [user, loading, permissionsLoading, requiredRole, requiredPermission, requiredPermissionCode, navigate, hasRole, can ]);
+  }, [user, profile?.password_change_required, location.pathname, loading, permissionsLoading, requiredRole, requiredPermission, requiredPermissionCode, navigate, hasRole, can ]);
 
   if (loading) {
     return (
@@ -36,6 +39,7 @@ const ProtectedRoute = ({ children, requiredRole, requiredPermission, requiredPe
   }
 
   if (!user) return null;
+  if (profile?.password_change_required === true && location.pathname !== '/change-password-required') return null;
   if (permissionsLoading) return null;
   if (requiredRole && !hasRole(requiredRole)) return null;
   if (requiredPermissionCode ? !can(requiredPermissionCode) : requiredPermission && !can(requiredPermission)) return null;
