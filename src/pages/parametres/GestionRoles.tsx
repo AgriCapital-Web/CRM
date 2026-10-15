@@ -228,6 +228,15 @@ const GestionRoles = () => {
         if (setPrimaryError) throw setPrimaryError;
       }
 
+      const { data: verifiedRole, error: verifyRoleError } = await (supabase as any)
+        .from("user_roles").select("role,is_primary").eq("user_id", uid).eq("role", selectedRole).maybeSingle();
+      if (verifyRoleError) throw verifyRoleError;
+      if (!verifiedRole || Boolean(verifiedRole.is_primary) !== selectedPrimaryRole) {
+        throw new Error(selectedPrimaryRole
+          ? "Le rôle a été attribué, mais le système n'a pas confirmé son statut de rôle principal."
+          : "Le rôle a été attribué, mais son statut secondaire n'a pas été confirmé.");
+      }
+
       await logAdminAction({
         action: "ATTRIBUTION_ROLE",
         entite: "user_roles",
