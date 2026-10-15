@@ -9,6 +9,7 @@ type Props = {
   onChange: (files: File[]) => void;
   multiple?: boolean;
   accept?: string;
+  existingMedia?: { id: string; url: string; name: string; type: "photo" | "video" }[];
 };
 
 type Preview = { file: File; url: string };
@@ -518,7 +519,7 @@ export default function MediaUploadVisual({
 
   return (
     <div className="space-y-2" onClick={(event) => event.stopPropagation()}>
-      <p className="text-xs text-muted-foreground">{files.length}/{MAX_VISIT_MEDIA} médias prêts · photos et vidéos confondues</p>
+      <p className="text-xs text-muted-foreground">{files.length + existingMedia.length}/{MAX_VISIT_MEDIA} médias prêts · photos et vidéos confondues</p>
       <label className="text-sm font-medium">{label}</label>
       <input
         ref={fileRef}
@@ -625,6 +626,17 @@ export default function MediaUploadVisual({
       </Dialog>
       {recording && <p className="text-sm font-medium text-destructive">Enregistrement en cours · arrêt automatique à 10 minutes.</p>}
       {processing && <p className="text-sm text-muted-foreground">Analyse et optimisation en cours…</p>}
+      {existingMedia.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {existingMedia.map((item) => (
+            <div key={item.id} className="relative overflow-hidden rounded-lg border bg-muted">
+              {item.type === "video" ? <video src={item.url} controls playsInline className="h-32 w-full object-contain" /> : <img src={item.url} alt={item.name} className="h-32 w-full object-contain" loading="lazy" />}
+              <p className="truncate px-2 py-1 text-xs" title={item.name}>{item.name}</p>
+              <span className="absolute left-1 top-1 rounded bg-background/90 px-1.5 py-0.5 text-[10px] font-semibold">Déjà enregistré</span>
+            </div>
+          ))}
+        </div>
+      )}
       {files.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {previews.map(({ file, url }, index) => (
