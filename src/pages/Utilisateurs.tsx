@@ -272,20 +272,20 @@ const Utilisateurs = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Shield className="h-8 w-8 text-primary" />
+    <div className="w-full min-w-0 space-y-4 sm:space-y-5">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Shield className="h-6 w-6 shrink-0 text-primary sm:h-7 sm:w-7" />
           <div>
-            <h1 className="text-3xl font-bold">Gestion des Utilisateurs</h1>
-            <p className="text-muted-foreground">{totalUsers} utilisateur(s)</p>
+            <h1 className="text-lg font-bold leading-tight sm:text-2xl">Gestion des Utilisateurs</h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">{totalUsers} utilisateur(s)</p>
           </div>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button
               onClick={() => setSelectedUser(null)}
-              className="h-10 w-10 p-0 sm:w-auto sm:px-4"
+              className="h-9 w-9 shrink-0 p-0 sm:h-9 sm:w-auto sm:px-3"
               title="Nouvel Utilisateur"
               aria-label="Nouvel Utilisateur"
             >
