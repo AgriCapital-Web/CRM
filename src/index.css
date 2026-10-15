@@ -1281,3 +1281,10 @@ table td :is(span, p, a, div) { min-width: 0; }
     .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; }
   }
 }
+
+/* Priorité responsive finale : neutralise les anciennes règles max-content qui laissaient du vide à droite. */
+.overflow-x-auto > table, .overflow-auto > table, .overflow-y-auto > table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
