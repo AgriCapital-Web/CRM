@@ -310,7 +310,8 @@ const CONTACTS = (carte: CarteData) => [
 
 export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ carte }, ref) => {
   const photo = useSignedUrl(carte.photo_bucket || CARTE_BUCKET, carte.photo_url);
-  const fonction = carte.poste || carte.role_label || "—";
+  const isPdg = String(carte.role_code || "").toLowerCase() === "pdg";
+  const fonction = isPdg ? "Président-Directeur Général" : carte.poste || carte.role_label || "—";
   const nom = carte.nom_complet || "Nom du titulaire";
 
   return (
@@ -435,16 +436,27 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 whiteSpace: "nowrap",
               }}
             >
-              {statutAgentLabel(carte.statut_agent)}
+              {isPdg ? "FONDATEUR" : statutAgentLabel(carte.statut_agent)}
             </span>
           </div>
 
           <div style={{ marginTop: 4, flexShrink: 0, width: "100%" }}>
             <InfoRow label="Identifiant" value={carte.matricule} />
-            <InfoRow label={carte.zone_intervention_label || "Périmètre"} value={carte.zone_intervention || "Non renseigné"} />
-            <InfoRow label="Mission" value={missionAuto(carte)} />
-            <InfoRow label="Contrat" value={contratLabel(carte.type_contrat)} />
-            <InfoRow label="Validité" value={validiteTexte(carte)} />
+            {isPdg ? (
+              <>
+                <InfoRow label="Fonction" value="Fondateur — PDG" />
+                <InfoRow label="Mission" value="Direction générale et vision stratégique" />
+                <InfoRow label="Vision stratégique" value="Développement agricole durable" />
+                <InfoRow label="Innovation & développement" value="Solutions agricoles et numériques" />
+              </>
+            ) : (
+              <>
+                <InfoRow label={carte.zone_intervention_label || "Périmètre"} value={carte.zone_intervention || "Non renseigné"} />
+                <InfoRow label="Mission" value={missionAuto(carte)} />
+                <InfoRow label="Contrat" value={contratLabel(carte.type_contrat)} />
+                <InfoRow label="Validité" value={validiteTexte(carte)} />
+              </>
+            )}
           </div>
 
           <div
@@ -499,9 +511,11 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                   position: "absolute",
                   zIndex: 2,
                   width: 220,
-                  height: 137,
+                  height: "auto",
                   maxWidth: "none",
+                  maxHeight: 137,
                   objectFit: "contain",
+                  objectPosition: "left top",
                   top: 15,
                   left: 0,
                   display: "block",

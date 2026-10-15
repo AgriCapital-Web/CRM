@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useAppRoles, useDepartementsEntreprise } from "@/hooks/useReferentiels";
 import { useRolePermissionMatrix, usePermissions } from "@/hooks/usePermissions";
-import { PERMISSION_CATALOG, PermissionDef } from "@/lib/permissions";
+import { PERMISSION_CATALOG, PERMISSION_CODES, PermissionDef } from "@/lib/permissions";
 import { ROLES as APP_ROLES, RoleDefinition, roleLabel } from "@/lib/roles";
 import { logAdminAction } from "@/lib/audit";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -70,8 +70,17 @@ const GestionRoles = () => {
   const [roleTableSearch, setRoleTableSearch] = useState("");
   const canManageRoles = can("roles.manage_permissions") && rolesFromDb && matrixFromDb;
   const permissionGroups = useMemo(() => {
-    const all: PermissionDef[] = [...PERMISSION_CATALOG, ...customPermissions.filter((p) => p.actif !== false).map((p) => ({ code: p.code, module: p.module, action: p.action, libelle: p.libelle }))];
-    return all.reduce<Record<string, PermissionDef[]>>((acc, permission) => { (acc[permission.module] ||= []).push(permission); return acc; }, {});
+    // Défense contre les lignes personnalisées incomplètes en base : une seule
+    // permission mal formée ne doit jamais faire planter toute la page Rôles.
+    const custom = (Array.isArray(customPermissions) ? customPermissions : [])
+      .filter((p) => p && p.actif !== false && typeof p.code === "string" && typeof p.module === "string" && typeof p.action === "string" && typeof p.libelle === "string")
+      .map((p) => ({ code: p.code, module: p.module, action: p.action, libelle: p.libelle }));
+    const all: PermissionDef[] = [...PERMISSION_CATALOG, ...custom];
+    return all.reduce<Record<string, PermissionDef[]>>((acc, permission) => {
+      if (!permission || !permission.module || !permission.code) return acc;
+      (acc[permission.module] ||= []).push(permission);
+      return acc;
+    }, {});
   }, [customPermissions]);
 
   const fetchData = async () => {

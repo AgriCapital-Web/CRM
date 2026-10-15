@@ -28,23 +28,16 @@ const loadImage = (file: File | Blob) =>
     img.src = url;
   });
 
-/** Normalise la luminosité/contraste d'un ImageData (auto-levels doux). */
-const autoLevels = (data: ImageData) => {
+/** Amélioration légère de la luminosité et du contraste, sans déformation géométrique. */
+const enhanceNaturalLight = (data: ImageData) => {
   const px = data.data;
-  let min = 255;
-  let max = 0;
+  const brightness = 7;
+  const contrast = 1.035;
   for (let i = 0; i < px.length; i += 4) {
-    const l = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) | 0;
-    if (l < min) min = l;
-    if (l > max) max = l;
-  }
-  const range = Math.max(max - min, 1);
-  if (range >= 245) return data;
-  const scale = 255 / range;
-  for (let i = 0; i < px.length; i += 4) {
-    px[i] = Math.min(255, Math.max(0, (px[i] - min) * scale));
-    px[i + 1] = Math.min(255, Math.max(0, (px[i + 1] - min) * scale));
-    px[i + 2] = Math.min(255, Math.max(0, (px[i + 2] - min) * scale));
+    for (let channel = 0; channel < 3; channel++) {
+      const value = px[i + channel];
+      px[i + channel] = Math.max(0, Math.min(255, (value - 128) * contrast + 128 + brightness));
+    }
   }
   return data;
 };
@@ -70,13 +63,13 @@ export async function traiterPhotoCarte(file: File | Blob): Promise<Blob> {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas non disponible");
 
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#E5E7EB";
   ctx.fillRect(0, 0, TARGET_W, TARGET_H);
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, TARGET_W, TARGET_H);
 
   const data = ctx.getImageData(0, 0, TARGET_W, TARGET_H);
-  ctx.putImageData(autoLevels(data), 0, 0);
+  ctx.putImageData(enhanceNaturalLight(data), 0, 0);
 
   return await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Échec du traitement"))), "image/jpeg", 0.9),

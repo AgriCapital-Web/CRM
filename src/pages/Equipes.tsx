@@ -474,40 +474,40 @@ const Equipes = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 bg-primary/10 rounded-lg"><Users className="h-5 w-5 text-primary" /></div>
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 bg-primary/10 rounded-lg shrink-0"><Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
             <div>
-              <div className="text-2xl font-bold">{equipes.length}</div>
-              <div className="text-sm text-muted-foreground">Total</div>
+              <div className="text-xl sm:text-2xl font-bold leading-tight">{equipes.length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground leading-tight">Total</div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 bg-green-100 rounded-lg"><Briefcase className="h-5 w-5 text-green-600" /></div>
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 bg-green-100 rounded-lg shrink-0"><Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" /></div>
             <div>
-              <div className="text-2xl font-bold">{commercialCount}</div>
-              <div className="text-sm text-muted-foreground">Commerciales</div>
+              <div className="text-xl sm:text-2xl font-bold leading-tight">{commercialCount}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground leading-tight">Commerciales</div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 bg-teal-100 rounded-lg"><Wrench className="h-5 w-5 text-teal-600" /></div>
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 bg-teal-100 rounded-lg shrink-0"><Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600" /></div>
             <div>
-              <div className="text-2xl font-bold">{techniqueCount}</div>
-              <div className="text-sm text-muted-foreground">Techniques</div>
+              <div className="text-xl sm:text-2xl font-bold leading-tight">{techniqueCount}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground leading-tight">Techniques</div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 bg-green-100 rounded-lg"><CheckCircle className="h-5 w-5 text-green-600" /></div>
+          <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 bg-green-100 rounded-lg shrink-0"><CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" /></div>
             <div>
-              <div className="text-2xl font-bold">{equipes.filter(e => e.actif).length}</div>
-              <div className="text-sm text-muted-foreground">Actives</div>
+              <div className="text-xl sm:text-2xl font-bold leading-tight">{equipes.filter(e => e.actif).length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground leading-tight">Actives</div>
             </div>
           </CardContent>
         </Card>
@@ -538,7 +538,7 @@ const Equipes = () => {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {membersEquipe?.type_equipe === "technique" ? <Wrench className="h-5 w-5 text-teal-600" /> : <Briefcase className="h-5 w-5 text-green-600" />}
+              {membersEquipe?.type_equipe === "technique" ? <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600" /> : <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />}
               Membres — {membersEquipe?.nom}
               <Badge variant="outline" className="ml-2 text-xs">{membersEquipe?.type_equipe === "technique" ? "Technique" : "Commerciale"}</Badge>
             </DialogTitle>

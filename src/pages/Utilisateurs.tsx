@@ -275,9 +275,14 @@ const Utilisateurs = () => {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setSelectedUser(null)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvel Utilisateur
+            <Button
+              onClick={() => setSelectedUser(null)}
+              className="h-10 w-10 p-0 sm:w-auto sm:px-4"
+              title="Nouvel Utilisateur"
+              aria-label="Nouvel Utilisateur"
+            >
+              <Plus className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">Nouvel Utilisateur</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">

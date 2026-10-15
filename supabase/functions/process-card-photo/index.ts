@@ -85,11 +85,15 @@ Deno.serve(async (req: Request) => {
     const { data: auth, error: authError } = await admin.auth.getUser(token);
     if (authError || !auth.user) return respond(req, { error: "Session invalide. Reconnectez-vous." }, 401);
 
-    const [{ data: isSuperAdmin }, { data: isOperationsLead }] = await Promise.all([
-      admin.rpc("has_role", { _user_id: auth.user.id, _role: "super_admin" }),
-      admin.rpc("has_role", { _user_id: auth.user.id, _role: "responsable_operations" }),
-    ]);
-    if (!isSuperAdmin && !isOperationsLead) return respond(req, { error: "Accès non autorisé." }, 403);
+    // Les responsables habilités à gérer les cartes doivent pouvoir traiter les photos.
+    // Le PDG et le DG disposent également de l'accès global à la gestion du personnel.
+    const roleChecks = await Promise.all(
+      ["super_admin", "pdg", "dg", "responsable_operations"].map((role) =>
+        admin.rpc("has_role", { _user_id: auth.user.id, _role: role }),
+      ),
+    );
+    const canProcessPhotos = roleChecks.some(({ data, error }) => !error && data === true);
+    if (!canProcessPhotos) return respond(req, { error: "Accès non autorisé à la gestion des photos du personnel." }, 403);
 
     const body = await req.json().catch(() => null);
     if (!body || !["single", "batch"].includes(body.mode)) {
