@@ -1477,21 +1477,22 @@ button > span, [role="button"] > span {
   min-width: 0 !important;
   grid-auto-flow: row;
 }
-@media (max-width: 639px) {
-  /* Clients : trois cartes sur la première ligne, puis les deux dernières
-     s'élargissent automatiquement pour remplir toute la deuxième ligne. */
+@media (max-width: 767px) {
+  /* Clients : 3 cartes sur la première ligne, les 2 dernières partagent
+     exactement toute la largeur de la seconde ligne. */
   .crm-compact-kpi-grid--clients {
     grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
     gap: .25rem !important;
   }
   .crm-compact-kpi-grid--clients > a:nth-child(-n + 3) {
-    grid-column: span 2 / span 2;
+    grid-column: span 2 / span 2 !important;
   }
   .crm-compact-kpi-grid--clients > a:nth-child(n + 4) {
-    grid-column: span 3 / span 3;
+    grid-column: span 3 / span 3 !important;
   }
 }
-@media (min-width: 640px) {
+@media (min-width: 768px) {
   .crm-compact-kpi-grid--clients > a {
     grid-column: auto;
   }
