@@ -8,6 +8,43 @@ import { Sparkles, AlertTriangle, CheckCircle2, Copy, Loader2, Mic, MicOff, File
 import { useToast } from "@/hooks/use-toast";
 type CR = { titre: string; type_intervention: string; resume: string; actions_realisees: string[]; observations: string; problemes_constates: string[]; recommandations: string[]; nombre_plants_realises: number | null; informations_manquantes: string[]; complet: boolean; };
 type Props = { contexte?: string; compact?: boolean; onApply?: (compteRendu: CR, description: string) => void; };
+
+const cleanText = (value: unknown): string => String(value ?? "")
+  .replace(/\\r/g, "")
+  .split("\\n")
+  .filter((line) => !/^\\s*(?:RAPPORT (?:DE VISITE|D['’]INTERVENTION)|PAR\\s*:|OBSERVATIONS?\\s*:|\\d+\\.\\s+(?:OBJET|CONSTAT|ACTIONS|SUIVI|PRIORITÉ|PRIORITE))/i.test(line.trim()))
+  .join("\\n")
+  .replace(/[ \\t]+/g, " ")
+  .replace(/\\n{3,}/g, "\\n\\n")
+  .trim();
+
+const uniqueText = (values: unknown[]): string[] => {
+  const seen = new Set<string>();
+  return values.map(cleanText).filter((value) => {
+    const key = value.toLocaleLowerCase("fr-FR").replace(/[.!?;:,]+$/g, "").trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const normalizeCR = (input: CR): CR => {
+  const resume = cleanText(input.resume);
+  const observations = cleanText(input.observations);
+  const cleanResume = observations && observations.toLocaleLowerCase("fr-FR") === resume.toLocaleLowerCase("fr-FR") ? resume : resume;
+  const cleanObservations = observations.toLocaleLowerCase("fr-FR") === cleanResume.toLocaleLowerCase("fr-FR") ? "" : observations;
+  return {
+    ...input,
+    titre: cleanText(input.titre),
+    type_intervention: cleanText(input.type_intervention),
+    resume: cleanResume,
+    observations: cleanObservations,
+    actions_realisees: uniqueText(input.actions_realisees || []),
+    problemes_constates: uniqueText(input.problemes_constates || []),
+    recommandations: uniqueText(input.recommandations || []),
+    informations_manquantes: uniqueText(input.informations_manquantes || []),
+  };
+};
 const List = ({ title, items }: { title: string; items: string[] }) => {
   if (!items?.length) return null;
   const isPriority = /priorit|urgent|immédiat|critique|à corriger|problème/i.test(title);
@@ -148,7 +185,7 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       }
       if (data?.error) throw new Error(data.error);
       if (!data?.compte_rendu) throw new Error("La réponse IA ne contient pas de compte rendu exploitable.");
-      setCr(data.compte_rendu as CR); toast({ title: "Compte rendu structuré", description: "Vérifiez le contenu puis appliquez-le au rapport." });
+      setCr(normalizeCR(data.compte_rendu as CR)); toast({ title: "Compte rendu structuré", description: "Vérifiez le contenu puis appliquez-le au rapport." });
     } catch (e: any) {
       // Never discard the dictated text. Provide a usable structured draft when AI auth/network is unavailable.
       const source = description.trim();
@@ -165,7 +202,7 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
         informations_manquantes: ["Validation par l’IA en ligne à effectuer lorsque la connexion sera disponible."],
         complet: false,
       };
-      setCr(fallback);
+      setCr(normalizeCR(fallback));
       toast({ title: "Compte rendu préparé localement", description: "Votre texte est conservé et structuré en brouillon. La validation IA sera disponible au retour de la connexion." });
     }
     finally { setLoading(false); }
