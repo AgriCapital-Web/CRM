@@ -326,6 +326,7 @@ const Utilisateurs = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="w-full max-w-full overflow-x-auto">
           <Table className="responsive-data-table">
             <TableHeader>
               <TableRow>
@@ -340,9 +341,9 @@ const Utilisateurs = () => {
             <TableBody>
               {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{formatUserShortName(user.nom_complet)}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.telephone || "N/A"}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{formatUserShortName(user.nom_complet)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{user.email || "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">{user.telephone || "N/A"}</TableCell>
                   <TableCell>
                     {getHighestRole(user) ? (
                       <Badge variant="outline" className="whitespace-nowrap text-xs">
@@ -421,6 +422,7 @@ const Utilisateurs = () => {
               ))}
             </TableBody>
           </Table>
+          </div>
           <ResponsiveTablePagination page={page} pageSize={pageSize} total={totalUsers} onPageChange={setPage} />
         </CardContent>
       </Card>
