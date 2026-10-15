@@ -65,7 +65,7 @@ export default function GestionGeographie() {
     }
   };
 
-  const tree = useMemo(()=>data.districts.map((d:any)=>({
+  const tree = useMemo(()=>[...data.districts].sort((a:any,b:any)=>Number(/diaspora/i.test(b.nom||""))-Number(/diaspora/i.test(a.nom||""))||(a.nom||"").localeCompare(b.nom||"","fr")).map((d:any)=>({
     ...d,
     regions:data.regions.filter((r:any)=>r.district_id===d.id).map((r:any)=>({
       ...r,
