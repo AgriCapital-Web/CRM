@@ -58,7 +58,7 @@ const GestionCartes = () => {
       const [p, c, r, a, z, regions, departments, subPrefectures] = await Promise.all([
         (supabase as any).from("profiles").select("id, user_id, nom_complet, email, telephone, poste, departement, region_id, district_id, equipe_id, photo_url, actif").eq("actif", true).order("nom_complet"),
         (supabase as any).from("cartes_personnel").select("*"),
-        (supabase as any).from("user_roles").select("user_id, role"),
+        (supabase as any).from("user_roles").select("user_id, role, is_primary"),
         (supabase as any).from("app_roles").select("code, nom, niveau, niveau_couverture, libelle_couverture").eq("actif", true),
         (supabase as any).from("zone_assignments").select("user_id, zone_type, zone_id"),
         (supabase as any).from("v_geo_regions").select("id, nom"),
@@ -71,7 +71,7 @@ const GestionCartes = () => {
       const cardRows = (c.data || []) as Row[];
       const roleRows = (r.data || []) as Row[];
       const map: Record<string, string[]> = {};
-      roleRows.forEach((x) => { if (x.user_id && x.role) (map[x.user_id] ||= []).push(x.role); });
+      roleRows.sort((a: any, b: any) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary))).forEach((x) => { if (x.user_id && x.role) (map[x.user_id] ||= []).push(x.role); });
       setProfiles(profileRows);
       setCartes(cardRows);
       setRoles(map);
@@ -124,7 +124,7 @@ const GestionCartes = () => {
       .map((p, i) => {
         const c = carteDe(p.id);
         const userRoleCodes = roles[p.user_id] || [];
-        const primaryRoleCode = highestRoleCode(userRoleCodes, roleLevels) || "";
+        const primaryRoleCode = userRoleCodes[0] || highestRoleCode(userRoleCodes, roleLevels) || "";
         const primaryRoleName = roleCoverage[primaryRoleCode]?.name || primaryRoleCode.replace(/_/g, " ");
         const roleAndDepartment = normalizeGeo([primaryRoleCode, primaryRoleName, p.poste, p.departement].filter(Boolean).join(" "));
         const departmentName = normalizeGeo(p.departement || "");
