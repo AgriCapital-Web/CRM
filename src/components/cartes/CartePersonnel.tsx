@@ -78,7 +78,7 @@ export const statutAgentLabel = (v?: string | null) =>
   STATUTS_AGENT.find((s) => s.v === v)?.l || "—";
 
 const missionKey = (value?: string | null) =>
-  (value || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 export const missionAuto = (carte: CarteData) => {
   const role = missionKey([carte.role_code, carte.role_label, carte.poste].filter(Boolean).join(" "));
