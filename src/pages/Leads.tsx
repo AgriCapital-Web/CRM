@@ -506,7 +506,10 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           </div>
         </div>
 
-        <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+        <div className={view === "prospects"
+          ? "crm-prospects-stat-grid flex min-w-0 flex-wrap gap-2"
+          : "grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7"
+        }>
           {[
             {l:"Leads",short:"Leads",v:totalLeads,i:Target},
             {l:"Leads convertis",short:"Leads conv.",v:leadsConverted,i:TrendingUp},
@@ -516,7 +519,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             {l:"Taux de conversion prospects",short:"Conv. prospects",v:tauxConversionProspects+"%",i:TrendingUp},
             {l:"À relancer",short:"À relancer",v:stats.aRelancer,i:PhoneCall}
           ].map(item=>(
-            <Card key={item.l} className="min-w-0 overflow-hidden">
+            <Card key={item.l} className={`min-w-0 overflow-hidden ${view === "prospects" ? "crm-prospects-stat-card" : ""}`}>
               <CardContent className="flex min-h-[62px] min-w-0 items-center justify-between gap-1 p-2 sm:p-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="hidden text-[10px] leading-tight text-muted-foreground 2xl:block">{item.l}</p>
