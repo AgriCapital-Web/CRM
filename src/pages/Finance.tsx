@@ -37,6 +37,7 @@ export default function Finance(){
   const [expense,setExpense]=useState({category:"AUTRE",amount:"",description:"",supplier:"",clientId:"",plantationId:"",direct:false});
   const [expenseProof,setExpenseProof]=useState<File|null>(null);
   const [associateForm,setAssociateForm]=useState({associateId:"",amount:"",type:"apport",reference:"",notes:""});
+  const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
   const [salaryForm,setSalaryForm]=useState({profileId:"",baseSalary:"",payDay:"28"});
   const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
 
@@ -81,6 +82,25 @@ export default function Finance(){
     const out=valid.filter(t=>t.direction==="sortie").reduce((s,t)=>s+Number(t.amount||0),0);
     return {income,out,balance:income-out};
   },[transactions]);
+
+  const saveEntry=async()=>{
+    if(!entryForm.source.trim()||Number(entryForm.amount)<=0){toast({title:"Informations requises",description:"Renseignez la source et un montant positif.",variant:"destructive"});return;}
+    setSaving(true);
+    try{
+      const labels={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",apport_associe:"Apport associé",vente:"Vente",autre:"Autre entrée"};
+      const {error}=await (supabase as any).from("finance_transactions").insert({
+        direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="apport_associe"?"ASSOCIE":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
+        label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:Number(entryForm.amount),
+        transaction_date:new Date(entryForm.date+"T12:00:00").toISOString(),payment_method:entryForm.method||null,
+        reference:entryForm.reference.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide"
+      });
+      if(error)throw error;
+      toast({title:"Entrée enregistrée",description:"L'opération est intégrée au journal et aux totaux financiers."});
+      setEntryForm({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+      await load();
+    }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
+    finally{setSaving(false);}
+  };
 
   const saveExpense=async()=>{
     if(!expense.category||Number(expense.amount)<=0)return;
@@ -227,13 +247,36 @@ export default function Finance(){
       <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">SOLDE FINANCIER</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(totals.balance)}</p></CardContent></Card>
     </div>
     <Tabs defaultValue="journal">
-      <TabsList className="grid h-auto w-full min-w-0 grid-cols-2 gap-2 rounded-xl bg-muted/70 p-2 sm:grid-cols-3 lg:grid-cols-5">
+      <TabsList className="grid h-auto w-full min-w-0 grid-cols-2 gap-1.5 rounded-xl bg-muted/70 p-1.5 sm:grid-cols-3 lg:grid-cols-6">
         <TabsTrigger value="journal" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><Wallet className="mb-1 h-4 w-4 shrink-0" />Journal financier</TabsTrigger>
+        <TabsTrigger value="entrees" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><ArrowDownLeft className="mb-1 h-4 w-4 shrink-0" />Entrées</TabsTrigger>
         <TabsTrigger value="depenses" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><ArrowUpRight className="mb-1 h-4 w-4 shrink-0" />Dépenses</TabsTrigger>
         <TabsTrigger value="salaires" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><Banknote className="mb-1 h-4 w-4 shrink-0" />Salaires & paie</TabsTrigger>
         <TabsTrigger value="associes" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><Users className="mb-1 h-4 w-4 shrink-0" />Associés</TabsTrigger>
         <TabsTrigger value="rapports" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><RefreshCw className="mb-1 h-4 w-4 shrink-0" />Rapports</TabsTrigger>
       </TabsList>
+      <TabsContent value="entrees" className="mt-3 min-w-0 space-y-3">
+        <div className="rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-3"><h2 className="font-semibold">Entrées financières</h2><p className="text-xs text-muted-foreground">Financements, prêts, dons, apports, ventes et autres recettes.</p></div>
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {[
+            {label:"Entrées validées",value:transactions.filter(t=>t.status==="valide"&&t.direction==="entree").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Financements",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="financement").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Dons",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="don").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Prêts reçus",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="pret").reduce((a,t)=>a+Number(t.amount||0),0)}
+          ].map(item=><Card key={item.label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{item.label}</p><p className="whitespace-nowrap text-base font-bold tabular-nums">{money(item.value)}</p></CardContent></Card>)}
+        </div>
+        <Card><CardHeader className="pb-2"><CardTitle>Nouvelle entrée</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1"><Label>Type d’entrée</Label><Select value={entryForm.type} onValueChange={v=>setEntryForm({...entryForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="financement">Financement</SelectItem><SelectItem value="pret">Prêt reçu</SelectItem><SelectItem value="don">Don</SelectItem><SelectItem value="apport_associe">Apport associé</SelectItem><SelectItem value="vente">Vente / prestation</SelectItem><SelectItem value="autre">Autre entrée</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1"><Label>Source / raison sociale / nom</Label><Input value={entryForm.source} onChange={e=>setEntryForm({...entryForm,source:e.target.value})} placeholder="Nom du financeur ou organisme"/></div>
+          <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={entryForm.amount} onChange={e=>setEntryForm({...entryForm,amount:e.target.value})} placeholder="Montant reçu"/></div>
+          <div className="space-y-1"><Label>Date de réception</Label><Input type="date" value={entryForm.date} onChange={e=>setEntryForm({...entryForm,date:e.target.value})}/></div>
+          <div className="space-y-1"><Label>Mode de réception</Label><Select value={entryForm.method} onValueChange={v=>setEntryForm({...entryForm,method:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1"><Label>Référence</Label><Input value={entryForm.reference} onChange={e=>setEntryForm({...entryForm,reference:e.target.value})} placeholder="N° de pièce ou transaction"/></div>
+          <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Notes / affectation</Label><Textarea rows={2} value={entryForm.notes} onChange={e=>setEntryForm({...entryForm,notes:e.target.value})} placeholder="Objet, conditions du prêt, projet financé…"/></div>
+          <div className="sm:col-span-2 lg:col-span-3"><Button className="w-full sm:w-auto" onClick={()=>void saveEntry()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>Enregistrer l’entrée</Button></div>
+        </CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle>Historique des entrées</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Date</th><th className="text-left">Nature / source</th><th className="text-left">Mode</th><th className="text-right">Montant</th></tr></thead><tbody>{transactions.filter(t=>t.direction==="entree").map(t=><tr key={t.id}><td className="whitespace-nowrap">{new Date(t.transaction_date).toLocaleDateString("fr-FR")}</td><td className="min-w-0">{t.label}</td><td>{t.payment_method||"—"}</td><td className="whitespace-nowrap text-right font-semibold tabular-nums">{money(Number(t.amount||0))}</td></tr>)}{!transactions.some(t=>t.direction==="entree")&&<tr><td colSpan={4} className="p-4 text-center text-muted-foreground">Aucune entrée enregistrée</td></tr>}</tbody></table></div></CardContent></Card>
+      </TabsContent>
       <TabsContent value="journal" className="mt-4 min-w-0 space-y-4">
         <div className="rounded-xl border-l-4 border-primary bg-primary/5 p-4"><h2 className="font-semibold">Journal financier</h2></div>
         <Card>
