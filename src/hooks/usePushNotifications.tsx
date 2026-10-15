@@ -66,7 +66,7 @@ export const usePushNotifications = () => {
     setIsEnabling(true);
     try {
       const allowed = permission === "granted" || await requestPermission(); if (!allowed) return false;
-      const registration = registrationRef.current;
+      let registration = registrationRef.current;
       if (!registration?.active) throw new Error("Le service worker n'est pas encore actif. Rechargez AC_Teams puis réessayez.");
       const config = pushConfig;
       const applicationServerKey = decodeVapidKey(String(config.public_key).trim());

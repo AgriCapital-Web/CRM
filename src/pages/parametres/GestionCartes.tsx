@@ -77,7 +77,7 @@ const GestionCartes = () => {
       setRoles(map);
       setZoneAssignments((z.data || []) as Row[]);
       const levels: Record<string, number> = {};
-      const coverage: Record<string, { level: string; label: string }> = {};
+      const coverage: Record<string, { level: string; label: string; name: string }> = {};
       (a.data || []).forEach((x: any) => {
         if (!x.code) return;
         levels[x.code] = Number(x.niveau);

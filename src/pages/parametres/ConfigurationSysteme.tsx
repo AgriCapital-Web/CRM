@@ -108,12 +108,17 @@ const ConfigurationSysteme = () => {
       const changes = entries.map(([id, valeur]) => ({ id, valeur }));
       const { data, error } = await (supabase as any).rpc("update_configurations_systeme_batch", { p_changes: changes });
       if (error) throw error;
-      return Number(data ?? entries.length);
+      return { saved: Number(data ?? entries.length), changes };
     },
-    onSuccess: async (saved) => {
+    onSuccess: async (result) => {
+      const saved = typeof result === "number" ? result : result.saved;
       await queryClient.invalidateQueries({ queryKey: ["configurations"] });
       setEditedValues({});
-      void logActivity({ tableName: "configurations_systeme", action: "UPDATE", details: `${saved} réglage(s) système modifié(s) via l’enregistrement groupé` });
+      if (typeof result !== "number") {
+        for (const change of result.changes) {
+          void logActivity({ tableName: "configurations_systeme", recordId: change.id, action: "UPDATE", details: "Configuration système modifiée via l’enregistrement groupé", nouvellesValeurs: { valeur: change.valeur } });
+        }
+      }
       toast({ title: "Configurations enregistrées", description: `${saved} réglage(s) sauvegardé(s) en une seule transaction.` });
     },
     onError: (err) => toast({ title: "Enregistrement refusé", description: err instanceof Error ? err.message : "Aucun réglage n’a été enregistré. Vérifiez les droits et les valeurs.", variant: "destructive" }),
