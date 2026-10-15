@@ -608,7 +608,7 @@ const Dashboard = () => {
     <ProtectedRoute>
       <MainLayout>
         <div className="min-w-0 space-y-5 animate-fade-in">
-          <div className="rounded-2xl bg-gradient-to-r from-primary to-primary/80 p-2.5 sm:p-6 text-primary-foreground shadow-lg sm:p-6">
+          <div className="rounded-2xl bg-gradient-to-r from-primary to-primary/80 p-2.5 sm:p-6 text-primary-foreground shadow-lg">
             <div className="flex flex-row items-center gap-2 sm:gap-4">
               <div className="relative shrink-0">
                 <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full p-0.5 bg-gradient-to-br from-amber-400 via-transparent to-primary">
