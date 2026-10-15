@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Shield, KeyRound, Save, Upload, UserRound, Camera, Check } from "lucide-react";
 import { formatUserProfileName } from "@/lib/utils";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
@@ -143,8 +144,8 @@ const Profil = () => {
     }
   };
 
-  const photoUrl = profile.photo_url ? undefined : undefined;
-  const urgPhotoUrl = undefined;
+  const photoUrl = useSignedUrl("photos-profils", profile.photo_url);
+  const urgPhotoUrl = useSignedUrl("photos-profils", profile.contact_urgence_photo_url);
   const initials = formatUserProfileName(profile.nom_complet || "AgriCapital").split(/[\s,]+/).filter(Boolean).map((x: string) => x[0]).join("").slice(0, 2);
   const lockHint = isAdmin ? undefined : "Modifiable uniquement par l'administrateur";
 
