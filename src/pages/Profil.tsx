@@ -37,16 +37,14 @@ const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: 
   const isImage = preview ? previewIsImage : isPhoto || [".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".heic"].some((ext) => (current || "").toLowerCase().includes(ext));
   return (
     <div className="min-w-0 space-y-2">
-      <Label>{label}</Label>
       <input ref={cameraRef} type="file" accept="image/*" capture={isPhoto ? "user" : "environment"} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      <div className="min-w-0 w-full">
-        <Button type="button" variant="outline" className="w-full min-w-0 justify-center whitespace-normal text-center" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4 shrink-0" /><span className="min-w-0 truncate">{current ? "Choisir / remplacer le fichier" : "Choisir une photo ou un fichier"}</span></Button>
+      <div className="flex min-w-0 items-center gap-1.5">
+        {isPhoto && <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={"Prendre " + label} aria-label={"Prendre " + label} onClick={() => cameraRef.current?.click()}><Camera className="h-4 w-4" /></Button>}
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={current ? "Remplacer le fichier" : "Ajouter un fichier"} aria-label={current ? "Remplacer le fichier" : "Ajouter un fichier"} onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4" /></Button>
+        {current && <span className="text-xs text-muted-foreground" title="Fichier enregistré"><Check className="h-3.5 w-3.5 text-green-600" /></span>}
       </div>
-      {shown ? <div className="overflow-hidden rounded-md border bg-muted/20">
-        {isImage ? <img src={shown} alt={"Aperçu — " + label} className="mx-auto max-h-64 w-full object-contain" /> : preview ? <object data={shown} type="application/pdf" className="h-64 w-full"><a href={shown} target="_blank" rel="noreferrer">Consulter le document</a></object> : <div className="p-3 text-sm text-muted-foreground">Document enregistré</div>}
-        <div className="border-t p-2 text-xs text-muted-foreground">{preview ? "Aperçu du fichier sélectionné" : "Fichier enregistré"}</div>
-      </div> : current ? <p className="text-xs text-muted-foreground">Chargement du fichier enregistré…</p> : null}
+
     </div>
   );
 };
