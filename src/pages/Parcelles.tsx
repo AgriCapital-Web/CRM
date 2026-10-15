@@ -99,11 +99,11 @@ const Parcelles = () => {
             
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card><CardContent className="p-4 flex items-center gap-3"><Layers className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{parcelles.length}</div><div className="text-xs text-muted-foreground">Parcelles</div></div></CardContent></Card>
-            <Card><CardContent className="p-4 flex items-center gap-3"><MapPin className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{Math.round(totalSurface).toLocaleString("fr-FR")}</div><div className="text-xs text-muted-foreground">ha référencés</div></div></CardContent></Card>
-            <Card><CardContent className="p-4 flex items-center gap-3"><Sprout className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{Math.round(totalAgri).toLocaleString("fr-FR")}</div><div className="text-xs text-muted-foreground">ha part AgriCapital</div></div></CardContent></Card>
-            <Card><CardContent className="p-4 flex items-center gap-3"><Layers className="h-5 w-5 text-primary" /><div><div className="text-2xl font-bold">{totalLots}</div><div className="text-xs text-muted-foreground">lots AgriCapital</div></div></CardContent></Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{parcelles.length}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">Parcelles</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><MapPin className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalSurface).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha référencés</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Sprout className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalAgri).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha part AgriCapital</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{totalLots}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">lots AgriCapital</div></div></CardContent></Card>
           </div>
 
           <div className="relative">

@@ -732,23 +732,23 @@ const ProprietairesTerres = () => {
             </Dialog>
           </div>
 
-          <div className="responsive-auto-grid gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg"><Users className="h-5 w-5 text-primary" /></div>
-                <div><div className="text-2xl font-bold">{proprietaires.length}</div><div className="text-xs text-muted-foreground">Propriétaires</div></div>
+              <CardContent className="p-2 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0">
+                <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg"><Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>
+                <div className="min-w-0"><div className="text-lg sm:text-2xl font-bold">{proprietaires.length}</div><div className="text-[10px] sm:text-xs leading-tight text-muted-foreground break-words">Propriétaires</div></div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-accent/10 rounded-lg"><Layers className="h-5 w-5 text-accent" /></div>
-                <div><div className="text-2xl font-bold">{proprietaires.reduce((s, p) => s + Number(p.parcelles?.[0]?.count || 0), 0)}</div><div className="text-xs text-muted-foreground">Parcelles</div></div>
+              <CardContent className="p-2 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0">
+                <div className="p-1.5 sm:p-2 bg-accent/10 rounded-lg"><Layers className="h-4 w-4 sm:h-5 sm:w-5 text-accent" /></div>
+                <div className="min-w-0"><div className="text-lg sm:text-2xl font-bold">{proprietaires.reduce((s, p) => s + Number(p.parcelles?.[0]?.count || 0), 0)}</div><div className="text-[10px] sm:text-xs leading-tight text-muted-foreground">Parcelles</div></div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg"><MapPin className="h-5 w-5 text-green-600" /></div>
-                <div><div className="text-2xl font-bold">{proprietaires.reduce((s, p) => s + (p.surface_totale_ha || 0), 0).toLocaleString("fr-FR")}</div><div className="text-xs text-muted-foreground">ha total</div></div>
+              <CardContent className="p-2 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0">
+                <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg"><MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" /></div>
+                <div className="min-w-0"><div className="text-lg sm:text-2xl font-bold">{proprietaires.reduce((s, p) => s + (p.surface_totale_ha || 0), 0).toLocaleString("fr-FR")}</div><div className="text-[10px] sm:text-xs leading-tight text-muted-foreground">ha total</div></div>
               </CardContent>
             </Card>
           </div>
