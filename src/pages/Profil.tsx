@@ -182,7 +182,7 @@ const Profil = () => {
 
           <Card>
             <CardHeader><CardTitle>Informations personnelles</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-x-2 gap-y-1.5 sm:gap-x-3 sm:gap-y-2">
+            <CardContent className="grid grid-cols-1 gap-y-3">
               <div><Label>Nom complet</Label><Input className="h-8 text-sm" value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-8 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-8 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
@@ -222,7 +222,7 @@ const Profil = () => {
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" />Pièce d'identité</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 sm:gap-3">
+            <CardContent className="grid grid-cols-1 gap-3">
               <div className="[&_button]:h-8 [&_button]:text-sm"><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
               <div><Label>Numéro de pièce</Label><Input className="h-8 text-sm" value={profile.numero_piece_identite || ""} onChange={(e) => set("numero_piece_identite", e.target.value)} /></div>
               <FileField label={uploading === "piece_identite_recto_url" ? "Envoi…" : "Pièce — recto"} current={profile.piece_identite_recto_url} onPick={(f) => upload("piece_identite_recto_url", "pieces-identite", f)} bucket="pieces-identite" />
@@ -232,7 +232,7 @@ const Profil = () => {
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" />Personne à contacter en cas d'urgence</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 sm:gap-3">
+            <CardContent className="grid grid-cols-1 gap-3">
               <div className="col-span-2 flex min-w-0 items-center gap-3">
                 <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback>{(profile.contact_urgence_nom || "?").slice(0, 2)}</AvatarFallback></Avatar>
                 <div className="flex-1"><FileField label={uploading === "contact_urgence_photo_url" ? "Envoi…" : "Photo de la personne"} current={profile.contact_urgence_photo_url} onPick={(f) => upload("contact_urgence_photo_url", "photos-profils", f)} bucket="photos-profils" /></div>
