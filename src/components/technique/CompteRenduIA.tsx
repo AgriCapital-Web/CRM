@@ -114,7 +114,21 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
     if (description.trim().length < 10) { toast({ variant: "destructive", title: "Description trop courte", description: "Décrivez un peu plus la visite avant de générer le compte rendu." }); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("compte-rendu-intervention", { body: { description: description.trim(), contexte } });
+      // Ensure a valid, fresh Supabase token before calling the protected AI function.
+      // Offline-only authentication does not provide a live server session.
+      let { data: sessionData } = await supabase.auth.getSession();
+      let session = sessionData.session;
+      if (session?.refresh_token) {
+        const refreshed = await supabase.auth.refreshSession();
+        if (refreshed.data.session) session = refreshed.data.session;
+      }
+      if (!session?.access_token) {
+        throw new Error("Aucune session en ligne valide. Le compte rendu reste conservé et sera préparé en brouillon local.");
+      }
+      const { data, error } = await supabase.functions.invoke("compte-rendu-intervention", {
+        body: { description: description.trim(), contexte },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
       if (error) {
         let msg = error.message;
         try { msg = (await (error as any).context?.json())?.error || msg; } catch { /* ignore */ }
