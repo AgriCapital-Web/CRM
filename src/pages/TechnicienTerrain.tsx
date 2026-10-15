@@ -230,12 +230,57 @@ const TechnicienTerrain=()=>{
     },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
   };
 
+  const openReport=(item:any)=>{
+    if(!manager && item.agent_technique_id!==profileId){
+      toast({variant:"destructive",title:"Accès en lecture seule",description:"Vous ne pouvez modifier que vos propres rapports."});
+    }
+    setEditingReportId(item.id);
+    setReportEditEnabled(false);
+    setReport({
+      ticket_id:item.ticket_id||"",plantation_id:item.plantation_id||"",
+      date_visite:item.date_visite?new Date(item.date_visite).toISOString().slice(0,16):"",
+      type_visite:item.type_visite||"suivi",constat:item.constat||"",travaux_realises:item.travaux_realises||"",
+      etat_plantation:item.etat_plantation||"",etat_plantation_autre:"",
+      observations:item.observations||"",recommandations:item.recommandations||"",contenu_client:item.contenu_client||"",
+      prochaine_intervention:item.prochaine_intervention||"",localisation_gps_lat:item.localisation_gps_lat==null?"":String(item.localisation_gps_lat),
+      localisation_gps_lng:item.localisation_gps_lng==null?"":String(item.localisation_gps_lng)
+    });
+    setMedia([]);
+    setActiveTab("rapport");
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
   const saveReport=async(submit:boolean)=>{
     if(!report.plantation_id){toast({variant:"destructive",title:"Plantation requise"});return;}
     if(!report.constat&&!report.travaux_realises&&!report.observations){toast({variant:"destructive",title:"Rapport incomplet",description:"Renseignez au moins le constat ou les travaux réalisés."});return;}
     setSaving(true);
     try{
       const profile=await profileContext(); if(!profile?.id)throw new Error("Profil technicien introuvable");
+      if(editingReportId){
+        const original=reports.find((item:any)=>item.id===editingReportId);
+        if(!original)throw new Error("Rapport introuvable dans votre périmètre.");
+        if(!manager && original.agent_technique_id!==profile.id)throw new Error("Vous pouvez modifier uniquement vos propres rapports.");
+        const updatePayload={
+          plantation_id:report.plantation_id,client_id:plantation?.client_id||original.client_id||null,ticket_id:report.ticket_id||null,
+          type_visite:report.type_visite,
+          constat:report.constat||null,travaux_realises:report.travaux_realises||null,
+          etat_plantation:report.etat_plantation==="autre"?(report.etat_plantation_autre||null):(report.etat_plantation||null),
+          observations:report.observations||null,recommandations:report.recommandations||null,contenu_client:report.contenu_client||null,
+          prochaine_intervention:report.prochaine_intervention||null,
+          localisation_gps_lat:report.localisation_gps_lat?Number(report.localisation_gps_lat):null,
+          localisation_gps_lng:report.localisation_gps_lng?Number(report.localisation_gps_lng):null,
+          statut:submit&&original.statut==="brouillon"?"soumis":original.statut,
+          updated_at:new Date().toISOString()
+        };
+        const {error}=await (supabase as any).from("rapports_visites_techniques").update(updatePayload).eq("id",editingReportId);
+        if(error)throw error;
+        toast({title:submit&&original.statut==="brouillon"?"Rapport soumis":"Rapport modifié",description:"La date de visite et le technicien responsable ont été conservés."});
+        setEditingReportId("");setReportEditEnabled(false);
+        setReport({ticket_id:"",plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",prochaine_intervention:"",localisation_gps_lat:"",localisation_gps_lng:""});
+        await load();
+        setActiveTab("historique");
+        return;
+      }
       const id=crypto.randomUUID();
       const payload={
         id,plantation_id:report.plantation_id,client_id:plantation?.client_id||null,agent_technique_id:profile.id,equipe_id:profile.equipe_id||null,ticket_id:report.ticket_id||null,
