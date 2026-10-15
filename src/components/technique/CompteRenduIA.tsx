@@ -10,18 +10,49 @@ type CR = { titre: string; type_intervention: string; resume: string; actions_re
 type Props = { contexte?: string; compact?: boolean; onApply?: (compteRendu: CR, description: string) => void; };
 const List = ({ title, items }: { title: string; items: string[] }) => items?.length ? <div><p className="text-sm font-semibold">{title}</p><ul className="ml-5 list-disc text-sm">{items.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null;
 export default function CompteRenduIA({ contexte, compact = false, onApply }: Props) {
-  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null);
-  useEffect(() => () => { try { recognitionRef.current?.stop(); } catch { /* already stopped */ } }, []);
+  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef("");
+  useEffect(() => () => { listeningRef.current = false; try { recognitionRef.current?.stop(); } catch { /* already stopped */ } }, []);
   const toggleVoice = () => {
-    if (listening) { recognitionRef.current?.stop(); setListening(false); return; }
+    if (listeningRef.current) {
+      listeningRef.current = false;
+      setListening(false);
+      try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
+      return;
+    }
     const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) { toast({ variant: "destructive", title: "Saisie vocale indisponible", description: "Ce navigateur ne prend pas en charge la dictée vocale. Utilisez le clavier." }); return; }
     try {
-      const recognition = new SpeechRecognitionCtor(); recognition.lang = "fr-FR"; recognition.continuous = false; recognition.interimResults = false;
-      recognition.onresult = (event: any) => { const transcript = Array.from(event.results || []).map((result: any) => result?.[0]?.transcript || "").join(" ").trim(); if (transcript) setDescription(previous => [previous.trim(), transcript].filter(Boolean).join(" ")); };
-      recognition.onerror = () => { setListening(false); toast({ variant: "destructive", title: "Dictée interrompue", description: "Vérifiez l’autorisation du microphone puis réessayez." }); };
-      recognition.onend = () => setListening(false); recognitionRef.current = recognition; recognition.start(); setListening(true);
-    } catch (error: any) { setListening(false); toast({ variant: "destructive", title: "Microphone inaccessible", description: error?.message || "Impossible de démarrer la dictée." }); }
+      voiceBaseRef.current = description.trim();
+      const recognition = new SpeechRecognitionCtor();
+      recognition.lang = "fr-FR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results || []).map((result: any) => result?.[0]?.transcript || "").join(" ").trim();
+        setDescription([voiceBaseRef.current, transcript].filter(Boolean).join(" ").trim());
+      };
+      recognition.onerror = (event: any) => {
+        if (event?.error === "no-speech" || event?.error === "network") return;
+        listeningRef.current = false;
+        setListening(false);
+        toast({ variant: "destructive", title: "Dictée interrompue", description: "Vérifiez l’autorisation du microphone puis réessayez." });
+      };
+      recognition.onend = () => {
+        if (!listeningRef.current) { setListening(false); return; }
+        // Certains navigateurs mobiles terminent un segment après quelques secondes.
+        // Redémarrer tant que l'utilisateur n'a pas appuyé sur Arrêter.
+        try { recognition.start(); } catch { /* un démarrage est déjà en cours */ }
+      };
+      recognitionRef.current = recognition;
+      listeningRef.current = true;
+      setListening(true);
+      recognition.start();
+    } catch (error: any) {
+      listeningRef.current = false;
+      setListening(false);
+      toast({ variant: "destructive", title: "Microphone inaccessible", description: error?.message || "Impossible de démarrer la dictée." });
+    }
   };
   const generer = async () => {
     if (description.trim().length < 10) { toast({ variant: "destructive", title: "Description trop courte", description: "Décrivez un peu plus la visite avant de générer le compte rendu." }); return; }
