@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import ForcePasswordChange from "./pages/ForcePasswordChange";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
@@ -63,6 +64,7 @@ const DomainRouter = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/change-password-required" element={<ProtectedRoute><ForcePasswordChange /></ProtectedRoute>} />
       <Route path="/account-request" element={<AccountRequest />} />
 
       {/* Formulaire public prospects */}
