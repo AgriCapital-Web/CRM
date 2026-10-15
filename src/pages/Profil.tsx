@@ -26,7 +26,7 @@ const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File
   };
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <span className="min-w-0 truncate text-xs text-muted-foreground" title={label}>{label.replace(/^Envoi…$/, "Envoi…")}</span>
+      {!isPhoto && <span className="min-w-0 truncate text-xs text-muted-foreground" title={label}>{label}</span>}
       <input ref={fileRef} type="file" accept={isPhoto ? "image/*" : "image/*,application/pdf"} capture={isPhoto ? "user" : undefined} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
       <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" title={current ? "Remplacer : " + label : "Ajouter : " + label} aria-label={current ? "Remplacer : " + label : "Ajouter : " + label} onClick={() => fileRef.current?.click()}>
         <Upload className="h-4 w-4" />
@@ -165,7 +165,7 @@ const Profil = () => {
                   <button type="button" className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title="Cliquer pour ajouter ou modifier la photo" aria-label="Ajouter ou modifier la photo de profil" onClick={() => document.getElementById("profile-photo-picker")?.click()}>
                     <Avatar className="h-24 w-24">
                       <AvatarImage src={photoUrl || ""} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xl">{initials || "AG"}</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xl"><Camera className="h-7 w-7 text-emerald-800" /></AvatarFallback>
                     </Avatar>
                   </button>
                   <input id="profile-photo-picker" type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { const file=e.currentTarget.files?.[0]; if(file) void upload("photo_url","photos-profils",file); e.currentTarget.value=""; }} />
@@ -186,7 +186,7 @@ const Profil = () => {
               <div><Label>Nom complet</Label><Input className="h-8 text-sm" value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-8 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-8 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
-              <div className="col-span-2 min-w-0 sm:col-span-1">
+              <div className="min-w-0 w-full">
                 <CountryPhoneInput
                   label="Téléphone principal"
                   compact
@@ -233,8 +233,8 @@ const Profil = () => {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" />Personne à contacter en cas d'urgence</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 gap-3">
-              <div className="col-span-2 flex min-w-0 items-center gap-3">
-                <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback>{(profile.contact_urgence_nom || "?").slice(0, 2)}</AvatarFallback></Avatar>
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback><Camera className="h-5 w-5 text-emerald-800" /></AvatarFallback></Avatar>
                 <div className="flex-1"><FileField label={uploading === "contact_urgence_photo_url" ? "Envoi…" : "Photo de la personne"} current={profile.contact_urgence_photo_url} onPick={(f) => upload("contact_urgence_photo_url", "photos-profils", f)} bucket="photos-profils" /></div>
               </div>
               <div className="col-span-2 min-w-0"><Label>Contact urgence — Nom et Prénoms</Label><Input className="h-8 text-sm" value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
