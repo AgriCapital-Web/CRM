@@ -1479,3 +1479,39 @@ button > span, [role="button"] > span {
 @media (max-width: 640px) {
   table th, table td { padding-inline: .3rem !important; padding-block: .22rem !important; }
 }
+
+
+/* KPI commerciaux compacts : moins de lignes sur mobile, cartes à largeur égale. */
+.crm-compact-kpi-grid {
+  display: grid !important;
+  min-width: 0 !important;
+  grid-auto-flow: row;
+}
+@media (max-width: 767px) {
+  .crm-compact-kpi-grid--leads {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: .25rem !important;
+  }
+  .crm-compact-kpi-grid--prospects {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: .25rem !important;
+  }
+  .crm-compact-kpi-grid > a {
+    min-width: 0 !important;
+    padding: .35rem .25rem !important;
+    min-height: 2.8rem !important;
+  }
+  .crm-compact-kpi-grid > a > span:first-child {
+    font-size: 8px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .crm-compact-kpi-grid > a > span:last-child {
+    margin-top: .2rem !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+}
