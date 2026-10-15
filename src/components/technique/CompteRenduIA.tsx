@@ -10,39 +10,67 @@ type CR = { titre: string; type_intervention: string; resume: string; actions_re
 type Props = { contexte?: string; compact?: boolean; onApply?: (compteRendu: CR, description: string) => void; };
 const List = ({ title, items }: { title: string; items: string[] }) => items?.length ? <div><p className="text-sm font-semibold">{title}</p><ul className="ml-5 list-disc text-sm">{items.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null;
 export default function CompteRenduIA({ contexte, compact = false, onApply }: Props) {
-  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef("");
-  useEffect(() => () => { listeningRef.current = false; try { recognitionRef.current?.stop(); } catch { /* already stopped */ } }, []);
+  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const micStreamRef = useRef<MediaStream | null>(null); const restartTimerRef = useRef<number | null>(null);
+  const releaseMicrophone = () => {
+    if (restartTimerRef.current !== null) { window.clearTimeout(restartTimerRef.current); restartTimerRef.current = null; }
+    micStreamRef.current?.getTracks().forEach((track) => track.stop());
+    micStreamRef.current = null;
+    try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
+    recognitionRef.current = null;
+  };
+  useEffect(() => () => { listeningRef.current = false; releaseMicrophone(); }, []);
   const toggleVoice = () => {
     if (listeningRef.current) {
       listeningRef.current = false;
       setListening(false);
-      try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
+      releaseMicrophone();
+      setDescription([voiceBaseRef.current, finalTranscriptRef.current].filter(Boolean).join(" ").trim());
       return;
     }
     const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) { toast({ variant: "destructive", title: "Saisie vocale indisponible", description: "Ce navigateur ne prend pas en charge la dictée vocale. Utilisez le clavier." }); return; }
     try {
       voiceBaseRef.current = description.trim();
+      finalTranscriptRef.current = "";
+      // Keep one microphone stream alive for the entire dictation session.
+      // Browser audio processing filters steady background noise and wind where supported.
+      micStreamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      });
       const recognition = new SpeechRecognitionCtor();
       recognition.lang = "fr-FR";
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results || []).map((result: any) => result?.[0]?.transcript || "").join(" ").trim();
-        setDescription([voiceBaseRef.current, transcript].filter(Boolean).join(" ").trim());
+        let interim = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          const part = String(result?.[0]?.transcript || "").trim();
+          if (!part) continue;
+          if (result.isFinal) {
+            // Browser may resend a result after a restart; append only new final segments.
+            const current = finalTranscriptRef.current;
+            if (!current.endsWith(part)) finalTranscriptRef.current = [current, part].filter(Boolean).join(" ").trim();
+          } else interim = [interim, part].filter(Boolean).join(" ");
+        }
+        setDescription([voiceBaseRef.current, finalTranscriptRef.current, interim].filter(Boolean).join(" ").trim());
       };
       recognition.onerror = (event: any) => {
-        if (event?.error === "no-speech" || event?.error === "network") return;
-        listeningRef.current = false;
-        setListening(false);
-        toast({ variant: "destructive", title: "Dictée interrompue", description: "Vérifiez l’autorisation du microphone puis réessayez." });
+        // Mobile engines routinely emit no-speech/network at segment boundaries.
+        // Do not turn the recording off; keep the microphone stream open until the user stops.
+        if (event?.error === "no-speech" || event?.error === "network" || event?.error === "aborted") return;
+        if (listeningRef.current) {
+          toast({ title: "Dictée toujours active", description: "Le microphone reste ouvert. Si la transcription tarde, continuez à parler." });
+        }
       };
       recognition.onend = () => {
         if (!listeningRef.current) { setListening(false); return; }
-        // Certains navigateurs mobiles terminent un segment après quelques secondes.
-        // Redémarrer tant que l'utilisateur n'a pas appuyé sur Arrêter.
-        try { recognition.start(); } catch { /* un démarrage est déjà en cours */ }
+        if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = window.setTimeout(() => {
+          if (!listeningRef.current || !recognitionRef.current) return;
+          try { recognitionRef.current.start(); } catch { /* engine is already restarting */ }
+        }, 250);
       };
       recognitionRef.current = recognition;
       listeningRef.current = true;
@@ -51,7 +79,8 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
     } catch (error: any) {
       listeningRef.current = false;
       setListening(false);
-      toast({ variant: "destructive", title: "Microphone inaccessible", description: error?.message || "Impossible de démarrer la dictée." });
+      releaseMicrophone();
+      toast({ variant: "destructive", title: "Microphone inaccessible", description: error?.message || "Autorisez l’accès au microphone puis réessayez." });
     }
   };
   const generer = async () => {
@@ -59,10 +88,36 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("compte-rendu-intervention", { body: { description: description.trim(), contexte } });
-      if (error) { let msg = error.message; try { msg = (await (error as any).context?.json())?.error || msg; } catch { /* ignore */ } throw new Error(msg); }
-      if (data?.error) throw new Error(data.error); if (!data?.compte_rendu) throw new Error("La réponse IA ne contient pas de compte rendu exploitable.");
+      if (error) {
+        let msg = error.message;
+        try { msg = (await (error as any).context?.json())?.error || msg; } catch { /* ignore */ }
+        if (/connexion requise|jwt|token|network|failed to fetch|fetch failed|load failed|connection/i.test(String(msg))) {
+          throw new Error("Connexion au service de compte rendu indisponible. Le texte reste conservé : réessayez lorsque la connexion revient.");
+        }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      if (!data?.compte_rendu) throw new Error("La réponse IA ne contient pas de compte rendu exploitable.");
       setCr(data.compte_rendu as CR); toast({ title: "Compte rendu structuré", description: "Vérifiez le contenu puis appliquez-le au rapport." });
-    } catch (e: any) { toast({ variant: "destructive", title: "Compte rendu impossible", description: e?.message || "Erreur" }); }
+    } catch (e: any) {
+      // Preserve the user's notes and offer a useful local structure when the AI service/auth is unreachable.
+      const source = description.trim();
+      const sentences = source.split(/(?<=[.!?])\\s+|\\n+/).map((x) => x.trim()).filter(Boolean);
+      const fallback: CR = {
+        titre: contexte?.toLowerCase().includes("intervention") ? "Compte rendu d’intervention" : "Compte rendu de visite technique",
+        type_intervention: contexte || "",
+        resume: source,
+        actions_realisees: sentences.slice(0, 5),
+        observations: source,
+        problemes_constates: [],
+        recommandations: [],
+        nombre_plants_realises: null,
+        informations_manquantes: ["Validation par l’IA en ligne à effectuer lorsque la connexion sera disponible."],
+        complet: false,
+      };
+      setCr(fallback);
+      toast({ title: "Compte rendu préparé localement", description: "Votre texte est conservé et structuré en brouillon. La validation IA sera disponible au retour de la connexion." });
+    }
     finally { setLoading(false); }
   };
   const texte = cr ? [cr.titre, cr.type_intervention ? `Type : ${cr.type_intervention}` : "", "", cr.resume, (cr.actions_realisees || []).length ? "Actions réalisées :\n- " + cr.actions_realisees.join("\n- ") : "", cr.observations ? `Observations : ${cr.observations}` : "", (cr.problemes_constates || []).length ? "Problèmes constatés :\n- " + cr.problemes_constates.join("\n- ") : "", (cr.recommandations || []).length ? "Recommandations :\n- " + cr.recommandations.join("\n- ") : "", cr.nombre_plants_realises != null ? `Plants réalisés : ${cr.nombre_plants_realises}` : ""].filter(Boolean).join("\n") : "";
