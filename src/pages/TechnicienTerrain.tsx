@@ -100,8 +100,8 @@ const TechnicienTerrain=()=>{
       const firstPartIsSurname=technicianNameParts.length>1 && technicianNameParts[0]===technicianNameParts[0].toLocaleUpperCase("fr-FR") && technicianNameParts[0]!==technicianNameParts[0].toLocaleLowerCase("fr-FR") && technicianNameParts.slice(1).some((part:string)=>part!==part.toLocaleUpperCase("fr-FR"));
       const givenNames=firstPartIsSurname?technicianNameParts.slice(1):technicianNameParts.slice(0,-1);
       const surname=firstPartIsSurname?technicianNameParts[0]:technicianNameParts[technicianNameParts.length-1];
-      const titleCase=(value:string)=>value.toLocaleLowerCase("fr-FR").replace(/(^|[-'’])([\\p{L}])/gu,(_match:string,prefix:string,letter:string)=>prefix+letter.toLocaleUpperCase("fr-FR"));
-      const formattedTechnicianName=technicianNameParts.length>1?[​${givenNames.map(titleCase).join(" "),${surname.toLocaleUpperCase("fr-FR")}].filter(Boolean).join(" "):titleCase(rawTechnicianName);
+      const titleCase=(value:string)=>value.toLocaleLowerCase("fr-FR").replace(/(^|[-'’])(\p{L})/gu,(_match:string,prefix:string,letter:string)=>prefix+letter.toLocaleUpperCase("fr-FR"));
+      const formattedTechnicianName=technicianNameParts.length>1?`${givenNames.map(titleCase).join(" ")} ${surname.toLocaleUpperCase("fr-FR")}`:titleCase(rawTechnicianName);
       setProfileName(formattedTechnicianName);
       const results=await Promise.all([
         (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,parcelle_id,souscription_id,statut_global,prochaine_visite,date_plantation").order("nom_plantation"),
