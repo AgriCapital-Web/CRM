@@ -516,11 +516,22 @@ export default function MediaUploadVisual({
             [data-radix-dialog-overlay] { z-index: 99998 !important; }
             [data-radix-dialog-content] > button[aria-label="Close"] { z-index: 100001 !important; }
             body.media-camera-fullscreen [data-radix-dialog-content] > button[aria-label="Close"] { display: none !important; }
-            body.media-dialog-open [data-floating-ai-assistant] { display: none !important; }
+            body.media-dialog-open [data-floating-ai-assistant],
+            body.media-dialog-open [data-location-control],
+            body.media-dialog-open [data-location-widget],
+            body.media-dialog-open [aria-label*="position" i],
+            body.media-dialog-open [title*="position" i],
+            body.media-dialog-open button:has(svg.lucide-crosshair),
+            body.media-dialog-open button:has(svg.lucide-map-pin),
+            body.media-dialog-open button:has(svg.lucide-map-pinned) { display: none !important; }
             body.media-camera-fullscreen [data-floating-ai-assistant],
             body.media-camera-fullscreen [data-location-control],
+            body.media-camera-fullscreen [data-location-widget],
+            body.media-camera-fullscreen [aria-label*="position" i],
+            body.media-camera-fullscreen [title*="position" i],
             body.media-camera-fullscreen button:has(svg.lucide-crosshair),
-            body.media-camera-fullscreen button:has(svg.lucide-map-pin) { display: none !important; }
+            body.media-camera-fullscreen button:has(svg.lucide-map-pin),
+            body.media-camera-fullscreen button:has(svg.lucide-map-pinned) { display: none !important; }
           `}</style>
           {cameraOpen ? (
             <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-black">
