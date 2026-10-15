@@ -681,7 +681,7 @@ const Dashboard = () => {
                             const items = k.metrics.filter((metric: any) => metric.group === groupName);
                             if (!items.length) return null;
                             return (
-                              <section key={groupName} className="min-w-0 rounded-xl border border-border/70 bg-background/60 p-2">
+                              <section key={groupName} className={`min-w-0 rounded-xl border border-border/70 bg-background/60 p-2 ${groupName === "Clients" ? "lg:col-span-2" : ""}`}>
                                 <h3 className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{groupName}</h3>
                                 <div className={groupName === "Relances" || groupName === "Clients" ? "grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-5 sm:gap-2" : groupName === "Relances" ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-1.5 sm:gap-2"}>
                                   {items.map((metric: any) => (
