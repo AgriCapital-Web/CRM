@@ -35,12 +35,12 @@ const userFormSchema = z.object({
   nom_complet: z.string()
     .min(2, "Le nom complet doit contenir au moins 2 caractères")
     .max(100, "Le nom complet ne peut pas dépasser 100 caractères"),
-  telephone: z.string().optional().or(z.literal("")),
-  telephone_local: z.string().optional().or(z.literal("")),
-  telephone_indicatif: z.string().optional().or(z.literal("")),
-  whatsapp: z.string().optional().or(z.literal("")),
-  whatsapp_local: z.string().optional().or(z.literal("")),
-  whatsapp_indicatif: z.string().optional().or(z.literal("")),
+  telephone: z.string().nullish(),
+  telephone_local: z.string().nullish(),
+  telephone_indicatif: z.string().nullish(),
+  whatsapp: z.string().nullish(),
+  whatsapp_local: z.string().nullish(),
+  whatsapp_indicatif: z.string().nullish(),
   type_piece_identite: z.string().optional().or(z.literal("")),
   numero_piece_identite: z.string().optional().or(z.literal("")),
   salaire_base: z.string().optional().or(z.literal("")),
