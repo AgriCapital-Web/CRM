@@ -69,6 +69,7 @@ const TechnicienTerrain=()=>{
     prochaine_intervention:"",localisation_gps_lat:"",localisation_gps_lng:""
   });
   const [media,setMedia]=useState<File[]>([]);
+  const [existingReportMedia,setExistingReportMedia]=useState<any[]>([]);
   const [intervention,setIntervention]=useState<any>({
     plantation_id:"",client_id:"",souscription_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"defrichage",date_intervention:new Date().toISOString().slice(0,10),
     observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",
@@ -230,7 +231,7 @@ const TechnicienTerrain=()=>{
     },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
   };
 
-  const openReport=(item:any)=>{
+  const openReport=async(item:any)=>{
     if(!manager && item.agent_technique_id!==profileId){
       toast({variant:"destructive",title:"Accès en lecture seule",description:"Vous ne pouvez modifier que vos propres rapports."});
     }
@@ -246,6 +247,13 @@ const TechnicienTerrain=()=>{
       localisation_gps_lng:item.localisation_gps_lng==null?"":String(item.localisation_gps_lng)
     });
     setMedia([]);
+    setExistingReportMedia([]);
+    const {data: savedMedia} = await (supabase as any).from("rapports_visites_medias").select("id,storage_path,media_type,nom_fichier").eq("rapport_id",item.id).order("created_at",{ascending:true});
+    const mediaWithUrls = await Promise.all((savedMedia||[]).map(async(saved:any)=>{
+      const {data: signed}=await supabase.storage.from("rapports-techniques").createSignedUrl(saved.storage_path,3600);
+      return signed?.signedUrl ? {id:saved.id,url:signed.signedUrl,name:saved.nom_fichier||"Média enregistré",type:saved.media_type==="video"?"video":"photo"} : null;
+    }));
+    setExistingReportMedia(mediaWithUrls.filter(Boolean));
     setActiveTab("rapport");
     window.scrollTo({top:0,behavior:"smooth"});
   };
@@ -567,7 +575,7 @@ const TechnicienTerrain=()=>{
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3"><div><Label>Prochaine intervention</Label><Input type="date" value={report.prochaine_intervention} onChange={e=>setReport((x:any)=>({...x,prochaine_intervention:e.target.value}))}/></div><div><Label>Latitude</Label><Input type="number" step="any" value={report.localisation_gps_lat} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div><div><Label>Longitude</Label><Input type="number" step="any" value={report.localisation_gps_lng} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div><div className="flex items-end"><Button type="button" variant="outline" className="w-full" disabled={capturingReportPosition} onClick={captureReportPosition}>{capturingReportPosition?"Localisation…":"Capturer la position GPS"}</Button></div></div>
           <div className="rounded-lg border p-2"><p className="mb-2 text-xs font-medium text-muted-foreground">Position du rapport — cliquer sur la carte pour ajuster</p><InteractiveMap mode="pick" position={report.localisation_gps_lat&&report.localisation_gps_lng?[Number(report.localisation_gps_lat),Number(report.localisation_gps_lng)]:null} onPositionChange={(lat,lng)=>setReport((current:any)=>({...current,localisation_gps_lat:String(lat),localisation_gps_lng:String(lng)}))} height="220px"/></div>
-          <div><MediaUploadVisual label="Photos / vidéos" files={media} onChange={setMedia}/></div>
+          <div><MediaUploadVisual label="Photos / vidéos" files={media} onChange={setMedia} existingMedia={existingReportMedia}/></div>
           </fieldset><div className="flex flex-wrap justify-end gap-2">{editingReportId&&!reportEditEnabled&&(manager||reports.find((item:any)=>item.id===editingReportId)?.agent_technique_id===profileId)&&<Button size="sm" onClick={()=>setReportEditEnabled(true)}><Pencil className="mr-1 h-4 w-4"/>Modifier</Button>}{editingReportId&&<Button size="sm" variant="outline" onClick={()=>{setEditingReportId("");setReportEditEnabled(false);setReport({ticket_id:"",plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",prochaine_intervention:"",localisation_gps_lat:"",localisation_gps_lng:""});setActiveTab("historique");}}>Fermer</Button>}{!editingReportId&&<><Button variant="outline" disabled={saving} onClick={()=>saveReport(false)}>Enregistrer brouillon</Button><Button disabled={saving} onClick={()=>saveReport(true)}>Soumettre le rapport</Button></>}{editingReportId&&reportEditEnabled&&<><Button variant="outline" disabled={saving} onClick={()=>saveReport(false)}>Enregistrer</Button>{reports.find((r:any)=>r.id===editingReportId)?.statut==="brouillon"&&<Button disabled={saving} onClick={()=>saveReport(true)}>Soumettre</Button>}</>}</div>
         </CardContent></Card>
       </TabsContent>
