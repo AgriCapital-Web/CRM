@@ -136,7 +136,7 @@ const GestionCartes = () => {
         const scope = roleCoverage[primaryRoleCode] || { level: "global", label: "Zone d’intervention" };
         const scopeValue = (() => {
           if (isCommercialDirector) return "National — toute la Côte d’Ivoire";
-          if (scope.level === "global") return "National";
+          if (scope.level === "global") return "Zone à préciser";
           const assigned = zoneAssignments.find((z) => z.user_id === p.user_id && String(z.zone_type || "").toLowerCase().replace(/-/g, "_") === scope.level);
           if (assigned) {
             const name = geoNames[scope.level + ":" + assigned.zone_id];
