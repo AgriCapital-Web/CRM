@@ -68,6 +68,9 @@ const Dashboard = () => {
 
   const [stats, setStats] = useState({
     clients: 0,
+    clientsActive: 0,
+    clientsOverdue: 0,
+    clientsSuspended: 0,
     leads: 0,
     prospects: 0,
     leadsNew: 0,
@@ -341,6 +344,9 @@ const Dashboard = () => {
 
       setStats({
         clients: clients.filter((c: any) => !c.is_internal).length,
+        clientsActive: clients.filter((c:any)=>!c.is_internal && (["actif","active"].includes(String(c.statut||"").toLowerCase()) || ["actif","active"].includes(String(c.statut_global||"").toLowerCase()))).length,
+        clientsOverdue: clients.filter((c:any)=>!c.is_internal && (["en_retard","retard","impaye"].includes(String(c.statut||"").toLowerCase()) || ["en_retard","retard","impaye"].includes(String(c.statut_global||"").toLowerCase()))).length,
+        clientsSuspended: clients.filter((c:any)=>!c.is_internal && ["suspendu","suspendue","suspended"].includes(String(c.statut||c.statut_global||"").toLowerCase())).length,
         leads: pipelineLeads.length,
         prospects: pipelineProspects.length,
         leadsNew: newLeads,
@@ -574,7 +580,13 @@ const Dashboard = () => {
       {label:"Échéances en retard",value:stats.overdueCount,href:"/paiements"},
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
-      ...(canClients ? [{group:"Clients",label:"Clients / dossiers",shortLabel:"Clients",value:stats.clients,href:"/acquisitions"}] : []),
+      ...(canClients ? [
+        {group:"Clients",label:"Clients / dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
+        {group:"Clients",label:"Clients actifs",shortLabel:"Actifs",value:stats.clientsActive,href:"/clients"},
+        {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:"/paiements"},
+        {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
+        {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:"/paiements"}
+      ] : []),
       ...(canLeads ? [
         {group:"Leads",label:"Leads",shortLabel:"Leads",value:stats.leads,href:"/leads"},
         {group:"Leads",label:"Leads convertis",shortLabel:"Leads conv.",value:stats.leadsConverted,href:"/leads"},
