@@ -441,10 +441,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           : activeClient ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Solde initial</p><p className="mt-1 break-words text-sm font-bold leading-snug">{money(piBalance)}</p></CardContent></Card>
-                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Mensualité</p><p className="mt-1 break-words text-sm font-bold leading-snug">{money(monthlyAmount)}</p></CardContent></Card>
-                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Arriéré</p><p className={`mt-1 break-words text-sm font-bold leading-snug ${arrearsMonths > 0 ? "text-destructive" : ""}`}>{arrearsMonths} Mois</p></CardContent></Card>
-                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Échéance</p><p className="mt-1 break-words text-sm font-bold leading-snug">{money(Number(monthly.montant_a_payer || 0))}</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Solde initial</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(piBalance)}</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Mensualité</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(monthlyAmount)}</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Arriéré</p><p className={`mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm ${arrearsMonths > 0 ? "text-destructive" : ""}`}>{arrearsMonths} Mois</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Échéance</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(Number(monthly.montant_a_payer || 0))}</p></CardContent></Card>
               </div>
               {contracts.length > 1 && <div className="space-y-2"><label className="text-sm font-medium">Contrat / souscription à régler</label><Select value={selectedContractId} onValueChange={chooseContract}><SelectTrigger><SelectValue placeholder="Choisir le contrat" /></SelectTrigger><SelectContent>{contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent></Select></div>}
               <div className="space-y-2">
