@@ -13,10 +13,16 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
   const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const segmentBaseRef = useRef(""); const micStreamRef = useRef<MediaStream | null>(null); const restartTimerRef = useRef<number | null>(null);
   const releaseMicrophone = () => {
     if (restartTimerRef.current !== null) { window.clearTimeout(restartTimerRef.current); restartTimerRef.current = null; }
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (recognition) {
+      recognition.onend = null;
+      recognition.onerror = null;
+      recognition.onresult = null;
+      try { recognition.abort(); } catch { try { recognition.stop(); } catch { /* already stopped */ } }
+    }
     micStreamRef.current?.getTracks().forEach((track) => track.stop());
     micStreamRef.current = null;
-    try { recognitionRef.current?.stop(); } catch { /* already stopped */ }
-    recognitionRef.current = null;
   };
   useEffect(() => () => { listeningRef.current = false; releaseMicrophone(); }, []);
   const toggleVoice = async () => {
@@ -46,58 +52,61 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       let segmentFinalResults: string[] = [];
       let lastInterim = "";
       let restartAttempts = 0;
+      let restartPending = false;
       const renderTranscript = () => {
         const finalText = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
         finalTranscriptRef.current = finalText;
         setDescription([voiceBaseRef.current, finalText, lastInterim].filter(Boolean).join(" ").trim());
       };
       recognition.onresult = (event: any) => {
-        // Keep every final result from this recognition segment; interim results are replaceable.
+        // Snapshot final segments once; interim hypotheses are replaced, never appended repeatedly.
         for (let i = event.resultIndex ?? 0; i < event.results.length; i++) {
           const result = event.results[i];
           const part = String(result?.[0]?.transcript || "").trim();
           if (!part) continue;
           if (result.isFinal) {
             if (part && segmentFinalResults[segmentFinalResults.length - 1] !== part) segmentFinalResults.push(part);
+            lastInterim = "";
           } else {
             lastInterim = part;
           }
         }
-        restartAttempts = 0;
         renderTranscript();
       };
       recognition.onerror = (event: any) => {
-        // Silence and brief mobile network errors are normal while the dictation remains active.
-        if (event?.error === "no-speech" || event?.error === "network" || event?.error === "aborted") return;
-        if (listeningRef.current) {
-          toast({ title: "Dictée active", description: "La transcription reprend automatiquement. Appuyez sur « Arrêter la dictée » pour terminer." });
+        // Mobile speech engines frequently end a segment after silence or transient network errors.
+        // Keep the session armed and do not change the button to "start" until the user stops it.
+        if (event?.error === "not-allowed" || event?.error === "service-not-allowed" || event?.error === "audio-capture") {
+          listeningRef.current = false;
+          setListening(false);
+          releaseMicrophone();
+          toast({ variant: "destructive", title: "Microphone interrompu", description: "Vérifiez l’autorisation du microphone puis relancez la dictée." });
         }
       };
       recognition.onend = () => {
-        if (!listeningRef.current) { setListening(false); return; }
-        // Save this segment before restarting the browser's recognition service.
+        if (!listeningRef.current || restartPending || recognitionRef.current !== recognition) return;
         segmentBaseRef.current = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
         segmentFinalResults = [];
         lastInterim = "";
         renderTranscript();
-        if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
-        restartTimerRef.current = window.setTimeout(() => {
-          if (!listeningRef.current || recognitionRef.current !== recognition) return;
-          try {
-            recognition.start();
-            restartAttempts = 0;
-          } catch {
-            // Some Android WebView builds report "already started" during lifecycle changes.
-            // Retry without changing the user's explicit listening state.
-            restartAttempts += 1;
-            if (restartAttempts <= 8 && listeningRef.current) {
-              restartTimerRef.current = window.setTimeout(() => {
-                if (!listeningRef.current || recognitionRef.current !== recognition) return;
-                try { recognition.start(); } catch { /* next onend will retry */ }
-              }, Math.min(1200, 200 + restartAttempts * 150));
+        restartPending = true;
+        const scheduleRestart = (delay: number) => {
+          if (restartTimerRef.current !== null) window.clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = window.setTimeout(() => {
+            restartTimerRef.current = null;
+            if (!listeningRef.current || recognitionRef.current !== recognition) { restartPending = false; return; }
+            try {
+              recognition.start();
+              restartPending = false;
+              restartAttempts = 0;
+            } catch {
+              restartAttempts += 1;
+              if (restartAttempts <= 20 && listeningRef.current) scheduleRestart(Math.min(1800, 250 + restartAttempts * 100));
+              else restartPending = false;
             }
-          }
-        }, 350);
+          }, delay);
+        };
+        scheduleRestart(500);
       };
       recognitionRef.current = recognition;
       listeningRef.current = true;
@@ -114,16 +123,16 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
     if (description.trim().length < 10) { toast({ variant: "destructive", title: "Description trop courte", description: "Décrivez un peu plus la visite avant de générer le compte rendu." }); return; }
     setLoading(true);
     try {
-      // Ensure a valid, fresh Supabase token before calling the protected AI function.
-      // Offline-only authentication does not provide a live server session.
-      let { data: sessionData } = await supabase.auth.getSession();
+      if (!navigator.onLine) throw new Error("offline-ai");
+      // A network fetch is not a reliable connection test on mobile; refresh the session first.
+      let { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       let session = sessionData.session;
       if (session?.refresh_token) {
         const refreshed = await supabase.auth.refreshSession();
         if (refreshed.data.session) session = refreshed.data.session;
       }
-      if (!session?.access_token) {
-        throw new Error("Aucune session en ligne valide. Le compte rendu reste conservé et sera préparé en brouillon local.");
+      if (sessionError || !session?.access_token) {
+        throw new Error("offline-ai");
       }
       const { data, error } = await supabase.functions.invoke("compte-rendu-intervention", {
         body: { description: description.trim(), contexte },
@@ -141,7 +150,7 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       if (!data?.compte_rendu) throw new Error("La réponse IA ne contient pas de compte rendu exploitable.");
       setCr(data.compte_rendu as CR); toast({ title: "Compte rendu structuré", description: "Vérifiez le contenu puis appliquez-le au rapport." });
     } catch (e: any) {
-      // Preserve the user's notes and offer a useful local structure when the AI service/auth is unreachable.
+      // Never discard the dictated text. Provide a usable structured draft when AI auth/network is unavailable.
       const source = description.trim();
       const sentences = source.split(/(?<=[.!?])\\s+|\\n+/).map((x) => x.trim()).filter(Boolean);
       const fallback: CR = {
