@@ -282,7 +282,16 @@ const TechnicienTerrain=()=>{
         };
         const {error}=await (supabase as any).from("rapports_visites_techniques").update(updatePayload).eq("id",editingReportId);
         if(error)throw error;
-        toast({title:submit&&original.statut==="brouillon"?"Rapport soumis":"Rapport modifié",description:"La date de visite et le technicien responsable ont été conservés."});
+        for(const file of media){
+          const path="plantations/"+report.plantation_id+"/rapports/"+editingReportId+"/"+crypto.randomUUID()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+          const uploaded=await uploadFile({bucket:"rapports-techniques",path,file});
+          await offlineInsert("rapports_visites_medias",{
+            id:crypto.randomUUID(),rapport_id:editingReportId,plantation_id:report.plantation_id,
+            media_type:file.type.startsWith("video/")?"video":"photo",storage_path:uploaded.path,
+            mime_type:file.type,nom_fichier:file.name,client_visible:false,created_by:profile.id
+          });
+        }
+        toast({title:submit&&original.statut==="brouillon"?"Rapport soumis":"Rapport modifié",description:media.length?String(media.length)+" média(s) ajouté(s). La date de visite et le technicien sont conservés.":"La date de visite et le technicien responsable ont été conservés."});
         setEditingReportId("");setReportEditEnabled(false);
         setReport({ticket_id:"",plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",prochaine_intervention:"",localisation_gps_lat:"",localisation_gps_lng:""});
         await load();
