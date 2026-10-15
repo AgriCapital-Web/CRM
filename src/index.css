@@ -1281,7 +1281,6 @@ table td :is(span, p, a, div) { min-width: 0; }
 .currency-value,
 .amount-value,
 [data-money="true"] {
-  display: inline-block;
   max-width: 100%;
   font-variant-numeric: tabular-nums;
 }
@@ -1321,6 +1320,10 @@ table td :is(span, p, a, div) { min-width: 0; }
     min-width: 0 !important;
   }
   .overflow-x-auto > table .whitespace-nowrap,
+  .overflow-x-auto > table .money-value,
+  .overflow-x-auto > table .currency-value,
+  .overflow-x-auto > table .amount-value,
+  .overflow-x-auto > table [data-money="true"],
   .overflow-x-auto > table .tabular-nums,
   .overflow-x-auto > table [data-slot="badge"] {
     white-space: nowrap !important;
