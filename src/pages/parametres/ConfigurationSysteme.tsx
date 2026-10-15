@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Globe, Mail, DollarSign, Settings, Bell, Save, Loader2, Shield,
-  FileText, AlertTriangle, Building2, Percent, Search, Info, RefreshCw,
+  FileText, AlertTriangle, Building2, Search, Info, RefreshCw,
   Sprout, Users, CreditCard, SlidersHorizontal, CheckCircle2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
