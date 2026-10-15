@@ -77,7 +77,36 @@ export const contratLabel = (v?: string | null) => CONTRATS.find((c) => c.v === 
 export const statutAgentLabel = (v?: string | null) =>
   STATUTS_AGENT.find((s) => s.v === v)?.l || "—";
 
-export const missionAuto = (carte: CarteData) => carte.mission || carte.poste || "—";
+const missionKey = (value?: string | null) =>
+  (value || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+export const missionAuto = (carte: CarteData) => {
+  const role = missionKey([carte.role_code, carte.role_label, carte.poste].filter(Boolean).join(" "));
+  const department = missionKey(carte.departement);
+  const storedMission = (carte.mission || "").trim();
+  const sameAsFunction = storedMission && [carte.poste, carte.role_label, carte.role_code]
+    .some((value) => value && missionKey(value) === missionKey(storedMission));
+
+  // A mission entered in card settings is kept only when it describes an activity,
+  // not when it merely repeats the person's title or role.
+  if (storedMission && !sameAsFunction && missionKey(storedMission).length > 2) {
+    return storedMission.length > 38 ? storedMission.slice(0, 35).trimEnd() + "…" : storedMission;
+  }
+
+  if (/pdg|president directeur general|directeur general|directrice generale/.test(role)) return "Piloter la stratégie et les équipes";
+  if (/directeur commercial|directrice commerciale/.test(role)) return "Piloter les ventes et la relation client";
+  if (/mobilisateur foncier/.test(role)) return "Identifier et sécuriser le foncier";
+  if (/commercial|vente|prospect|business developer/.test(role) || /commercial/.test(department)) return "Développer les ventes et suivre les clients";
+  if (/technique|technicien|agronom|terrain|plantation/.test(role) || /technique|exploitation/.test(department)) return "Suivre les plantations et les travaux";
+  if (/operation|logistique/.test(role) || /operation|logistique/.test(department)) return "Coordonner les opérations quotidiennes";
+  if (/finance|comptab|tresor|paiement/.test(role) || /finance|comptab/.test(department)) return "Suivre les finances et les paiements";
+  if (/ressource humaine|rh|recrut/.test(role) || /ressource humaine|rh/.test(department)) return "Gérer le personnel et les recrutements";
+  if (/informatique|informaticien|developpeur|systeme|reseau|digital|support technique/.test(role) || /informatique|digital|systeme/.test(department)) return "Maintenir les outils et services numériques";
+  if (/communication|marketing/.test(role) || /communication|marketing/.test(department)) return "Renforcer la visibilité et la communication";
+  if (/client|relation client|service client/.test(role) || /relation client/.test(department)) return "Accompagner les clients et leurs demandes";
+  if (/administr|assistant|secretariat/.test(role) || /administr/.test(department)) return "Assurer le suivi administratif";
+  return "Contribuer aux objectifs et activités du service";
+};
 
 const fdate = (d?: string | null) => (d ? format(new Date(d), "dd/MM/yyyy", { locale: fr }) : "—");
 
