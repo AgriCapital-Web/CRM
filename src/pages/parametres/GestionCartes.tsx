@@ -126,7 +126,7 @@ const GestionCartes = () => {
         const userRoleCodes = roles[p.user_id] || [];
         const primaryRoleCode = userRoleCodes[0] || highestRoleCode(userRoleCodes, roleLevels) || "";
         const primaryRoleName = roleCoverage[primaryRoleCode]?.name || primaryRoleCode.replace(/_/g, " ");
-        const roleAndDepartment = normalizeGeo([primaryRoleCode, primaryRoleName, p.poste, p.departement].filter(Boolean).join(" "));
+        const roleAndDepartment = normalizeGeo([primaryRoleCode, primaryRoleName, p.departement].filter(Boolean).join(" "));
         const departmentName = normalizeGeo(p.departement || "");
         const isCommercialDepartment = /commercial/.test(departmentName) || /commercial/.test(roleAndDepartment);
         const isTechnicalDepartment = /technique|technicien/.test(departmentName) || /technique|technicien|chef equipe technique/.test(roleAndDepartment);
@@ -162,7 +162,7 @@ const GestionCartes = () => {
             matricule: c?.matricule || "—",
             code_verification: c?.code_verification || "",
             nom_complet: p.nom_complet,
-            poste: roleCoverage[highestRoleCode(roles[p.user_id] || [], roleLevels) || ""]?.name || highestRoleCode(roles[p.user_id] || [], roleLevels)?.replace(/_/g, " ") || "—",
+            poste: roleCoverage[primaryRoleCode]?.name || primaryRoleName || p.poste || "—",
             departement: c?.departement || p.departement,
             role_code: primaryRoleCode,
             role_codes: userRoleCodes,
