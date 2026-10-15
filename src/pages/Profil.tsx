@@ -146,7 +146,6 @@ const Profil = () => {
 
   const photoUrl = useSignedUrl("photos-profils", profile.photo_url);
   const urgPhotoUrl = useSignedUrl("photos-profils", profile.contact_urgence_photo_url);
-  const initials = formatUserProfileName(profile.nom_complet || "AgriCapital").split(/[\s,]+/).filter(Boolean).map((x: string) => x[0]).join("").slice(0, 2);
   const lockHint = isAdmin ? undefined : "Modifiable uniquement par l'administrateur";
 
   return (
@@ -169,7 +168,7 @@ const Profil = () => {
                     </Avatar>
                   </button>
                   <input id="profile-photo-picker" type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { const file=e.currentTarget.files?.[0]; if(file) void upload("photo_url","photos-profils",file); e.currentTarget.value=""; }} />
-                  {!profile.photo_url && <button type="button" className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 shadow-sm" title="Ajouter une photo" aria-label="Ajouter une photo" onClick={() => document.getElementById("profile-photo-picker")?.click()}><Camera className="h-4 w-4" /></button>}
+                  {!photoUrl && <span className="pointer-events-none absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 shadow-sm"><Upload className="h-4 w-4" /></span>}
                 </div>
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">{formatUserProfileName(profile.nom_complet || "AgriCapital")}</h2>
