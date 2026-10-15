@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useAppRoles, useDepartementsEntreprise } from "@/hooks/useReferentiels";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
@@ -368,7 +367,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6 min-w-0">
+    <form onSubmit={handleSubmit(onSubmit)} className={`user-form min-w-0 ${utilisateur ? "user-edit-compact" : "space-y-4 sm:space-y-6"}`}>
       <Card>
         <CardHeader>
           <CardTitle className="text-lg sm:text-xl leading-tight">Informations Personnelles</CardTitle>
@@ -416,27 +415,11 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             {errors.whatsapp?.message && <p className="text-sm text-destructive">{String(errors.whatsapp.message)}</p>}
           </div>
 
-          <div className="space-y-2 col-span-2 min-w-0">
-            <Label>Photo de Profil</Label>
-            <FileUploadVisual label="Photo de Profil" field="photo" accept="image/*" currentPreview={photoPreview} onFileChange={(_,f,p)=>{setPhotoPreview(p);setPhotoFile(f)}}/>
-            {photoPreview && (
-              <div className="mt-2 relative inline-block">
-                <img
-                  src={photoPreview}
-                  alt="Aperçu"
-                  className="w-24 h-24 object-cover rounded-full border-2 border-primary"
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                  onClick={() => setPhotoPreview("")}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+          <div className="col-span-2 min-w-0 flex items-center gap-3">
+            <div className="shrink-0">
+              <FileUploadVisual label="Photo de profil" field="photo" accept="image/*" compact currentPreview={photoPreview} onFileChange={(_,f,p)=>{setPhotoPreview(p);setPhotoFile(f)}} />
+            </div>
+            <span className="text-xs text-muted-foreground">Photo</span>
           </div>
         </CardContent>
       </Card>
@@ -465,6 +448,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
                 field="piecePassport"
                 accept="image/*,application/pdf"
                 currentPreview={utilisateur?.piece_identite_page_principale_url || ""}
+                compact={!!utilisateur}
                 onFileChange={(_, f) => setPiecePassportFile(f)}
               />
             </div>
@@ -477,6 +461,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
                   field="pieceRecto"
                   accept="image/*,application/pdf"
                   currentPreview={utilisateur?.piece_identite_recto_url || utilisateur?.piece_identite_url || ""}
+                  compact={!!utilisateur}
                   onFileChange={(_, f) => setPieceRectoFile(f)}
                 />
               </div>
@@ -487,6 +472,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
                   field="pieceVerso"
                   accept="image/*,application/pdf"
                   currentPreview={utilisateur?.piece_identite_verso_url || ""}
+                  compact={!!utilisateur}
                   onFileChange={(_, f) => setPieceVersoFile(f)}
                 />
               </div>
