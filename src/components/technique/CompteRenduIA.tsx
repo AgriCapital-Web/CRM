@@ -202,7 +202,8 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
         titre: contexte?.toLowerCase().includes("intervention") ? "Compte rendu d’intervention" : "Compte rendu de visite technique",
         type_intervention: contexte || "",
         resume: source,
-        actions_realisees: sentences.slice(0, 5),
+        // Hors ligne, ne pas reclasser chaque phrase en action : cela dupliquait tout le texte.
+        actions_realisees: [],
         observations: source,
         problemes_constates: [],
         recommandations: [],
