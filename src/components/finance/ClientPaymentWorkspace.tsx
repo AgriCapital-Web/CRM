@@ -359,9 +359,9 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           });
           if (error) throw error;
           if (data?.error || !data?.transaction?.isPaymentSuccessful || !data?.applied) {
-            throw new Error(data?.error || data?.transaction?.failureMessage || "La transaction n’a pas été validée par KKiaPay.");
+            throw new Error(data?.error || data?.transaction?.failureMessage || "La transaction n’a pas été confirmée par le service de paiement en ligne.");
           }
-          toast({ title: "Paiement confirmé", description: `${money(paymentAmount)} reçu via KKiaPay. Le dossier financier sera actualisé.` });
+          toast({ title: "Paiement confirmé", description: `${money(paymentAmount)} reçu en ligne. Le dossier financier sera actualisé.` });
           setSheetOpen(false);
           await queryClient.invalidateQueries();
           await refetch();
@@ -372,7 +372,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         }
       });
       onFailed((error) => {
-        toast({ variant: "destructive", title: "Paiement non abouti", description: error.reason || "KKiaPay n’a pas confirmé la transaction." });
+        toast({ variant: "destructive", title: "Paiement non abouti", description: error.reason || "Le service de paiement en ligne n’a pas confirmé la transaction." });
         setPaying(false);
       });
       onClose(() => setPaying(false));
@@ -383,7 +383,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         paymentMethods: ["momo", "card"],
         data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, souscription_id: activeContract.subscriptionId },
       });
-      if (!opened) throw new Error("Le module KKiaPay ne s’est pas ouvert. Vérifiez la connexion et la configuration du compte marchand.");
+      if (!opened) throw new Error("Le module de paiement en ligne ne s’est pas ouvert. Vérifiez la connexion et la configuration du compte marchand.");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Paiement impossible", description: getSafeErrorMessage(error, "Le paiement n’a pas pu être lancé.") });
       setPaying(false);
@@ -435,24 +435,16 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" />Fiche financière client</DialogTitle>
-            <DialogDescription>{activeClient?.nom_complet || "Client"} · Les règlements sont exclusivement effectués via KKiaPay.</DialogDescription>
+            <DialogDescription>{activeClient?.nom_complet || "Client"} · Les règlements sont exclusivement effectués en ligne.</DialogDescription>
           </DialogHeader>
           {loadingFinance ? <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />Chargement de la situation financière…</div>
           : activeClient ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-2">
-                <Card><CardContent className="p-2"><p className="text-[11px] text-muted-foreground">Reste contrat</p><p className="mt-1 font-bold">{money(remaining)}</p></CardContent></Card>
-                <Card><CardContent className="p-2"><p className="text-[11px] text-muted-foreground">Jours retard</p><p className={`mt-1 font-bold ${daysLate > 0 ? "text-destructive" : ""}`}>{daysLate}</p></CardContent></Card>
-                <Card><CardContent className="p-2"><p className="text-[11px] text-muted-foreground">Arriérés</p><p className={`mt-1 font-bold ${arrearsAmount > 0 ? "text-destructive" : ""}`}>{money(arrearsAmount)}</p></CardContent></Card>
-              </div>
-              <div className="rounded-lg border p-2.5">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><CalendarClock className="h-4 w-4 text-primary" />Situation des échéances</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Paiement initial restant</span><strong>{money(piBalance)}</strong></div>
-                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Mensualité de référence</span><strong>{money(monthlyAmount)}</strong></div>
-                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Mois d’arriéré</span><strong>{Math.ceil(daysLate / 30)}</strong></div>
-                  <div className="flex justify-between gap-3"><span className="text-muted-foreground">Échéance à régulariser</span><strong>{money(Number(monthly.montant_a_payer || 0))}</strong></div>
-                </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Solde initial</p><p className="mt-1 break-words text-sm font-bold leading-snug">{money(piBalance)}</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Mensualité</p><p className="mt-1 break-words text-sm font-bold leading-snug">{money(monthlyAmount)}</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Arriéré</p><p className={`mt-1 break-words text-sm font-bold leading-snug ${arrearsMonths > 0 ? "text-destructive" : ""}`}>{arrearsMonths} Mois</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Échéance</p><p className="mt-1 break-words text-sm font-bold leading-snug">{money(Number(monthly.montant_a_payer || 0))}</p></CardContent></Card>
               </div>
               {contracts.length > 1 && <div className="space-y-2"><label className="text-sm font-medium">Contrat / souscription à régler</label><Select value={selectedContractId} onValueChange={chooseContract}><SelectTrigger><SelectValue placeholder="Choisir le contrat" /></SelectTrigger><SelectContent>{contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent></Select></div>}
               <div className="space-y-2">
@@ -473,7 +465,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Numéro de paiement (Mobile Money / Wave)</label>
-                <Input type="tel" inputMode="tel" value={paymentPhone} onChange={e => setPaymentPhone(e.target.value)} placeholder="Numéro à débiter, modifiable dans KKiaPay" />
+                <Input type="tel" inputMode="tel" value={paymentPhone} onChange={e => setPaymentPhone(e.target.value)} placeholder="Numéro à débiter" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Montant à payer (F CFA)</label>
