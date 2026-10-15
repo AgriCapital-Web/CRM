@@ -35,6 +35,16 @@ const Login = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const { data: profile } = await (supabase as any)
+          .from("profiles")
+          .select("password_change_required")
+          .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+          .limit(1)
+          .maybeSingle();
+        if (profile?.password_change_required === true) {
+          navigate("/change-password-required", { replace: true });
+          return;
+        }
         const { data: roles } = await (supabase as any)
           .from("user_roles").select("role").eq("user_id", user.id);
         const list = (roles || []).map((r: any) => r.role);
