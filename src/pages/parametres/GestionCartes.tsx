@@ -123,6 +123,37 @@ const GestionCartes = () => {
 
       .map((p, i) => {
         const c = carteDe(p.id);
+        const userRoleCodes = roles[p.user_id] || [];
+        const primaryRoleCode = highestRoleCode(userRoleCodes, roleLevels) || "";
+        const primaryRoleName = roleCoverage[primaryRoleCode]?.name || primaryRoleCode.replace(/_/g, " ");
+        const roleAndDepartment = normalizeGeo([primaryRoleCode, primaryRoleName, p.poste, p.departement].filter(Boolean).join(" "));
+        const departmentName = normalizeGeo(p.departement || "");
+        const isCommercialDepartment = /commercial/.test(departmentName) || /commercial/.test(roleAndDepartment);
+        const isTechnicalDepartment = /technique|technicien/.test(departmentName) || /technique|technicien|chef equipe technique/.test(roleAndDepartment);
+        const isLandMobilizer = /mobilisateur foncier|mobilisateur_foncier/.test(roleAndDepartment);
+        const isCommercialDirector = /direct(eur|rice) commercial/.test(roleAndDepartment) || /directeur_commercial|directrice_commerciale/.test(primaryRoleCode);
+        const hasGeographicScope = isCommercialDepartment || isTechnicalDepartment || isLandMobilizer;
+        const scope = roleCoverage[primaryRoleCode] || { level: "global", label: "Zone d’intervention" };
+        const scopeValue = (() => {
+          if (isCommercialDirector) return "National — toute la Côte d’Ivoire";
+          if (scope.level === "global") return "National";
+          const assigned = zoneAssignments.find((z) => z.user_id === p.user_id && String(z.zone_type || "").toLowerCase().replace(/-/g, "_") === scope.level);
+          if (assigned) {
+            const name = geoNames[scope.level + ":" + assigned.zone_id];
+            if (name) return name;
+          }
+          if (scope.level === "region") {
+            if (p.region_id && geoNames["region:" + p.region_id]) return geoNames["region:" + p.region_id];
+            return geoNames["region:name:" + normalizeGeo(c?.zone_intervention)] || "Zone à préciser";
+          }
+          if (scope.level === "departement") {
+            return geoNames["departement:name:" + normalizeGeo(c?.zone_intervention)] || geoNames["departement:name:" + normalizeGeo(p.departement)] || "Zone à préciser";
+          }
+          if (scope.level === "sous_prefecture") {
+            return geoNames["sous_prefecture:name:" + normalizeGeo(c?.zone_intervention)] || "Zone à préciser";
+          }
+          return "Zone à préciser";
+        })();
         return {
           profile: p,
           carte: c,
@@ -133,37 +164,14 @@ const GestionCartes = () => {
             nom_complet: p.nom_complet,
             poste: roleCoverage[highestRoleCode(roles[p.user_id] || [], roleLevels) || ""]?.name || highestRoleCode(roles[p.user_id] || [], roleLevels)?.replace(/_/g, " ") || "—",
             departement: c?.departement || p.departement,
-            role_code: highestRoleCode(roles[p.user_id] || [], roleLevels),
-            role_codes: roles[p.user_id] || [],
-            role_label: roleCoverage[highestRoleCode(roles[p.user_id] || [], roleLevels) || ""]?.name || null,
+            role_code: primaryRoleCode,
+            role_codes: userRoleCodes,
+            role_label: primaryRoleName || null,
             type_contrat: c?.type_contrat || null,
             statut_agent: c?.statut_agent || null,
             mission: c?.mission || null,
-            zone_intervention_label: (() => {
-              const code = highestRoleCode(roles[p.user_id] || [], roleLevels);
-              return roleCoverage[code || ""]?.label || "Périmètre";
-            })(),
-            zone_intervention: (() => {
-              const code = highestRoleCode(roles[p.user_id] || [], roleLevels);
-              const scope = roleCoverage[code || ""] || { level: "global", label: "Périmètre" };
-              if (scope.level === "global") return "Global";
-              const assigned = zoneAssignments.find((z) => z.user_id === p.user_id && String(z.zone_type || "").toLowerCase().replace(/-/g, "_") === scope.level);
-              if (assigned) {
-                const name = geoNames[`${scope.level}:${assigned.zone_id}`];
-                if (name) return name;
-              }
-              if (scope.level === "region") {
-                if (p.region_id && geoNames[`region:${p.region_id}`]) return geoNames[`region:${p.region_id}`];
-                return geoNames[`region:name:${normalizeGeo(c?.zone_intervention)}`] || "Non renseigné";
-              }
-              if (scope.level === "departement") {
-                return geoNames[`departement:name:${normalizeGeo(c?.zone_intervention)}`] || geoNames[`departement:name:${normalizeGeo(p.departement)}`] || "Non renseigné";
-              }
-              if (scope.level === "sous_prefecture") {
-                return geoNames[`sous_prefecture:name:${normalizeGeo(c?.zone_intervention)}`] || "Non renseigné";
-              }
-              return "Non renseigné";
-            })(),
+            zone_intervention_label: hasGeographicScope ? (isCommercialDirector ? "Zone d’intervention" : (scope.label || "Zone d’intervention")) : "Affectation",
+            zone_intervention: hasGeographicScope ? scopeValue : (p.departement || primaryRoleName || "Fonction administrative"),
             photo_url: c?.photo_url || p.photo_url || null,
             photo_bucket: c?.photo_url ? CARTE_BUCKET : "photos-profils",
             date_delivrance: c?.date_delivrance || null,
