@@ -44,12 +44,39 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.ready;
       const { data: config, error: configError } = await supabase.functions.invoke("push-subscriptions", { body: { action: "config" } });
       if (configError || !config?.supported || !config?.public_key) throw new Error("Le service push n'est pas configuré côté serveur.");
+      const applicationServerKey = decodeVapidKey(String(config.public_key).trim());
+      if (applicationServerKey.byteLength !== 65 || new Uint8Array(applicationServerKey)[0] !== 4) {
+        throw new Error("La clé publique VAPID fournie par le serveur est invalide. Vérifiez la configuration des notifications.");
+      }
+
       let subscription = await registration.pushManager.getSubscription();
-      if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeVapidKey(config.public_key) });
+      if (!subscription) {
+        try {
+          subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+        } catch (firstError: any) {
+          const message = String(firstError?.message || "");
+          const pushServiceUnavailable = /push service error|registration failed/i.test(message);
+          if (!pushServiceUnavailable) throw firstError;
+
+          // Une première tentative peut échouer si le service worker ou le service push
+          // du navigateur vient de se réveiller. Actualiser l'enregistrement et réessayer une fois.
+          await registration.update().catch(() => undefined);
+          registration = await navigator.serviceWorker.ready;
+          subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+        }
+      }
       const { error } = await supabase.functions.invoke("push-subscriptions", { body: { action: "subscribe", subscription: subscription.toJSON() } });
       if (error) throw error; setPermission("granted"); setPushEnabled(true);
       toast({ title: "Notifications activées", description: "Les alertes peuvent apparaître même lorsque le CRM est fermé, selon les réglages de l'appareil." }); return true;
-    } catch (error: any) { console.error("[Push] activation", error); toast({ variant: "destructive", title: "Activation impossible", description: error?.message || "Impossible d'activer les notifications." }); return false; }
+    } catch (error: any) {
+      console.error("[Push] activation", error);
+      const rawMessage = String(error?.message || "");
+      const description = /push service error|registration failed/i.test(rawMessage)
+        ? "Le service de notifications du navigateur ne répond pas. Vérifiez votre connexion, ouvrez AC_Teams dans Chrome à jour, puis réessayez. Si l’erreur persiste, le service push de l’appareil est temporairement indisponible."
+        : rawMessage || "Impossible d'activer les notifications.";
+      toast({ variant: "destructive", title: "Activation impossible", description });
+      return false;
+    }
     finally { setIsEnabling(false); }
   }, [isSupported, isEnabling, permission, requestPermission, toast]);
 
