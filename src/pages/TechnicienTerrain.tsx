@@ -21,14 +21,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InteractiveMap from "@/components/maps/InteractiveMap";
 import CompteRenduIA from "@/components/technique/CompteRenduIA";
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, Pencil, Send, X } from "lucide-react";
 
 const TechnicienTerrain=()=>{
   const {user}=useAuth();
   const {toast}=useToast();
-  const {can}=usePermissions();
+  const {can,roles}=usePermissions();
   const allowed=can("rapports.view_technique");
   const manager=can("rapports.manage_technique");
+  const canReassignTechnician=roles.includes("pdg");
   const { byCategory: systemRefs } = useSystemReferences(["etape_plantation","intervention_statut","rapport_type_visite","etat_plantation"]);
   const stageRefs=systemRefs("etape_plantation");
   const reportTypeRefs=systemRefs("rapport_type_visite");
@@ -46,6 +47,7 @@ const TechnicienTerrain=()=>{
   const [reassignInterventionId,setReassignInterventionId]=useState("");
   const [reassignReportId,setReassignReportId]=useState("");
   const [reassignTechnicienId,setReassignTechnicienId]=useState("");
+  const [editingInterventionId,setEditingInterventionId]=useState("");
   const [conventions,setConventions]=useState<any[]>([]);
   const [lots,setLots]=useState<any[]>([]);
   const [localisationMode,setLocalisationMode]=useState<"automatic"|"manual">("automatic");
