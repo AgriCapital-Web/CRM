@@ -172,9 +172,14 @@ const Utilisateurs = () => {
             equipe_id: adminTarget.equipe_id || null,
             photo_url: adminTarget.photo_url || null,
             roles: selectedRoles,
+            primary_role: primaryRole || selectedRoles[0],
           },
         });
         if (createError || !created?.success) throw new Error(created?.error || createError?.message || "Création du compte impossible");
+        if (created.user_id && selectedRoles.length) {
+          const roleSave = await supabase.functions.invoke("admin-manage-user", { body: { action: "set_roles", user_id: created.user_id, roles: selectedRoles, primary_role: primaryRole || selectedRoles[0] } });
+          if (roleSave.error || roleSave.data?.error) throw new Error(roleSave.data?.error || roleSave.error?.message || "Enregistrement du rôle principal impossible");
+        }
         toast({ title: "Compte créé et rôle attribué", description: `Mot de passe temporaire : ${tempPassword}`, duration: 20000 });
         setAdminAction(null);
         setAdminTarget(null);
