@@ -40,7 +40,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const {
-      username, password, email, nom_complet, telephone, role_souhaite,
+      username, password, email, nom_complet, telephone, telephone_indicatif, telephone_local, role_souhaite,
       poste_souhaite, district_id, region_id, departement_geo_id, departement, justification, photo_url,
     } = body ?? {};
 
@@ -129,22 +129,33 @@ serve(async (req) => {
 
 
     // Profil inactif jusqu'à validation
-    await admin.from("profiles").update({
+    const profilePayload = {
+      id: userId,
       user_id: userId,
       email: cleanEmail,
       nom_complet,
-      telephone,
+      telephone: String(telephone ?? "").trim(),
+      telephone_indicatif: telephone_indicatif ?? null,
+      telephone_local: telephone_local ?? null,
       username: cleanUsername,
       poste: poste_souhaite ?? null,
       district_id: district_id ?? null,
       region_id: region_id ?? null,
       actif: false,
-    }).eq("user_id", userId);
+    };
+    const { error: profileError } = await admin.from("profiles").upsert(profilePayload, { onConflict: "id" });
+    if (profileError) {
+      await admin.auth.admin.deleteUser(userId).catch(() => {});
+      console.error("upsert pending profile failed", profileError);
+      return json({ error: "Le profil et le numéro de téléphone n'ont pas pu être enregistrés.", step: "save_profile" }, 400);
+    }
 
     const { error: reqErr } = await admin.from("account_requests").insert({
       nom_complet,
       email: cleanEmail,
-      telephone,
+      telephone: String(telephone ?? "").trim(),
+      telephone_indicatif: telephone_indicatif ?? null,
+      telephone_local: telephone_local ?? null,
       username: cleanUsername,
       auth_user_id: userId,
       poste_souhaite: poste_souhaite ?? role_souhaite,
