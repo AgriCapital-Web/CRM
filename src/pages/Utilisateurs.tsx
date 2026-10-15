@@ -198,14 +198,14 @@ const Utilisateurs = () => {
         description: adminAction === "roles"
           ? `Rôles : ${(payload?.roles || selectedRoles).join(", ")}`
           : adminAction === "password"
-            ? "Mot de passe mis à jour."
+            ? "Mot de passe administrateur enregistré. L’utilisateur devra le modifier à sa prochaine connexion."
             : `Identifiant : ${payload?.username || newUsername}`,
       });
       setAdminAction(null);
       setAdminTarget(null);
       fetchUtilisateurs();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(e) });
+      toast({ variant: "destructive", title: "Erreur", description: adminAction === "password" ? (e?.message || getSafeErrorMessage(e)) : getSafeErrorMessage(e) });
     } finally {
       setBusy(false);
     }
