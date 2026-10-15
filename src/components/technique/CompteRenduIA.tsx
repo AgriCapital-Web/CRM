@@ -87,7 +87,8 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
         if (recognitionRef.current !== recognition) return;
         // Fold the final segments into the stable base exactly once before releasing the session.
         const stableSegment = Array.from(finalSegments.entries()).sort((a, b) => a[0] - b[0]).map(([, value]) => value).join(" ").trim();
-        segmentBaseRef.current = [segmentBaseRef.current, stableSegment].filter(Boolean).join(" ").trim();
+        // Keep any last interim words if the browser closes before marking them final.
+        segmentBaseRef.current = [segmentBaseRef.current, stableSegment, lastInterim].filter(Boolean).join(" ").trim();
         finalSegments.clear();
         lastInterim = "";
         lastInterimIndex = -1;
