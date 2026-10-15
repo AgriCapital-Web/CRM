@@ -191,42 +191,45 @@ const Profil = () => {
 
           <Card>
             <CardHeader><CardTitle>Informations personnelles</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div><Label>Nom complet</Label><Input value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
-              <div><Label>Nom d'utilisateur</Label><Input value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
-              <div><Label>Email principal</Label><Input type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
+            <CardContent className="grid grid-cols-2 gap-x-2 gap-y-1.5 sm:gap-x-3 sm:gap-y-2">
+              <div><Label>Nom complet</Label><Input className="h-8 text-sm" value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
+              <div><Label>Nom d'utilisateur</Label><Input className="h-8 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
+              <div><Label>Email principal</Label><Input className="h-8 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div>
                 <CountryPhoneInput
                   label="Téléphone principal"
+                  compact
                   countryCode={profile.telephone_indicatif || undefined}
                   localValue={profile.telephone_local || profile.telephone || ""}
                   disabled={!isAdmin}
                   onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }}
                 />
               </div>
-              <div><Label>Email secondaire</Label><Input type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
+              <div><Label>Email secondaire</Label><Input className="h-8 text-sm" type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
               <CountryPhoneInput
                 label="Téléphone secondaire"
+                compact
                 countryCode={profile.telephone_secondaire_indicatif || undefined}
                 localValue={profile.telephone_secondaire_local || profile.telephone_secondaire || ""}
                 onChange={(v) => { set("telephone_secondaire_indicatif", v.callingCode); set("telephone_secondaire_local", v.localValue); set("telephone_secondaire", v.internationalValue); }}
               />
               <CountryPhoneInput
                 label="WhatsApp"
+                compact
                 countryCode={profile.whatsapp_indicatif || undefined}
                 localValue={profile.whatsapp_local || profile.whatsapp || ""}
                 onChange={(v) => { set("whatsapp_indicatif", v.callingCode); set("whatsapp_local", v.localValue); set("whatsapp", v.internationalValue); }}
               />
-              <div><Label>Ville</Label><Input value={profile.ville || ""} onChange={(e) => set("ville", e.target.value)} /></div>
-              <div><Label>Quartier</Label><Input value={profile.quartier || ""} onChange={(e) => set("quartier", e.target.value)} /></div>
+              <div><Label>Ville</Label><Input className="h-8 text-sm" value={profile.ville || ""} onChange={(e) => set("ville", e.target.value)} /></div>
+              <div><Label>Quartier</Label><Input className="h-8 text-sm" value={profile.quartier || ""} onChange={(e) => set("quartier", e.target.value)} /></div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" />Pièce d'identité</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
-              <div><Label>Numéro de pièce</Label><Input value={profile.numero_piece_identite || ""} onChange={(e) => set("numero_piece_identite", e.target.value)} /></div>
+              <div className="[&_button]:h-8 [&_button]:text-sm"><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
+              <div><Label>Numéro de pièce</Label><Input className="h-8 text-sm" value={profile.numero_piece_identite || ""} onChange={(e) => set("numero_piece_identite", e.target.value)} /></div>
               <FileField label={uploading === "piece_identite_recto_url" ? "Envoi…" : "Pièce — recto"} current={profile.piece_identite_recto_url} onPick={(f) => upload("piece_identite_recto_url", "pieces-identite", f)} bucket="pieces-identite" />
               <FileField label={uploading === "piece_identite_verso_url" ? "Envoi…" : "Pièce — verso"} current={profile.piece_identite_verso_url} onPick={(f) => upload("piece_identite_verso_url", "pieces-identite", f)} bucket="pieces-identite" />
             </CardContent>
@@ -239,20 +242,22 @@ const Profil = () => {
                 <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback>{(profile.contact_urgence_nom || "?").slice(0, 2)}</AvatarFallback></Avatar>
                 <div className="flex-1"><FileField label={uploading === "contact_urgence_photo_url" ? "Envoi…" : "Photo de la personne"} current={profile.contact_urgence_photo_url} onPick={(f) => upload("contact_urgence_photo_url", "photos-profils", f)} bucket="photos-profils" /></div>
               </div>
-              <div className="md:col-span-2"><Label>Contact urgence — Nom et Prénoms</Label><Input value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
+              <div className="md:col-span-2"><Label>Contact urgence — Nom et Prénoms</Label><Input className="h-8 text-sm" value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
               <CountryPhoneInput
                 label="Contact urgence — Téléphone 1"
+                compact
                 countryCode={profile.contact_urgence_telephone1_indicatif || undefined}
                 localValue={profile.contact_urgence_telephone1_local || profile.contact_urgence_telephone1 || ""}
                 onChange={(v) => { set("contact_urgence_telephone1_indicatif", v.callingCode); set("contact_urgence_telephone1_local", v.localValue); set("contact_urgence_telephone1", v.internationalValue); }}
               />
               <CountryPhoneInput
                 label="Contact urgence — Téléphone 2"
+                compact
                 countryCode={profile.contact_urgence_telephone2_indicatif || undefined}
                 localValue={profile.contact_urgence_telephone2_local || profile.contact_urgence_telephone2 || ""}
                 onChange={(v) => { set("contact_urgence_telephone2_indicatif", v.callingCode); set("contact_urgence_telephone2_local", v.localValue); set("contact_urgence_telephone2", v.internationalValue); }}
               />
-              <div className="md:col-span-2"><Label>Contact urgence — Email (facultatif)</Label><Input type="email" value={profile.contact_urgence_email || ""} onChange={(e) => set("contact_urgence_email", e.target.value)} /></div>
+              <div className="md:col-span-2"><Label>Contact urgence — Email (facultatif)</Label><Input className="h-8 text-sm" type="email" value={profile.contact_urgence_email || ""} onChange={(e) => set("contact_urgence_email", e.target.value)} /></div>
             </CardContent>
           </Card>
 
@@ -264,7 +269,7 @@ const Profil = () => {
             <CardHeader><CardTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5" />Sécurité</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <Label>Nouveau mot de passe</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Saisissez librement votre nouveau mot de passe" />
+              <Input className="h-8 text-sm" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Saisissez librement votre nouveau mot de passe" />
               <Button onClick={changePassword} disabled={passwordSaving || !newPassword}><KeyRound className="mr-2 h-4 w-4" />{passwordSaving ? "Modification…" : "Modifier le mot de passe"}</Button>
             </CardContent>
           </Card>
