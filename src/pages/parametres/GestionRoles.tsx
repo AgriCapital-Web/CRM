@@ -191,6 +191,13 @@ const GestionRoles = () => {
         if (error) throw error;
       }
 
+      if (selectedPrimaryRole && !profile.user_id) {
+        const { error: primaryError } = await (supabase as any).from("user_roles").update({ is_primary: false }).eq("user_id", uid);
+        if (primaryError) throw primaryError;
+        const { error: setPrimaryError } = await (supabase as any).from("user_roles").update({ is_primary: true }).eq("user_id", uid).eq("role", selectedRole);
+        if (setPrimaryError) throw setPrimaryError;
+      }
+
       await logAdminAction({
         action: "ATTRIBUTION_ROLE",
         entite: "user_roles",
@@ -602,18 +609,12 @@ const GestionRoles = () => {
                     <TableCell>
                       <span className="text-sm text-muted-foreground">{role.description}</span>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {role.code === APP_ROLES.PDG
-                          ? `${PERMISSION_CODES.length} (toutes)`
-                          : (matrix[role.code] || []).length}
-                      </Badge>
+                    <TableCell className="text-center">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" title={`Gérer les permissions (${role.code === APP_ROLES.PDG ? PERMISSION_CODES.length : (matrix[role.code] || []).length})`} aria-label={`Gérer les permissions de ${role.nom}`} onClick={() => openPermissions(role)}>
+                        <ShieldCheck className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                     <TableCell className="text-right space-x-1">
-                      <Button variant="outline" size="sm" onClick={() => openPermissions(role)}>
-                        <ShieldCheck className="h-4 w-4 mr-1" />
-                        Permissions
-                      </Button>
                       {canManageRoles && (
                         <>
                           <Button variant="ghost" size="sm" onClick={() => openEditRole(role)}>
