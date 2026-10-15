@@ -224,8 +224,16 @@ const Profil = () => {
             <CardContent className="grid grid-cols-1 gap-3">
               <div className="[&_button]:h-8 [&_button]:text-sm"><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
               <div><Label>Numéro de pièce</Label><Input className="h-8 text-sm" value={profile.numero_piece_identite || ""} onChange={(e) => set("numero_piece_identite", e.target.value)} /></div>
-              <FileField label={uploading === "piece_identite_recto_url" ? "Envoi…" : "Pièce — recto"} current={profile.piece_identite_recto_url} onPick={(f) => upload("piece_identite_recto_url", "pieces-identite", f)} bucket="pieces-identite" />
-              <FileField label={uploading === "piece_identite_verso_url" ? "Envoi…" : "Pièce — verso"} current={profile.piece_identite_verso_url} onPick={(f) => upload("piece_identite_verso_url", "pieces-identite", f)} bucket="pieces-identite" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="min-w-0 rounded-md border p-2">
+                  <Label className="mb-1 block text-xs">Recto</Label>
+                  <FileField label="Recto" current={profile.piece_identite_recto_url} onPick={(f) => upload("piece_identite_recto_url", "pieces-identite", f)} bucket="pieces-identite" />
+                </div>
+                <div className="min-w-0 rounded-md border p-2">
+                  <Label className="mb-1 block text-xs">Verso</Label>
+                  <FileField label="Verso" current={profile.piece_identite_verso_url} onPick={(f) => upload("piece_identite_verso_url", "pieces-identite", f)} bucket="pieces-identite" />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
