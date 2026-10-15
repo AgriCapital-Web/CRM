@@ -222,7 +222,7 @@ const Profil = () => {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" />Pièce d'identité</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 gap-3">
-              <div className="[&_button]:h-8 [&_button]:text-sm"><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
+              <div className="[&_button]:h-9 [&_button]:text-sm"><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
               <div><Label>Numéro de pièce</Label><Input className="h-9 text-sm" value={profile.numero_piece_identite || ""} onChange={(e) => set("numero_piece_identite", e.target.value)} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="min-w-0 rounded-md border p-2">
