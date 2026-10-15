@@ -371,7 +371,7 @@ const GestionPaiements = () => {
               <CardContent className="p-4">
                 <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
                   <div className="shrink-0 p-2 bg-blue-100 rounded-lg"><TrendingUp className="h-5 w-5 text-blue-600" /></div>
-                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Chiffre d'affaires prévisionnel</p><p className="break-words text-xs sm:text-sm font-bold leading-snug">{formatMontant(stats.caPrevisionnel)}</p></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Chiffre d'affaires prévisionnel</p><p className="whitespace-nowrap text-[clamp(0.58rem,2.8vw,0.875rem)] font-bold leading-snug tracking-tight tabular-nums">{formatMontant(stats.caPrevisionnel)}</p></div>
                 </div>
               </CardContent>
             </Card>
@@ -379,7 +379,7 @@ const GestionPaiements = () => {
               <CardContent className="p-4">
                 <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
                   <div className="shrink-0 p-2 bg-green-100 rounded-lg"><CheckCircle className="h-5 w-5 text-green-600" /></div>
-                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Montant encaissé</p><p className="break-words text-xs sm:text-sm font-bold leading-snug">{formatMontant(stats.montantTotal)}</p></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Montant encaissé</p><p className="whitespace-nowrap text-[clamp(0.58rem,2.8vw,0.875rem)] font-bold leading-snug tracking-tight tabular-nums">{formatMontant(stats.montantTotal)}</p></div>
                 </div>
               </CardContent>
             </Card>
@@ -387,7 +387,7 @@ const GestionPaiements = () => {
               <CardContent className="p-4">
                 <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
                   <div className="shrink-0 p-2 bg-orange-100 rounded-lg"><ArrowUpRight className="h-5 w-5 text-orange-600" /></div>
-                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Montant restant à encaisser</p><p className="break-words text-xs sm:text-sm font-bold leading-snug">{formatMontant(stats.montantRestant)}</p></div>
+                  <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-muted-foreground">Montant restant à encaisser</p><p className="whitespace-nowrap text-[clamp(0.58rem,2.8vw,0.875rem)] font-bold leading-snug tracking-tight tabular-nums">{formatMontant(stats.montantRestant)}</p></div>
                 </div>
               </CardContent>
             </Card>
@@ -395,7 +395,7 @@ const GestionPaiements = () => {
               <CardContent className="p-4">
                 <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
                   <div className="shrink-0 p-2 bg-amber-100 rounded-lg"><Coins className="h-5 w-5 text-amber-600" /></div>
-                  {canViewClientMoney && <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-amber-700">Monnaie client</p><p className="break-words text-xs sm:text-sm font-bold leading-snug text-amber-800">{formatMontant(stats.monnaieDisponible)}</p></div>}
+                  {canViewClientMoney && <div className="min-w-0 flex-1"><p className="text-xs leading-snug text-amber-700">Monnaie client</p><p className="whitespace-nowrap text-[clamp(0.58rem,2.8vw,0.875rem)] font-bold leading-snug tracking-tight tabular-nums text-amber-800">{formatMontant(stats.monnaieDisponible)}</p></div>}
                 </div>
               </CardContent>
             </Card>
