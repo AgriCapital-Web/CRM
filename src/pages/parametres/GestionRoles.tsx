@@ -149,8 +149,38 @@ const GestionRoles = () => {
     try {
       const profile = profiles.find((p) => p.id === selectedProfile);
       if (!profile) throw new Error("Personnel introuvable");
-      if (profile.user_id && userRoles.some((ur) => ur.user_id === profile.user_id && ur.role === selectedRole)) {
-        toast({ variant: "destructive", title: "Erreur", description: "Ce rôle est déjà assigné" });
+      const existingRole = profile.user_id
+        ? userRoles.find((ur) => ur.user_id === profile.user_id && ur.role === selectedRole)
+        : null;
+      if (existingRole) {
+        if (!selectedPrimaryRole) {
+          toast({ variant: "destructive", title: "Rôle déjà attribué", description: "Ce rôle est déjà assigné à cet utilisateur." });
+          return;
+        }
+        // Autoriser à promouvoir un rôle déjà attribué au rang principal.
+        const { error: clearError } = await (supabase as any)
+          .from("user_roles").update({ is_primary: false }).eq("user_id", profile.user_id).eq("is_primary", true);
+        if (clearError) throw clearError;
+        const { error: promoteError } = await (supabase as any)
+          .from("user_roles").update({ is_primary: true }).eq("user_id", profile.user_id).eq("role", selectedRole);
+        if (promoteError) throw promoteError;
+        const { data: verified, error: verifyError } = await (supabase as any)
+          .from("user_roles").select("role,is_primary").eq("user_id", profile.user_id).eq("role", selectedRole).maybeSingle();
+        if (verifyError) throw verifyError;
+        if (verified?.is_primary !== true) throw new Error("Le rôle principal n'a pas été enregistré. Veuillez réessayer.");
+        await logAdminAction({
+          action: "ROLE_PRINCIPAL_MODIFIE",
+          entite: "user_roles",
+          cible_user_id: profile.user_id,
+          cible_libelle: profile.nom_complet,
+          nouvelle_valeur: { role: selectedRole, is_primary: true },
+        });
+        toast({ title: "Rôle principal modifié", description: `${roles.find((r) => r.code === selectedRole)?.nom || selectedRole} est maintenant le rôle principal.` });
+        setAssignDialogOpen(false);
+        setSelectedProfile("");
+        setSelectedRole("");
+        setSelectedPrimaryRole(true);
+        await fetchData();
         return;
       }
 
@@ -203,7 +233,7 @@ const GestionRoles = () => {
         entite: "user_roles",
         cible_user_id: uid,
         cible_libelle: profiles.find((p) => p.id === selectedProfile)?.nom_complet,
-        nouvelle_valeur: { role: selectedRole },
+        nouvelle_valeur: { role: selectedRole, is_primary: selectedPrimaryRole },
       });
 
       toast({ title: "Succès", description: "Rôle assigné" });
