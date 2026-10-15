@@ -12,6 +12,7 @@ import {
   putItem,
   deleteItem,
   TABLE_TO_OFFLINE_STORE,
+  getCachedAuth,
 } from "@/lib/offlineDb";
 
 const SUPABASE_REST_SUFFIX = "/rest/v1/";
@@ -109,7 +110,7 @@ async function rpcCacheKey(request: Request): Promise<string> {
   const body = await request.clone().text().catch(() => "");
   return [
     "RPC",
-    getAuthScope(request.headers),
+    await getAuthScope(request.headers),
     request.url,
     body,
   ].join("|");
@@ -508,6 +509,10 @@ export function installOfflineFetch(): typeof fetch {
       // RPC semantics are not inferable from HTTP method. Cache the result of
       // every RPC call for offline reads, but never enqueue an RPC as a mutation.
       const key = await rpcCacheKey(request);
+      if (!navigator.onLine) {
+        const cached = await getCachedHttpResponse(key);
+        if (cached) return responseFromCache(cached);
+      }
       try {
         const response = await baseFetch(request);
         if (response.ok) {
@@ -522,6 +527,9 @@ export function installOfflineFetch(): typeof fetch {
               cachedAt: Date.now(),
             });
           }
+        } else if (response.status >= 500) {
+          const cached = await getCachedHttpResponse(key);
+          if (cached) return responseFromCache(cached);
         }
         return response;
       } catch (error) {
@@ -534,6 +542,12 @@ export function installOfflineFetch(): typeof fetch {
     if (method === "GET") {
       const key = await buildCacheKey(request);
 
+      // Offline-first: read the last successful response before attempting any network request.
+      // This also keeps the cache usable after offline authentication, where Supabase has no live session token.
+      if (!navigator.onLine) {
+        const cached = await getCachedHttpResponse(key);
+        if (cached) return responseFromCache(cached);
+      }
       try {
         const response = await baseFetch(request);
 
@@ -549,6 +563,9 @@ export function installOfflineFetch(): typeof fetch {
               cachedAt: Date.now(),
             });
           }
+        } else if (response.status >= 500) {
+          const cached = await getCachedHttpResponse(key);
+          if (cached) return responseFromCache(cached);
         }
 
         return response;
