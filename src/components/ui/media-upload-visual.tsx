@@ -382,6 +382,38 @@ export default function MediaUploadVisual({
 
   useEffect(() => {
     document.body.classList.toggle("media-camera-fullscreen", mediaDialogOpen && cameraOpen);
+    const hideLocationOverlays = () => {
+      if (!mediaDialogOpen) return;
+      document.querySelectorAll<HTMLElement>("button, [role='button']").forEach((element) => {
+        if (element.closest("[data-radix-dialog-content]")) return;
+        const text = (element.innerText || element.getAttribute("aria-label") || element.getAttribute("title") || "").trim().toLocaleLowerCase();
+        const iconClasses = Array.from(element.querySelectorAll("svg")).map((svg) => String(svg.getAttribute("class") || "")).join(" ").toLowerCase();
+        const isLocationControl = text.includes("ma position") || text.includes("localisation") ||
+          /crosshair|map-pin|map-pinned|locate|locate-fixed|navigation/.test(iconClasses);
+        if (isLocationControl) {
+          element.dataset.mediaHiddenLocation = "true";
+          const wrapper = element.parentElement;
+          if (wrapper && !wrapper.closest("[data-radix-dialog-content]") && wrapper.getBoundingClientRect().height < 100) {
+            wrapper.dataset.mediaHiddenLocation = "true";
+          }
+        }
+      });
+    };
+    if (mediaDialogOpen) {
+      hideLocationOverlays();
+      const observer = new MutationObserver(hideLocationOverlays);
+      observer.observe(document.body, { childList: true, subtree: true });
+      return () => {
+        observer.disconnect();
+        document.body.classList.remove("media-camera-fullscreen");
+        document.querySelectorAll<HTMLElement>("[data-media-hidden-location='true']").forEach((element) => {
+          delete element.dataset.mediaHiddenLocation;
+        });
+      };
+    }
+    document.querySelectorAll<HTMLElement>("[data-media-hidden-location='true']").forEach((element) => {
+      delete element.dataset.mediaHiddenLocation;
+    });
     return () => document.body.classList.remove("media-camera-fullscreen");
   }, [mediaDialogOpen, cameraOpen]);
 
@@ -513,6 +545,7 @@ export default function MediaUploadVisual({
           ? "fixed !left-0 !top-0 !translate-x-0 !translate-y-0 z-[99999] h-[100dvh] w-screen max-w-none gap-0 overflow-hidden rounded-none border-0 bg-black p-0 text-white"
           : "z-[101] max-w-sm"}>
           <style>{`
+            [data-media-hidden-location="true"] { display: none !important; visibility: hidden !important; pointer-events: none !important; }
             [data-radix-dialog-overlay] { z-index: 99998 !important; }
             [data-radix-dialog-content] > button[aria-label="Close"] { z-index: 100001 !important; }
             body.media-camera-fullscreen [data-radix-dialog-content] > button[aria-label="Close"] { display: none !important; }
