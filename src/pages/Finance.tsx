@@ -89,7 +89,7 @@ export default function Finance(){
     if(!entryForm.source.trim()||Number(entryForm.amount)<=0){toast({title:"Informations requises",description:"Renseignez la source et un montant positif.",variant:"destructive"});return;}
     setSaving(true);
     try{
-      const labels={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",apport_associe:"Apport associé",vente:"Vente",autre:"Autre entrée"};
+      const labels:Record<string,string>={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",apport_associe:"Apport associé",vente:"Vente",autre:"Autre entrée"};
       const {error}=await (supabase as any).from("finance_transactions").insert({
         direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="apport_associe"?"ASSOCIE":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
         label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:Number(entryForm.amount),
