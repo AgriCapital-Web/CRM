@@ -494,40 +494,72 @@ export default function MediaUploadVisual({
       <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing || selectionCount >= MAX_CANDIDATES} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(true); }}>
         <Plus className="mr-2 h-4 w-4" />Ajouter des médias {files.length ? `(${files.length})` : ""}
       </Button>
-      <Dialog open={mediaDialogOpen} onOpenChange={(open) => { setMediaDialogOpen(open); document.body.classList.toggle("media-dialog-open", open); if (!open) { if (recording) stopVideoRecording(); else closeVideoCamera(); } }}>
-        <DialogContent className="z-[101] max-w-sm">
-          <style>{`[data-radix-dialog-overlay] { z-index: 100 !important; } body.media-dialog-open [data-floating-ai-assistant] { display: none !important; }`}</style>
-          <DialogHeader>
-            <DialogTitle>Ajouter des photos ou vidéos</DialogTitle>
-            <DialogDescription>Vous pouvez sélectionner jusqu’à 50 fichiers. Ils sont analysés et optimisés automatiquement avant tout envoi.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2">
-            <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(false); cameraRef.current?.click(); }}>
-              <Camera className="mr-2 h-4 w-4" />Prendre une photo
-            </Button>
-            <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(false); fileRef.current?.click(); }}>
-              <Upload className="mr-2 h-4 w-4" />Importer depuis l’appareil
-            </Button>
-            {!cameraOpen && <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); void openVideoCamera("environment"); }}>
-              <Video className="mr-2 h-4 w-4" />Ouvrir la caméra vidéo
-            </Button>}
-            {cameraOpen && <div className="space-y-2 rounded-lg border p-2">
-              <video ref={videoPreviewRef} autoPlay muted playsInline className="aspect-video w-full rounded-md bg-black object-contain" />
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" disabled={recording || processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); void switchCamera(); }}>
-                  <Camera className="mr-2 h-4 w-4" />{facingMode === "environment" ? "Caméra avant" : "Caméra arrière"}
-                </Button>
-                <Button type="button" variant={recording ? "destructive" : "default"} disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (recording) stopVideoRecording(); else void startVideoRecording(); }}>
-                  {recording ? <Square className="mr-2 h-4 w-4" /> : <Video className="mr-2 h-4 w-4" />}
-                  {recording ? "Arrêter (" + String(Math.floor(recordSeconds / 60)).padStart(2, "0") + ":" + String(recordSeconds % 60).padStart(2, "0") + ")" : "Démarrer l’enregistrement"}
-                </Button>
+      <Dialog open={mediaDialogOpen} onOpenChange={(open) => {
+        setMediaDialogOpen(open);
+        document.body.classList.toggle("media-dialog-open", open);
+        document.body.classList.toggle("media-camera-fullscreen", open && cameraOpen);
+        if (!open) {
+          if (recording) stopVideoRecording();
+          else closeVideoCamera();
+        }
+      }}>
+        <DialogContent className={cameraOpen
+          ? "fixed !left-0 !top-0 !translate-x-0 !translate-y-0 z-[99999] h-[100dvh] w-screen max-w-none gap-0 overflow-hidden rounded-none border-0 bg-black p-0 text-white"
+          : "z-[101] max-w-sm"}>
+          <style>{`
+            [data-radix-dialog-overlay] { z-index: 99998 !important; }
+            [data-radix-dialog-content] > button[aria-label="Close"] { z-index: 100001 !important; }
+            body.media-dialog-open [data-floating-ai-assistant] { display: none !important; }
+            body.media-camera-fullscreen [data-floating-ai-assistant],
+            body.media-camera-fullscreen [data-location-control],
+            body.media-camera-fullscreen button:has(svg.lucide-crosshair),
+            body.media-camera-fullscreen button:has(svg.lucide-map-pin) { display: none !important; }
+          `}</style>
+          {cameraOpen ? (
+            <div className="fixed inset-0 h-[100dvh] w-screen overflow-hidden bg-black">
+              <video ref={videoPreviewRef} autoPlay muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+              <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent p-4 pt-[max(env(safe-area-inset-top),1rem)]">
+                <p className="text-sm font-semibold text-white">{recording ? "Enregistrement en cours" : "Caméra vidéo"}</p>
+                {!recording && <Button type="button" variant="ghost" className="h-11 w-11 rounded-full text-white hover:bg-white/20 hover:text-white" aria-label="Fermer la caméra vidéo" onClick={(event) => { event.preventDefault(); event.stopPropagation(); closeVideoCamera(); }}>
+                  <X className="h-6 w-6" />
+                </Button>}
               </div>
-              {!recording && <Button type="button" variant="ghost" className="w-full" onClick={(event) => { event.preventDefault(); event.stopPropagation(); closeVideoCamera(); }}>Fermer la caméra</Button>}
-              {recording && <p className="text-sm font-medium text-destructive">Enregistrement en cours · arrêt automatique à 10 minutes.</p>}
-            </div>}
-            {processing && <p className="text-sm text-muted-foreground">Analyse et optimisation en cours…</p>}
-            {mediaError && <p role="status" className="text-sm text-muted-foreground">{mediaError}</p>}
-          </div>
+              <div className="absolute inset-x-0 bottom-0 space-y-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-12">
+                {mediaError && <p role="status" className="rounded-lg bg-black/60 p-2 text-center text-sm text-white">{mediaError}</p>}
+                <div className="flex items-center justify-center gap-5">
+                  <Button type="button" variant="outline" disabled={recording || processing} className="min-h-12 rounded-full border-white/70 bg-black/40 px-5 text-white hover:bg-white/20 hover:text-white" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void switchCamera(); }}>
+                    <Camera className="mr-2 h-5 w-5" />{facingMode === "environment" ? "Caméra avant" : "Caméra arrière"}
+                  </Button>
+                  <Button type="button" variant={recording ? "destructive" : "default"} disabled={processing} className="min-h-14 rounded-full px-6 text-base shadow-lg" onClick={(event) => { event.preventDefault(); event.stopPropagation(); if (recording) stopVideoRecording(); else void startVideoRecording(); }}>
+                    {recording ? <Square className="mr-2 h-5 w-5" /> : <Video className="mr-2 h-5 w-5" />}
+                    {recording ? "Arrêter " + String(Math.floor(recordSeconds / 60)).padStart(2, "0") + ":" + String(recordSeconds % 60).padStart(2, "0") : "Enregistrer"}
+                  </Button>
+                </div>
+                {recording && <p className="text-center text-sm font-medium text-white">Arrêt automatique à 10 minutes.</p>}
+                {processing && <p className="text-center text-sm text-white">Analyse et optimisation en cours…</p>}
+              </div>
+            </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Ajouter des photos ou vidéos</DialogTitle>
+                <DialogDescription>Vous pouvez sélectionner jusqu’à 50 fichiers. Ils sont analysés et optimisés automatiquement avant tout envoi.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-2">
+                <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(false); cameraRef.current?.click(); }}>
+                  <Camera className="mr-2 h-4 w-4" />Prendre une photo
+                </Button>
+                <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(false); fileRef.current?.click(); }}>
+                  <Upload className="mr-2 h-4 w-4" />Importer depuis l’appareil
+                </Button>
+                <Button type="button" variant="outline" className="w-full justify-start" disabled={processing} onClick={(event) => { event.preventDefault(); event.stopPropagation(); void openVideoCamera("environment"); }}>
+                  <Video className="mr-2 h-4 w-4" />Ouvrir la caméra vidéo
+                </Button>
+                {processing && <p className="text-sm text-muted-foreground">Analyse et optimisation en cours…</p>}
+                {mediaError && <p role="status" className="text-sm text-muted-foreground">{mediaError}</p>}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       {recording && <p className="text-sm font-medium text-destructive">Enregistrement en cours · arrêt automatique à 10 minutes.</p>}
