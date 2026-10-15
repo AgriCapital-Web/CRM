@@ -28,6 +28,7 @@ export default function Finance(){
   const [transactions,setTransactions]=useState<any[]>([]);
   const [expenses,setExpenses]=useState<any[]>([]);
   const [associates,setAssociates]=useState<any[]>([]);
+  const [associateMovements,setAssociateMovements]=useState<any[]>([]);
   const [tableSearch,setTableSearch]=useState("");
   const [profiles,setProfiles]=useState<any[]>([]);
   const [salaryProfiles,setSalaryProfiles]=useState<any[]>([]);
@@ -63,15 +64,16 @@ export default function Finance(){
 
   const load=async()=>{
     setLoading(true);
-    const [t,e,a,p,s,r]=await Promise.all([
+    const [t,e,a,p,s,r,am]=await Promise.all([
       (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}).limit(100),
       (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}).limit(100),
       (supabase as any).from("finance_associates").select("*").order("full_name"),
       (supabase as any).from("profiles").select("id,nom_complet,poste,relation_rh,actif,salaire_base").eq("actif",true).order("nom_complet"),
       (supabase as any).from("finance_salary_profiles").select("*").order("created_at",{ascending:false}),
-      (supabase as any).from("finance_payroll_runs").select("*").order("period_start",{ascending:false}).limit(24)
+      (supabase as any).from("finance_payroll_runs").select("*").order("period_start",{ascending:false}).limit(24),
+      (supabase as any).from("finance_associate_transactions").select("id,associate_id,movement_type,notes,created_at,finance_transactions(id,transaction_date,label,amount,direction,status,reference)").order("created_at",{ascending:false}).limit(300)
     ]);
-    setTransactions(t.data||[]);setExpenses(e.data||[]);setAssociates(a.data||[]);setProfiles(p.data||[]);setSalaryProfiles(s.data||[]);setPayrollRuns(r.data||[]);
+    setTransactions(t.data||[]);setExpenses(e.data||[]);setAssociates(a.data||[]);setProfiles(p.data||[]);setSalaryProfiles(s.data||[]);setPayrollRuns(r.data||[]);setAssociateMovements(am.data||[]);
     setLoading(false);
   };
   useEffect(()=>{if(canView)void load();},[canView]);
