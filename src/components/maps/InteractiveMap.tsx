@@ -18,13 +18,13 @@ const defaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = defaultIcon;
 
-// Point rouge local (aucune image externe) : s'affiche toujours, même hors ligne.
+// Épingle rouge locale, sans image externe : fonctionne aussi hors ligne.
 const redIcon = L.divIcon({
   className: '',
-  html: '<span style="display:block;width:18px;height:18px;border-radius:9999px;background:hsl(var(--destructive));border:3px solid hsl(var(--background));box-shadow:0 0 0 1px hsl(var(--destructive)),0 2px 6px rgba(0,0,0,.35)"></span>',
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-  popupAnchor: [0, -10],
+  html: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M16 1C7.7 1 1 7.7 1 16c0 11 15 25 15 25s15-14 15-25C31 7.7 24.3 1 16 1Z" fill="#dc2626" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="#fff"/></svg>',
+  iconSize: [32, 42],
+  iconAnchor: [16, 41],
+  popupAnchor: [0, -38],
 });
 
 interface LocationPickerProps {
@@ -154,7 +154,7 @@ const InteractiveMapComponent = ({
 
         {/* Marqueur de position sélectionnée */}
         {position && mode === 'pick' && (
-          <Marker position={position}>
+          <Marker position={position} icon={redIcon}>
             <Popup>
               <div className="text-center">
                 <p className="font-semibold">Position sélectionnée</p>
@@ -196,7 +196,7 @@ const InteractiveMapComponent = ({
 
       {mode === 'pick' && (
         <div className="absolute bottom-2 left-2 right-2 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg p-2 text-center text-sm">
-          <MapPin className="h-4 w-4 inline mr-1 text-primary" />
+          <MapPin className="h-4 w-4 inline mr-1 text-red-600" />
           {position ? (
             <span className="font-mono text-xs">
               Lat: {position[0].toFixed(6)} | Lng: {position[1].toFixed(6)}
