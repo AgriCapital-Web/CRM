@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Shield, KeyRound, Save, Lock, Upload, UserRound, Camera } from "lucide-react";
+import { Shield, KeyRound, Save, Lock, Upload, UserRound } from "lucide-react";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { formatUserProfileName } from "@/lib/utils";
 import { uploadFile } from "@/utils/storage";
@@ -40,9 +40,8 @@ const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: 
       <Label>{label}</Label>
       <input ref={cameraRef} type="file" accept="image/*" capture={isPhoto ? "user" : "environment"} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Button type="button" variant="outline" className="w-full justify-start" onClick={() => cameraRef.current?.click()}><Camera className="mr-2 h-4 w-4" />Prendre une photo</Button>
-        <Button type="button" variant="outline" className="w-full justify-start" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{current ? "Remplacer le fichier" : "Importer un fichier"}</Button>
+      <div className="min-w-0 w-full">
+        <Button type="button" variant="outline" className="w-full min-w-0 justify-center whitespace-normal text-center" onClick={() => fileRef.current?.click()}><Upload className="mr-2 h-4 w-4 shrink-0" /><span className="min-w-0 truncate">{current ? "Choisir / remplacer le fichier" : "Choisir une photo ou un fichier"}</span></Button>
       </div>
       {shown ? <div className="overflow-hidden rounded-md border bg-muted/20">
         {isImage ? <img src={shown} alt={"Aperçu — " + label} className="mx-auto max-h-64 w-full object-contain" /> : preview ? <object data={shown} type="application/pdf" className="h-64 w-full"><a href={shown} target="_blank" rel="noreferrer">Consulter le document</a></object> : <div className="p-3 text-sm text-muted-foreground">Document enregistré</div>}
