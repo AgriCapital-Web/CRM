@@ -37,7 +37,7 @@ export const PlantationsMap = () => {
           .from("plantations")
           .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,superficie_ha,surface_reellement_plantee,village_nom,village,localite,parcelle_id,client_id")
           .range(0, 99999),
-        (supabase as any).from("clients").select("id,nom_complet,parcelle_id,campement_id,village_id,localite,total_hectares").range(0, 99999),
+        (supabase as any).from("clients").select("id,nom_complet,parcelle_id,campement_id,village_id,localite,total_hectares,latitude,longitude").range(0, 99999),
         (supabase as any)
           .from("parcelles")
           .select("id,id_unique,nom,localisation_gps_lat,localisation_gps_lng,surface_totale_ha,surface_agricapital_ha,village")
@@ -94,6 +94,29 @@ export const PlantationsMap = () => {
           lng,
           label: names ? `${names} — ${parcel.id_unique || "Parcelle"}` : (parcel.id_unique || parcel.nom || "Parcelle"),
           info: `${parcel.surface_agricapital_ha || parcel.surface_totale_ha || 0} ha${parcel.village ? ` • ${parcel.village}` : ""}`,
+        });
+      }
+
+      // Ajouter aussi les clients géolocalisés directement sur leur fiche, même sans plantation créée.
+      const mappedClientIds = new Set<string>();
+      for (const p of plantations) if (p.client_id) mappedClientIds.add(p.client_id);
+      for (const parcel of parcels) {
+        for (const c of clientsByParcel.get(parcel.id) || []) mappedClientIds.add(c.id);
+      }
+      for (const client of clients) {
+        if (mappedClientIds.has(client.id)) continue;
+        const lat = num(client.latitude);
+        const lng = num(client.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const campement = campementById.get(client.campement_id);
+        const village = villageById.get(client.village_id);
+        const locality = campement?.nom || client.localite || village?.nom || "Localité non renseignée";
+        out.push({
+          id: `client-${client.id}`,
+          lat,
+          lng,
+          label: client.nom_complet || "Client",
+          info: `Site client • Localité : ${locality}`,
         });
       }
 

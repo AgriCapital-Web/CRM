@@ -37,7 +37,7 @@ const CLIENT_COLUMNS = new Set([
   "district_id","region_id","departement_id","sous_prefecture_id","village_id","offre_id","famille_offre","formule_code","formule_nom","parcours_code","commercial_id","type_compte","banque_operateur",
   "numero_compte","nom_titulaire_compte","photo_profil_url","fichier_piece_url","fichier_piece_recto_url",
   "fichier_piece_verso_url","localite","nationalite","type_client","telephone_indicatif","telephone_local",
-  "whatsapp_indicatif","whatsapp_local","updated_by"
+  "whatsapp_indicatif","whatsapp_local","latitude","longitude","updated_by"
 ]);
 
 const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
@@ -239,6 +239,14 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
           <CountryPhoneInput compact label="WhatsApp" countryCode={form.whatsapp_indicatif || undefined} localValue={form.whatsapp_local || form.whatsapp || ""} onChange={v=>{setField("whatsapp_indicatif",v.callingCode);setField("whatsapp_local",v.localValue);setField("whatsapp",v.internationalValue)}}/>
           <div><Label className="text-xs">Email</Label><Input className="h-8" type="email" value={form.email || ""} onChange={e=>setField("email",e.target.value)}/></div>
           <div className="md:col-span-2 min-w-0"><GeographieCascade className="grid grid-cols-1 md:grid-cols-3 gap-2" districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} villageId={form.village_id} required extraField={<div className="space-y-1 min-w-0"><Label className="text-xs">Lieu de résidence</Label><Input className="h-8" value={form.domicile_residence || form.domicile || ""} onChange={e=>{setField("domicile_residence",e.target.value);setField("domicile",e.target.value);}} /></div>} onChange={(g)=>setForm((x:any)=>({...x,district_id:g.districtId||null,region_id:g.regionId||null,departement_id:g.departementId||null,sous_prefecture_id:g.sousPrefectureId||null,village_id:g.villageId||null,localite:g.villageName||x.localite||""}))}/></div>
+          <div className="md:col-span-2 rounded-md border p-3 space-y-2">
+            <p className="text-xs font-semibold">Coordonnées GPS du site client</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div><Label className="text-xs">Latitude</Label><Input className="h-8" type="number" step="any" value={form.latitude ?? ""} onChange={e=>setField("latitude",e.target.value === "" ? null : Number(e.target.value))} placeholder="Ex. -6.2107333" /></div>
+              <div><Label className="text-xs">Longitude</Label><Input className="h-8" type="number" step="any" value={form.longitude ?? ""} onChange={e=>setField("longitude",e.target.value === "" ? null : Number(e.target.value))} placeholder="Ex. 6.925555" /></div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Ces coordonnées alimentent la carte des plantations et sont disponibles dans les données de l’espace client.</p>
+          </div>
         </CardContent>
       </Card>
 
