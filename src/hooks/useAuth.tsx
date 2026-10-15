@@ -57,9 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: rolesData } = await (supabase as any)
           .from('user_roles')
-          .select('role')
+          .select('role, is_primary')
           .eq('user_id', userId);
-        roles = rolesData?.map((r: any) => r.role) || [];
+        roles = (rolesData || [])
+          .sort((a: any, b: any) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
+          .map((r: any) => r.role);
       } catch {
         roles = [];
       }
