@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Search, Edit, Shield, MoreHorizontal, UserCheck, UserX, KeyRound, AtSign, Trash2, Eye } from "lucide-react";
+import { Users, Plus, Search, Edit, Shield, MoreHorizontal, UserCheck, UserX, KeyRound, AtSign, Trash2, Eye, EyeOff } from "lucide-react";
 import UtilisateurFormNew from "@/components/forms/UtilisateurFormNew";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useAppRoles } from "@/hooks/useReferentiels";
@@ -42,6 +42,7 @@ const Utilisateurs = () => {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [primaryRole, setPrimaryRole] = useState<string>("");
   const [newPassword, setNewPassword] = useState("");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
@@ -139,6 +140,7 @@ const Utilisateurs = () => {
     setSelectedRoles(assignedRoles);
     setPrimaryRole(user.user_roles?.find((r: any) => r.is_primary)?.role || assignedRoles[0] || "");
     setNewPassword("");
+    setShowAdminPassword(false);
     setNewUsername(user.username || "");
   };
 
@@ -481,8 +483,13 @@ const Utilisateurs = () => {
           {adminAction === "password" && (
             <div className="space-y-2">
               <Label>Nouveau mot de passe (choix libre)</Label>
-              <Input type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Saisir le mot de passe choisi par le PDG" />
-              <p className="text-xs text-muted-foreground">Aucune règle de composition imposée par AgriCapital. L’utilisateur devra le modifier à sa prochaine connexion.</p>
+              <div className="relative">
+                <Input type={showAdminPassword ? "text" : "password"} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Saisir librement le mot de passe choisi par le PDG" className="pr-11" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8" onClick={() => setShowAdminPassword((visible) => !visible)} aria-label={showAdminPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} title={showAdminPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}>
+                  {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Champ libre : aucun contrôle de longueur ni de composition ajouté par le formulaire. L’utilisateur devra le modifier à sa prochaine connexion.</p>
             </div>
           )}
 
