@@ -25,12 +25,13 @@ const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File
     void Promise.resolve(onPick(file)).catch(() => undefined);
   };
   return (
-    <div className="flex min-w-0 items-center">
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="min-w-0 truncate text-xs text-muted-foreground" title={label}>{label.replace(/^Envoi…$/, "Envoi…")}</span>
       <input ref={fileRef} type="file" accept={isPhoto ? "image/*" : "image/*,application/pdf"} capture={isPhoto ? "user" : undefined} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-full" title={current ? "Remplacer : " + label : "Ajouter : " + label} aria-label={current ? "Remplacer : " + label : "Ajouter : " + label} onClick={() => fileRef.current?.click()}>
+      <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" title={current ? "Remplacer : " + label : "Ajouter : " + label} aria-label={current ? "Remplacer : " + label : "Ajouter : " + label} onClick={() => fileRef.current?.click()}>
         {isPhoto ? <Camera className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-      </Button>
-      {current && <Check className="ml-1 h-3.5 w-3.5 text-green-600" aria-label="Fichier enregistré" />}
+      </button>
+      {current && <Check className="h-3.5 w-3.5 shrink-0 text-green-600" aria-label="Fichier enregistré" />}
     </div>
   );
 };
@@ -160,17 +161,21 @@ const Profil = () => {
           <Card>
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row items-center gap-5">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={photoUrl || ""} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">{initials || "AG"}</AvatarFallback>
-                </Avatar>
+                <div className="relative shrink-0">
+                  <button type="button" className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title="Cliquer pour ajouter ou modifier la photo" aria-label="Ajouter ou modifier la photo de profil" onClick={() => document.getElementById("profile-photo-picker")?.click()}>
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={photoUrl || ""} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xl">{initials || "AG"}</AvatarFallback>
+                    </Avatar>
+                  </button>
+                  <input id="profile-photo-picker" type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { const file=e.currentTarget.files?.[0]; if(file) void upload("photo_url","photos-profils",file); e.currentTarget.value=""; }} />
+                  {!profile.photo_url && <button type="button" className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 shadow-sm" title="Ajouter une photo" aria-label="Ajouter une photo" onClick={() => document.getElementById("profile-photo-picker")?.click()}><Camera className="h-4 w-4" /></button>}
+                </div>
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">{formatUserProfileName(profile.nom_complet || "AgriCapital")}</h2>
                   <p className="text-sm text-muted-foreground">{profile.email || user?.email || "—"}</p>
                 </div>
-                <div className="w-full sm:w-64">
-                  <FileField label={uploading === "photo_url" ? "Envoi…" : "Ma photo"} current={profile.photo_url} onPick={(f) => upload("photo_url", "photos-profils", f)} bucket="photos-profils" />
-                </div>
+                
               </div>
             </CardContent>
           </Card>
