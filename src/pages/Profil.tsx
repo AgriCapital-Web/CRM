@@ -18,7 +18,6 @@ import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 
 const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File) => Promise<void> | void; current?: string | null; bucket: string }) => {
-  const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const isPhoto = label.toLocaleLowerCase("fr-FR").includes("photo");
   const handleFile = (file?: File) => {
@@ -26,12 +25,12 @@ const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File
     void Promise.resolve(onPick(file)).catch(() => undefined);
   };
   return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <input ref={cameraRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      <input ref={fileRef} type="file" accept={isPhoto ? "image/*" : "image/*,application/pdf"} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-      {isPhoto && <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={"Prendre " + label} aria-label={"Prendre " + label} onClick={() => cameraRef.current?.click()}><Camera className="h-4 w-4" /></Button>}
-      <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" title={current ? "Remplacer le fichier" : "Ajouter un fichier"} aria-label={current ? "Remplacer le fichier" : "Ajouter un fichier"} onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4" /></Button>
-      {current && <span className="text-xs text-muted-foreground" title="Fichier enregistré"><Check className="h-3.5 w-3.5 text-green-600" /></span>}
+    <div className="flex min-w-0 items-center">
+      <input ref={fileRef} type="file" accept={isPhoto ? "image/*" : "image/*,application/pdf"} capture={isPhoto ? "user" : undefined} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
+      <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0 rounded-full" title={current ? "Remplacer : " + label : "Ajouter : " + label} aria-label={current ? "Remplacer : " + label : "Ajouter : " + label} onClick={() => fileRef.current?.click()}>
+        {isPhoto ? <Camera className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+      </Button>
+      {current && <Check className="ml-1 h-3.5 w-3.5 text-green-600" aria-label="Fichier enregistré" />}
     </div>
   );
 };
