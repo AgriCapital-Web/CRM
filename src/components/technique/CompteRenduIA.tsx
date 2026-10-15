@@ -10,7 +10,7 @@ type CR = { titre: string; type_intervention: string; resume: string; actions_re
 type Props = { contexte?: string; compact?: boolean; onApply?: (compteRendu: CR, description: string) => void; };
 const List = ({ title, items }: { title: string; items: string[] }) => items?.length ? <div><p className="text-sm font-semibold">{title}</p><ul className="ml-5 list-disc text-sm">{items.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null;
 export default function CompteRenduIA({ contexte, compact = false, onApply }: Props) {
-  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const segmentBaseRef = useRef(""); const micStreamRef = useRef<MediaStream | null>(null); const restartTimerRef = useRef<number | null>(null);
+  const { toast } = useToast(); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(false); const [listening, setListening] = useState(false); const [cr, setCr] = useState<CR | null>(null); const recognitionRef = useRef<any>(null); const listeningRef = useRef(false); const voiceBaseRef = useRef(""); const finalTranscriptRef = useRef(""); const segmentBaseRef = useRef(""); const restartTimerRef = useRef<number | null>(null);
   const releaseMicrophone = () => {
     if (restartTimerRef.current !== null) { window.clearTimeout(restartTimerRef.current); restartTimerRef.current = null; }
     const recognition = recognitionRef.current;
@@ -21,15 +21,15 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       recognition.onresult = null;
       try { recognition.abort(); } catch { try { recognition.stop(); } catch { /* already stopped */ } }
     }
-    micStreamRef.current?.getTracks().forEach((track) => track.stop());
-    micStreamRef.current = null;
   };
   useEffect(() => () => { listeningRef.current = false; releaseMicrophone(); }, []);
   const toggleVoice = async () => {
     if (listeningRef.current) {
       listeningRef.current = false;
       setListening(false);
-      releaseMicrophone();
+      const activeRecognition = recognitionRef.current;
+      // Stop gracefully so the browser can flush the last recognized words.
+      try { activeRecognition?.stop(); } catch { /* recognition may already have ended */ }
       setDescription([voiceBaseRef.current, finalTranscriptRef.current].filter(Boolean).join(" ").trim());
       return;
     }
@@ -39,11 +39,9 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
       voiceBaseRef.current = description.trim();
       finalTranscriptRef.current = "";
       segmentBaseRef.current = "";
-      // Keep one microphone stream alive for the entire dictation session.
-      // Browser audio processing filters steady background noise and wind where supported.
-      micStreamRef.current = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-      });
+      // SpeechRecognition owns microphone capture. Do not open a second getUserMedia
+      // stream in parallel: it is unused for recognition and can cause duplicate mic
+      // indicators/audio-session churn on mobile.
       const recognition = new SpeechRecognitionCtor();
       recognition.lang = "fr-FR";
       recognition.continuous = true;
@@ -80,14 +78,18 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
           listeningRef.current = false;
           setListening(false);
           releaseMicrophone();
-          toast({ variant: "destructive", title: "Microphone interrompu", description: "Vérifiez l’autorisation du microphone puis relancez la dictée." });
+          toast({ variant: "destructive", title: "Accès au microphone refusé", description: "Vérifiez l’autorisation du microphone dans le navigateur puis relancez la dictée." });
         }
       };
       recognition.onend = () => {
-        if (!listeningRef.current || restartPending || recognitionRef.current !== recognition) return;
+        if (!listeningRef.current || recognitionRef.current !== recognition) {
+          if (recognitionRef.current === recognition) releaseMicrophone();
+          return;
+        }
+        if (restartPending) return;
         segmentBaseRef.current = [segmentBaseRef.current, ...segmentFinalResults].filter(Boolean).join(" ").trim();
         segmentFinalResults = [];
-        lastInterim = "";
+        // Preserve the latest interim hypothesis while the engine rolls to a new segment.
         renderTranscript();
         restartPending = true;
         const scheduleRestart = (delay: number) => {
