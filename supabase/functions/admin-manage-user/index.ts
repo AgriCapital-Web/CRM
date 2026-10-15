@@ -123,9 +123,10 @@ serve(async (req) => {
         .upsert(list.map((r) => ({ user_id: authId, role: r })), { onConflict: "user_id,role" });
       if (insErr) return json({ error: insErr.message, step }, 400);
       step = "verify_roles";
-      const { data: check } = await admin.from("user_roles").select("role").eq("user_id", authId);
+      const { data: check, error: checkError } = await admin.from("user_roles").select("role,is_primary").eq("user_id", authId);
+      if (checkError) return json({ error: checkError.message, step }, 400);
       await admin.from("profiles").update({ actif: true }).or(`id.eq.${authId},user_id.eq.${authId}`);
-      return json({ success: true, action, roles: (check ?? []).map((r: any) => r.role) });
+      return json({ success: true, action, primary_role: primaryRole, roles: (check ?? []).map((r: any) => r.role) });
     }
 
     if (action === "delete_user") {
