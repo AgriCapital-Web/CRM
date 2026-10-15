@@ -608,10 +608,10 @@ const Dashboard = () => {
     <ProtectedRoute>
       <MainLayout>
         <div className="min-w-0 space-y-5 animate-fade-in">
-          <div className="rounded-2xl bg-gradient-to-r from-primary to-primary/80 p-4 sm:p-6 text-primary-foreground shadow-lg">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="rounded-2xl bg-gradient-to-r from-primary to-primary/80 p-2.5 sm:p-6 text-primary-foreground shadow-lg sm:p-6">
+            <div className="flex flex-row items-center gap-2 sm:gap-4">
               <div className="relative shrink-0">
-                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-full p-0.5 bg-gradient-to-br from-amber-400 via-transparent to-primary">
+                <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full p-0.5 bg-gradient-to-br from-amber-400 via-transparent to-primary">
                   <div className="h-full w-full rounded-full overflow-hidden bg-background">
                     {profilePhotoUrl ? (
                       <img src={profilePhotoUrl} alt={profile?.nom_complet || "Photo profil"} className="h-full w-full object-cover" />
@@ -624,15 +624,17 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold truncate">Bienvenue, <span className="text-accent font-extrabold drop-shadow-sm">{formatWelcomeName(profile?.nom_complet)}</span></h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-primary-foreground/90">
-                  <Badge variant="secondary">{roleLabel || "Utilisateur"}</Badge>
-                  <span>Connecté à {connectionTime}</span>
-                  <span className="opacity-70">•</span>
-                  
+                <h1 className="text-sm leading-tight font-bold sm:text-2xl lg:text-3xl sm:leading-normal">Bienvenue, <span className="text-accent font-extrabold drop-shadow-sm">{formatWelcomeName(profile?.nom_complet)}</span></h1>
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] sm:mt-2 sm:gap-2 sm:text-sm text-primary-foreground/90">
+                  <Badge variant="secondary" className="max-w-full truncate px-2 py-0.5 text-[10px] sm:text-xs">{roleLabel || "Utilisateur"}</Badge>
+                  <span className="whitespace-nowrap">Connecté à {connectionTime}</span>
+                  <span className="hidden opacity-70 sm:inline">•</span>
+                  <Button variant="secondary" size="icon" className="ml-auto h-7 w-7 shrink-0 sm:hidden" aria-label="Actualiser le tableau de bord" title="Actualiser" onClick={() => void fetchStats(false)} disabled={loading}>
+                    <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                  </Button>
                 </div>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => void fetchStats(false)} disabled={loading}>
+              <Button variant="secondary" size="sm" className="hidden sm:inline-flex" onClick={() => void fetchStats(false)} disabled={loading}>
                 <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Actualiser
               </Button>
             </div>
