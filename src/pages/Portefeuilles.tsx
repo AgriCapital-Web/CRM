@@ -186,11 +186,20 @@ export default function Portefeuilles(){
         </div>
 
         <Card>
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1"><label className="text-xs font-medium">Rechercher</label><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom" className="mt-1"/></div>
-            <div><label className="text-xs font-medium">Début</label><Input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} className="mt-1"/></div>
-            <div><label className="text-xs font-medium">Fin</label><Input type="date" value={periodEnd} onChange={e=>setPeriodEnd(e.target.value)} className="mt-1"/></div>
-            {canManage&&<Button onClick={generate} disabled={saving}><CalendarClock className="mr-2 h-4 w-4"/>Générer</Button>}
+          <CardContent className="grid min-w-0 grid-cols-2 items-end gap-x-2 gap-y-2 p-3 sm:grid-cols-[minmax(180px,1fr)_minmax(125px,150px)_minmax(125px,150px)_auto] sm:gap-2 sm:p-3">
+            <div className="col-span-2 min-w-0 sm:col-span-1">
+              <label className="text-[11px] font-medium leading-tight text-muted-foreground">Rechercher</label>
+              <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom" className="mt-1 h-8 min-w-0 px-2 text-xs"/>
+            </div>
+            <div className="min-w-0">
+              <label className="text-[11px] font-medium leading-tight text-muted-foreground">Début</label>
+              <Input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} className="mt-1 h-8 min-w-0 px-1.5 text-xs"/>
+            </div>
+            <div className="min-w-0">
+              <label className="text-[11px] font-medium leading-tight text-muted-foreground">Fin</label>
+              <Input type="date" value={periodEnd} onChange={e=>setPeriodEnd(e.target.value)} className="mt-1 h-8 min-w-0 px-1.5 text-xs"/>
+            </div>
+            {canManage&&<Button onClick={generate} disabled={saving} size="sm" className="col-span-2 h-8 w-full sm:col-span-1 sm:w-auto"><CalendarClock className="mr-1.5 h-3.5 w-3.5"/>Générer</Button>}
           </CardContent>
         </Card>
 
