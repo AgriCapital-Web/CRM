@@ -111,6 +111,10 @@ const Login = () => {
                 className="login-input h-12 sm:h-14 lg:h-16 text-base sm:text-lg lg:text-xl"
                 disabled={isLoading}
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                inputMode="text"
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); passwordInputRef.current?.focus(); } }}
               />
             </div>
