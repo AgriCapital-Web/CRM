@@ -103,16 +103,25 @@ serve(async (req) => {
     let userId: string | null = reqRow.auth_user_id;
     let tempPassword: string | null = null;
 
-    // L'adresse email du demandeur doit être vérifiée avant toute activation.
+    // La validation du PDG/administrateur constitue la validation du compte :
+    // aucune confirmation email séparée n'est demandée à l'utilisateur.
     if (userId) {
-      step = "check_email_verified";
-      const { data: existingUser } = await admin.auth.admin.getUserById(userId);
-      if (!existingUser?.user?.email_confirmed_at) {
-        return json({
-          error: "Adresse email non vérifiée : le demandeur doit confirmer son email avant validation.",
-          step,
-          logs,
-        }, 409);
+      step = "confirm_email_on_approval";
+      const { data: existingUser, error: existingUserError } = await admin.auth.admin.getUserById(userId);
+      if (existingUserError || !existingUser?.user) {
+        return json({ error: "Compte d'authentification introuvable.", step, logs }, 404);
+      }
+      if (!existingUser.user.email_confirmed_at) {
+        const { data: confirmedUser, error: confirmError } = await admin.auth.admin.updateUserById(userId, {
+          email_confirm: true,
+        });
+        if (confirmError) {
+          return json({ error: `Impossible de confirmer l'email lors de l'approbation : ${confirmError.message}`, step, logs }, 400);
+        }
+        if (!confirmedUser.user.email_confirmed_at) {
+          return json({ error: "La confirmation email n'a pas été enregistrée.", step, logs }, 500);
+        }
+        log(`email confirmé par l'approbation administrative: ${userId}`);
       }
     }
 
