@@ -53,6 +53,7 @@ const GestionRoles = () => {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [selectedPrimaryRole, setSelectedPrimaryRole] = useState(true);
 
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [roleDraft, setRoleDraft] = useState<any>(emptyRole);
@@ -176,12 +177,17 @@ const GestionRoles = () => {
             equipe_id: profile.equipe_id || null,
             photo_url: profile.photo_url || null,
             roles: [selectedRole],
+            primary_role: selectedPrimaryRole ? selectedRole : null,
           },
         });
         if (createError || !created?.success) throw new Error(created?.error || createError?.message || "Création du compte impossible");
         uid = created.user_id;
       } else {
-        const { error } = await (supabase as any).from("user_roles").insert({ user_id: uid, role: selectedRole });
+        if (selectedPrimaryRole) {
+          const { error: clearPrimaryError } = await (supabase as any).from("user_roles").update({ is_primary: false }).eq("user_id", uid);
+          if (clearPrimaryError) throw clearPrimaryError;
+        }
+        const { error } = await (supabase as any).from("user_roles").insert({ user_id: uid, role: selectedRole, is_primary: selectedPrimaryRole });
         if (error) throw error;
       }
 
@@ -197,6 +203,7 @@ const GestionRoles = () => {
       setAssignDialogOpen(false);
       setSelectedProfile("");
       setSelectedRole("");
+      setSelectedPrimaryRole(true);
       fetchData();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
@@ -438,7 +445,7 @@ const GestionRoles = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Rôle officiel</Label>
+                    <Label>Rôle à attribuer</Label>
                     <Select value={selectedRole} onValueChange={setSelectedRole}>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un rôle" />
@@ -452,6 +459,11 @@ const GestionRoles = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                    <Checkbox checked={selectedPrimaryRole} onCheckedChange={(checked)=>setSelectedPrimaryRole(checked===true)} />
+                    <span>Définir comme rôle principal</span>
+                  </label>
+                  <p className="text-xs text-muted-foreground">Les autres rôles déjà attribués sont conservés.</p>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
@@ -498,7 +510,7 @@ const GestionRoles = () => {
                       <TableRow key={profile.id}>
                         <TableCell className="font-medium">
                           {profile.nom_complet || "Non renseigné"}
-                          <span className="block text-xs text-muted-foreground">{profile.email}</span>
+                          
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {profile.departement || "—"}
@@ -571,7 +583,7 @@ const GestionRoles = () => {
                   <TableHead>Rôle</TableHead>
                   <TableHead>Niveau</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Permissions</TableHead>
+                  <TableHead className="text-center">Permissions</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -580,7 +592,7 @@ const GestionRoles = () => {
                   <TableRow key={role.code}>
                     <TableCell>
                       <Badge className={role.couleur}>{role.nom}</Badge>
-                      <span className="block text-xs text-muted-foreground mt-1">{role.code}</span>
+                      
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
