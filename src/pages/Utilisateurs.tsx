@@ -285,7 +285,7 @@ const Utilisateurs = () => {
               <span className="hidden sm:inline">Nouvel Utilisateur</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
+          <DialogContent className="w-[calc(100vw-0.75rem)] max-w-5xl max-h-[96dvh] overflow-y-auto p-3 sm:p-4">
             <DialogHeader>
               <DialogTitle>
                 {selectedUser ? "Modifier l'Utilisateur" : "Créer un Utilisateur"}
