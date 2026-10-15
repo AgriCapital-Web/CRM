@@ -23,12 +23,32 @@ serve(async (req) => {
     if (!token) return json({ error: "Non authentifié", step }, 401);
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step }, 401);
-    const { data: isAdmin } = await admin.rpc("is_admin", { _user_id: caller.user.id });
-    if (!isAdmin) return json({ error: "Accès réservé aux super administrateurs", step }, 403);
-
     step = "parse_body";
     const { action, user_id, password, username, roles, actif } = await req.json();
     if (!action || !user_id) return json({ error: "action et user_id requis", step }, 400);
+
+    if (action === "complete_forced_password_change") {
+      if (caller.user.id !== user_id) return json({ error: "Action non autorisée", step }, 403);
+      const { data: updated, error: clearError } = await admin
+        .from("profiles")
+        .update({ password_change_required: false })
+        .or(`id.eq.${user_id},user_id.eq.${user_id}`)
+        .select("id,user_id,password_change_required");
+      if (clearError) return json({ error: clearError.message, step }, 400);
+      if (!(updated || []).some((p: any) => p.password_change_required === false)) {
+        return json({ error: "Impossible de confirmer la fin du changement de mot de passe.", step }, 500);
+      }
+      return json({ success: true, action, password_change_required: false });
+    }
+
+    const [{ data: isAdmin }, { data: isPdg }, { data: isSuperAdmin }] = await Promise.all([
+      admin.rpc("is_admin", { _user_id: caller.user.id }),
+      admin.rpc("has_role", { _user_id: caller.user.id, _role: "pdg" }),
+      admin.rpc("has_role", { _user_id: caller.user.id, _role: "super_admin" }),
+    ]);
+    if (!isAdmin && !isPdg && !isSuperAdmin) {
+      return json({ error: "Accès réservé au PDG ou à un administrateur autorisé", step }, 403);
+    }
 
     if (action === "set_active") {
       step = "set_active";
@@ -46,12 +66,19 @@ serve(async (req) => {
 
     if (action === "set_password") {
       step = "set_password";
-      if (!password || String(password).length < 8) {
-        return json({ error: "Mot de passe : 8 caractères minimum", step }, 400);
-      }
-      const { error } = await admin.auth.admin.updateUserById(user_id, { password: String(password) });
-      if (error) return json({ error: error.message, step }, 400);
-      return json({ success: true, action });
+      if (typeof password !== "string" || password.length === 0) return json({ error: "Saisissez le nouveau mot de passe.", step }, 400);
+      const { data: target, error: targetError } = await admin.auth.admin.getUserById(user_id);
+      if (targetError || !target?.user) return json({ error: "Compte utilisateur introuvable.", step }, 404);
+      const { error: passwordError } = await admin.auth.admin.updateUserById(user_id, { password });
+      if (passwordError) return json({ error: passwordError.message, step }, 400);
+      const { data: updatedProfiles, error: flagError } = await admin
+        .from("profiles")
+        .update({ password_change_required: true })
+        .or(`id.eq.${user_id},user_id.eq.${user_id}`)
+        .select("id,user_id,password_change_required");
+      if (flagError) return json({ error: `Mot de passe modifié, mais obligation de changement non enregistrée: ${flagError.message}`, step: "set_password_flag" }, 400);
+      if (!(updatedProfiles || []).some((p: any) => p.password_change_required === true)) return json({ error: "Mot de passe modifié, mais le profil ne permet pas d'enregistrer le changement obligatoire.", step: "verify_password_flag" }, 500);
+      return json({ success: true, action, password_change_required: true });
     }
 
     if (action === "set_username") {
