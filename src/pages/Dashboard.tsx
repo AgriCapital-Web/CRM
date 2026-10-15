@@ -690,12 +690,12 @@ const Dashboard = () => {
                                 key={groupName}
                                 className={`min-w-0 rounded-xl border border-border/70 bg-background/60 p-2 ${isClients ? "md:col-span-2" : ""}`}
                               >
-                                <h3 className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{groupName}</h3>
+                                <h3 className={`mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground ${groupName === "Leads" || groupName === "Prospects" ? "hidden sm:block" : ""}`}>{groupName}</h3>
                                 <div className={isClients
                                   ? "grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2"
                                   : groupName === "Leads"
-                                    ? "grid grid-cols-4 gap-1 sm:gap-2"
-                                    : "grid grid-cols-3 gap-1 sm:gap-2"
+                                    ? "crm-compact-kpi-grid crm-compact-kpi-grid--leads grid grid-cols-4 gap-1 sm:gap-2"
+                                    : "crm-compact-kpi-grid crm-compact-kpi-grid--prospects grid grid-cols-3 gap-1 sm:gap-2"
                                 }>
                                   {items.map((metric: any) => (
                                     <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 sm:p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
