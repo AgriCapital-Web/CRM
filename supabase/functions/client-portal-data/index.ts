@@ -120,6 +120,12 @@ serve(async(req)=>{
         .eq("proprietaire_id",owner.id).order("created_at",{ascending:false});
       parcelles=ownerParcelles||[];
       parcelleIds=parcelles.map((p:any)=>p.id);
+    } else if(client.parcelle_id) {
+      // Le portail d'un client standard doit aussi recevoir sa parcelle et ses coordonnées GPS.
+      const {data:clientParcelle}=await supabase.from("parcelles").select("*")
+        .eq("id",client.parcelle_id).maybeSingle();
+      parcelles=clientParcelle?[clientParcelle]:[];
+      parcelleIds=clientParcelle?[clientParcelle.id]:[];
     } else {
       parcelleIds=[...new Set(attributions.map((a:any)=>a.parcelle_id).filter(Boolean))];
       if(parcelleIds.length){
@@ -218,7 +224,11 @@ serve(async(req)=>{
     }).filter((e:any)=>e.statut!=="pending" || interventions.length>0);
     const parcel=parcelles.find((p:any)=>p.id===client.parcelle_id)||parcelles[0]||null;
     const technician=technicians[0]||null;
-    const safe:any={...client,portal_roles:portalRoles,portal_primary_role:portalRoles[0]||"client",
+    const safe:any={...client,site_gps:{
+      latitude:client.latitude ?? parcel?.localisation_gps_lat ?? null,
+      longitude:client.longitude ?? parcel?.localisation_gps_lng ?? null,
+      source:client.latitude != null && client.longitude != null ? "client" : (parcel?.localisation_gps_lat != null && parcel?.localisation_gps_lng != null ? "parcelle" : null)
+    },portal_roles:portalRoles,portal_primary_role:portalRoles[0]||"client",
       is_proprietaire_foncier:isOwner,is_beneficiaire_particulier:isBeneficiary,
       promotion_active:client.promotions||null,
       proprietaire:owner,
