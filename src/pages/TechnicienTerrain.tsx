@@ -378,8 +378,6 @@ const TechnicienTerrain=()=>{
           nombre_plants_realises:intervention.nombre_plants_realises?Number(intervention.nombre_plants_realises):null,
           nombre_plants_remplaces:intervention.nombre_plants_remplaces?Number(intervention.nombre_plants_remplaces):null,
           densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null,
-          localisation_gps_lat:intervention.localisation_gps_lat?Number(intervention.localisation_gps_lat):null,
-          localisation_gps_lng:intervention.localisation_gps_lng?Number(intervention.localisation_gps_lng):null,
           updated_at:new Date().toISOString()
         };
         // Keep the original date and assigned technician unchanged when editing.
@@ -440,7 +438,10 @@ const TechnicienTerrain=()=>{
           }
         }
       }
-      const payload={...intervention,contenu_client:intervention.contenu_client||null,id:crypto.randomUUID(),agent_technique_id:profile.id,
+      // Les coordonnées GPS sont conservées dans le formulaire/parcelle, pas dans interventions_techniques.
+      // La table des interventions ne possède pas les colonnes localisation_gps_lat/lng : elles ne doivent jamais bloquer la sauvegarde.
+      const {localisation_gps_lat: _gpsLat, localisation_gps_lng: _gpsLng, ...interventionFields}=intervention;
+      const payload={...interventionFields,contenu_client:intervention.contenu_client||null,id:crypto.randomUUID(),agent_technique_id:profile.id,
         client_id:targetClientId,parcelle_id:targetParcelleId,plantation_id:intervention.plantation_id||null,
         souscription_id:intervention.souscription_id||null,
         convention_id:intervention.convention_id||null,lot_id:interventionSubscription?.lot_id||intervention.lot_id||null,
