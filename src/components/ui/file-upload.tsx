@@ -69,36 +69,22 @@ const FileUpload = ({
         disabled={disabled}
       />
       
-      {currentFile ? (
-        <div className="space-y-2">{preview && (previewType.startsWith("image/") ? <img src={preview} alt="Aperçu" className="w-full max-h-56 object-contain rounded border" /> : previewType.startsWith("video/") ? <video src={preview} controls className="w-full max-h-56 rounded border" /> : previewType==="application/pdf" ? <iframe title="Aperçu PDF" src={preview} className="w-full h-56 rounded border" /> : <div className="flex items-center gap-2 text-sm text-muted-foreground"><FileText className="h-4 w-4"/>Document sélectionné</div>)}</div>
-      ) : null}
-
-      {currentFile ? (
-        <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted">
-          <File className="h-5 w-5 text-muted-foreground" />
-          <span className="flex-1 text-sm truncate">{currentFile}</span>
-          {!disabled && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleRemove}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+      {currentFile && preview && (
+        <div className="space-y-2">
+          {previewType.startsWith("image/") ? <img src={preview} alt="Aperçu" className="w-full max-h-56 rounded border object-contain" /> : previewType.startsWith("video/") ? <video src={preview} controls className="w-full max-h-56 rounded border" /> : previewType === "application/pdf" ? <iframe title="Aperçu PDF" src={preview} className="h-56 w-full rounded border" /> : null}
         </div>
+      )}
+      {currentFile ? (
+        <>
+          <div className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted p-2">
+            <File className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-sm">{currentFile}</span>
+            {!disabled && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Retirer le fichier" title="Retirer le fichier" onClick={handleRemove}><X className="h-4 w-4" /></Button>}
+          </div>
+          <Button type="button" variant="outline" size="icon" onClick={handleClick} disabled={disabled} aria-label="Remplacer le fichier" title="Remplacer le fichier" className="h-9 w-9 rounded-full border-emerald-700 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900"><Upload className="h-4 w-4" /></Button>
+        </>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleClick}
-          disabled={disabled}
-          className="w-full"
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          {label}
-        </Button>
+        <Button type="button" variant="outline" size="icon" onClick={handleClick} disabled={disabled} aria-label={label} title={label} className="h-9 w-9 rounded-full border-emerald-700 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900"><Upload className="h-4 w-4" /></Button>
       )}
 
       {error && (

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { X } from "lucide-react";
+import { X, Upload } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 
 interface DocumentsUploadFormProps {
@@ -136,11 +136,15 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
             <CardContent className="pt-6">
               <Label>{docType.label}</Label>
               <input
+                id={"document-upload-" + docType.key}
                 type="file"
                 accept="image/*,application/pdf"
                 onChange={(e) => { e.stopPropagation(); handleFileChange(docType.key, e); }}
-                className="mt-2 w-full"
+                className="sr-only"
               />
+              <button type="button" className="mt-2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" aria-label={"Ajouter " + docType.label} title={"Ajouter ou remplacer " + docType.label} onClick={() => document.getElementById("document-upload-" + docType.key)?.click()}>
+                <Upload className="h-4 w-4" />
+              </button>
               {previews[docType.key] && (
                 <div className="mt-3 relative">
                   {previews[docType.key].startsWith('data:image') ? (

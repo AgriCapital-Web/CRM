@@ -217,8 +217,8 @@ const TicketForm = ({ ticket, plantationId, clientId: fixedClientId, clientLocat
 
       <Card><CardContent className="pt-6">
         <Label className="flex items-center gap-2"><ImagePlus className="h-4 w-4" /> Photos du problème (optionnel)</Label>
-        <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
-          <ImagePlus className="h-5 w-5" /> Ajouter une ou plusieurs photos
+        <label className="mt-2 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" title="Ajouter des photos" aria-label="Ajouter des photos">
+          <Upload className="h-4 w-4" />
           <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="sr-only" disabled={readOnly} />
         </label>
         {photoPreviews.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">{photoPreviews.map((preview,index)=><div key={index} className="relative"><img src={preview} alt={`Photo ${index+1}`} className="w-full h-24 object-cover rounded border"/><Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={()=>removePhoto(index)}><X className="h-4 w-4"/></Button></div>)}</div>}

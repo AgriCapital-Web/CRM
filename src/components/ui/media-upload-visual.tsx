@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Camera, Upload, X, Video, Square, Plus } from "lucide-react";
+import { Camera, Upload, X, Video, Square } from "lucide-react";
 
 type Props = {
   label?: string;
@@ -541,8 +541,8 @@ export default function MediaUploadVisual({
         onClick={(event) => event.stopPropagation()}
         onChange={handlePickerChange}
       />
-      <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={processing || selectionCount >= MAX_CANDIDATES} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(true); }}>
-        <Plus className="mr-2 h-4 w-4" />Ajouter des médias {files.length ? `(${files.length})` : ""}
+      <Button type="button" variant="outline" size="icon" className="h-9 w-9 rounded-full border-emerald-700 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900" aria-label="Ajouter des médias" title="Ajouter des médias" disabled={processing || selectionCount >= MAX_CANDIDATES} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setMediaDialogOpen(true); }}>
+        <Upload className="h-4 w-4" />
       </Button>
       <Dialog open={mediaDialogOpen} onOpenChange={(open) => {
         setMediaDialogOpen(open);

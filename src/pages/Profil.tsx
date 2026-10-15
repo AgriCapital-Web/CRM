@@ -29,7 +29,7 @@ const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File
       <span className="min-w-0 truncate text-xs text-muted-foreground" title={label}>{label.replace(/^Envoi…$/, "Envoi…")}</span>
       <input ref={fileRef} type="file" accept={isPhoto ? "image/*" : "image/*,application/pdf"} capture={isPhoto ? "user" : undefined} className="sr-only" onChange={(e) => { handleFile(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
       <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" title={current ? "Remplacer : " + label : "Ajouter : " + label} aria-label={current ? "Remplacer : " + label : "Ajouter : " + label} onClick={() => fileRef.current?.click()}>
-        {isPhoto ? <Camera className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+        <Upload className="h-4 w-4" />
       </button>
       {current && <Check className="h-3.5 w-3.5 shrink-0 text-green-600" aria-label="Fichier enregistré" />}
     </div>

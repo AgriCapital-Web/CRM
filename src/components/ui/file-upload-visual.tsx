@@ -90,11 +90,8 @@ export const FileUploadVisual = ({
           <Input ref={inputRef} type="file" accept={accept} onChange={(e) => { e.stopPropagation(); handleFileSelect(e.currentTarget.files?.[0] || null); }} className="hidden" id={`upload-${field}`} />
           <Input ref={fileInputRef} type="file" accept={accept} onChange={(e) => { e.stopPropagation(); setSourceDialogOpen(false); handleFileSelect(e.currentTarget.files?.[0] || null); }} className="hidden" />
           <Input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => { setSourceDialogOpen(false); handleFileSelect(e.target.files?.[0] || null); }} className="hidden" />
-          <button type="button" aria-label={label} title={label} onClick={() => accept.includes("image") ? setSourceDialogOpen(true) : inputRef.current?.click()} className={`w-full border-2 border-dashed rounded-lg ${compact ? "p-2 min-h-10" : "p-6"} text-center hover:border-primary transition-colors cursor-pointer flex items-center justify-center`}>
-            <div className={compact ? "flex items-center justify-center" : "space-y-2"}>
-              {accept.includes("image") ? <Camera className={`${compact ? "h-5 w-5" : "h-10 w-10 mx-auto"} text-muted-foreground`} /> : <Upload className={`${compact ? "h-5 w-5" : "h-10 w-10 mx-auto"} text-muted-foreground`} />}
-              {!compact && <><p className="text-sm text-muted-foreground">Ajouter une photo ou un fichier</p><p className="text-xs text-muted-foreground">Choisissez entre la caméra et le gestionnaire de fichiers</p></>}
-            </div>
+          <button type="button" aria-label={label} title={label} onClick={() => accept.includes("image") ? setSourceDialogOpen(true) : inputRef.current?.click()} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <Upload className="h-4 w-4" />
           </button>
           {accept.includes("image") && (
             <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
@@ -133,6 +130,7 @@ export const FileUploadVisual = ({
           {ocrLoading && <p className="mt-2 text-xs text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-3 w-3 animate-spin"/> {ocrMessage}</p>}
           {!ocrLoading && ocrMessage && <p className="mt-2 text-xs text-muted-foreground flex items-center justify-center gap-2"><ScanText className="h-3 w-3"/> {ocrMessage}</p>}
           <div className={`flex gap-1 ${compact ? "mt-1" : "mt-3"} justify-center`}>
+            <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 hover:bg-emerald-50" aria-label="Remplacer le fichier" title="Remplacer le fichier" onClick={() => accept.includes("image") ? setSourceDialogOpen(true) : inputRef.current?.click()}><Upload className="h-4 w-4" /></button>
             <Button
               type="button"
               variant="outline"
