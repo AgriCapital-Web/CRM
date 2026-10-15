@@ -39,11 +39,19 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Méthode non autorisée" }, 405);
 
   const auth = req.headers.get("Authorization") || "";
+  const accessToken = auth.replace(/^Bearer\s+/i, "").trim();
+  if (!accessToken || accessToken.split(".").length !== 3) {
+    return json({ error: "Session en ligne invalide ou expirée. Reconnectez-vous puis réessayez." }, 401);
+  }
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: auth } },
+    auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { data: { user } } = await supabase.auth.getUser(auth.replace(/^Bearer\\s+/i, ""));
-  if (!user) return json({ error: "Connexion requise" }, 401);
+  const { data: userData, error: authError } = await supabase.auth.getUser(accessToken);
+  const user = userData?.user;
+  if (authError || !user) {
+    console.warn("Compte rendu: session Supabase refusée", authError?.message || "utilisateur absent");
+    return json({ error: "Session en ligne invalide ou expirée. Reconnectez-vous puis réessayez." }, 401);
+  }
   const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
