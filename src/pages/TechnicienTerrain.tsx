@@ -342,6 +342,7 @@ const TechnicienTerrain=()=>{
 
   const resetInterventionForm=()=>{
     setEditingInterventionId("");
+    setInterventionEditEnabled(false);
     setIntervention({plantation_id:"",client_id:"",souscription_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"defrichage",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
   };
 
