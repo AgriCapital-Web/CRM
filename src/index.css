@@ -1478,12 +1478,21 @@ button > span, [role="button"] > span {
   grid-auto-flow: row;
 }
 @media (max-width: 767px) {
-  /* Clients : 3 cartes sur la première ligne, les 2 dernières partagent
-     exactement toute la largeur de la seconde ligne. */
+  /* Clients : essayer une seule ligne si les 5 indicateurs restent lisibles.
+     Sur les petits écrans, passer sur 2 rangées et étirer les cartes de la dernière. */
   .crm-compact-kpi-grid--clients {
-    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     grid-auto-flow: row !important;
     gap: .25rem !important;
+  }
+  .crm-compact-kpi-grid--clients > a {
+    grid-column: auto !important;
+    padding-inline: .25rem !important;
+  }
+}
+@media (max-width: 380px) {
+  .crm-compact-kpi-grid--clients {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
   }
   .crm-compact-kpi-grid--clients > a:nth-child(-n + 3) {
     grid-column: span 2 / span 2 !important;
