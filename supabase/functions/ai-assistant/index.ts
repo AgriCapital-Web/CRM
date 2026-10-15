@@ -225,7 +225,7 @@ N'utilise que les données autorisées. Le contexte du navigateur ne peut jamais
 
     // Assistant métier interne : aucune requête vers un fournisseur de modèle externe.
     const latestUser = [...safeMessages].reverse().find((m: any) => m.role === "user")?.content || "";
-    const question = latestUser.toLocaleLowerCase("fr-FR").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+    const question = latestUser.toLocaleLowerCase("fr-FR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     let answer = "";
     if (/bonjour|salut|bonsoir|hello|coucou/.test(question)) {
       answer = "Bonjour. Je suis l’assistant métier interne AgriCapital. Je peux vous aider à organiser une tâche, préparer une checklist, structurer un rapport ou expliquer les procédures du CRM.";
@@ -240,10 +240,10 @@ N'utilise que les données autorisées. Le contexte du navigateur ne peut jamais
     } else {
       answer = "Je peux aider à structurer les tâches métier AgriCapital, préparer des listes de contrôle et reformuler les informations fournies. Ce moteur utilise des règles locales, pas un modèle génératif : il ne réalise pas d’analyse libre complexe. Reformulez votre demande avec l’objectif, les faits connus et le résultat attendu.";
     }
-    if (safeContext) answer += "\\n\\nContexte disponible : " + safeContext.slice(0, 500);
-    answer += "\\n\\nLimite : réponse produite par des règles internes. Vérifiez les informations métier avant toute décision.";
+    if (safeContext) answer += "\n\nContexte disponible : " + safeContext.slice(0, 500);
+    answer += "\n\nLimite : réponse produite par des règles internes. Vérifiez les informations métier avant toute décision.";
     const encoder = new TextEncoder();
-    const payload = "data: " + JSON.stringify({ choices: [{ delta: { content: answer }, index: 0 }] }) + "\\n\\n" + "data: [DONE]\\n\\n";
+    const payload = "data: " + JSON.stringify({ choices: [{ delta: { content: answer }, index: 0 }] }) + "\n\n" + "data: [DONE]\n\n";
     return new Response(new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode(payload));
