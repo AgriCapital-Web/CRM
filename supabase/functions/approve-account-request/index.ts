@@ -146,6 +146,8 @@ serve(async (req) => {
       email: reqRow.email,
       nom_complet: reqRow.nom_complet,
       telephone: reqRow.telephone,
+      telephone_indicatif: reqRow.telephone_indicatif ?? null,
+      telephone_local: reqRow.telephone_local ?? reqRow.telephone ?? null,
       username: reqRow.username ?? String(reqRow.email).split("@")[0],
       poste: reqRow.poste_souhaite,
       district_id: reqRow.district_id,
@@ -160,6 +162,8 @@ serve(async (req) => {
         email: profilePayload.email,
         nom_complet: profilePayload.nom_complet,
         telephone: profilePayload.telephone,
+        telephone_indicatif: profilePayload.telephone_indicatif,
+        telephone_local: profilePayload.telephone_local,
         username: profilePayload.username,
         poste: profilePayload.poste,
         district_id: profilePayload.district_id,
@@ -182,16 +186,26 @@ serve(async (req) => {
     }
 
     step = "assign_role";
+    // Le rôle choisi à l'approbation devient le rôle principal.
+    const { error: clearPrimaryError } = await admin
+      .from("user_roles")
+      .update({ is_primary: false })
+      .eq("user_id", userId)
+      .eq("is_primary", true);
+    if (clearPrimaryError) return json({ error: `Réinitialisation du rôle principal impossible: ${clearPrimaryError.message}`, step, logs }, 400);
+
     const { error: roleErr } = await admin
       .from("user_roles")
-      .upsert({ user_id: userId, role: finalRole }, { onConflict: "user_id,role" });
+      .upsert({ user_id: userId, role: finalRole, is_primary: true }, { onConflict: "user_id,role" });
     if (roleErr) return json({ error: `Attribution du rôle impossible: ${roleErr.message}`, step, logs }, 400);
 
     step = "verify_role";
-    const { data: rolesAfter } = await admin.from("user_roles").select("role").eq("user_id", userId);
+    const { data: rolesAfter, error: rolesAfterError } = await admin.from("user_roles").select("role,is_primary").eq("user_id", userId);
+    if (rolesAfterError) return json({ error: `Vérification des rôles impossible: ${rolesAfterError.message}`, step, logs }, 400);
     const assigned = (rolesAfter ?? []).map((r: any) => r.role);
-    if (!assigned.includes(finalRole)) {
-      return json({ error: `Rôle non persisté (${finalRole}). Rôles actuels: ${assigned.join(", ") || "aucun"}`, step, logs }, 500);
+    const primaryAfter = (rolesAfter ?? []).find((r: any) => r.is_primary === true)?.role;
+    if (!assigned.includes(finalRole) || primaryAfter !== finalRole) {
+      return json({ error: `Rôle ou rôle principal non persisté. Rôle demandé: ${finalRole}; principal actuel: ${primaryAfter ?? "aucun"}`, step, logs }, 500);
     }
     log(`rôles après attribution: ${assigned.join(", ")}`);
 
