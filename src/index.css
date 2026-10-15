@@ -1426,8 +1426,8 @@ table td :is(span, p, a, div) { min-width: 0; }
 @layer base {
   table {
     width: 100% !important;
-    min-width: max-content !important;
-    max-width: none !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
     table-layout: auto !important;
   }
 
