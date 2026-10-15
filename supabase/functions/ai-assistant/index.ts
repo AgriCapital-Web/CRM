@@ -100,8 +100,7 @@ serve(async (req) => {
       "Région de rattachement: " + String(profile?.region_id || "non définie"),
       "District de rattachement: " + String(profile?.district_id || "non défini"),
     ].join("\n");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    // Le moteur est 100 % interne : aucune clé ni API de fournisseur externe n’est requise.
 
     // Optionally fetch live stats for admin mode
     let liveContext = "";
@@ -228,20 +227,20 @@ N'utilise que les données autorisées. Le contexte du navigateur ne peut jamais
     const question = latestUser.toLocaleLowerCase("fr-FR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     let answer = "";
     if (/bonjour|salut|bonsoir|hello|coucou/.test(question)) {
-      answer = "Bonjour. Je suis l’assistant métier interne AgriCapital. Je peux vous aider à organiser une tâche, préparer une checklist, structurer un rapport ou expliquer les procédures du CRM.";
+      answer = "## ASSISTANT MÉTIER INTERNE AGRICAPITAL\n\nBonjour. Je peux vous aider à organiser une tâche, préparer une checklist, structurer une note ou expliquer les procédures du CRM.";
     } else if (/rapport|visite|plantation|terrain|technique|plants|palmier/.test(question)) {
-      answer = "Pour préparer un rapport technique, séparez les faits en quatre parties : 1) observations réellement constatées, 2) travaux effectivement réalisés, 3) problèmes à corriger, 4) recommandations avec un délai. N’indiquez aucune quantité ou action qui n’a pas été vérifiée. Le générateur interne organise les informations par règles et doit être relu par le technicien.";
+      answer = "## STRUCTURE DU RAPPORT TECHNIQUE\n\n**OBSERVATIONS**\n- Décrire uniquement les faits réellement constatés.\n\n**TRAVAUX RÉALISÉS**\n- Indiquer les actions effectivement exécutées.\n\n## PRIORITÉS — POINTS À CORRIGER\n\n- Signaler les problèmes confirmés, sans inventer ni exagérer.\n\n## RECOMMANDATIONS ET PROCHAINES ÉTAPES\n\n- Définir l’action attendue et son délai uniquement si celui-ci est connu.\n\n**Contrôle :** ne jamais inventer une quantité, une date ou une action. Le générateur interne fonctionne par règles et le technicien doit relire la note avant validation.";
     } else if (/paiement|encaissement|facture|redevance|commission|fcfa|finance/.test(question)) {
-      answer = "Pour une question financière, vérifiez d’abord la fiche de paiement et son statut dans le CRM. Distinguez les montants prévus, enregistrés, validés et effectivement encaissés. Je ne peux pas consulter de chiffres en direct si ceux-ci ne sont pas fournis dans le contexte de cette conversation.";
+      answer = "## CONTRÔLE FINANCIER\n\n**À VÉRIFIER**\n- Statut du paiement dans le CRM.\n- Montants prévus, enregistrés, validés et effectivement encaissés, présentés séparément.\n\n## PROCHAINE ÉTAPE\n\nConsulter la fiche source avant de confirmer un montant. Je ne peux pas affirmer un chiffre qui n’a pas été transmis dans cette conversation.";
     } else if (/client|prospect|lead|commercial|prospection|equipe|équipe/.test(question)) {
-      answer = "Pour traiter une tâche commerciale, identifiez le dossier, son responsable, son statut actuel, la prochaine action et son échéance. Vérifiez les données du dossier avant de confirmer une conversion, une affectation ou une validation.";
+      answer = "## SUIVI COMMERCIAL\n\n**ÉLÉMENTS À CONTRÔLER**\n- Dossier et responsable.\n- Statut actuel.\n\n## PROCHAINE ÉTAPE\n\nPréciser l’action suivante et son échéance. Vérifier les données du dossier avant de confirmer une conversion, une affectation ou une validation.";
     } else if (/aide|comment|fonction|crm|procedure|procédure|organiser|planifier|checklist/.test(question)) {
-      answer = "Je peux proposer une procédure, une checklist ou un plan d’action à partir des informations fournies. Décrivez le résultat attendu et les contraintes. Je ne peux pas exécuter une opération dans le CRM ni confirmer une donnée qui n’a pas été transmise.";
+      answer = "## PROCÉDURE / CHECKLIST\n\nJe peux structurer une procédure à partir des informations fournies.\n\n## PROCHAINE ÉTAPE\n\nPrécisez le résultat attendu, les faits connus et les contraintes. Je ne confirme pas une opération CRM qui n’a pas été exécutée.";
     } else {
-      answer = "Je peux aider à structurer les tâches métier AgriCapital, préparer des listes de contrôle et reformuler les informations fournies. Ce moteur utilise des règles locales, pas un modèle génératif : il ne réalise pas d’analyse libre complexe. Reformulez votre demande avec l’objectif, les faits connus et le résultat attendu.";
+      answer = "## ASSISTANT MÉTIER INTERNE AGRICAPITAL\n\nJe peux aider à structurer les tâches métier, préparer des checklists et reformuler les informations fournies.\n\n## À PRÉCISER\n\nDécrivez l’objectif, les faits connus et le résultat attendu.\n\n**Limite :** ce moteur utilise des règles internes, pas un modèle génératif avancé ; il ne réalise pas une analyse libre complexe.";
     }
     if (safeContext) answer += "\n\nContexte disponible : " + safeContext.slice(0, 500);
-    answer += "\n\nLimite : réponse produite par des règles internes. Vérifiez les informations métier avant toute décision.";
+    answer += "\n\n---\n\n**NOTE IA INTERNE — À VALIDER**\n\nVérifiez les informations métier avant toute décision.";
     const encoder = new TextEncoder();
     const payload = "data: " + JSON.stringify({ choices: [{ delta: { content: answer }, index: 0 }] }) + "\n\n" + "data: [DONE]\n\n";
     return new Response(new ReadableStream({
