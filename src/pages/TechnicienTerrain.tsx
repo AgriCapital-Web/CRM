@@ -48,6 +48,9 @@ const TechnicienTerrain=()=>{
   const [reassignReportId,setReassignReportId]=useState("");
   const [reassignTechnicienId,setReassignTechnicienId]=useState("");
   const [editingInterventionId,setEditingInterventionId]=useState("");
+  const [editingReportId,setEditingReportId]=useState("");
+  const [reportEditEnabled,setReportEditEnabled]=useState(false);
+  const [interventionEditEnabled,setInterventionEditEnabled]=useState(false);
   const [profileId,setProfileId]=useState("");
   const [conventions,setConventions]=useState<any[]>([]);
   const [lots,setLots]=useState<any[]>([]);
