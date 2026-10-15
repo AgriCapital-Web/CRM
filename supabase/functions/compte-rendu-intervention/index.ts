@@ -42,13 +42,19 @@ Deno.serve(async (req) => {
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: auth } },
   });
-  const { data: { user } } = await supabase.auth.getUser(auth.replace(/^Bearer\s+/i, ""));
+  const { data: { user } } = await supabase.auth.getUser(auth.replace(/^Bearer\\s+/i, ""));
   if (!user) return json({ error: "Connexion requise" }, 401);
   const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { data: staff } = await adminClient.rpc("is_staff", { _user_id: user.id });
-  if (!staff) return json({ error: "Accès réservé au personnel" }, 403);
+  const [{ data: staff }, { data: assignedRoles, error: rolesError }] = await Promise.all([
+    adminClient.rpc("is_staff", { _user_id: user.id }),
+    adminClient.from("user_roles").select("role").eq("user_id", user.id),
+  ]);
+  if (rolesError) console.error("Impossible de vérifier les rôles du compte rendu technique", rolesError);
+  const roles = (assignedRoles || []).map((row: { role: string }) => String(row.role || "").trim().toLowerCase());
+  const executiveAccess = roles.some((role: string) => ["pdg", "dg", "admin", "super_admin"].includes(role));
+  if (!staff && !executiveAccess) return json({ error: "Accès réservé au personnel" }, 403);
 
   let description = "";
   let contexte = "";
