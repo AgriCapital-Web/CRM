@@ -676,17 +676,30 @@ const Dashboard = () => {
                         {k.label}
                       </h2>
                       {k.label === "Développement commercial" ? (
-                        <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-3">
-                          {["Clients", "Leads", "Prospects", "Relances"].map((groupName) => {
-                            const items = k.metrics.filter((metric: any) => metric.group === groupName);
+                        <div className="grid min-w-0 grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2">
+                          {["Clients", "Leads", "Prospects"].map((groupName) => {
+                            // « À relancer » reste une carte KPI normale dans la rangée commerciale,
+                            // et ne crée jamais une section séparée.
+                            const items = groupName === "Leads"
+                              ? k.metrics.filter((metric: any) => metric.group === "Leads" || metric.group === "Relances")
+                              : k.metrics.filter((metric: any) => metric.group === groupName);
                             if (!items.length) return null;
+                            const isClients = groupName === "Clients";
                             return (
-                              <section key={groupName} className={`min-w-0 rounded-xl border border-border/70 bg-background/60 p-2 ${groupName === "Clients" ? "lg:col-span-3" : ""}`}>
+                              <section
+                                key={groupName}
+                                className={`min-w-0 rounded-xl border border-border/70 bg-background/60 p-2 ${isClients ? "md:col-span-2" : ""}`}
+                              >
                                 <h3 className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">{groupName}</h3>
-                                <div className={groupName === "Relances" || groupName === "Clients" ? "grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-5 sm:gap-2" : groupName === "Relances" ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-1.5 sm:gap-2"}>
+                                <div className={isClients
+                                  ? "grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-2"
+                                  : groupName === "Leads"
+                                    ? "grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2"
+                                    : "grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2"
+                                }>
                                   {items.map((metric: any) => (
                                     <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 sm:p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                      <span className="block min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[10px]">{metric.shortLabel || metric.label}</span>
+                                      <span title={metric.label} className="block min-w-0 truncate whitespace-nowrap text-[9px] leading-tight text-muted-foreground sm:text-[10px]">{metric.shortLabel || metric.label}</span>
                                       <span className="mt-1 block whitespace-nowrap text-xs font-bold leading-tight tabular-nums text-foreground sm:text-sm">{loading ? "…" : metric.value}</span>
                                     </Link>
                                   ))}
@@ -696,7 +709,7 @@ const Dashboard = () => {
                           })}
                         </div>
                       ) : (
-                        <div className={`grid min-w-0 gap-1.5 sm:gap-2 ${k.label === "Pilotage financier" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6" : k.label === "Patrimoine foncier et partenariats" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-8" : k.label === "Exploitation agricole" ? "grid-cols-3 sm:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(82px,1fr))]" : "grid-cols-3 sm:grid-cols-4 xl:grid-cols-6"}`}>
+                        <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]">
                           {k.metrics.map((metric: any) => (
                             <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 sm:p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                               <span className={`min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[11px] ${k.label === "Pilotage financier" ? "whitespace-nowrap" : ""}`}>{k.label === "Pilotage financier" && metric.label === "CA prévisionnel" ? <><span className="sm:hidden">CA prév.</span><span className="hidden sm:inline">{metric.label}</span></> : metric.label}</span>
