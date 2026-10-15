@@ -493,7 +493,7 @@ const TechnicienTerrain=()=>{
           <div className="flex justify-end"><Button disabled={saving} onClick={saveIntervention}>Enregistrer l’intervention</Button></div>
         </CardContent></Card>
       </TabsContent>
-      <TabsContent value="historique"><div className="grid lg:grid-cols-2 gap-5">
+      <TabsContent value="historique"><div className="technical-history-cards grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card><CardHeader><CardTitle>Rapports récents</CardTitle></CardHeader><CardContent className="space-y-3">{loading?"Chargement…":reports.length===0?"Aucun rapport.":reports.map(r=><div key={r.id} className="border rounded-lg p-3"><div className="flex justify-between gap-3"><div><p className="font-medium">{r.plantation?.nom_plantation||r.plantation?.id_unique}</p><p className="text-xs text-muted-foreground">{new Date(r.date_visite).toLocaleString("fr-FR")}</p></div><Badge variant={r.client_visible?"default":"outline"}>{r.client_visible?"Publié":"Privé · "+r.statut}</Badge></div><p className="text-sm mt-2">{r.constat||r.observations||"—"}</p>{manager&&<div className="flex flex-wrap gap-2 mt-3">
   {r.statut==="soumis"&&<><Button size="sm" onClick={()=>validateReport(r,true)}>Valider & publier</Button><Button size="sm" variant="outline" onClick={()=>validateReport(r,false)}>Refuser</Button></>}
   <Button size="sm" variant="outline" onClick={()=>{setReassignReportId(r.id);setReassignInterventionId("");setReassignTechnicienId(r.agent_technique_id||"");}}>Réaffecter</Button>
