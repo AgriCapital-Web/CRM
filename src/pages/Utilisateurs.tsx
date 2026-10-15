@@ -24,6 +24,7 @@ import { Users, Plus, Search, Edit, Shield, MoreHorizontal, UserCheck, UserX, Ke
 import UtilisateurFormNew from "@/components/forms/UtilisateurFormNew";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useAppRoles } from "@/hooks/useReferentiels";
+import { OFFICIAL_ROLES } from "@/lib/roles";
 
 const Utilisateurs = () => {
   const [utilisateurs, setUtilisateurs] = useState<any[]>([]);
@@ -115,6 +116,19 @@ const Utilisateurs = () => {
 
   const getRoles = (user: any) => {
     return user.user_roles?.map((r: any) => r.role) || [];
+  };
+
+  // Un seul rôle visible dans les listes : celui du niveau hiérarchique le plus élevé.
+  // Les rôles secondaires restent attribués et continuent d'activer leurs permissions.
+  const getHighestRole = (user: any) => {
+    const roleLevels = new Map<string, number>();
+    OFFICIAL_ROLES.forEach((r) => roleLevels.set(r.code, r.niveau));
+    appRoles.forEach((r: any) => {
+      if (r.code) roleLevels.set(r.code, Number(r.niveau ?? roleLevels.get(r.code) ?? 999));
+    });
+    return [...new Set(getRoles(user))].sort((a: string, b: string) =>
+      (roleLevels.get(a) ?? 999) - (roleLevels.get(b) ?? 999) || a.localeCompare(b)
+    )[0] || null;
   };
 
   const openAdminAction = (user: any, action: "roles" | "password" | "username") => {
@@ -317,16 +331,13 @@ const Utilisateurs = () => {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.telephone || "N/A"}</TableCell>
                   <TableCell>
-                    <div className="flex gap-1 flex-wrap">
-                      {getRoles(user).map((role: string, idx: number) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {appRoles.find((item) => item.code === role)?.nom || role.replace(/_/g, " ")}
-                        </Badge>
-                      ))}
-                      {getRoles(user).length === 0 && (
-                        <Badge variant="destructive" className="text-xs">Aucun rôle</Badge>
-                      )}
-                    </div>
+                    {getHighestRole(user) ? (
+                      <Badge variant="outline" className="whitespace-nowrap text-xs">
+                        {appRoles.find((item) => item.code === getHighestRole(user))?.nom || getHighestRole(user)!.replace(/_/g, " ")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive" className="text-xs">Aucun rôle</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge className={user.actif ? "bg-green-500" : "bg-red-500"}>
@@ -416,7 +427,6 @@ const Utilisateurs = () => {
                 <div><span className="text-muted-foreground">Relation RH</span><p>{viewUser.relation_rh || "—"}</p></div>
                 <div><span className="text-muted-foreground">Département</span><p>{viewUser.departement || "—"}</p></div>
                 <div><span className="text-muted-foreground">Équipe</span><p>{viewUser.equipe_id || "—"}</p></div>
-                <div className="sm:col-span-2"><span className="text-muted-foreground">Rôles</span><div className="flex flex-wrap gap-1 mt-1">{getRoles(viewUser).map((role:string)=><Badge key={role} variant="outline">{appRoles.find((item) => item.code === role)?.nom || role}</Badge>)}</div></div>
               </div>
             </div>
           ) : null}
