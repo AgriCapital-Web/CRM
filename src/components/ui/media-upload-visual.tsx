@@ -392,9 +392,19 @@ export default function MediaUploadVisual({
           /crosshair|map-pin|map-pinned|locate|locate-fixed|navigation/.test(iconClasses);
         if (isLocationControl) {
           element.dataset.mediaHiddenLocation = "true";
-          const wrapper = element.parentElement;
-          if (wrapper && !wrapper.closest("[data-radix-dialog-content]") && wrapper.getBoundingClientRect().height < 100) {
-            wrapper.dataset.mediaHiddenLocation = "true";
+          // The GPS widget may render its label, icon strip and floating pill in separate wrappers.
+          // Hide the nearest floating container as well, not only the clickable label.
+          let ancestor = element.parentElement;
+          for (let depth = 0; ancestor && depth < 5; depth++, ancestor = ancestor.parentElement) {
+            if (ancestor.closest("[data-radix-dialog-content]")) break;
+            const style = window.getComputedStyle(ancestor);
+            const rect = ancestor.getBoundingClientRect();
+            const isFloating = style.position === "fixed" || style.position === "sticky" ||
+              (style.position === "absolute" && rect.width > 80 && rect.height < 180);
+            if (isFloating && rect.width > 40 && rect.height < 220) {
+              ancestor.dataset.mediaHiddenLocation = "true";
+              break;
+            }
           }
         }
       });
