@@ -291,6 +291,50 @@ const TechnicienTerrain=()=>{
     }finally{setTransferSaving(false);}
   };
 
+  const resetInterventionForm=()=>{
+    setEditingInterventionId("");
+    setIntervention({plantation_id:"",client_id:"",souscription_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"defrichage",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
+  };
+
+  const editIntervention=(item:any)=>{
+    if(!manager && item.agent_technique_id!==profileId){
+      toast({variant:"destructive",title:"Modification non autorisée",description:"Vous pouvez modifier uniquement vos propres interventions."});return;
+    }
+    setEditingInterventionId(item.id);
+    setIntervention({
+      plantation_id:item.plantation_id||"",client_id:item.client_id||item.plantation?.client_id||"",
+      souscription_id:item.souscription_id||"",parcelle_id:item.parcelle_id||"",convention_id:item.convention_id||"",lot_id:item.lot_id||"",
+      localisation_gps_lat:item.localisation_gps_lat==null?"":String(item.localisation_gps_lat),
+      localisation_gps_lng:item.localisation_gps_lng==null?"":String(item.localisation_gps_lng),
+      type_intervention:item.type_intervention||stageRefs[0]?.code||"defrichage",
+      date_intervention:item.date_intervention?String(item.date_intervention).slice(0,10):new Date().toISOString().slice(0,10),
+      observations:item.observations||"",recommandations:item.recommandations||"",contenu_client:item.contenu_client||"",
+      statut:item.statut||"brouillon",nombre_plants_prevus:item.nombre_plants_prevus==null?"":String(item.nombre_plants_prevus),
+      nombre_plants_realises:item.nombre_plants_realises==null?"":String(item.nombre_plants_realises),
+      nombre_plants_remplaces:item.nombre_plants_remplaces==null?"":String(item.nombre_plants_remplaces),
+      densite_plants:item.densite_plants==null?"":String(item.densite_plants),
+      nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""
+    });
+    setActiveTab("intervention");
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
+  const submitInterventionDraft=async(item:any)=>{
+    if(item.statut!=="brouillon" && item.statut!=="draft") return;
+    if(!manager && item.agent_technique_id!==profileId){
+      toast({variant:"destructive",title:"Soumission non autorisée",description:"Vous pouvez soumettre uniquement vos propres brouillons."});return;
+    }
+    setSaving(true);
+    try{
+      const {error}=await (supabase as any).from("interventions_techniques").update({statut:"soumise"}).eq("id",item.id);
+      if(error)throw error;
+      toast({title:"Intervention soumise",description:"Le brouillon a été soumis sans modifier sa date ni son technicien."});
+      await load();
+    }catch(error:any){
+      toast({variant:"destructive",title:"Soumission impossible",description:error?.message||"Vérifiez vos droits puis réessayez."});
+    }finally{setSaving(false);}
+  };
+
   const saveIntervention=async()=>{
     const interventionPlantation=plantations.find(p=>p.id===intervention.plantation_id);
     const targetClientId=intervention.client_id||interventionPlantation?.client_id||null;
