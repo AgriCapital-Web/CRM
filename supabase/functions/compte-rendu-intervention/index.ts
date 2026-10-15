@@ -92,17 +92,17 @@ Deno.serve(async (req) => {
 
   // Moteur interne déterministe : aucune API de modèle externe, aucun crédit IA consommé.
   // Il organise les notes fournies, mais ne prétend pas comprendre comme un grand modèle.
-  const normalize = (value: string) => value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
-  const clean = (value: string) => value.replace(/\\s+/g, " ").trim().replace(/[.;, ]+$/, "");
-  const chunks = description.split(/(?<=[.!?])\\s+|\\n+/).map(clean).filter(Boolean);
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const clean = (value: string) => value.replace(/\s+/g, " ").trim().replace(/[.;, ]+$/, "");
+  const chunks = description.split(/(?<=[.!?])\s+|\n+/).map(clean).filter(Boolean);
   const source = description.trim();
   const normalized = normalize(source);
   const pick = (patterns: RegExp[]) => chunks.filter((line) => patterns.some((pattern) => pattern.test(normalize(line))));
-  const actionLines = pick([/\\b(j ai|j'ai|nous avons|effectue|realise|nettoye|plante|remplace|taille|desherbe|desherbage|mesure|controle|verifie|installe|repare|applique|pose|termine|acheve)\\b/]);
-  const problemLines = pick([/\\b(probleme|malade|jaune|seche|mort|manquant|mauvais|envahi|mauvais etat|ravageur|attaque|adventice|mauvaises herbes|retard|casse|absence|defaut|difficulte)\\b/]);
-  const recommendationLines = pick([/\\b(recomm|prevoir|doit|devrait|il faut|a faire|programmer|planifier|dans [0-9]+ jours|semaine prochaine|suivi|surveiller|nettoyer|entretenir|proteger)\\b/]).filter((line) => !actionLines.includes(line));
-  const knownCounts = source.match(/\\b\\d+\\s*(?:plants?|palmiers?|pieds?)\\b/ig) || [];
-  const countMatch = knownCounts.join(" ").match(/\\d+/);
+  const actionLines = pick([/\b(j ai|j'ai|nous avons|effectue|realise|nettoye|plante|remplace|taille|desherbe|desherbage|mesure|controle|verifie|installe|repare|applique|pose|termine|acheve)\b/]);
+  const problemLines = pick([/\b(probleme|malade|jaune|seche|mort|manquant|mauvais|envahi|mauvais etat|ravageur|attaque|adventice|mauvaises herbes|retard|casse|absence|defaut|difficulte)\b/]);
+  const recommendationLines = pick([/\b(recomm|prevoir|doit|devrait|il faut|a faire|programmer|planifier|dans [0-9]+ jours|semaine prochaine|suivi|surveiller|nettoyer|entretenir|proteger)\b/]).filter((line) => !actionLines.includes(line));
+  const knownCounts = source.match(/\b\d+\s*(?:plants?|palmiers?|pieds?)\b/ig) || [];
+  const countMatch = knownCounts.join(" ").match(/\d+/);
   const title = /intervention/i.test(contexte) ? "Rapport d'intervention" : "Rapport de visite technique";
   const observations = chunks.filter((line) => !actionLines.includes(line) && !recommendationLines.includes(line));
   const resume = clean(observations[0] || chunks[0] || source);
