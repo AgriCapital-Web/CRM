@@ -380,8 +380,14 @@ export default function MediaUploadVisual({
     await openVideoCamera(facingMode === "environment" ? "user" : "environment");
   };
 
+  useEffect(() => {
+    document.body.classList.toggle("media-camera-fullscreen", mediaDialogOpen && cameraOpen);
+    return () => document.body.classList.remove("media-camera-fullscreen");
+  }, [mediaDialogOpen, cameraOpen]);
+
   useEffect(() => () => {
     document.body.classList.remove("media-dialog-open");
+    document.body.classList.remove("media-camera-fullscreen");
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -509,6 +515,7 @@ export default function MediaUploadVisual({
           <style>{`
             [data-radix-dialog-overlay] { z-index: 99998 !important; }
             [data-radix-dialog-content] > button[aria-label="Close"] { z-index: 100001 !important; }
+            body.media-camera-fullscreen [data-radix-dialog-content] > button[aria-label="Close"] { display: none !important; }
             body.media-dialog-open [data-floating-ai-assistant] { display: none !important; }
             body.media-camera-fullscreen [data-floating-ai-assistant],
             body.media-camera-fullscreen [data-location-control],
