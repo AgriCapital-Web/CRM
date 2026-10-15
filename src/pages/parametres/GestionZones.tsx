@@ -170,10 +170,14 @@ const GestionZones = () => {
       setEditingAssignment(null);
       fetchAll();
     } catch (error: any) {
-      if (error.message?.includes("duplicate")) {
-        toast({ variant: "destructive", title: "Erreur", description: "Cette zone est déjà assignée à cet utilisateur" });
+      const errorCode = String(error?.code || "");
+      const errorMessage = String(error?.message || "");
+      if (errorCode === "23505" || /duplicate|unique constraint/i.test(errorMessage)) {
+        toast({ variant: "destructive", title: "Zone déjà assignée", description: "Cette zone est déjà assignée à cet utilisateur." });
+      } else if (errorCode === "23514" && /niveau de couverture/i.test(errorMessage)) {
+        toast({ variant: "destructive", title: "Niveau de couverture incompatible", description: errorMessage });
       } else {
-        toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
+        toast({ variant: "destructive", title: "Échec de l’assignation", description: getSafeErrorMessage(error) });
       }
     }
   };
