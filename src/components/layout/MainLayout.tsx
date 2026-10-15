@@ -84,14 +84,14 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               key={item.path}
               variant="ghost"
               className={cn(
-                "h-10 w-full justify-start gap-3 rounded-xl px-3 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-all duration-200",
+                "h-10 w-full min-w-0 justify-start gap-3 overflow-hidden whitespace-nowrap rounded-xl px-3 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-all duration-200",
                 active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
               )}
               onClick={() => { navigate(item.path); setOpen(false); }}
               title={item.label}
             >
               <item.icon className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate text-sm font-medium">{item.label}</span>
+              <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">{item.label}</span>
             </Button>
           );
         })}
