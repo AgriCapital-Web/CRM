@@ -292,7 +292,7 @@ const TechnicienTerrain=()=>{
           });
         }
         toast({title:submit&&original.statut==="brouillon"?"Rapport soumis":"Rapport modifié",description:media.length?String(media.length)+" média(s) ajouté(s). La date de visite et le technicien sont conservés.":"La date de visite et le technicien responsable ont été conservés."});
-        setEditingReportId("");setReportEditEnabled(false);
+        setEditingReportId("");setReportEditEnabled(false);setMedia([]);setExistingReportMedia([]);
         setReport({ticket_id:"",plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",prochaine_intervention:"",localisation_gps_lat:"",localisation_gps_lng:""});
         await load();
         setActiveTab("historique");
@@ -322,6 +322,7 @@ const TechnicienTerrain=()=>{
       }
       toast({title:submit?"Rapport soumis":"Brouillon enregistré",description:media.length?`${media.length} média(s) rattaché(s).`:undefined});
       setMedia([]);
+      setExistingReportMedia([]);
       setReport({ticket_id:"",plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",prochaine_intervention:"",localisation_gps_lat:"",localisation_gps_lng:""});
       load();
     }catch(e:any){toast({variant:"destructive",title:"Enregistrement impossible",description:e?.message||"Erreur inconnue"});}
