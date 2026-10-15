@@ -140,7 +140,7 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
       <CardHeader className="flex flex-row items-center justify-between py-3 px-4 bg-gradient-to-r from-primary to-primary/90 text-white rounded-t-lg">
         <CardTitle className="text-sm flex items-center gap-2">
           <Bot className="h-5 w-5" />
-          {mode === "admin" ? "Assistant IA CRM" : "Assistant AgriCapital"}
+          {mode === "admin" ? "IA INTERNE — CRM AGRICAPITAL" : "IA INTERNE AGRICAPITAL"}
         </CardTitle>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/20" onClick={() => setIsMaximized(!isMaximized)}>
@@ -158,7 +158,7 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
               <Bot className="h-12 w-12 mx-auto opacity-50" />
               <p className="text-sm font-medium">
                 {mode === "admin"
-                  ? "Bonjour ! Je suis votre assistant IA. Posez-moi vos questions sur le CRM."
+                  ? "Bonjour ! Je suis le moteur IA interne d’AgriCapital. Posez vos questions sur le CRM."
                   : "Bonjour ! Comment puis-je vous aider aujourd'hui ?"}
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
@@ -188,8 +188,22 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
                     : "bg-muted rounded-bl-sm"
                 }`}>
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <div className="prose prose-sm max-w-none dark:prose-invert [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&_h1]:mt-3 [&_h1]:mb-2 [&_h1]:font-extrabold [&_h1]:uppercase [&_h2]:mt-3 [&_h2]:mb-2 [&_h2]:font-bold [&_h2]:uppercase [&_h3]:font-bold [&_strong]:font-extrabold">
+                      <ReactMarkdown components={{
+                        h1: ({children}) => <h1 className="text-base font-extrabold uppercase">{children}</h1>,
+                        h2: ({children}) => {
+                          const label = String(children).toLocaleUpperCase("fr-FR");
+                          const urgent = /PRIORIT|URGENT|CRITIQUE|À CORRIGER|ALERTE/.test(label);
+                          const next = /PROCHAINE ÉTAPE|PROCHAINES ÉTAPES|À SUIVRE|RECOMMANDATION|PLAN D'ACTION/.test(label);
+                          return <h2 className={urgent ? "mt-3 mb-2 text-sm font-extrabold uppercase text-red-600 dark:text-red-400" : next ? "mt-3 mb-2 text-sm font-extrabold uppercase text-amber-700 dark:text-amber-400" : "mt-3 mb-2 text-sm font-extrabold uppercase"}>{children}</h2>;
+                        },
+                        strong: ({children}) => {
+                          const label = String(children).toLocaleUpperCase("fr-FR");
+                          const urgent = /PRIORIT|URGENT|CRITIQUE|À CORRIGER|ALERTE/.test(label);
+                          const next = /PROCHAINE ÉTAPE|PROCHAINES ÉTAPES|À SUIVRE|RECOMMANDATION|PLAN D'ACTION/.test(label);
+                          return <strong className={urgent ? "font-extrabold text-red-600 dark:text-red-400" : next ? "font-extrabold text-amber-700 dark:text-amber-400" : "font-extrabold"}>{children}</strong>;
+                        },
+                      }}>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
                     <p>{msg.content}</p>
