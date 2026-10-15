@@ -1194,25 +1194,42 @@ All colors MUST be HSL.
   .page-header { gap: .45rem !important; }
 }
 
-/* Les tableaux restent des tableaux sur mobile : aucune transformation en cartes,
-   lignes empilées ou cellules en colonnes. Le conteneur assure le défilement. */
+/* Tableaux responsive : ils utilisent toute la largeur disponible, sans
+   rester bloqués à leur largeur intrinsèque ni laisser une grande zone vide. */
 table {
   display: table !important;
-  width: max-content;
-  min-width: 100%;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
   table-layout: auto;
 }
 thead { display: table-header-group !important; }
 tbody { display: table-row-group !important; }
 tfoot { display: table-footer-group !important; }
 tr { display: table-row !important; }
-th, td { display: table-cell !important; }
+th, td { display: table-cell !important; min-width: 0; }
 .overflow-auto:has(> table),
 .overflow-x-auto:has(> table),
 .overflow-y-auto:has(> table) {
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
+}
+main, [role="main"], .container, [data-slot="card"], [data-slot="card-content"],
+[role="tabpanel"], .page-content {
+  min-width: 0;
+  max-width: 100%;
+}
+table td :is(span, p, a, div) { min-width: 0; }
+@media (min-width: 768px) {
+  main, [role="main"], .page-content { width: 100%; }
+  [data-slot="card"], [data-slot="card-content"] { overflow-wrap: anywhere; }
+}
+@media (max-width: 767px) {
+  table { font-size: .75rem; }
+  table th, table td { padding: .25rem .3rem !important; }
 }
 
 /* Carte professionnelle : proportions portrait 54 × 85,6 mm (ratio 0,631),
@@ -1245,5 +1262,22 @@ th, td { display: table-cell !important; }
       overflow-wrap: break-word;
       hyphens: none;
     }
+  }
+}
+
+/* Compacité transversale : réduire les espaces verticaux sans imposer une grille unique. */
+@layer components {
+  [data-slot="card-header"] { padding-block: .7rem; }
+  [data-slot="card-content"] { padding-block: .65rem; }
+  [data-slot="card-footer"] { padding-block: .55rem; }
+  .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+  .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: .85rem; }
+  .gap-y-6 { row-gap: .85rem; }
+  .gap-y-8 { row-gap: 1rem; }
+  @media (max-width: 767px) {
+    [data-slot="card-header"] { padding: .55rem .65rem .25rem; }
+    [data-slot="card-content"] { padding: .45rem .65rem .65rem; }
+    [data-slot="card-footer"] { padding: .4rem .65rem .55rem; }
+    .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; }
   }
 }
