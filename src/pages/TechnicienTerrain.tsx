@@ -48,6 +48,7 @@ const TechnicienTerrain=()=>{
   const [reassignReportId,setReassignReportId]=useState("");
   const [reassignTechnicienId,setReassignTechnicienId]=useState("");
   const [editingInterventionId,setEditingInterventionId]=useState("");
+  const [profileId,setProfileId]=useState("");
   const [conventions,setConventions]=useState<any[]>([]);
   const [lots,setLots]=useState<any[]>([]);
   const [localisationMode,setLocalisationMode]=useState<"automatic"|"manual">("automatic");
@@ -86,6 +87,7 @@ const TechnicienTerrain=()=>{
     setLoading(true);
     try {
       const profile=await profileContext();
+      setProfileId(profile?.id||"");
       const results=await Promise.all([
         (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,parcelle_id,souscription_id,statut_global,prochaine_visite,date_plantation").order("nom_plantation"),
         (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,proprietaire_id,district_id,region_id,departement_id,sous_prefecture_id,localite,is_internal,type_client_foncier").order("nom_complet"),
