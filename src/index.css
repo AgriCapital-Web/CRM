@@ -1008,6 +1008,11 @@ All colors MUST be HSL.
 }
 
 
+.technical-history-cards { grid-template-columns: minmax(0, 1fr) !important; }
+@media (min-width: 1024px) {
+  .technical-history-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
 /* AgriCapital responsive density rules — shared by CRM and all Settings screens. */
 @layer base {
   /* Keep text horizontal and readable; allow long values to wrap instead of stretching the page. */
