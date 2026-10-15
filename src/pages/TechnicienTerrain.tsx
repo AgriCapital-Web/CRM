@@ -362,6 +362,33 @@ const TechnicienTerrain=()=>{
     setSaving(true);
     try{
       const profile=await profileContext(); if(!profile?.id)throw new Error("Profil technicien introuvable");
+      if(editingInterventionId){
+        const original=interventions.find((item:any)=>item.id===editingInterventionId);
+        if(!original)throw new Error("Intervention introuvable ou hors de votre périmètre.");
+        if(!manager && original.agent_technique_id!==profile.id)throw new Error("Vous pouvez modifier uniquement vos propres interventions.");
+        const updatePayload={
+          client_id:targetClientId,parcelle_id:targetParcelleId,plantation_id:intervention.plantation_id||null,
+          souscription_id:intervention.souscription_id||null,convention_id:intervention.convention_id||null,
+          lot_id:interventionSubscription?.lot_id||intervention.lot_id||null,
+          type_intervention:intervention.type_intervention,observations:intervention.observations||null,
+          recommandations:intervention.recommandations||null,contenu_client:intervention.contenu_client||null,
+          statut:original.statut||intervention.statut,
+          nombre_plants_prevus:intervention.nombre_plants_prevus?Number(intervention.nombre_plants_prevus):null,
+          nombre_plants_realises:intervention.nombre_plants_realises?Number(intervention.nombre_plants_realises):null,
+          nombre_plants_remplaces:intervention.nombre_plants_remplaces?Number(intervention.nombre_plants_remplaces):null,
+          densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null,
+          localisation_gps_lat:intervention.localisation_gps_lat?Number(intervention.localisation_gps_lat):null,
+          localisation_gps_lng:intervention.localisation_gps_lng?Number(intervention.localisation_gps_lng):null,
+          updated_at:new Date().toISOString()
+        };
+        // Keep the original date and assigned technician unchanged when editing.
+        const {error}=await (supabase as any).from("interventions_techniques").update(updatePayload).eq("id",editingInterventionId);
+        if(error)throw error;
+        toast({title:"Modifications enregistrées",description:"La date de l’intervention et le technicien responsable ont été conservés."});
+        resetInterventionForm();
+        await load();
+        return;
+      }
       if(!targetParcelleId && !technicalPalmInvest){
         const {data:createdParcel,error:parcelCreateError}=await (supabase as any).from("parcelles").insert({
           nom:intervention.nouvelle_parcelle_nom.trim(),
