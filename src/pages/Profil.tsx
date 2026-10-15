@@ -186,7 +186,7 @@ const Profil = () => {
               <div><Label>Nom complet</Label><Input className="h-8 text-sm" value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-8 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-8 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
-              <div>
+              <div className="col-span-2 min-w-0 sm:col-span-1">
                 <CountryPhoneInput
                   label="Téléphone principal"
                   compact
@@ -197,6 +197,7 @@ const Profil = () => {
                 />
               </div>
               <div><Label>Email secondaire</Label><Input className="h-8 text-sm" type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
+              <div className="col-span-2 min-w-0 sm:col-span-1">
               <CountryPhoneInput
                 label="Téléphone secondaire"
                 compact
@@ -204,6 +205,8 @@ const Profil = () => {
                 localValue={profile.telephone_secondaire_local || profile.telephone_secondaire || ""}
                 onChange={(v) => { set("telephone_secondaire_indicatif", v.callingCode); set("telephone_secondaire_local", v.localValue); set("telephone_secondaire", v.internationalValue); }}
               />
+              </div>
+              <div className="col-span-2 min-w-0 sm:col-span-1">
               <CountryPhoneInput
                 label="WhatsApp"
                 compact
@@ -211,6 +214,7 @@ const Profil = () => {
                 localValue={profile.whatsapp_local || profile.whatsapp || ""}
                 onChange={(v) => { set("whatsapp_indicatif", v.callingCode); set("whatsapp_local", v.localValue); set("whatsapp", v.internationalValue); }}
               />
+              </div>
               <div><Label>Ville</Label><Input className="h-8 text-sm" value={profile.ville || ""} onChange={(e) => set("ville", e.target.value)} /></div>
               <div><Label>Quartier</Label><Input className="h-8 text-sm" value={profile.quartier || ""} onChange={(e) => set("quartier", e.target.value)} /></div>
             </CardContent>
@@ -229,11 +233,12 @@ const Profil = () => {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" />Personne à contacter en cas d'urgence</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div className="md:col-span-2 flex items-center gap-4">
+              <div className="col-span-2 flex min-w-0 items-center gap-3">
                 <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback>{(profile.contact_urgence_nom || "?").slice(0, 2)}</AvatarFallback></Avatar>
                 <div className="flex-1"><FileField label={uploading === "contact_urgence_photo_url" ? "Envoi…" : "Photo de la personne"} current={profile.contact_urgence_photo_url} onPick={(f) => upload("contact_urgence_photo_url", "photos-profils", f)} bucket="photos-profils" /></div>
               </div>
-              <div className="md:col-span-2"><Label>Contact urgence — Nom et Prénoms</Label><Input className="h-8 text-sm" value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
+              <div className="col-span-2 min-w-0"><Label>Contact urgence — Nom et Prénoms</Label><Input className="h-8 text-sm" value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
+              <div className="col-span-2 min-w-0 sm:col-span-1">
               <CountryPhoneInput
                 label="Contact urgence — Téléphone 1"
                 compact
@@ -241,6 +246,8 @@ const Profil = () => {
                 localValue={profile.contact_urgence_telephone1_local || profile.contact_urgence_telephone1 || ""}
                 onChange={(v) => { set("contact_urgence_telephone1_indicatif", v.callingCode); set("contact_urgence_telephone1_local", v.localValue); set("contact_urgence_telephone1", v.internationalValue); }}
               />
+              </div>
+              <div className="col-span-2 min-w-0 sm:col-span-1">
               <CountryPhoneInput
                 label="Contact urgence — Téléphone 2"
                 compact
@@ -248,7 +255,8 @@ const Profil = () => {
                 localValue={profile.contact_urgence_telephone2_local || profile.contact_urgence_telephone2 || ""}
                 onChange={(v) => { set("contact_urgence_telephone2_indicatif", v.callingCode); set("contact_urgence_telephone2_local", v.localValue); set("contact_urgence_telephone2", v.internationalValue); }}
               />
-              <div className="md:col-span-2"><Label>Contact urgence — Email (facultatif)</Label><Input className="h-8 text-sm" type="email" value={profile.contact_urgence_email || ""} onChange={(e) => set("contact_urgence_email", e.target.value)} /></div>
+              </div>
+              <div className="col-span-2 min-w-0"><Label>Contact urgence — Email (facultatif)</Label><Input className="h-8 text-sm" type="email" value={profile.contact_urgence_email || ""} onChange={(e) => set("contact_urgence_email", e.target.value)} /></div>
             </CardContent>
           </Card>
 
