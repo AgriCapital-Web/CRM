@@ -264,6 +264,7 @@ const TechnicienTerrain=()=>{
   };
 
   const reassignIntervention=async()=>{
+    if(!canReassignTechnician){toast({variant:"destructive",title:"Réaffectation réservée au PDG",description:"Seul le PDG peut changer le technicien responsable d’une intervention."});return;}
     if(!reassignInterventionId||!reassignTechnicienId)return;
     try{
       const {error}=await (supabase as any).rpc("reassign_intervention",{_intervention_id:reassignInterventionId,_new_profile_id:reassignTechnicienId});
@@ -458,6 +459,7 @@ const TechnicienTerrain=()=>{
   };
 
   const reassignReport=async()=>{
+    if(!canReassignTechnician){toast({variant:"destructive",title:"Réaffectation réservée au PDG",description:"Seul le PDG peut changer le technicien responsable d’un rapport."});return;}
     if(!reassignReportId||!reassignTechnicienId)return;
     const {error}=await (supabase as any).rpc("reassign_report",{_report_id:reassignReportId,_new_profile_id:reassignTechnicienId});
     if(error){
