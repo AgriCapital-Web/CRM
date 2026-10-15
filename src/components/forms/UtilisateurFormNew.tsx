@@ -419,7 +419,6 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <div className="shrink-0">
               <FileUploadVisual label="Photo de profil" field="photo" accept="image/*" compact currentPreview={photoPreview} onFileChange={(_,f,p)=>{setPhotoPreview(p);setPhotoFile(f)}} />
             </div>
-            <span className="text-xs text-muted-foreground">Photo</span>
           </div>
         </CardContent>
       </Card>
