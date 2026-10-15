@@ -84,7 +84,7 @@ export const missionAuto = (carte: CarteData) => {
   const role = missionKey([carte.role_code, carte.role_label, carte.poste].filter(Boolean).join(" "));
   const department = missionKey(carte.departement);
   const storedMission = (carte.mission || "").trim();
-  const sameAsFunction = storedMission && [carte.poste, carte.role_label, carte.role_code]
+  const sameAsFunction = storedMission && [...[carte.poste, carte.role_label, carte.role_code], ...(carte.role_codes || [])]
     .some((value) => value && missionKey(value) === missionKey(storedMission));
 
   // A mission entered in card settings is kept only when it describes an activity,
