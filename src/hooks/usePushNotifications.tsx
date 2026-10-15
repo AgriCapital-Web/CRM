@@ -56,23 +56,19 @@ export const usePushNotifications = () => {
   }, [isSupported, toast]);
 
   const enablePush = useCallback(async () => {
-    if (!isSupported || isEnabling) return false; setIsEnabling(true);
+    if (!isSupported || isEnabling) return false;
+    // Éviter toute requête réseau après le clic : certains navigateurs Android
+    // refusent l'abonnement push si le geste utilisateur a expiré.
+    if (!pushConfig?.supported || !pushConfig.public_key || !registrationRef.current?.active) {
+      toast({ title: "Préparation des notifications", description: "Le service est en cours de préparation. Patientez quelques secondes puis réessayez." });
+      return false;
+    }
+    setIsEnabling(true);
     try {
       const allowed = permission === "granted" || await requestPermission(); if (!allowed) return false;
-      let registration = registrationRef.current;
-      if (!registration?.active) {
-        registration = await navigator.serviceWorker.ready;
-        registrationRef.current = registration;
-      }
-      // La configuration est préchargée pendant que l'utilisateur consulte l'application.
-      // Ne refaire l'appel réseau qu'en dernier recours.
-      let config = pushConfig;
-      if (!config?.supported || !config.public_key) {
-        const { data, error } = await supabase.functions.invoke("push-subscriptions", { body: { action: "config" } });
-        if (error || !data?.supported || !data?.public_key) throw new Error("Le service push n'est pas configuré côté serveur. Réessayez après quelques secondes.");
-        config = { supported: true, public_key: data.public_key };
-        setPushConfig(config);
-      }
+      const registration = registrationRef.current;
+      if (!registration?.active) throw new Error("Le service worker n'est pas encore actif. Rechargez AC_Teams puis réessayez.");
+      const config = pushConfig;
       const applicationServerKey = decodeVapidKey(String(config.public_key).trim());
       if (applicationServerKey.byteLength !== 65 || new Uint8Array(applicationServerKey)[0] !== 4) {
         throw new Error("La clé publique VAPID fournie par le serveur est invalide. Vérifiez la configuration des notifications.");
