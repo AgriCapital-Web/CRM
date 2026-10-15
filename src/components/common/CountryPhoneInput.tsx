@@ -60,7 +60,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
 
   return <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
     {label && <label className={`block font-medium leading-tight ${compact ? "whitespace-normal break-words text-xs" : "text-sm"}`}>{label}{required && " *"}</label>}
-    <div className={`flex w-full min-w-0 items-stretch ${compact ? "gap-1" : "gap-2"}`}>
+    <div className={`flex w-full min-w-0 items-stretch ${compact ? "gap-2" : "gap-2"}`}>
       <SearchableSelect
         value={selected.code}
         onValueChange={code => { const country = COUNTRIES.find(c => c.code === code); if (country) emit(country, currentLocal); }}
@@ -69,12 +69,13 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         searchPlaceholder="Rechercher un pays..."
         emptyText="Aucun pays trouvé."
         disabled={disabled}
-        className={compact ? "h-8 w-[76px] shrink-0 px-1 [&_svg]:hidden" : "w-[112px] shrink-0 sm:w-[145px]"}
+        className={compact ? "h-9 w-10 min-w-10 shrink-0 px-0" : "h-9 w-[112px] shrink-0 sm:w-[145px]"}
         triggerLabel={selected.callingCode}
         triggerFlagUrl={flagUrl(selected.code)}
+        triggerIconOnly={compact}
       />
       <Input
-        className={`min-w-0 w-0 flex-1 ${compact ? "h-8 px-2 text-sm" : ""}`}
+        className={`min-w-0 w-0 flex-1 h-9 ${compact ? "px-2 text-sm" : ""}`}
         type="tel"
         inputMode="tel"
         autoComplete="tel-national"
