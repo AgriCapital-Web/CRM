@@ -1505,3 +1505,36 @@ button > span, [role="button"] > span {
     white-space: nowrap !important;
   }
 }
+
+
+/* Page Prospects : cartes KPI auto-ajustables, au maximum deux rangées,
+   et chaque rangée remplit toute la largeur disponible même si elle est incomplète. */
+.crm-prospects-stat-grid {
+  align-items: stretch;
+  width: 100%;
+}
+.crm-prospects-stat-card {
+  flex: 1 1 8.5rem;
+  max-width: none;
+}
+@media (min-width: 768px) {
+  .crm-prospects-stat-card {
+    flex-basis: 7.5rem;
+  }
+}
+@media (max-width: 767px) {
+  .crm-prospects-stat-grid {
+    gap: .4rem !important;
+  }
+  .crm-prospects-stat-card {
+    flex: 1 1 calc(25% - .4rem);
+    min-width: 0 !important;
+  }
+  .crm-prospects-stat-card > [data-slot="card-content"] {
+    min-height: 3.2rem !important;
+    padding: .4rem !important;
+  }
+  .crm-prospects-stat-card p {
+    max-width: 100%;
+  }
+}
