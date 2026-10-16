@@ -388,7 +388,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
       setCreateOpen(false);
       setEditingLead(null);
-      toast({ title: editingLead ? "Lead modifié" : (navigator.onLine ? "Lead créé" : "Lead enregistré hors ligne") });
+      toast({ title: editingLead ? (editingLead._record_type === "prospect" || editingLead.etape_pipeline === "prospect" ? "Prospect modifié" : "Lead modifié") : (formStage === "prospect" ? (navigator.onLine ? "Prospect créé" : "Prospect enregistré") : (navigator.onLine ? "Lead créé" : "Lead enregistré hors ligne")) });
     },
     onError: (e: any) => toast({ variant: "destructive", title: "Création impossible", description: getSafeErrorMessage(e) }),
   });
@@ -518,6 +518,10 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   };
 
   const convertToClient = async (lead: any) => {
+    if (lead.client_id || lead.statut === "converti") {
+      toast({ title: "Dossier déjà converti", description: "Ce dossier est déjà associé à un client." });
+      return;
+    }
     const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
     if (!isOwner && !canSupervise && !isGlobalAdmin) {
       toast({ variant: "destructive", title: "Conversion refusée", description: "Vous n'avez pas accès à ce dossier." });
