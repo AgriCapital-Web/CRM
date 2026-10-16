@@ -57,26 +57,29 @@ const NouvelleAcquisition = () => {
 
   useEffect(()=>{
     const prospectId=searchParams.get("prospect_id");
-    if(!prospectId) return;
+    const leadId=searchParams.get("lead_id");
+    const sourceId=prospectId||leadId;
+    if(!sourceId) return;
+    const isProspect=!!prospectId;
     let active=true;
     void (async()=>{
-      const {data:prospect,error}=await (supabase as any).from("prospects").select("*").eq("id",prospectId).maybeSingle();
-      if(error || !prospect || !active) return;
+      const {data:source,error}=await (supabase as any).from(isProspect?"prospects":"leads").select("*").eq("id",sourceId).maybeSingle();
+      if(error || !source || !active) return;
       let offerId="";
-      if(prospect.offre_code){
-        const {data:offer}=await (supabase as any).from("offres").select("id").eq("code",prospect.offre_code).maybeSingle();
+      if(source.offre_code){
+        const {data:offer}=await (supabase as any).from("offres").select("id").eq("code",source.offre_code).maybeSingle();
         offerId=offer?.id||"";
       }
       if(!active) return;
       updateFormData({
-        prospect_id:prospect.id, lead_id:prospect.lead_id||undefined,
-        nom_famille:prospect.nom||"", prenoms:prospect.prenoms||"",
-        telephone:prospect.telephone||"", whatsapp:prospect.whatsapp||"", email:prospect.email||"",
-        district_id:prospect.district_id||"", region_id:prospect.region_id||"",
-        departement_id:prospect.departement_id||"", sous_prefecture_id:prospect.sous_prefecture_id||"",
-        village_id:prospect.village_id||"", domicile:prospect.campement_quartier||prospect.region_residence||"",
-        offre_id:offerId, formule_code:prospect.formule_code||"",
-        commercial_id:prospect.assigned_to||undefined,
+        ...(isProspect ? {prospect_id:source.id,lead_id:source.lead_id||undefined} : {lead_id:source.id}),
+        nom_famille:source.nom_famille||source.nom||"", prenoms:source.prenoms||"",
+        telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
+        district_id:source.district_id||"", region_id:source.region_id||"",
+        departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
+        village_id:source.village_id||"", domicile:source.campement_quartier||source.region_residence||"",
+        offre_id:offerId, formule_code:source.formule_code||"",
+        commercial_id:source.assigned_to||undefined,
       });
     })();
     return ()=>{active=false;};
