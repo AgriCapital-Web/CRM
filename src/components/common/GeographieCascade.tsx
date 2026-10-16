@@ -225,7 +225,7 @@ export default function GeographieCascade({
       {showVillage && <div className="space-y-2 relative"><Label>Village / localité{required ? " *" : ""}</Label>
         <input value={villageSearch || ([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || "")}
           onChange={(e) => { setVillageSearch(e.target.value); if (!e.target.value.trim()) onChange({ villageId: null, villageName: null }); }}
-          onFocus={() => { if (villageId) setVillageSearch(([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || villageSearch); }}
+          onFocus={() => { if (villageId) setVillageSearch([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || villageSearch); }}
           autoComplete="off" role="combobox" aria-expanded={villageMatches.length > 0}
           placeholder={sousPrefectureId ? "Rechercher un village" : "Saisir les premières lettres du village"}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
