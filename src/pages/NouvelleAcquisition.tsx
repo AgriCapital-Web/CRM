@@ -55,6 +55,33 @@ const NouvelleAcquisition = () => {
     });
   },[searchParams]);
 
+  useEffect(()=>{
+    const prospectId=searchParams.get("prospect_id");
+    if(!prospectId) return;
+    let active=true;
+    void (async()=>{
+      const {data:prospect,error}=await (supabase as any).from("prospects").select("*").eq("id",prospectId).maybeSingle();
+      if(error || !prospect || !active) return;
+      let offerId="";
+      if(prospect.offre_code){
+        const {data:offer}=await (supabase as any).from("offres").select("id").eq("code",prospect.offre_code).maybeSingle();
+        offerId=offer?.id||"";
+      }
+      if(!active) return;
+      updateFormData({
+        prospect_id:prospect.id, lead_id:prospect.lead_id||undefined,
+        nom_famille:prospect.nom||"", prenoms:prospect.prenoms||"",
+        telephone:prospect.telephone||"", whatsapp:prospect.whatsapp||"", email:prospect.email||"",
+        district_id:prospect.district_id||"", region_id:prospect.region_id||"",
+        departement_id:prospect.departement_id||"", sous_prefecture_id:prospect.sous_prefecture_id||"",
+        village_id:prospect.village_id||"", domicile:prospect.campement_quartier||prospect.region_residence||"",
+        offre_id:offerId, formule_code:prospect.formule_code||"",
+        commercial_id:prospect.assigned_to||undefined,
+      });
+    })();
+    return ()=>{active=false;};
+  },[searchParams]);
+
   // Reprise du dernier brouillon Client. L'étape enregistrée est respectée ; sans brouillon, le parcours démarre TOUJOURS à 1.
   useEffect(()=>{
     let mounted=true;
