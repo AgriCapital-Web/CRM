@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveStorageUrl } from "@/utils/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,15 +73,14 @@ const Documents = () => {
     load();
   };
 
-  const getSignedUrl = async (path: string) => {
+  const getSignedUrl = async (doc: Doc) => {
+    const path = doc.fichier_url;
     if (!path) return;
-    if (path.startsWith("http")) {
-      window.open(path, "_blank");
-      return;
-    }
-    const { data } = await supabase.storage.from("documents").createSignedUrl(path, 60);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-    else toast.error("Fichier introuvable");
+    const metadata = (doc as any).metadata && typeof (doc as any).metadata === "object" ? (doc as any).metadata : {};
+    const bucket = metadata.storage_bucket || ((doc as any).categorie === "souscription" ? "documents-fonciers" : "documents");
+    const url = await resolveStorageUrl(bucket, path) || await resolveStorageUrl("documents", path) || await resolveStorageUrl("documents-fonciers", path) || await resolveStorageUrl("pieces-identite", path);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    else toast.error("Fichier introuvable ou accès refusé");
   };
 
   const normalizedDocs = docs.map((d) => ({ ...d, statut: d.statut === "soumis" ? "en_attente" : d.statut }));
@@ -156,7 +156,7 @@ const Documents = () => {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex flex-col items-end gap-2">
-                                    <Button size="sm" variant="ghost" onClick={() => getSignedUrl(d.fichier_url)}>
+                                    <Button size="sm" variant="ghost" onClick={() => getSignedUrl(d)}>
                                       <ExternalLink className="h-4 w-4 mr-1" /> Ouvrir
                                     </Button>
                                     {d.statut === "en_attente" && (
