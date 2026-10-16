@@ -184,7 +184,7 @@ const ClientDetail = () => {
         (supabase as any).from("documents_acquisition").select("*").eq("client_id",id).order("created_at",{ascending:true})
       ]);
       const normalized=[...(benefDocs||[]).map((x:any)=>({...x,libelle:x.libelle||x.document_type,categorie:x.categorie||"Bénéficiaire"})),...(acqDocs||[]).map((x:any)=>({...x,libelle:x.libelle||x.type_document,categorie:x.categorie||"Acquisition"}))];
-      const docsWithUrls=await Promise.all(normalized.map(async(doc:any)=>({...doc,displayUrl:doc.fichier_url?await resolveStorageUrl(doc.storage_bucket||"documents",doc.storage_path||doc.fichier_url):null})));
+      const docsWithUrls=await Promise.all(normalized.map(async(doc:any)=>{const metadata=doc.metadata&&typeof doc.metadata==="object"?doc.metadata:{};const bucket=metadata.storage_bucket||doc.storage_bucket||(doc.categorie==="souscription"?"documents-fonciers":"documents");return {...doc,displayUrl:doc.fichier_url?await resolveStorageUrl(bucket,doc.storage_path||doc.fichier_url):null};}));
       setDocuments(docsWithUrls);
 
       const { data: attributionsData } = await (supabase as any)
