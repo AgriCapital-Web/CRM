@@ -324,7 +324,8 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       // Les preuves de paiement sont privées : stocker le chemin, jamais une URL publique.
       const currentUser = (await supabase.auth.getUser()).data.user;
       if (!currentUser) throw new Error("Session utilisateur introuvable.");
-      const uploaded = await uploadFile("preuves-paiement", file, `${currentUser.id}/paiements`);
+      if (!clientId) throw new Error("Sélectionnez le client avant de téléverser sa preuve de paiement.");
+      const uploaded = await uploadFile("preuves-paiement", file, `${clientId}/paiements`);
       if (!uploaded?.path) throw new Error("Le téléversement de la preuve de paiement a échoué.");
 
       setFileUrl(uploaded.path);
