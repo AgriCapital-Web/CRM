@@ -62,7 +62,8 @@ const Profil = () => {
     if (!user?.id) return;
     setUploading(field);
     try {
-      const res = await uploadFile(bucket, file, user.id);
+      const storageFolder = bucket === "pieces-identite" ? `profiles/${user.id}` : user.id;
+      const res = await uploadFile(bucket, file, storageFolder);
       if (!res?.path) throw new Error("Le stockage n'a pas confirmé l'enregistrement du fichier.");
       set(field, res.path);
       // Le fichier est relié au profil immédiatement : pas besoin de cliquer sur Enregistrer.
