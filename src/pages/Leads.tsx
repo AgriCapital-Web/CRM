@@ -692,8 +692,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                   }}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem onSelect={() => startContact(l)}><Contact className="mr-2 h-4 w-4" />Contacter</DropdownMenuItem>
-                                {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
-                                  <DropdownMenuItem onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
+                                {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (
+                                  <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
                                 )}
                                 {(l._record_type === "prospect" || l.etape_pipeline === "prospect" || !!l.prospect_id) && l.statut !== "converti" && (
                                   <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />Convertir en client</DropdownMenuItem>
