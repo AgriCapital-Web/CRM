@@ -552,7 +552,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       prenoms: lead.prenoms || "", telephone: lead.telephone || "", whatsapp: lead.whatsapp || "",
       email: lead.email || "", district_id: lead.district_id || "", region_id: lead.region_id || "",
       departement_id: lead.departement_id || "", sous_prefecture_id: lead.sous_prefecture_id || "",
-      village: lead.campement_quartier || "",
+      village_id: lead.village_id || "", village: lead.campement_quartier || "",
+      offre_code: lead.offre_code || "", formule_code: lead.formule_code || "",
+      type_lead: lead.type_lead || "client", dispose_terrain: lead.dispose_terrain ? "oui" : "non",
     });
     if (lead.type_lead === "proprietaire_foncier") {
       navigate("/proprietaires-terres?" + params.toString());
