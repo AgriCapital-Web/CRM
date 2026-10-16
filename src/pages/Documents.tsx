@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Check, X, ExternalLink, FileCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import TableSearchInput from "@/components/common/TableSearchInput";
 
 type Doc = {
@@ -34,6 +35,8 @@ const STATUTS = [
 
 const Documents = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canValidateDocuments = can("documents.validate");
   const [docs, setDocs] = useState<Doc[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("en_attente");
@@ -93,7 +96,7 @@ const Documents = () => {
   const rejectedCount = normalizedDocs.filter((d) => d.statut === "rejete").length;
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredPermission={"documents.view" as any}>
       <MainLayout>
         <div className="w-full max-w-7xl mx-auto min-w-0 space-y-6">
           <div>
@@ -159,7 +162,7 @@ const Documents = () => {
                                     <Button size="sm" variant="ghost" onClick={() => getSignedUrl(d)}>
                                       <ExternalLink className="h-4 w-4 mr-1" /> Ouvrir
                                     </Button>
-                                    {d.statut === "en_attente" && (
+                                    {canValidateDocuments && d.statut === "en_attente" && (
                                       <>
                                         <Textarea
                                           placeholder="Motif (si refus)"
