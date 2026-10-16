@@ -33,7 +33,7 @@ let resumeConsumers = 0;
 
 /** Compresse les photos terrain avant stockage local et envoi. Les PDF restent intacts. */
 export async function compressAttachment(file: File | Blob): Promise<Blob> {
-  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return file;
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
   try {
     const bitmap = await createImageBitmap(file);
     const ratio = Math.min(1, MAX_IMAGE_SIZE / Math.max(bitmap.width, bitmap.height));
