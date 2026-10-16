@@ -296,6 +296,29 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
         });
         if (error) throw error;
+        if (editingLead.prospect_id) {
+          const num = (v: string) => (v === "" || v == null ? null : Number(v));
+          const { error: prospectError } = await (supabase as any).from("prospects").update({
+            nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
+            telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+            district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
+            departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
+            village_id: leadForm.village_id || null, region_residence: leadForm.region_residence || null,
+            campement_quartier: leadForm.campement_quartier || null,
+            dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
+            superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
+            superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
+            superficie_souhaitee_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain !== "oui" ? num(leadForm.superficie_souhaitee_ha) : null,
+            delai_demarrage: leadForm.delai_demarrage || null, date_contact_souhaitee: leadForm.date_contact_souhaitee || null,
+            creneau_prefere: leadForm.creneau_prefere || null, mode_contact_prefere: leadForm.mode_contact_prefere || null,
+            commentaire: leadForm.commentaire || null, statut: leadForm.statut,
+            type_lead: leadForm.type_lead || "client", offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
+            formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
+            source: leadForm.source || editingLead.source,
+            assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
+          }).eq("id", editingLead.prospect_id);
+          if (prospectError) throw prospectError;
+        }
         return;
       }
       if (leadForm.source === "commercial_terrain" && (canSupervise || isServiceClient) && !leadForm.assigned_to) {
