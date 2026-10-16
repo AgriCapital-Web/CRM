@@ -117,11 +117,11 @@ const TicketForm = ({ ticket, plantationId, clientId: fixedClientId, clientLocat
 
     setLoading(true);
     try {
-      const photosUrls: string[] = [];
+      const photosUrls: string[] = Array.isArray(ticket?.photos_urls) ? [...ticket.photos_urls] : [];
       const { data: authData } = await supabase.auth.getUser();
       if (!authData.user) throw new Error("Session utilisateur introuvable.");
       for (const file of photoFiles) {
-        const uploaded = await uploadFile("photos-plantations", file, `${authData.user.id}/support`);
+        const uploaded = await uploadFile("photos-plantations", file, `${data.client_id}/support`);
         if (!uploaded?.path) throw new Error(`Téléversement impossible : ${file.name}`);
         // Le bucket est privé : conserver le chemin, l'interface doit générer une URL signée.
         photosUrls.push(uploaded.path);
