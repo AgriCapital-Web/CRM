@@ -13,8 +13,12 @@ export const uploadFile = async (
   path?: string
 ): Promise<{ url: string; path: string } | null> => {
   try {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+    const originalExtension = file.name.includes('.') ? file.name.split('.').pop() : '';
+    const fileExt = (originalExtension || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12) || 'bin';
+    const uniqueId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const fileName = `${uniqueId}.${fileExt}`;
     const { data: { session } } = await supabase.auth.getSession();
     const defaultFolder = session?.user?.id || 'public';
     const filePath = path ? `${path}/${fileName}` : `${defaultFolder}/${fileName}`;
@@ -51,12 +55,19 @@ export const resolveStorageUrl = async (
       return value;
     }
 
+    // Only trust Supabase Storage URLs. Arbitrary or malformed absolute URLs
+    // are not valid object paths and must never be opened as if they were files.
+    if (!parsed.hostname.endsWith('.supabase.co') && !parsed.hostname.endsWith('.supabase.in')) return null;
     const storageMatch = parsed.pathname.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/);
-    if (!storageMatch) return value;
-    if (decodeURIComponent(storageMatch[1]) !== bucket) return null;
-    path = storageMatch[2].split('/').map((segment) => {
-      try { return decodeURIComponent(segment); } catch { return segment; }
-    }).join('/');
+    if (!storageMatch) return null;
+    let decodedBucket: string;
+    try { decodedBucket = decodeURIComponent(storageMatch[1]); } catch { return null; }
+    if (decodedBucket !== bucket) return null;
+    try {
+      path = storageMatch[2].split('/').map((segment) => decodeURIComponent(segment)).join('/');
+    } catch {
+      return null;
+    }
   }
 
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);

@@ -1,7 +1,7 @@
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, History, IdCard, Map, KeyRound } from "lucide-react";
+import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, History, IdCard, Map, KeyRound, Cable } from "lucide-react";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import Utilisateurs from "@/pages/Utilisateurs";
@@ -20,6 +20,7 @@ import JournalAudit from "@/pages/parametres/JournalAudit";
 import GestionCartes from "@/pages/parametres/GestionCartes";
 import GestionRemuneration from "@/pages/parametres/GestionRemuneration";
 import ReinitialiserCodesAcces from "@/pages/parametres/ReinitialiserCodesAcces";
+import IntegrationAcreMap from "@/pages/parametres/IntegrationAcreMap";
 import { useSearchParams } from "react-router-dom";
 
 interface TabConfig {
@@ -53,6 +54,7 @@ const Parametres = () => {
     { value: 'tracabilite', label: 'Traçabilité', mobileLabel: 'Traces', icon: History, permission: PERMISSIONS.VIEW_AUDIT, component: JournalAudit },
     { value: 'database', label: 'BDD', icon: Database, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionBaseDonnees },
     { value: 'systeme', label: 'Système', icon: Globe, permission: PERMISSIONS.MANAGE_SYSTEM, component: ConfigurationSysteme },
+    { value: 'acremap', label: 'AcreMap API', mobileLabel: 'AcreMap', icon: Cable, permission: PERMISSIONS.MANAGE_SYSTEM, component: IntegrationAcreMap },
     { value: 'offline', label: 'Hors ligne', icon: HardDrive, permission: PERMISSIONS.MANAGE_SYSTEM, component: SyncQueue },
   ];
 

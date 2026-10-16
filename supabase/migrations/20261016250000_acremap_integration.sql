@@ -1,0 +1,33 @@
+create table if not exists public.acremap_integration_settings (
+ id text primary key default 'default' check (id = 'default'),
+ api_base_url text not null default '', api_key text not null default '', webhook_secret text not null default '',
+ enabled boolean not null default false, updated_at timestamptz not null default now()
+);
+alter table public.acremap_integration_settings enable row level security;
+drop policy if exists acremap_settings_manage on public.acremap_integration_settings;
+create policy acremap_settings_manage on public.acremap_integration_settings for all to authenticated
+using (private.has_role_permission('parametres.manage_system') or private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'pdg') or private.has_role(auth.uid(),'dg'))
+with check (private.has_role_permission('parametres.manage_system') or private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'pdg') or private.has_role(auth.uid(),'dg'));
+grant select, insert, update on public.acremap_integration_settings to authenticated;
+grant all on public.acremap_integration_settings to service_role;
+
+create table if not exists public.acremap_morcellements (
+ id text primary key, event_id text unique, owner_id text, parcelle_id text, reference text,
+ status text not null default 'received', payload jsonb not null default '{}'::jsonb,
+ source_updated_at timestamptz, received_at timestamptz not null default now()
+);
+create table if not exists public.acremap_lots (
+ id text primary key, plan_id text not null references public.acremap_morcellements(id) on delete cascade,
+ owner_id text, code text not null, part text, kind text, area_m2 numeric,
+ payload jsonb not null default '{}'::jsonb, received_at timestamptz not null default now(), unique(plan_id,code)
+);
+alter table public.acremap_morcellements enable row level security;
+alter table public.acremap_lots enable row level security;
+drop policy if exists acremap_results_read on public.acremap_morcellements;
+create policy acremap_results_read on public.acremap_morcellements for select to authenticated
+using (private.has_role_permission('proprietaires.view') or private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'pdg') or private.has_role(auth.uid(),'dg'));
+drop policy if exists acremap_lots_read on public.acremap_lots;
+create policy acremap_lots_read on public.acremap_lots for select to authenticated
+using (private.has_role_permission('proprietaires.view') or private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'pdg') or private.has_role(auth.uid(),'dg'));
+grant select on public.acremap_morcellements, public.acremap_lots to authenticated;
+grant all on public.acremap_morcellements, public.acremap_lots to service_role;

@@ -68,6 +68,12 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
 
   const onSubmit = async (data: any) => {
     if (!user) return;
+    // A real client relation is mandatory: never upload orphaned files or create
+    // documents_acquisition rows without client_id.
+    if (!data.client_id) {
+      toast({ variant: "destructive", title: "Client requis", description: "Sélectionnez le client auquel rattacher les documents." });
+      return;
+    }
     setLoading(true);
 
     try {
