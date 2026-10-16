@@ -660,14 +660,14 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                       <TableCell className="text-sm"><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} email={l.email} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /><br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
                       <TableCell className="min-w-0">
-                        <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, prospectId: l.prospect_id, statut: v })}>
+                        <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
                           <SelectTrigger className="h-8 w-28 max-w-28 overflow-hidden px-2 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right">
-                        {view === "prospects" && (
-                          <div className="flex justify-end sm:hidden">
+                        {(
+                          <div className="flex justify-end">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button size="icon" variant="outline" className="h-8 w-8" aria-label={`Actions pour ${l.prenoms || ""} ${l.nom || ""}`.trim()} title="Actions">
@@ -695,8 +695,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
                                   <DropdownMenuItem onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
                                 )}
-                                {view === "prospects" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
-                                  <DropdownMenuItem onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />Convertir en client</DropdownMenuItem>
+                                {(l._record_type === "prospect" || l.etape_pipeline === "prospect" || !!l.prospect_id) && l.statut !== "converti" && (
+                                  <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />Convertir en client</DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
