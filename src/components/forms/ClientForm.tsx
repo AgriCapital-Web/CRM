@@ -126,7 +126,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
           fichier_url: result.url,
           statut: "en_attente",
           uploaded_by: user.id,
-          metadata: { libelle: documentType.label, source_formulaire: "client" },
+          metadata: { libelle: documentType.label, source_formulaire: "client", storage_bucket: "documents-fonciers" },
         });
         if (documentError) throw documentError;
       }
