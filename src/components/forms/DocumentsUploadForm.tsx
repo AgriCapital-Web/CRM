@@ -95,7 +95,7 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
             fichier_url: result.path,
             statut: "en_attente",
             uploaded_by: user?.id || null,
-            metadata: { source_formulaire: "documents_upload", libelle: docType.label },
+            metadata: { source_formulaire: "documents_upload", libelle: docType.label, storage_bucket: docType.bucket },
           });
           if (documentError) throw documentError;
         }
