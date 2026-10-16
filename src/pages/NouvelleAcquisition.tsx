@@ -280,11 +280,24 @@ const NouvelleAcquisition = () => {
       }
 
       const {data:contracts}=await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",offer.id).eq("actif",true);
-      for(const c of contracts||[]){
-        const key="contrat_"+c.type_contrat;
+      for(const contract of contracts||[]){
+        const key="contrat_"+contract.type_contrat;
         const file=formData[key+"_file"];
-        if(file){const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/contrats");if(!uploaded)throw new Error("Upload contrat impossible");}
-        await (supabase as any).from("clients").update({[c.type_contrat==="contrat_acquisition_client"?"contrat_acquisition_statut":"contrat_accompagnement_statut"]:formData[key+"_statut"]||"a_preparer"}).eq("id",client.id);
+        if(file){
+          const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/contrats");
+          if(!uploaded?.path)throw new Error("Upload contrat impossible");
+          const {error:contractDocError}=await (supabase as any).from("documents_acquisition").insert({
+            client_id:client.id,type_document:contract.type_contrat,code_document:contract.type_contrat,
+            categorie:"contrat",obligatoire:!!contract.obligatoire,source_contractuelle:contract.type_contrat,
+            fichier_url:uploaded.path,statut:"en_attente",uploaded_by:user.id,
+            metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:contract.nom||contract.libelle||contract.type_contrat}
+          });
+          if(contractDocError)throw contractDocError;
+        }
+        const {error:contractStatusError}=await (supabase as any).from("clients").update({
+          [contract.type_contrat==="contrat_acquisition_client"?"contrat_acquisition_statut":"contrat_accompagnement_statut"]:formData[key+"_statut"]||"a_preparer"
+        }).eq("id",client.id);
+        if(contractStatusError)throw contractStatusError;
       }
 
       if(brouillonId)await (supabase as any).from("acquisitions_brouillon").delete().eq("id",brouillonId);
