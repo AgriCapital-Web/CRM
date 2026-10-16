@@ -5,7 +5,6 @@ import 'leaflet/dist/leaflet.css';
 import { Button } from '@/components/ui/button';
 import { MapPin, Locate, Navigation } from 'lucide-react';
 
-// Fix Leaflet default marker icons
 const defaultIcon = L.icon({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -15,12 +14,10 @@ const defaultIcon = L.icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
-
 L.Marker.prototype.options.icon = defaultIcon;
 
-// Épingle rouge locale, sans image externe : fonctionne aussi hors ligne.
 const redIcon = L.divIcon({
-  className: '',
+  className: 'agricapital-location-marker',
   html: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M16 1C7.7 1 1 7.7 1 16c0 11 15 25 15 25s15-14 15-25C31 7.7 24.3 1 16 1Z" fill="#dc2626" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="#fff"/></svg>',
   iconSize: [32, 42],
   iconAnchor: [16, 41],
@@ -30,7 +27,6 @@ const redIcon = L.divIcon({
 interface LocationPickerProps {
   setPosition: (pos: [number, number]) => void;
 }
-
 const LocationPicker = ({ setPosition }: LocationPickerProps) => {
   useMapEvents({
     click(e) {
@@ -43,33 +39,52 @@ const LocationPicker = ({ setPosition }: LocationPickerProps) => {
 interface FlyToLocationProps {
   position: [number, number] | null;
 }
-
 const FlyToLocation = ({ position }: FlyToLocationProps) => {
   const map = useMap();
-  
   useEffect(() => {
-    if (position) {
-      map.flyTo(position, 15, { duration: 1.5 });
-    }
+    if (position) map.flyTo(position, 15, { duration: 1.5 });
   }, [position, map]);
-  
   return null;
 };
 
+interface MapMarker {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+  info?: string;
+}
 interface InteractiveMapProps {
   mode: 'view' | 'pick';
   position?: [number, number] | null;
   onPositionChange?: (lat: number, lng: number, alt?: number) => void;
-  markers?: Array<{
-    id: string;
-    lat: number;
-    lng: number;
-    label: string;
-    info?: string;
-  }>;
+  markers?: MapMarker[];
   height?: string;
   className?: string;
 }
+
+// Leaflet must recalculate its viewport after a responsive container or lazy-loaded map becomes visible.
+// In view mode, frame every valid marker so the user's pins cannot sit outside the initial viewport.
+const FitMarkers = ({ markers }: { markers: MapMarker[] }) => {
+  const map = useMap();
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      map.invalidateSize({ pan: false });
+      const valid = markers.filter((m) =>
+        Number.isFinite(m.lat) && Number.isFinite(m.lng) &&
+        m.lat >= -90 && m.lat <= 90 && m.lng >= -180 && m.lng <= 180
+      );
+      if (valid.length === 1) {
+        map.setView([valid[0].lat, valid[0].lng], 13, { animate: false });
+      } else if (valid.length > 1) {
+        const bounds = L.latLngBounds(valid.map((m) => [m.lat, m.lng] as [number, number]));
+        map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13, animate: false });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [map, markers]);
+  return null;
+};
 
 const InteractiveMapComponent = ({
   mode = 'view',
@@ -79,21 +94,16 @@ const InteractiveMapComponent = ({
   height = '400px',
   className = ''
 }: InteractiveMapProps) => {
-  const [position, setPosition] = useState<[number, number] | null>(
-    initialPosition || null
-  );
+  const [position, setPosition] = useState<[number, number] | null>(initialPosition || null);
   const [loading, setLoading] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
-
-  // Centre par défaut : Daloa, Côte d'Ivoire
   const defaultCenter: [number, number] = [6.8774, -6.4502];
 
   const handleGeolocate = () => {
     if (!navigator.geolocation) {
-      alert('La géolocalisation n\'est pas supportée par votre navigateur');
+      alert("La géolocalisation n'est pas supportée par votre navigateur");
       return;
     }
-
     setLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -104,7 +114,7 @@ const InteractiveMapComponent = ({
       },
       (error) => {
         console.error('Erreur géolocalisation:', error);
-        alert('Impossible d\'obtenir votre position. Vérifiez les permissions.');
+        alert("Impossible d'obtenir votre position. Vérifiez les permissions.");
         setLoading(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -120,23 +130,12 @@ const InteractiveMapComponent = ({
     <div className={`relative ${className}`} style={{ height }}>
       {mode === 'pick' && (
         <div className="absolute top-2 right-2 z-[1000] flex gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleGeolocate}
-            disabled={loading}
-            className="bg-primary shadow-lg gap-2"
-          >
-            {loading ? (
-              <Navigation className="h-4 w-4 animate-spin" />
-            ) : (
-              <Locate className="h-4 w-4" />
-            )}
+          <Button type="button" size="sm" onClick={handleGeolocate} disabled={loading} className="gap-2 bg-primary shadow-lg">
+            {loading ? <Navigation className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
             {loading ? 'Localisation...' : 'Ma position'}
           </Button>
         </div>
       )}
-
       <MapContainer
         ref={mapRef}
         center={position || defaultCenter}
@@ -148,11 +147,10 @@ const InteractiveMapComponent = ({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-
         {mode === 'pick' && <LocationPicker setPosition={handlePositionChange} />}
         <FlyToLocation position={position} />
+        {mode === 'view' && <FitMarkers markers={markers} />}
 
-        {/* Marqueur de position sélectionnée */}
         {position && mode === 'pick' && (
           <Marker position={position} icon={redIcon}>
             <Popup>
@@ -167,13 +165,8 @@ const InteractiveMapComponent = ({
           </Marker>
         )}
 
-        {/* Marqueurs multiples pour mode view */}
         {mode === 'view' && markers.map((marker) => (
-          <Marker 
-            key={marker.id} 
-            position={[marker.lat, marker.lng]}
-            icon={redIcon}
-          >
+          <Marker key={marker.id} position={[marker.lat, marker.lng]} icon={redIcon} zIndexOffset={1000}>
             <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
               <div className="min-w-[180px] max-w-[260px]">
                 <p className="font-semibold">{marker.label}</p>
@@ -184,30 +177,22 @@ const InteractiveMapComponent = ({
             <Popup>
               <div className="min-w-[150px]">
                 <p className="font-semibold text-primary">{marker.label}</p>
-                {marker.info && <p className="text-xs text-muted-foreground mt-1">{marker.info}</p>}
-                <p className="text-xs mt-2 font-mono">
-                  {marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}
-                </p>
+                {marker.info && <p className="mt-1 text-xs text-muted-foreground">{marker.info}</p>}
+                <p className="mt-2 font-mono text-xs">{marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}</p>
               </div>
             </Popup>
           </Marker>
         ))}
       </MapContainer>
-
       {mode === 'pick' && (
-        <div className="absolute bottom-2 left-2 right-2 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg p-2 text-center text-sm">
-          <MapPin className="h-4 w-4 inline mr-1 text-red-600" />
-          {position ? (
-            <span className="font-mono text-xs">
-              Lat: {position[0].toFixed(6)} | Lng: {position[1].toFixed(6)}
-            </span>
-          ) : null}
+        <div className="absolute bottom-2 left-2 right-2 z-[1000] rounded-lg bg-white/90 p-2 text-center text-sm backdrop-blur-sm">
+          <MapPin className="mr-1 inline h-4 w-4 text-red-600" />
+          {position ? <span className="font-mono text-xs">Lat: {position[0].toFixed(6)} | Lng: {position[1].toFixed(6)}</span> : null}
         </div>
       )}
     </div>
   );
 };
 
-// Use memo to prevent unnecessary re-renders
 export const InteractiveMap = memo(InteractiveMapComponent);
 export default InteractiveMap;
