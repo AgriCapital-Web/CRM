@@ -16,7 +16,7 @@ const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
  const { byCategory: refs } = useSystemReferences(["civilite","statut_marital"]);
 
- const file=(field:string,label:string,accept=".pdf,image/jpeg,image/png",ocr=false)=><FileUploadVisual label={label} field={field} accept={accept} required currentFile={formData[field+"_file"]||null} currentPreview={formData[field+"_preview"]||""} onFileChange={(f,value,preview)=>updateFormData({[field+"_file"]:value,[field+"_preview"]:preview})} onIdentityNumberDetected={ocr?n=>updateFormData({numero_piece:n}):undefined} identityDocumentType={formData.type_piece}/>;
+ const file=(field:string,label:string,accept=".pdf,image/*",ocr=false)=><FileUploadVisual label={label} field={field} accept={accept} required currentFile={formData[field+"_file"]||null} currentPreview={formData[field+"_preview"]||""} onFileChange={(f,value,preview)=>updateFormData({[field+"_file"]:value,[field+"_preview"]:preview})} onIdentityNumberDetected={ocr?n=>updateFormData({numero_piece:n}):undefined} identityDocumentType={formData.type_piece}/>;
  const phone=(field:"telephone"|"whatsapp",label:string)=> <CountryPhoneInput label={label} required={field==="telephone"} countryCode={formData[field+"_indicatif"]||undefined} localValue={formData[field+"_local"]||""} onChange={v=>updateFormData({[field+"_indicatif"]:v.callingCode,[field+"_local"]:v.localValue,[field]:v.internationalValue})}/>;
  return <div className="space-y-6">
   <Card><CardHeader><CardTitle>Identité du Client</CardTitle></CardHeader><CardContent className="space-y-4">
