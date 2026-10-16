@@ -32,6 +32,7 @@ import CommercialCombobox from "@/components/common/CommercialCombobox";
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
 import { COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
 import { formatUserShortName } from "@/lib/utils";
+import ContactLauncher from "@/components/common/ContactLauncher";
 
 
 const normalizeSmsText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
@@ -178,6 +179,16 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     },
   });
 
+  const { data: prospects = [] } = useQuery({
+    queryKey: ["prospects"],
+    queryFn: async () => {
+      if (!navigator.onLine) return [];
+      const { data, error } = await (supabase as any).from("prospects").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data: relances = [] } = useQuery({
     queryKey: ["lead_relances", selected?.id],
     enabled: !!selected?.id,
@@ -235,14 +246,24 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ id, statut }: any) => {
+    mutationFn: async ({ id, statut, prospectId }: any) => {
        const lead = leads.find((item: any) => item.id === id);
-       const isOwner = lead?.assigned_to === user?.id || lead?.created_by === user?.id;
-       if (!isOwner && !isGlobalAdmin) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
-       const { error } = await offlineUpdate("leads", id, { statut });
-      if (error) throw error;
+       const prospect = prospectId ? prospects.find((item: any) => item.id === prospectId) : null;
+       const isOwner = (prospect?.assigned_to || lead?.assigned_to) === user?.id || (prospect?.created_by || lead?.created_by) === user?.id;
+       if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres dossiers.");
+       if (prospectId) {
+         const { error } = await (supabase as any).from("prospects").update({ statut }).eq("id", prospectId);
+         if (error) throw error;
+         if (id) {
+           const { error: leadError } = await offlineUpdate("leads", id, { statut, etape_pipeline: "prospect" });
+           if (leadError) throw leadError;
+         }
+       } else {
+         const { error } = await offlineUpdate("leads", id, { statut });
+         if (error) throw error;
+       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); toast({ title: "Statut mis à jour" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["leads"] }); qc.invalidateQueries({ queryKey: ["prospects"] }); toast({ title: "Statut mis à jour" }); },
   });
 
   const createLead = useMutation({
@@ -476,9 +497,29 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
   const publicUrl = `${window.location.origin}/leads/public`;
 
+  const legacyStage = (l: any) => l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead");
   const stageLeads = view === "prospects"
-    ? leads.filter((l: any) => ["lead", "prospect"].includes(l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead")))
-    : leads.filter((l: any) => (l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead")) === "lead");
+    ? [
+        ...leads.filter((l: any) => legacyStage(l) === "lead"),
+        ...prospects.map((p: any) => {
+          const linkedLead = leads.find((l: any) => l.id === p.lead_id);
+          return {
+            ...(linkedLead || {}),
+            ...p,
+            id: p.lead_id || linkedLead?.id || p.id,
+            prospect_id: p.id,
+            lead_id: p.lead_id || linkedLead?.id || null,
+            etape_pipeline: "prospect",
+            statut: p.statut || linkedLead?.statut || "qualifie",
+            created_by: p.created_by || linkedLead?.created_by,
+            assigned_to: p.assigned_to || linkedLead?.assigned_to,
+            prochaine_relance_at: linkedLead?.prochaine_relance_at || null,
+            _record_type: "prospect",
+          };
+        }),
+        ...leads.filter((l: any) => legacyStage(l) === "prospect" && !prospects.some((p: any) => p.lead_id === l.id)),
+      ]
+    : leads.filter((l: any) => legacyStage(l) === "lead");
   const filteredLeads = stageLeads.filter((l: any) => JSON.stringify(l).toLowerCase().includes(tableSearch.trim().toLowerCase()));
   const paginatedLeads = filteredLeads.slice((tablePage - 1) * tablePageSize, tablePage * tablePageSize);
   useEffect(() => { setTablePage(1); }, [tableSearch, tablePageSize]);
@@ -554,10 +595,10 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                   return (
                     <TableRow key={l.id} className="[&>td]:py-1.5 [&>td]:px-2">
                       <TableCell><div className="font-medium leading-tight">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
-                      <TableCell className="text-sm"><span className="whitespace-nowrap">{l.telephone}</span><br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
+                      <TableCell className="text-sm"><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} email={l.email} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /><br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
                       <TableCell className="min-w-0">
-                        <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, statut: v })}>
+                        <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, prospectId: l.prospect_id, statut: v })}>
                           <SelectTrigger className="h-8 w-28 max-w-28 overflow-hidden px-2 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
