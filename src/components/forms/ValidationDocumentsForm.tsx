@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, XCircle, ExternalLink } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { resolveStorageUrl } from "@/utils/storage";
 
 interface ValidationDocumentsFormProps {
   documents: any[];
@@ -19,6 +20,21 @@ const ValidationDocumentsForm = ({ documents, onSuccess }: ValidationDocumentsFo
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const [observations, setObservations] = useState<{ [key: string]: string }>({});
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const entries = await Promise.all((documents || []).map(async (doc: any) => {
+        const metadata = doc.metadata && typeof doc.metadata === "object" ? doc.metadata : {};
+        const bucket = metadata.storage_bucket || (String(doc.type_document || "").toLowerCase().includes("identite") ? "pieces-identite" : "documents-fonciers");
+        const url = await resolveStorageUrl(bucket, doc.fichier_url);
+        return [doc.id, url] as const;
+      }));
+      if (active) setSignedUrls(Object.fromEntries(entries.filter((entry): entry is readonly [string, string] => !!entry[1])));
+    })();
+    return () => { active = false; };
+  }, [documents]);
 
   const pendingDocs = documents.filter(d => d.statut === "en_attente");
 
@@ -28,11 +44,11 @@ const ValidationDocumentsForm = ({ documents, onSuccess }: ValidationDocumentsFo
 
     try {
       const { error } = await (supabase as any)
-        .from("documents_souscription")
+        .from("documents_acquisition")
         .update({
           statut,
-          date_validation: new Date().toISOString(),
-          valide_par: user.id,
+          validated_at: new Date().toISOString(),
+          validated_by: user.id,
           observations: observations[docId] || null,
         })
         .eq("id", docId);
@@ -91,7 +107,7 @@ const ValidationDocumentsForm = ({ documents, onSuccess }: ValidationDocumentsFo
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.open(doc.fichier_url, "_blank")}
+                    onClick={() => { const url = signedUrls[doc.id]; if (url) window.open(url, "_blank", "noopener,noreferrer"); }} disabled={!signedUrls[doc.id]}
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Voir le document
