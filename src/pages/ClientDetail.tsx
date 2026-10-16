@@ -105,12 +105,13 @@ const ClientDetail = () => {
   const uploadClientDocument=async()=>{
     if(!id||!documentFile)return;
     try{
-      const uploaded=await uploadFile("documents",documentFile,`clients/${id}/pieces/${Date.now()}-${documentFile.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`);
+      const {data:authData}=await supabase.auth.getUser();if(!authData.user)throw new Error("Session utilisateur introuvable");
+      const uploaded=await uploadFile("documents",documentFile,`${authData.user.id}/clients/${id}/pieces`);
       if(!uploaded)throw new Error("Téléversement impossible");
       const {error}=await (supabase as any).from("documents_acquisition").insert({
         client_id:id,type_document:"annexe_libre",code_document:"annexe_libre",categorie:"annexe",
-        obligatoire:false,source_contractuelle:false,fichier_url:uploaded.url,statut:"en_attente",uploaded_by:null,
-        metadata:{libelle:documentLabel.trim()||documentFile.name,source:"fiche_client"}
+        obligatoire:false,source_contractuelle:"annexe_libre",fichier_url:uploaded.path,statut:"en_attente",uploaded_by:authData.user.id,
+        metadata:{libelle:documentLabel.trim()||documentFile.name,source:"fiche_client",storage_bucket:"documents"}
       });
       if(error)throw error;
       toast({title:"Document ajouté"});setDocumentFile(null);setDocumentLabel("");await fetchData();
