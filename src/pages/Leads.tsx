@@ -248,16 +248,16 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   });
 
   const updateStatus = useMutation({
-    mutationFn: async ({ id, statut, prospectId }: any) => {
-       const lead = leads.find((item: any) => item.id === id);
+    mutationFn: async ({ id, leadId, statut, prospectId }: any) => {
+       const lead = leads.find((item: any) => item.id === (leadId || id));
        const prospect = prospectId ? prospects.find((item: any) => item.id === prospectId) : null;
        const isOwner = (prospect?.assigned_to || lead?.assigned_to) === user?.id || (prospect?.created_by || lead?.created_by) === user?.id;
        if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres dossiers.");
        if (prospectId) {
          const { error } = await (supabase as any).from("prospects").update({ statut }).eq("id", prospectId);
          if (error) throw error;
-         if (id) {
-           const { error: leadError } = await offlineUpdate("leads", id, { statut, etape_pipeline: "prospect" });
+         if (leadId) {
+           const { error: leadError } = await offlineUpdate("leads", leadId, { statut, etape_pipeline: "prospect" });
            if (leadError) throw leadError;
          }
        } else {
