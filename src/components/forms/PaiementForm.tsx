@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { parseAmount } from "@/lib/amount";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { uploadFile } from "@/utils/storage";
 import { calculPrixEffectif } from "@/lib/pricing";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 
@@ -320,22 +321,15 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         setFilePreview(file.name);
       }
       
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `paiements/${fileName}`;
+      // Les preuves de paiement sont privées : stocker le chemin, jamais une URL publique.
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      if (!currentUser) throw new Error("Session utilisateur introuvable.");
+      const uploaded = await uploadFile("preuves-paiement", file, `${currentUser.id}/paiements`);
+      if (!uploaded?.path) throw new Error("Le téléversement de la preuve de paiement a échoué.");
 
-      const { error: uploadError } = await supabase.storage
-        .from("documents-fonciers")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("documents-fonciers")
-        .getPublicUrl(filePath);
-
-      setFileUrl(publicUrl);
-      setValue("fichier_preuve_url", publicUrl);
+      setFileUrl(uploaded.path);
+      setValue("fichier_preuve_url", uploaded.path);
+      setValue("preuve_paiement_url", uploaded.path);
       
       toast({
         title: "Succès",
