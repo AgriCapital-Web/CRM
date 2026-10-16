@@ -42,8 +42,12 @@ const NouvelleAcquisition = () => {
 
   useEffect(()=>{
     const leadId=searchParams.get("lead_id");
-    if(leadId) updateFormData({
-      lead_id:leadId, commercial_id:searchParams.get("commercial_id")||undefined, nom_famille:searchParams.get("nom")||"", prenoms:searchParams.get("prenoms")||"",
+    const prospectId=searchParams.get("prospect_id");
+    if(leadId || prospectId) updateFormData({
+      ...(leadId ? { lead_id: leadId } : {}),
+      ...(prospectId ? { prospect_id: prospectId } : {}),
+      commercial_id:searchParams.get("commercial_id")||undefined,
+      nom_famille:searchParams.get("nom")||"", prenoms:searchParams.get("prenoms")||"",
       telephone:searchParams.get("telephone")||"", whatsapp:searchParams.get("whatsapp")||"", email:searchParams.get("email")||""
     });
   },[searchParams]);
@@ -193,12 +197,15 @@ const NouvelleAcquisition = () => {
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
 
-      // Si le dossier provient d’un lead, conserver la traçabilité de l’affectation commerciale.
+      // Conserver les liens du dossier d'origine sans fabriquer de lead pour un prospect autonome.
+      const convertedAt=new Date().toISOString();
       if(formData.lead_id){
-        const convertedAt=new Date().toISOString();
-        const {error:leadError}=await (supabase as any).from("leads").update({client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:convertedAt}).eq("id",formData.lead_id);
+        const {error:leadError}=await (supabase as any).from("leads").update({client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:convertedAt,updated_at:convertedAt}).eq("id",formData.lead_id);
         if(leadError) throw leadError;
-        const {error:prospectError}=await (supabase as any).from("prospects").update({client_id:client.id,statut:"converti",updated_at:convertedAt}).eq("lead_id",formData.lead_id);
+        const {error:prospectError}=await (supabase as any).from("prospects").update({client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt}).eq("lead_id",formData.lead_id);
+        if(prospectError) throw prospectError;
+      } else if(formData.prospect_id) {
+        const {error:prospectError}=await (supabase as any).from("prospects").update({client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt}).eq("id",formData.prospect_id);
         if(prospectError) throw prospectError;
       }
 
