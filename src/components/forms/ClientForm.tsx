@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { offlineUpdate } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFile } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,8 @@ const CLIENT_COLUMNS = new Set([
 
 const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canUploadDocuments = can("documents.upload");
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
   const [offers, setOffers] = useState<any[]>([]);
@@ -280,12 +283,12 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden">
+      {canUploadDocuments && <Card className="overflow-hidden">
         <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Contrat et documents complémentaires</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-2 px-4 pb-3 pt-0">
           {EXTRA_CLIENT_DOCUMENTS.map((documentType) => <div key={documentType.key} className="min-w-0">{extraFileUpload(documentType.key, documentType.label)}</div>)}
         </CardContent>
-      </Card>
+      </Card>}
 
       <div className="flex justify-end gap-3 sticky bottom-0 bg-background py-2 border-t">
         <Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button>
