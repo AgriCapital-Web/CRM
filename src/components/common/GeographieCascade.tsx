@@ -104,12 +104,12 @@ export default function GeographieCascade({
   // Search the real, RLS-visible geographic catalogue even before the parent hierarchy is selected.
   useEffect(() => {
     let active = true;
-    const term = villageSearch.trim().replace(/[,%()]/g, " ");
+    const term = villageSearch.trim().replace(/[,%()]/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     if (term.length < 2) { setVillageMatches([]); setSearchingVillages(false); return () => { active = false; }; }
     setSearchingVillages(true);
     const timer = setTimeout(async () => {
       let query = (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id")
-        .eq("est_actif_effectif", true).ilike("nom", `%${term}%`).order("nom").limit(30);
+        .eq("est_actif_effectif", true).ilike("nom", `%${term}%`).order("nom").limit(100);
       if (sousPrefectureId) query = query.eq("sous_prefecture_id", sousPrefectureId);
       else if (departementId) {
         const { data: sps } = await (supabase as any).from("v_geo_sous_prefectures").select("id")
