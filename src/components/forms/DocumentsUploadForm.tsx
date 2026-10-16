@@ -85,14 +85,19 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
 
         if (file) {
           const result = await uploadFile(docType.bucket, file);
-          if (result) {
-            await (supabase as any).from("documents_souscription").insert({
-              client_id: data.client_id,
-              type_document: docType.key,
-              fichier_url: result.url,
-              statut: "en_attente",
-            });
-          }
+          if (!result?.path) throw new Error(`Échec du téléversement : ${docType.label}`);
+          const { error: documentError } = await (supabase as any).from("documents_acquisition").insert({
+            client_id: data.client_id,
+            type_document: docType.key,
+            code_document: docType.key,
+            categorie: "souscription",
+            source_contractuelle: docType.key,
+            fichier_url: result.path,
+            statut: "en_attente",
+            uploaded_by: user?.id || null,
+            metadata: { source_formulaire: "documents_upload", libelle: docType.label },
+          });
+          if (documentError) throw documentError;
         }
       }
 
