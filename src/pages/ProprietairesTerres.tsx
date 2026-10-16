@@ -22,6 +22,7 @@ import { useUserZones } from "@/hooks/useUserZones";
 import GeographieCascade from "@/components/common/GeographieCascade";
 import { uploadFile as uploadToStorage } from "@/utils/storage";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
+import ContactLauncher from "@/components/common/ContactLauncher";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import RelationshipSelect from "@/components/common/RelationshipSelect";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
@@ -784,7 +785,7 @@ const ProprietairesTerres = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium whitespace-nowrap"><Link to={`/proprietaires-terres/${p.id}`} className="whitespace-nowrap hover:underline">{p.nom_complet}</Link></TableCell>
-                    <TableCell>{p.telephone}</TableCell>
+                    <TableCell><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ")} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
                     <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")}</TableCell>
