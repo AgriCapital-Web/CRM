@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { X, ImagePlus } from "lucide-react";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { uploadFile } from "@/utils/storage";
 
 interface TicketFormProps {
   ticket?: any;
@@ -117,13 +118,13 @@ const TicketForm = ({ ticket, plantationId, clientId: fixedClientId, clientLocat
     setLoading(true);
     try {
       const photosUrls: string[] = [];
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Session utilisateur introuvable.");
       for (const file of photoFiles) {
-        const fileExt = file.name.split(".").pop();
-        const fileName = `support/${crypto.randomUUID()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from("photos-plantations").upload(fileName, file);
-        if (uploadError) throw uploadError;
-        const { data: publicData } = supabase.storage.from("photos-plantations").getPublicUrl(fileName);
-        photosUrls.push(publicData.publicUrl);
+        const uploaded = await uploadFile("photos-plantations", file, `${authData.user.id}/support`);
+        if (!uploaded?.path) throw new Error(`Téléversement impossible : ${file.name}`);
+        // Le bucket est privé : conserver le chemin, l'interface doit générer une URL signée.
+        photosUrls.push(uploaded.path);
       }
 
       const tech = techniciens.find(t => t.id === data.assigne_a);
