@@ -18,7 +18,8 @@ L.Marker.prototype.options.icon = defaultIcon;
 
 const redIcon = L.divIcon({
   className: 'agricapital-location-marker',
-  html: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M16 1C7.7 1 1 7.7 1 16c0 11 15 25 15 25s15-14 15-25C31 7.7 24.3 1 16 1Z" fill="#dc2626" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="#fff"/></svg>',
+  bgPos: [0, 0],
+  html: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" style="display:block;width:32px;height:42px;background:transparent;overflow:visible;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M16 1C7.7 1 1 7.7 1 16c0 11 15 25 15 25s15-14 15-25C31 7.7 24.3 1 16 1Z" fill="#dc2626" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="#fff"/></svg>',
   iconSize: [32, 42],
   iconAnchor: [16, 41],
   popupAnchor: [0, -38],
@@ -165,8 +166,8 @@ const InteractiveMapComponent = ({
           </Marker>
         )}
 
-        {mode === 'view' && markers.map((marker) => (
-          <Marker key={marker.id} position={[marker.lat, marker.lng]} icon={redIcon} zIndexOffset={1000}>
+        {mode === 'view' && markers.filter((marker) => Number.isFinite(marker.lat) && Number.isFinite(marker.lng) && marker.lat >= -90 && marker.lat <= 90 && marker.lng >= -180 && marker.lng <= 180).map((marker) => (
+          <Marker key={marker.id} position={[marker.lat, marker.lng]} icon={redIcon} zIndexOffset={2000} riseOnHover>
             <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
               <div className="min-w-[180px] max-w-[260px]">
                 <p className="font-semibold">{marker.label}</p>
