@@ -96,7 +96,7 @@ const ValidationDocumentsForm = ({ documents, onSuccess }: ValidationDocumentsFo
                 <div>
                   <h3 className="font-semibold">{getDocTypeLabel(doc.type_document)}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Soumis le {new Date(doc.date_soumission).toLocaleDateString()}
+                    Soumis le {new Date(doc.created_at || doc.uploaded_at || Date.now()).toLocaleDateString("fr-FR")}
                   </p>
                 </div>
                 <Badge variant="outline">En attente</Badge>
