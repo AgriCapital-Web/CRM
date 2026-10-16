@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadFile } from "@/utils/storage";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,19 +157,12 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
       // Les photos administrées sont rangées dans le dossier du compte cible.
       const file = photoFile;
       if (file && utilisateur) {
-        const fileExt = file.name.split('.').pop();
         const targetUserId = utilisateur?.user_id || utilisateur?.id;
         if (!targetUserId) throw new Error("Compte utilisateur introuvable");
-        const fileName = `profiles/${targetUserId}/photo-${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('photos-profils')
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        // Stocke uniquement le chemin; l'URL signée courte est générée à l'affichage
-        photoUrl = fileName;
+        const uploadedPhoto = await uploadFile("photos-profils", file, `profiles/${targetUserId}`);
+        if (!uploadedPhoto?.path) throw new Error("Téléversement de la photo impossible.");
+        // Stocke uniquement le chemin; l'URL signée courte est générée à l'affichage.
+        photoUrl = uploadedPhoto.path;
       }
 
       if (utilisateur) {
@@ -176,11 +170,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         if (!targetUserId) throw new Error("Compte utilisateur introuvable");
         const uploadIdentity = async (file: File | null, side: string) => {
           if (!file) return null;
-          const ext = file.name.split('.').pop();
-          const path = `profiles/${targetUserId}/identity-${side}-${Date.now()}.${ext}`;
-          const { error } = await supabase.storage.from("pieces-identite").upload(path, file);
-          if (error) throw error;
-          return path;
+          const uploaded = await uploadFile("pieces-identite", file, `profiles/${targetUserId}`);
+          if (!uploaded?.path) throw new Error(`Téléversement de la pièce d'identité impossible : ${side}`);
+          return uploaded.path;
         };
         if (data.type_piece_identite === "passeport") {
           piecePassportUrl = (await uploadIdentity(piecePassportFile, "passport")) || piecePassportUrl;
@@ -305,16 +297,11 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         }
 
         if (file && result.user_id) {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `profiles/${result.user_id}/photo-${Date.now()}.${fileExt}`;
-          const { error: photoUploadError } = await supabase.storage
-            .from('photos-profils')
-            .upload(fileName, file);
-          if (photoUploadError) throw photoUploadError;
-
+          const uploadedPhoto = await uploadFile("photos-profils", file, `profiles/${result.user_id}`);
+          if (!uploadedPhoto?.path) throw new Error("Téléversement de la photo impossible.");
           const { error: photoProfileError } = await (supabase as any)
             .from("profiles")
-            .update({ photo_url: fileName })
+            .update({ photo_url: uploadedPhoto.path })
             .eq("user_id", result.user_id);
           if (photoProfileError) throw photoProfileError;
         }
@@ -322,11 +309,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         if (result.user_id && (pieceRectoFile || pieceVersoFile || piecePassportFile)) {
           const uploadIdentity = async (file: File | null, side: string) => {
             if (!file) return null;
-            const ext = file.name.split('.').pop();
-            const path = `profiles/${result.user_id}/identity-${side}-${Date.now()}.${ext}`;
-            const { error } = await supabase.storage.from("pieces-identite").upload(path, file);
-            if (error) throw error;
-            return path;
+            const uploaded = await uploadFile("pieces-identite", file, `profiles/${result.user_id}`);
+            if (!uploaded?.path) throw new Error(`Téléversement de la pièce d'identité impossible : ${side}`);
+            return uploaded.path;
           };
           let recto = null, verso = null, passport = null;
           if (data.type_piece_identite === "passeport") {
