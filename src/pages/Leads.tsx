@@ -36,6 +36,7 @@ import ContactLauncher from "@/components/common/ContactLauncher";
 
 
 const normalizeSmsText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+const offerRequiresLand = (offer: any) => { const identity = normalizeSmsText([offer?.code, offer?.nom, offer?.famille_offre, offer?.formule_code, offer?.formule_nom].filter(Boolean).join(" ")).toLowerCase().replace(/[ _-]+/g, ""); if (identity.includes("palminvest")) return false; if (identity.includes("terrapalm") || identity.includes("palmterroir")) return true; return null; };
 const renderLeadTemplate = (template: string, lead: any) => {
   const fullName = [lead?.prenoms, lead?.nom].filter(Boolean).join(" ").trim();
   const vars: Record<string, string> = {
@@ -819,7 +820,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                               </Select>
                             </div>
                             {leadForm.type_lead === "client" && <>
-                              <div><Label>Offre (si connue)</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration.filter((f: any) => f?.code && f?.nom) : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || offer?.formule_code || offer?.code || "" })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.filter((o) => Boolean(o.code && o.nom)).map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
+                              <div><Label>Offre (si connue)</Label><Select value={leadForm.offre_code} onValueChange={(v) => { const offer = offers.find((o) => o.code === v); const forms = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration.filter((f: any) => f?.code && f?.nom) : []; setLeadForm(x => ({ ...x, offre_code: v, formule_code: forms[0]?.code || offer?.formule_code || offer?.code || "", ...(offerRequiresLand(offer) === null ? {} : { dispose_terrain: offerRequiresLand(offer) ? "oui" : "non" }) })); }}><SelectTrigger><SelectValue placeholder="Sélectionner une offre" /></SelectTrigger><SelectContent>{offers.filter((o) => Boolean(o.code && o.nom)).map((o) => <SelectItem key={o.id} value={o.code}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
                               <div><Label>Formule (si connue)</Label><Select value={leadForm.formule_code} onValueChange={(v) => setLeadForm(x => ({ ...x, formule_code: v }))} disabled={!selectedLeadFormulas.length}><SelectTrigger><SelectValue placeholder="Sélectionner une formule" /></SelectTrigger><SelectContent>{selectedLeadFormulas.map((f: any) => <SelectItem key={f.code} value={f.code}>{f.nom}</SelectItem>)}</SelectContent></Select></div>
                             </>}
                             <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={(e) => setLeadForm({ ...leadForm, nom: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
