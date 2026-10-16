@@ -66,7 +66,7 @@ export default function Prospects() {
         qc.invalidateQueries({ queryKey: ["leads"] }),
         qc.invalidateQueries({ queryKey: ["clients"] }),
       ]);
-      toast({ title: "Client créé", description: "Le client est relié au prospect et au lead d’origine. Complétez maintenant son dossier client." });
+      toast({ title: prospect._legacyLead ? "Dossier Prospect créé" : "Client créé", description: prospect._legacyLead ? "Le dossier historique a été migré vers la table Prospects. Actualisez la liste puis poursuivez la conversion en client." : "Le client est relié au prospect et au lead d’origine. Complétez maintenant son dossier client." });
     } catch (e: any) {
       toast({ title: "Conversion impossible", description: getSafeErrorMessage(e), variant: "destructive" });
     }
@@ -110,7 +110,7 @@ export default function Prospects() {
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2"><div className="min-w-0"><CardTitle className="truncate text-base">{p.prenoms} {p.nom}</CardTitle><p className="mt-1 text-sm text-muted-foreground"><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={[p.prenoms, p.nom].filter(Boolean).join(" ")} kind={p.type_lead === "proprietaire_foncier" ? "proprietaire" : (p._legacyLead ? "lead" : "prospect")} status={p.statut}/></p></div><Badge variant="secondary">{STATUTS.find(s => s.value === p.statut)?.label || p.statut}</Badge></CardHeader>
           <CardContent className="space-y-2 text-sm"><p className="truncate">{p.email || "Aucun email renseigné"}</p><p>Offre : {p.offre_code || p.formule_code || "À définir"}</p><p>Superficie souhaitée : {p.superficie_souhaitee_ha ?? "—"} ha</p><p className="text-xs text-muted-foreground">Référence lead : {p.lead_id}</p>
             <Button className="w-full" variant="outline" onClick={() => setEditing({...p})}><Pencil className="mr-2 h-4 w-4"/>Ouvrir le formulaire Prospect</Button>
-            {p.client_id ? <Badge className="w-full justify-center">Client lié : {p.client_id.slice(0,8)}</Badge> : <Button className="w-full" onClick={() => void convertToClient(p)}><UserRoundCheck className="mr-2 h-4 w-4"/>Convertir en Client</Button>}
+            {p.client_id ? <Badge className="w-full justify-center">Client lié : {p.client_id.slice(0,8)}</Badge> : <Button className="w-full" onClick={() => void convertToClient(p)}><UserRoundCheck className="mr-2 h-4 w-4"/>{p._legacyLead ? "Créer le dossier Prospect" : "Convertir en Client"}</Button>}
           </CardContent></Card>)}</div>}
       <div className="text-xs text-muted-foreground">{visible.length} prospect(s) affiché(s) · Base de données en direct</div>
     </div>
