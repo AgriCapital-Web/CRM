@@ -349,11 +349,17 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
     if (!isOwner && !canSupervise) { toast({ variant: "destructive", title: "Conversion refusée", description: "Ce lead appartient à un autre commercial." }); return; }
     try {
-      const { error } = await offlineUpdate("leads", lead.id, { etape_pipeline: "prospect", statut: "qualifie" });
+      // Conversion atomique côté PostgreSQL : crée un prospect avec son propre UUID,
+      // conserve le lead et son historique, puis relie les deux dossiers.
+      const { data: prospectId, error } = await (supabase as any).rpc("convert_lead_to_prospect", { _lead_id: lead.id });
       if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["leads"] });
+      if (!prospectId) throw new Error("La base n'a retourné aucun identifiant de prospect.");
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["leads"] }),
+        qc.invalidateQueries({ queryKey: ["prospects"] }),
+      ]);
       setConvertOpen(false); setConvertLead(null);
-      toast({ title: "Lead converti en prospect", description: "Le dossier complet peut maintenant être enrichi dans Prospects." });
+      toast({ title: "Prospect créé", description: "Un dossier Prospect distinct a été créé et lié au lead d'origine." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Conversion impossible", description: getSafeErrorMessage(e) });
     }
