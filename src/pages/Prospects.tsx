@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserRound, Pencil, RefreshCw } from "lucide-react";
+import { Search, UserRound, Pencil, RefreshCw, UserRoundCheck } from "lucide-react";
 
 type Prospect = {
   id: string; lead_id: string; client_id: string | null; nom: string; prenoms: string;
@@ -26,7 +26,7 @@ type Prospect = {
 const STATUTS = [
   { value: "qualifie", label: "Qualifié" }, { value: "en_discussion", label: "En discussion" },
   { value: "preparation_dossier", label: "Préparation du dossier" }, { value: "pret_souscrire", label: "Prêt à souscrire" },
-  { value: "converti", label: "Converti en client" }, { value: "abandonne", label: "Abandonné" },
+  { value: "abandonne", label: "Abandonné" },
 ];
 
 export default function Prospects() {
@@ -50,6 +50,22 @@ export default function Prospects() {
   const visible = prospects.filter(p => [p.nom, p.prenoms, p.telephone, p.email, p.offre_code, p.formule_code]
     .some(v => String(v || "").toLowerCase().includes(search.toLowerCase().trim())));
   const updateField = (field: keyof Prospect, value: string) => setEditing(old => old ? ({ ...old, [field]: value } as Prospect) : old);
+
+  const convertToClient = async (prospect: Prospect) => {
+    try {
+      const { data: clientId, error } = await (supabase as any).rpc("convert_prospect_to_client", { _prospect_id: prospect.id });
+      if (error) throw error;
+      if (!clientId) throw new Error("La base n'a retourné aucun identifiant client.");
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["prospects"] }),
+        qc.invalidateQueries({ queryKey: ["leads"] }),
+        qc.invalidateQueries({ queryKey: ["clients"] }),
+      ]);
+      toast({ title: "Client créé", description: "Le client est relié au prospect et au lead d’origine. Complétez maintenant son dossier client." });
+    } catch (e: any) {
+      toast({ title: "Conversion impossible", description: getSafeErrorMessage(e), variant: "destructive" });
+    }
+  };
 
   const save = async () => {
     if (!editing) return;
@@ -88,6 +104,7 @@ export default function Prospects() {
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2"><div className="min-w-0"><CardTitle className="truncate text-base">{p.prenoms} {p.nom}</CardTitle><p className="mt-1 text-sm text-muted-foreground">{p.telephone}</p></div><Badge variant="secondary">{STATUTS.find(s => s.value === p.statut)?.label || p.statut}</Badge></CardHeader>
           <CardContent className="space-y-2 text-sm"><p className="truncate">{p.email || "Aucun email renseigné"}</p><p>Offre : {p.offre_code || p.formule_code || "À définir"}</p><p>Superficie souhaitée : {p.superficie_souhaitee_ha ?? "—"} ha</p><p className="text-xs text-muted-foreground">Référence lead : {p.lead_id}</p>
             <Button className="w-full" variant="outline" onClick={() => setEditing({...p})}><Pencil className="mr-2 h-4 w-4"/>Ouvrir le formulaire Prospect</Button>
+            {p.client_id ? <Badge className="w-full justify-center">Client lié : {p.client_id.slice(0,8)}</Badge> : <Button className="w-full" onClick={() => void convertToClient(p)}><UserRoundCheck className="mr-2 h-4 w-4"/>Convertir en Client</Button>}
           </CardContent></Card>)}</div>}
       <div className="text-xs text-muted-foreground">{visible.length} prospect(s) affiché(s) · Base de données en direct</div>
     </div>
