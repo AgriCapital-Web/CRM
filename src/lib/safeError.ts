@@ -30,6 +30,15 @@ export function getSafeErrorMessage(
   // Never leak DB internals — log them instead
   console.error('[error]', error);
 
+  if (err.code === '23514') {
+    const detail = String((error as any)?.details || (error as any)?.hint || '');
+    const constraint = detail.match(/constraint ["']([^"']+)["']/i)?.[1] || detail.match(/violates check constraint ["']([^"']+)["']/i)?.[1];
+    if (constraint) {
+      const readable = constraint.replace(/^(leads?|clients?)_?/i, '').replace(/_check$/i, '').replace(/_/g, ' ').trim();
+      if (readable) return `Valeur refusée par la règle « ${readable} ». Vérifiez les champs saisis.`;
+    }
+    return 'Une valeur ne respecte pas une règle métier de la base. Vérifiez notamment le statut, la source et les champs conditionnels.';
+  }
   if (err.code && CODE_MESSAGES[err.code]) return CODE_MESSAGES[err.code];
 
   const message = typeof err.message === 'string' ? err.message : '';
