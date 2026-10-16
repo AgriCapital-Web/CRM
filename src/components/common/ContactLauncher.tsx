@@ -1,0 +1,15 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Phone, MessageCircle, MessageSquare, Mail, Copy } from "lucide-react";
+type Props = { phone?: string | null; whatsapp?: string | null; email?: string | null; name?: string; kind?: "lead" | "prospect" | "client" | "proprietaire" | "staff" | "contact"; status?: string };
+export default function ContactLauncher({ phone, whatsapp, email, name = "", kind = "contact", status = "" }: Props) {
+ const [open, setOpen] = useState(false); const phoneValue = String(phone || "").trim();
+ const waPhone = String(whatsapp || phone || "").replace(/[^0-9]/g, "");
+ const subject = kind === "staff" ? "votre activité au sein d’AgriCapital" : kind === "proprietaire" ? "la valorisation de votre terrain" : "votre projet avec AgriCapital";
+ const statusText = status ? " concernant votre dossier (" + status.replace(/_/g, " ") + ")" : "";
+ const message = "Bonjour" + (name ? " " + name : "") + ", je vous contacte au sujet de " + subject + statusText + ". Quand seriez-vous disponible pour échanger ?";
+ const encoded = encodeURIComponent(message); const safePhone = phoneValue.replace(/[^0-9+]/g, "");
+ const copyMessage = async () => { try { await navigator.clipboard.writeText(message); } catch { /* Clipboard indisponible */ } };
+ return <><button type="button" className="inline-flex min-h-8 items-center gap-1 rounded px-1 text-left text-primary underline-offset-4 hover:underline" onClick={() => setOpen(true)} aria-label={"Contacter " + (name || phoneValue || "ce contact")}><Phone className="h-3.5 w-3.5 shrink-0"/><span>{phoneValue || whatsapp || "Contacter"}</span></button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="w-[calc(100%-1.5rem)] max-w-sm rounded-xl"><DialogHeader><DialogTitle>Moyen de contact{name ? " — " + name : ""}</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">Message prérempli selon le type et le statut du contact.</p><div className="rounded-md bg-muted p-3 text-sm">{message}</div><div className="grid grid-cols-2 gap-2">{phoneValue && <Button onClick={() => { window.location.href = "tel:" + safePhone; setOpen(false); }}><Phone className="mr-2 h-4 w-4"/>Appeler</Button>}{waPhone && <Button variant="outline" onClick={() => window.open("https://wa.me/" + waPhone + "?text=" + encoded, "_blank", "noopener,noreferrer")}><MessageCircle className="mr-2 h-4 w-4"/>WhatsApp</Button>}{phoneValue && <Button variant="outline" onClick={() => { window.location.href = "sms:" + safePhone + "?body=" + encoded; setOpen(false); }}><MessageSquare className="mr-2 h-4 w-4"/>SMS</Button>}{email && <Button variant="outline" onClick={() => { window.location.href = "mailto:" + email + "?subject=" + encodeURIComponent("AgriCapital — prise de contact") + "&body=" + encoded; setOpen(false); }}><Mail className="mr-2 h-4 w-4"/>Email</Button>}<Button variant="ghost" className="col-span-2" onClick={() => void copyMessage()}><Copy className="mr-2 h-4 w-4"/>Copier le message</Button></div></DialogContent></Dialog></>;
+}
