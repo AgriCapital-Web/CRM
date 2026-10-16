@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import ClientForm from "@/components/forms/ClientForm";
+import ContactLauncher from "@/components/common/ContactLauncher";
 import KanbanPipeline from "@/components/acquisitions/KanbanPipeline";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -394,7 +395,7 @@ const Clients = () => {
                           <TableCell className="font-medium text-xs whitespace-nowrap">
                             {client.nom_complet || [client.nom, client.prenoms].filter(Boolean).join(" ")}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap text-xs">{client.telephone || "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs"><ContactLauncher phone={client.telephone} whatsapp={client.whatsapp} email={client.email} name={client.nom_complet || client.id_unique || "Client"} kind="client" status={client.statut || client.status || ""}/></TableCell>
                           <TableCell>
                             {client.type_client === "beneficiaire_particulier" ? (
                               <Badge variant="secondary" className="whitespace-nowrap">B. particulier</Badge>
