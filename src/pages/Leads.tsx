@@ -239,6 +239,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["prospects"] });
       qc.invalidateQueries({ queryKey: ["lead_historique", selected?.id] });
       setReassignOpen(false); setReassignTo(""); setReassignMotif("");
       toast({ title: "Prospect réaffecté" });
@@ -274,6 +275,32 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
         if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
         const num = (v: string) => (v === "" || v == null ? null : Number(v));
+        // Un prospect autonome ne doit jamais déclencher une mise à jour de leads.
+        if (editingLead._record_type === "prospect" && !editingLead.lead_id) {
+          const { error } = await (supabase as any).from("prospects").update({
+            nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
+            telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+            district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
+            departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
+            village_id: leadForm.village_id || null, region_residence: leadForm.region_residence || null,
+            campement_quartier: leadForm.campement_quartier || null,
+            dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
+            superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
+            superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
+            superficie_souhaitee_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain !== "oui" ? num(leadForm.superficie_souhaitee_ha) : null,
+            delai_demarrage: leadForm.delai_demarrage || null, date_contact_souhaitee: leadForm.date_contact_souhaitee || null,
+            creneau_prefere: leadForm.creneau_prefere || null, mode_contact_prefere: leadForm.mode_contact_prefere || null,
+            commentaire: leadForm.commentaire || null, statut: leadForm.statut,
+            type_lead: leadForm.type_lead || "client",
+            offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
+            formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
+            source: leadForm.source || editingLead.source,
+            assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
+            updated_at: new Date().toISOString(),
+          }).eq("id", editingLead.prospect_id || editingLead.id);
+          if (error) throw error;
+          return;
+        }
         const { error } = await offlineUpdate("leads", editingLead.id, {
           nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null, telephone: leadForm.telephone,
           whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
@@ -326,35 +353,35 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         throw new Error("Sélectionnez le commercial responsable de ce lead.");
       }
       const num = (v: string) => (v === "" || v == null ? null : Number(v));
-      const { error } = await offlineInsert("leads", {
-        nom: leadForm.nom,
-        prenoms: leadForm.prenoms,
-        civilite: leadForm.civilite || null,
-        telephone: leadForm.telephone,
-        whatsapp: leadForm.whatsapp || null,
-        email: leadForm.email || null,
-        district_id: leadForm.district_id || null, region_id: leadForm.region_id || null, departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null, village_id: leadForm.village_id || null, region_residence: leadForm.region_residence, campement_quartier: leadForm.campement_quartier.trim() || null,
+      const record = {
+        nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
+        telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+        district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
+        departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
+        village_id: leadForm.village_id || null, region_residence: leadForm.region_residence || null,
+        campement_quartier: leadForm.campement_quartier.trim() || null,
         dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
         superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
         superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
         superficie_souhaitee_ha: leadForm.type_lead === "client" && leadForm.dispose_terrain !== "oui" ? num(leadForm.superficie_souhaitee_ha) : null,
-        delai_demarrage: leadForm.delai_demarrage || null,
-        date_contact_souhaitee: leadForm.date_contact_souhaitee || null,
-        creneau_prefere: leadForm.creneau_prefere || null,
-        mode_contact_prefere: leadForm.mode_contact_prefere || null,
-        commentaire: leadForm.commentaire || null,
-        type_lead: leadForm.type_lead || "client",
+        delai_demarrage: leadForm.delai_demarrage || null, date_contact_souhaitee: leadForm.date_contact_souhaitee || null,
+        creneau_prefere: leadForm.creneau_prefere || null, mode_contact_prefere: leadForm.mode_contact_prefere || null,
+        commentaire: leadForm.commentaire || null, type_lead: leadForm.type_lead || "client",
         offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
         formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
         statut: formStage === "prospect" ? (leadForm.statut || "qualifie") : (leadForm.statut || "nouveau"),
-        etape_pipeline: formStage,
-        source: leadForm.source || "commercial_terrain",
-        created_by: user.id,
+        source: leadForm.source || "commercial_terrain", created_by: user.id,
         assigned_to: (leadForm.source === "commercial_terrain" && (canSupervise || isServiceClient))
-        ? (leadForm.assigned_to || null)
-        : user.id,
-      });
-      if (error) throw error;
+          ? (leadForm.assigned_to || null) : user.id,
+      };
+      if (formStage === "prospect") {
+        // Création directe dans prospects : aucun lead artificiel n'est créé.
+        const { error } = await offlineInsert("prospects", record);
+        if (error) throw error;
+      } else {
+        const { error } = await offlineInsert("leads", { ...record, etape_pipeline: "lead" });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -492,21 +519,32 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
   const convertToClient = async (lead: any) => {
     const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
-    if (!isOwner && !canSupervise) {
-      toast({ variant: "destructive", title: "Conversion refusée", description: "Ce lead appartient à un autre commercial." });
+    if (!isOwner && !canSupervise && !isGlobalAdmin) {
+      toast({ variant: "destructive", title: "Conversion refusée", description: "Vous n'avez pas accès à ce dossier." });
       return;
     }
+    const isProspect = lead._record_type === "prospect" || lead.etape_pipeline === "prospect" || !!lead.prospect_id;
     try {
-      const { error } = await offlineUpdate("leads", lead.id, {
-        etape_conversion: lead.etape_pipeline === "prospect" ? "prospect" : "lead",
-      });
-      if (error) throw error;
+      if (isProspect && lead.prospect_id) {
+        // Le prospect peut être autonome : ne toucher au lead que si le lien existe.
+        if (lead.lead_id) {
+          const { error } = await (supabase as any).from("leads").update({ etape_conversion: "prospect" }).eq("id", lead.lead_id);
+          if (error) throw error;
+        }
+      } else if (lead.id && !lead.prospect_id) {
+        const { error } = await offlineUpdate("leads", lead.id, {
+          etape_conversion: "lead",
+        });
+        if (error) throw error;
+      }
     } catch (e: any) {
       toast({ variant: "destructive", title: "Conversion impossible", description: getSafeErrorMessage(e) });
       return;
     }
     const params = new URLSearchParams({
-      lead_id: lead.id, commercial_id: lead.assigned_to || "", nom: lead.nom || "",
+      ...(lead.lead_id ? { lead_id: lead.lead_id } : (!isProspect ? { lead_id: lead.id } : {})),
+      ...(lead.prospect_id || (isProspect ? lead.id : null) ? { prospect_id: lead.prospect_id || lead.id } : {}),
+      commercial_id: lead.assigned_to || "", nom: lead.nom || "",
       prenoms: lead.prenoms || "", telephone: lead.telephone || "", whatsapp: lead.whatsapp || "",
       email: lead.email || "", district_id: lead.district_id || "", region_id: lead.region_id || "",
       departement_id: lead.departement_id || "", sous_prefecture_id: lead.sous_prefecture_id || "",
