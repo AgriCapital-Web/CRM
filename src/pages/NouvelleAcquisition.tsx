@@ -48,7 +48,10 @@ const NouvelleAcquisition = () => {
       ...(prospectId ? { prospect_id: prospectId } : {}),
       commercial_id:searchParams.get("commercial_id")||undefined,
       nom_famille:searchParams.get("nom")||"", prenoms:searchParams.get("prenoms")||"",
-      telephone:searchParams.get("telephone")||"", whatsapp:searchParams.get("whatsapp")||"", email:searchParams.get("email")||""
+      telephone:searchParams.get("telephone")||"", whatsapp:searchParams.get("whatsapp")||"", email:searchParams.get("email")||"",
+      district_id:searchParams.get("district_id")||"", region_id:searchParams.get("region_id")||"",
+      departement_id:searchParams.get("departement_id")||"", sous_prefecture_id:searchParams.get("sous_prefecture_id")||"",
+      village_id:searchParams.get("village_id")||"", domicile:searchParams.get("village")||""
     });
   },[searchParams]);
 
