@@ -19,7 +19,7 @@ L.Marker.prototype.options.icon = defaultIcon;
 const redIcon = L.divIcon({
   className: 'agricapital-location-marker',
   bgPos: [0, 0],
-  html: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" style="display:block;width:32px;height:42px;background:transparent;overflow:visible;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><path d="M16 1C7.7 1 1 7.7 1 16c0 11 15 25 15 25s15-14 15-25C31 7.7 24.3 1 16 1Z" fill="#dc2626" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="#fff"/></svg>',
+  html: '<span style="display:block;width:32px;height:42px;background:transparent!important;border:0!important;overflow:visible;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42" style="display:block;width:32px;height:42px;max-width:none;background:transparent"><path d="M16 1C7.7 1 1 7.7 1 16c0 11 15 25 15 25s15-14 15-25C31 7.7 24.3 1 16 1Z" fill="#dc2626" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="#fff"/></svg></span>',
   iconSize: [32, 42],
   iconAnchor: [16, 41],
   popupAnchor: [0, -38],
@@ -68,22 +68,51 @@ interface InteractiveMapProps {
 // In view mode, frame every valid marker so the user's pins cannot sit outside the initial viewport.
 const FitMarkers = ({ markers }: { markers: MapMarker[] }) => {
   const map = useMap();
+  const validMarkers = markers.filter((m) =>
+    Number.isFinite(m.lat) && Number.isFinite(m.lng) &&
+    m.lat >= -90 && m.lat <= 90 && m.lng >= -180 && m.lng <= 180
+  );
+
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      map.invalidateSize({ pan: false });
-      const valid = markers.filter((m) =>
-        Number.isFinite(m.lat) && Number.isFinite(m.lng) &&
-        m.lat >= -90 && m.lat <= 90 && m.lng >= -180 && m.lng <= 180
-      );
-      if (valid.length === 1) {
-        map.setView([valid[0].lat, valid[0].lng], 13, { animate: false });
-      } else if (valid.length > 1) {
-        const bounds = L.latLngBounds(valid.map((m) => [m.lat, m.lng] as [number, number]));
-        map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13, animate: false });
-      }
+    let secondFrame = 0;
+    // Mobile cards and lazy-loaded sections can report a zero/partial size on the first frame.
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        map.invalidateSize({ pan: false, debounceMoveend: true });
+        if (!validMarkers.length) return;
+        if (validMarkers.length === 1) {
+          map.setView([validMarkers[0].lat, validMarkers[0].lng], 13, { animate: false });
+        } else {
+          const bounds = L.latLngBounds(validMarkers.map((m) => [m.lat, m.lng] as [number, number]));
+          const compact = window.matchMedia('(max-width: 640px)').matches;
+          map.fitBounds(bounds, { padding: compact ? [18, 18] : [28, 28], maxZoom: 13, animate: false });
+        }
+      });
     });
-    return () => window.cancelAnimationFrame(frame);
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
   }, [map, markers]);
+
+  useEffect(() => {
+    const container = map.getContainer();
+    let frame = 0;
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          window.cancelAnimationFrame(frame);
+          frame = window.requestAnimationFrame(() => {
+            map.invalidateSize({ pan: false, debounceMoveend: true });
+          });
+        })
+      : null;
+    observer?.observe(container);
+    return () => {
+      observer?.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [map]);
+
   return null;
 };
 
