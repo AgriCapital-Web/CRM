@@ -16,7 +16,7 @@ const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 export const EtapeRepresentantDynamique=({formData,updateFormData}:Props)=>{
  const { byCategory: refs } = useSystemReferences(["representant_qualite","civilite"]);
  const active=Boolean(formData.has_representant);
- const file=(field:string,label:string,ocr=false)=><FileUploadVisual label={label} field={field} accept=".pdf,image/jpeg,image/png" required currentFile={formData[field+"_file"]||null} currentPreview={formData[field+"_preview"]||""} onFileChange={(f,v,p)=>updateFormData({[field+"_file"]:v,[field+"_preview"]:p})} onIdentityNumberDetected={ocr?n=>updateFormData({representant_numero_piece:n}):undefined} identityDocumentType={formData.representant_type_piece}/>;
+ const file=(field:string,label:string,ocr=false)=><FileUploadVisual label={label} field={field} accept=".pdf,image/*" required currentFile={formData[field+"_file"]||null} currentPreview={formData[field+"_preview"]||""} onFileChange={(f,v,p)=>updateFormData({[field+"_file"]:v,[field+"_preview"]:p})} onIdentityNumberDetected={ocr?n=>updateFormData({representant_numero_piece:n}):undefined} identityDocumentType={formData.representant_type_piece}/>;
  return <div className="space-y-6">
   <Card><CardHeader><CardTitle>Cotitulaire ou mandataire</CardTitle></CardHeader><CardContent><div className="flex items-center gap-2"><Checkbox id="has_representant" checked={active} onCheckedChange={v=>updateFormData({has_representant:Boolean(v),has_cotitulaire:Boolean(v)})}/><Label htmlFor="has_representant">Ajouter un cotitulaire ou un mandataire</Label></div></CardContent></Card>
   {active&&<Card><CardHeader><CardTitle>Identité du représentant</CardTitle></CardHeader><CardContent className="space-y-4">
