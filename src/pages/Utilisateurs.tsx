@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import ContactLauncher from "@/components/common/ContactLauncher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -345,7 +346,7 @@ const Utilisateurs = () => {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium whitespace-nowrap">{formatUserShortName(user.nom_complet)}</TableCell>
                   <TableCell className="whitespace-nowrap">{user.email || "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap">{user.telephone || "N/A"}</TableCell>
+                  <TableCell className="whitespace-nowrap"><ContactLauncher phone={user.telephone} email={user.email} name={user.full_name || user.nom_complet || user.email || "Utilisateur"} kind="staff" status={user.statut || user.status || ""}/></TableCell>
                   <TableCell>
                     {getHighestRole(user) ? (
                       <Badge variant="outline" className="whitespace-nowrap text-xs">
@@ -440,7 +441,7 @@ const Utilisateurs = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Nom</span><p className="font-medium">{formatUserShortName(viewUser.nom_complet || "—")}</p></div>
                 <div><span className="text-muted-foreground">Email</span><p className="font-medium break-all">{viewUser.email || "—"}</p></div>
-                <div><span className="text-muted-foreground">Téléphone</span><p>{viewUser.telephone || "—"}</p></div>
+                <div><span className="text-muted-foreground">Téléphone</span><p><ContactLauncher phone={viewUser.telephone} email={viewUser.email} name={viewUser.full_name || viewUser.nom_complet || viewUser.email || "Utilisateur"} kind="staff" status={viewUser.statut || viewUser.status || ""}/></p></div>
                 <div><span className="text-muted-foreground">Relation RH</span><p>{viewUser.relation_rh || "—"}</p></div>
                 <div><span className="text-muted-foreground">Département</span><p>{viewUser.departement || "—"}</p></div>
                 <div><span className="text-muted-foreground">Équipe</span><p>{viewUser.equipe_id || "—"}</p></div>
