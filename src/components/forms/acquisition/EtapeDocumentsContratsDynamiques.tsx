@@ -90,7 +90,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
                 <FileUploadVisual
                   label={required ? "Téléverser le fichier *" : "Téléverser le fichier"}
                   field={doc.code}
-                  accept=".pdf,image/jpeg,image/png"
+                  accept=".pdf,image/*"
                   required={required}
                   currentFile={formData["doc_" + doc.code + "_file"] || null}
                   currentPreview={formData["doc_" + doc.code + "_preview"] || ""}
@@ -130,7 +130,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
                 <FileUploadVisual
                   label="Contrat signé (si disponible)"
                   field={"contrat_"+contract.type_contrat}
-                  accept=".pdf,image/jpeg,image/png"
+                  accept=".pdf,image/*"
                   required={false}
                   currentFile={formData["contrat_"+contract.type_contrat+"_file"]||null}
                   currentPreview={formData["contrat_"+contract.type_contrat+"_preview"]||""}
