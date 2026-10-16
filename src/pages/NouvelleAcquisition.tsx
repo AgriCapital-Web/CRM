@@ -103,7 +103,7 @@ const NouvelleAcquisition = () => {
     }
     if(step.code==="client"){
       const fields=["civilite","nom_famille","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece","telephone","domicile"];
-      if(fields.some(f=>!formData[f])||!formData.photo_piece_recto_file||!formData.photo_piece_verso_file||!formData.photo_profil_file){
+      if(fields.some(f=>!formData[f])||(!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview)){
         toast({variant:"destructive",title:"Client incomplet",description:"L’identité, les coordonnées, la photo et les deux faces de la pièce sont obligatoires."}); return false;
       }
     }
@@ -195,8 +195,11 @@ const NouvelleAcquisition = () => {
 
       // Si le dossier provient d’un lead, conserver la traçabilité de l’affectation commerciale.
       if(formData.lead_id){
-        const {error:leadError}=await (supabase as any).from("leads").update({client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:new Date().toISOString()}).eq("id",formData.lead_id);
+        const convertedAt=new Date().toISOString();
+        const {error:leadError}=await (supabase as any).from("leads").update({client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:convertedAt}).eq("id",formData.lead_id);
         if(leadError) throw leadError;
+        const {error:prospectError}=await (supabase as any).from("prospects").update({client_id:client.id,statut:"converti",updated_at:convertedAt}).eq("lead_id",formData.lead_id);
+        if(prospectError) throw prospectError;
       }
 
       for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
