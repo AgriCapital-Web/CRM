@@ -275,7 +275,7 @@ const NouvelleAcquisition = () => {
         if(doc.obligatoire&&!formData["doc_"+doc.code+"_file"])throw new Error("Pièce obligatoire manquante : "+doc.libelle);
         const file=formData["doc_"+doc.code+"_file"];if(!file)continue;
         const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/pieces");if(!uploaded)throw new Error("Upload impossible : "+doc.libelle);
-        const {error}=await (supabase as any).from("documents_acquisition").insert({client_id:client.id,type_document:doc.code,code_document:doc.code,categorie:doc.categorie,obligatoire:doc.obligatoire,source_contractuelle:doc.source_contractuelle,fichier_url:uploaded.url,statut:"en_attente",uploaded_by:user.id,metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code}});
+        const {error}=await (supabase as any).from("documents_acquisition").insert({client_id:client.id,type_document:doc.code,code_document:doc.code,categorie:doc.categorie,obligatoire:doc.obligatoire,source_contractuelle:doc.source_contractuelle,fichier_url:uploaded.url,statut:"en_attente",uploaded_by:user.id,metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,storage_bucket:"documents"}});
         if(error)throw error;
       }
 
@@ -290,7 +290,7 @@ const NouvelleAcquisition = () => {
             client_id:client.id,type_document:contract.type_contrat,code_document:contract.type_contrat,
             categorie:"contrat",obligatoire:!!contract.obligatoire,source_contractuelle:contract.type_contrat,
             fichier_url:uploaded.path,statut:"en_attente",uploaded_by:user.id,
-            metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:contract.nom||contract.libelle||contract.type_contrat}
+            metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:contract.nom||contract.libelle||contract.type_contrat,storage_bucket:"documents"}
           });
           if(contractDocError)throw contractDocError;
         }
