@@ -5,7 +5,7 @@
   "theme_color": "#00643C",
   "background_color": "#ffffff",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "start_url": "/",
   "scope": "/",
   "id": "ac-teams",
@@ -14,7 +14,7 @@
       "src": "/logo-agricapital.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "any"
     },
     {
       "src": "/logo-agricapital.png",
