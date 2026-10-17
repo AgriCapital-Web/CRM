@@ -199,6 +199,7 @@ export function useOfflineSync() {
       if (managesSyncState) setIsSyncing(true);
       let syncedCount = 0;
       let conflictCount = 0;
+      const conflictDetails: string[] = [];
 
       try {
         for (const op of pendingOps) {
@@ -210,7 +211,13 @@ export function useOfflineSync() {
               result = await (supabase as any).from(op.table).upsert(op.data, { onConflict: 'id' });
             } else if (op.operation === 'update') {
               const res = await resolveUpdateConflict(op.table, op.record_id, op.data, op.timestamp);
-              if (res.conflicted) conflictCount++;
+              if (res.conflicted) {
+                conflictCount++;
+                const fields = (res.conflictingFields || []).slice(0, 5).join(', ');
+                const detail = `${op.table} #${op.record_id}${fields ? ` — champs conservés côté serveur : ${fields}` : ''}`;
+                conflictDetails.push(detail);
+                console.warn('[OfflineSync] Conflit détecté; données serveur préservées', { table: op.table, recordId: op.record_id, fields: res.conflictingFields || [] });
+              }
               if (res.skipped) {
                 await markOpStatus(op.id!, 'synced');
                 syncedCount++;
@@ -240,14 +247,15 @@ export function useOfflineSync() {
         setPendingFiles(fileCount);
         setPendingCount(stats.pending + stats.error + httpStats.pending + httpStats.error);
 
-        if (syncedCount > 0 || uploadedFiles > 0) {
+        if (syncedCount > 0 || uploadedFiles > 0 || conflictCount > 0) {
           window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-            detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount },
+            detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount, conflictDetails },
           }));
+          const conflictSummary = conflictDetails.slice(0, 3).join(' ; ');
           toast({
-            title: 'Synchronisation terminée',
+            title: conflictCount > 0 ? 'Conflits de synchronisation détectés' : 'Synchronisation terminée',
             description: `${syncedCount} modification(s), ${uploadedFiles} fichier(s) envoyé(s)`
-              + `${conflictCount > 0 ? `, ${conflictCount} conflit(s) fusionné(s)` : ''}`
+              + `${conflictCount > 0 ? `. ${conflictCount} conflit(s) : les valeurs serveur plus récentes ont été conservées. ${conflictSummary}` : ''}`
               + `${stats.error + httpStats.error > 0 ? `, ${stats.error + httpStats.error} erreur(s)` : ''}`,
           });
         }

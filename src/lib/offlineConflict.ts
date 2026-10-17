@@ -12,6 +12,7 @@ export interface ConflictResult {
   conflicted: boolean;
   skipped: boolean;
   serverUpdatedAt?: string | null;
+  conflictingFields?: string[];
 }
 
 export async function resolveUpdateConflict(
@@ -47,20 +48,24 @@ export async function resolveUpdateConflict(
   // Le serveur est plus récent : merge par champ, on ne remplace que
   // les champs dont la valeur locale diffère ET que le serveur n'a pas déjà renseignés autrement.
   const merged: Record<string, any> = {};
+  const conflictingFields: string[] = [];
   for (const [key, value] of Object.entries(payload)) {
     const serverValue = server[key];
     if (serverValue === null || serverValue === undefined || serverValue === '') {
       merged[key] = value; // champ vide côté serveur → la valeur terrain gagne
     } else if (JSON.stringify(serverValue) === JSON.stringify(value)) {
-      // identique, rien à faire
+      // Valeur identique : aucune divergence.
+    } else {
+      // Le serveur est plus récent : ne pas écraser sa valeur, mais rendre le conflit visible.
+      conflictingFields.push(key);
     }
-    // sinon : le serveur (plus récent) est conservé
   }
 
   return {
     payload: merged,
-    conflicted: true,
+    conflicted: conflictingFields.length > 0,
     skipped: Object.keys(merged).length === 0,
+    conflictingFields,
     serverUpdatedAt: server.updated_at,
   };
 }
