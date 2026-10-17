@@ -4,11 +4,11 @@
  */
 
 const DB_NAME = 'agricapital_offline';
-const DB_VERSION = 11;
+const DB_VERSION = 12;
 
 export const STORES = {
   CLIENTS: 'clients',
-  CLIENT_SOUSCRIPTIONS: 'client_souscriptions',
+  ACQUISITIONS: 'acquisitions',
   PLANTATIONS: 'plantations',
   PAIEMENTS: 'paiements',
   OFFRES: 'offres',
@@ -84,6 +84,44 @@ function openDB(): Promise<IDBDatabase> {
             const store = db.createObjectStore(name, { keyPath: 'id' });
             store.createIndex('updated_at', 'updated_at');
           }
+        }
+      }
+      const tx = (event.target as IDBOpenDBRequest).transaction;
+      const rewriteLegacy = (value: any) => JSON.parse(JSON.stringify(value)
+        .replaceAll('client_souscriptions', 'acquisitions')
+        .replaceAll('souscription_id', 'acquisition_id')
+        .replaceAll('create_client_souscription', 'create_client_acquisition')
+        .replaceAll('subscription_current_payment_state', 'acquisition_current_payment_state'));
+      const legacyName = 'client_souscriptions';
+      if (tx && db.objectStoreNames.contains(legacyName) && db.objectStoreNames.contains(STORES.ACQUISITIONS)) {
+        const legacyStore = tx.objectStore(legacyName);
+        const acquisitionStore = tx.objectStore(STORES.ACQUISITIONS);
+        const rows = legacyStore.getAll();
+        rows.onsuccess = () => {
+          for (const row of rows.result || []) acquisitionStore.put(rewriteLegacy(row));
+          db.deleteObjectStore(legacyName);
+        };
+      }
+      if (tx) {
+        for (const storeName of [STORES.SYNC_QUEUE, STORES.HTTP_MUTATIONS, STORES.HTTP_CACHE]) {
+          if (!db.objectStoreNames.contains(storeName)) continue;
+          const store = tx.objectStore(storeName);
+          const cursorRequest = store.openCursor();
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) return;
+            const oldValue = cursor.value;
+            const newValue = rewriteLegacy(oldValue);
+            if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+              if (storeName === STORES.HTTP_CACHE && newValue.key !== oldValue.key) {
+                store.put(newValue);
+                cursor.delete();
+              } else {
+                cursor.update(newValue);
+              }
+            }
+            cursor.continue();
+          };
         }
       }
     };
@@ -361,7 +399,7 @@ export async function getOfflineStats(): Promise<Record<string, number>> {
 
 export const TABLE_TO_OFFLINE_STORE: Record<string, string> = {
   clients: STORES.CLIENTS,
-  client_souscriptions: STORES.CLIENT_SOUSCRIPTIONS,
+  acquisitions: STORES.ACQUISITIONS,
   plantations: STORES.PLANTATIONS,
   paiements: STORES.PAIEMENTS,
   offres: STORES.OFFRES,

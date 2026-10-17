@@ -1,7 +1,7 @@
-const CACHE_NAME = "agricapital-crm-v10";
+const CACHE_NAME = "agricapital-crm-v11";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
-const OFFLINE_DB_VERSION = 11;
+const OFFLINE_DB_VERSION = 12;
 const HTTP_QUEUE_STORE = "http_mutations";
 const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json", "/asset-manifest.json", "/logo-agricapital.png", "/apple-touch-icon.png"];
 const FONT_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
@@ -148,7 +148,7 @@ function openOfflineDb() {
       // stores as the app so a future app upgrade never encounters a partial DB.
       const db = event.target.result;
       const stores = [
-        "clients","plantations","paiements","offres","districts","regions","departements","sous_prefectures","villages","leads","lead_relances","proprietaires_terres","parcelles","rapports_visites_techniques","rapports_visites_medias","cartes_personnel","offline_files","sync_queue","auth_cache","meta","profiles","user_roles","role_permissions","departements_entreprise","app_roles","offre_formulaire_etapes","offre_formulaire_documents","offre_formulaire_contrats","conventions_foncieres","lots_hectares","documents_acquisition","portail_messages","finance_transactions","finance_expenses","finance_associates","finance_salary_profiles","finance_payroll_runs","finance_payroll_items","commissions","portefeuilles","portefeuille_versements","portefeuille_versement_lignes","interventions_techniques","tickets","tickets_techniques","beneficiaire_attributions","acquisitions_brouillon","http_cache","http_mutations"
+        "clients","acquisitions","plantations","paiements","offres","districts","regions","departements","sous_prefectures","villages","leads","lead_relances","proprietaires_terres","parcelles","rapports_visites_techniques","rapports_visites_medias","cartes_personnel","offline_files","sync_queue","auth_cache","meta","profiles","user_roles","role_permissions","departements_entreprise","app_roles","offre_formulaire_etapes","offre_formulaire_documents","offre_formulaire_contrats","conventions_foncieres","lots_hectares","documents_acquisition","portail_messages","finance_transactions","finance_expenses","finance_associates","finance_salary_profiles","finance_payroll_runs","finance_payroll_items","commissions","portefeuilles","portefeuille_versements","portefeuille_versement_lignes","interventions_techniques","tickets","tickets_techniques","beneficiaire_attributions","acquisitions_brouillon","http_cache","http_mutations"
       ];
       for (const name of stores) {
         if (db.objectStoreNames.contains(name)) continue;
@@ -162,6 +162,44 @@ function openOfflineDb() {
         } else {
           const store = db.createObjectStore(name, { keyPath: "id" });
           store.createIndex("updated_at", "updated_at");
+        }
+      }
+      const tx = event.target.transaction;
+      const rewriteLegacy = (value) => JSON.parse(JSON.stringify(value)
+        .replaceAll("client_souscriptions", "acquisitions")
+        .replaceAll("souscription_id", "acquisition_id")
+        .replaceAll("create_client_souscription", "create_client_acquisition")
+        .replaceAll("subscription_current_payment_state", "acquisition_current_payment_state"));
+      const legacyName = "client_souscriptions";
+      if (tx && db.objectStoreNames.contains(legacyName) && db.objectStoreNames.contains("acquisitions")) {
+        const oldStore = tx.objectStore(legacyName);
+        const newStore = tx.objectStore("acquisitions");
+        const rows = oldStore.getAll();
+        rows.onsuccess = () => {
+          for (const row of rows.result || []) newStore.put(rewriteLegacy(row));
+          db.deleteObjectStore(legacyName);
+        };
+      }
+      if (tx) {
+        for (const storeName of ["sync_queue", "http_mutations", "http_cache"]) {
+          if (!db.objectStoreNames.contains(storeName)) continue;
+          const store = tx.objectStore(storeName);
+          const cursorRequest = store.openCursor();
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) return;
+            const oldValue = cursor.value;
+            const newValue = rewriteLegacy(oldValue);
+            if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+              if (storeName === "http_cache" && newValue.key !== oldValue.key) {
+                store.put(newValue);
+                cursor.delete();
+              } else {
+                cursor.update(newValue);
+              }
+            }
+            cursor.continue();
+          };
         }
       }
     };

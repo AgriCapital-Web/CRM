@@ -21,7 +21,7 @@ let legacyPushInProgress = false;
 // Reference tables to cache for full offline use
 const REF_TABLES = [
   { store: STORES.OFFRES, table: 'offres' },
-  { store: STORES.CLIENT_SOUSCRIPTIONS, table: 'client_souscriptions' },
+  { store: STORES.ACQUISITIONS, table: 'acquisitions' },
   { store: STORES.DISTRICTS, table: 'districts' },
   { store: STORES.REGIONS, table: 'regions' },
   { store: STORES.DEPARTEMENTS, table: 'departements' },

@@ -22,7 +22,7 @@ const TABLE_TO_STORE: Record<string, string> = {
   rapports_visites_medias: STORES.RAPPORTS_MEDIAS,
   interventions_techniques: STORES.INTERVENTIONS_TECHNIQUES,
   tickets_techniques: STORES.TICKETS_TECHNIQUES,
-  client_souscriptions: STORES.CLIENT_SOUSCRIPTIONS,
+  acquisitions: STORES.ACQUISITIONS,
   conventions_foncieres: STORES.CONVENTIONS_FONCIERES,
   lots_hectares: STORES.LOTS_HECTARES,
   portail_messages: STORES.PORTAIL_MESSAGES,
