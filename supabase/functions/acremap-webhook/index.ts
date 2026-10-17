@@ -14,7 +14,9 @@ Deno.serve(async(req)=>{
  let body:any;try{body=JSON.parse(raw)}catch{return respond({error:"invalid_json"},400)}
  if(body?.event!=="morcellement.published"||typeof body.event_id!=="string"||!body.plan||!Array.isArray(body.lots)) return respond({error:"invalid_payload"},400);
  const plan=body.plan, planId=String(plan.id??"");if(!planId)return respond({error:"missing_plan_id"},400);
- const {error:pe}=await admin.from("acremap_morcellements").upsert({id:planId,event_id:body.event_id,owner_id:body.owner_id?String(body.owner_id):null,parcelle_id:plan.parcelle_id?String(plan.parcelle_id):null,reference:plan.reference??null,status:"received",payload:body,source_updated_at:plan.updated_at??new Date().toISOString()},{onConflict:"id"});
+ const assignedOwnerIds=[...new Set((body.lots as any[]).map((lot:any)=>lot.assignee_owner_id?String(lot.assignee_owner_id):null).filter(Boolean))];
+ const ownerId=body.owner_id?String(body.owner_id):(plan.owner_id?String(plan.owner_id):(assignedOwnerIds.length===1?assignedOwnerIds[0]:null));
+ const {error:pe}=await admin.from("acremap_morcellements").upsert({id:planId,event_id:body.event_id,owner_id:ownerId,parcelle_id:plan.parcelle_id?String(plan.parcelle_id):null,reference:plan.reference??null,status:"received",payload:body,source_updated_at:plan.updated_at??new Date().toISOString()},{onConflict:"id"});
  if(pe)return respond({error:"plan_persist_failed"},500);
  const lots=body.lots.map((lot:any)=>({id:String(lot.id??(planId+":"+lot.code)),plan_id:planId,owner_id:lot.assignee_owner_id?String(lot.assignee_owner_id):null,code:String(lot.code??""),part:lot.part??null,kind:lot.kind??"lot",area_m2:Number.isFinite(Number(lot.area_m2))?Number(lot.area_m2):null,payload:lot}));
  if(lots.length){const {error:le}=await admin.from("acremap_lots").upsert(lots,{onConflict:"id"});if(le)return respond({error:"lots_persist_failed"},500)}
@@ -22,12 +24,11 @@ Deno.serve(async(req)=>{
  if(existingLotsError)return respond({error:"existing_lots_query_failed"},500);
  const currentLotIds=new Set(lots.map((lot:any)=>lot.id));
  for(const existing of existingLots??[]){if(!currentLotIds.has(existing.id)){const {error:deleteError}=await admin.from("acremap_lots").delete().eq("id",existing.id);if(deleteError)return respond({error:"stale_lot_cleanup_failed"},500)}}
- const ownerId=String(body.owner_id??plan.owner_id??"");
+ if(plan.parcelle_id){
+  const {error:supersedeError}=await admin.from("acremap_morcellements").update({status:"superseded"}).eq("parcelle_id",String(plan.parcelle_id)).neq("id",planId);
+  if(supersedeError)return respond({error:"previous_plan_update_failed"},500);
+ }
  if(ownerId){
-  if(plan.parcelle_id){
-   const {error:supersedeError}=await admin.from("acremap_morcellements").update({status:"superseded"}).eq("parcelle_id",String(plan.parcelle_id)).neq("id",planId);
-   if(supersedeError)return respond({error:"previous_plan_update_failed"},500);
-  }
   const {data:ownerPlans,error:ownerPlansError}=await admin.from("acremap_morcellements").select("id").eq("owner_id",ownerId).eq("status","received");
   if(ownerPlansError)return respond({error:"owner_plans_query_failed"},500);
   const ownerPlanIds=(ownerPlans??[]).map((item:any)=>item.id);
