@@ -62,7 +62,7 @@ const Login = () => {
   return (
     <div className="login-page min-h-screen flex flex-col lg:flex-row">
       {/* Panneau gauche - Branding (caché sur mobile, visible sur desktop) */}
-      <div className="login-brand-panel hidden lg:flex lg:w-1/2 xl:w-[52%] bg-primary relative flex-col items-center justify-center px-6 xl:px-10 py-10 overflow-hidden">
+      <div className="login-brand-panel hidden lg:flex lg:w-[42%] xl:w-[42%] bg-primary relative flex-col items-center justify-center px-6 xl:px-10 py-10 overflow-hidden">
         {/* Pattern décoratif */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-40 h-40 rounded-full border-2 border-white/30" />
@@ -88,7 +88,7 @@ const Login = () => {
 
 
       {/* Panneau droit - Formulaire de connexion */}
-      <div className="login-form-panel relative flex-1 flex flex-col items-center justify-center px-3 py-5 sm:px-6 sm:py-8 lg:px-8 xl:px-12 bg-gradient-to-b from-background via-background to-primary/5 min-h-dvh lg:min-h-0">
+      <div className="login-form-panel relative flex-1 min-w-0 flex flex-col items-center justify-center px-3 py-5 sm:px-6 sm:py-8 lg:px-8 xl:px-12 2xl:px-16 bg-gradient-to-b from-background via-background to-primary/5 min-h-dvh lg:min-h-0">
 {/* Logo mobile — sans cadre */}
 
         <div className="login-brand-mobile lg:hidden mb-5 w-full min-w-0 flex flex-col items-center px-1 py-2">
@@ -100,15 +100,15 @@ const Login = () => {
           
         </div>
 
-        <div className="login-form-card mx-auto w-full max-w-xl rounded-2xl border bg-card/95 p-4 sm:p-6 lg:max-w-3xl lg:p-8 xl:p-10 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
-          <div className="login-form-title mb-4 text-center lg:mb-6 lg:text-left">
-            <h2 className="text-[clamp(2rem,4.4vw,3rem)] font-bold text-foreground">Connexion</h2>
+        <div className="login-form-card mx-auto w-full max-w-xl min-w-0 rounded-2xl border bg-card/95 p-4 sm:p-6 lg:max-w-4xl lg:p-8 xl:p-10 2xl:p-12 shadow-lg lg:border-0 lg:bg-transparent lg:shadow-none">
+          <div className="login-form-title mb-4 text-center lg:mb-8 lg:text-left">
+            <h2 className="text-[clamp(2rem,3.4vw,3.5rem)] font-bold leading-tight text-foreground">Connexion</h2>
             
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-foreground text-lg font-semibold">
+              <Label htmlFor="username" className="text-foreground text-lg lg:text-xl font-semibold">
                 Nom d'utilisateur
               </Label>
               <Input
@@ -118,7 +118,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="login-input h-12 sm:h-14 lg:h-16 text-base sm:text-lg lg:text-xl"
+                className="login-input h-12 sm:h-14 lg:h-[4.5rem] text-base sm:text-lg lg:text-xl"
                 disabled={isLoading}
                 autoComplete="username"
                 autoCapitalize="none"
@@ -152,14 +152,14 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="login-input h-12 sm:h-14 lg:h-16 pr-14 text-base sm:text-lg lg:text-xl"
+                  className="login-input h-12 sm:h-14 lg:h-[4.5rem] pr-14 text-base sm:text-lg lg:text-xl"
                   disabled={isLoading}
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-12 w-12 sm:h-14 sm:w-14 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-12 w-12 sm:h-14 sm:w-14 lg:h-[4.5rem] lg:w-[4.5rem] hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -173,7 +173,7 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="login-submit w-full h-12 sm:h-14 lg:h-[4.25rem] text-base sm:text-xl font-semibold gap-2"
+              className="login-submit w-full h-12 sm:h-14 lg:h-[4.5rem] text-base sm:text-xl lg:text-2xl font-semibold gap-2"
               disabled={isLoading}
             >
               <LogIn className="h-4 w-4" />
@@ -186,7 +186,7 @@ const Login = () => {
               type="button"
               variant="link"
               onClick={() => navigate('/account-request')}
-              className="text-primary text-base gap-2"
+              className="text-primary text-base lg:text-lg gap-2"
             >
               <UserPlus className="h-3.5 w-3.5" />
               Demander la création d'un compte
