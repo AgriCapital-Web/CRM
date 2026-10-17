@@ -39,9 +39,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   });
   const [clients, setClients] = useState<any[]>([]);
   const [plantations, setPlantations] = useState<any[]>([]);
-  const [clientSubscriptions, setClientSubscriptions] = useState<any[]>([]);
-  const [selectedSubscription, setSelectedSubscription] = useState<any>(null);
-  const [subscriptionPaymentState, setSubscriptionPaymentState] = useState<any>(null);
+  const [clientAcquisitions, setClientAcquisitions] = useState<any[]>([]);
+  const [selectedAcquisition, setSelectedAcquisition] = useState<any>(null);
+  const [acquisitionPaymentState, setAcquisitionPaymentState] = useState<any>(null);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [selectedPlantation, setSelectedPlantation] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
@@ -59,7 +59,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   useEffect(() => { if (!typePaiement) { const v=refs("type_paiement")[0]?.code; if (v) setValue("type_paiement", v); } }, [typePaiement, setValue, refs]);
   const clientId = watch("client_id");
   const plantationId = watch("plantation_id");
-  const subscriptionId = watch("souscription_id");
+  const acquisitionId = watch("souscription_id");
   const typePreuve = watch("type_preuve");
   const montantPaye = watch("montant_paye");
 
@@ -75,26 +75,26 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       setValue("souscription_id", "");
       setSelectedClient(null);
       setSelectedPlantation(null);
-      setSelectedSubscription(null);
-      setClientSubscriptions([]);
+      setSelectedAcquisition(null);
+      setClientAcquisitions([]);
       setPlantations([]);
     }
   }, [typePaiement, setValue]);
 
-  // Quand client change : charger ses plantations et toutes ses souscriptions financières.
+  // Quand client change : charger ses plantations et toutes ses acquisitions financières.
   useEffect(() => {
     if (!clientId) {
       setSelectedClient(null);
-      setClientSubscriptions([]);
-      setSelectedSubscription(null);
-      setSubscriptionPaymentState(null);
+      setClientAcquisitions([]);
+      setSelectedAcquisition(null);
+      setAcquisitionPaymentState(null);
       return;
     }
     const client = clients.find((s) => s.id === clientId);
     setSelectedClient(client);
     setValue("souscription_id", paiement?.client_id === clientId ? (paiement?.souscription_id || "") : "");
-    setSelectedSubscription(null);
-    setSubscriptionPaymentState(null);
+    setSelectedAcquisition(null);
+    setAcquisitionPaymentState(null);
     if (typePaiement === "MENSUALITE") fetchPlantationsByClient(clientId);
     else setPlantations([]);
 
@@ -118,33 +118,33 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         payments = data || [];
       }
       if (!active) return;
-      setClientSubscriptions((subs || []).map((sub: any) => ({
+      setClientAcquisitions((subs || []).map((sub: any) => ({
         ...sub,
         pi_paye: payments.some((payment: any) => payment.souscription_id === sub.id && ["valide","paye","paid","success","successful","completed"].includes(String(payment.statut || "").toLowerCase())),
         paiement_initial_id: payments.find((payment: any) => payment.souscription_id === sub.id)?.id || null,
       })));
     })().catch((error: any) => {
-      if (active) toast({ variant: "destructive", title: "Souscriptions indisponibles", description: getSafeErrorMessage(error) });
+      if (active) toast({ variant: "destructive", title: "Acquisitions indisponibles", description: getSafeErrorMessage(error) });
     });
     return () => { active = false; };
   }, [clientId, typePaiement, clients, setValue, toast]);
 
   // Quand plantation change (pour MENSUALITE)
   useEffect(() => {
-    if (plantationId && typePaiement === "MENSUALITE" && !subscriptionId) {
+    if (plantationId && typePaiement === "MENSUALITE" && !acquisitionId) {
       const plantation = plantations.find((p) => p.id === plantationId);
       setSelectedPlantation(plantation);
       
       // Charger l'état financier réel depuis la DB
       chargerEtatPaiementDepuisDb(plantation);
     }
-  }, [plantationId, typePaiement, plantations, subscriptionId]);
+  }, [plantationId, typePaiement, plantations, acquisitionId]);
 
   // Pour PI: récupérer l'offre du client puis calculer le PI via le moteur central.
   useEffect(() => {
     let cancelled = false;
     const loadClientOffer = async () => {
-      if (typePaiement !== "PI" || !clientId || subscriptionId) {
+      if (typePaiement !== "PI" || !clientId || acquisitionId) {
         setClientOffre(null);
         return;
       }
@@ -182,45 +182,45 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
     void loadClientOffer();
     return () => { cancelled = true; };
-  }, [typePaiement, clientId, subscriptionId, setValue, toast]);
+  }, [typePaiement, clientId, acquisitionId, setValue, toast]);
 
   useEffect(() => {
-    if (!subscriptionId) {
-      setSelectedSubscription(null);
-      setSubscriptionPaymentState(null);
+    if (!acquisitionId) {
+      setSelectedAcquisition(null);
+      setAcquisitionPaymentState(null);
       return;
     }
-    const subscription = clientSubscriptions.find((sub: any) => sub.id === subscriptionId) || null;
-    setSelectedSubscription(subscription);
-    if (!subscription) return;
+    const acquisition = clientAcquisitions.find((sub: any) => sub.id === acquisitionId) || null;
+    setSelectedAcquisition(acquisition);
+    if (!acquisition) return;
     if (typePaiement === "PI") {
-      const amount = Number(subscription.montant_pi_total || 0);
+      const amount = Number(acquisition.montant_pi_total || 0);
       setClientOffre(null);
       setValue("montant_theorique", amount);
       setValue("montant_paye", amount);
-      setValue("souscription_id", subscription.id);
-      setSubscriptionPaymentState(null);
+      setValue("souscription_id", acquisition.id);
+      setAcquisitionPaymentState(null);
     } else if (typePaiement === "MENSUALITE") {
       let active = true;
       void (async () => {
-        const { data, error } = await (supabase as any).rpc("subscription_current_payment_state", { _souscription_id: subscription.id });
+        const { data, error } = await (supabase as any).rpc("subscription_current_payment_state", { _souscription_id: acquisition.id });
         if (error) throw error;
         if (!active) return;
-        setSubscriptionPaymentState(data || null);
+        setAcquisitionPaymentState(data || null);
         const due = Math.max(0, Number(data?.mensualite?.montant_a_payer || 0));
         setValue("montant_theorique", due);
         setValue("montant_paye", due > 0 ? due : "");
-        const plantation = plantations.find((item: any) => item.souscription_id === subscription.id);
+        const plantation = plantations.find((item: any) => item.souscription_id === acquisition.id);
         setValue("plantation_id", plantation?.id || "");
       })().catch((error: any) => {
         if (active) toast({ variant: "destructive", title: "Échéancier indisponible", description: getSafeErrorMessage(error) });
       });
       return () => { active = false; };
     }
-  }, [typePaiement, subscriptionId, clientSubscriptions, plantations, setValue, toast]);
+  }, [typePaiement, acquisitionId, clientAcquisitions, plantations, setValue, toast]);
 
   useEffect(() => {
-    if (typePaiement !== "PI" || !clientOffre || subscriptionId) return;
+    if (typePaiement !== "PI" || !clientOffre || acquisitionId) return;
     const prix = calculPrixEffectif(
       clientOffre,
       promotionActive ? [promotionActive as any] : [],
@@ -231,7 +231,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     if (montantPaye === undefined || montantPaye === null || montantPaye === "" || Number(montantPaye) <= 0) {
       setValue("montant_paye", totalPI);
     }
-  }, [typePaiement, clientOffre, promotionActive, subscriptionId, clientSurface, montantPaye, setValue]);
+  }, [typePaiement, clientOffre, promotionActive, acquisitionId, clientSurface, montantPaye, setValue]);
 
   const fetchClients = async () => {
     try {
@@ -367,20 +367,20 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         const selected = clients.find((client: any) => client.id === data.client_id);
         if (!selected || selected.type_client === "beneficiaire_particulier" || selected.is_internal ||
             (selected.contrat_solde_at && !data.souscription_id)) {
-          toast({ variant: "destructive", title: "Paiement interdit", description: "Sélectionnez un client ayant encore un contrat ou une souscription à régler." });
+          toast({ variant: "destructive", title: "Paiement interdit", description: "Sélectionnez un client ayant encore un contrat ou une acquisition à régler." });
           return;
         }
 
         if (data.type_paiement === "PI" && data.souscription_id) {
-          const subscription = clientSubscriptions.find((sub: any) => sub.id === data.souscription_id);
-          if (!subscription || subscription.client_id !== data.client_id) {
-            toast({ variant: "destructive", title: "Souscription invalide", description: "Choisissez une souscription appartenant au client sélectionné." });
+          const acquisition = clientAcquisitions.find((sub: any) => sub.id === data.souscription_id);
+          if (!acquisition || acquisition.client_id !== data.client_id) {
+            toast({ variant: "destructive", title: "Acquisition invalide", description: "Choisissez une acquisition appartenant au client sélectionné." });
             return;
           }
-          const due = Math.max(0, Number(subscription.montant_pi_total || 0));
+          const due = Math.max(0, Number(acquisition.montant_pi_total || 0));
           const amount = Number(validated.montant_paye ?? data.montant_paye ?? 0);
-          if (subscription.pi_paye || due <= 0) {
-            toast({ variant: "destructive", title: "Paiement initial déjà réglé", description: "Cette souscription ne présente plus de paiement initial à régler." });
+          if (acquisition.pi_paye || due <= 0) {
+            toast({ variant: "destructive", title: "Paiement initial déjà réglé", description: "Cette acquisition ne présente plus de paiement initial à régler." });
             return;
           }
           if (Math.abs(amount - due) > 1) {
@@ -390,14 +390,14 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           const { data: existing, error: existingError } = await (supabase as any)
             .from("paiements")
             .select("id,statut")
-            .eq("souscription_id", subscription.id)
+            .eq("souscription_id", acquisition.id)
             .eq("est_paiement_initial", true)
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
           if (existingError) throw existingError;
           if (existing && ["valide", "paye", "paid", "success", "successful", "completed"].includes(String(existing.statut || "").toLowerCase())) {
-            toast({ variant: "destructive", title: "Paiement déjà validé", description: "Le paiement initial de cette souscription a déjà été validé." });
+            toast({ variant: "destructive", title: "Paiement déjà validé", description: "Le paiement initial de cette acquisition a déjà été validé." });
             return;
           }
           pendingPaymentToUpdate = existing?.id || null;
@@ -405,7 +405,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           data.montant_theorique = due;
           data.est_paiement_initial = true;
           data.phase = "paiement_initial";
-          data.parcours = subscription.famille_offre || subscription.offre_code;
+          data.parcours = acquisition.famille_offre || acquisition.offre_code;
         } else {
           const { data: summary, error: summaryError } = await (supabase as any)
             .from("v_client_synthese")
@@ -414,7 +414,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
             .maybeSingle();
           if (summaryError) throw summaryError;
           if (summary && Number(summary.montant_total_contrat || 0) > 0 && Number(summary.reste_a_payer || 0) <= 0) {
-            toast({ variant: "destructive", title: "Contrat soldé", description: "Aucun paiement ne reste dû sur le contrat initial ou ses souscriptions." });
+            toast({ variant: "destructive", title: "Contrat soldé", description: "Aucun paiement ne reste dû sur le contrat initial ou ses acquisitions." });
             return;
           }
           const { data: paymentState, error: stateError } = await (supabase as any)
@@ -507,7 +507,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       )
     : null;
   const montantCalculePI = prixPI ? Math.round(Number(prixPI.pi_effectif || 0) * clientSurface) : null;
-  const availablePiSubscriptions = clientSubscriptions.filter((sub: any) =>
+  const availablePiAcquisitions = clientAcquisitions.filter((sub: any) =>
     Number(sub.montant_pi_total || 0) > 0 && (!sub.pi_paye || sub.id === paiement?.souscription_id)
   );
 
@@ -550,20 +550,20 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           </div>
         )}
 
-        {typePaiement === "PI" && clientId && clientSubscriptions.length > 0 && (
+        {typePaiement === "PI" && clientId && clientAcquisitions.length > 0 && (
           <div>
             <Label htmlFor="souscription_id">Contrat à régler</Label>
             <Select
-              value={subscriptionId || "contrat-principal"}
+              value={acquisitionId || "contrat-principal"}
               onValueChange={(value) => {
                 setValue("souscription_id", value === "contrat-principal" ? "" : value);
-                if (value === "contrat-principal") setSelectedSubscription(null);
+                if (value === "contrat-principal") setSelectedAcquisition(null);
               }}
             >
               <SelectTrigger><SelectValue placeholder="Choisir le contrat concerné" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="contrat-principal">Contrat initial du client</SelectItem>
-                {availablePiSubscriptions.map((sub: any) => (
+                {availablePiAcquisitions.map((sub: any) => (
                   <SelectItem key={sub.id} value={sub.id}>
                     {sub.formule_nom || sub.offre_nom} · {Number(sub.superficie_ha || 0).toLocaleString("fr-FR")} ha · PI {Number(sub.montant_pi_total || 0).toLocaleString("fr-FR")} F
                   </SelectItem>
@@ -643,15 +643,15 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           </Card>
         )}
 
-        {selectedSubscription && typePaiement === "PI" && (
+        {selectedAcquisition && typePaiement === "PI" && (
           <Card className="border-primary/20 bg-primary/5">
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Paiement initial de la souscription</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Paiement initial de la acquisition</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Offre / formule</span><strong className="text-right">{selectedSubscription.formule_nom || selectedSubscription.offre_nom}</strong></div>
-              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Superficie</span><strong>{Number(selectedSubscription.superficie_ha || 0).toLocaleString("fr-FR")} ha</strong></div>
-              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Coût du contrat</span><strong>{Number(selectedSubscription.montant_total_contrat || 0).toLocaleString("fr-FR")} F</strong></div>
-              <div className="flex justify-between gap-3 border-t pt-2"><span className="font-semibold">Paiement initial</span><strong className="text-primary">{Number(selectedSubscription.montant_pi_total || 0).toLocaleString("fr-FR")} F</strong></div>
-              <p className="text-xs text-muted-foreground">Ce paiement sera rattaché uniquement à cette souscription, sans modifier le premier contrat du client.</p>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Offre / formule</span><strong className="text-right">{selectedAcquisition.formule_nom || selectedAcquisition.offre_nom}</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Superficie</span><strong>{Number(selectedAcquisition.superficie_ha || 0).toLocaleString("fr-FR")} ha</strong></div>
+              <div className="flex justify-between gap-3"><span className="text-muted-foreground">Coût du contrat</span><strong>{Number(selectedAcquisition.montant_total_contrat || 0).toLocaleString("fr-FR")} F</strong></div>
+              <div className="flex justify-between gap-3 border-t pt-2"><span className="font-semibold">Paiement initial</span><strong className="text-primary">{Number(selectedAcquisition.montant_pi_total || 0).toLocaleString("fr-FR")} F</strong></div>
+              <p className="text-xs text-muted-foreground">Ce paiement sera rattaché uniquement à cette acquisition, sans modifier le premier contrat du client.</p>
             </CardContent>
           </Card>
         )}

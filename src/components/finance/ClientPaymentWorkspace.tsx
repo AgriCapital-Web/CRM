@@ -38,7 +38,7 @@ type ClientFinanceRow = {
 type ContractState = {
   id: string;
   label: string;
-  subscriptionId: string | null;
+  acquisitionId: string | null;
   plantationId: string | null;
   surface: number;
   state: any;
@@ -71,7 +71,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const { data: clients = [], isLoading, refetch } = useQuery({
     queryKey: ["gestion-paiements-clients"],
     queryFn: async () => {
-      const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: subscriptions, error: subscriptionsError }] = await Promise.all([
+      const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: acquisitions, error: acquisitionsError }] = await Promise.all([
         (supabase as any).from("clients")
           .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares")
           .eq("compte_actif", true)
@@ -85,21 +85,21 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       ]);
       if (clientsError) throw clientsError;
       if (summaryError) throw summaryError;
-      if (subscriptionsError) throw subscriptionsError;
+      if (acquisitionsError) throw acquisitionsError;
       const byClient = new Map<string, any>((summaries || []).map((s: any) => [s.client_id, s]));
-      const subscriptionMap = new Map<string, any[]>();
-      (subscriptions || []).forEach((s: any) => { const items = subscriptionMap.get(s.client_id) || []; items.push(s); subscriptionMap.set(s.client_id, items); });
+      const acquisitionMap = new Map<string, any[]>();
+      (acquisitions || []).forEach((s: any) => { const items = acquisitionMap.get(s.client_id) || []; items.push(s); acquisitionMap.set(s.client_id, items); });
       return (clientRows || []).map((c: any) => {
-        const clientSubscriptions = subscriptionMap.get(c.id) || [];
-        const subscriptionTotal = clientSubscriptions.reduce((sum: number, s: any) => sum + Number(s.montant_total_contrat || 0), 0);
+        const clientAcquisitions = acquisitionMap.get(c.id) || [];
+        const acquisitionTotal = clientAcquisitions.reduce((sum: number, s: any) => sum + Number(s.montant_total_contrat || 0), 0);
         const summary = byClient.get(c.id) || null;
-        const principalTotal = Number(summary?.montant_total_contrat ?? (Number(c.montant_total_contrat || 0) + subscriptionTotal));
+        const principalTotal = Number(summary?.montant_total_contrat ?? (Number(c.montant_total_contrat || 0) + acquisitionTotal));
         return {
           ...c,
           summary,
-          subscriptionTotal,
-          subscriptions: clientSubscriptions,
-          formule_nom: c.formule_nom || clientSubscriptions.map((s: any) => s.formule_nom || s.offre_nom).filter(Boolean).join(" · "),
+          acquisitionTotal,
+          acquisitions: clientAcquisitions,
+          formule_nom: c.formule_nom || clientAcquisitions.map((s: any) => s.formule_nom || s.offre_nom).filter(Boolean).join(" · "),
           montant_total_contrat: principalTotal,
         } as ClientFinanceRow;
       })
@@ -135,7 +135,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const daysLate = Number(monthly.jours_retard ?? (arrearsMonths * 30));
   const remaining = Number(activeState?.reste_contrat ?? activeClient?.summary?.reste_a_payer ?? activeClient?.summary?.montant_total_contrat ?? activeClient?.montant_total_contrat ?? 0);
   const piBalance = Number(pi.solde || 0);
-  const availablePlantations = plantations.filter((p: any) => activeContract?.subscriptionId ? p.souscription_id === activeContract.subscriptionId : !p.souscription_id);
+  const availablePlantations = plantations.filter((p: any) => activeContract?.acquisitionId ? p.souscription_id === activeContract.acquisitionId : !p.souscription_id);
 
   const suggestedPaymentType = (state: any): PaymentType => {
     const p = state?.paiement_initial || {};
@@ -189,13 +189,13 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       if (subsRes.error) throw subsRes.error;
       if (plantationsRes.error) throw plantationsRes.error;
       if (basePaymentsRes.error) throw basePaymentsRes.error;
-      const subscriptionIds = (subsRes.data || []).map((s: any) => s.id).filter(Boolean);
+      const acquisitionIds = (subsRes.data || []).map((s: any) => s.id).filter(Boolean);
       let allClientPlantations = plantationsRes.data || [];
-      if (subscriptionIds.length) {
-        const { data: subscriptionPlantations, error: subscriptionPlantationsError } = await (supabase as any).from("plantations").select("id,id_unique,nom_plantation,superficie_ha,souscription_id,statut_global").in("souscription_id", subscriptionIds);
-        if (subscriptionPlantationsError) throw subscriptionPlantationsError;
+      if (acquisitionIds.length) {
+        const { data: acquisitionPlantations, error: acquisitionPlantationsError } = await (supabase as any).from("plantations").select("id,id_unique,nom_plantation,superficie_ha,souscription_id,statut_global").in("souscription_id", acquisitionIds);
+        if (acquisitionPlantationsError) throw acquisitionPlantationsError;
         const unique = new Map<string, any>();
-        [...allClientPlantations, ...(subscriptionPlantations || [])].forEach((p: any) => unique.set(p.id, p));
+        [...allClientPlantations, ...(acquisitionPlantations || [])].forEach((p: any) => unique.set(p.id, p));
         allClientPlantations = [...unique.values()];
       }
       const basePaid = (basePaymentsRes.data || []).reduce((sum: number, p: any) => sum + Number(p.montant_paye ?? p.montant ?? 0), 0);
@@ -209,7 +209,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const nextContracts: ContractState[] = [{
         id: "principal",
         label: "Contrat initial du client",
-        subscriptionId: null,
+        acquisitionId: null,
         plantationId: allClientPlantations.find((p: any) => !p.souscription_id)?.id || null,
         surface: Number(client.total_hectares || 0),
         state: normalizedBaseState,
@@ -221,8 +221,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         if (subStateRes.error) throw subStateRes.error;
         nextContracts.push({
           id: sub.id,
-          label: `${sub.formule_nom || sub.offre_nom || "Souscription"} · ${Number(sub.superficie_ha || 0).toLocaleString("fr-FR")} ha`,
-          subscriptionId: sub.id,
+          label: `${sub.formule_nom || sub.offre_nom || "Acquisition"} · ${Number(sub.superficie_ha || 0).toLocaleString("fr-FR")} ha`,
+          acquisitionId: sub.id,
           plantationId: allClientPlantations.find((p: any) => p.souscription_id === sub.id)?.id || null,
           surface: Number(sub.superficie_ha || 0),
           state: subStateRes.data || {},
@@ -233,7 +233,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const firstWithArrears = nextContracts.find(c => Number(c.state?.mensualite?.montant_arriere || 0) > 0);
       const firstWithMonthly = nextContracts.find(c => Number(c.state?.mensualite?.montant_a_payer || 0) > 0);
       const firstWithBalance = nextContracts.find(c => Number(c.state?.reste_contrat || c.state?.montant_total_contrat || 0) > 0);
-      const initial = firstWithArrears || firstWithMonthly || firstWithPI || firstWithBalance || nextContracts.find(c => c.subscriptionId) || nextContracts[0];
+      const initial = firstWithArrears || firstWithMonthly || firstWithPI || firstWithBalance || nextContracts.find(c => c.acquisitionId) || nextContracts[0];
       if (initial) {
         setSelectedContractId(initial.id);
         const type = suggestedPaymentType(initial.state);
@@ -282,7 +282,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       toast({ variant: "destructive", title: "Mensualité indisponible", description: "Aucune mensualité n’est actuellement exigible pour ce contrat. Le paiement est bloqué pour éviter une mauvaise imputation." });
       return;
     }
-    const plantationRequired = paymentType !== "PI" || Boolean(activeContract.subscriptionId);
+    const plantationRequired = paymentType !== "PI" || Boolean(activeContract.acquisitionId);
     if (plantationRequired && !selectedPlantationId) {
       toast({ variant: "destructive", title: "Plantation requise", description: "Une plantation réelle rattachée à ce contrat est nécessaire pour ce type de paiement." });
       return;
@@ -290,8 +290,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     setPaying(true);
     try {
       // Le contrat principal réutilise la validation de couverture de jours du portail.
-      // Les souscriptions ont leur propre échéancier et leur propre état financier.
-      if ((paymentType === "MENSUALITE" || paymentType === "RATTRAPAGE" || paymentType === "AVANCE") && !activeContract.subscriptionId) {
+      // Les acquisitions ont leur propre échéancier et leur propre état financier.
+      if ((paymentType === "MENSUALITE" || paymentType === "RATTRAPAGE" || paymentType === "AVANCE") && !activeContract.acquisitionId) {
         const { data: clientContract, error: contractError } = await (supabase as any)
           .from("clients")
           .select("jours_contrat_total,jours_payes")
@@ -315,7 +315,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const reference = `CRM-${activeClient.id.slice(0, 8)}-${Date.now()}`;
       const payload = {
         client_id: activeClient.id,
-        souscription_id: activeContract.subscriptionId,
+        souscription_id: activeContract.acquisitionId,
         plantation_id: selectedPlantationId,
         type_paiement: paymentType === "PI" ? "PI" : "MENSUALITE",
         montant: paymentAmount,
@@ -330,14 +330,14 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           payment_provider: "kkiapay",
           source: "crm_financial_sheet",
           intention: paymentType === "PI" ? (Number(pi.montant_paye || pi.deja_paye || 0) > 0 ? "solde_paiement_initial" : "paiement_initial") : paymentType === "RATTRAPAGE" ? "rattrapage" : paymentType === "AVANCE" ? "avance" : "mensualite",
-          souscription_id: activeContract.subscriptionId,
+          souscription_id: activeContract.acquisitionId,
           contract_remaining_at_creation: remaining,
         },
       };
       const pendingQuery = (supabase as any).from("paiements").select("id,statut,reference")
         .eq("client_id", activeClient.id).eq("type_paiement", paymentType === "PI" ? "PI" : "MENSUALITE").eq("statut", "en_attente");
-      const scopedPending = activeContract.subscriptionId
-        ? pendingQuery.eq("souscription_id", activeContract.subscriptionId)
+      const scopedPending = activeContract.acquisitionId
+        ? pendingQuery.eq("souscription_id", activeContract.acquisitionId)
         : pendingQuery.is("souscription_id", null);
       const { data: existing, error: existingError } = await scopedPending.order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (existingError) throw existingError;
@@ -381,7 +381,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         name: activeClient.nom_complet || "Client AgriCapital",
         phone: paymentPhone || activeClient.telephone || "",
         paymentMethods: ["momo", "card"],
-        data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, souscription_id: activeContract.subscriptionId },
+        data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, souscription_id: activeContract.acquisitionId },
       });
       if (!opened) throw new Error("Le module de paiement en ligne ne s’est pas ouvert. Vérifiez la connexion et la configuration du compte marchand.");
     } catch (error: any) {
@@ -446,7 +446,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                 <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Arriéré</p><p className={`mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm ${arrearsMonths > 0 ? "text-destructive" : ""}`}>{arrearsMonths} Mois</p></CardContent></Card>
                 <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Échéance</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(Number(monthly.montant_a_payer || 0))}</p></CardContent></Card>
               </div>
-              {contracts.length > 1 && <div className="space-y-2"><label className="text-sm font-medium">Contrat / souscription à régler</label><Select value={selectedContractId} onValueChange={chooseContract}><SelectTrigger><SelectValue placeholder="Choisir le contrat" /></SelectTrigger><SelectContent>{contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent></Select></div>}
+              {contracts.length > 1 && <div className="space-y-2"><label className="text-sm font-medium">Contrat / acquisition à régler</label><Select value={selectedContractId} onValueChange={chooseContract}><SelectTrigger><SelectValue placeholder="Choisir le contrat" /></SelectTrigger><SelectContent>{contracts.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent></Select></div>}
               <div className="space-y-2">
                   <label className="text-sm font-medium">Plantation concernée</label>
                   {availablePlantations.length > 0 ? (
@@ -454,7 +454,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                       <SelectTrigger><SelectValue placeholder="Choisir la plantation" /></SelectTrigger>
                       <SelectContent>{availablePlantations.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nom_plantation || p.id_unique || "Plantation"} · {Number(p.superficie_ha || 0).toLocaleString("fr-FR")} ha</SelectItem>)}</SelectContent>
                     </Select>
-                  ) : <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">Aucune plantation n’est rattachée à ce contrat. Les mensualités et les paiements initiaux d’une souscription restent bloqués. Le paiement initial du contrat principal peut toutefois être réglé sur le dossier client.</p>}
+                  ) : <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">Aucune plantation n’est rattachée à ce contrat. Les mensualités et les paiements initiaux d’une acquisition restent bloqués. Le paiement initial du contrat principal peut toutefois être réglé sur le dossier client.</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Type de règlement</label>
@@ -475,7 +475,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
-            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType !== "PI" || Boolean(activeContract.subscriptionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0) || (paymentType === "RATTRAPAGE" && arrearsAmount <= 0 && daysLate <= 0) || (paymentType === "AVANCE" && (arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0))}>
+            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType !== "PI" || Boolean(activeContract.acquisitionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0) || (paymentType === "RATTRAPAGE" && arrearsAmount <= 0 && daysLate <= 0) || (paymentType === "AVANCE" && (arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0))}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {paying ? "Ouverture / vérification…" : paymentType === "RATTRAPAGE" ? "Rattraper le paiement" : paymentType === "PI" ? "Payer le solde initial" : paymentType === "AVANCE" ? "Payer en avance" : "Payer la mensualité"}
             </Button>
