@@ -4,12 +4,18 @@ create table if not exists public.acremap_integration_settings (
  enabled boolean not null default false, updated_at timestamptz not null default now()
 );
 alter table public.acremap_integration_settings enable row level security;
+-- Les secrets ne sont jamais lisibles depuis le navigateur : lecture/écriture via
+-- l'Edge Function acremap-settings, qui utilise la clé service_role après contrôle du rôle.
 drop policy if exists acremap_settings_manage on public.acremap_integration_settings;
-create policy acremap_settings_manage on public.acremap_integration_settings for all to authenticated
-using (private.has_role_permission('parametres.manage_system') or private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'pdg') or private.has_role(auth.uid(),'dg'))
-with check (private.has_role_permission('parametres.manage_system') or private.is_global_admin(auth.uid()) or private.has_role(auth.uid(),'pdg') or private.has_role(auth.uid(),'dg'));
-grant select, insert, update on public.acremap_integration_settings to authenticated;
-grant all on public.acremap_integration_settings to service_role;
+revoke all on table public.acremap_integration_settings from anon, authenticated;
+grant all on table public.acremap_integration_settings to service_role;
+
+alter table public.proprietaires_terres
+  add column if not exists nombre_lots_agricapital integer not null default 0,
+  add column if not exists part_agricapital_ha numeric not null default 0,
+  add column if not exists part_proprietaire_ha numeric not null default 0,
+  add column if not exists part_agricapital_pct numeric not null default 0,
+  add column if not exists part_proprietaire_pct numeric not null default 0;
 
 create table if not exists public.acremap_morcellements (
  id text primary key, event_id text unique, owner_id text, parcelle_id text, reference text,
