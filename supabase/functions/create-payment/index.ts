@@ -259,7 +259,7 @@ serve(async (req) => {
     }
 
     if (action === "insert") {
-      const { client_id, plantation_id, type_paiement, reference, mode_paiement, montant } = body;
+      const { client_id, plantation_id, type_paiement, reference, montant } = body;
       if (!client_id || !type_paiement || !reference) {
         throw new Error("Client, type de paiement et référence requis");
       }
@@ -346,11 +346,13 @@ serve(async (req) => {
         montant_theorique: amount,
         montant_paye: null,
         statut: "en_attente",
-        mode_paiement: mode_paiement || "Mobile Money",
+        mode_paiement: null,
+        aggregateur_paiement: "KKiaPay",
         reference,
         est_paiement_initial: canonicalType === "PI",
         metadata: {
           payment_provider: "kkiapay",
+          kkiapay_method: null,
           source: "client_portal",
           db_amount: amount,
           requested_payment_amount: amount,
@@ -475,7 +477,7 @@ serve(async (req) => {
       // payment must belong to the client owning that session. Only the
       // minimum fields needed to render the result UI are returned; PII
       // (nom_complet, telephone, client_id) is never exposed.
-      const selectFields = "id, reference, statut, montant, montant_paye, type_paiement, mode_paiement, date_paiement, created_at, metadata, plantations(nom_plantation, id_unique, superficie_ha), clients(nom_complet,telephone)";
+      const selectFields = "id, reference, statut, montant, montant_paye, type_paiement, mode_paiement, aggregateur_paiement, date_paiement, created_at, metadata, plantations(nom_plantation, id_unique, superficie_ha), clients(nom_complet,telephone)";
       let row: any = null;
       let error: any = null;
       if (reference) {

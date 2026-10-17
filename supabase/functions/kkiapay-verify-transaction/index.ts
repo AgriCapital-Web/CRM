@@ -158,7 +158,7 @@ serve(async (req) => {
 
     const { error: methodError } = await admin
       .from("paiements")
-      .update({ mode_paiement: method })
+      .update({ mode_paiement: method, aggregateur_paiement: "KKiaPay" })
       .eq("id", paiementId);
     if (methodError) console.error("Payment channel update failed", methodError.message);
 

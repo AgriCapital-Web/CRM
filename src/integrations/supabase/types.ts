@@ -4688,6 +4688,7 @@ export type Database = {
           jours_couverts: number
           jours_retard: number
           kkiapay_transaction_id: string | null
+          aggregateur_paiement: string | null
           metadata: Json | null
           mode_paiement: string | null
           montant: number
@@ -4731,6 +4732,7 @@ export type Database = {
           jours_couverts?: number
           jours_retard?: number
           kkiapay_transaction_id?: string | null
+          aggregateur_paiement?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number
@@ -4774,6 +4776,7 @@ export type Database = {
           jours_couverts?: number
           jours_retard?: number
           kkiapay_transaction_id?: string | null
+          aggregateur_paiement?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number

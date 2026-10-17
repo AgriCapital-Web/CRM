@@ -169,7 +169,7 @@ serve(async (req) => {
       return json({ success: false, error: "Le paiement n'a pas pu être enregistré" }, 409);
     }
 
-    const { error: methodError } = await admin.from("paiements").update({ mode_paiement: method }).eq("id", payment.id);
+    const { error: methodError } = await admin.from("paiements").update({ mode_paiement: method, aggregateur_paiement: "KKiaPay" }).eq("id", payment.id);
     if (methodError) console.error("Kkiapay method update failed", methodError.message);
     const { error: eventError } = await admin.from("kkiapay_events").insert({
       ...eventBase, status: verifiedStatus, amount: providerAmount, fees: Number(verified?.fees || body?.fees || 0),
