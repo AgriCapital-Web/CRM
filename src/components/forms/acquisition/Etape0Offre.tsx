@@ -84,7 +84,8 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
   const familles = useMemo(() => {
     const groups = new Map<string, Offre[]>();
     for (const offre of offres || []) {
-      const famille = String((offre as any).famille_offre || "").trim();
+      // Every active offer remains selectable even when its family is not configured.
+      const famille = String((offre as any).famille_offre || offre.nom || offre.code || "").trim();
       if (!famille) continue;
       const current = groups.get(famille) || [];
       current.push(offre);
@@ -110,8 +111,9 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     const pricingMode = formData.mode_paiement === "comptant" ? "comptant" : "echeancier";
     const prix = calculPrixEffectif(o, promotionActive ? [promotionActive as any] : [], { modePaiement: pricingMode });
 
-    const piUnitaireBase = Number((prix as any).depot_initial_base || 0);
-    const piUnitaireFinal = Number((prix as any).depot_initial_effectif || 0);
+    // Use the real fields returned by calculPrixEffectif; old keys silently displayed PI as 0.
+    const piUnitaireBase = Number(prix.pi_base || 0);
+    const piUnitaireFinal = Number(prix.pi_effectif || 0);
     const totalUnitaire = Number(prix.montant_total_base || 0);
     const totalFinal = Number(prix.montant_total_effectif || 0);
     const mensualiteEffective = Number(prix.mensualite_effective || 0);

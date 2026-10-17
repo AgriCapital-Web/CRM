@@ -64,7 +64,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
   useEffect(() => {
     let active = true;
     (async () => {
-      const columns = "id,code,nom,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,actif";
+      const columns = "id,code,nom,description,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,necessite_cotitulaire,contrat_acquisition_requis,contrat_accompagnement_requis,gestion_type,montant_pi_par_ha,montant_cash_par_ha,mensualite_par_ha,montant_total_par_ha,duree_paiement_mois,tranches_paiement,paiement_signature_par_ha,paiement_apres_trouaison_par_ha,actif,ordre";
       try {
         const { data, error } = await (supabase as any).from("offres").select(columns).eq("actif", true).order("ordre").order("nom");
         if (error) throw error;
@@ -88,6 +88,30 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
   const offer = useMemo(() => offers.find(o => o.id === form.offre_id) || null, [offers, form.offre_id]);
   const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
   const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || (!form.formule_code ? offerFormulas[0] : null) || null;
+  const effectiveOffer = useMemo(() => {
+    if (!offer) return null;
+    const result: any = { ...offer };
+    if (selectedFormula) {
+      for (const key of [
+        "montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha",
+        "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement",
+        "gestion_type", "necessite_foncier_client", "necessite_cotitulaire",
+        "contrat_acquisition_requis", "contrat_accompagnement_requis",
+      ]) {
+        if (selectedFormula[key] !== undefined && selectedFormula[key] !== null) result[key] = selectedFormula[key];
+      }
+    }
+    return result;
+  }, [offer, selectedFormula]);
+  const formatOfferAmount = (value: unknown) => {
+    const amount = Number(value);
+    return value !== null && value !== undefined && value !== "" && Number.isFinite(amount)
+      ? `${new Intl.NumberFormat("fr-FR").format(amount)} F/ha`
+      : "Non configuré";
+  };
+  const paymentTranches = Array.isArray(effectiveOffer?.tranches_paiement)
+    ? effectiveOffer.tranches_paiement.filter((tranche: any) => tranche.type !== "paiement_initial" && Number(tranche.mensualite_par_ha || 0) > 0)
+    : [];
 
   const isBeneficiary = form.type_client === "beneficiaire_particulier";
   const hasActivity = Number(form.nombre_plantations || 0) > 0 || Boolean(form.pi_paye_at || form.paiement_initial_paye_at);
@@ -270,6 +294,52 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
             <div><Label className="text-xs">Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{const selected=offers.find(o=>o.id===v);if(!selected)return;const formulas=Array.isArray(selected.formules_configuration)?selected.formules_configuration:[];const formula=formulas[0]||null;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:formula?.code||selected.formule_code||selected.code,formule_nom:formula?.nom||selected.formule_nom||selected.nom,parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}}><SelectTrigger className="h-8"><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
             <div><Label className="text-xs">Formule</Label><Select value={selectedFormula?.code || ""} onValueChange={code=>{const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={!offerFormulas.length}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
           </div>
+          {effectiveOffer && (
+            <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{effectiveOffer.nom}{selectedFormula?.nom ? ` — ${selectedFormula.nom}` : ""}</p>
+                  <p className="text-xs text-muted-foreground">Configuration chargée depuis Paramètres → Offres · valeurs par hectare</p>
+                </div>
+                <Badge variant={effectiveOffer.actif ? "default" : "outline"}>{effectiveOffer.actif ? "Offre active" : "Offre inactive"}</Badge>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div className="rounded-md border bg-background p-2">
+                  <p className="text-xs text-muted-foreground">Paiement initial</p>
+                  <p className="font-semibold tabular-nums">{formatOfferAmount(effectiveOffer.montant_pi_par_ha ?? effectiveOffer.paiement_signature_par_ha)}</p>
+                </div>
+                <div className="rounded-md border bg-background p-2">
+                  <p className="text-xs text-muted-foreground">Mensualité configurée</p>
+                  <p className="font-semibold tabular-nums">{formatOfferAmount(effectiveOffer.mensualite_par_ha)}</p>
+                </div>
+                <div className="rounded-md border bg-background p-2">
+                  <p className="text-xs text-muted-foreground">Coût total configuré</p>
+                  <p className="font-semibold tabular-nums">{formatOfferAmount(effectiveOffer.montant_total_par_ha ?? effectiveOffer.montant_cash_par_ha)}</p>
+                </div>
+              </div>
+              {paymentTranches.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold">Échéancier configuré</p>
+                  {paymentTranches.map((tranche: any, index: number) => (
+                    <div key={`${tranche.annee || index}-${tranche.mois_debut || 0}`} className="flex flex-wrap justify-between gap-2 border-t pt-1 text-xs">
+                      <span>An {tranche.annee || index + 1} · mois {tranche.mois_debut ?? "—"} à {tranche.mois_fin ?? "—"} ({tranche.mois ?? (Number(tranche.mois_fin || 0) - Number(tranche.mois_debut || 1) + 1)} mois)</span>
+                      <span className="font-medium tabular-nums">{formatOfferAmount(tranche.mensualite_par_ha)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Aucune tranche annuelle n’est configurée pour cette offre/formule dans la base.</p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="outline">Applicable : {effectiveOffer.type_offre === "sans_terre" ? "sans terre" : effectiveOffer.type_offre === "avec_terre" ? "avec terre" : "type non précisé"}</Badge>
+                <Badge variant="outline">{effectiveOffer.necessite_foncier_client ? "Foncier client requis" : "Foncier client non requis"}</Badge>
+                {effectiveOffer.necessite_cotitulaire && <Badge variant="outline">Cotitulaire requis</Badge>}
+                {effectiveOffer.contrat_acquisition_requis && <Badge variant="outline">Contrat d’acquisition requis</Badge>}
+                {effectiveOffer.contrat_accompagnement_requis && <Badge variant="outline">Contrat d’accompagnement requis</Badge>}
+                {effectiveOffer.gestion_type && <Badge variant="outline">Gestion : {String(effectiveOffer.gestion_type)}</Badge>}
+              </div>
+            </div>
+          )}
           {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Le dossier possède déjà une activation, un paiement initial ou une plantation. Le choix de l’offre ici ne recalcule pas les éléments contractuels déjà activés.</span></div>}
         </CardContent>
       </Card>
