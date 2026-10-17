@@ -59,7 +59,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   useEffect(() => { if (!typePaiement) { const v=refs("type_paiement")[0]?.code; if (v) setValue("type_paiement", v); } }, [typePaiement, setValue, refs]);
   const clientId = watch("client_id");
   const plantationId = watch("plantation_id");
-  const acquisitionId = watch("souscription_id");
+  const acquisitionId = watch("acquisition_id");
   const typePreuve = watch("type_preuve");
   const montantPaye = watch("montant_paye");
 
@@ -72,7 +72,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     if (typePaiement && !paiement) {
       setValue("client_id", "");
       setValue("plantation_id", "");
-      setValue("souscription_id", "");
+      setValue("acquisition_id", "");
       setSelectedClient(null);
       setSelectedPlantation(null);
       setSelectedAcquisition(null);
@@ -92,7 +92,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     }
     const client = clients.find((s) => s.id === clientId);
     setSelectedClient(client);
-    setValue("souscription_id", paiement?.client_id === clientId ? (paiement?.souscription_id || "") : "");
+    setValue("acquisition_id", paiement?.client_id === clientId ? (paiement?.acquisition_id || "") : "");
     setSelectedAcquisition(null);
     setAcquisitionPaymentState(null);
     if (typePaiement === "MENSUALITE") fetchPlantationsByClient(clientId);
@@ -101,7 +101,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     let active = true;
     void (async () => {
       const { data: subs, error: subsError } = await (supabase as any)
-        .from("client_souscriptions")
+        .from("acquisitions")
         .select("id,client_id,offre_id,offre_nom,offre_code,famille_offre,formule_code,formule_nom,superficie_ha,montant_pi_total,montant_total_contrat,mode_paiement,mensualite_montant,duree_paiement_mois,echeancier,statut,statut_technique")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false });
@@ -111,8 +111,8 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       if (ids.length) {
         const { data, error } = await (supabase as any)
           .from("paiements")
-          .select("id,souscription_id,statut,est_paiement_initial")
-          .in("souscription_id", ids)
+          .select("id,acquisition_id,statut,est_paiement_initial")
+          .in("acquisition_id", ids)
           .eq("est_paiement_initial", true);
         if (error) throw error;
         payments = data || [];
@@ -120,8 +120,8 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       if (!active) return;
       setClientAcquisitions((subs || []).map((sub: any) => ({
         ...sub,
-        pi_paye: payments.some((payment: any) => payment.souscription_id === sub.id && ["valide","paye","paid","success","successful","completed"].includes(String(payment.statut || "").toLowerCase())),
-        paiement_initial_id: payments.find((payment: any) => payment.souscription_id === sub.id)?.id || null,
+        pi_paye: payments.some((payment: any) => payment.acquisition_id === sub.id && ["valide","paye","paid","success","successful","completed"].includes(String(payment.statut || "").toLowerCase())),
+        paiement_initial_id: payments.find((payment: any) => payment.acquisition_id === sub.id)?.id || null,
       })));
     })().catch((error: any) => {
       if (active) toast({ variant: "destructive", title: "Acquisitions indisponibles", description: getSafeErrorMessage(error) });
@@ -198,19 +198,19 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       setClientOffre(null);
       setValue("montant_theorique", amount);
       setValue("montant_paye", amount);
-      setValue("souscription_id", acquisition.id);
+      setValue("acquisition_id", acquisition.id);
       setAcquisitionPaymentState(null);
     } else if (typePaiement === "MENSUALITE") {
       let active = true;
       void (async () => {
-        const { data, error } = await (supabase as any).rpc("subscription_current_payment_state", { _souscription_id: acquisition.id });
+        const { data, error } = await (supabase as any).rpc("acquisition_current_payment_state", { _acquisition_id: acquisition.id });
         if (error) throw error;
         if (!active) return;
         setAcquisitionPaymentState(data || null);
         const due = Math.max(0, Number(data?.mensualite?.montant_a_payer || 0));
         setValue("montant_theorique", due);
         setValue("montant_paye", due > 0 ? due : "");
-        const plantation = plantations.find((item: any) => item.souscription_id === acquisition.id);
+        const plantation = plantations.find((item: any) => item.acquisition_id === acquisition.id);
         setValue("plantation_id", plantation?.id || "");
       })().catch((error: any) => {
         if (active) toast({ variant: "destructive", title: "Échéancier indisponible", description: getSafeErrorMessage(error) });
@@ -366,13 +366,13 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       if (!paiement) {
         const selected = clients.find((client: any) => client.id === data.client_id);
         if (!selected || selected.type_client === "beneficiaire_particulier" || selected.is_internal ||
-            (selected.contrat_solde_at && !data.souscription_id)) {
+            (selected.contrat_solde_at && !data.acquisition_id)) {
           toast({ variant: "destructive", title: "Paiement interdit", description: "Sélectionnez un client ayant encore un contrat ou une acquisition à régler." });
           return;
         }
 
-        if (data.type_paiement === "PI" && data.souscription_id) {
-          const acquisition = clientAcquisitions.find((sub: any) => sub.id === data.souscription_id);
+        if (data.type_paiement === "PI" && data.acquisition_id) {
+          const acquisition = clientAcquisitions.find((sub: any) => sub.id === data.acquisition_id);
           if (!acquisition || acquisition.client_id !== data.client_id) {
             toast({ variant: "destructive", title: "Acquisition invalide", description: "Choisissez une acquisition appartenant au client sélectionné." });
             return;
@@ -390,7 +390,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           const { data: existing, error: existingError } = await (supabase as any)
             .from("paiements")
             .select("id,statut")
-            .eq("souscription_id", acquisition.id)
+            .eq("acquisition_id", acquisition.id)
             .eq("est_paiement_initial", true)
             .order("created_at", { ascending: false })
             .limit(1)
@@ -436,7 +436,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
               .from("paiements")
               .select("id,statut")
               .eq("client_id", data.client_id)
-              .is("souscription_id", null)
+              .is("acquisition_id", null)
               .eq("est_paiement_initial", true)
               .order("created_at", { ascending: false })
               .limit(1)
@@ -465,7 +465,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       const paiementData = {
         ...data,
         ...validated,
-        souscription_id: data.souscription_id || null,
+        acquisition_id: data.acquisition_id || null,
         client_id: data.client_id,
         plantation_id: data.plantation_id || null,
         created_by: user.data.user?.id,
@@ -508,7 +508,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     : null;
   const montantCalculePI = prixPI ? Math.round(Number(prixPI.pi_effectif || 0) * clientSurface) : null;
   const availablePiAcquisitions = clientAcquisitions.filter((sub: any) =>
-    Number(sub.montant_pi_total || 0) > 0 && (!sub.pi_paye || sub.id === paiement?.souscription_id)
+    Number(sub.montant_pi_total || 0) > 0 && (!sub.pi_paye || sub.id === paiement?.acquisition_id)
   );
 
   return (
@@ -552,11 +552,11 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
         {typePaiement === "PI" && clientId && clientAcquisitions.length > 0 && (
           <div>
-            <Label htmlFor="souscription_id">Contrat à régler</Label>
+            <Label htmlFor="acquisition_id">Contrat à régler</Label>
             <Select
               value={acquisitionId || "contrat-principal"}
               onValueChange={(value) => {
-                setValue("souscription_id", value === "contrat-principal" ? "" : value);
+                setValue("acquisition_id", value === "contrat-principal" ? "" : value);
                 if (value === "contrat-principal") setSelectedAcquisition(null);
               }}
             >

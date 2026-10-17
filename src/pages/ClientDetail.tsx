@@ -214,7 +214,7 @@ const ClientDetail = () => {
       setPlantations(allPlantations);
 
       const { data: acquisitionsData, error: acquisitionsError } = await (supabase as any)
-        .from("client_souscriptions")
+        .from("acquisitions")
         .select("*")
         .eq("client_id", id)
         .order("created_at", { ascending: false });
@@ -305,9 +305,9 @@ const ClientDetail = () => {
             .select("id,id_unique,nom,village,proprietaire_id,mode_surface,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
             .order("id_unique", { ascending: true }),
           (supabase as any).from("lots_hectares")
-            .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,souscription_id")
+            .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id")
             .is("client_id", null)
-            .is("souscription_id", null)
+            .is("acquisition_id", null)
             .in("statut", ["disponible", "libre"])
             .order("numero_h", { ascending: true }),
           (supabase as any).from("conventions_foncieres")
@@ -358,7 +358,7 @@ const ClientDetail = () => {
     }
     setSavingNewPlantation(true);
     try {
-      const { data, error } = await (supabase as any).rpc("create_client_souscription", {
+      const { data, error } = await (supabase as any).rpc("create_client_acquisition", {
         p_client_id: id,
         p_offre_id: newAcquisitionFormData.offre_id,
         p_formule_code: newAcquisitionFormData.formule_code,
@@ -391,7 +391,7 @@ const ClientDetail = () => {
   // Keep this detail view synchronized in place when this Client or its linked
   // records change elsewhere in the CRM.
   useRealtime({ table: "clients", filter: id ? `id=eq.${id}` : undefined, onChange: fetchData });
-  useRealtime({ table: "client_souscriptions", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
+  useRealtime({ table: "acquisitions", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "paiements", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "plantations", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });
   useRealtime({ table: "documents_acquisition", filter: id ? `client_id=eq.${id}` : undefined, onChange: fetchData });

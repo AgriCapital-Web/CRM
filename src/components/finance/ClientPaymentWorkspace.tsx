@@ -79,7 +79,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         (supabase as any).from("v_client_synthese")
           .select("client_id,compte_actif,montant_total_contrat,total_paye,reste_a_payer")
           .eq("compte_actif", true),
-        (supabase as any).from("client_souscriptions")
+        (supabase as any).from("acquisitions")
           .select("client_id,formule_nom,offre_nom,superficie_ha,montant_total_contrat")
           .order("created_at", { ascending: false }),
       ]);
@@ -135,7 +135,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const daysLate = Number(monthly.jours_retard ?? (arrearsMonths * 30));
   const remaining = Number(activeState?.reste_contrat ?? activeClient?.summary?.reste_a_payer ?? activeClient?.summary?.montant_total_contrat ?? activeClient?.montant_total_contrat ?? 0);
   const piBalance = Number(pi.solde || 0);
-  const availablePlantations = plantations.filter((p: any) => activeContract?.acquisitionId ? p.souscription_id === activeContract.acquisitionId : !p.souscription_id);
+  const availablePlantations = plantations.filter((p: any) => activeContract?.acquisitionId ? p.acquisition_id === activeContract.acquisitionId : !p.acquisition_id);
 
   const suggestedPaymentType = (state: any): PaymentType => {
     const p = state?.paiement_initial || {};
@@ -171,18 +171,18 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     try {
       const [stateRes, subsRes, plantationsRes, basePaymentsRes] = await Promise.all([
         (supabase as any).rpc("portal_current_payment_state", { _client_id: client.id }),
-        (supabase as any).from("client_souscriptions")
+        (supabase as any).from("acquisitions")
           .select("id,formule_nom,offre_nom,superficie_ha,montant_pi_total,montant_total_contrat,mode_paiement,mensualite_montant,duree_paiement_mois,echeancier,created_at")
           .eq("client_id", client.id)
           .order("created_at", { ascending: true }),
         (supabase as any).from("plantations")
-          .select("id,id_unique,nom_plantation,superficie_ha,souscription_id,statut_global")
+          .select("id,id_unique,nom_plantation,superficie_ha,acquisition_id,statut_global")
           .eq("client_id", client.id)
           .order("created_at", { ascending: true }),
         (supabase as any).from("paiements")
           .select("montant,montant_paye")
           .eq("client_id", client.id)
-          .is("souscription_id", null)
+          .is("acquisition_id", null)
           .eq("statut", "valide"),
       ]);
       if (stateRes.error) throw stateRes.error;
@@ -192,7 +192,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const acquisitionIds = (subsRes.data || []).map((s: any) => s.id).filter(Boolean);
       let allClientPlantations = plantationsRes.data || [];
       if (acquisitionIds.length) {
-        const { data: acquisitionPlantations, error: acquisitionPlantationsError } = await (supabase as any).from("plantations").select("id,id_unique,nom_plantation,superficie_ha,souscription_id,statut_global").in("souscription_id", acquisitionIds);
+        const { data: acquisitionPlantations, error: acquisitionPlantationsError } = await (supabase as any).from("plantations").select("id,id_unique,nom_plantation,superficie_ha,acquisition_id,statut_global").in("acquisition_id", acquisitionIds);
         if (acquisitionPlantationsError) throw acquisitionPlantationsError;
         const unique = new Map<string, any>();
         [...allClientPlantations, ...(acquisitionPlantations || [])].forEach((p: any) => unique.set(p.id, p));
@@ -210,20 +210,20 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         id: "principal",
         label: "Contrat initial du client",
         acquisitionId: null,
-        plantationId: allClientPlantations.find((p: any) => !p.souscription_id)?.id || null,
+        plantationId: allClientPlantations.find((p: any) => !p.acquisition_id)?.id || null,
         surface: Number(client.total_hectares || 0),
         state: normalizedBaseState,
       }];
       for (const sub of (subsRes.data || [])) {
         const [subStateRes] = await Promise.all([
-          (supabase as any).rpc("subscription_current_payment_state", { _souscription_id: sub.id }),
+          (supabase as any).rpc("acquisition_current_payment_state", { _acquisition_id: sub.id }),
         ]);
         if (subStateRes.error) throw subStateRes.error;
         nextContracts.push({
           id: sub.id,
           label: `${sub.formule_nom || sub.offre_nom || "Acquisition"} · ${Number(sub.superficie_ha || 0).toLocaleString("fr-FR")} ha`,
           acquisitionId: sub.id,
-          plantationId: allClientPlantations.find((p: any) => p.souscription_id === sub.id)?.id || null,
+          plantationId: allClientPlantations.find((p: any) => p.acquisition_id === sub.id)?.id || null,
           surface: Number(sub.superficie_ha || 0),
           state: subStateRes.data || {},
         });
@@ -315,7 +315,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       const reference = `CRM-${activeClient.id.slice(0, 8)}-${Date.now()}`;
       const payload = {
         client_id: activeClient.id,
-        souscription_id: activeContract.acquisitionId,
+        acquisition_id: activeContract.acquisitionId,
         plantation_id: selectedPlantationId,
         type_paiement: paymentType === "PI" ? "PI" : "MENSUALITE",
         montant: paymentAmount,
@@ -330,15 +330,15 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           payment_provider: "kkiapay",
           source: "crm_financial_sheet",
           intention: paymentType === "PI" ? (Number(pi.montant_paye || pi.deja_paye || 0) > 0 ? "solde_paiement_initial" : "paiement_initial") : paymentType === "RATTRAPAGE" ? "rattrapage" : paymentType === "AVANCE" ? "avance" : "mensualite",
-          souscription_id: activeContract.acquisitionId,
+          acquisition_id: activeContract.acquisitionId,
           contract_remaining_at_creation: remaining,
         },
       };
       const pendingQuery = (supabase as any).from("paiements").select("id,statut,reference")
         .eq("client_id", activeClient.id).eq("type_paiement", paymentType === "PI" ? "PI" : "MENSUALITE").eq("statut", "en_attente");
       const scopedPending = activeContract.acquisitionId
-        ? pendingQuery.eq("souscription_id", activeContract.acquisitionId)
-        : pendingQuery.is("souscription_id", null);
+        ? pendingQuery.eq("acquisition_id", activeContract.acquisitionId)
+        : pendingQuery.is("acquisition_id", null);
       const { data: existing, error: existingError } = await scopedPending.order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (existingError) throw existingError;
       let paiementId = existing?.id;
@@ -381,7 +381,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         name: activeClient.nom_complet || "Client AgriCapital",
         phone: paymentPhone || activeClient.telephone || "",
         paymentMethods: ["momo", "card"],
-        data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, souscription_id: activeContract.acquisitionId },
+        data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, acquisition_id: activeContract.acquisitionId },
       });
       if (!opened) throw new Error("Le module de paiement en ligne ne s’est pas ouvert. Vérifiez la connexion et la configuration du compte marchand.");
     } catch (error: any) {
