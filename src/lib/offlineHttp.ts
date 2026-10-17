@@ -28,7 +28,25 @@ function baseFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   const fn = typeof window !== "undefined" && window.fetch
     ? window.fetch.bind(window)
     : fetch;
-  return fn(input, init);
+  const url = input instanceof Request ? input.url : String(input);
+  // A connected-looking but unusably slow mobile network must not leave every
+  // CRM screen spinning indefinitely. REST reads can fall back to IndexedDB;
+  // REST mutations are queued by installOfflineFetch after this timeout.
+  if (!isRestRequest(url) || typeof AbortController === "undefined") return fn(input, init);
+
+  const controller = new AbortController();
+  const sourceSignal = init?.signal || (input instanceof Request ? input.signal : undefined);
+  const abortFromSource = () => controller.abort(sourceSignal?.reason);
+  if (sourceSignal?.aborted) abortFromSource();
+  else sourceSignal?.addEventListener("abort", abortFromSource, { once: true });
+
+  const timeoutId = typeof window !== "undefined"
+    ? window.setTimeout(() => controller.abort(new DOMException("Délai réseau dépassé", "TimeoutError")), 8000)
+    : undefined;
+  return fn(input, { ...init, signal: controller.signal }).finally(() => {
+    if (timeoutId !== undefined && typeof window !== "undefined") window.clearTimeout(timeoutId);
+    sourceSignal?.removeEventListener("abort", abortFromSource);
+  });
 }
 
 function isRestRequest(url: string): boolean {
@@ -52,24 +70,37 @@ function headersToRecord(headers: Headers): Record<string, string> {
   return out;
 }
 
-function getAuthScope(headers: Headers): string {
+async function getAuthScope(headers: Headers): Promise<string> {
   const auth = headers.get("authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "");
   try {
     const payload = token.split(".")[1];
-    if (!payload) return "anon";
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = JSON.parse(atob(normalized));
-    return String(decoded.sub || "anon");
+    if (payload) {
+      const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = JSON.parse(atob(normalized));
+      if (decoded.sub && decoded.role !== "anon") return String(decoded.sub);
+    }
   } catch {
-    return "anon";
+    // Offline-authenticated sessions intentionally have no Supabase JWT.
   }
+
+  // Offline login is local-only; scope cached reads to the user who proved
+  // their cached credentials, rather than looking under the anonymous scope.
+  try {
+    if (typeof window !== "undefined") {
+      const offlineUserId = window.localStorage.getItem("agricapital_offline_user_id");
+      if (offlineUserId) return offlineUserId;
+    }
+  } catch {
+    // Storage can be disabled by browser policy; fall back to the anonymous scope.
+  }
+  return "anon";
 }
 
 async function buildCacheKey(request: Request): Promise<string> {
   return [
     "GET",
-    getAuthScope(request.headers),
+    await getAuthScope(request.headers),
     request.url,
     request.headers.get("accept") || "",
   ].join("|");

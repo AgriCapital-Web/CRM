@@ -35,15 +35,15 @@ const ClientDetail = () => {
   const canViewClientMoney = can("clients.view_money");
   const canUploadDocuments = can("documents.upload");
   const canViewClientPayments = can("paiements.view");
-  const canCreatePlantationSubscription = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
+  const canCreatePlantationAcquisition = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
   const [clientMedia, setClientMedia] = useState<{ photo: string | null; recto: string | null; verso: string | null }>({ photo: null, recto: null, verso: null });
   const [plantations, setPlantations] = useState<any[]>([]);
-  const [clientSouscriptions, setClientSouscriptions] = useState<any[]>([]);
-  const [pendingPlantationSubscriptions, setPendingPlantationSubscriptions] = useState<any[]>([]);
+  const [clientAcquisitions, setClientAcquisitions] = useState<any[]>([]);
+  const [pendingPlantationAcquisitions, setPendingPlantationAcquisitions] = useState<any[]>([]);
   const [paiements, setPaiements] = useState<any[]>([]);
   const [interventions, setInterventions] = useState<any[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
@@ -64,7 +64,7 @@ const ClientDetail = () => {
   const [newPlantationParcelId, setNewPlantationParcelId] = useState("");
   const [newPlantationLotId, setNewPlantationLotId] = useState("");
   const [newPlantationNotes, setNewPlantationNotes] = useState("");
-  const [newSubscriptionFormData, setNewSubscriptionFormData] = useState<any>({ mode_paiement: "echeancier" });
+  const [newAcquisitionFormData, setNewAcquisitionFormData] = useState<any>({ mode_paiement: "echeancier" });
   const [isRachatOpen,setIsRachatOpen]=useState(false);
   const [rachatJours,setRachatJours]=useState("1");
   const [tableSearch,setTableSearch]=useState("");
@@ -84,14 +84,14 @@ const ClientDetail = () => {
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
   const lotsForSelectedParcel = availableLots.filter((lot: any) =>
     lot.parcelle_id === newPlantationParcelId &&
-    (!Number(newSubscriptionFormData.superficie_prevue) || Math.abs(Number(lot.surface_ha || 0) - Number(newSubscriptionFormData.superficie_prevue)) < 0.0001)
+    (!Number(newAcquisitionFormData.superficie_prevue) || Math.abs(Number(lot.surface_ha || 0) - Number(newAcquisitionFormData.superficie_prevue)) < 0.0001)
   );
   const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
-  const selectedOfferNeedsClientLand = newSubscriptionFormData.offre
-    ? !!newSubscriptionFormData.offre.necessite_foncier_client
+  const selectedOfferNeedsClientLand = newAcquisitionFormData.offre
+    ? !!newAcquisitionFormData.offre.necessite_foncier_client
     : false;
-  const updateNewSubscriptionFormData = (patch: any) => {
-    if (patch.offre_id && patch.offre_id !== newSubscriptionFormData.offre_id) {
+  const updateNewAcquisitionFormData = (patch: any) => {
+    if (patch.offre_id && patch.offre_id !== newAcquisitionFormData.offre_id) {
       setNewPlantationLotId("");
       setNewPlantationParcelId(
         patch.offre?.necessite_foncier_client && clientOwnParcelles.some((parcel: any) => parcel.id === client?.parcelle_id)
@@ -99,7 +99,7 @@ const ClientDetail = () => {
           : ""
       );
     }
-    setNewSubscriptionFormData((current: any) => ({ ...current, ...patch }));
+    setNewAcquisitionFormData((current: any) => ({ ...current, ...patch }));
   };
   useEffect(()=>{setPlantationPage(1);setPaymentPage(1);setInterventionPage(1);setAttributionPage(1);},[tableSearch,pageSize]);
 
@@ -213,13 +213,13 @@ const ClientDetail = () => {
       const allPlantations = plantationsData || [];
       setPlantations(allPlantations);
 
-      const { data: subscriptionsData, error: subscriptionsError } = await (supabase as any)
+      const { data: acquisitionsData, error: acquisitionsError } = await (supabase as any)
         .from("client_souscriptions")
         .select("*")
         .eq("client_id", id)
         .order("created_at", { ascending: false });
-      if (subscriptionsError) throw subscriptionsError;
-      setClientSouscriptions(subscriptionsData || []);
+      if (acquisitionsError) throw acquisitionsError;
+      setClientAcquisitions(acquisitionsData || []);
 
       const { data: acquisitionLotRows } = await (supabase as any)
         .from("acquisition_lots")
@@ -243,9 +243,9 @@ const ClientDetail = () => {
           const parcel = parcelMeta.find((item: any) => item.id === lot?.parcelle_id);
           return { ...row, lot, parcel };
         });
-      setPendingPlantationSubscriptions(pending);
+      setPendingPlantationAcquisitions(pending);
 
-      // Paiements liés au client ou à l'une de ses souscriptions, même avant la création physique d'une plantation.
+      // Paiements liés au client ou à l'une de ses acquisitions, même avant la création physique d'une plantation.
       const plantationIds = allPlantations.map((p: any) => p.id);
       const { data: paiementsData, error: paiementsError } = await (supabase as any)
         .from("paiements")
@@ -344,12 +344,12 @@ const ClientDetail = () => {
   const saveAdditionalPlantation = async () => {
     if (!id || savingNewPlantation) return;
     if (!navigator.onLine) {
-      toast({ variant: "destructive", title: "Connexion requise", description: "La disponibilité foncière et le tarif doivent être vérifiés en ligne avant de créer une souscription financière." });
+      toast({ variant: "destructive", title: "Connexion requise", description: "La disponibilité foncière et le tarif doivent être vérifiés en ligne avant de créer cette acquisition." });
       return;
     }
-    const area = Number(newSubscriptionFormData.superficie_prevue);
-    if (!newSubscriptionFormData.offre_id || !newSubscriptionFormData.formule_code || area <= 0) {
-      toast({ variant: "destructive", title: "Souscription incomplète", description: "Choisissez une offre, une formule et une superficie valide." });
+    const area = Number(newAcquisitionFormData.superficie_prevue);
+    if (!newAcquisitionFormData.offre_id || !newAcquisitionFormData.formule_code || area <= 0) {
+      toast({ variant: "destructive", title: "Acquisition incomplète", description: "Choisissez une offre, une formule et une superficie valide." });
       return;
     }
     if (!selectedOfferNeedsClientLand && !newPlantationLotId) {
@@ -360,10 +360,10 @@ const ClientDetail = () => {
     try {
       const { data, error } = await (supabase as any).rpc("create_client_souscription", {
         p_client_id: id,
-        p_offre_id: newSubscriptionFormData.offre_id,
-        p_formule_code: newSubscriptionFormData.formule_code,
+        p_offre_id: newAcquisitionFormData.offre_id,
+        p_formule_code: newAcquisitionFormData.formule_code,
         p_superficie_ha: area,
-        p_mode_paiement: newSubscriptionFormData.mode_paiement || "echeancier",
+        p_mode_paiement: newAcquisitionFormData.mode_paiement || "echeancier",
         p_parcelle_id: newPlantationParcelId || null,
         p_lot_id: selectedOfferNeedsClientLand ? null : (newPlantationLotId || null),
         p_notes: newPlantationNotes.trim() || null,
@@ -372,17 +372,17 @@ const ClientDetail = () => {
       const total = Number(data?.montant_total_contrat || 0).toLocaleString("fr-FR");
       const pi = Number(data?.montant_pi_total || 0).toLocaleString("fr-FR");
       toast({
-        title: "Souscription enregistrée",
-        description: `${newSubscriptionFormData.formule_nom || newSubscriptionFormData.offre?.nom || "Offre"} · ${area} ha · Contrat ${total} FCFA · Paiement initial ${pi} FCFA. La plantation sera créée après l’intervention technique.`,
+        title: "Acquisition enregistrée",
+        description: `${newAcquisitionFormData.formule_nom || newAcquisitionFormData.offre?.nom || "Offre"} · ${area} ha · Contrat ${total} FCFA · Paiement initial ${pi} FCFA. La plantation sera créée après l’intervention technique.`,
       });
       setIsNewPlantationOpen(false);
       setNewPlantationParcelId("");
       setNewPlantationLotId("");
       setNewPlantationNotes("");
-      setNewSubscriptionFormData({ mode_paiement: "echeancier" });
+      setNewAcquisitionFormData({ mode_paiement: "echeancier" });
       await fetchData();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Souscription impossible", description: getSafeErrorMessage(error) });
+      toast({ variant: "destructive", title: "Acquisition impossible", description: getSafeErrorMessage(error) });
     } finally {
       setSavingNewPlantation(false);
     }
@@ -586,7 +586,7 @@ const ClientDetail = () => {
           <Dialog open={isNewPlantationOpen} onOpenChange={(open) => {
             setIsNewPlantationOpen(open);
             if (open) {
-              setNewSubscriptionFormData({ commercial_id: client?.commercial_id || "", mode_paiement: "echeancier" });
+              setNewAcquisitionFormData({ commercial_id: client?.commercial_id || "", mode_paiement: "echeancier" });
               setNewPlantationLotId("");
               setNewPlantationNotes("");
               setNewPlantationParcelId("");
@@ -596,35 +596,32 @@ const ClientDetail = () => {
               <DialogHeader>
                 <DialogTitle>Ajouter une nouvelle plantation</DialogTitle>
                 <DialogDescription>
-                  Cette opération crée une nouvelle souscription pour le client existant. Elle conserve son premier contrat et ne crée pas encore de plantation physique.
+                  Cette opération enregistre une nouvelle acquisition pour le client existant. Elle conserve ses contrats précédents et la plantation sera activée après l’intervention technique requise.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/50 p-3 text-sm">
                   <p className="font-semibold">{client.nom_complet}</p>
-                  <p className="text-muted-foreground">Une nouvelle offre et une nouvelle formule seront enregistrées indépendamment de ses souscriptions précédentes.</p>
+                  <p className="text-muted-foreground">Une nouvelle offre et une nouvelle formule seront enregistrées comme une acquisition distincte, sans modifier les acquisitions précédentes.</p>
                 </div>
 
                 <Etape0Offre
-                  formData={newSubscriptionFormData}
-                  updateFormData={updateNewSubscriptionFormData}
+                  formData={newAcquisitionFormData}
+                  updateFormData={updateNewAcquisitionFormData}
                   showCommercial={false}
                   surfaceReadOnly={!!newPlantationLotId}
                 />
 
                 <div className="space-y-2">
-                  <Label>Mode de paiement</Label>
+                  <Label>Échéancier contractuel</Label>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Button type="button" variant={newSubscriptionFormData.mode_paiement === "echeancier" ? "default" : "outline"} onClick={() => updateNewSubscriptionFormData({ mode_paiement: "echeancier" })}>
+                    <Button type="button" variant={newAcquisitionFormData.mode_paiement === "echeancier" ? "default" : "outline"} onClick={() => updateNewAcquisitionFormData({ mode_paiement: "echeancier" })}>
                       Paiement initial + échéancier
-                    </Button>
-                    <Button type="button" variant={newSubscriptionFormData.mode_paiement === "comptant" ? "default" : "outline"} onClick={() => updateNewSubscriptionFormData({ mode_paiement: "comptant" })}>
-                      Paiement comptant
                     </Button>
                   </div>
                 </div>
 
-                {newSubscriptionFormData.offre_id && selectedOfferNeedsClientLand && (
+                {newAcquisitionFormData.offre_id && selectedOfferNeedsClientLand && (
                   <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-base">Terrain du client</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
@@ -655,12 +652,12 @@ const ClientDetail = () => {
                   </Card>
                 )}
 
-                {newSubscriptionFormData.offre_id && !selectedOfferNeedsClientLand && (
+                {newAcquisitionFormData.offre_id && !selectedOfferNeedsClientLand && (
                   <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-base">Parcelle partenaire et lot disponible</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm text-muted-foreground">
-                        Cette offre utilise une parcelle partenaire. Choisissez une parcelle, puis un lot dont la superficie correspond exactement à celle de la souscription. Le lot ne sera réservé qu’après confirmation par la base.
+                        Cette offre utilise une parcelle partenaire. Choisissez une parcelle, puis un lot dont la superficie correspond exactement à celle de la acquisition. Le lot ne sera réservé qu’après confirmation par la base.
                       </p>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div className="space-y-2">
@@ -681,7 +678,7 @@ const ClientDetail = () => {
                           <Select value={newPlantationLotId} onValueChange={(value) => {
                             const lot = availableLots.find((item: any) => item.id === value);
                             setNewPlantationLotId(value);
-                            if (lot) setNewSubscriptionFormData((current: any) => ({ ...current, superficie_prevue: String(lot.surface_ha || "") }));
+                            if (lot) setNewAcquisitionFormData((current: any) => ({ ...current, superficie_prevue: String(lot.surface_ha || "") }));
                           }} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
                             <SelectTrigger><SelectValue placeholder={!newPlantationParcelId ? "Choisir d’abord une parcelle" : "Choisir un lot"} /></SelectTrigger>
                             <SelectContent>
@@ -706,8 +703,8 @@ const ClientDetail = () => {
                           Aucune parcelle partenaire avec lot disponible n’est actuellement enregistrée. Vérifiez les propriétaires, parcelles et lots dans la gestion foncière.
                         </p>
                       )}
-                      {!!newSubscriptionFormData.superficie_prevue && !newPlantationLotId && (
-                        <p className="text-xs text-muted-foreground">Lots affichés : {Number(newSubscriptionFormData.superficie_prevue).toLocaleString("fr-FR")} ha exactement.</p>
+                      {!!newAcquisitionFormData.superficie_prevue && !newPlantationLotId && (
+                        <p className="text-xs text-muted-foreground">Lots affichés : {Number(newAcquisitionFormData.superficie_prevue).toLocaleString("fr-FR")} ha exactement.</p>
                       )}
                     </CardContent>
                   </Card>
@@ -715,18 +712,18 @@ const ClientDetail = () => {
 
                 <div className="space-y-2">
                   <Label>Note complémentaire (facultatif)</Label>
-                  <Input value={newPlantationNotes} onChange={(event) => setNewPlantationNotes(event.target.value)} placeholder="Précision sur cette souscription…" />
+                  <Input value={newPlantationNotes} onChange={(event) => setNewPlantationNotes(event.target.value)} placeholder="Précision sur cette acquisition…" />
                 </div>
               </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setIsNewPlantationOpen(false)} disabled={savingNewPlantation}>Annuler</Button>
                 <Button onClick={() => void saveAdditionalPlantation()} disabled={
                   savingNewPlantation || loadingPlantationOptions ||
-                  !newSubscriptionFormData.offre_id || !newSubscriptionFormData.formule_code ||
-                  Number(newSubscriptionFormData.superficie_prevue) <= 0 ||
+                  !newAcquisitionFormData.offre_id || !newAcquisitionFormData.formule_code ||
+                  Number(newAcquisitionFormData.superficie_prevue) <= 0 ||
                   (!selectedOfferNeedsClientLand && !newPlantationLotId)
                 }>
-                  {savingNewPlantation ? "Enregistrement…" : "Confirmer la souscription"}
+                  {savingNewPlantation ? "Enregistrement…" : "Confirmer la acquisition"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -768,7 +765,7 @@ const ClientDetail = () => {
                   <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <CardTitle>Plantations</CardTitle>
-                      {canCreatePlantationSubscription && (
+                      {canCreatePlantationAcquisition && (
                         <Button size="sm" onClick={() => setIsNewPlantationOpen(true)}>
                           <Plus className="mr-2 h-4 w-4" /> Ajouter une nouvelle plantation
                         </Button>
@@ -778,52 +775,52 @@ const ClientDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {clientSouscriptions.length > 0 && (
+                  {clientAcquisitions.length > 0 && (
                     <div className="mb-4 space-y-3 rounded-xl border p-3 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold">Souscriptions et engagements financiers</p>
-                        <Badge variant="outline">{clientSouscriptions.length} souscription(s)</Badge>
+                        <p className="font-semibold">Acquisitions et engagements financiers</p>
+                        <Badge variant="outline">{clientAcquisitions.length} acquisition(s)</Badge>
                       </div>
                       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                        {clientSouscriptions.map((subscription: any) => (
-                          <div key={subscription.id} className="min-w-0 rounded-lg border bg-muted/20 p-3">
+                        {clientAcquisitions.map((acquisition: any) => (
+                          <div key={acquisition.id} className="min-w-0 rounded-lg border bg-muted/20 p-3">
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="font-semibold">{subscription.formule_nom || subscription.offre_nom}</p>
-                                <p className="text-xs text-muted-foreground">{subscription.famille_offre || subscription.offre_code} · {subscription.formule_code}</p>
+                                <p className="font-semibold">{acquisition.formule_nom || acquisition.offre_nom}</p>
+                                <p className="text-xs text-muted-foreground">{acquisition.famille_offre || acquisition.offre_code} · {acquisition.formule_code}</p>
                               </div>
-                              <Badge variant={subscription.statut_technique === "mise_en_terre_realisee" ? "default" : "secondary"}>
-                                {subscription.statut_technique === "mise_en_terre_realisee" ? "Mise en terre réalisée" : "En attente d’intervention"}
+                              <Badge variant={acquisition.statut_technique === "mise_en_terre_realisee" ? "default" : "secondary"}>
+                                {acquisition.statut_technique === "mise_en_terre_realisee" ? "Mise en terre réalisée" : "En attente d’intervention"}
                               </Badge>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                              <div><p className="text-xs text-muted-foreground">Superficie</p><p className="font-semibold">{Number(subscription.superficie_ha || 0).toLocaleString("fr-FR")} ha</p></div>
-                              <div><p className="text-xs text-muted-foreground">Coût contractuel</p><p className="font-semibold">{formatMontant(Number(subscription.montant_total_contrat || 0))} F</p></div>
-                              <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="font-semibold">{formatMontant(Number(subscription.montant_pi_total || 0))} F</p></div>
+                              <div><p className="text-xs text-muted-foreground">Superficie</p><p className="font-semibold">{Number(acquisition.superficie_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                              <div><p className="text-xs text-muted-foreground">Coût contractuel</p><p className="font-semibold">{formatMontant(Number(acquisition.montant_total_contrat || 0))} F</p></div>
+                              <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="font-semibold">{formatMontant(Number(acquisition.montant_pi_total || 0))} F</p></div>
                             </div>
                             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs text-muted-foreground">
-                              <span>{subscription.mode_paiement === "comptant" ? "Paiement comptant" : `Échéancier · ${Number(subscription.duree_paiement_mois || 0)} mois`}</span>
-                              <span>{subscription.necessite_foncier_client ? "Terrain du client" : "Parcelle partenaire"}</span>
+                              <span>{`Échéancier · ${Number(acquisition.duree_paiement_mois || 0)} mois`}</span>
+                              <span>{acquisition.necessite_foncier_client ? "Terrain du client" : "Parcelle partenaire"}</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  {pendingPlantationSubscriptions.length > 0 && (
+                  {pendingPlantationAcquisitions.length > 0 && (
                     <div className="mb-4 space-y-2 rounded-lg border border-dashed p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold">Souscriptions en attente de mise en terre</p>
-                        <Badge variant="outline">{pendingPlantationSubscriptions.length}</Badge>
+                        <p className="font-semibold">Acquisitions en attente de mise en terre</p>
+                        <Badge variant="outline">{pendingPlantationAcquisitions.length}</Badge>
                       </div>
-                      {pendingPlantationSubscriptions.map((subscription: any) => (
-                        <div key={subscription.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3 text-sm">
+                      {pendingPlantationAcquisitions.map((acquisition: any) => (
+                        <div key={acquisition.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3 text-sm">
                           <div className="min-w-0">
-                            <p className="font-medium">{subscription.lot?.reference || (subscription.lot?.numero_h != null ? "Lot H" + String(subscription.lot.numero_h).padStart(2, "0") : "Lot attribué")}</p>
-                            <p className="text-xs text-muted-foreground">{subscription.parcel?.nom || subscription.parcel?.village || "Parcelle"}{subscription.parcel?.village ? " · " + subscription.parcel.village : ""}</p>
+                            <p className="font-medium">{acquisition.lot?.reference || (acquisition.lot?.numero_h != null ? "Lot H" + String(acquisition.lot.numero_h).padStart(2, "0") : "Lot attribué")}</p>
+                            <p className="text-xs text-muted-foreground">{acquisition.parcel?.nom || acquisition.parcel?.village || "Parcelle"}{acquisition.parcel?.village ? " · " + acquisition.parcel.village : ""}</p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="font-semibold">{Number(subscription.surface_ha || 0).toLocaleString("fr-FR")} ha</span>
+                            <span className="font-semibold">{Number(acquisition.surface_ha || 0).toLocaleString("fr-FR")} ha</span>
                             <Badge variant="secondary">À implanter</Badge>
                           </div>
                         </div>

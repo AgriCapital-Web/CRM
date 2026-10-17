@@ -184,6 +184,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const hashed = await hashPassword(password, cached.salt);
       if (hashed !== cached.passwordHash) return false;
+      try {
+        if (cached.profile?.user_id) window.localStorage.setItem("agricapital_offline_user_id", cached.profile.user_id);
+      } catch { /* Offline authentication must still work when localStorage is restricted. */ }
       setUser({ id: cached.profile?.user_id, email: cached.email } as any);
       setProfile({ ...cached.profile, offline_session: true });
       setUserRoles(cached.roles);
@@ -285,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   const signOut = async () => {
+    try { window.localStorage.removeItem("agricapital_offline_user_id"); } catch { /* best effort */ }
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({

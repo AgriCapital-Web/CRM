@@ -108,7 +108,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     const ha = Number(formData.superficie_prevue);
     const o = offre as any;
     const tranches = Array.isArray(o.tranches_paiement) ? o.tranches_paiement : [];
-    const pricingMode = formData.mode_paiement === "comptant" ? "comptant" : "echeancier";
+    const pricingMode = "echeancier";
     const prix = calculPrixEffectif(o, promotionActive ? [promotionActive as any] : [], { modePaiement: pricingMode });
 
     // Use the real fields returned by calculPrixEffectif; old keys silently displayed PI as 0.
@@ -291,9 +291,9 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
           {calculs && (
             <div className="p-4 bg-primary/10 rounded-lg space-y-3">
               <div className="flex justify-between text-sm"><span>Superficie:</span><span className="font-medium">{calculs.ha} ha</span></div>
-              <div className="flex justify-between text-sm"><span>{calculs.modePaiement === "comptant" ? "Paiement comptant" : `Paiement initial${calculs.promoCible === "paiement_initial" ? " (promo)" : ""}`}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
+              <div className="flex justify-between text-sm"><span>{`Paiement initial${calculs.promoCible === "paiement_initial" ? " (promo)" : ""}`}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
               <div className="border-t pt-2 flex justify-between"><span className="font-semibold">Coût global contractuel{calculs.promoCible === "cout_global" ? " (promo)" : ""}:</span><span className="text-lg font-bold text-primary">{formatMontant(calculs.totalFinal)} F</span></div>
-              {calculs.modePaiement !== "comptant" && <div className="border-t pt-3 space-y-2">
+              {<div className="border-t pt-3 space-y-2">
                 <div className="flex justify-between text-sm"><span>Durée de paiement :</span><span className="font-semibold">{calculs.duree} mois</span></div>
                 {calculs.tranches.filter((tranche: any) => Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0) > 0).map((tranche: any, index: number) => (
                   <div key={tranche.annee || index} className="flex justify-between gap-3 text-xs text-muted-foreground">
