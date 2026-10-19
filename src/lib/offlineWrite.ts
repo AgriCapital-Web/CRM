@@ -29,6 +29,7 @@ const TABLE_TO_STORE: Record<string, string> = {
   portail_messages: STORES.PORTAIL_MESSAGES,
   documents_acquisition: STORES.DOCUMENTS_ACQUISITION,
   documents_convention: STORES.DOCUMENTS_CONVENTION,
+  client_cotitulaires_mandataires: STORES.CLIENT_COTITULAIRES_MANDATAIRES,
   commissions: STORES.COMMISSIONS,
   finance_transactions: STORES.FINANCE_TRANSACTIONS,
   finance_expenses: STORES.FINANCE_EXPENSES,

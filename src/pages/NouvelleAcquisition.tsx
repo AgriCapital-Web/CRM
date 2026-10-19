@@ -12,7 +12,7 @@ import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition
 import { EtapeConfirmationDossier } from "@/components/forms/acquisition/EtapeConfirmationDossier";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile } from "@/utils/storage";
-import { offlineInsert } from "@/lib/offlineWrite";
+import { offlineDelete, offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { useToast } from "@/hooks/use-toast";
 import { SyncStatusBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { getSafeErrorMessage } from "@/lib/safeError";
@@ -179,8 +179,14 @@ const NouvelleAcquisition = () => {
     const currentUser = user;
     if(!currentUser)return;
     const payload={...formData,parcours_code:formData.offre_code||null};
-    if(brouillonId) await (supabase as any).from("acquisitions_brouillon").update({etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,updated_at:new Date().toISOString()}).eq("id",brouillonId);
-    else {const {data}=await (supabase as any).from("acquisitions_brouillon").insert({etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,created_by:currentUser.id}).select().single();if(data)setBrouillonId(data.id);}
+    if(brouillonId) {
+      const {error}=await offlineUpdate("acquisitions_brouillon",brouillonId,{etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,updated_at:new Date().toISOString()});
+      if(error) throw error;
+    } else {
+      const {data,error}=await offlineInsert("acquisitions_brouillon",{etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,created_by:currentUser.id});
+      if(error) throw error;
+      if(data?.id) setBrouillonId(data.id);
+    }
     setSyncState(navigator.onLine ? "synced" : "queued");
   };
 
@@ -233,33 +239,33 @@ const NouvelleAcquisition = () => {
       // Conserver les liens du dossier d'origine sans fabriquer de lead pour un prospect autonome.
       const convertedAt=new Date().toISOString();
       if(formData.lead_id){
-        const {error:leadError}=await (supabase as any).from("leads").update({client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:convertedAt,updated_at:convertedAt}).eq("id",formData.lead_id);
+        const {error:leadError}=await offlineUpdate("leads",formData.lead_id,{client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:convertedAt,updated_at:convertedAt});
         if(leadError) throw leadError;
-        const {error:prospectError}=await (supabase as any).from("prospects").update({client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt}).eq("lead_id",formData.lead_id);
+        const {error:prospectError}=await offlineUpdate("prospects",formData.prospect_id || formData.lead_id,{client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt});
         if(prospectError) throw prospectError;
       } else if(formData.prospect_id) {
-        const {error:prospectError}=await (supabase as any).from("prospects").update({client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt}).eq("id",formData.prospect_id);
+        const {error:prospectError}=await offlineUpdate("prospects",formData.prospect_id,{client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt});
         if(prospectError) throw prospectError;
       }
 
       for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
         const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+client.id);if(!uploaded)throw new Error("Upload impossible : "+field);
-        const {error:mediaLinkError}=await (supabase as any).from("clients").update({[column]:uploaded.path}).eq("id",client.id);
+        const {error:mediaLinkError}=await offlineUpdate("clients",client.id,{[column]:uploaded.path});
         if(mediaLinkError)throw mediaLinkError;
       }
 
 
       if(formData.has_representant){
-        const {data:rep,error:repError}=await (supabase as any).from("client_cotitulaires_mandataires").insert({
+        const {data:rep,error:repError}=await offlineInsert("client_cotitulaires_mandataires",{
           client_id:client.id,type_relation:formData.representant_type||"cotitulaire",lien_client:formData.representant_lien||null,civilite:formData.representant_civilite||null,
           nom:formData.representant_nom,prenoms:formData.representant_prenoms,date_naissance:formData.representant_date_naissance||null,lieu_naissance:formData.representant_lieu_naissance||null,
           nationalite:formData.representant_nationalite||null,type_piece:formData.representant_type_piece||null,numero_piece:formData.representant_numero_piece||null,date_delivrance_piece:formData.representant_date_delivrance||null,
           telephone:formData.representant_telephone||null,whatsapp:formData.representant_whatsapp||null,adresse:formData.representant_adresse||null,created_by:currentUser.id,updated_by:currentUser.id
-        }).select().single();
+        });
         if(repError||!rep)throw repError||new Error("Cotitulaire / mandataire non enregistré");
         for(const [field,column,bucket] of [["representant_photo_profil","photo_profil_url","photos-profils"],["representant_piece_recto","piece_recto_url","pieces-identite"],["representant_piece_verso","piece_verso_url","pieces-identite"]] as const){
           const file=formData[field+"_file"];if(!file)continue;const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+client.id+"/representant");if(!uploaded)throw new Error("Upload impossible : "+field);
-          const {error:mediaLinkError}=await (supabase as any).from("client_cotitulaires_mandataires").update({[column]:uploaded.path}).eq("id",rep.id);
+          const {error:mediaLinkError}=await offlineUpdate("client_cotitulaires_mandataires",rep.id,{[column]:uploaded.path});
           if(mediaLinkError)throw mediaLinkError;
         }
       }
@@ -275,7 +281,7 @@ const NouvelleAcquisition = () => {
         if(doc.obligatoire&&!formData["doc_"+doc.code+"_file"])throw new Error("Pièce obligatoire manquante : "+doc.libelle);
         const file=formData["doc_"+doc.code+"_file"];if(!file)continue;
         const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/pieces");if(!uploaded)throw new Error("Upload impossible : "+doc.libelle);
-        const {error}=await (supabase as any).from("documents_acquisition").insert({client_id:client.id,type_document:doc.code,code_document:doc.code,categorie:doc.categorie,obligatoire:doc.obligatoire,source_contractuelle:doc.source_contractuelle,fichier_url:uploaded.url,statut:"en_attente",uploaded_by:user.id,metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,storage_bucket:"documents"}});
+        const {error}=await offlineInsert("documents_acquisition",{client_id:client.id,type_document:doc.code,code_document:doc.code,categorie:doc.categorie,obligatoire:doc.obligatoire,source_contractuelle:doc.source_contractuelle,fichier_url:uploaded.path||uploaded.url,statut:"en_attente",uploaded_by:user.id,metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,storage_bucket:"documents"}});
         if(error)throw error;
       }
 
@@ -286,7 +292,7 @@ const NouvelleAcquisition = () => {
         if(file){
           const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/contrats");
           if(!uploaded?.path)throw new Error("Upload contrat impossible");
-          const {error:contractDocError}=await (supabase as any).from("documents_acquisition").insert({
+          const {error:contractDocError}=await offlineInsert("documents_acquisition",{
             client_id:client.id,type_document:contract.type_contrat,code_document:contract.type_contrat,
             categorie:"contrat",obligatoire:!!contract.obligatoire,source_contractuelle:contract.type_contrat,
             fichier_url:uploaded.path,statut:"en_attente",uploaded_by:user.id,
@@ -294,15 +300,19 @@ const NouvelleAcquisition = () => {
           });
           if(contractDocError)throw contractDocError;
         }
-        const {error:contractStatusError}=await (supabase as any).from("clients").update({
+        const {error:contractStatusError}=await offlineUpdate("clients",client.id,{
           [contract.type_contrat==="contrat_acquisition_client"?"contrat_acquisition_statut":"contrat_accompagnement_statut"]:formData[key+"_statut"]||"a_preparer"
-        }).eq("id",client.id);
+        });
         if(contractStatusError)throw contractStatusError;
       }
 
-      if(brouillonId)await (supabase as any).from("acquisitions_brouillon").delete().eq("id",brouillonId);
-      toast({title:"Client enregistré",description:"Le dossier Client et son parcours ont été enregistrés."});
-      setSyncState("synced");
+      if(brouillonId) {
+        const {error:draftDeleteError}=await offlineDelete("acquisitions_brouillon",brouillonId);
+        if(draftDeleteError) throw draftDeleteError;
+      }
+      const savedOffline = !navigator.onLine;
+      toast({title:savedOffline ? "Client enregistré hors ligne" : "Client enregistré",description:savedOffline ? "Le dossier complet, les pièces et les liens sont conservés localement et seront synchronisés automatiquement." : "Le dossier Client et son parcours ont été enregistrés."});
+      setSyncState(savedOffline ? "queued" : "synced");
       navigate("/clients");
     }catch(error:any){
       setSyncState("error");toast({variant:"destructive",title:"Erreur d’enregistrement",description:getSafeErrorMessage(error)});
