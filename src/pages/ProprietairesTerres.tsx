@@ -55,6 +55,7 @@ const ProprietairesTerres = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [activeFormTab, setActiveFormTab] = useState("identite");
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [departements, setDepartements] = useState<any[]>([]);
@@ -72,7 +73,7 @@ const ProprietairesTerres = () => {
     telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "",
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
     lieu_residence: "",
-    district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village: "",
+    district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", village: "",
     surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
     type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
     statut_foncier: "coutumier", reference_cadastrale: "",
@@ -153,6 +154,32 @@ const ProprietairesTerres = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const type = formData.type_proprietaire;
+    if (type === "personne_physique" && (!formData.civilite || !formData.nom.trim())) {
+      setActiveFormTab("identite");
+      toast({ variant: "destructive", title: "Informations manquantes", description: "Renseignez la civilité et le nom du propriétaire." });
+      return;
+    }
+    if (type === "personne_morale" && (!formData.denomination_sociale.trim() || !formData.nom_representant.trim())) {
+      setActiveFormTab("identite");
+      toast({ variant: "destructive", title: "Informations manquantes", description: "Renseignez la dénomination sociale et le représentant." });
+      return;
+    }
+    if (type === "famille_groupement" && (!formData.nom.trim() || !formData.nom_representant.trim())) {
+      setActiveFormTab("identite");
+      toast({ variant: "destructive", title: "Informations manquantes", description: "Renseignez le nom du groupement et son représentant." });
+      return;
+    }
+    if (!String(formData.telephone || "").trim()) {
+      setActiveFormTab("identite");
+      toast({ variant: "destructive", title: "Téléphone obligatoire", description: "Renseignez le numéro de téléphone du propriétaire." });
+      return;
+    }
+    if (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0) {
+      setActiveFormTab("parcelle");
+      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro." });
+      return;
+    }
     setUploading(true);
     try {
       const currentUser = user;
@@ -373,7 +400,7 @@ const ProprietairesTerres = () => {
       denomination_sociale: "", numero_enregistrement: "", nombre_membres: "", nom_representant: "",
       telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", type_piece: "", numero_piece: "",
       date_delivrance_piece: "", lieu_residence: "", district_id: "", region_id: "",
-      departement_id: "", sous_prefecture_id: "", village: "",
+      departement_id: "", sous_prefecture_id: "", village_id: "", village: "",
       surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
       type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
       statut_foncier: "coutumier", reference_cadastrale: "",
@@ -416,8 +443,8 @@ const ProprietairesTerres = () => {
                 <DialogHeader>
                   <DialogTitle>Convention Planté-Partagé — Identification du Propriétaire</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <Tabs defaultValue="identite" className="space-y-4">
+                <form onSubmit={handleSubmit} noValidate className="space-y-6">
+                  <Tabs value={activeFormTab} onValueChange={setActiveFormTab} className="space-y-4">
                     <TabsList className="grid w-full grid-cols-4">
                       <TabsTrigger value="identite">Identité</TabsTrigger>
                       <TabsTrigger value="localisation">Localisation</TabsTrigger>
@@ -567,7 +594,7 @@ const ProprietairesTerres = () => {
                     {/* TAB 2: LOCALISATION */}
                     <TabsContent value="localisation" className="space-y-4">
                       <h4 className="font-semibold">Localisation géographique</h4>
-                      <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} required onChange={(g)=>setFormData((x:any)=>({...x,district_id:g.districtId??x.district_id,region_id:g.regionId??x.region_id,departement_id:g.departementId??x.departement_id,sous_prefecture_id:g.sousPrefectureId??x.sous_prefecture_id,village_id:g.villageId??x.village_id,village:g.villageName??x.village}))}/></TabsContent>
+                      <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} required onChange={(g)=>setFormData((x:any)=>({...x,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{village:g.villageName??x.village}:{})}))}/>></TabsContent>
 
                     {/* TAB 3: PARCELLE */}
                     <TabsContent value="parcelle" className="space-y-4">
