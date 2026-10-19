@@ -428,6 +428,7 @@ export const TABLE_TO_OFFLINE_STORE: Record<string, string> = {
   conventions_foncieres: STORES.CONVENTIONS_FONCIERES,
   lots_hectares: STORES.LOTS_HECTARES,
   documents_acquisition: STORES.DOCUMENTS_ACQUISITION,
+  documents_convention: STORES.DOCUMENTS_CONVENTION,
   portail_messages: STORES.PORTAIL_MESSAGES,
   finance_transactions: STORES.FINANCE_TRANSACTIONS,
   finance_expenses: STORES.FINANCE_EXPENSES,
