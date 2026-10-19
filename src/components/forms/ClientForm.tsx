@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { offlineUpdate } from "@/lib/offlineWrite";
+import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -144,13 +144,13 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         if (!result?.url) throw new Error(`Échec du téléversement : ${documentType.label}`);
         // documents_souscription does not exist in the live schema.
         // Store these files in the canonical CRM acquisition-document table.
-        const { error: documentError } = await (supabase as any).from("documents_acquisition").insert({
+        const { error: documentError } = await offlineInsert("documents_acquisition", {
           client_id: client.id,
           type_document: documentType.key,
           code_document: documentType.key,
           categorie: "souscription",
           source_contractuelle: documentType.key,
-          fichier_url: result.url,
+          fichier_url: result.path || result.url,
           statut: "en_attente",
           uploaded_by: user.id,
           metadata: { libelle: documentType.label, source_formulaire: "client", storage_bucket: "documents-fonciers" },

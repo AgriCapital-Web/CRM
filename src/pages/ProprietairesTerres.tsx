@@ -26,8 +26,8 @@ import ContactLauncher from "@/components/common/ContactLauncher";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import RelationshipSelect from "@/components/common/RelationshipSelect";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
-import { offlineInsert } from "@/lib/offlineWrite";
-import { getCachedItems, STORES, addToSyncQueue } from "@/lib/offlineDb";
+import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
+import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { getSafeErrorMessage } from "@/lib/safeError";
 
 const ANNEXES_CONVENTION = [
@@ -191,16 +191,14 @@ const ProprietairesTerres = () => {
       let photo_profil_url = null, fichier_piece_recto_url = null, fichier_piece_verso_url = null;
       const annexUploads: Record<string, string | null> = {};
       const isOnline = navigator.onLine;
-      if (isOnline) {
-        if (files.photo_profil) photo_profil_url = await uploadFile('photos-profils', files.photo_profil, user.id);
-        if (files.cni_recto) fichier_piece_recto_url = await uploadFile('pieces-identite', files.cni_recto, `proprietaires/${user.id}/pieces`);
-        if (files.cni_verso) fichier_piece_verso_url = await uploadFile('pieces-identite', files.cni_verso, `proprietaires/${user.id}/pieces`);
-        for (const annexe of ANNEXES_CONVENTION) {
-          const file = files[annexe.field];
-          annexUploads[annexe.field] = file ? await uploadFile('documents-fonciers', file, `conventions/${user.id}/annexes`) : null;
-        }
-      } else {
-        for (const annexe of ANNEXES_CONVENTION) annexUploads[annexe.field] = null;
+      // uploadToStorage conserve aussi les blobs en IndexedDB hors ligne : on
+      // garde donc les chemins des pièces au lieu de déclarer les annexes absentes.
+      if (files.photo_profil) photo_profil_url = await uploadFile('photos-profils', files.photo_profil, user.id);
+      if (files.cni_recto) fichier_piece_recto_url = await uploadFile('pieces-identite', files.cni_recto, `proprietaires/${user.id}/pieces`);
+      if (files.cni_verso) fichier_piece_verso_url = await uploadFile('pieces-identite', files.cni_verso, `proprietaires/${user.id}/pieces`);
+      for (const annexe of ANNEXES_CONVENTION) {
+        const file = files[annexe.field];
+        annexUploads[annexe.field] = file ? await uploadFile('documents-fonciers', file, `conventions/${user.id}/annexes`) : null;
       }
 
       const nomComplet = formData.type_proprietaire === 'personne_morale' 
@@ -249,6 +247,7 @@ const ProprietairesTerres = () => {
         region_id: formData.region_id || null,
         departement_id: formData.departement_id || null,
         sous_prefecture_id: formData.sous_prefecture_id || null,
+        village_id: formData.village_id || null,
         village: formData.village || formData.localite || null,
         nombre_membres: formData.nombre_membres ? parseInt(formData.nombre_membres) : null,
         date_naissance: formData.date_naissance || null,
@@ -313,6 +312,7 @@ const ProprietairesTerres = () => {
           region_id: formData.region_id || null,
           departement_id: formData.departement_id || null,
           sous_prefecture_id: formData.sous_prefecture_id || null,
+          village_id: formData.village_id || null,
           village: formData.village || null,
           localisation_gps_lat: gpsLat,
           localisation_gps_lng: gpsLng,
@@ -346,14 +346,9 @@ const ProprietairesTerres = () => {
         notes: formData.notes || null,
         created_by: currentUser.id,
       };
-      let conventionRef: any = null;
-      if (isOnline) {
-        const { data: convention, error: conventionError } = await (supabase as any).from("conventions_foncieres").insert(conventionPayload).select().single();
-        if (conventionError) throw conventionError;
-        conventionRef = convention;
-      } else {
-        await addToSyncQueue({ table: 'conventions_foncieres', operation: 'insert', record_id: proprietaire.id + '-conv', data: conventionPayload, timestamp: Date.now() });
-      }
+      const { data: convention, error: conventionError } = await offlineInsert("conventions_foncieres", conventionPayload);
+      if (conventionError || !convention) throw conventionError || new Error("La convention n’a pas été enregistrée.");
+      const conventionRef: any = convention;
 
       const documents = ANNEXES_CONVENTION.map((a) => ({
         proprietaire_id: proprietaire.id,
@@ -365,25 +360,22 @@ const ProprietairesTerres = () => {
         uploaded_by: annexUploads[a.field] ? user.id : null,
         notes: conventionRef?.id ? `Convention ${conventionRef.reference || conventionRef.id}` : null,
       }));
-      if (isOnline) {
-        const { error: docsError } = await (supabase as any).from("documents_convention").insert(documents);
+      for (const document of documents) {
+        const { error: docsError } = await offlineInsert("documents_convention", document);
         if (docsError) throw docsError;
-      } else {
-        for (const d of documents) {
-          await addToSyncQueue({ table: 'documents_convention', operation: 'insert', record_id: proprietaire.id + '-' + d.type_document, data: d, timestamp: Date.now() });
-        }
       }
-      if (conversionLeadId && isOnline) {
-        const { error: leadUpdateError } = await (supabase as any).from("leads")
-          .update({ statut: "converti", etape_pipeline: "converti", converti_at: new Date().toISOString(), proprietaire_id: proprietaire.id })
-          .eq("id", conversionLeadId);
+      if (conversionLeadId) {
+        const { error: leadUpdateError } = await offlineUpdate("leads", conversionLeadId, {
+          statut: "converti", etape_pipeline: "converti",
+          converti_at: new Date().toISOString(), proprietaire_id: proprietaire.id,
+        });
         if (leadUpdateError) throw leadUpdateError;
       }
       toast({
         title: isOnline ? "Succès" : "Enregistré hors ligne",
         description: isOnline
           ? `Propriétaire ${proprietaire.id_unique || proprietaire.id} enregistré`
-          : "Propriétaire, parcelle et convention en attente de synchronisation. Les documents nécessitent une connexion.",
+          : "Propriétaire, parcelle, convention, documents et pièces jointes enregistrés localement et en attente de synchronisation.",
       });
       setIsFormOpen(false);
       resetForm();

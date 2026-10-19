@@ -6,7 +6,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import {
-  STORES, addToSyncQueue, putItem, deleteItem, getItem,
+  STORES, addToSyncQueue, putItem, deleteItem, getItem, getAllItems,
 } from '@/lib/offlineDb';
 
 const TABLE_TO_STORE: Record<string, string> = {
@@ -65,15 +65,16 @@ export async function offlineInsert(table: string, values: any): Promise<{ data:
   if (navigator.onLine) {
     const { data, error } = await (supabase as any).from(table).insert(values).select().maybeSingle();
     if (!error && data && store) {
-      try { await putItem(store, data); } catch { /* best effort local cache */ }
+      try { await putItem(store, data); } catch (cacheError) { console.error("[OfflineWrite] Server saved, local cache refresh failed", cacheError); }
     }
+    if (!error && !data) return { data: null, error: new Error("Le serveur n’a retourné aucun enregistrement après l’insertion."), offline: false };
     if (!error || !isNetworkError(error)) return { data, error, offline: false };
     // Le réseau était disponible au moment du test mais la requête a échoué :
     // basculer en file locale plutôt que perdre la saisie terrain.
     if (store) {
       const tempId = values?.id || genUuid();
       const record = { ...values, id: tempId, _offline: true, _pending: 'insert', created_at: values?.created_at || new Date().toISOString(), updated_at: new Date().toISOString() };
-      try { await putItem(store, record); } catch { /* best effort local cache */ }
+      await putItem(store, record);
       await addToSyncQueue({ table, operation: 'insert', record_id: tempId, data: { ...values, id: tempId }, timestamp: Date.now() });
       return { data: record, error: null, offline: true };
     }
@@ -89,7 +90,8 @@ export async function offlineInsert(table: string, values: any): Promise<{ data:
     created_at: values?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  if (store) { try { await putItem(store, record); } catch { /* best effort local cache */ } }
+  // Ne confirmer un enregistrement hors ligne qu'après sauvegarde durable locale.
+  if (store) await putItem(store, record);
   // Ne jamais envoyer les métadonnées IndexedDB au serveur : seules les colonnes
   // métier sont transmises, avec le même UUID local.
   const serverPayload = { ...values, id: tempId };
@@ -99,21 +101,45 @@ export async function offlineInsert(table: string, values: any): Promise<{ data:
 
 export async function offlineUpdate(table: string, id: string, values: any): Promise<{ error: any | null; offline: boolean }> {
   const store = TABLE_TO_STORE[table];
+  // A record created offline may be edited before its INSERT reaches the server.
+  // Merge into the pending INSERT so the later edits cannot be silently lost.
+  const queued = await getAllItems(STORES.SYNC_QUEUE) as any[];
+  const pendingInsert = queued.find((op) =>
+    op.table === table && op.operation === "insert" && op.record_id === id &&
+    ["pending", "error", "syncing"].includes(op.status)
+  );
+  if (pendingInsert) {
+    await putItem(STORES.SYNC_QUEUE, {
+      ...pendingInsert,
+      data: { ...(pendingInsert.data || {}), ...values, id },
+      timestamp: Math.min(Number(pendingInsert.timestamp) || Date.now(), Date.now()),
+      status: "pending", retries: 0, next_retry_at: 0,
+      error_message: undefined, sync_started_at: undefined,
+    });
+    if (store) {
+      const existing = await getItem(store, id);
+      await putItem(store, { ...(existing || { id }), ...values, _offline: true, _pending: "insert", updated_at: new Date().toISOString() });
+    }
+    return { error: null, offline: true };
+  }
+
   if (navigator.onLine) {
-    const { error } = await (supabase as any).from(table).update(values).eq('id', id);
+    const { data, error } = await (supabase as any).from(table).update(values).eq('id', id).select('id').maybeSingle();
+    if (!error && !data) return {
+      error: new Error("Aucun enregistrement n’a été modifié. Vérifiez que le dossier existe et que vos droits permettent sa modification."),
+      offline: false,
+    };
     if (!error && store) {
       try {
         const existing = await getItem(store, id);
         await putItem(store, { ...(existing || { id }), ...values, updated_at: new Date().toISOString() });
-      } catch { /* best effort local cache */ }
+      } catch (cacheError) { console.error("[OfflineWrite] Server updated, local cache refresh failed", cacheError); }
     }
     if (!error || !isNetworkError(error)) return { error, offline: false };
   }
   if (store) {
-    try {
-      const existing = await getItem(store, id);
-      await putItem(store, { ...(existing || { id }), ...values, _offline: true, _pending: 'update', updated_at: new Date().toISOString() });
-    } catch { /* best effort local cache */ }
+    const existing = await getItem(store, id);
+    await putItem(store, { ...(existing || { id }), ...values, _offline: true, _pending: 'update', updated_at: new Date().toISOString() });
   }
   await addToSyncQueue({ table, operation: 'update', record_id: id, data: values, timestamp: Date.now() });
   return { error: null, offline: true };
