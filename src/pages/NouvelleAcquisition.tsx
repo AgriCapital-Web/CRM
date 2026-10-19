@@ -72,7 +72,7 @@ const NouvelleAcquisition = () => {
       }
       if(!active) return;
       updateFormData({
-        ...(isProspect ? {prospect_id:source.id,lead_id:source.lead_id||undefined} : {lead_id:source.id}),
+        ...(isProspect ? {prospect_id:source.id,lead_id:source.lead_id||undefined} : {lead_id:source.id,prospect_id:source.prospect_id||undefined}),
         nom_famille:source.nom_famille||source.nom||"", prenoms:source.prenoms||"",
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
