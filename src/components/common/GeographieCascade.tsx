@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { supabase } from "@/integrations/supabase/client";
+import { getAllItems, putItems, STORES } from "@/lib/offlineDb";
 
 interface Props {
   extraField?: ReactNode;
@@ -16,6 +17,16 @@ interface Props {
   required?: boolean; showDistrict?: boolean; showDepartement?: boolean; showSousPrefecture?: boolean; showVillage?: boolean; className?: string;
 }
 type GeoRow = { id: string; nom: string; [key: string]: any };
+const normalizeGeo = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr-FR").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+function geoNameMatches(name: string, search: string): boolean {
+  const a = normalizeGeo(name), b = normalizeGeo(search);
+  if (!b || a.includes(b)) return true;
+  if (b.length < 5 || Math.abs(a.length - b.length) > 2) return false;
+  const x = a.replace(/ /g, ""), y = b.replace(/ /g, "");
+  let prev = Array.from({length:y.length+1}, (_,i)=>i);
+  for(let i=1;i<=x.length;i++){const cur=[i];for(let j=1;j<=y.length;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(x[i-1]===y[j-1]?0:1));prev=cur;}
+  return prev[y.length] <= (b.length >= 9 ? 2 : 1);
+}
 
 export default function GeographieCascade({
   districtId, regionId, departementId, sousPrefectureId, villageId, onChange,
@@ -32,6 +43,14 @@ export default function GeographieCascade({
   const [searchingVillages, setSearchingVillages] = useState(false);
   const [tick, setTick] = useState(0);
   const selectedDistrict = districts.find((d) => d.id === districtId);
+  const offline = typeof navigator !== "undefined" && !navigator.onLine;
+  useEffect(() => {
+    let active = true;
+    Promise.all([getAllItems(STORES.DISTRICTS), getAllItems(STORES.REGIONS), getAllItems(STORES.DEPARTEMENTS), getAllItems(STORES.SOUS_PREFECTURES), getAllItems(STORES.VILLAGES)])
+      .then(([d,r,de,sp,v]) => { if(!active)return; if(d.length)setDistricts(d); if(r.length)setRegions(r); if(de.length)setDepartements(de); if(sp.length)setSousPrefectures(sp); if(v.length){setVillages(v);setVillageMatches(v);} })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const channel = supabase.channel(`geo-cascade-${Math.random().toString(36).slice(2)}`);
@@ -53,6 +72,7 @@ export default function GeographieCascade({
       const sorted = (error ? [] : (data || [])).sort((a: any, b: any) =>
         Number(withChildren.has(a.id)) - Number(withChildren.has(b.id)) || String(a.nom).localeCompare(String(b.nom), "fr"));
       if (active) setDistricts(sorted);
+      if (!error && data?.length) void putItems(STORES.DISTRICTS, data).catch(() => {});
     })();
     return () => { active = false; };
   }, [tick]);
@@ -64,6 +84,7 @@ export default function GeographieCascade({
       const { data, error } = await (supabase as any).from("v_geo_regions").select("id,nom")
         .eq("district_id", districtId).eq("est_active_effectif", true).order("nom");
       if (active) setRegions(error ? [] : (data || []));
+      if (!error && data?.length) void putItems(STORES.REGIONS, data.map((x:any)=>({...x,district_id:districtId}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [districtId, tick]);
@@ -75,6 +96,7 @@ export default function GeographieCascade({
       const { data, error } = await (supabase as any).from("v_geo_departements").select("id,nom")
         .eq("region_id", regionId).eq("est_actif_effectif", true).order("nom");
       if (active) setDepartements(error ? [] : (data || []));
+      if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((x:any)=>({...x,region_id:regionId}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [regionId, tick]);
@@ -86,6 +108,7 @@ export default function GeographieCascade({
       const { data, error } = await (supabase as any).from("v_geo_sous_prefectures").select("id,nom")
         .eq("departement_id", departementId).eq("est_active_effectif", true).order("nom");
       if (active) setSousPrefectures(error ? [] : (data || []));
+      if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((x:any)=>({...x,departement_id:departementId}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [departementId, tick]);
@@ -97,53 +120,53 @@ export default function GeographieCascade({
       const { data, error } = await (supabase as any).from("v_geo_villages").select("id,nom")
         .eq("sous_prefecture_id", sousPrefectureId).eq("est_actif_effectif", true).order("nom");
       if (active) setVillages(error ? [] : (data || []));
+      if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((x:any)=>({...x,sous_prefecture_id:sousPrefectureId}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [sousPrefectureId, tick]);
 
-  // Search the real, RLS-visible geographic catalogue even before the parent hierarchy is selected.
   useEffect(() => {
     let active = true;
-    const term = villageSearch.trim().replace(/[,%()]/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const term = villageSearch.trim();
     if (term.length < 2) { setVillageMatches([]); setSearchingVillages(false); return () => { active = false; }; }
     setSearchingVillages(true);
     const timer = setTimeout(async () => {
-      let query = (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id")
-        .eq("est_actif_effectif", true).ilike("nom", `%${term}%`).order("nom").limit(100);
-      if (sousPrefectureId) query = query.eq("sous_prefecture_id", sousPrefectureId);
-      else if (departementId) {
-        const { data: sps } = await (supabase as any).from("v_geo_sous_prefectures").select("id")
-          .eq("departement_id", departementId).eq("est_active_effectif", true);
-        const ids = (sps || []).map((x: any) => x.id);
-        if (!ids.length) { if (active) { setVillageMatches([]); setSearchingVillages(false); } return; }
-        query = query.in("sous_prefecture_id", ids);
-      } else if (regionId) {
-        const { data: deps } = await (supabase as any).from("v_geo_departements").select("id")
-          .eq("region_id", regionId).eq("est_actif_effectif", true);
-        const depIds = (deps || []).map((x: any) => x.id);
-        const { data: sps } = depIds.length ? await (supabase as any).from("v_geo_sous_prefectures").select("id")
-          .in("departement_id", depIds).eq("est_active_effectif", true) : { data: [] };
-        const ids = (sps || []).map((x: any) => x.id);
-        if (!ids.length) { if (active) { setVillageMatches([]); setSearchingVillages(false); } return; }
-        query = query.in("sous_prefecture_id", ids);
-      } else if (districtId) {
-        const { data: regs } = await (supabase as any).from("v_geo_regions").select("id")
-          .eq("district_id", districtId).eq("est_active_effectif", true);
-        const regIds = (regs || []).map((x: any) => x.id);
-        const { data: deps } = regIds.length ? await (supabase as any).from("v_geo_departements").select("id")
-          .in("region_id", regIds).eq("est_actif_effectif", true) : { data: [] };
-        const depIds = (deps || []).map((x: any) => x.id);
-        const { data: sps } = depIds.length ? await (supabase as any).from("v_geo_sous_prefectures").select("id")
-          .in("departement_id", depIds).eq("est_active_effectif", true) : { data: [] };
-        const ids = (sps || []).map((x: any) => x.id);
-        if (!ids.length) { if (active) { setVillageMatches([]); setSearchingVillages(false); } return; }
-        query = query.in("sous_prefecture_id", ids);
-      }
-      const { data, error } = await query;
-      if (active) { setVillageMatches(error ? [] : (data || [])); setSearchingVillages(false); }
-    }, 220);
-    return () => { active = false; clearTimeout(timer); };
-  }, [villageSearch, districtId, regionId, departementId, sousPrefectureId, tick]);
+      try {
+        let candidates:any[] = await getAllItems(STORES.VILLAGES).catch(()=>[]);
+        if (!offline) {
+          const PAGE=1000; let offset=0;
+          for(let page=0;page<50;page++){
+            const {data,error}=await (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id").eq("est_actif_effectif",true).order("nom").range(offset,offset+PAGE-1);
+            if(error||!data?.length)break;
+            candidates.push(...data); if(data.length<PAGE)break; offset+=PAGE;
+          }
+          const unique=new Map<string,any>(); for(const row of candidates)if(row?.id)unique.set(String(row.id),row);
+          candidates=[...unique.values()]; if(candidates.length)void putItems(STORES.VILLAGES,candidates).catch(()=>{});
+        }
+        let matches=candidates.filter(v=>v?.id&&v?.nom&&geoNameMatches(v.nom,term));
+        if(sousPrefectureId)matches=matches.filter(v=>v.sous_prefecture_id===sousPrefectureId);
+        else if(departementId){
+          const sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
+          const ids=new Set(sps.filter((x:any)=>x.departement_id===departementId).map((x:any)=>x.id));
+          matches=matches.filter(v=>ids.has(v.sous_prefecture_id));
+        } else if(regionId){
+          const deps=await getAllItems(STORES.DEPARTEMENTS).catch(()=>[]), sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
+          const depIds=new Set(deps.filter((x:any)=>x.region_id===regionId).map((x:any)=>x.id));
+          const spIds=new Set(sps.filter((x:any)=>depIds.has(x.departement_id)).map((x:any)=>x.id));
+          matches=matches.filter(v=>spIds.has(v.sous_prefecture_id));
+        } else if(districtId){
+          const regs=await getAllItems(STORES.REGIONS).catch(()=>[]), deps=await getAllItems(STORES.DEPARTEMENTS).catch(()=>[]), sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
+          const regIds=new Set(regs.filter((x:any)=>x.district_id===districtId).map((x:any)=>x.id));
+          const depIds=new Set(deps.filter((x:any)=>regIds.has(x.region_id)).map((x:any)=>x.id));
+          const spIds=new Set(sps.filter((x:any)=>depIds.has(x.departement_id)).map((x:any)=>x.id));
+          matches=matches.filter(v=>spIds.has(v.sous_prefecture_id));
+        }
+        const q=normalizeGeo(term); matches.sort((x,y)=>((normalizeGeo(x.nom)===q?0:normalizeGeo(x.nom).startsWith(q)?1:2)-(normalizeGeo(y.nom)===q?0:normalizeGeo(y.nom).startsWith(q)?1:2))||String(x.nom).localeCompare(String(y.nom),"fr"));
+        if(active){setVillageMatches(matches.slice(0,30));setSearchingVillages(false);}
+      }catch{if(active){setVillageMatches([]);setSearchingVillages(false);}}
+    },180);
+    return()=>{active=false;clearTimeout(timer);};
+  }, [villageSearch,districtId,regionId,departementId,sousPrefectureId,tick,offline]);
 
   const villageOptions = useMemo(() => {
     const source = sousPrefectureId ? villages : villageMatches;
@@ -187,7 +210,7 @@ export default function GeographieCascade({
     setVillageMatches([]);
   };
 
-  const hasChildren = !showDistrict || Boolean(districtId);
+  const hasChildren = true;
   return <div className={className}>
     {showDistrict && <div className="space-y-2"><Label>District{required ? " *" : ""}</Label>
       <SearchableSelect value={districtId || ""} onValueChange={(value) => onChange({
@@ -224,10 +247,10 @@ export default function GeographieCascade({
       </div>}
       {showVillage && <div className="space-y-2 relative"><Label>Village / localité{required ? " *" : ""}</Label>
         <input value={villageSearch || ([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || "")}
-          onChange={(e) => { setVillageSearch(e.target.value); if (!e.target.value.trim()) onChange({ villageId: null, villageName: null }); }}
+          onChange={(e) => { const value=e.target.value; setVillageSearch(value); onChange({ villageId:null, villageName:value }); }}
           onFocus={() => { if (villageId) setVillageSearch([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || villageSearch); }}
           autoComplete="off" role="combobox" aria-expanded={villageMatches.length > 0}
-          placeholder={sousPrefectureId ? "Rechercher un village" : "Saisir les premières lettres du village"}
+          placeholder={sousPrefectureId ? "Rechercher un village" : "Saisir le village ou la localité"}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
         {searchingVillages && <p className="text-xs text-muted-foreground mt-1">Recherche des localités…</p>}
         {villageSearch.trim().length >= 2 && !searchingVillages && villageMatches.length === 0 && !villageId &&
