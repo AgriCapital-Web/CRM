@@ -134,11 +134,27 @@ export default function GeographieCascade({
       try {
         let candidates:any[] = await getAllItems(STORES.VILLAGES).catch(()=>[]);
         if (!offline) {
-          const PAGE=1000; let offset=0;
+          const PAGE=1000; let offset=0; const fresh:any[]=[];
           for(let page=0;page<50;page++){
             const {data,error}=await (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id").eq("est_actif_effectif",true).order("nom").range(offset,offset+PAGE-1);
             if(error||!data?.length)break;
-            candidates.push(...data); if(data.length<PAGE)break; offset+=PAGE;
+            fresh.push(...data); if(data.length<PAGE)break; offset+=PAGE;
+          }
+          if (fresh.length) {
+            const [spRows,depRows,regRows]=await Promise.all([
+              (supabase as any).from("sous_prefectures").select("id,departement_id"),
+              (supabase as any).from("departements").select("id,region_id"),
+              (supabase as any).from("regions").select("id,district_id")
+            ]);
+            const spById=new Map((spRows.data||[]).map((x:any)=>[String(x.id),x]));
+            const depById=new Map((depRows.data||[]).map((x:any)=>[String(x.id),x]));
+            const regById=new Map((regRows.data||[]).map((x:any)=>[String(x.id),x]));
+            candidates.push(...fresh.map((v:any)=>{
+              const sp:any=spById.get(String(v.sous_prefecture_id));
+              const dep:any=sp?.departement_id?depById.get(String(sp.departement_id)):undefined;
+              const reg:any=dep?.region_id?regById.get(String(dep.region_id)):undefined;
+              return {...v,departement_id:sp?.departement_id||null,region_id:dep?.region_id||null,district_id:reg?.district_id||null};
+            }));
           }
           const unique=new Map<string,any>(); for(const row of candidates)if(row?.id)unique.set(String(row.id),row);
           candidates=[...unique.values()]; if(candidates.length)void putItems(STORES.VILLAGES,candidates).catch(()=>{});
@@ -148,12 +164,12 @@ export default function GeographieCascade({
         else if(departementId){
           const sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
           const ids=new Set(sps.filter((x:any)=>x.departement_id===departementId).map((x:any)=>x.id));
-          matches=matches.filter(v=>ids.has(v.sous_prefecture_id));
+          matches=matches.filter(v=>v.departement_id===departementId || ids.has(v.sous_prefecture_id));
         } else if(regionId){
           const deps=await getAllItems(STORES.DEPARTEMENTS).catch(()=>[]), sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
           const depIds=new Set(deps.filter((x:any)=>x.region_id===regionId).map((x:any)=>x.id));
           const spIds=new Set(sps.filter((x:any)=>depIds.has(x.departement_id)).map((x:any)=>x.id));
-          matches=matches.filter(v=>spIds.has(v.sous_prefecture_id));
+          matches=matches.filter(v=>v.region_id===regionId || v.district_id===districtId || spIds.has(v.sous_prefecture_id));
         } else if(districtId){
           const regs=await getAllItems(STORES.REGIONS).catch(()=>[]), deps=await getAllItems(STORES.DEPARTEMENTS).catch(()=>[]), sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
           const regIds=new Set(regs.filter((x:any)=>x.district_id===districtId).map((x:any)=>x.id));

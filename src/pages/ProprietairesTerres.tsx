@@ -71,7 +71,7 @@ const ProprietairesTerres = () => {
     nombre_membres: "", nom_representant: "",
     telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "",
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
-    domicile: "", lieu_residence: "",
+    lieu_residence: "",
     district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village: "",
     surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
     type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
@@ -214,7 +214,7 @@ const ProprietairesTerres = () => {
         nom_representant: formData.nom_representant || null,
         telephone: formData.telephone, telephone_indicatif: formData.telephone_indicatif || null, telephone_local: formData.telephone_local || null,
         whatsapp: formData.whatsapp || null, whatsapp_indicatif: formData.whatsapp_indicatif || null, whatsapp_local: formData.whatsapp_local || null,
-        domicile: formData.domicile || null,
+
         lieu_residence: formData.lieu_residence || null,
         numero_piece: formData.numero_piece || null,
         photo_profil_url, fichier_piece_recto_url, fichier_piece_verso_url,
@@ -372,7 +372,7 @@ const ProprietairesTerres = () => {
       date_naissance: "", lieu_naissance: "", nom_pere: "", nom_mere: "",
       denomination_sociale: "", numero_enregistrement: "", nombre_membres: "", nom_representant: "",
       telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", type_piece: "", numero_piece: "",
-      date_delivrance_piece: "", domicile: "", lieu_residence: "", district_id: "", region_id: "",
+      date_delivrance_piece: "", lieu_residence: "", district_id: "", region_id: "",
       departement_id: "", sous_prefecture_id: "", village: "",
       surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
       type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
@@ -540,8 +540,7 @@ const ProprietairesTerres = () => {
                             <Input type="email" value={formData.email} onChange={e => update('email', e.target.value)} />
                           </div>
                           <div className="space-y-2">
-                            <Label>Adresse / Domicile</Label>
-                            <Input value={formData.domicile} onChange={e => update('domicile', e.target.value)} />
+
                           </div>
                           <div className="space-y-2">
                             <Label>Lieu de résidence</Label>
@@ -568,7 +567,7 @@ const ProprietairesTerres = () => {
                     {/* TAB 2: LOCALISATION */}
                     <TabsContent value="localisation" className="space-y-4">
                       <h4 className="font-semibold">Localisation géographique</h4>
-                      <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} required onChange={(g)=>setFormData((x:any)=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village:g.villageName||""}))}/></TabsContent>
+                      <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} required onChange={(g)=>setFormData((x:any)=>({...x,district_id:g.districtId??x.district_id,region_id:g.regionId??x.region_id,departement_id:g.departementId??x.departement_id,sous_prefecture_id:g.sousPrefectureId??x.sous_prefecture_id,village_id:g.villageId??x.village_id,village:g.villageName??x.village}))}/></TabsContent>
 
                     {/* TAB 3: PARCELLE */}
                     <TabsContent value="parcelle" className="space-y-4">
