@@ -222,7 +222,7 @@ const ProprietairesTerres = () => {
         region_id: formData.region_id || null,
         departement_id: formData.departement_id || null,
         sous_prefecture_id: formData.sous_prefecture_id || null,
-        village: formData.village || null,
+        village: formData.village || formData.localite || null,
         nombre_membres: formData.nombre_membres ? parseInt(formData.nombre_membres) : null,
         date_naissance: formData.date_naissance || null,
         date_delivrance_piece: formData.date_delivrance_piece || null,

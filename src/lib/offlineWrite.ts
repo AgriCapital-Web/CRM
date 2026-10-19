@@ -14,6 +14,7 @@ const TABLE_TO_STORE: Record<string, string> = {
   plantations: STORES.PLANTATIONS,
   paiements: STORES.PAIEMENTS,
   leads: STORES.LEADS,
+  prospects: STORES.PROSPECTS,
   lead_relances: STORES.LEAD_RELANCES,
   proprietaires_terres: STORES.PROPRIETAIRES_TERRES,
   parcelles: STORES.PARCELLES,

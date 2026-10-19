@@ -133,9 +133,11 @@ export function useOfflineSync() {
       // Field-team essentials (incremental by updated_at)
       const MAIN_TABLES: Array<{ store: string; table: string; ts?: string }> = [
         { store: STORES.CLIENTS, table: 'clients' },
+        { store: STORES.PROSPECTS, table: 'prospects' },
         { store: STORES.PLANTATIONS, table: 'plantations' },
         { store: STORES.PAIEMENTS, table: 'paiements' },
         { store: STORES.LEADS, table: 'leads' },
+  { store: STORES.PROSPECTS, table: 'prospects' },
         { store: STORES.LEAD_RELANCES, table: 'lead_relances', ts: 'created_at' },
         { store: STORES.PROPRIETAIRES_TERRES, table: 'proprietaires_terres' },
         { store: STORES.PARCELLES, table: 'parcelles' },
@@ -331,6 +333,7 @@ export function useOfflineSync() {
       plantations: STORES.PLANTATIONS,
       paiements: STORES.PAIEMENTS,
       leads: STORES.LEADS,
+      prospects: STORES.PROSPECTS,
       lead_relances: STORES.LEAD_RELANCES,
       proprietaires_terres: STORES.PROPRIETAIRES_TERRES,
       parcelles: STORES.PARCELLES,

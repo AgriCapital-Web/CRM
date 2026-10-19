@@ -98,7 +98,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [formStage, setFormStage] = useState<"lead" | "prospect">("lead");
   const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
-    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
+    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
     type_lead: "client", civilite: "", etape_pipeline: "lead", offre_code: "", formule_code: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
@@ -282,7 +282,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
             district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
             departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
-            village_id: leadForm.village_id || null, region_residence: leadForm.region_residence || null,
+            village_id: leadForm.village_id || null, localite: leadForm.localite || null, region_residence: leadForm.region_residence || null,
             campement_quartier: leadForm.campement_quartier || null,
             dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
             superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
@@ -881,7 +881,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 sousPrefectureId={leadForm.sous_prefecture_id}
                                 villageId={leadForm.village_id}
                                 required
-                                onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",region_residence:g.regionName||""}))}
+                                onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",localite:g.villageName||x.localite||"",region_residence:g.regionName||x.region_residence||""}))}
                               />
                             </div>
                             <div><Label>Lieu de résidence</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Lieu de résidence" /></div>
@@ -978,7 +978,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
               <Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button>
               <Button
                 onClick={() => createLead.mutate()}
-                disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || (formStage === "prospect" && !leadForm.district_id.trim())}
+                disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || false}
               >{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button>
             </DialogFooter>
           </DialogContent>

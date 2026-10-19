@@ -28,7 +28,7 @@ export default function PublicLead() {
   const [done, setDone] = useState(false);
   const [f, setF] = useState({
     nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "",
-    district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "",
+    district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", localite: "", region_residence: "",
     dispose_terrain: false,
     superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "",
@@ -39,7 +39,7 @@ export default function PublicLead() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!f.nom || !f.prenoms || !f.telephone || !f.district_id) {
+    if (!f.nom || !f.prenoms || !f.telephone) {
       toast({ variant: "destructive", title: "Champs requis manquants" });
       return;
     }
@@ -47,7 +47,7 @@ export default function PublicLead() {
     const payload: any = {
       nom: f.nom.trim(), prenoms: f.prenoms.trim(), telephone: f.telephone.trim(),
       whatsapp: f.whatsapp || null, email: f.email || null,
-      district_id: f.district_id || null, region_id: f.region_id || null, departement_id: f.departement_id || null, sous_prefecture_id: f.sous_prefecture_id || null, village_id: f.village_id || null, region_residence: f.region_residence || null,
+      district_id: f.district_id || null, region_id: f.region_id || null, departement_id: f.departement_id || null, sous_prefecture_id: f.sous_prefecture_id || null, village_id: f.village_id || null, localite: f.localite || null, region_residence: f.region_residence || null,
       dispose_terrain: f.dispose_terrain,
       superficie_disponible_ha: f.dispose_terrain && f.superficie_disponible_ha ? Number(f.superficie_disponible_ha) : null,
       superficie_a_valoriser_ha: f.dispose_terrain && f.superficie_a_valoriser_ha ? Number(f.superficie_a_valoriser_ha) : null,
@@ -125,7 +125,7 @@ export default function PublicLead() {
                   region_id:g.regionId||"",
                   departement_id:g.departementId||"",
                   sous_prefecture_id:g.sousPrefectureId||"",
-                  village_id:g.villageId||"",
+                  village_id:g.villageId||"", localite:g.villageName||x.localite||"",
                   region_residence:g.regionName||"",
                 }))}
               />
