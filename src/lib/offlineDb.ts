@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'agricapital_offline';
-const DB_VERSION = 13;
+const DB_VERSION = 14;
 
 export const STORES = {
   CLIENTS: 'clients',
@@ -40,6 +40,7 @@ export const STORES = {
   CONVENTIONS_FONCIERES: 'conventions_foncieres',
   LOTS_HECTARES: 'lots_hectares',
   DOCUMENTS_ACQUISITION: 'documents_acquisition',
+  DOCUMENTS_CONVENTION: 'documents_convention',
   PORTAIL_MESSAGES: 'portail_messages',
   FINANCE_TRANSACTIONS: 'finance_transactions',
   FINANCE_EXPENSES: 'finance_expenses',

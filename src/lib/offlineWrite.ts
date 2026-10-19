@@ -28,6 +28,7 @@ const TABLE_TO_STORE: Record<string, string> = {
   lots_hectares: STORES.LOTS_HECTARES,
   portail_messages: STORES.PORTAIL_MESSAGES,
   documents_acquisition: STORES.DOCUMENTS_ACQUISITION,
+  documents_convention: STORES.DOCUMENTS_CONVENTION,
   commissions: STORES.COMMISSIONS,
   finance_transactions: STORES.FINANCE_TRANSACTIONS,
   finance_expenses: STORES.FINANCE_EXPENSES,
