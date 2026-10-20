@@ -44,7 +44,7 @@ const CLIENT_COLUMNS = new Set([
 const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFormProps) => {
   const { user } = useAuth();
   const { can } = usePermissions();
-  const canEditClient = can("clients.update");
+  const canEditClient = can("clients.update") || Boolean(user?.id && client?.created_by === user.id && client?.validation_statut === "modification_demandee");
   const [isEditing, setIsEditing] = useState(!readOnly);
   const canUploadDocuments = can("documents.upload");
   const { toast } = useToast();
@@ -188,6 +188,12 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFor
       clientPayload.fichier_piece_verso_url = fichier_piece_verso_url;
       clientPayload.nom_complet = form.nom_complet || [form.nom_famille || form.nom, form.prenoms].filter(Boolean).join(" ").trim();
       clientPayload.updated_by = user.id;
+      if (client?.created_by === user.id && client?.validation_statut === "modification_demandee") {
+        clientPayload.validation_statut = "a_valider";
+        clientPayload.validation_commentaire = null;
+        clientPayload.validation_demande_at = null;
+        clientPayload.validation_at = null;
+      }
 
       const { error } = await offlineUpdate("clients", client.id, clientPayload);
       if (error) throw error;
