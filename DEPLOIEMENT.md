@@ -1,8 +1,8 @@
-# Déploiement du CRM AgriCapital
+# Déploiement d’AgriCapital 360 — La plateforme métier intelligente d’AgriCapital
 
 ## Production
 
-- Application : https://app.agricapital.ci
+- Application : AgriCapital 360 — https://app.agricapital.ci
 - Dépôt : https://github.com/AgriCapital-Web/CRM
 - Branche de production : `main`
 - Hébergement frontend : Vercel
