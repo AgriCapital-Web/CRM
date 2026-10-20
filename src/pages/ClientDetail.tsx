@@ -760,6 +760,7 @@ const ClientDetail = () => {
               <h2 className="text-lg font-semibold">Fiche complète du client</h2>
               <p className="text-sm text-muted-foreground">Formulaire de référence avec les données réelles du dossier. Les champs restent verrouillés en consultation et ne deviennent modifiables qu'après clic sur « Modifier » si le rôle est autorisé.</p>
             </div>
+            {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div>{client.validation_commentaire && <p className="text-sm">{client.validation_commentaire}</p>}<Label>Commentaire de contrôle</Label><Textarea rows={2} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction"/><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></div></div>}
             <ClientForm client={client} readOnly onSuccess={fetchData} onCancel={() => { void fetchData(); }} />
           </section>
 
