@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Sprout, DollarSign, FileText, Settings, Camera, LandPlot, UserRound, ExternalLink, MessageSquare, Upload, Plus, Download } from "lucide-react";
 import TicketForm from "@/components/forms/TicketForm";
+import ClientForm from "@/components/forms/ClientForm";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { uploadFile } from "@/utils/storage";
 import { resolveStorageUrl } from "@/utils/storage";
@@ -728,6 +729,14 @@ const ClientDetail = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <section className="rounded-xl border p-3 sm:p-4 space-y-3">
+            <div>
+              <h2 className="text-lg font-semibold">Fiche complète du client</h2>
+              <p className="text-sm text-muted-foreground">Formulaire de référence avec les données réelles du dossier. Les champs restent verrouillés en consultation et ne deviennent modifiables qu'après clic sur « Modifier » si le rôle est autorisé.</p>
+            </div>
+            <ClientForm client={client} readOnly onSuccess={fetchData} onCancel={() => { void fetchData(); }} />
+          </section>
 
           <Tabs defaultValue="plantations" className="space-y-3">
             <TabsList className="h-auto min-h-9 flex-wrap justify-start gap-1 p-1">

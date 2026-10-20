@@ -21,7 +21,7 @@ import GeographieCascade from "@/components/common/GeographieCascade";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 
-interface ClientFormProps { client?: any; onSuccess: () => void; onCancel: () => void; }
+interface ClientFormProps { client?: any; onSuccess: () => void; onCancel: () => void; readOnly?: boolean; }
 
 const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 
@@ -41,9 +41,11 @@ const CLIENT_COLUMNS = new Set([
   "whatsapp_indicatif","whatsapp_local","latitude","longitude","updated_by"
 ]);
 
-const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
+const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFormProps) => {
   const { user } = useAuth();
   const { can } = usePermissions();
+  const canEditClient = can("clients.update");
+  const [isEditing, setIsEditing] = useState(!readOnly);
   const canUploadDocuments = can("documents.upload");
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
@@ -65,6 +67,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
   // valeurs ou les médias du client précédent lorsque l'identifiant change.
   useEffect(() => {
     setForm({ ...(client || {}) });
+    setIsEditing(!readOnly);
     setPhotoFile(null);
     setPieceRectoFile(null);
     setPieceVersoFile(null);
@@ -73,7 +76,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
     setPieceVersoPreview("");
     setExtraFiles({});
     setExtraPreviews({});
-  }, [client?.id]);
+  }, [client?.id, readOnly]);
 
   useEffect(() => {
     let active = true;
@@ -131,6 +134,10 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
   const hasActivity = Number(form.nombre_plantations || 0) > 0 || Boolean(form.pi_paye_at || form.paiement_initial_paye_at);
 
   const onSubmit = async () => {
+    if (!canEditClient) {
+      toast({ variant: "destructive", title: "Accès refusé", description: "Seuls les rôles Relation client et les responsables autorisés peuvent modifier un dossier client." });
+      return;
+    }
     if (!user || !client?.id) return;
     setLoading(true);
     try {
@@ -236,6 +243,8 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
 
   return (
     <div className="space-y-3">
+      {readOnly && <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3"><div><p className="font-semibold">Fiche complète du client</p><p className="text-xs text-muted-foreground">{isEditing ? "Mode modification activé" : "Consultation seule — les champs sont verrouillés"}</p></div>{!isEditing && canEditClient && <Button type="button" onClick={() => setIsEditing(true)}>Modifier</Button>}</div>}
+      <fieldset disabled={!isEditing} className="space-y-3 min-w-0">
       <Card className="overflow-hidden">
         <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Commercial</CardTitle>
           
@@ -374,9 +383,10 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
         </CardContent>
       </Card>}
 
+      </fieldset>
       <div className="flex justify-end gap-3 sticky bottom-0 bg-background py-2 border-t">
-        <Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button>
-        <Button type="button" onClick={onSubmit} disabled={loading}>{loading ? "Enregistrement..." : "Enregistrer les modifications"}</Button>
+        <Button type="button" variant="secondary" onClick={() => { if (readOnly) { setForm({ ...(client || {}) }); setIsEditing(false); setPhotoFile(null); setPieceRectoFile(null); setPieceVersoFile(null); setExtraFiles({}); setExtraPreviews({}); } else onCancel(); }}>{isEditing ? "Annuler" : "Retour"}</Button>
+        {isEditing && canEditClient && <Button type="button" onClick={onSubmit} disabled={loading}>{loading ? "Enregistrement..." : "Enregistrer les modifications"}</Button>}
       </div>
     </div>
   );
