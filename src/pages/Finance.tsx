@@ -78,7 +78,7 @@ export default function Finance(){
       (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
       (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}),
       (supabase as any).from("finance_associates").select("*").order("full_name"),
-      (supabase as any).from("profiles").select("id,nom_complet,email,poste,relation_rh,actif,salaire_base").eq("actif",true).order("nom_complet"),
+      (supabase as any).from("profiles").select("id,nom_complet,email,poste,relation_rh,actif,salaire_base").order("nom_complet"),
       (supabase as any).from("finance_salary_profiles").select("*").order("created_at",{ascending:false}),
       (supabase as any).from("finance_payroll_runs").select("*").order("period_start",{ascending:false}).limit(24),
       (supabase as any).from("finance_associate_transactions").select("id,associate_id,movement_type,notes,created_at,finance_transactions(id,transaction_date,label,amount,direction,status,reference)").order("created_at",{ascending:false})
@@ -431,7 +431,7 @@ export default function Finance(){
       </TabsContent>
       <TabsContent value="salaires" className="mt-3 min-w-0 space-y-3"><div className="rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-4"><h2 className="font-semibold">Salaires et préparation de la paie</h2></div><div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {can("finance.payroll")&&<Card><CardHeader><CardTitle>Paramétrer un salaire</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <div className="sm:col-span-2"><Select value={salaryForm.profileId} onValueChange={v=>{const profile=profiles.find((p:any)=>p.id===v);setSalaryForm({...salaryForm,profileId:v,baseSalary:String(profile?.salaire_base ?? "")});}}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select></div>
+          <div className="sm:col-span-2"><Select value={salaryForm.profileId} onValueChange={v=>{const profile=profiles.find((p:any)=>p.id===v);setSalaryForm({...salaryForm,profileId:v,baseSalary:String(profile?.salaire_base ?? "")});}}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>p.actif!==false&&Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label>Salaire de base (synchronisé depuis les RH)</Label><Input type="number" placeholder="Salaire défini dans les RH" value={salaryForm.baseSalary} readOnly disabled/></div>
           <div className="space-y-1"><Label>Jour habituel de paiement (1 à 31)</Label><Input type="number" min="1" max="31" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/></div>
           <Button className="w-full sm:col-span-2" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
