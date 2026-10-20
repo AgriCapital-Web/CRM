@@ -457,6 +457,26 @@ export default function EspaceTravail() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
+  const removeAttachment = async () => {
+    if (!selected?.id || !selected.storage_path || !canEditSelected) return;
+    if (!window.confirm("Retirer le fichier source « " + (selected.file_name || "fichier joint") + " » ? Le document éditable restera dans l’espace de travail.")) return;
+    setSaving(true);
+    try {
+      const oldPath = selected.storage_path;
+      const { data, error } = await (supabase as any).from("workspace_documents").update({
+        storage_path: null, file_name: null, mime_type: null, updated_at: new Date().toISOString(),
+      }).eq("id", selected.id).select("*").single();
+      if (error) throw error;
+      if (!data?.id) throw new Error("La suppression du lien n’a pas été confirmée par la base.");
+      setSelected(data); setDocuments((old) => old.map((doc) => doc.id === data.id ? data : doc));
+      const { error: removeError } = await supabase.storage.from("documents").remove([oldPath]);
+      if (removeError) toast.warning("Le fichier a été détaché du document, mais le nettoyage du stockage a échoué.");
+      else toast.success("Fichier source retiré. Le contenu éditable est conservé.");
+    } catch (error: any) {
+      toast.error("Retrait du fichier impossible : " + (error?.message || "erreur inconnue"));
+    } finally { setSaving(false); }
+  };
+
   const uploadAttachment = async (file?: File) => {
     if (!selected?.id || !file || !canEditSelected) return;
     setSaving(true);
@@ -527,7 +547,7 @@ export default function EspaceTravail() {
                 </> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2">{documentType !== "spreadsheet" && <><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button></>}<Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
                 <div className="flex flex-wrap gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => void duplicateDocument()} disabled={saving}><Copy className="mr-2 h-4 w-4" />Créer une copie</Button>{isOwner && <Button variant="destructive" size="sm" onClick={() => void deleteDocument()} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button>}</div>
-                <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button></>}</div>
+                <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button><Button size="sm" variant="outline" disabled={saving || !canEditSelected} onClick={() => void removeAttachment()}><Trash2 className="mr-1 h-4 w-4" />Retirer</Button></>}</div>
               </CardContent>
             </Card>
             <Card>
