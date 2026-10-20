@@ -107,50 +107,166 @@ function spreadsheetColumn(index: number): string {
 }
 function evaluateWorkspaceCell(raw: string, rows: string[][], visited = new Set<string>()): string {
   const value = raw.trim();
-  const refValue = (ref: string): number => {
-    const match = /^([A-Z]+)([1-9]\d*)$/i.exec(ref);
-    if (!match) return 0;
-    let col = 0;
-    for (const ch of match[1].toUpperCase()) col = col * 26 + ch.charCodeAt(0) - 64;
-    const key = match[1].toUpperCase() + match[2];
-    if (visited.has(key)) return 0;
-    const nextVisited = new Set(visited); nextVisited.add(key);
-    const source = rows[Number(match[2]) - 1]?.[col - 1] || "";
-    const number = Number(evaluateWorkspaceCell(source, rows, nextVisited));
-    return Number.isFinite(number) ? number : 0;
-  };
   if (!value.startsWith("=")) return value;
   const formula = value.slice(1).trim();
-  const aggregate = /^(SUM|AVERAGE|MIN|MAX|COUNT)\(([A-Z]+\d+):([A-Z]+\d+)\)$/i.exec(formula);
-  if (aggregate) {
-    const start = /^([A-Z]+)(\d+)$/i.exec(aggregate[2])!;
-    const end = /^([A-Z]+)(\d+)$/i.exec(aggregate[3])!;
-    const colIndex = (letters: string) => [...letters.toUpperCase()].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
-    const c1 = colIndex(start[1]), c2 = colIndex(end[1]), r1 = Number(start[2]), r2 = Number(end[2]);
-    const values: number[] = [];
-    for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
-      const cell = rows[r - 1]?.[c - 1] || "";
-      if (cell.trim() !== "") {
-        const evaluated = evaluateWorkspaceCell(cell, rows, new Set(visited));
-        const number = Number(evaluated);
-        if (Number.isFinite(number)) values.push(number);
+  if (!formula) return "";
+  type FormulaValue = string | number | boolean | FormulaValue[];
+  const refToIndex = (ref: string) => {
+    const match = /^\$?([A-Z]+)\$?([1-9]\d*)$/i.exec(ref);
+    if (!match) return null;
+    let col = 0;
+    for (const ch of match[1].toUpperCase()) col = col * 26 + ch.charCodeAt(0) - 64;
+    return { r: Number(match[2]) - 1, c: col - 1, key: match[1].toUpperCase() + match[2] };
+  };
+  const getRef = (ref: string): FormulaValue => {
+    const pos = refToIndex(ref);
+    if (!pos) return "#REF!";
+    if (visited.has(pos.key)) return "#CYCLE!";
+    const next = new Set(visited); next.add(pos.key);
+    const source = rows[pos.r]?.[pos.c] || "";
+    const result = evaluateWorkspaceCell(source, rows, next);
+    if (result === "#CYCLE!" || result === "#FORMULE?" || result === "#DIV/0!") return result;
+    const n = Number(result.replace(",", "."));
+    return result.trim() !== "" && Number.isFinite(n) ? n : result;
+  };
+  const getRange = (from: string, to: string): FormulaValue[] => {
+    const a = refToIndex(from), b = refToIndex(to);
+    if (!a || !b) return ["#REF!"];
+    const values: FormulaValue[] = [];
+    for (let r = Math.min(a.r, b.r); r <= Math.min(Math.max(a.r, b.r), 1999); r++) {
+      for (let c = Math.min(a.c, b.c); c <= Math.min(Math.max(a.c, b.c), 199); c++) {
+        const source = rows[r]?.[c] || "";
+        if (source.trim() !== "") values.push(getRef(spreadsheetColumn(c) + (r + 1)));
       }
     }
-    if (aggregate[1].toUpperCase() === "COUNT") return String(values.length);
-    if (aggregate[1].toUpperCase() === "MIN") return values.length ? String(Math.min(...values)) : "0";
-    if (aggregate[1].toUpperCase() === "MAX") return values.length ? String(Math.max(...values)) : "0";
-    const sum = values.reduce((a, b) => a + b, 0);
-    return String(aggregate[1].toUpperCase() === "AVERAGE" ? (values.length ? sum / values.length : 0) : sum);
+    return values;
+  };
+  type Token = { type: "number" | "string" | "ref" | "identifier" | "operator" | "punct"; value: string };
+  const tokenPattern = /\s*(?:(\d+(?:\.\d+)?)|("(?:[^"]|"")*")|(\$?[A-Z]{1,3}\$?[1-9]\d*)|([A-Za-z_][A-Za-z0-9_.]*)|(<=|>=|<>|[+\-*/^&=<>])|([():;,]))/gy;
+  const tokens: Token[] = [];
+  let cursor = 0;
+  while (cursor < formula.length) {
+    tokenPattern.lastIndex = cursor;
+    const match = tokenPattern.exec(formula);
+    if (!match || match.index !== cursor) return "#FORMULE?";
+    cursor = tokenPattern.lastIndex;
+    if (match[1]) tokens.push({ type: "number", value: match[1] });
+    else if (match[2]) tokens.push({ type: "string", value: match[2].slice(1, -1).replace(/""/g, '"') });
+    else if (match[3]) tokens.push({ type: "ref", value: match[3] });
+    else if (match[4]) tokens.push({ type: "identifier", value: match[4] });
+    else if (match[5]) tokens.push({ type: "operator", value: match[5] });
+    else if (match[6]) tokens.push({ type: "punct", value: match[6] });
   }
-  const direct = /^([A-Z]+\d+)$/i.exec(formula);
-  if (direct) return String(refValue(direct[1]));
-  const arithmetic = /^([+-]?\d+(?:\.\d+)?)\s*([+\-*/])\s*([+-]?\d+(?:\.\d+)?)$/.exec(formula);
-  if (arithmetic) {
-    const a = Number(arithmetic[1]), b = Number(arithmetic[3]);
-    const result = arithmetic[2] === "+" ? a + b : arithmetic[2] === "-" ? a - b : arithmetic[2] === "*" ? a * b : b === 0 ? NaN : a / b;
-    return Number.isFinite(result) ? String(result) : "#ERREUR";
+  let index = 0;
+  const peek = () => tokens[index];
+  const take = () => tokens[index++];
+  const numeric = (v: FormulaValue): number => {
+    if (typeof v === "number") return v;
+    if (typeof v === "boolean") return v ? 1 : 0;
+    if (Array.isArray(v)) return numeric(v[0] ?? 0);
+    const n = Number(String(v).replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const flat = (v: FormulaValue): FormulaValue[] => Array.isArray(v) ? v.flatMap(flat) : [v];
+  const asText = (v: FormulaValue) => Array.isArray(v) ? v.map(asText).join("") : String(v);
+  const truthy = (v: FormulaValue) => typeof v === "boolean" ? v : typeof v === "number" ? v !== 0 : String(v).toUpperCase() === "TRUE" || (String(v) !== "" && String(v) !== "0");
+  const precedence: Record<string, number> = { "=": 1, "<>": 1, "<": 1, ">": 1, "<=": 1, ">=": 1, "&": 2, "+": 3, "-": 3, "*": 4, "/": 4, "^": 5 };
+  const callFunction = (name: string, args: FormulaValue[]): FormulaValue => {
+    const all = args.flatMap(flat);
+    const nums = all.map(numeric);
+    switch (name.toUpperCase()) {
+      case "SUM": return nums.reduce((a, b) => a + b, 0);
+      case "AVERAGE": return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : "#DIV/0!";
+      case "MIN": return nums.length ? Math.min(...nums) : 0;
+      case "MAX": return nums.length ? Math.max(...nums) : 0;
+      case "COUNT": return all.filter(v => (typeof v === "number") || (String(v).trim() !== "" && Number.isFinite(Number(v)))).length;
+      case "COUNTA": return all.filter(v => String(v) !== "").length;
+      case "PRODUCT": return nums.reduce((a, b) => a * b, 1);
+      case "ABS": return Math.abs(numeric(args[0] ?? 0));
+      case "SQRT": return numeric(args[0] ?? 0) < 0 ? "#NOMBRE!" : Math.sqrt(numeric(args[0] ?? 0));
+      case "POWER": return Math.pow(numeric(args[0] ?? 0), numeric(args[1] ?? 0));
+      case "MOD": return numeric(args[1] ?? 0) === 0 ? "#DIV/0!" : numeric(args[0] ?? 0) % numeric(args[1]);
+      case "ROUND": { const p = Math.pow(10, numeric(args[1] ?? 0)); return Math.round(numeric(args[0] ?? 0) * p) / p; }
+      case "IF": return truthy(args[0] ?? false) ? (args[1] ?? true) : (args[2] ?? false);
+      case "AND": return args.every(truthy);
+      case "OR": return args.some(truthy);
+      case "NOT": return !truthy(args[0] ?? false);
+      case "CONCAT": case "CONCATENATE": return args.map(asText).join("");
+      case "LEN": return asText(args[0] ?? "").length;
+      case "LEFT": return asText(args[0] ?? "").slice(0, Math.max(0, numeric(args[1] ?? 1)));
+      case "RIGHT": { const t = asText(args[0] ?? ""); return t.slice(Math.max(0, t.length - numeric(args[1] ?? 1))); }
+      case "UPPER": return asText(args[0] ?? "").toUpperCase();
+      case "LOWER": return asText(args[0] ?? "").toLowerCase();
+      case "TRIM": return asText(args[0] ?? "").trim().replace(/\s+/g, " ");
+      case "TODAY": return new Date().toISOString().slice(0, 10);
+      default: return "#NOM?";
+    }
+  };
+  const parsePrimary = (): FormulaValue => {
+    const token = take();
+    if (!token) throw new Error("Expression incomplète");
+    if (token.value === "+" || token.value === "-") {
+      const v = numeric(parsePrimary()); return token.value === "-" ? -v : v;
+    }
+    if (token.value === "(") {
+      const result = parseExpression(0);
+      if (take()?.value !== ")") throw new Error("Parenthèse manquante");
+      return result;
+    }
+    if (token.type === "number") return Number(token.value);
+    if (token.type === "string") return token.value;
+    if (token.type === "ref") {
+      if (peek()?.value === ":") {
+        take(); const second = take();
+        if (!second || second.type !== "ref") throw new Error("Plage invalide");
+        return getRange(token.value, second.value);
+      }
+      return getRef(token.value);
+    }
+    if (token.type === "identifier") {
+      const name = token.value.toUpperCase();
+      if (name === "TRUE") return true;
+      if (name === "FALSE") return false;
+      if (takeIf("(")) {
+        const args: FormulaValue[] = [];
+        if (peek()?.value !== ")") {
+          do { args.push(parseExpression(0)); if (peek()?.value !== ";" && peek()?.value !== ",") break; take(); } while (true);
+        }
+        if (take()?.value !== ")") throw new Error("Parenthèse manquante");
+        return callFunction(name, args);
+      }
+      return "#NOM?";
+    }
+    throw new Error("Expression invalide");
+  };
+  const takeIf = (value: string) => { if (peek()?.value === value) { take(); return true; } return false; };
+  const parseExpression = (minimum: number): FormulaValue => {
+    let left = parsePrimary();
+    while (peek()?.type === "operator" && (precedence[peek()!.value] || 0) >= minimum) {
+      const op = take().value;
+      const right = parseExpression((precedence[op] || 0) + (op === "^" ? 0 : 1));
+      if (op === "+") left = numeric(left) + numeric(right);
+      else if (op === "-") left = numeric(left) - numeric(right);
+      else if (op === "*") left = numeric(left) * numeric(right);
+      else if (op === "/") left = numeric(right) === 0 ? "#DIV/0!" : numeric(left) / numeric(right);
+      else if (op === "^") left = Math.pow(numeric(left), numeric(right));
+      else if (op === "&") left = asText(left) + asText(right);
+      else if (op === "=") left = asText(left).toLowerCase() === asText(right).toLowerCase();
+      else if (op === "<>") left = asText(left).toLowerCase() !== asText(right).toLowerCase();
+      else if (op === "<") left = numeric(left) < numeric(right);
+      else if (op === ">") left = numeric(left) > numeric(right);
+      else if (op === "<=") left = numeric(left) <= numeric(right);
+      else if (op === ">=") left = numeric(left) >= numeric(right);
+    }
+    return left;
+  };
+  try {
+    const result = parseExpression(0);
+    if (index !== tokens.length) return "#FORMULE?";
+    return Array.isArray(result) ? result.map(asText).join(",") : asText(result);
+  } catch {
+    return "#FORMULE?";
   }
-  return "#FORMULE?";
 }
 function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; onChange: (next: string) => void; disabled: boolean }) {
   const [activeSheet, setActiveSheet] = useState(0);
