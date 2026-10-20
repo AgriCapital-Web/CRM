@@ -80,8 +80,7 @@ const importFile = async (file: File): Promise<{ type: OfficeDocumentType; conte
   }
   if (["xlsx", "xls", "xlsm", "ods"].includes(ext || "")) {
     if (ext === "xlsm") throw new Error("Les macros Excel ne sont pas exécutées. Exportez une copie sans macros (.xlsx) avant l’import.");
-    const content = ext === "ods" ? XLSX.utils.sheet_to_csv(XLSX.read(await file.arrayBuffer(), { type: "array" }).Sheets[XLSX.read(await file.arrayBuffer(), { type: "array" }).SheetNames[0]], { FS: ";" }) : await readXlsx(file);
-    return { type: "spreadsheet", content };
+    return { type: "spreadsheet", content: await readXlsx(file) };
   }
   if (["pptx"].includes(ext || "")) return { type: "presentation", content: await readPptx(file) };
   if (ext === "pdf") return { type: "document", content: "<h1>" + file.name.replace(/[<>]/g, "") + "</h1><p>Texte extrait du PDF. La mise en page, les images, les signatures et les annotations du PDF original ne sont pas converties en éléments éditables.</p><pre>" + (await readPdf(file)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</pre>" };
