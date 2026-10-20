@@ -1,7 +1,7 @@
 {
-  "name": "AC_Teams",
-  "short_name": "AC_Teams",
-  "description": "Système de Gestion des Clients & Plantations - CRM AgriCapital",
+  "name": "AgriCapital 360",
+  "short_name": "AgriCapital 360",
+  "description": "La plateforme métier intelligente d’AgriCapital.",
   "theme_color": "#00643C",
   "background_color": "#ffffff",
   "display": "standalone",

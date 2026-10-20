@@ -1,5 +1,5 @@
 {
-  "name": "agricapital-app",
+  "name": "agricapital-360",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -114,5 +114,5 @@
   },
   "packageManager": "npm@12.2.0",
   "author": "Inocent KOFFI",
-  "description": "AgriCapital — application de gestion agricole — Développeur : Inocent KOFFI"
+  "description": "AgriCapital 360 — La plateforme métier intelligente d’AgriCapital."
 }
