@@ -73,7 +73,7 @@ export default function Finance(){
     setLoading(true);
     const [t,e,a,p,s,r,am]=await Promise.all([
       (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
-      (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}).limit(100),
+      (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}),
       (supabase as any).from("finance_associates").select("*").order("full_name"),
       (supabase as any).from("profiles").select("id,nom_complet,poste,relation_rh,actif,salaire_base").eq("actif",true).order("nom_complet"),
       (supabase as any).from("finance_salary_profiles").select("*").order("created_at",{ascending:false}),
