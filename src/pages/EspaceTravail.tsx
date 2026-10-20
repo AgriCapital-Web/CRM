@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { FileText, FileSpreadsheet, Presentation, FolderOpen, Plus, Save, Users, MessageSquare, History, ExternalLink, Paperclip, Send, RefreshCw, Search, Copy, Trash2, Download, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Undo2, Redo2, Link as LinkIcon, Printer, Heading2, Eraser } from "lucide-react";
 import { toast } from "sonner";
+import OfficeFormatTools, { type OfficeDocumentType } from "@/components/workspace/OfficeFormatTools";
 
 type WorkspaceDoc = {
   id: string; title: string; document_type: "document" | "spreadsheet" | "presentation" | "file";
@@ -302,6 +303,35 @@ export default function EspaceTravail() {
     finally { setSaving(false); }
   };
 
+  const importOfficeDocument = async (file: File, importedType: OfficeDocumentType, importedContent: string) => {
+    if (!profile?.id || !user?.id) throw new Error("Votre compte CRM doit être actif pour importer un document.");
+    const importedTitle = file.name.replace(/\.[^.]+$/, "").trim() || "Document importé";
+    const { data, error } = await (supabase as any).from("workspace_documents").insert({
+      title: importedTitle, document_type: importedType, content_text: importedContent, owner_profile_id: profile.id,
+    }).select("*").single();
+    if (error) throw error;
+    if (!data?.id) throw new Error("La base n’a pas confirmé la création du document importé.");
+    let saved = data;
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = "workspace/" + data.id + "/" + Date.now() + "-" + safeName;
+    const { error: uploadError } = await supabase.storage.from("documents").upload(path, file, {
+      upsert: false, contentType: file.type || "application/octet-stream",
+    });
+    if (uploadError) {
+      toast.warning("Le contenu a été importé, mais le fichier d’origine n’a pas pu être joint : " + uploadError.message);
+    } else {
+      const { data: updated, error: updateError } = await (supabase as any).from("workspace_documents").update({
+        storage_path: path, file_name: file.name, mime_type: file.type || null, updated_at: new Date().toISOString(),
+      }).eq("id", data.id).select("*").single();
+      if (updateError) toast.warning("Le document est enregistré, mais son lien vers le fichier source n’a pas été confirmé.");
+      else if (updated?.id) saved = updated;
+    }
+    setDocuments((old) => [saved, ...old.filter((doc) => doc.id !== saved.id)]);
+    setSelectedId(saved.id); setSelected(saved); setTitle(saved.title); setDocumentType(saved.document_type);
+    setContent(saved.content_text || ""); setHasUnsavedChanges(false);
+    await loadDetails(saved.id);
+  };
+
   const createDocument = async () => {
     if (!profile?.id || !user?.id) { toast.error("Votre compte CRM doit être actif pour créer un document."); return; }
     setSaving(true);
@@ -422,6 +452,7 @@ export default function EspaceTravail() {
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><TypeIcon type={documentType} />Éditeur collaboratif</CardTitle></CardHeader>
               <CardContent className="space-y-4">
+                <OfficeFormatTools title={title} content={content} documentType={documentType} disabled={saving || !canEditSelected} onImport={importOfficeDocument} />
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
                   <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
                   <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
