@@ -4,7 +4,7 @@ import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
-import { uploadFile } from "@/utils/storage";
+import { uploadFile, resolveStorageUrl } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,9 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFor
   const [pieceRectoFile, setPieceRectoFile] = useState<File | null>(null);
   const [pieceVersoFile, setPieceVersoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
+  const [storedPhotoPreview, setStoredPhotoPreview] = useState("");
+  const [storedRectoPreview, setStoredRectoPreview] = useState("");
+  const [storedVersoPreview, setStoredVersoPreview] = useState("");
   const [pieceRectoPreview, setPieceRectoPreview] = useState("");
   const [pieceVersoPreview, setPieceVersoPreview] = useState("");
   const [extraFiles, setExtraFiles] = useState<Record<string, File | null>>({});
@@ -77,6 +80,24 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFor
     setExtraFiles({});
     setExtraPreviews({});
   }, [client?.id, readOnly]);
+
+  useEffect(() => {
+    let active = true;
+    const loadStoredPreviews = async () => {
+      const [photo, recto, verso] = await Promise.all([
+        resolveStorageUrl("photos-profils", client?.photo_profil_url || null),
+        resolveStorageUrl("pieces-identite", client?.fichier_piece_recto_url || null),
+        resolveStorageUrl("pieces-identite", client?.fichier_piece_verso_url || null),
+      ]);
+      if (active) {
+        setStoredPhotoPreview(photo || "");
+        setStoredRectoPreview(recto || "");
+        setStoredVersoPreview(verso || "");
+      }
+    };
+    void loadStoredPreviews();
+    return () => { active = false; };
+  }, [client?.id, client?.photo_profil_url, client?.fichier_piece_recto_url, client?.fichier_piece_verso_url]);
 
   useEffect(() => {
     let active = true;
@@ -224,6 +245,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFor
       accept="image/*,.pdf"
       currentFile={file}
       currentPreview={currentPreview}
+      existingPreview={field === "photo_profil" ? storedPhotoPreview : field === "piece_recto" ? storedRectoPreview : storedVersoPreview}
       onFileChange={(_, f, p) => { onSelect(f); onPreview(p); }}
       onIdentityNumberDetected={ocr ? n => { if (!String(form.numero_piece || "").trim()) setField("numero_piece", n); } : undefined}
       identityDocumentType={form.type_piece}
