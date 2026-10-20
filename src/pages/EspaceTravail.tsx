@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { FileText, FileSpreadsheet, Presentation, FolderOpen, Plus, Save, Users, MessageSquare, History, ExternalLink, Paperclip, Send, RefreshCw, Search, Copy, Trash2, Download, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Undo2, Redo2, Link as LinkIcon, Printer, Heading2, Eraser } from "lucide-react";
 import { toast } from "sonner";
+import OfficeFormatTools, { type OfficeDocumentType } from "@/components/workspace/OfficeFormatTools";
 
 type WorkspaceDoc = {
   id: string; title: string; document_type: "document" | "spreadsheet" | "presentation" | "file";
@@ -74,6 +75,27 @@ function encodeWorkspaceCsv(rows: string[][]): string {
     return row.slice(0, Math.max(1, last + 1)).map((cell) => /[;"\r\n]/.test(cell) ? '"' + cell.replace(/"/g, '""') + '"' : cell).join(";");
   }).join("\n");
 }
+const WORKSPACE_WORKBOOK_PREFIX = "__AGRICAPITAL_WORKBOOK_V1__\n";
+type WorkspaceSheet = { name: string; rows: string[][] };
+function parseWorkspaceWorkbook(input: string): WorkspaceSheet[] {
+  if (input.startsWith(WORKSPACE_WORKBOOK_PREFIX)) {
+    try {
+      const parsed = JSON.parse(input.slice(WORKSPACE_WORKBOOK_PREFIX.length));
+      if (Array.isArray(parsed.sheets) && parsed.sheets.length) {
+        return parsed.sheets.map((sheet: any, index: number) => ({
+          name: typeof sheet.name === "string" && sheet.name.trim() ? sheet.name : "Feuille " + (index + 1),
+          rows: Array.isArray(sheet.rows) ? sheet.rows.map((row: any) => Array.isArray(row) ? row.map((cell: any) => String(cell ?? "")) : []) : [[""]],
+        }));
+      }
+    } catch { /* Fallback to legacy CSV if workbook metadata is damaged. */ }
+  }
+  return [{ name: "Feuille 1", rows: parseWorkspaceCsv(input) }];
+}
+function encodeWorkspaceWorkbook(sheets: WorkspaceSheet[]): string {
+  const clean = sheets.map((sheet) => ({ name: sheet.name, rows: parseWorkspaceCsv(encodeWorkspaceCsv(sheet.rows)) }));
+  if (clean.length <= 1) return encodeWorkspaceCsv(clean[0]?.rows || [[""]]);
+  return WORKSPACE_WORKBOOK_PREFIX + JSON.stringify({ sheets: clean });
+}
 function spreadsheetColumn(index: number): string {
   let value = index + 1, result = "";
   while (value > 0) { const remainder = (value - 1) % 26; result = String.fromCharCode(65 + remainder) + result; value = Math.floor((value - 1) / 26); }
@@ -127,14 +149,35 @@ function evaluateWorkspaceCell(raw: string, rows: string[][], visited = new Set<
   return "#FORMULE?";
 }
 function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; onChange: (next: string) => void; disabled: boolean }) {
-  const parsed = parseWorkspaceCsv(value);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const workbook = parseWorkspaceWorkbook(value);
+  const activeIndex = Math.min(activeSheet, workbook.length - 1);
+  const active = workbook[activeIndex] || { name: "Feuille 1", rows: [[""]] };
+  const parsed = active.rows;
   const rowCount = Math.min(100, Math.max(12, parsed.length));
   const colCount = Math.min(26, Math.max(8, ...parsed.map((row) => row.length)));
   const rows = Array.from({ length: rowCount }, (_, r) => Array.from({ length: colCount }, (_, c) => parsed[r]?.[c] || ""));
+  const chartData = parsed.slice(1).map((row) => ({ label: (row[0] || "").trim(), value: Number((row[1] || "").replace(",", ".")) }))
+    .filter((item) => item.label && Number.isFinite(item.value)).slice(0, 10);
+  const chartMax = Math.max(1, ...chartData.map((item) => Math.abs(item.value)));
   const updateCell = (r: number, c: number, next: string) => {
-    const updated = rows.map((row) => [...row]);
-    updated[r][c] = next;
-    onChange(encodeWorkspaceCsv(updated));
+    const updatedRows = parsed.map((row) => [...row]);
+    while (updatedRows.length <= r) updatedRows.push([]);
+    while (updatedRows[r].length <= c) updatedRows[r].push("");
+    updatedRows[r][c] = next;
+    const updatedWorkbook = workbook.map((sheet, index) => index === activeIndex ? { ...sheet, rows: updatedRows } : sheet);
+    onChange(encodeWorkspaceWorkbook(updatedWorkbook));
+  };
+  const addSheet = () => {
+    const nextName = "Feuille " + (workbook.length + 1);
+    onChange(encodeWorkspaceWorkbook([...workbook, { name: nextName, rows: [[""]] }]));
+    setActiveSheet(workbook.length);
+  };
+  const removeSheet = () => {
+    if (workbook.length <= 1 || !window.confirm("Supprimer la feuille « " + active.name + " » ?")) return;
+    const next = workbook.filter((_, index) => index !== activeIndex);
+    onChange(encodeWorkspaceWorkbook(next));
+    setActiveSheet(Math.max(0, activeIndex - 1));
   };
   const exportCsv = () => {
     const blob = new Blob(["\uFEFF" + encodeWorkspaceCsv(rows)], { type: "text/csv;charset=utf-8" });
@@ -155,12 +198,25 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
         <button type="button" onClick={exportCsv} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter CSV</button>
       </div>
     </div>
+    <div className="flex flex-wrap items-center gap-1">
+      {workbook.map((sheet, index) => <button type="button" key={sheet.name + index} onClick={() => setActiveSheet(index)} className={"rounded-md border px-3 py-1.5 text-xs " + (index === activeIndex ? "border-primary bg-primary/10 font-semibold" : "bg-background hover:bg-muted")}>{sheet.name}</button>)}
+      <button type="button" disabled={disabled} onClick={addSheet} className="rounded-md border px-3 py-1.5 text-xs hover:bg-muted">+ Feuille</button>
+      <button type="button" disabled={disabled || workbook.length <= 1} onClick={removeSheet} className="rounded-md border px-3 py-1.5 text-xs text-destructive hover:bg-muted">Supprimer la feuille</button>
+    </div>
     <div className="max-h-[440px] overflow-auto rounded-lg border">
       <table className="w-full border-collapse text-sm">
         <thead className="sticky top-0 z-10 bg-muted"><tr><th className="w-10 border p-2 text-xs text-muted-foreground">#</th>{Array.from({ length: colCount }, (_, c) => <th key={c} className="min-w-32 border p-2 text-xs font-semibold">{spreadsheetColumn(c)}</th>)}</tr></thead>
         <tbody>{rows.map((row, r) => <tr key={r}><th className="border bg-muted/40 p-1 text-xs text-muted-foreground">{r + 1}</th>{row.map((cell, c) => <td key={c} className="border p-0"><div className="flex min-w-32 flex-col"><input aria-label={spreadsheetColumn(c) + (r + 1)} value={cell} onChange={(e) => updateCell(r, c, e.target.value)} disabled={disabled} className="w-full min-w-32 bg-transparent px-2 py-1.5 outline-none focus:bg-primary/5 focus:ring-1 focus:ring-inset focus:ring-primary" /><span className="min-h-4 px-2 pb-1 text-[11px] text-muted-foreground">{cell.trim().startsWith("=") ? evaluateWorkspaceCell(cell, rows) : ""}</span></div></td>)}</tr>)}</tbody>
       </table>
     </div>
+    {chartData.length > 0 && <div className="space-y-3 rounded-lg border bg-background p-3">
+      <div><p className="text-sm font-semibold">Aperçu du graphique</p><p className="text-xs text-muted-foreground">Libellés : première colonne · Indicateurs : deuxième colonne</p></div>
+      <div className="space-y-2">{chartData.map((item, index) => <div key={item.label + index} className="grid grid-cols-[minmax(70px,1fr)_minmax(90px,3fr)_70px] items-center gap-2 text-xs">
+        <span className="truncate" title={item.label}>{item.label}</span>
+        <div className="h-5 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-primary/80" style={{ width: Math.max(1, Math.abs(item.value) / chartMax * 100) + "%" }} /></div>
+        <span className="text-right tabular-nums">{item.value.toLocaleString("fr-FR")}</span>
+      </div>)}</div>
+    </div>}
     <p className="text-xs text-muted-foreground">Les formules sont calculées dans l’interface. Les données et les formules restent enregistrées dans le CRM. Pour les modèles Excel complexes et la coédition de type Excel, un éditeur spécialisé reste nécessaire.</p>
   </div>;
 }
@@ -302,6 +358,35 @@ export default function EspaceTravail() {
     finally { setSaving(false); }
   };
 
+  const importOfficeDocument = async (file: File, importedType: OfficeDocumentType, importedContent: string) => {
+    if (!profile?.id || !user?.id) throw new Error("Votre compte CRM doit être actif pour importer un document.");
+    const importedTitle = file.name.replace(/\.[^.]+$/, "").trim() || "Document importé";
+    const { data, error } = await (supabase as any).from("workspace_documents").insert({
+      title: importedTitle, document_type: importedType, content_text: importedContent, owner_profile_id: profile.id,
+    }).select("*").single();
+    if (error) throw error;
+    if (!data?.id) throw new Error("La base n’a pas confirmé la création du document importé.");
+    let saved = data;
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = "workspace/" + data.id + "/" + Date.now() + "-" + safeName;
+    const { error: uploadError } = await supabase.storage.from("documents").upload(path, file, {
+      upsert: false, contentType: file.type || "application/octet-stream",
+    });
+    if (uploadError) {
+      toast.warning("Le contenu a été importé, mais le fichier d’origine n’a pas pu être joint : " + uploadError.message);
+    } else {
+      const { data: updated, error: updateError } = await (supabase as any).from("workspace_documents").update({
+        storage_path: path, file_name: file.name, mime_type: file.type || null, updated_at: new Date().toISOString(),
+      }).eq("id", data.id).select("*").single();
+      if (updateError) toast.warning("Le document est enregistré, mais son lien vers le fichier source n’a pas été confirmé.");
+      else if (updated?.id) saved = updated;
+    }
+    setDocuments((old) => [saved, ...old.filter((doc) => doc.id !== saved.id)]);
+    setSelectedId(saved.id); setSelected(saved); setTitle(saved.title); setDocumentType(saved.document_type);
+    setContent(saved.content_text || ""); setHasUnsavedChanges(false);
+    await loadDetails(saved.id);
+  };
+
   const createDocument = async () => {
     if (!profile?.id || !user?.id) { toast.error("Votre compte CRM doit être actif pour créer un document."); return; }
     setSaving(true);
@@ -374,6 +459,26 @@ export default function EspaceTravail() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
+  const removeAttachment = async () => {
+    if (!selected?.id || !selected.storage_path || !canEditSelected) return;
+    if (!window.confirm("Retirer le fichier source « " + (selected.file_name || "fichier joint") + " » ? Le document éditable restera dans l’espace de travail.")) return;
+    setSaving(true);
+    try {
+      const oldPath = selected.storage_path;
+      const { data, error } = await (supabase as any).from("workspace_documents").update({
+        storage_path: null, file_name: null, mime_type: null, updated_at: new Date().toISOString(),
+      }).eq("id", selected.id).select("*").single();
+      if (error) throw error;
+      if (!data?.id) throw new Error("La suppression du lien n’a pas été confirmée par la base.");
+      setSelected(data); setDocuments((old) => old.map((doc) => doc.id === data.id ? data : doc));
+      const { error: removeError } = await supabase.storage.from("documents").remove([oldPath]);
+      if (removeError) toast.warning("Le fichier a été détaché du document, mais le nettoyage du stockage a échoué.");
+      else toast.success("Fichier source retiré. Le contenu éditable est conservé.");
+    } catch (error: any) {
+      toast.error("Retrait du fichier impossible : " + (error?.message || "erreur inconnue"));
+    } finally { setSaving(false); }
+  };
+
   const uploadAttachment = async (file?: File) => {
     if (!selected?.id || !file || !canEditSelected) return;
     setSaving(true);
@@ -401,8 +506,9 @@ export default function EspaceTravail() {
           <Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Nouveau document</Button>
         </div>
       </div>
-      {!officeUrl && <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm"><b>Suite bureautique avancée à connecter.</b><p className="mt-1 text-muted-foreground">L’espace interne et le partage sont disponibles. La coédition native de fichiers Word/Excel/PowerPoint nécessite de connecter un serveur ONLYOFFICE ou Nextcloud à l’hébergement AgriCapital. Aucun serveur bureautique n’est configuré actuellement.</p></div>}
+      <div className="rounded-xl border p-3 text-sm"><b>Documents et formats ouverts</b><p className="mt-1 text-muted-foreground">Importez un fichier pour en extraire le contenu éditable, conservez l’original en pièce jointe et exportez vos travaux vers les formats bureautiques courants. Aucune installation de serveur bureautique n’est requise pour ces fonctions intégrées.</p></div>
       {officeUrl && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><b>Suite bureautique connectée</b><p className="text-sm text-muted-foreground">Ouvrir la suite pour créer ou modifier des fichiers compatibles.</p></div><Button variant="outline" onClick={() => window.open(officeUrl, "_blank", "noopener,noreferrer")}><ExternalLink className="mr-2 h-4 w-4" />Ouvrir la suite</Button></div>}
+      <OfficeFormatTools title={title || "Document AgriCapital"} content={content} documentType={documentType} disabled={saving} onImport={importOfficeDocument} />
       <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.8fr)]">
         <Card className="min-w-0">
           <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
@@ -440,10 +546,10 @@ export default function EspaceTravail() {
                     <Button type="button" size="sm" variant="outline" title="Effacer le formatage" onClick={() => formatEditor("removeFormat")} disabled={!canEditSelected}><Eraser className="h-4 w-4" /></Button>
                   </div>
                   <div className="space-y-1"><Label>{documentType === "presentation" ? "Plan de présentation et notes" : "Contenu du document"}</Label><div ref={editorRef} contentEditable={!saving && canEditSelected} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeWorkspaceHtml(content) }} onInput={() => setHasUnsavedChanges(true)} onBlur={() => { if (editorRef.current) setContent(editorRef.current.innerHTML); }} role="textbox" aria-multiline="true" className="min-h-[320px] rounded-lg border bg-background p-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-6 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-2 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2" /></div>
-                </> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
+                </> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2">{documentType !== "spreadsheet" && <><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button></>}<Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
                 <div className="flex flex-wrap gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => void duplicateDocument()} disabled={saving}><Copy className="mr-2 h-4 w-4" />Créer une copie</Button>{isOwner && <Button variant="destructive" size="sm" onClick={() => void deleteDocument()} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button>}</div>
-                <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button></>}</div>
+                <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button><Button size="sm" variant="outline" disabled={saving || !canEditSelected} onClick={() => void removeAttachment()}><Trash2 className="mr-1 h-4 w-4" />Retirer</Button></>}</div>
               </CardContent>
             </Card>
             <Card>
