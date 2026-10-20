@@ -71,6 +71,8 @@ const Dashboard = () => {
     clientsActive: 0,
     clientsOverdue: 0,
     clientsSuspended: 0,
+    clientsPendingValidation: 0,
+    salesPendingValidation: 0,
     leads: 0,
     prospects: 0,
     leadsNew: 0,
@@ -143,6 +145,7 @@ const Dashboard = () => {
     try {
       const [
         clientsRes,
+        acquisitionsValidationRes,
         plantationsRes,
         paymentsRes,
         leadsRes,
@@ -159,8 +162,11 @@ const Dashboard = () => {
         directoryRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations || globalAdmin
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
+        canClients || globalAdmin
+          ? (supabase as any).from("acquisitions").select("id,validation_statut")
+          : Promise.resolve({ data: [] }),
         canPlantations || globalAdmin
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
           : Promise.resolve({ data: [] }),
@@ -206,6 +212,7 @@ const Dashboard = () => {
       ]);
 
       const clients = clientsRes.data || [];
+      const acquisitionsForValidation = acquisitionsValidationRes.data || [];
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
       const leads = leadsRes.data || [];
@@ -347,6 +354,8 @@ const Dashboard = () => {
         clientsActive: clients.filter((c:any)=>!c.is_internal && (["actif","active"].includes(String(c.statut||"").toLowerCase()) || ["actif","active"].includes(String(c.statut_global||"").toLowerCase()))).length,
         clientsOverdue: clients.filter((c:any)=>!c.is_internal && (["en_retard","retard","impaye"].includes(String(c.statut||"").toLowerCase()) || ["en_retard","retard","impaye"].includes(String(c.statut_global||"").toLowerCase()))).length,
         clientsSuspended: clients.filter((c:any)=>!c.is_internal && ["suspendu","suspendue","suspended"].includes(String(c.statut||c.statut_global||"").toLowerCase())).length,
+        clientsPendingValidation: clients.filter((c:any)=>!c.is_internal && ["a_valider","modification_demandee"].includes(String(c.validation_statut||"a_valider"))).length,
+        salesPendingValidation: acquisitionsForValidation.filter((a:any)=>["a_valider","modification_demandee"].includes(String(a.validation_statut||"a_valider"))).length,
         leads: pipelineLeads.length,
         prospects: pipelineProspects.length,
         leadsNew: newLeads,
@@ -582,6 +591,8 @@ const Dashboard = () => {
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
       ...(canClients ? [
         {group:"Clients",label:"Clients / dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
+        {group:"Clients",label:"Clients à valider",shortLabel:"À valider",value:stats.clientsPendingValidation,href:"/acquisitions/validation?type=clients"},
+        {group:"Ventes",label:"Ventes à valider",shortLabel:"Ventes à valider",value:stats.salesPendingValidation,href:"/acquisitions/validation?type=ventes"},
         {group:"Clients",label:"Clients actifs",shortLabel:"Actifs",value:stats.clientsActive,href:"/clients"},
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:"/paiements"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
