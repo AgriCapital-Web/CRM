@@ -1,0 +1,59 @@
+name: Vérification et synchronisation du projet
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agricapital-360-quality-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Synchroniser les dépendances et vérifier AgriCapital 360
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Synchroniser le verrouillage npm
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Enregistrer le verrouillage si nécessaire
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: synchronize npm lockfile for AgriCapital 360"
+            git push origin main
+          fi
+
+      - name: Installer les dépendances verrouillées
+        run: npm ci
+
+      - name: Vérifier les types TypeScript
+        run: npm run typecheck
+
+      - name: Exécuter les tests
+        run: npm run test
+
+      - name: Vérifier la compilation de production
+        run: npm run build
+
+      - name: Vérifier le lint
+        run: npm run lint
