@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FileSpreadsheet, Presentation, FolderOpen, Plus, Save, Users, MessageSquare, History, ExternalLink, Paperclip, Send, RefreshCw } from "lucide-react";
+import { FileText, FileSpreadsheet, Presentation, FolderOpen, Plus, Save, Users, MessageSquare, History, ExternalLink, Paperclip, Send, RefreshCw, Search, Copy, Trash2, Download, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Undo2, Redo2, Link as LinkIcon, Printer, Heading2, Eraser } from "lucide-react";
 import { toast } from "sonner";
 
 type WorkspaceDoc = {
@@ -23,6 +23,27 @@ type DocComment = { id: string; document_id: string; author_profile_id: string; 
 type DocVersion = { id: string; title: string; document_type: string; content_text: string; changed_by_profile_id: string | null; created_at: string };
 
 const typeLabels: Record<string, string> = { document: "Document", spreadsheet: "Tableur / données", presentation: "Présentation", file: "Fichier partagé" };
+
+function sanitizeWorkspaceHtml(value: string) {
+  if (!value) return "";
+  if (!/<[a-z][\s\S]*>/i.test(value)) {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>");
+  }
+  const allowed = new Set(["P","DIV","BR","STRONG","B","EM","I","U","S","UL","OL","LI","H1","H2","H3","BLOCKQUOTE","A","TABLE","THEAD","TBODY","TR","TD","TH","HR"]);
+  const parsed = new DOMParser().parseFromString(value, "text/html");
+  const clean = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return (node.textContent || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    if (!(node instanceof Element)) return "";
+    const children = Array.from(node.childNodes).map(clean).join("");
+    if (!allowed.has(node.tagName)) return children;
+    if (node.tagName === "A") {
+      const href = node.getAttribute("href") || "";
+      return /^(https?:|mailto:)/i.test(href) ? '<a href="' + href.replace(/&/g,"&amp;").replace(/"/g,"&quot;") + '" target="_blank" rel="noopener noreferrer">' + children + "</a>" : children;
+    }
+    return "<" + node.tagName.toLowerCase() + ">" + children + "</" + node.tagName.toLowerCase() + ">";
+  };
+  return Array.from(parsed.body.childNodes).map(clean).join("");
+}
 const TypeIcon = ({ type }: { type: string }) => type === "spreadsheet" ? <FileSpreadsheet className="h-4 w-4" /> : type === "presentation" ? <Presentation className="h-4 w-4" /> : type === "file" ? <Paperclip className="h-4 w-4" /> : <FileText className="h-4 w-4" />;
 
 export default function EspaceTravail() {
@@ -43,6 +64,9 @@ export default function EspaceTravail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [officeUrl] = useState((import.meta as any).env?.VITE_OFFICE_SUITE_URL || "");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -107,7 +131,56 @@ export default function EspaceTravail() {
   const canEditSelected = !!selected && (isOwner || members.some((m: any) => m.profile_id === profile?.id && m.permission === "edit"));
 
   const chooseDocument = (doc: WorkspaceDoc) => {
+    if (hasUnsavedChanges && !window.confirm("Des modifications ne sont pas enregistrées. Changer de document sans enregistrer ?")) return;
     setSelectedId(doc.id); setSelected(doc); setTitle(doc.title); setDocumentType(doc.document_type); setContent(doc.content_text || "");
+    setHasUnsavedChanges(false);
+  };
+
+  const formatEditor = (command: string, value?: string) => {
+    editorRef.current?.focus();
+    if (command === "createLink") {
+      const url = window.prompt("Adresse du lien (https://…)");
+      if (!url || !/^(https?:|mailto:)/i.test(url)) return;
+      document.execCommand(command, false, url);
+    } else document.execCommand(command, false, value);
+    setHasUnsavedChanges(true);
+  };
+
+  const downloadDocument = () => {
+    if (!selected) return;
+    const body = editorRef.current?.innerHTML || content;
+    const safeTitle = title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>' + safeTitle + '</title><style>body{font:16px Arial,sans-serif;max-width:850px;margin:40px auto;line-height:1.6}table{border-collapse:collapse}td,th{border:1px solid #bbb;padding:8px}</style></head><body>' + sanitizeWorkspaceHtml(body) + '</body></html>';
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = (title.trim() || "document") + ".html"; link.click(); URL.revokeObjectURL(url);
+  };
+
+  const duplicateDocument = async () => {
+    if (!selected || !profile?.id) return;
+    setSaving(true);
+    try {
+      const { data, error } = await (supabase as any).from("workspace_documents").insert({
+        title: title.trim() + " — copie", document_type: documentType,
+        content_text: editorRef.current?.innerHTML || content, owner_profile_id: profile.id,
+      }).select("*").single();
+      if (error) throw error;
+      if (!data?.id) throw new Error("La copie n’a pas été confirmée par la base.");
+      setDocuments((old) => [data, ...old]); setSelectedId(data.id); setSelected(data); setTitle(data.title); setContent(data.content_text || "");
+      setHasUnsavedChanges(false); toast.success("Copie créée dans l’espace de travail.");
+    } catch (error: any) { toast.error("Copie impossible : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  const deleteDocument = async () => {
+    if (!selected || !isOwner || !window.confirm("Supprimer définitivement « " + selected.title + " » et son historique ?")) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("workspace_documents").delete().eq("id", selected.id);
+      if (error) throw error;
+      setDocuments((old) => old.filter((doc) => doc.id !== selected.id)); setSelectedId(""); setSelected(null); setTitle(""); setContent(""); setHasUnsavedChanges(false);
+      toast.success("Document supprimé."); await loadDocuments();
+    } catch (error: any) { toast.error("Suppression impossible : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
   };
 
   const createDocument = async () => {
@@ -131,12 +204,14 @@ export default function EspaceTravail() {
     if (!title.trim()) { toast.error("Le titre du document est obligatoire."); return; }
     setSaving(true);
     try {
+      const nextContent = editorRef.current?.innerHTML ?? content;
       const { data, error } = await (supabase as any).from("workspace_documents")
-        .update({ title: title.trim(), document_type: documentType, content_text: content, updated_at: new Date().toISOString() })
+        .update({ title: title.trim(), document_type: documentType, content_text: nextContent, updated_at: new Date().toISOString() })
         .eq("id", selected.id).select("*").single();
       if (error) throw error;
       if (!data?.id) throw new Error("La modification n’a pas été confirmée par la base de données.");
-      setSelected(data); setDocuments((old) => old.map((d) => d.id === data.id ? data : d));
+      setSelected(data); setContent(nextContent); setDocuments((old) => old.map((d) => d.id === data.id ? data : d));
+      setHasUnsavedChanges(false);
       toast.success("Modifications enregistrées.");
     } catch (error: any) { toast.error("Enregistrement impossible. Votre texte reste affiché : " + (error?.message || "erreur inconnue")); }
     finally { setSaving(false); }
@@ -213,7 +288,8 @@ export default function EspaceTravail() {
         <Card className="min-w-0">
           <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.length === 0 ? <p className="text-sm text-muted-foreground">Aucun document pour le moment. Créez-en un pour commencer.</p> : documents.map((doc) =>
+            <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher un document…" /></div>
+            {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).length === 0 ? <p className="text-sm text-muted-foreground">{searchQuery ? "Aucun résultat pour cette recherche." : "Aucun document pour le moment. Créez-en un pour commencer."}</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).map((doc) =>
               <button key={doc.id} onClick={() => chooseDocument(doc)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}>
                 <div className="flex items-start gap-2"><TypeIcon type={doc.document_type} /><span className="min-w-0 flex-1 truncate font-medium">{doc.title}</span></div>
                 <div className="mt-2 flex flex-wrap gap-1"><Badge variant="outline">{typeLabels[doc.document_type] || "Document"}</Badge>{doc.owner_profile_id === profile?.id && <Badge>Propriétaire</Badge>}</div>
@@ -231,8 +307,23 @@ export default function EspaceTravail() {
                   <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
                   <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
                 </div>
-                <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Données tabulaires (vous pouvez coller du CSV)" : documentType === "presentation" ? "Plan des diapositives et notes" : "Contenu"}</Label><Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => setContent(e.target.value)} placeholder={documentType === "spreadsheet" ? "Colonne A;Colonne B;Colonne C\nValeur 1;Valeur 2;Valeur 3" : documentType === "presentation" ? "Diapositive 1 — Titre\nPoints clés…\n\nDiapositive 2 — Titre" : "Rédigez votre document ici…"} disabled={saving || !canEditSelected} /></div>
-                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</p><Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div>
+                <>{documentType === "document" || documentType === "presentation" ? <>
+                  <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-2">
+                    <Button type="button" size="sm" variant="outline" title="Gras" onClick={() => formatEditor("bold")} disabled={!canEditSelected}><Bold className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Italique" onClick={() => formatEditor("italic")} disabled={!canEditSelected}><Italic className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Souligné" onClick={() => formatEditor("underline")} disabled={!canEditSelected}><UnderlineIcon className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Titre" onClick={() => formatEditor("formatBlock", "h2")} disabled={!canEditSelected}><Heading2 className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Liste à puces" onClick={() => formatEditor("insertUnorderedList")} disabled={!canEditSelected}><List className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Liste numérotée" onClick={() => formatEditor("insertOrderedList")} disabled={!canEditSelected}><ListOrdered className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Insérer un lien" onClick={() => formatEditor("createLink")} disabled={!canEditSelected}><LinkIcon className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Annuler" onClick={() => formatEditor("undo")} disabled={!canEditSelected}><Undo2 className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Rétablir" onClick={() => formatEditor("redo")} disabled={!canEditSelected}><Redo2 className="h-4 w-4" /></Button>
+                    <Button type="button" size="sm" variant="outline" title="Effacer le formatage" onClick={() => formatEditor("removeFormat")} disabled={!canEditSelected}><Eraser className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="space-y-1"><Label>{documentType === "presentation" ? "Plan de présentation et notes" : "Contenu du document"}</Label><div ref={editorRef} contentEditable={!saving && canEditSelected} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeWorkspaceHtml(content) }} onInput={() => setHasUnsavedChanges(true)} onBlur={() => { if (editorRef.current) setContent(editorRef.current.innerHTML); }} role="textbox" aria-multiline="true" className="min-h-[320px] rounded-lg border bg-background p-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-6 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-2 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2" /></div>
+                </> : <div className="space-y-1"><Label>Données tabulaires (CSV) ou contenu du fichier</Label><Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Colonne A;Colonne B;Colonne C&#10;Valeur 1;Valeur 2;Valeur 3" disabled={saving || !canEditSelected} /></div>}</>
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button><Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
+                <div className="flex flex-wrap gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => void duplicateDocument()} disabled={saving}><Copy className="mr-2 h-4 w-4" />Créer une copie</Button>{isOwner && <Button variant="destructive" size="sm" onClick={() => void deleteDocument()} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button>}</div>
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button></>}</div>
               </CardContent>
             </Card>
