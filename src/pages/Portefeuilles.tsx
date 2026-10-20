@@ -82,14 +82,16 @@ export default function Portefeuilles(){
       ]);
       const profilesData=visibleProfileRows.map((p:any)=>({...p,roles:p.roles||[],teamMemberships:p.team_memberships||[]}));
       const paidPayoutsByProfile=new Map<string,number>();
-      versementRows.filter((v:any)=>v.statut==="paye").forEach((v:any)=>paidPayoutsByProfile.set(v.profile_id,(paidPayoutsByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
+      versementRows.filter((v:any)=>["paye","partiellement_paye"].includes(v.statut)).forEach((v:any)=>paidPayoutsByProfile.set(v.profile_id,(paidPayoutsByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
+      const partialPaidByProfile=new Map<string,number>();
+      versementRows.filter((v:any)=>v.statut==="partiellement_paye").forEach((v:any)=>partialPaidByProfile.set(v.profile_id,(partialPaidByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
       const commissionTotals=new Map<string,{gagne:number,solde:number,verse:number}>();
       commissionsData.forEach((row:any)=>{const totals=commissionTotals.get(row.profile_id)||{gagne:0,solde:0,verse:0};const amount=Number(row.montant_commission||0);if(["calculee","validee","payee"].includes(row.statut))totals.gagne+=amount;if(["calculee","validee"].includes(row.statut))totals.solde+=amount;commissionTotals.set(row.profile_id,totals);});
       const visibleWalletRows=profilesData.map((profile:any)=>{
         const wallet=walletRows.find((x:any)=>x.user_id===profile.user_id);
         const totals=commissionTotals.get(profile.id)||{gagne:0,solde:0,verse:0};
         const totalVerse=paidPayoutsByProfile.get(profile.id) ?? Number(wallet?.total_verse||0);
-        const row={...(wallet||{}),id:wallet?.id||profile.id,user_id:profile.user_id,profile_id:profile.id,solde_commissions:totals.solde,total_gagne:totals.gagne,total_verse:totalVerse,user:profile};
+        const row={...(wallet||{}),id:wallet?.id||profile.id,user_id:profile.user_id,profile_id:profile.id,solde_commissions:Math.max(0,totals.solde-Number(partialPaidByProfile.get(profile.id)||0)),total_gagne:totals.gagne,total_verse:totalVerse,user:profile};
         return Number(row.solde_commissions)>0||Number(row.total_gagne)>0||Number(row.total_verse)>0?row:null;
       }).filter(Boolean);
       setProfiles(profilesData);
