@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,6 +35,7 @@ const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(Math.
 const ClientDetail = () => {
   const { can } = usePermissions();
   const canViewClientMoney = can("clients.view_money");
+  const canValidateClient = can("clients.validate");
   const canUploadDocuments = can("documents.upload");
   const canViewClientPayments = can("paiements.view");
   const canCreatePlantationAcquisition = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
@@ -41,6 +43,8 @@ const ClientDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
+  const [validationComment,setValidationComment]=useState("");
+  const [savingValidation,setSavingValidation]=useState(false);
   const [clientMedia, setClientMedia] = useState<{ photo: string | null; recto: string | null; verso: string | null }>({ photo: null, recto: null, verso: null });
   const [plantations, setPlantations] = useState<any[]>([]);
   const [clientAcquisitions, setClientAcquisitions] = useState<any[]>([]);
