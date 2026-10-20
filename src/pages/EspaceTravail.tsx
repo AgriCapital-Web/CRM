@@ -97,7 +97,7 @@ function parseWorkspaceWorkbook(input: string): WorkspaceSheet[] {
 }
 function encodeWorkspaceWorkbook(sheets: WorkspaceSheet[]): string {
   const clean = sheets.map((sheet) => ({ name: sheet.name, rows: sheet.rows, styles: sheet.styles || {}, conditionalFormatting: Boolean(sheet.conditionalFormatting) }));
-  if (clean.length <= 1) return encodeWorkspaceCsv(clean[0]?.rows || [[""]]);
+  if (clean.length <= 1 && !Object.keys(clean[0]?.styles || {}).length && !clean[0]?.conditionalFormatting) return encodeWorkspaceCsv(clean[0]?.rows || [[""]]);
   return WORKSPACE_WORKBOOK_PREFIX + JSON.stringify({ sheets: clean });
 }
 function spreadsheetColumn(index: number): string {
