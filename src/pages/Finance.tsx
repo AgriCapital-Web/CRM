@@ -341,7 +341,7 @@ export default function Finance(){
         <TabsTrigger value="rapports" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><RefreshCw className="mb-1 h-4 w-4 shrink-0" />Rapports</TabsTrigger>
       </TabsList>
       <TabsContent value="entrees" className="mt-3 min-w-0 space-y-3">
-        <div className="rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-3"><h2 className="font-semibold">Entrées financières</h2><p className="text-xs text-muted-foreground">Financements, prêts, dons, apports, ventes et autres recettes.</p></div>
+        <div className="flex flex-col gap-3 rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">Entrées financières</h2><p className="text-xs text-muted-foreground">Financements, prêts, dons, apports, ventes et autres recettes.</p></div>{canManage&&<Button onClick={()=>setEntryFormOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouvelle entrée</Button>}</div>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           {[
             {label:"Entrées validées",value:transactions.filter((t:any)=>t.status==="valide"&&t.direction==="entree").reduce((a,t)=>a+Number(t.amount||0),0)},
