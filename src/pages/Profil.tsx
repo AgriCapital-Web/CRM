@@ -152,7 +152,7 @@ const Profil = () => {
   return (
     <ProtectedRoute>
       <MainLayout>
-        <div className="mx-auto w-full max-w-5xl space-y-3">
+        <div className="mx-auto w-full max-w-5xl min-w-0 space-y-4 px-0 sm:space-y-5">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Mon profil</h1>
             
@@ -182,7 +182,7 @@ const Profil = () => {
 
           <Card>
             <CardHeader><CardTitle>Informations personnelles</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 gap-y-3">
+            <CardContent className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 sm:gap-y-5">
               <div><Label>Nom complet</Label><Input className="h-9 text-sm" value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-9 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
@@ -197,7 +197,7 @@ const Profil = () => {
                 />
               </div>
               <div><Label>Email secondaire</Label><Input className="h-9 text-sm" type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
-              <div className="col-span-2 min-w-0 sm:col-span-1">
+              <div className="min-w-0 w-full">
               <CountryPhoneInput
                 label="Téléphone secondaire"
                 compact
@@ -206,7 +206,7 @@ const Profil = () => {
                 onChange={(v) => { set("telephone_secondaire_indicatif", v.callingCode); set("telephone_secondaire_local", v.localValue); set("telephone_secondaire", v.internationalValue); }}
               />
               </div>
-              <div className="col-span-2 min-w-0 sm:col-span-1">
+              <div className="min-w-0 w-full">
               <CountryPhoneInput
                 label="WhatsApp"
                 compact
@@ -222,10 +222,10 @@ const Profil = () => {
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" />Pièce d'identité</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 gap-3">
+            <CardContent className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
               <div className="[&_button]:h-9 [&_button]:text-sm"><Label>Type de pièce</Label><PieceTypeSelect value={profile.type_piece_identite || ""} onChange={(v) => set("type_piece_identite", v)} /></div>
               <div><Label>Numéro de pièce</Label><Input className="h-9 text-sm" value={profile.numero_piece_identite || ""} onChange={(e) => set("numero_piece_identite", e.target.value)} /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:col-span-2">
                 <div className="min-w-0 rounded-md border p-2">
                   <Label className="mb-1 block text-xs">Recto</Label>
                   <FileField label="Recto" current={profile.piece_identite_recto_url} onPick={(f) => upload("piece_identite_recto_url", "pieces-identite", f)} bucket="pieces-identite" />
@@ -240,8 +240,8 @@ const Profil = () => {
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" />Personne à contacter en cas d'urgence</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 gap-3">
-              <div className="flex min-w-0 items-center gap-3">
+            <CardContent className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+              <div className="flex min-w-0 items-center gap-3 sm:col-span-2">
                 <div className="relative shrink-0">
                   <button type="button" className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title="Ajouter ou modifier la photo du contact d'urgence" aria-label="Ajouter ou modifier la photo du contact d'urgence" onClick={() => document.getElementById("emergency-photo-picker")?.click()}>
                     <Avatar className="h-16 w-16"><AvatarImage src={urgPhotoUrl || ""} /><AvatarFallback className="bg-muted"><Camera className="h-5 w-5 text-emerald-800" /></AvatarFallback></Avatar>
@@ -250,8 +250,8 @@ const Profil = () => {
                   <input id="emergency-photo-picker" type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { const file=e.currentTarget.files?.[0]; if(file) void upload("contact_urgence_photo_url","photos-profils",file); e.currentTarget.value=""; }} />
                 </div>
               </div>
-              <div className="col-span-2 min-w-0"><Label>Contact urgence — Nom et Prénoms</Label><Input className="h-9 text-sm" value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
-              <div className="col-span-2 min-w-0 sm:col-span-1">
+              <div className="min-w-0 w-full sm:col-span-2"><Label>Contact urgence — Nom et Prénoms</Label><Input className="h-9 text-sm" value={profile.contact_urgence_nom || ""} onChange={(e) => set("contact_urgence_nom", e.target.value)} /></div>
+              <div className="min-w-0 w-full">
               <CountryPhoneInput
                 label="Contact urgence — Téléphone 1"
                 compact
@@ -260,7 +260,7 @@ const Profil = () => {
                 onChange={(v) => { set("contact_urgence_telephone1_indicatif", v.callingCode); set("contact_urgence_telephone1_local", v.localValue); set("contact_urgence_telephone1", v.internationalValue); }}
               />
               </div>
-              <div className="col-span-2 min-w-0 sm:col-span-1">
+              <div className="min-w-0 w-full">
               <CountryPhoneInput
                 label="Contact urgence — Téléphone 2"
                 compact
@@ -269,12 +269,12 @@ const Profil = () => {
                 onChange={(v) => { set("contact_urgence_telephone2_indicatif", v.callingCode); set("contact_urgence_telephone2_local", v.localValue); set("contact_urgence_telephone2", v.internationalValue); }}
               />
               </div>
-              <div className="col-span-2 min-w-0"><Label>Contact urgence — Email (facultatif)</Label><Input className="h-9 text-sm" type="email" value={profile.contact_urgence_email || ""} onChange={(e) => set("contact_urgence_email", e.target.value)} /></div>
+              <div className="min-w-0 w-full sm:col-span-2"><Label>Contact urgence — Email (facultatif)</Label><Input className="h-9 text-sm" type="email" value={profile.contact_urgence_email || ""} onChange={(e) => set("contact_urgence_email", e.target.value)} /></div>
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
-            <Button onClick={save} disabled={saving || !!uploading}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button>
+          <div className="flex justify-stretch sm:justify-end">
+            <Button className="w-full sm:w-auto" onClick={save} disabled={saving || !!uploading}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button>
           </div>
 
           <Card>
