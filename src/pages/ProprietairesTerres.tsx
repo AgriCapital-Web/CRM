@@ -52,17 +52,12 @@ const ProprietairesTerres = () => {
   const { user } = useAuth();
   const { can } = usePermissions();
   const canCreateProprietaire = can("proprietaires.create");
-  const canUpdateProprietaire = can("proprietaires.update");
   const [searchParams] = useSearchParams();
   const conversionLeadId = searchParams.get("lead_id");
   const [proprietaires, setProprietaires] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingOwner, setEditingOwner] = useState<any|null>(null);
-  const [editingOwnerParcel, setEditingOwnerParcel] = useState<any|null>(null);
-  const [editingOwnerConvention, setEditingOwnerConvention] = useState<any|null>(null);
-  const [editingOwnerDocuments, setEditingOwnerDocuments] = useState<any[]>([]);
   const [activeFormTab, setActiveFormTab] = useState("identite");
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
@@ -139,66 +134,6 @@ const ProprietairesTerres = () => {
     setIsFormOpen(true);
   }, [conversionLeadId, searchParams]);
   const loadDistricts = async () => { setDistricts(await fetchFilteredDistricts()); };
-
-  const openOwnerEdit = async (owner: any) => {
-    if (!canUpdateProprietaire) {
-      toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de modifier ce propriétaire foncier." });
-      return;
-    }
-    try {
-      const [parcelRes, conventionRes, docsRes] = await Promise.all([
-        (supabase as any).from("parcelles").select("*").eq("proprietaire_id", owner.id).order("created_at", { ascending: true }).limit(1).maybeSingle(),
-        (supabase as any).from("conventions_foncieres").select("*").eq("proprietaire_id", owner.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        (supabase as any).from("documents_convention").select("*").eq("proprietaire_id", owner.id).order("created_at", { ascending: true }),
-      ]);
-      if (parcelRes.error) throw parcelRes.error;
-      if (conventionRes.error) throw conventionRes.error;
-      if (docsRes.error) throw docsRes.error;
-      const parcel = parcelRes.data || null, convention = conventionRes.data || null, docs = docsRes.data || [];
-      const dateOnly = (value: any) => value ? String(value).slice(0, 10) : "";
-      setEditingOwner(owner); setEditingOwnerParcel(parcel); setEditingOwnerConvention(convention); setEditingOwnerDocuments(docs);
-      setFormData((current: any) => ({
-        ...current,
-        type_proprietaire: owner.type_proprietaire || "personne_physique", civilite: owner.civilite || "",
-        nom: owner.nom || "", prenoms: owner.prenoms || "", date_naissance: dateOnly(owner.date_naissance),
-        lieu_naissance: owner.lieu_naissance || "", nom_pere: owner.nom_pere || "", nom_mere: owner.nom_mere || "",
-        denomination_sociale: owner.denomination_sociale || "", numero_enregistrement: owner.numero_enregistrement || "",
-        nombre_membres: owner.nombre_membres == null ? "" : String(owner.nombre_membres), nom_representant: owner.nom_representant || "",
-        telephone: owner.telephone || "", telephone_indicatif: owner.telephone_indicatif || "", telephone_local: owner.telephone_local || "",
-        whatsapp: owner.whatsapp || "", whatsapp_indicatif: owner.whatsapp_indicatif || "", whatsapp_local: owner.whatsapp_local || "",
-        email: owner.email || "", type_piece: owner.type_piece || "", numero_piece: owner.numero_piece || "",
-        date_delivrance_piece: dateOnly(owner.date_delivrance_piece), lieu_residence: owner.lieu_residence || "",
-        district_id: owner.district_id || "", region_id: owner.region_id || "", departement_id: owner.departement_id || "",
-        sous_prefecture_id: owner.sous_prefecture_id || "", village_id: owner.village_id || "", village: owner.village || "", localite: owner.village || "",
-        surface_totale_declaree_ha: String(owner.surface_totale_declaree_ha ?? parcel?.surface_totale_ha ?? ""),
-        coordonnees_gps: owner.coordonnees_gps || (parcel?.localisation_gps_lat != null && parcel?.localisation_gps_lng != null ? `${parcel.localisation_gps_lat}, ${parcel.localisation_gps_lng}` : ""),
-        date_signature_convention: dateOnly(convention?.date_signature || parcel?.date_convention),
-        type_convention: convention?.type_convention || (parcel?.mode_surface === "achat" ? "achat" : "plante_partage"),
-        part_agricapital_pct: String(owner.part_agricapital_pct ?? convention?.part_agricapital_pct ?? 50),
-        nombre_lots_agricapital: String(owner.nombre_lots_agricapital ?? convention?.nombre_lots_agricapital ?? ""),
-        statut_foncier: owner.statut_foncier || "coutumier", reference_cadastrale: owner.reference_cadastrale || "",
-        limites_nord: owner.limites_nord || "", limites_sud: owner.limites_sud || "", limites_est: owner.limites_est || "", limites_ouest: owner.limites_ouest || "",
-        servitudes: owner.servitudes || "", croquis_joint: Boolean(owner.croquis_joint),
-        plantation_partagee_activee: parcel?.plantation_partagee_activee ?? true,
-        plantation_surface_cible_ha: String(parcel?.plantation_surface_cible_ha ?? ""),
-        plantation_type_culture: parcel?.plantation_type_culture || "Palmier à huile",
-        plantation_densite_plants: String(parcel?.plantation_densite_plants ?? 143), plantation_date_activation: dateOnly(parcel?.plantation_date_activation),
-        co_titulaire_nom: owner.co_titulaire_nom || "", co_titulaire_lien: owner.co_titulaire_lien || "", co_titulaire_piece: owner.co_titulaire_piece || "",
-        co_titulaire_telephone: owner.co_titulaire_telephone || "", co_titulaire_telephone_indicatif: owner.co_titulaire_telephone_indicatif || "", co_titulaire_telephone_local: owner.co_titulaire_telephone_local || "",
-        temoin_proprietaire_nom: owner.temoin_proprietaire_nom || "", temoin_proprietaire_qualite: owner.temoin_proprietaire_qualite || "",
-        representant_agricapital_nom: owner.representant_agricapital_nom || "", representant_agricapital_qualite: owner.representant_agricapital_qualite || "",
-        leader_communautaire_nom: owner.leader_communautaire_nom || "", leader_communautaire_qualite: owner.leader_communautaire_qualite || "",
-        voisin_1_nom: owner.voisin_1_nom || "", voisin_1_cote: owner.voisin_1_cote || "", voisin_2_nom: owner.voisin_2_nom || "", voisin_2_cote: owner.voisin_2_cote || "",
-        notes: owner.notes || "",
-      }));
-      setFiles({ photo_profil: null, cni_recto: null, cni_verso: null });
-      const statuses = createInitialAnnexStatuses();
-      for (const doc of docs) if (Object.prototype.hasOwnProperty.call(statuses, doc.type_document)) statuses[doc.type_document] = doc.statut === "joint" || doc.fichier_url ? "joint" : "a_fournir";
-      setAnnexStatuses(statuses); setActiveFormTab("identite"); setIsFormOpen(true);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Ouverture impossible", description: getSafeErrorMessage(error) });
-    }
-  };
 
   const handleDistrictChange = async (v: string) => {
     setFormData(f => ({ ...f, district_id: v, region_id: "", departement_id: "", sous_prefecture_id: "" }));
