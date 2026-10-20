@@ -39,11 +39,38 @@ const readDocx = async (file: File) => {
   const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
   return result.value || "<p></p>";
 };
+const WORKBOOK_PREFIX = "__AGRICAPITAL_WORKBOOK_V1__\n";
+const sheetToRows = (sheet: XLSX.WorkSheet): string[][] => {
+  if (!sheet["!ref"]) return [[""]];
+  const range = XLSX.utils.decode_range(sheet["!ref"]);
+  const rows: string[][] = [];
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const row: string[] = [];
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = sheet[XLSX.utils.encode_cell({ r, c })] as any;
+      row.push(cell?.f ? "=" + cell.f : cell?.w ?? (cell?.v == null ? "" : String(cell.v)));
+    }
+    rows.push(row);
+  }
+  return rows;
+};
+const encodeCsvRows = (rows: string[][]) => rows.map((row) => row.map((cell) => /[;"\r\n]/.test(cell) ? '"' + cell.replace(/"/g, '""') + '"' : cell).join(";")).join("\n");
 const readXlsx = async (file: File) => {
   const book = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  const name = book.SheetNames[0];
-  if (!name) throw new Error("Le classeur ne contient aucune feuille.");
-  return XLSX.utils.sheet_to_csv(book.Sheets[name], { FS: ";", RS: "\n" });
+  if (!book.SheetNames.length) throw new Error("Le classeur ne contient aucune feuille.");
+  const sheets = book.SheetNames.map((name) => ({ name, rows: sheetToRows(book.Sheets[name]) }));
+  return sheets.length === 1 ? encodeCsvRows(sheets[0].rows) : WORKBOOK_PREFIX + JSON.stringify({ sheets });
+};
+const parseSpreadsheetContent = (content: string): { name: string; rows: any[][] }[] => {
+  if (content.startsWith(WORKBOOK_PREFIX)) {
+    try {
+      const value = JSON.parse(content.slice(WORKBOOK_PREFIX.length));
+      if (Array.isArray(value.sheets) && value.sheets.length) return value.sheets.map((sheet: any) => ({ name: String(sheet.name || "Feuille"), rows: Array.isArray(sheet.rows) ? sheet.rows : [[""]] }));
+    } catch { /* fallback to CSV */ }
+  }
+  const book = XLSX.read(content, { type: "string", FS: ";" });
+  const sheet = book.Sheets[book.SheetNames[0]];
+  return [{ name: "Données", rows: sheet ? XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true }) : [] }];
 };
 const readPptx = async (file: File) => {
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -123,9 +150,12 @@ async function exportDocx(title: string, content: string) {
   downloadBlob(await Packer.toBlob(doc), safeFilename(title, "docx"));
 }
 async function exportXlsx(title: string, content: string) {
-  const rows = XLSX.utils.csv_to_sheet(content.split(/\r?\n/).map((line) => line.split(";")));
   const book = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(book, rows, "Données");
+  const sheets = parseSpreadsheetContent(content);
+  sheets.forEach((sheet, index) => {
+    const worksheet = XLSX.utils.aoa_to_sheet(sheet.rows);
+    XLSX.utils.book_append_sheet(book, worksheet, (sheet.name || "Feuille " + (index + 1)).slice(0, 31) || "Feuille" + index);
+  });
   const output = XLSX.write(book, { bookType: "xlsx", type: "array" });
   downloadBlob(new Blob([output], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeFilename(title, "xlsx"));
 }
@@ -150,9 +180,7 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
   pptx.subject = "Présentation exportée depuis l’Espace de travail AgriCapital";
   pptx.title = title || "Présentation AgriCapital";
   if (documentType === "spreadsheet") {
-    const parsedBook = XLSX.read(content, { type: "string", FS: ";" });
-    const sheet = parsedBook.Sheets[parsedBook.SheetNames[0]];
-    const values = sheet ? XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true }) : [];
+    const values = parseSpreadsheetContent(content)[0]?.rows || [];
     const slide = pptx.addSlide();
     slide.addText(title || "Analyse des données", { x: 0.55, y: 0.35, w: 12.2, h: 0.65, fontSize: 26, bold: true, color: "17365D" });
     const headers = (values[0] || []).map((v: any, i: number) => String(v ?? "Colonne " + (i + 1)));
