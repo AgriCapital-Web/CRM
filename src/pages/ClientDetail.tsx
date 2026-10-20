@@ -124,6 +124,27 @@ const ClientDetail = () => {
     }catch(e:any){toast({variant:"destructive",title:"Téléversement impossible",description:getSafeErrorMessage(e)});}
   };
 
+  const reviewClient = async (action: "valider" | "demander_modification") => {
+    if (!id || !canValidateClient || savingValidation) return;
+    if (action === "demander_modification" && !validationComment.trim()) {
+      toast({ variant: "destructive", title: "Commentaire requis", description: "Décrivez les corrections à effectuer." });
+      return;
+    }
+    setSavingValidation(true);
+    try {
+      const { error } = await (supabase as any).rpc("review_client_validation", {
+        p_client_id: id, p_action: action, p_comment: validationComment.trim() || null
+      });
+      if (error) throw error;
+      toast({ title: action === "valider" ? "Client validé" : "Demande de modification envoyée",
+        description: action === "valider" ? "La décision est enregistrée dans Supabase." : "Une notification a été créée pour le créateur du dossier." });
+      setValidationComment("");
+      await fetchData();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Action impossible", description: getSafeErrorMessage(error) });
+    } finally { setSavingValidation(false); }
+  };
+
   const handleRachatMonnaie=async()=>{
     if(!canViewClientMoney||!id)return;
     const jours=Math.max(1,Number(rachatJours||0));
