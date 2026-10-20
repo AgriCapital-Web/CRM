@@ -75,6 +75,27 @@ function encodeWorkspaceCsv(rows: string[][]): string {
     return row.slice(0, Math.max(1, last + 1)).map((cell) => /[;"\r\n]/.test(cell) ? '"' + cell.replace(/"/g, '""') + '"' : cell).join(";");
   }).join("\n");
 }
+const WORKSPACE_WORKBOOK_PREFIX = "__AGRICAPITAL_WORKBOOK_V1__\n";
+type WorkspaceSheet = { name: string; rows: string[][] };
+function parseWorkspaceWorkbook(input: string): WorkspaceSheet[] {
+  if (input.startsWith(WORKSPACE_WORKBOOK_PREFIX)) {
+    try {
+      const parsed = JSON.parse(input.slice(WORKSPACE_WORKBOOK_PREFIX.length));
+      if (Array.isArray(parsed.sheets) && parsed.sheets.length) {
+        return parsed.sheets.map((sheet: any, index: number) => ({
+          name: typeof sheet.name === "string" && sheet.name.trim() ? sheet.name : "Feuille " + (index + 1),
+          rows: Array.isArray(sheet.rows) ? sheet.rows.map((row: any) => Array.isArray(row) ? row.map((cell: any) => String(cell ?? "")) : []) : [[""]],
+        }));
+      }
+    } catch { /* Fallback to legacy CSV if workbook metadata is damaged. */ }
+  }
+  return [{ name: "Feuille 1", rows: parseWorkspaceCsv(input) }];
+}
+function encodeWorkspaceWorkbook(sheets: WorkspaceSheet[]): string {
+  const clean = sheets.map((sheet) => ({ name: sheet.name, rows: parseWorkspaceCsv(encodeWorkspaceCsv(sheet.rows)) }));
+  if (clean.length <= 1) return encodeWorkspaceCsv(clean[0]?.rows || [[""]]);
+  return WORKSPACE_WORKBOOK_PREFIX + JSON.stringify({ sheets: clean });
+}
 function spreadsheetColumn(index: number): string {
   let value = index + 1, result = "";
   while (value > 0) { const remainder = (value - 1) % 26; result = String.fromCharCode(65 + remainder) + result; value = Math.floor((value - 1) / 26); }
@@ -128,7 +149,11 @@ function evaluateWorkspaceCell(raw: string, rows: string[][], visited = new Set<
   return "#FORMULE?";
 }
 function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; onChange: (next: string) => void; disabled: boolean }) {
-  const parsed = parseWorkspaceCsv(value);
+  const [activeSheet, setActiveSheet] = useState(0);
+  const workbook = parseWorkspaceWorkbook(value);
+  const activeIndex = Math.min(activeSheet, workbook.length - 1);
+  const active = workbook[activeIndex] || { name: "Feuille 1", rows: [[""]] };
+  const parsed = active.rows;
   const rowCount = Math.min(100, Math.max(12, parsed.length));
   const colCount = Math.min(26, Math.max(8, ...parsed.map((row) => row.length)));
   const rows = Array.from({ length: rowCount }, (_, r) => Array.from({ length: colCount }, (_, c) => parsed[r]?.[c] || ""));
@@ -136,9 +161,21 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
     .filter((item) => item.label && Number.isFinite(item.value)).slice(0, 10);
   const chartMax = Math.max(1, ...chartData.map((item) => Math.abs(item.value)));
   const updateCell = (r: number, c: number, next: string) => {
-    const updated = rows.map((row) => [...row]);
-    updated[r][c] = next;
-    onChange(encodeWorkspaceCsv(updated));
+    const updatedRows = rows.map((row) => [...row]);
+    updatedRows[r][c] = next;
+    const updatedWorkbook = workbook.map((sheet, index) => index === activeIndex ? { ...sheet, rows: updatedRows } : sheet);
+    onChange(encodeWorkspaceWorkbook(updatedWorkbook));
+  };
+  const addSheet = () => {
+    const nextName = "Feuille " + (workbook.length + 1);
+    onChange(encodeWorkspaceWorkbook([...workbook, { name: nextName, rows: [[""]] }]));
+    setActiveSheet(workbook.length);
+  };
+  const removeSheet = () => {
+    if (workbook.length <= 1 || !window.confirm("Supprimer la feuille « " + active.name + " » ?")) return;
+    const next = workbook.filter((_, index) => index !== activeIndex);
+    onChange(encodeWorkspaceWorkbook(next));
+    setActiveSheet(Math.max(0, activeIndex - 1));
   };
   const exportCsv = () => {
     const blob = new Blob(["\uFEFF" + encodeWorkspaceCsv(rows)], { type: "text/csv;charset=utf-8" });
@@ -158,6 +195,11 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
         <label className="cursor-pointer rounded-md border px-3 py-2 text-xs hover:bg-muted">Importer CSV<input type="file" accept=".csv,text/csv" className="hidden" disabled={disabled} onChange={(e) => { void importCsv(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
         <button type="button" onClick={exportCsv} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter CSV</button>
       </div>
+    </div>
+    <div className="flex flex-wrap items-center gap-1">
+      {workbook.map((sheet, index) => <button type="button" key={sheet.name + index} onClick={() => setActiveSheet(index)} className={"rounded-md border px-3 py-1.5 text-xs " + (index === activeIndex ? "border-primary bg-primary/10 font-semibold" : "bg-background hover:bg-muted")}>{sheet.name}</button>)}
+      <button type="button" disabled={disabled} onClick={addSheet} className="rounded-md border px-3 py-1.5 text-xs hover:bg-muted">+ Feuille</button>
+      <button type="button" disabled={disabled || workbook.length <= 1} onClick={removeSheet} className="rounded-md border px-3 py-1.5 text-xs text-destructive hover:bg-muted">Supprimer la feuille</button>
     </div>
     <div className="max-h-[440px] overflow-auto rounded-lg border">
       <table className="w-full border-collapse text-sm">
@@ -482,7 +524,7 @@ export default function EspaceTravail() {
                     <Button type="button" size="sm" variant="outline" title="Effacer le formatage" onClick={() => formatEditor("removeFormat")} disabled={!canEditSelected}><Eraser className="h-4 w-4" /></Button>
                   </div>
                   <div className="space-y-1"><Label>{documentType === "presentation" ? "Plan de présentation et notes" : "Contenu du document"}</Label><div ref={editorRef} contentEditable={!saving && canEditSelected} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeWorkspaceHtml(content) }} onInput={() => setHasUnsavedChanges(true)} onBlur={() => { if (editorRef.current) setContent(editorRef.current.innerHTML); }} role="textbox" aria-multiline="true" className="min-h-[320px] rounded-lg border bg-background p-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-6 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-2 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2" /></div>
-                </> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
+                </> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2">{documentType !== "spreadsheet" && <><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button></>}<Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
                 <div className="flex flex-wrap gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => void duplicateDocument()} disabled={saving}><Copy className="mr-2 h-4 w-4" />Créer une copie</Button>{isOwner && <Button variant="destructive" size="sm" onClick={() => void deleteDocument()} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button>}</div>
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button></>}</div>
