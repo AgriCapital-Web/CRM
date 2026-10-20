@@ -24,7 +24,7 @@ serve(async (req) => {
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step }, 401);
     step = "parse_body";
-    const { action, user_id, password, username, roles, actif } = await req.json();
+    const { action, user_id, password, username, roles, actif, primary_role } = await req.json();
     if (!action || !user_id) return json({ error: "action et user_id requis", step }, 400);
 
     if (action === "complete_forced_password_change") {
@@ -97,8 +97,9 @@ serve(async (req) => {
 
     if (action === "set_roles") {
       step = "set_roles";
-      const list: string[] = Array.isArray(roles) ? roles.filter(Boolean) : [];
+      const list: string[] = Array.isArray(roles) ? Array.from(new Set(roles.filter((r: unknown): r is string => typeof r === "string" && r.trim().length > 0))) : [];
       if (list.length === 0) return json({ error: "Au moins un rôle est requis", step }, 400);
+      const primaryRole = typeof primary_role === "string" && list.includes(primary_role) ? primary_role : list[0];
       // Résout l'identifiant du compte de connexion (l'appelant peut envoyer l'id du profil).
       step = "resolve_user";
       let authId: string | null = null;
@@ -114,18 +115,22 @@ serve(async (req) => {
       if (!authId) {
         return json({ error: "Ce profil n'a pas de compte de connexion actif. Créez d'abord son accès.", step }, 404);
       }
-      step = "delete_old_roles";
-      const { error: delErr } = await admin.from("user_roles").delete().eq("user_id", authId);
-      if (delErr) return json({ error: delErr.message, step }, 400);
-      step = "insert_roles";
-      const { error: insErr } = await admin
-        .from("user_roles")
-        .upsert(list.map((r) => ({ user_id: authId, role: r })), { onConflict: "user_id,role" });
-      if (insErr) return json({ error: insErr.message, step }, 400);
+      step = "save_roles_transactionally";
+      const { error: saveError } = await admin.rpc("admin_set_user_roles_with_primary", {
+        p_user_id: authId,
+        p_roles: list,
+        p_primary_role: primaryRole,
+      });
+      if (saveError) return json({ error: saveError.message, step }, 400);
       step = "verify_roles";
       const { data: check, error: checkError } = await admin.from("user_roles").select("role,is_primary").eq("user_id", authId);
       if (checkError) return json({ error: checkError.message, step }, 400);
-      await admin.from("profiles").update({ actif: true }).or(`id.eq.${authId},user_id.eq.${authId}`);
+      const verifiedPrimary = (check || []).filter((r: any) => r.is_primary === true);
+      if (verifiedPrimary.length !== 1 || verifiedPrimary[0].role !== primaryRole) {
+        return json({ error: "Le rôle principal n'a pas été enregistré correctement.", step }, 500);
+      }
+      const { error: activeError } = await admin.from("profiles").update({ actif: true }).or(`id.eq.${authId},user_id.eq.${authId}`);
+      if (activeError) return json({ error: activeError.message, step }, 400);
       return json({ success: true, action, primary_role: primaryRole, roles: (check ?? []).map((r: any) => r.role) });
     }
 

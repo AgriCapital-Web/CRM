@@ -71,14 +71,15 @@ export function useRolePermissionMatrix() {
 
 /** Permissions effectives de l'utilisateur connecté */
 export function usePermissions() {
-  const { userRoles } = useAuth();
+  const { userRoles, primaryRole } = useAuth();
   const { matrix, loading, fromDatabase, reload } = useRolePermissionMatrix();
 
   const roles = useMemo(() => normalizeRoles(userRoles || []), [userRoles]);
   // super_admin a été supprimé du catalogue officiel. Aucun bypass statique.
   const isSuperAdmin = false;
-  const isPdg = roles.includes("pdg");
-  const isDg = roles.includes("dg");
+  // Le contournement administrateur dépend du rôle explicitement principal.
+  const isPdg = primaryRole === "pdg";
+  const isDg = primaryRole === "dg";
 
   const granted = useMemo(() => {
     const set = new Set<string>();

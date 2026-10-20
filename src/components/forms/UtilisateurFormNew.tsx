@@ -64,6 +64,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     utilisateur?.user_roles?.map((r: any) => r.role).filter(Boolean) || [],
   );
+  const [primaryRole, setPrimaryRole] = useState<string>(
+    utilisateur?.user_roles?.find((r: any) => r.is_primary === true)?.role || "",
+  );
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [equipes, setEquipes] = useState<any[]>([]);
@@ -137,6 +140,10 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const onSubmit = async (data: any) => {
     if (selectedRoles.length === 0) {
       toast({ variant: "destructive", title: "Rôle requis", description: "Sélectionnez au moins un rôle officiel." });
+      return;
+    }
+    if (!primaryRole || !selectedRoles.includes(primaryRole)) {
+      toast({ variant: "destructive", title: "Rôle principal requis", description: "Choisissez un rôle principal parmi les rôles attribués." });
       return;
     }
     if (needsCoverage && !data.region_id && !utilisateur?.region_id) {
@@ -236,7 +243,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           const { error: deleteRolesError } = await (supabase as any).from("user_roles").delete().eq("user_id", uid);
           if (deleteRolesError) throw deleteRolesError;
           const { error: insertRolesError } = await (supabase as any).from("user_roles").insert(
-            selectedRoles.map((role) => ({ user_id: uid, role }))
+            selectedRoles.map((role) => ({ user_id: uid, role, is_primary: role === primaryRole }))
           );
           if (insertRolesError) throw insertRolesError;
 
@@ -284,6 +291,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             type_piece_identite: data.type_piece_identite || null,
             numero_piece_identite: data.numero_piece_identite || null,
             roles: selectedRoles,
+            primary_role: primaryRole,
             }
           });
 
@@ -293,6 +301,14 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           // Mémoriser le compte dès sa création : une erreur de salaire ou de média
           // ne doit pas obliger à recréer le même compte à la prochaine tentative.
           setCreatedAccount({ user_id: result.user_id, tempPassword });
+        }
+
+        // Appliquer et vérifier le rôle principal via la procédure d'administration.
+        const { data: savedRoles, error: savedRolesError } = await supabase.functions.invoke("admin-manage-user", {
+          body: { action: "set_roles", user_id: result.user_id, roles: selectedRoles, primary_role: primaryRole },
+        });
+        if (savedRolesError || savedRoles?.error || savedRoles?.success !== true) {
+          throw new Error(savedRoles?.error || savedRolesError?.message || "L'enregistrement du rôle principal n'a pas été confirmé.");
         }
 
         const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
@@ -358,9 +374,15 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   };
 
   const toggleRole = (role: string) => {
-    setSelectedRoles(prev =>
-      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
-    );
+    setSelectedRoles(prev => {
+      const next = prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role];
+      setPrimaryRole(current => {
+        if (next.includes(current)) return current;
+        // À la création, le premier rôle choisi devient le candidat principal.
+        return prev.length === 0 && next.length > 0 ? next[0] : "";
+      });
+      return next;
+    });
   };
 
   return (
@@ -632,6 +654,20 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
                 </label>
               </div>
             ))}
+          </div>
+          <div className="space-y-2">
+            <Label>Rôle principal *</Label>
+            <Select value={primaryRole} onValueChange={setPrimaryRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir le rôle principal" />
+              </SelectTrigger>
+              <SelectContent>
+                {rolesDisponibles.filter((role) => selectedRoles.includes(role.code)).map((role) => (
+                  <SelectItem key={role.code} value={role.code}>{role.nom}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Le rôle principal détermine le périmètre hiérarchique principal. Les autres rôles peuvent ajouter des permissions complémentaires.</p>
           </div>
           {selectedRoles.length === 0 && (
             <p className="text-sm text-destructive">Au moins un rôle officiel doit être attribué.</p>

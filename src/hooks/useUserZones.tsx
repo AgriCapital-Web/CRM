@@ -7,10 +7,10 @@ interface ZoneAssignment { zone_type: string; zone_id: string; }
 const toStringIds = (values: unknown[]): string[] => Array.from(new Set(values.filter((value): value is string => typeof value === "string" && value.length > 0)));
 
 export function useUserZones() {
-  const { user, userRoles } = useAuth();
+  const { user, primaryRole } = useAuth();
   const [assignments, setAssignments] = useState<ZoneAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const isAdmin = userRoles.some(r => ["super_admin", "pdg", "dg", "responsable_operations", "responsable_commercial", "chef_equipe_commercial", "chef_equipe_technique", "service_client", "chef_equipe_service_client", "comptable", "assistant_administratif"].includes(r));
+  const isAdmin = Boolean(primaryRole && ["super_admin", "pdg", "dg", "responsable_operations", "responsable_commercial", "chef_equipe_commercial", "chef_equipe_technique", "service_client", "chef_equipe_service_client", "comptable", "assistant_administratif"].includes(primaryRole));
 
   useEffect(() => {
     if (!user?.id) { setAssignments([]); setLoading(false); return; }

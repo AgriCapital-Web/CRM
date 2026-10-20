@@ -25,7 +25,6 @@ import { Users, Plus, Search, Edit, Shield, MoreHorizontal, UserCheck, UserX, Ke
 import UtilisateurFormNew from "@/components/forms/UtilisateurFormNew";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useAppRoles } from "@/hooks/useReferentiels";
-import { OFFICIAL_ROLES } from "@/lib/roles";
 
 const Utilisateurs = () => {
   const [utilisateurs, setUtilisateurs] = useState<any[]>([]);
@@ -121,18 +120,10 @@ const Utilisateurs = () => {
     return user.user_roles?.map((r: any) => r.role) || [];
   };
 
-  // Un seul rôle visible dans les listes : celui du niveau hiérarchique le plus élevé.
-  // Les rôles secondaires restent attribués et continuent d'activer leurs permissions.
-  const getHighestRole = (user: any) => {
-    const roleLevels = new Map<string, number>();
-    OFFICIAL_ROLES.forEach((r) => roleLevels.set(r.code, r.niveau));
-    appRoles.forEach((r: any) => {
-      if (r.code) roleLevels.set(r.code, Number(r.niveau ?? roleLevels.get(r.code) ?? 999));
-    });
-    return [...new Set(getRoles(user))].sort((a: string, b: string) =>
-      (roleLevels.get(a) ?? 999) - (roleLevels.get(b) ?? 999) || a.localeCompare(b)
-    )[0] || null;
-  };
+  // Le rôle affiché est exactement celui marqué principal en base.
+  // Les rôles secondaires restent attribués et leurs permissions restent complémentaires.
+  const getHighestRole = (user: any) =>
+    user.user_roles?.find((r: any) => r.is_primary === true)?.role || null;
 
   const openAdminAction = (user: any, action: "roles" | "password" | "username") => {
     setAdminTarget(user);

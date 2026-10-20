@@ -11,6 +11,7 @@ interface AuthContextType {
   session: Session | null;
   profile: any | null;
   userRoles: string[];
+  primaryRole: string | null;
   loading: boolean;
   signIn: (usernameOrEmail: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [primaryRole, setPrimaryRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -33,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cached = await getCachedAuth();
       let profileData: any = null;
       let roles: string[] = [];
+      let loadedPrimaryRole: string | null = null;
 
       try {
         const result = await (supabase as any)
@@ -59,9 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('user_roles')
           .select('role, is_primary')
           .eq('user_id', userId);
-        roles = (rolesData || [])
-          .sort((a: any, b: any) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
-          .map((r: any) => r.role);
+        const sortedRoleRows = (rolesData || [])
+          .sort((a: any, b: any) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)));
+        roles = sortedRoleRows.map((r: any) => r.role);
+        loadedPrimaryRole = sortedRoleRows.find((r: any) => r.is_primary === true)?.role || null;
       } catch {
         roles = [];
       }
@@ -72,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setProfile(profileData || null);
       setUserRoles(roles);
+      setPrimaryRole(loadedPrimaryRole);
     } catch (error) {
       console.error('Error fetching user data:', error);
       try {
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cached?.profile?.user_id === userId) {
           setProfile(cached.profile);
           setUserRoles(cached.roles || []);
+          setPrimaryRole(null);
         }
       } catch {
         // local cache unavailable
@@ -128,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           loadedUserId = null;
           setProfile(null);
           setUserRoles([]);
+        setPrimaryRole(null);
           setLoading(false);
         }
       }
@@ -190,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser({ id: cached.profile?.user_id, email: cached.email } as any);
       setProfile({ ...cached.profile, offline_session: true });
       setUserRoles(cached.roles);
+      setPrimaryRole(null);
       setLoading(false);
       return true;
     };
@@ -260,8 +268,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const userId = authData.user?.id;
         const { data: prof } = await (supabase as any).from('profiles').select('*').eq('user_id', userId).maybeSingle();
-        const { data: roles } = await (supabase as any).from('user_roles').select('role').eq('user_id', userId);
-        const rolesList = roles?.map((r: any) => r.role) || [];
+        const { data: roles } = await (supabase as any).from('user_roles').select('role, is_primary').eq('user_id', userId);
+        const rolesList = (roles || [])
+          .sort((a: any, b: any) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)))
+          .map((r: any) => r.role);
         if (prof) {
           const salt = generateAuthSalt();
           const hashed = await hashPassword(password, salt);
@@ -325,6 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       profile,
       userRoles,
+      primaryRole,
       loading,
       signIn,
       signOut,

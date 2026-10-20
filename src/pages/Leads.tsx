@@ -72,13 +72,14 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
-  const { user, userRoles } = useAuth();
+  const { user, userRoles, primaryRole } = useAuth();
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
-  const isGlobalAdmin = (userRoles || []).some((r: string) => ["pdg", "dg", "admin", "super_admin"].includes(r));
-  const isFoncierRole = (userRoles || []).some((r: string) => ["mobilisateur_foncier", "superviseur_mobilisation_fonciere"].includes(r));
-  const canSupervise = isGlobalAdmin || (userRoles || []).some((r: string) =>
-    ["responsable_operations", "responsable_commercial",
-     "chef_equipe_commercial", "service_client", "chef_equipe_service_client"].includes(r));
+  const isGlobalAdmin = ["pdg", "dg", "admin", "super_admin"].includes(primaryRole || "");
+  const isFoncierRole = ["mobilisateur_foncier", "superviseur_mobilisation_fonciere"].includes(primaryRole || "");
+  // Le périmètre d'encadrement suit le rôle principal; les rôles secondaires
+  // continuent d'ajouter leurs permissions, sans élargir automatiquement le périmètre.
+  const canSupervise = isGlobalAdmin || ["responsable_operations", "responsable_commercial",
+    "chef_equipe_commercial", "service_client", "chef_equipe_service_client"].includes(primaryRole || "");
   const isServiceClient = (userRoles || []).some((r: string) => ["service_client", "chef_equipe_service_client"].includes(r));
   const hasCommercialAccess = (userRoles || []).some((r: string) => COMMERCIAL_ASSIGNABLE_ROLES.includes(r));
   const [offers, setOffers] = useState<any[]>([]);
