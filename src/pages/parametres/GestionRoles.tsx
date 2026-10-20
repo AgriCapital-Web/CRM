@@ -115,6 +115,12 @@ const GestionRoles = () => {
     return userRoles.filter((ur) => ur.user_id === uid).sort((a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)));
   };
 
+  const selectedProfileRecord = profiles.find((p) => p.id === selectedProfile);
+  const selectedProfileHasPrimary = Boolean(
+    selectedProfileRecord?.user_id &&
+    userRoles.some((ur) => ur.user_id === selectedProfileRecord.user_id && ur.is_primary === true)
+  );
+
   /** Utilisateurs dont le rôle n'appartient pas au catalogue officiel en base */
   const divergences = useMemo(() => {
     const officiels = roles.map((r) => r.code);
@@ -495,7 +501,13 @@ const GestionRoles = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label>Utilisateur</Label>
-                    <Select value={selectedProfile} onValueChange={setSelectedProfile}>
+                    <Select value={selectedProfile} onValueChange={(value) => {
+                      const profile = profiles.find((p) => p.id === value);
+                      const hasPrimary = Boolean(profile?.user_id && userRoles.some((ur) => ur.user_id === profile.user_id && ur.is_primary === true));
+                      setSelectedProfile(value);
+                      setSelectedRole("");
+                      setSelectedPrimaryRole(!hasPrimary);
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un utilisateur" />
                       </SelectTrigger>
@@ -523,11 +535,18 @@ const GestionRoles = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                    <Checkbox checked={selectedPrimaryRole} onCheckedChange={(checked)=>setSelectedPrimaryRole(checked===true)} />
-                    <span>Définir comme rôle principal</span>
-                  </label>
-                  <p className="text-xs text-muted-foreground">Les autres rôles déjà attribués sont conservés.</p>
+                  {selectedProfile && !selectedProfileHasPrimary && (
+                    <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                      <Checkbox checked={selectedPrimaryRole} onCheckedChange={(checked)=>setSelectedPrimaryRole(checked===true)} />
+                      <span>Définir comme rôle principal</span>
+                    </label>
+                  )}
+                  {selectedProfile && selectedProfileHasPrimary && (
+                    <p className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
+                      Cet utilisateur a déjà un rôle principal. Pour éviter deux rôles principaux, cette option est masquée.
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">Le statut principal est enregistré dans la base de données et utilisé pour déterminer le périmètre principal de l’utilisateur.</p>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
