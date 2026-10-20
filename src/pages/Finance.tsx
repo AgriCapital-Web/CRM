@@ -78,7 +78,7 @@ export default function Finance(){
       (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
       (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}),
       (supabase as any).from("finance_associates").select("*").order("full_name"),
-      (supabase as any).from("profiles").select("id,nom_complet,poste,relation_rh,actif,salaire_base").eq("actif",true).order("nom_complet"),
+      (supabase as any).from("profiles").select("id,nom_complet,email,poste,relation_rh,actif,salaire_base").eq("actif",true).order("nom_complet"),
       (supabase as any).from("finance_salary_profiles").select("*").order("created_at",{ascending:false}),
       (supabase as any).from("finance_payroll_runs").select("*").order("period_start",{ascending:false}).limit(24),
       (supabase as any).from("finance_associate_transactions").select("id,associate_id,movement_type,notes,created_at,finance_transactions(id,transaction_date,label,amount,direction,status,reference)").order("created_at",{ascending:false})
