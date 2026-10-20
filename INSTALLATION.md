@@ -1,4 +1,4 @@
-# Installation et configuration — AgriCapital CRM
+# Installation et configuration — AgriCapital 360
 
 ## Prérequis
 
@@ -13,7 +13,7 @@ npm ci
 npm run dev
 ```
 
-Vérifications avant publication :
+Vérifications avant publication d’AgriCapital 360 :
 
 ```bash
 npm run typecheck
