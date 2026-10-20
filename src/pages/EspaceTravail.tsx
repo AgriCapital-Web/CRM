@@ -49,7 +49,6 @@ function sanitizeWorkspaceHtml(value: string) {
 const TypeIcon = ({ type }: { type: string }) => type === "spreadsheet" ? <FileSpreadsheet className="h-4 w-4" /> : type === "presentation" ? <Presentation className="h-4 w-4" /> : type === "file" ? <Paperclip className="h-4 w-4" /> : <FileText className="h-4 w-4" />;
 
 
-
 function parseWorkspaceCsv(input: string): string[][] {
   if (!input.trim()) return [[""]];
   const firstLine = input.split(/\r?\n/, 1)[0];
