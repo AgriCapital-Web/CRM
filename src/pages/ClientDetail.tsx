@@ -7,6 +7,7 @@ import { ActivityLog } from "@/components/common/ActivityLog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +35,7 @@ const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(Math.
 
 const ClientDetail = () => {
   const { can } = usePermissions();
+  const { user } = useAuth();
   const canViewClientMoney = can("clients.view_money");
   const canValidateClient = can("clients.validate");
   const canUploadDocuments = can("documents.upload");
@@ -45,6 +47,9 @@ const ClientDetail = () => {
   const [client, setClient] = useState<any>(null);
   const [validationComment,setValidationComment]=useState("");
   const [savingValidation,setSavingValidation]=useState(false);
+  const [saleCorrectionSurface,setSaleCorrectionSurface]=useState("");
+  const [saleCorrectionNotes,setSaleCorrectionNotes]=useState("");
+  const [savingSaleCorrection,setSavingSaleCorrection]=useState(false);
   const [clientMedia, setClientMedia] = useState<{ photo: string | null; recto: string | null; verso: string | null }>({ photo: null, recto: null, verso: null });
   const [plantations, setPlantations] = useState<any[]>([]);
   const [clientAcquisitions, setClientAcquisitions] = useState<any[]>([]);
@@ -95,6 +100,7 @@ const ClientDetail = () => {
   const selectedOfferNeedsClientLand = newAcquisitionFormData.offre
     ? !!newAcquisitionFormData.offre.necessite_foncier_client
     : false;
+  const returnedAcquisition = clientAcquisitions.find((item:any) => item.created_by === user?.id && item.validation_statut === "modification_demandee") || null;
   const updateNewAcquisitionFormData = (patch: any) => {
     if (patch.offre_id && patch.offre_id !== newAcquisitionFormData.offre_id) {
       setNewPlantationLotId("");
@@ -107,6 +113,7 @@ const ClientDetail = () => {
     setNewAcquisitionFormData((current: any) => ({ ...current, ...patch }));
   };
   useEffect(()=>{setPlantationPage(1);setPaymentPage(1);setInterventionPage(1);setAttributionPage(1);},[tableSearch,pageSize]);
+  useEffect(()=>{if(returnedAcquisition){setSaleCorrectionSurface(String(returnedAcquisition.superficie_ha ?? ""));setSaleCorrectionNotes(returnedAcquisition.notes || "");}},[returnedAcquisition?.id,returnedAcquisition?.superficie_ha,returnedAcquisition?.notes]);
 
   const uploadClientDocument=async()=>{
     if(!id||!documentFile)return;
@@ -143,6 +150,30 @@ const ClientDetail = () => {
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action impossible", description: getSafeErrorMessage(error) });
     } finally { setSavingValidation(false); }
+  };
+
+  const resubmitSaleCorrection = async () => {
+    if (!returnedAcquisition || savingSaleCorrection) return;
+    const surface = Number(saleCorrectionSurface);
+    if (!Number.isFinite(surface) || surface <= 0) {
+      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie doit être supérieure à zéro." });
+      return;
+    }
+    setSavingSaleCorrection(true);
+    try {
+      const { error } = await (supabase as any).rpc("resubmit_returned_acquisition", {
+        p_acquisition_id: returnedAcquisition.id,
+        p_superficie_ha: surface,
+        p_notes: saleCorrectionNotes.trim() || null,
+      });
+      if (error) throw error;
+      toast({ title: "Vente corrigée et renvoyée", description: "La vente a été renvoyée à la file de validation. Les montants proportionnels ont été recalculés à partir du contrat existant." });
+      await fetchData();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Correction impossible", description: getSafeErrorMessage(error) });
+    } finally {
+      setSavingSaleCorrection(false);
+    }
   };
 
   const handleRachatMonnaie=async()=>{
@@ -761,6 +792,16 @@ const ClientDetail = () => {
               <p className="text-sm text-muted-foreground">Formulaire de référence avec les données réelles du dossier. Les champs restent verrouillés en consultation et ne deviennent modifiables qu'après clic sur « Modifier » si le rôle est autorisé.</p>
             </div>
             {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div>{client.validation_commentaire && <p className="text-sm">{client.validation_commentaire}</p>}<Label>Commentaire de contrôle</Label><Textarea rows={2} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction"/><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></div></div>}
+            {returnedAcquisition && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Correction de la vente demandée</h3><Badge variant="destructive">À corriger</Badge></div>
+              {returnedAcquisition.validation_commentaire && <p className="text-sm">{returnedAcquisition.validation_commentaire}</p>}
+              <p className="text-sm text-muted-foreground">Corrigez les données de vente ci-dessous puis renvoyez le dossier. Le montant du contrat, le paiement initial total et la mensualité totale sont recalculés proportionnellement à partir des montants déjà enregistrés. Aucun échéancier futur n'est créé.</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1"><Label>Superficie corrigée (ha)</Label><Input type="number" min="0.01" step="0.01" value={saleCorrectionSurface} onChange={e=>setSaleCorrectionSurface(e.target.value)} /></div>
+                <div className="space-y-1"><Label>Note de correction (facultatif)</Label><Textarea rows={2} value={saleCorrectionNotes} onChange={e=>setSaleCorrectionNotes(e.target.value)} placeholder="Précision transmise au validateur" /></div>
+              </div>
+              <div className="flex justify-end"><Button onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer pour validation"}</Button></div>
+            </div>}
             <ClientForm client={client} readOnly onSuccess={fetchData} onCancel={() => { void fetchData(); }} />
           </section>
 
