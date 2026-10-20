@@ -132,6 +132,9 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
   const rowCount = Math.min(100, Math.max(12, parsed.length));
   const colCount = Math.min(26, Math.max(8, ...parsed.map((row) => row.length)));
   const rows = Array.from({ length: rowCount }, (_, r) => Array.from({ length: colCount }, (_, c) => parsed[r]?.[c] || ""));
+  const chartData = parsed.slice(1).map((row) => ({ label: (row[0] || "").trim(), value: Number((row[1] || "").replace(",", ".")) }))
+    .filter((item) => item.label && Number.isFinite(item.value)).slice(0, 10);
+  const chartMax = Math.max(1, ...chartData.map((item) => Math.abs(item.value)));
   const updateCell = (r: number, c: number, next: string) => {
     const updated = rows.map((row) => [...row]);
     updated[r][c] = next;
@@ -162,6 +165,14 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
         <tbody>{rows.map((row, r) => <tr key={r}><th className="border bg-muted/40 p-1 text-xs text-muted-foreground">{r + 1}</th>{row.map((cell, c) => <td key={c} className="border p-0"><div className="flex min-w-32 flex-col"><input aria-label={spreadsheetColumn(c) + (r + 1)} value={cell} onChange={(e) => updateCell(r, c, e.target.value)} disabled={disabled} className="w-full min-w-32 bg-transparent px-2 py-1.5 outline-none focus:bg-primary/5 focus:ring-1 focus:ring-inset focus:ring-primary" /><span className="min-h-4 px-2 pb-1 text-[11px] text-muted-foreground">{cell.trim().startsWith("=") ? evaluateWorkspaceCell(cell, rows) : ""}</span></div></td>)}</tr>)}</tbody>
       </table>
     </div>
+    {chartData.length > 0 && <div className="space-y-3 rounded-lg border bg-background p-3">
+      <div><p className="text-sm font-semibold">Aperçu du graphique</p><p className="text-xs text-muted-foreground">Libellés : première colonne · Indicateurs : deuxième colonne</p></div>
+      <div className="space-y-2">{chartData.map((item, index) => <div key={item.label + index} className="grid grid-cols-[minmax(70px,1fr)_minmax(90px,3fr)_70px] items-center gap-2 text-xs">
+        <span className="truncate" title={item.label}>{item.label}</span>
+        <div className="h-5 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-primary/80" style={{ width: Math.max(1, Math.abs(item.value) / chartMax * 100) + "%" }} /></div>
+        <span className="text-right tabular-nums">{item.value.toLocaleString("fr-FR")}</span>
+      </div>)}</div>
+    </div>}
     <p className="text-xs text-muted-foreground">Les formules sont calculées dans l’interface. Les données et les formules restent enregistrées dans le CRM. Pour les modèles Excel complexes et la coédition de type Excel, un éditeur spécialisé reste nécessaire.</p>
   </div>;
 }
