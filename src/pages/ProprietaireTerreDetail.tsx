@@ -105,7 +105,11 @@ const ProprietaireTerreDetail = () => {
     setOwnerSaving(true);
     try {
       const payload: any = {
-        nom_complet: ownerEditForm.nom_complet || [ownerEditForm.nom, ownerEditForm.prenoms].filter(Boolean).join(" ").trim(),
+        nom_complet: ownerEditForm.type_proprietaire === "personne_morale"
+          ? (ownerEditForm.denomination_sociale || ownerEditForm.nom_complet || null)
+          : ownerEditForm.type_proprietaire === "famille_groupement"
+            ? (ownerEditForm.nom_representant || ownerEditForm.nom_complet || null)
+            : ([ownerEditForm.nom, ownerEditForm.prenoms].filter(Boolean).join(" ").trim() || ownerEditForm.nom_complet || null),
         nom: ownerEditForm.nom || ownerEditForm.nom_complet || null,
         prenoms: ownerEditForm.prenoms || null,
         telephone: ownerEditForm.telephone || null,
