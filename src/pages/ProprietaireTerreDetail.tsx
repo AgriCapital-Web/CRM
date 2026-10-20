@@ -10,26 +10,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, MapPin, Layers, Ruler, Upload } from "lucide-react";
 import GeographieCascade from "@/components/common/GeographieCascade";
-import { offlineInsert } from "@/lib/offlineWrite";
+import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { getSafeErrorMessage } from "@/lib/safeError";
-import { uploadFile } from "@/utils/storage";
+import { uploadFile, resolveStorageUrl } from "@/utils/storage";
+import FileUploadVisual from "@/components/ui/file-upload-visual";
 
 const ProprietaireTerreDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { can } = usePermissions();
+  const canEditOwner = can("proprietaires.update");
   const [owner, setOwner] = useState<any>(null);
   const [parcelles, setParcelles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ownerDocuments,setOwnerDocuments]=useState<any[]>([]);
+  const [ownerEditing,setOwnerEditing]=useState(false);
+  const [ownerSaving,setOwnerSaving]=useState(false);
+  const [ownerEditForm,setOwnerEditForm]=useState<any>({});
+  const [ownerPhotoFile,setOwnerPhotoFile]=useState<File|null>(null);
+  const [ownerRectoFile,setOwnerRectoFile]=useState<File|null>(null);
+  const [ownerVersoFile,setOwnerVersoFile]=useState<File|null>(null);
+  const [ownerPhotoPreview,setOwnerPhotoPreview]=useState<string|null>(null);
+  const [ownerRectoPreview,setOwnerRectoPreview]=useState<string|null>(null);
+  const [ownerVersoPreview,setOwnerVersoPreview]=useState<string|null>(null);
   const [ownerDocumentFile,setOwnerDocumentFile]=useState<File|null>(null);
   const [ownerDocumentLabel,setOwnerDocumentLabel]=useState("");
   const [form, setForm] = useState({
@@ -54,8 +66,21 @@ const ProprietaireTerreDetail = () => {
       if (ownerRes.error) throw ownerRes.error;
       if (parcelRes.error) throw parcelRes.error;
       setOwner(ownerRes.data);
+      setOwnerEditForm({ ...(ownerRes.data || {}) });
+      const [photoPreview, rectoPreview, versoPreview] = await Promise.all([
+        resolveStorageUrl("photos-profils", ownerRes.data?.photo_profil_url || null),
+        resolveStorageUrl("pieces-identite", ownerRes.data?.fichier_piece_recto_url || null),
+        resolveStorageUrl("pieces-identite", ownerRes.data?.fichier_piece_verso_url || null),
+      ]);
+      setOwnerPhotoPreview(photoPreview);
+      setOwnerRectoPreview(rectoPreview);
+      setOwnerVersoPreview(versoPreview);
       setParcelles(parcelRes.data || []);
-      setOwnerDocuments(docRes.data || []);
+      const docsWithUrls = await Promise.all((docRes.data || []).map(async (doc:any) => ({
+        ...doc,
+        displayUrl: await resolveStorageUrl("documents-fonciers", doc.fichier_url) || await resolveStorageUrl("documents", doc.fichier_url) || doc.fichier_url || null,
+      })));
+      setOwnerDocuments(docsWithUrls);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(e) });
     } finally {
@@ -74,6 +99,56 @@ const ProprietaireTerreDetail = () => {
       return s + Math.max(0, ac - used);
     }, 0),
   }), [parcelles]);
+
+  const saveOwner = async () => {
+    if (!id || !owner || !canEditOwner || ownerSaving) return;
+    setOwnerSaving(true);
+    try {
+      const payload: any = {
+        nom_complet: ownerEditForm.nom_complet || [ownerEditForm.nom, ownerEditForm.prenoms].filter(Boolean).join(" ").trim(),
+        nom: ownerEditForm.nom || ownerEditForm.nom_complet || null,
+        prenoms: ownerEditForm.prenoms || null,
+        telephone: ownerEditForm.telephone || null,
+        whatsapp: ownerEditForm.whatsapp || null,
+        email: ownerEditForm.email || null,
+        lieu_residence: ownerEditForm.lieu_residence || null,
+        type_piece: ownerEditForm.type_piece || null,
+        numero_piece: ownerEditForm.numero_piece || null,
+        date_delivrance_piece: ownerEditForm.date_delivrance_piece || null,
+        date_naissance: ownerEditForm.date_naissance || null,
+        lieu_naissance: ownerEditForm.lieu_naissance || null,
+        statut_foncier: ownerEditForm.statut_foncier || null,
+        reference_cadastrale: ownerEditForm.reference_cadastrale || null,
+        notes: ownerEditForm.notes || null,
+        updated_by: (await supabase.auth.getUser()).data.user?.id || null,
+      };
+      if (ownerPhotoFile) {
+        const file = await uploadFile("photos-profils", ownerPhotoFile, "proprietaires/" + id + "/profil");
+        if (!file?.path) throw new Error("La photo du propriétaire n'a pas pu être enregistrée.");
+        payload.photo_profil_url = file.path;
+      }
+      if (ownerRectoFile) {
+        const file = await uploadFile("pieces-identite", ownerRectoFile, "proprietaires/" + id + "/pieces");
+        if (!file?.path) throw new Error("Le recto de la pièce n'a pas pu être enregistré.");
+        payload.fichier_piece_recto_url = file.path;
+      }
+      if (ownerVersoFile) {
+        const file = await uploadFile("pieces-identite", ownerVersoFile, "proprietaires/" + id + "/pieces");
+        if (!file?.path) throw new Error("Le verso de la pièce n'a pas pu être enregistré.");
+        payload.fichier_piece_verso_url = file.path;
+      }
+      const { error } = await offlineUpdate("proprietaires_terres", id, payload);
+      if (error) throw error;
+      toast({ title: "Propriétaire mis à jour", description: "Les informations et les fichiers sélectionnés ont été enregistrés." });
+      setOwnerEditing(false);
+      setOwnerPhotoFile(null); setOwnerRectoFile(null); setOwnerVersoFile(null);
+      await load();
+    } catch (error:any) {
+      toast({ variant: "destructive", title: "Modification impossible", description: getSafeErrorMessage(error) });
+    } finally {
+      setOwnerSaving(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +213,54 @@ const ProprietaireTerreDetail = () => {
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface disponible</p><p className="mt-1 text-2xl font-bold">{Math.round(totals.available).toLocaleString("fr-FR")} ha</p></CardContent></Card>
           </div>
 
-          <Card><CardHeader><CardTitle className="flex items-center justify-between gap-3"><span>Documents fonciers</span><div className="inline-flex"><input id="owner-document-upload" type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{e.stopPropagation();setOwnerDocumentFile(e.currentTarget.files?.[0]||null);e.currentTarget.value="";}}/><Button type="button" variant="outline" size="sm" onClick={(e)=>{e.preventDefault();e.stopPropagation();document.getElementById("owner-document-upload")?.click();}}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button></div></CardTitle></CardHeader><CardContent><div className="mb-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input placeholder="Libellé du document (convention, annexe…)" value={ownerDocumentLabel} onChange={e=>setOwnerDocumentLabel(e.target.value)}/>{ownerDocumentFile&&<Button onClick={()=>void uploadOwnerDocument()}>Enregistrer</Button>}</div><div className="space-y-2">{ownerDocuments.length?ownerDocuments.map((doc:any)=><div key={doc.id} className="flex items-center justify-between gap-3 border rounded-lg p-3"><div><p className="font-medium">{doc.designation||doc.type_document}</p><p className="text-xs text-muted-foreground">{doc.statut||"en_attente"}</p></div>{doc.fichier_url&&<Button variant="outline" size="sm" asChild><a href={doc.fichier_url} target="_blank" rel="noreferrer">Ouvrir</a></Button>}</div>):<p className="text-sm text-muted-foreground">Aucun document enregistré.</p>}</div></CardContent></Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex flex-wrap items-center justify-between gap-3">
+                <span>Fiche du propriétaire foncier</span>
+                {canEditOwner && <div className="flex gap-2">
+                  {ownerEditing ? <>
+                    <Button type="button" variant="outline" size="sm" onClick={()=>{setOwnerEditForm({...owner});setOwnerPhotoFile(null);setOwnerRectoFile(null);setOwnerVersoFile(null);setOwnerEditing(false);}}>Annuler</Button>
+                    <Button type="button" size="sm" onClick={()=>void saveOwner()} disabled={ownerSaving}>{ownerSaving?"Enregistrement…":"Enregistrer"}</Button>
+                  </> : <Button type="button" size="sm" variant="outline" onClick={()=>setOwnerEditing(true)}>Modifier</Button>}
+                </div>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  ["Nom", "nom"], ["Prénoms", "prenoms"], ["Téléphone", "telephone"],
+                  ["WhatsApp", "whatsapp"], ["Email", "email"], ["Lieu de résidence", "lieu_residence"],
+                  ["Type de pièce", "type_piece"], ["Numéro de pièce", "numero_piece"],
+                  ["Date de naissance", "date_naissance"], ["Lieu de naissance", "lieu_naissance"],
+                  ["Statut foncier", "statut_foncier"], ["Référence cadastrale", "reference_cadastrale"],
+                ].map(([label,key])=><div key={key} className="min-w-0 space-y-1">
+                  <Label className="text-xs">{label}</Label>
+                  {ownerEditing ? <Input type={key==="date_naissance"?"date":"text"} value={ownerEditForm[key]||""} onChange={e=>setOwnerEditForm((current:any)=>({...current,[key]:e.target.value}))}/> : <p className="min-h-9 break-words rounded-md border bg-muted/20 px-3 py-2 text-sm">{owner?.[key]||"—"}</p>}
+                </div>)}
+                <div className="sm:col-span-2 lg:col-span-3 space-y-1">
+                  <Label className="text-xs">Notes</Label>
+                  {ownerEditing ? <Textarea rows={3} value={ownerEditForm.notes||""} onChange={e=>setOwnerEditForm((current:any)=>({...current,notes:e.target.value}))}/> : <p className="min-h-9 whitespace-pre-wrap rounded-md border bg-muted/20 px-3 py-2 text-sm">{owner?.notes||"—"}</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {[
+                  ["Photo du propriétaire",ownerPhotoPreview],
+                  ["Pièce d'identité — recto",ownerRectoPreview],
+                  ["Pièce d'identité — verso",ownerVersoPreview],
+                ].map(([label,src]:any)=><div key={label} className="min-w-0 space-y-2 rounded-lg border p-3">
+                  <p className="text-xs font-medium">{label}</p>
+                  {src ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={label} className="h-36 w-full rounded-md object-contain bg-muted/20"/></a> : <div className="flex h-36 items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground">Aucun fichier enregistré</div>}
+                </div>)}
+              </div>
+              {ownerEditing && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <FileUploadVisual label="Remplacer la photo" field="owner-photo" accept="image/*" currentFile={ownerPhotoFile} currentPreview="" existingPreview={ownerPhotoPreview||""} onFileChange={(_,file)=>setOwnerPhotoFile(file)}/>
+                <FileUploadVisual label="Remplacer le recto" field="owner-recto" accept="image/*,.pdf" currentFile={ownerRectoFile} currentPreview="" existingPreview={ownerRectoPreview||""} onFileChange={(_,file)=>setOwnerRectoFile(file)}/>
+                <FileUploadVisual label="Remplacer le verso" field="owner-verso" accept="image/*,.pdf" currentFile={ownerVersoFile} currentPreview="" existingPreview={ownerVersoPreview||""} onFileChange={(_,file)=>setOwnerVersoFile(file)}/>
+              </div>}
+            </CardContent>
+          </Card>
+
+          <Card><CardHeader><CardTitle className="flex items-center justify-between gap-3"><span>Documents fonciers</span><div className="inline-flex"><input id="owner-document-upload" type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{e.stopPropagation();setOwnerDocumentFile(e.currentTarget.files?.[0]||null);e.currentTarget.value="";}}/><Button type="button" variant="outline" size="sm" onClick={(e)=>{e.preventDefault();e.stopPropagation();document.getElementById("owner-document-upload")?.click();}}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button></div></CardTitle></CardHeader><CardContent><div className="mb-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input placeholder="Libellé du document (convention, annexe…)" value={ownerDocumentLabel} onChange={e=>setOwnerDocumentLabel(e.target.value)}/>{ownerDocumentFile&&<Button onClick={()=>void uploadOwnerDocument()}>Enregistrer</Button>}</div><div className="space-y-2">{ownerDocuments.length?ownerDocuments.map((doc:any)=><div key={doc.id} className="flex items-center justify-between gap-3 border rounded-lg p-3"><div><p className="font-medium">{doc.designation||doc.type_document}</p><p className="text-xs text-muted-foreground">{doc.statut||"en_attente"}</p></div>{doc.displayUrl&&<Button variant="outline" size="sm" asChild><a href={doc.displayUrl} target="_blank" rel="noreferrer">Ouvrir</a></Button>}</div>):<p className="text-sm text-muted-foreground">Aucun document enregistré.</p>}</div></CardContent></Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <div><CardTitle>Parcelles</CardTitle></div>
