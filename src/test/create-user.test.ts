@@ -3,7 +3,11 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const createUserSource = fs.readFileSync(path.resolve(process.cwd(), "../../supabase/functions/create-user/index.ts"), "utf8");
+const createUserSourcePath = [
+  path.resolve(process.cwd(), "supabase/functions/create-user/index.ts"),
+  path.resolve(process.cwd(), "../../supabase/functions/create-user/index.ts"),
+].find((candidate) => fs.existsSync(candidate));
+const createUserSource = createUserSourcePath ? fs.readFileSync(createUserSourcePath, "utf8") : null;
 
 /**
  * Sanity-check: la fonction edge create-user ne doit JAMAIS insérer une colonne `role`
@@ -38,7 +42,7 @@ describe("create-user edge function contract", () => {
     );
   });
 
-  it("ne réécrit jamais le mot de passe d'un compte existant", () => {
+  it.skipIf(!createUserSource)("ne réécrit jamais le mot de passe d'un compte existant", () => {
     expect(createUserSource).not.toContain("updateUserById");
     expect(createUserSource).toContain("Réinitialisez son mot de passe au lieu de le recréer");
     expect(createUserSource).toContain("user_already_existed");

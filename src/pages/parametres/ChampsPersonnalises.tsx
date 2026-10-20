@@ -1,67 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
 
-const ChampsPersonnalises = () => {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Champs Personnalisés</CardTitle>
-          
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h3 className="text-sm font-semibold mb-2">Ajouter un nouveau champ</h3>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="formulaire_cible">Formulaire cible</Label>
-                  <Select>
-                    <SelectTrigger id="formulaire_cible">
-                      <SelectValue placeholder="Sélectionner un formulaire" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="utilisateur">Formulaire Utilisateur</SelectItem>
-                      <SelectItem value="planteur">Formulaire Planteur</SelectItem>
-                      <SelectItem value="plantation">Formulaire Plantation</SelectItem>
-                      <SelectItem value="paiement">Formulaire Paiement</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nom_champ">Nom du champ</Label>
-                  <Input id="nom_champ" placeholder="Ex: Numéro CNI Témoin" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="type_champ">Type de champ</Label>
-                  <Select>
-                    <SelectTrigger id="type_champ">
-                      <SelectValue placeholder="Sélectionner le type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="texte">Texte</SelectItem>
-                      <SelectItem value="nombre">Nombre</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="liste">Liste déroulante</SelectItem>
-                      <SelectItem value="fichier">Fichier</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter le champ
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+const ChampsPersonnalises = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle>Champs personnalisés</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div role="note" className="rounded-md border bg-muted/30 p-4 text-sm leading-relaxed">
+          <p className="font-medium">La création de champs personnalisés n’est pas encore connectée à la base de données ni aux formulaires métier.</p>
+          <p className="mt-2 text-muted-foreground">L’ancien écran affichait des champs de saisie et un bouton « Ajouter le champ », mais aucune donnée n’était enregistrée. Ces commandes ont été retirées afin de ne pas laisser croire qu’un champ a été créé. Pour activer cette fonction correctement, il faudra une définition persistée en base et son intégration explicite aux formulaires concernés.</p>
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
 
 export default ChampsPersonnalises;

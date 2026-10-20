@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    auth: { getUser: () => Promise.resolve({ data: { user: { id: "user-1" } } }) },
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: { id: "user-1" } } }),
+      getSession: () => Promise.resolve({ data: { session: { user: { id: "user-1" } } } }),
+    },
     storage: {
       from: () => ({
         upload: (path: string) => Promise.resolve({ data: { path }, error: null }),

@@ -123,20 +123,24 @@ export default function Portefeuilles(){
   },[commissions,selected,periodStart,periodEnd]);
 
   const generate=async()=>{
-    if(!canManage)return;
+    if(!canManage||saving)return;
     setSaving(true);
     try{
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if(authError)throw authError;
       const eligible=commissions.filter((c:any)=>(c.statut==="calculee"||c.statut==="validee")&&!commissionIdsAlreadyLinked.has(c.id)&&c.periode>=periodStart&&c.periode<=periodEnd&&visibleProfiles.some((p:any)=>p.id===c.profile_id));
       const groups=new Map<string,any[]>();
       eligible.forEach((c:any)=>{if(!groups.has(c.profile_id))groups.set(c.profile_id,[]);groups.get(c.profile_id)!.push(c);});
+      if(groups.size===0){toast({title:"Aucune commission à générer",description:"Aucune commission admissible ne correspond à la période sélectionnée."});return;}
       for(const [profileId,items] of groups){
         const amount=items.reduce((s:number,c:any)=>s+Number(c.montant_commission||0),0);
-          const {data:v,error}=await (supabase as any).from("portefeuille_versements").upsert({profile_id:profileId,periode_debut:periodStart,periode_fin:periodEnd,montant_brut:amount,montant_paye:amount,statut:"brouillon",created_by:userData.user?.id||null,updated_at:new Date().toISOString()},{onConflict:"profile_id,periode_debut,periode_fin"}).select().single();
+        const {data:v,error}=await (supabase as any).from("portefeuille_versements").upsert({profile_id:profileId,periode_debut:periodStart,periode_fin:periodEnd,montant_brut:amount,montant_paye:amount,statut:"brouillon",created_by:userData.user?.id||null,updated_at:new Date().toISOString()},{onConflict:"profile_id,periode_debut,periode_fin"}).select().single();
         if(error)throw error;
-        await (supabase as any).from("portefeuille_versement_lignes").upsert(items.map((c:any)=>({versement_id:v.id,commission_id:c.id,montant:c.montant_commission})),{onConflict:"versement_id,commission_id"});
+        if(!v?.id)throw new Error("Le versement n’a pas été confirmé par la base de données.");
+        const {error:linesError}=await (supabase as any).from("portefeuille_versement_lignes").upsert(items.map((c:any)=>({versement_id:v.id,commission_id:c.id,montant:c.montant_commission})),{onConflict:"versement_id,commission_id"});
+        if(linesError)throw new Error(`Versement créé pour un collaborateur, mais ses lignes de commissions n’ont pas été enregistrées : ${linesError.message}. Relancez la génération pour compléter les lignes manquantes.`);
       }
-      toast({title:"Génération terminée"});await load();
+      toast({title:"Génération terminée",description:`${groups.size} versement(s) créé(s) ou actualisé(s).`});await load();
     }catch(e:any){toast({variant:"destructive",title:"Génération impossible",description:e?.message||"Erreur."});}
     finally{setSaving(false);}
   };
@@ -149,7 +153,10 @@ export default function Portefeuilles(){
       const {error}=await (supabase as any).from("portefeuille_versements").update({statut:"valide",valide_par:profiles.find((p:any)=>p.user_id===user?.id)?.id||null,date_validation:new Date().toISOString()}).eq("id",v.id);
       if(error)throw error;
       const ids=(v.lines||[]).map((x:any)=>x.commission_id);
-      if(ids.length)await (supabase as any).from("commissions").update({statut:"validee",date_validation:new Date().toISOString()}).in("id",ids);
+      if(ids.length){
+        const {error:commissionsError}=await (supabase as any).from("commissions").update({statut:"validee",date_validation:new Date().toISOString()}).in("id",ids);
+        if(commissionsError)throw new Error(`Le versement est validé, mais la mise à jour des commissions a échoué : ${commissionsError.message}. Réessayez après vérification.`);
+      }
       toast({title:"Versement validé"});await load();
     }catch(e:any){toast({variant:"destructive",title:"Validation impossible",description:e?.message||"Erreur."});}
     finally{setSaving(false);}
@@ -164,8 +171,12 @@ export default function Portefeuilles(){
       const {error}=await (supabase as any).from("portefeuille_versements").update({statut:"paye",paye_par:payer,date_paiement:new Date().toISOString(),montant_paye:Number(v.montant_brut||0)}).eq("id",v.id);
       if(error)throw error;
       const ids=(v.lines||[]).map((x:any)=>x.commission_id);
-      if(ids.length)await (supabase as any).from("commissions").update({statut:"payee"}).in("id",ids);
-      await (supabase as any).rpc("recalculer_portefeuilles_commissions");
+      if(ids.length){
+        const {error:commissionsError}=await (supabase as any).from("commissions").update({statut:"payee"}).in("id",ids);
+        if(commissionsError)throw new Error(`Le versement est marqué payé, mais la mise à jour des commissions a échoué : ${commissionsError.message}. Réessayez après vérification.`);
+      }
+      const {error:recalculationError}=await (supabase as any).rpc("recalculer_portefeuilles_commissions");
+      if(recalculationError)throw new Error(`Le paiement est enregistré, mais le recalcul des portefeuilles a échoué : ${recalculationError.message}.`);
       toast({title:"Versement enregistré"});await load();
     }catch(e:any){toast({variant:"destructive",title:"Paiement impossible",description:e?.message||"Erreur."});}
     finally{setSaving(false);}

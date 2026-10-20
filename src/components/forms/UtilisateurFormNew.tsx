@@ -60,6 +60,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   });
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [createdAccount, setCreatedAccount] = useState<{ user_id: string; tempPassword: string } | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
     utilisateur?.user_roles?.map((r: any) => r.role).filter(Boolean) || [],
   );
@@ -254,11 +255,16 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         }
 
       } else {
-        const tempPassword = data.password || (
+        const tempPassword = createdAccount?.tempPassword || data.password || (
           crypto.randomUUID().replace(/-/g, '').slice(0, 16) + 'A1!'
         );
-        const { data: result, error } = await supabase.functions.invoke('create-user', {
-          body: {
+        let result: any;
+        if (createdAccount) {
+          // Reprendre les opérations secondaires sans recréer un compte déjà créé.
+          result = { success: true, user_id: createdAccount.user_id };
+        } else {
+          const { data: createdResult, error } = await supabase.functions.invoke('create-user', {
+            body: {
             username: data.username,
             email: data.email,
             password: tempPassword,
@@ -278,11 +284,16 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             type_piece_identite: data.type_piece_identite || null,
             numero_piece_identite: data.numero_piece_identite || null,
             roles: selectedRoles,
-          }
-        });
+            }
+          });
 
-        if (error) throw error;
-        if (!result.success) throw new Error(result.error);
+          if (error) throw error;
+          if (!createdResult?.success || !createdResult?.user_id) throw new Error(createdResult?.error || "Le compte utilisateur n’a pas été confirmé.");
+          result = createdResult;
+          // Mémoriser le compte dès sa création : une erreur de salaire ou de média
+          // ne doit pas obliger à recréer le même compte à la prochaine tentative.
+          setCreatedAccount({ user_id: result.user_id, tempPassword });
+        }
 
         const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
         const { data: newProfile, error: newProfileError } = await (supabase as any).from("profiles")
@@ -332,10 +343,11 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         }
 
         toast({
-          title: "Utilisateur créé",
+          title: createdAccount ? "Enregistrement du compte terminé" : "Utilisateur créé",
           description: `Mot de passe temporaire (à communiquer en privé): ${tempPassword}`,
           duration: 20000,
         });
+        setCreatedAccount(null);
       }
       onSuccess();
     } catch (error: any) {
@@ -628,12 +640,15 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
       </Card>
 
 
+      {createdAccount && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+        Le compte de connexion est déjà créé. Une étape secondaire a échoué ; cliquez de nouveau sur « Finaliser » pour reprendre sans créer un second compte.
+      </div>}
       <div className="flex justify-end gap-4">
-        <Button type="button" variant="secondary" onClick={onCancel}>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={loading}>
           Annuler
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? "Enregistrement..." : utilisateur ? "Modifier" : "Créer"}
+          {loading ? "Enregistrement..." : createdAccount ? "Finaliser" : utilisateur ? "Modifier" : "Créer"}
         </Button>
       </div>
     </form>

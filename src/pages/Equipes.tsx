@@ -39,6 +39,7 @@ const Equipes = () => {
   const [regions, setRegions] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingForm, setSavingForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
@@ -217,6 +218,12 @@ const Equipes = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingForm) return;
+    if (!formData.nom.trim()) {
+      toast({ variant: "destructive", title: "Nom obligatoire", description: "Renseignez le nom de l’équipe avant l’enregistrement." });
+      return;
+    }
+    setSavingForm(true);
     try {
       const payload = {
         nom: formData.nom.trim(),
@@ -234,8 +241,13 @@ const Equipes = () => {
       } else {
         const { data, error } = await (supabase as any).from("equipes").insert([payload]).select("id").single();
         if (error) throw error;
+        if (!data?.id) throw new Error("La base de données n’a pas confirmé la création de l’équipe.");
         equipeId = data.id;
       }
+
+      // Garder l’identifiant d’une nouvelle équipe si le téléversement du logo échoue :
+      // une nouvelle tentative mettra à jour la même équipe au lieu d’en créer une seconde.
+      if (!selectedEquipe && equipeId) setSelectedEquipe({ ...payload, id: equipeId });
 
       // Le trigger SQL ajoute le responsable comme membre dès l'enregistrement de l'équipe.
       if (logoFile && equipeId) {
@@ -260,6 +272,8 @@ const Equipes = () => {
       await fetchData();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
+    } finally {
+      setSavingForm(false);
     }
   };
 
@@ -462,8 +476,8 @@ const Equipes = () => {
                 </label>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>Annuler</Button>
-                <Button type="submit">{selectedEquipe ? "Modifier" : "Créer"}</Button>
+                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} disabled={savingForm}>Annuler</Button>
+                <Button type="submit" disabled={savingForm}>{savingForm ? "Enregistrement…" : selectedEquipe ? "Modifier" : "Créer"}</Button>
               </div>
             </form>
           </DialogContent>

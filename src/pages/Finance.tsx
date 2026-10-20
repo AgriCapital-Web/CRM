@@ -126,7 +126,11 @@ export default function Finance(){
         is_direct_cost:expense.direct,proof_path:proofPath,proof_name:expenseProof?.name||null,
         proof_mime_type:expenseProof?.type||null
       });
-      if(expenseError) { await (supabase as any).from("finance_transactions").delete().eq("id",data.id); throw expenseError; }
+      if(expenseError) {
+        const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",data.id);
+        if(rollbackError)throw new Error(`Le justificatif de sortie n’a pas pu être enregistré (${expenseError.message}) et la transaction financière ${data.id} n’a pas pu être annulée automatiquement (${rollbackError.message}).`);
+        throw expenseError;
+      }
       toast({title:"Sortie enregistrée",description:proofPath ? "Justificatif joint à la sortie." : "Sortie enregistrée sans justificatif."});
       setExpense({category:"AUTRE",amount:"",description:"",supplier:"",clientId:"",plantationId:"",direct:false});
       setExpenseProof(null);
@@ -137,31 +141,63 @@ export default function Finance(){
   };
 
   const saveAssociateMovement=async()=>{
-    if(!associateForm.associateId||Number(associateForm.amount)<=0)return;
+    if(!associateForm.associateId||!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0){
+      toast({title:"Informations requises",description:"Sélectionnez un associé et renseignez un montant positif.",variant:"destructive"});
+      return;
+    }
+    if(saving)return;
     setSaving(true);
-    const direction=associateForm.type==="apport"?"entree":"sortie";
-    const {data,error}=await (supabase as any).from("finance_transactions").insert({
-      direction,category:"ASSOCIE",label:associateForm.type==="apport"?"APPORT ASSOCIÉ":"REMBOURSEMENT ASSOCIÉ",
-      amount:Number(associateForm.amount),reference:associateForm.reference||null,status:"valide",notes:associateForm.notes||null
-    }).select("id").single();
-    if(!error&&data){
-      await (supabase as any).from("finance_associate_transactions").insert({
-        associate_id:associateForm.associateId,transaction_id:data.id,movement_type:associateForm.type,notes:associateForm.notes||null
+    let transactionId: string | null = null;
+    try {
+      const direction=associateForm.type==="apport"?"entree":"sortie";
+      const {data,error}=await (supabase as any).from("finance_transactions").insert({
+        direction,category:"ASSOCIE",label:associateForm.type==="apport"?"APPORT ASSOCIÉ":"REMBOURSEMENT ASSOCIÉ",
+        amount:Number(associateForm.amount),reference:associateForm.reference.trim()||null,status:"valide",notes:associateForm.notes.trim()||null
+      }).select("id").single();
+      if(error)throw error;
+      if(!data?.id)throw new Error("La transaction financière n’a pas été confirmée par la base de données.");
+      transactionId=data.id;
+      const {error:movementError}=await (supabase as any).from("finance_associate_transactions").insert({
+        associate_id:associateForm.associateId,transaction_id:transactionId,movement_type:associateForm.type,notes:associateForm.notes.trim()||null
       });
-      toast({title:"Mouvement associé enregistré"});setAssociateForm({associateId:"",amount:"",type:"apport",reference:"",notes:""});await load();
-    }else toast({title:"Erreur",description:error?.message||"Impossible d'enregistrer",variant:"destructive"});
-    setSaving(false);
+      if(movementError){
+        const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",transactionId);
+        if(rollbackError)throw new Error(`Le mouvement associé n’a pas été enregistré (${movementError.message}). La transaction financière ${transactionId} n’a pas pu être annulée automatiquement (${rollbackError.message}).`);
+        transactionId=null;
+        throw movementError;
+      }
+      toast({title:"Mouvement associé enregistré"});
+      setAssociateForm({associateId:"",amount:"",type:"apport",reference:"",notes:""});
+      await load();
+    } catch(error:any) {
+      toast({title:"Enregistrement impossible",description:error?.message||"Le mouvement associé n’a pas été enregistré.",variant:"destructive"});
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveSalary=async()=>{
-    if(!salaryForm.profileId||Number(salaryForm.baseSalary)<0)return;
+    const baseSalary=Number(salaryForm.baseSalary);
+    const payDay=Number(salaryForm.payDay||28);
+    if(!salaryForm.profileId||salaryForm.baseSalary.trim()===""||!Number.isFinite(baseSalary)||baseSalary<0||!Number.isInteger(payDay)||payDay<1||payDay>31){
+      toast({title:"Informations invalides",description:"Sélectionnez un collaborateur, renseignez un salaire valide et choisissez un jour de paie entre 1 et 31.",variant:"destructive"});
+      return;
+    }
+    if(saving)return;
     setSaving(true);
-    const {error}=await (supabase as any).from("finance_salary_profiles").upsert({
-      profile_id:salaryForm.profileId,base_salary:Number(salaryForm.baseSalary),pay_day:Number(salaryForm.payDay||28),active:true
-    },{onConflict:"profile_id"});
-    toast(error?{title:"Erreur",description:error.message,variant:"destructive"}:{title:"Paramétrage salaire enregistré"});
-    if(!error){setSalaryForm({profileId:"",baseSalary:"",payDay:"28"});await load();}
-    setSaving(false);
+    try{
+      const {error}=await (supabase as any).from("finance_salary_profiles").upsert({
+        profile_id:salaryForm.profileId,base_salary:baseSalary,pay_day:payDay,active:true
+      },{onConflict:"profile_id"});
+      if(error)throw error;
+      toast({title:"Paramétrage salaire enregistré"});
+      setSalaryForm({profileId:"",baseSalary:"",payDay:"28"});
+      await load();
+    }catch(error:any){
+      toast({title:"Enregistrement impossible",description:error?.message||"Le paramétrage du salaire n’a pas été enregistré.",variant:"destructive"});
+    }finally{
+      setSaving(false);
+    }
   };
 
   const exportFinancialReport = () => {

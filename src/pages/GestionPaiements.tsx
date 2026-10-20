@@ -206,27 +206,36 @@ const GestionPaiements = () => {
       toast({ variant: "destructive", title: "Erreur", description: "Veuillez remplir tous les champs" });
       return;
     }
+    const amount = Number(transferAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || sourceClient.id === targetClient.id) {
+      toast({ variant: "destructive", title: "Transfert invalide", description: "Le montant doit être positif et les deux comptes doivent être différents." });
+      return;
+    }
+    if (loading) return;
     setLoading(true);
-    
+
     try {
       const [sourceBlocked,targetBlocked] = await Promise.all([financialBlockReason(sourceClient),financialBlockReason(targetClient)]);
       if (sourceBlocked || targetBlocked) throw new Error(sourceBlocked || targetBlocked || "Action financière interdite.");
-      const amount = parseFloat(transferAmount);
-      
-      // Create transfer record
-      const { error: transferError } = await supabase
+
+      // Enregistrer d’abord le transfert avec son identifiant pour pouvoir le compenser
+      // si le paiement entrant échoue.
+      const { data: transferRecord, error: transferError } = await supabase
         .from('transferts_paiements')
         .insert({
           client_source_id: sourceClient.id,
           client_dest_id: targetClient.id,
           montant: amount,
           motif: transferNotes
-        });
+        })
+        .select("id")
+        .single();
 
       if (transferError) throw transferError;
+      if (!transferRecord?.id) throw new Error("Le transfert n’a pas été confirmé par la base de données.");
 
       // Create new payment for target
-      const { error: insertError } = await supabase
+      const { data: insertedPayment, error: insertError } = await supabase
         .from('paiements')
         .insert({
           client_id: targetClient.id,
@@ -246,9 +255,17 @@ const GestionPaiements = () => {
               notes: transferNotes
             }
           }
-        });
+        })
+        .select("id")
+        .single();
 
-      if (insertError) throw insertError;
+      if (insertError || !insertedPayment?.id) {
+        const { error: rollbackError } = await supabase.from('transferts_paiements').delete().eq("id", transferRecord.id);
+        if (rollbackError) {
+          throw new Error(`Le paiement entrant n’a pas été créé (${insertError?.message || "aucun enregistrement retourné"}). Le transfert ${transferRecord.id} n’a pas pu être annulé automatiquement (${rollbackError.message}).`);
+        }
+        throw insertError || new Error("Le paiement entrant n’a pas été confirmé ; le transfert incomplet a été annulé.");
+      }
 
       toast({
         title: "Transfert effectué",
@@ -275,18 +292,23 @@ const GestionPaiements = () => {
       toast({ variant: "destructive", title: "Erreur", description: "Veuillez remplir tous les champs" });
       return;
     }
+    if (loading) return;
     setLoading(true);
 
     try {
       const blocked = await financialBlockReason(sourceClient);
       if (blocked) throw new Error(blocked);
-      const amount = parseFloat(refundAmount);
+      const amount = Number(refundAmount);
       const sourcePaiement = sourcePaiements.find(p => p.id === refundPaiementId);
-      
+
       if (!sourcePaiement) throw new Error("Paiement source non trouvé");
-      
+      const availableAmount = Number(sourcePaiement.montant_paye ?? sourcePaiement.montant ?? 0);
+      if (!Number.isFinite(amount) || amount <= 0 || amount > availableAmount) {
+        throw new Error(`Le remboursement doit être positif et ne pas dépasser le montant payé disponible (${availableAmount.toLocaleString("fr-FR")} F).`);
+      }
+
       // Create refund record
-      const { error: refundError } = await supabase
+      const { data: refundRecord, error: refundError } = await supabase
         .from('remboursements')
         .insert({
           paiement_id: refundPaiementId,
@@ -296,15 +318,18 @@ const GestionPaiements = () => {
           mode_remboursement: refundMode,
           numero_compte: refundNumero,
           statut: 'en_attente'
-        });
+        })
+        .select("id")
+        .single();
 
       if (refundError) throw refundError;
+      if (!refundRecord?.id) throw new Error("Le remboursement n’a pas été confirmé par la base de données.");
 
-      // Update payment with refund info
-      await supabase
+      // Ne jamais confirmer le remboursement si le paiement source n'a pas été mis à jour.
+      const { data: updatedPayment, error: updatePaymentError } = await supabase
         .from('paiements')
         .update({
-          montant_paye: (sourcePaiement.montant_paye || sourcePaiement.montant) - amount,
+          montant_paye: availableAmount - amount,
           metadata: {
             ...sourcePaiement.metadata,
             remboursement: {
@@ -315,7 +340,17 @@ const GestionPaiements = () => {
             }
           }
         })
-        .eq('id', refundPaiementId);
+        .eq('id', refundPaiementId)
+        .select("id")
+        .maybeSingle();
+
+      if (updatePaymentError || !updatedPayment) {
+        const { error: rollbackError } = await supabase.from('remboursements').delete().eq("id", refundRecord.id);
+        if (rollbackError) {
+          throw new Error(`Le paiement source n’a pas été mis à jour (${updatePaymentError?.message || "aucun enregistrement modifié"}). Le remboursement ${refundRecord.id} n’a pas pu être annulé automatiquement (${rollbackError.message}).`);
+        }
+        throw updatePaymentError || new Error("Le paiement source n’a pas été modifié ; le remboursement incomplet a été annulé.");
+      }
 
       toast({
         title: "Remboursement enregistré",

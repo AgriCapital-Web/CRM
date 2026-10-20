@@ -1,25 +1,7 @@
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, AlertCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-interface Statut {
-  id: string;
-  type: string;
-  valeur: string;
-  label: string;
-  description: string;
-  color: string;
-  ordre: number;
-}
 
 const STATUTS_PLANTATION = [
   { valeur: "en_attente_da", label: "En attente PI", color: "secondary", description: "Dossier en attente de versement du Paiement Initial" },
@@ -52,253 +34,43 @@ const STATUTS_PAIEMENT = [
   { valeur: "rejete", label: "Rejeté", color: "destructive", description: "Paiement rejeté" },
 ];
 
-const GestionStatuts = () => {
-  const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingStatut, setEditingStatut] = useState<Statut | null>(null);
-  const [newStatut, setNewStatut] = useState({
-    type: "plantation",
-    valeur: "",
-    label: "",
-    description: "",
-    color: "default",
-  });
+const StatusTable = ({ items }: { items: typeof STATUTS_PLANTATION }) => (
+  <div className="overflow-x-auto rounded-lg border">
+    <Table>
+      <TableHeader><TableRow><TableHead>Statut</TableHead><TableHead>Valeur technique</TableHead><TableHead>Description</TableHead></TableRow></TableHeader>
+      <TableBody>{items.map((item) => <TableRow key={item.valeur}>
+        <TableCell><Badge variant={item.color as any}>{item.label}</Badge></TableCell>
+        <TableCell><code className="rounded bg-muted px-2 py-1 text-xs">{item.valeur}</code></TableCell>
+        <TableCell><span className="text-sm text-muted-foreground">{item.description}</span></TableCell>
+      </TableRow>)}</TableBody>
+    </Table>
+  </div>
+);
 
-  const handleSaveStatut = () => {
-    toast({
-      title: "Statut enregistré",
-      description: "Le statut a été enregistré avec succès",
-    });
-    setIsDialogOpen(false);
-    setEditingStatut(null);
-    setNewStatut({
-      type: "plantation",
-      valeur: "",
-      label: "",
-      description: "",
-      color: "default",
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Gestion des Statuts</CardTitle>
-              
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nouveau Statut
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingStatut ? "Modifier le statut" : "Nouveau statut"}
-                  </DialogTitle>
-                  
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Type d'entité</Label>
-                    <Select 
-                      value={newStatut.type}
-                      onValueChange={(value) => setNewStatut({...newStatut, type: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="plantation">Plantation</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="paiement">Paiement</SelectItem>
-                        <SelectItem value="ticket">Ticket</SelectItem>
-                        <SelectItem value="commission">Commission</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Valeur technique</Label>
-                    <Input 
-                      placeholder="ex: en_production"
-                      value={newStatut.valeur}
-                      onChange={(e) => setNewStatut({...newStatut, valeur: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Libellé</Label>
-                    <Input 
-                      placeholder="ex: En Production"
-                      value={newStatut.label}
-                      onChange={(e) => setNewStatut({...newStatut, label: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Input 
-                      placeholder="Description du statut"
-                      value={newStatut.description}
-                      onChange={(e) => setNewStatut({...newStatut, description: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Couleur</Label>
-                    <Select 
-                      value={newStatut.color}
-                      onValueChange={(value) => setNewStatut({...newStatut, color: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">Par défaut (vert)</SelectItem>
-                        <SelectItem value="secondary">Secondaire (gris)</SelectItem>
-                        <SelectItem value="destructive">Destructif (rouge)</SelectItem>
-                        <SelectItem value="outline">Outline</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Annuler
-                  </Button>
-                  <Button onClick={handleSaveStatut}>
-                    Enregistrer
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="plantation">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="plantation">Plantations</TabsTrigger>
-              <TabsTrigger value="client">Clients</TabsTrigger>
-              <TabsTrigger value="paiement">Paiements</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="plantation" className="space-y-4">
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Valeur</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {STATUTS_PLANTATION.map((statut, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <Badge variant={statut.color as any}>{statut.label}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">{statut.valeur}</code>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">{statut.description}</span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="client" className="space-y-4">
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Valeur</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {STATUTS_CLIENT.map((statut, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <Badge variant={statut.color as any}>{statut.label}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">{statut.valeur}</code>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">{statut.description}</span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="paiement" className="space-y-4">
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Valeur</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {STATUTS_PAIEMENT.map((statut, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <Badge variant={statut.color as any}>{statut.label}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">{statut.valeur}</code>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">{statut.description}</span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+const GestionStatuts = () => (
+  <div className="space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle>Gestion des statuts</CardTitle>
+        <p className="text-sm text-muted-foreground">Référentiel des statuts métier actuellement utilisés par les processus AgriCapital.</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div role="note" className="rounded-md border bg-muted/30 p-3 text-sm">
+          Ces statuts sont des valeurs de référence utilisées par les workflows et la base de données. La création ou la modification libre n’est pas activée ici : les anciennes commandes d’ajout et de modification ne sauvegardaient rien. Cette page est désormais en lecture seule pour éviter toute fausse confirmation ou valeur non reconnue.
+        </div>
+        <Tabs defaultValue="plantation">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="plantation">Plantations</TabsTrigger>
+            <TabsTrigger value="client">Clients</TabsTrigger>
+            <TabsTrigger value="paiement">Paiements</TabsTrigger>
+          </TabsList>
+          <TabsContent value="plantation"><StatusTable items={STATUTS_PLANTATION} /></TabsContent>
+          <TabsContent value="client"><StatusTable items={STATUTS_CLIENT} /></TabsContent>
+          <TabsContent value="paiement"><StatusTable items={STATUTS_PAIEMENT} /></TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  </div>
+);
 
 export default GestionStatuts;

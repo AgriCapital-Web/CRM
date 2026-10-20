@@ -71,6 +71,9 @@ const BeneficiaireParticulier = () => {
     acte_remise: { file: null, preview: "" },
   });
   const [remisePhotos, setRemisePhotos] = useState<File[]>([]);
+  const [pendingRegistration, setPendingRegistration] = useState<{
+    client_id: string; proprietaire_id: string; parcelle_id: string; plantation_id: string;
+  } | null>(null);
 
   const setFile = (field: string, file: File | null, preview: string) => {
     setFiles((prev) => ({ ...prev, [field]: { file, preview } }));
@@ -97,21 +100,28 @@ const BeneficiaireParticulier = () => {
         { document_type: "acte_remise", libelle: "Acte de remise d’actif agricole", categorie: "acte" },
       ];
 
-      const { data, error } = await (supabase as any).rpc("register_beneficiaire_particulier", {
-        p_beneficiaire: beneficiaire,
-        p_proprietaire: { ...proprietaire, nom_complet: proprietaireNomComplet },
-        p_parcelle: parcelle,
-        p_plantation: plantation,
-        p_documents: docs,
-      });
-      if (error) throw error;
-
-      const ids = data as {
-        client_id: string;
-        proprietaire_id: string;
-        parcelle_id: string;
-        plantation_id: string;
-      };
+      let ids = pendingRegistration;
+      if (!ids) {
+        const { data, error } = await (supabase as any).rpc("register_beneficiaire_particulier", {
+          p_beneficiaire: beneficiaire,
+          p_proprietaire: { ...proprietaire, nom_complet: proprietaireNomComplet },
+          p_parcelle: parcelle,
+          p_plantation: plantation,
+          p_documents: docs,
+        });
+        if (error) throw error;
+        const createdIds = data as {
+          client_id: string;
+          proprietaire_id: string;
+          parcelle_id: string;
+          plantation_id: string;
+        };
+        if (!createdIds?.client_id || !createdIds?.proprietaire_id || !createdIds?.parcelle_id || !createdIds?.plantation_id) {
+          throw new Error("La base de données n’a pas retourné tous les identifiants du dossier créé.");
+        }
+        ids = createdIds;
+        setPendingRegistration(createdIds);
+      }
 
       for (const doc of docs) {
         const selected = files[doc.document_type]?.file;
@@ -154,6 +164,7 @@ const BeneficiaireParticulier = () => {
         title: "Bénéficiaire enregistré",
         description: "Le bénéficiaire, le propriétaire foncier, la parcelle et l’actif agricole ont été enregistrés.",
       });
+      setPendingRegistration(null);
       navigate(`/client/${ids.client_id}`);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enregistrement impossible", description: getSafeErrorMessage(error) });
@@ -166,6 +177,9 @@ const BeneficiaireParticulier = () => {
     <ProtectedRoute requiredPermissionCode="beneficiaires.create">
       <MainLayout>
     <div className="max-w-5xl mx-auto space-y-6 pb-10">
+      {pendingRegistration && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+        Le dossier principal a déjà été créé. La tentative précédente a échoué pendant l’enregistrement des pièces jointes. Relancez l’enregistrement pour terminer ce même dossier sans en créer un second.
+      </div>}
       <div className="flex items-center gap-3">
         <Button type="button" variant="ghost" onClick={() => navigate("/clients")}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Retour
