@@ -21,6 +21,7 @@ interface FileUploadVisualProps {
   required?: boolean;
   currentFile?: File | null;
   currentPreview?: string;
+  existingPreview?: string;
   onFileChange: (field: string, file: File | null, preview: string) => void;
   onIdentityNumberDetected?: (numero: string) => void;
   identityDocumentType?: string;
@@ -34,12 +35,13 @@ export const FileUploadVisual = ({
   required = false,
   currentFile,
   currentPreview,
+  existingPreview,
   onFileChange,
   onIdentityNumberDetected,
   identityDocumentType,
   compact = false,
 }: FileUploadVisualProps) => {
-  const [preview, setPreview] = useState<string>(currentPreview || "");
+  const [preview, setPreview] = useState<string>(currentPreview || existingPreview || "");
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState("");
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -51,8 +53,9 @@ export const FileUploadVisual = ({
 
   // A parent reset (new record / cleared draft) must clear stale local previews too.
   useEffect(() => {
-    if (currentPreview !== undefined) setPreview(currentPreview || "");
-  }, [currentPreview]);
+    if (currentPreview) setPreview(currentPreview);
+    else setPreview(existingPreview || "");
+  }, [currentPreview, existingPreview]);
 
   const handleFileSelect = (file: File | null) => {
     if (!file) return;
