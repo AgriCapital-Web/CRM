@@ -504,8 +504,9 @@ export default function EspaceTravail() {
           <Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Nouveau document</Button>
         </div>
       </div>
-      {!officeUrl && <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm"><b>Suite bureautique avancée à connecter.</b><p className="mt-1 text-muted-foreground">L’espace interne et le partage sont disponibles. La coédition native de fichiers Word/Excel/PowerPoint nécessite de connecter un serveur ONLYOFFICE ou Nextcloud à l’hébergement AgriCapital. Aucun serveur bureautique n’est configuré actuellement.</p></div>}
+      <div className="rounded-xl border p-3 text-sm"><b>Documents et formats ouverts</b><p className="mt-1 text-muted-foreground">Importez un fichier pour en extraire le contenu éditable, conservez l’original en pièce jointe et exportez vos travaux vers les formats bureautiques courants. Aucune installation de serveur bureautique n’est requise pour ces fonctions intégrées.</p></div>
       {officeUrl && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><b>Suite bureautique connectée</b><p className="text-sm text-muted-foreground">Ouvrir la suite pour créer ou modifier des fichiers compatibles.</p></div><Button variant="outline" onClick={() => window.open(officeUrl, "_blank", "noopener,noreferrer")}><ExternalLink className="mr-2 h-4 w-4" />Ouvrir la suite</Button></div>}
+      <OfficeFormatTools title={title || "Document AgriCapital"} content={content} documentType={documentType} disabled={saving} onImport={importOfficeDocument} />
       <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.8fr)]">
         <Card className="min-w-0">
           <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
@@ -525,7 +526,6 @@ export default function EspaceTravail() {
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><TypeIcon type={documentType} />Éditeur collaboratif</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                <OfficeFormatTools title={title} content={content} documentType={documentType} disabled={saving || !canEditSelected} onImport={importOfficeDocument} />
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
                   <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
                   <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
