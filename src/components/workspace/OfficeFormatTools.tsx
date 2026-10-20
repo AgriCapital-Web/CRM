@@ -61,6 +61,18 @@ const readXlsx = async (file: File) => {
   const sheets = book.SheetNames.map((name) => ({ name, rows: sheetToRows(book.Sheets[name]) }));
   return sheets.length === 1 ? encodeCsvRows(sheets[0].rows) : WORKBOOK_PREFIX + JSON.stringify({ sheets });
 };
+const buildWorksheet = (rows: any[][]): XLSX.WorkSheet => {
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  Object.keys(worksheet).filter((key) => !key.startsWith("!")).forEach((key) => {
+    const cell = worksheet[key] as any;
+    if (typeof cell.v === "string" && cell.v.startsWith("=") && cell.v.length > 1) {
+      cell.f = cell.v.slice(1);
+      delete cell.v;
+      cell.t = "n";
+    }
+  });
+  return worksheet;
+};
 const parseSpreadsheetContent = (content: string): { name: string; rows: any[][] }[] => {
   if (content.startsWith(WORKBOOK_PREFIX)) {
     try {
@@ -153,7 +165,7 @@ async function exportXlsx(title: string, content: string) {
   const book = XLSX.utils.book_new();
   const sheets = parseSpreadsheetContent(content);
   sheets.forEach((sheet, index) => {
-    const worksheet = XLSX.utils.aoa_to_sheet(sheet.rows);
+    const worksheet = buildWorksheet(sheet.rows);
     XLSX.utils.book_append_sheet(book, worksheet, (sheet.name || "Feuille " + (index + 1)).slice(0, 31) || "Feuille" + index);
   });
   const output = XLSX.write(book, { bookType: "xlsx", type: "array" });
