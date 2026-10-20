@@ -23,6 +23,7 @@ import { fr } from "date-fns/locale";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Target, TrendingUp, Users, MapPin, PhoneCall, ArrowRight, Copy, Plus, Phone, Mail, MessageCircle, Contact, Eye, Pencil, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import GeographieCascade from "@/components/common/GeographieCascade";
 import TableSearchInput from "@/components/common/TableSearchInput";
@@ -73,6 +74,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
   const { user, userRoles, primaryRole } = useAuth();
+  const { can } = usePermissions();
+  const canCreateLeads = can("leads.create");
+  const canUpdateLeads = can("leads.update");
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
   const isGlobalAdmin = ["pdg", "dg", "admin", "super_admin"].includes(primaryRole || "");
   const isFoncierRole = ["mobilisateur_foncier", "superviseur_mobilisation_fonciere"].includes(primaryRole || "");
@@ -250,6 +254,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, leadId, statut, prospectId }: any) => {
+       if (!canUpdateLeads) throw new Error("Votre rôle ne permet pas de modifier les leads.");
        const lead = leads.find((item: any) => item.id === (leadId || id));
        const prospect = prospectId ? prospects.find((item: any) => item.id === prospectId) : null;
        const isOwner = (prospect?.assigned_to || lead?.assigned_to) === user?.id || (prospect?.created_by || lead?.created_by) === user?.id;
@@ -272,6 +277,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const createLead = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Non authentifié");
+      if (editingLead ? !canUpdateLeads : !canCreateLeads) {
+        throw new Error(editingLead ? "Votre rôle ne permet pas de modifier les leads." : "Votre rôle ne permet pas de créer des leads.");
+      }
       if (editingLead) {
         const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
         if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
@@ -616,9 +624,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Prospects</h1>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>
+            {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
             <Button className="w-full sm:w-auto" variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}><Copy className="h-4 w-4 mr-2" />Lien public</Button>
-            <Button className="col-span-2 w-full sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>
+            {canCreateLeads && <Button className="col-span-2 w-full sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
           </div>
         </div>
 
@@ -667,7 +675,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                       <TableCell className="text-sm"><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} email={l.email} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /><br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
                       <TableCell className="min-w-0">
-                        <Select value={l.statut} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
+                        <Select value={l.statut} disabled={!canUpdateLeads || !((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
                           <SelectTrigger className="h-8 w-28 max-w-28 overflow-hidden px-2 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
@@ -683,7 +691,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem onSelect={() => setSelected(l)}><Eye className="mr-2 h-4 w-4" />Détail</DropdownMenuItem>
-                                {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
+                                {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
                                   <DropdownMenuItem onSelect={() => {
                                     setEditingLead(l);
                                     setFormStage(l.etape_pipeline === "prospect" ? "prospect" : "lead");
@@ -711,7 +719,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                         )}
                         <div className={view === "prospects" ? "ml-auto hidden max-w-[148px] flex-wrap justify-end gap-1 sm:flex" : "ml-auto flex max-w-[148px] flex-wrap justify-end gap-1"}>
                         <Button size="icon" className="h-8 w-8 shrink-0" variant="outline" title="Détails" aria-label="Détails" onClick={() => setSelected(l)}><Eye className="h-4 w-4" /></Button>
-                        {((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
+                        {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
                           <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => {
                             setEditingLead(l);
                             setFormStage(l.etape_pipeline === "prospect" ? "prospect" : "lead");
@@ -979,7 +987,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
               <Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button>
               <Button
                 onClick={() => createLead.mutate()}
-                disabled={createLead.isPending || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim() || false}
+                disabled={createLead.isPending || (editingLead ? !canUpdateLeads : !canCreateLeads) || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim()}
               >{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button>
             </DialogFooter>
           </DialogContent>

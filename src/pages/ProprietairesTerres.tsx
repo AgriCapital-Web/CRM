@@ -6,6 +6,7 @@ import { PERMISSIONS } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,8 @@ const createInitialAnnexStatuses = (): Record<string, "joint" | "a_fournir"> =>
 
 const ProprietairesTerres = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canCreateProprietaire = can("proprietaires.create");
   const [searchParams] = useSearchParams();
   const conversionLeadId = searchParams.get("lead_id");
   const [proprietaires, setProprietaires] = useState<any[]>([]);
@@ -155,6 +158,10 @@ const ProprietairesTerres = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateProprietaire) {
+      toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de créer un propriétaire foncier." });
+      return;
+    }
     const type = formData.type_proprietaire;
     if (type === "personne_physique" && (!formData.civilite || !formData.nom.trim())) {
       setActiveFormTab("identite");
@@ -460,7 +467,7 @@ const ProprietairesTerres = () => {
   };
 
   return (
-    <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}>
+    <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PROPRIETAIRES}>
       <MainLayout>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -469,9 +476,9 @@ const ProprietairesTerres = () => {
               <p className="text-muted-foreground mt-1">{proprietaires.length} propriétaire(s)</p>
             </div>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-              <DialogTrigger asChild>
+              {canCreateProprietaire && <DialogTrigger asChild>
                 <Button><Plus className="mr-2 h-4 w-4" />Nouveau Propriétaire</Button>
-              </DialogTrigger>
+              </DialogTrigger>}
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Convention Planté-Partagé — Identification du Propriétaire</DialogTitle>
@@ -813,7 +820,7 @@ const ProprietairesTerres = () => {
                     {activeStepIndex < formSteps.length - 1 ? (
                       <Button type="button" onClick={goToNextFormStep}>Suivant</Button>
                     ) : (
-                      <Button type="submit" disabled={uploading}>{uploading ? "Enregistrement..." : "Enregistrer le Propriétaire"}</Button>
+                      <Button type="submit" disabled={uploading || !canCreateProprietaire}>{uploading ? "Enregistrement..." : "Enregistrer le Propriétaire"}</Button>
                     )}
                   </div>
                 </form>
