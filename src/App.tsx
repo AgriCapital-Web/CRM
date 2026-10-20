@@ -37,6 +37,7 @@ import VerificationCarte from "./pages/VerificationCarte";
 import BeneficiaireParticulier from "./pages/BeneficiaireParticulier";
 import TechnicienTerrain from "./pages/TechnicienTerrain";
 import Messagerie from "./pages/Messagerie";
+import EspaceTravail from "./pages/EspaceTravail";
 
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -96,6 +97,7 @@ const DomainRouter = () => {
       <Route path="/acquisitions/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><ClientDetail /></ProtectedRoute>} />
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
       <Route path="/messagerie" element={<ProtectedRoute requiredPermission={"messagerie.view" as any}><Messagerie /></ProtectedRoute>} />
+      <Route path="/espace-travail" element={<ProtectedRoute><EspaceTravail /></ProtectedRoute>} />
       <Route path="/profil" element={<ProtectedRoute><Profil /></ProtectedRoute>} />
       
       {/* Paiements */}

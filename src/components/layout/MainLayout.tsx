@@ -17,7 +17,7 @@ import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
 import {
   LayoutDashboard, Users, Sprout, CreditCard, LogOut, Menu, Receipt,
   BarChart3, Ticket, Wallet, FileText, Settings, UserCircle, Wifi, WifiOff, RefreshCw, Signal,
-  LandPlot, Layers, Target, CloudUpload, MessageSquare
+  LandPlot, Layers, Target, CloudUpload, MessageSquare, Files
 } from "lucide-react";
 
 interface MainLayoutProps { children: ReactNode; }
@@ -38,6 +38,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Users, label: "Prospects", path: "/prospects", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Acquisitions", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
     { icon: MessageSquare, label: "Messagerie", path: "/messagerie", permission: "messagerie.view" as any },
+    { icon: Files, label: "Espace de travail", path: "/espace-travail", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: LandPlot, label: "Propriétaires", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
