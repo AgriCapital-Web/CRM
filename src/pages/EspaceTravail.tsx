@@ -221,6 +221,75 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
   </div>;
 }
 
+
+type WorkspaceSlide = { title: string; body: string };
+function parseWorkspaceSlides(content: string): WorkspaceSlide[] {
+  const parts = content.split(/\n\s*---+\s*\n/).filter((part) => part.trim());
+  if (!parts.length) return [{ title: "Nouvelle diapositive", body: "" }];
+  return parts.map((part, index) => {
+    const lines = part.split(/\r?\n/);
+    if (/^DIAPOSITIVE\s+\d+/i.test((lines[0] || "").trim())) lines.shift();
+    const title = (lines.shift() || "").trim() || "Diapositive " + (index + 1);
+    return { title, body: lines.join("\n").trim() };
+  });
+}
+function encodeWorkspaceSlides(slides: WorkspaceSlide[]) {
+  return slides.map((slide) => [slide.title.trim() || "Diapositive", slide.body].join("\n")).join("\n\n---\n\n");
+}
+function WorkspaceSlidesEditor({ value, onChange, disabled }: { value: string; onChange: (next: string) => void; disabled: boolean }) {
+  const slides = parseWorkspaceSlides(value);
+  const [active, setActive] = useState(0);
+  const index = Math.min(active, slides.length - 1);
+  const slide = slides[index];
+  const update = (patch: Partial<WorkspaceSlide>) => onChange(encodeWorkspaceSlides(slides.map((item, i) => i === index ? { ...item, ...patch } : item)));
+  const add = () => {
+    const next = [...slides, { title: "Nouvelle diapositive", body: "" }];
+    onChange(encodeWorkspaceSlides(next)); setActive(next.length - 1);
+  };
+  const remove = () => {
+    if (slides.length <= 1 || !window.confirm("Supprimer cette diapositive ?")) return;
+    const next = slides.filter((_, i) => i !== index);
+    onChange(encodeWorkspaceSlides(next)); setActive(Math.max(0, index - 1));
+  };
+  const move = (offset: number) => {
+    const target = index + offset;
+    if (target < 0 || target >= slides.length) return;
+    const next = [...slides];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(encodeWorkspaceSlides(next)); setActive(target);
+  };
+  return <div className="space-y-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div><Label>Présentation</Label><p className="text-xs text-muted-foreground">{slides.length} diapositive(s) · modifiez le titre et le contenu, puis enregistrez le document.</p></div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" disabled={disabled || index === 0} onClick={() => move(-1)}>Monter</Button>
+        <Button type="button" variant="outline" size="sm" disabled={disabled || index === slides.length - 1} onClick={() => move(1)}>Descendre</Button>
+        <Button type="button" variant="outline" size="sm" disabled={disabled || slides.length <= 1} onClick={remove}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>
+        <Button type="button" size="sm" disabled={disabled} onClick={add}><Plus className="mr-1 h-4 w-4" />Ajouter une diapositive</Button>
+      </div>
+    </div>
+    <div className="grid gap-3 lg:grid-cols-[190px_minmax(0,1fr)]">
+      <div className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-y-auto">
+        {slides.map((item, i) => <button type="button" key={i} onClick={() => setActive(i)} className={"min-w-[150px] rounded-lg border p-2 text-left lg:min-w-0 " + (i === index ? "border-primary bg-primary/5" : "hover:bg-muted/50")}>
+          <div className="mb-2 flex aspect-video items-center justify-center rounded border bg-background p-2 text-center text-xs font-semibold">{item.title || "Diapositive " + (i + 1)}</div>
+          <p className="truncate text-xs font-medium">{i + 1}. {item.title || "Sans titre"}</p>
+          <p className="line-clamp-2 text-[11px] text-muted-foreground">{item.body || "Contenu vide"}</p>
+        </button>)}
+      </div>
+      <div className="space-y-3">
+        <div className="flex aspect-video flex-col justify-center overflow-hidden rounded-xl border bg-background p-5 shadow-sm sm:p-8">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">AgriCapital · {index + 1}/{slides.length}</p>
+          <h3 className="mb-4 text-xl font-bold sm:text-3xl">{slide.title || "Titre de la diapositive"}</h3>
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground sm:text-base">{slide.body || "Le contenu de cette diapositive apparaîtra ici."}</p>
+        </div>
+        <div className="space-y-1"><Label>Titre de la diapositive</Label><Input value={slide.title} disabled={disabled} onChange={(e) => update({ title: e.target.value })} placeholder="Titre clair et concis" /></div>
+        <div className="space-y-1"><Label>Texte et notes</Label><Textarea value={slide.body} disabled={disabled} onChange={(e) => update({ body: e.target.value })} className="min-h-[180px]" placeholder="Contenu, chiffres clés, indicateurs et notes…" /></div>
+      </div>
+    </div>
+    <p className="text-xs text-muted-foreground">L’export PPTX crée des diapositives éditables à partir de ce contenu. Les thèmes complexes, animations, transitions et objets du fichier PowerPoint original ne sont pas reproduits intégralement lors d’une conversion.</p>
+  </div>;
+}
+
 export default function EspaceTravail() {
   const { profile, user } = useAuth();
   const [documents, setDocuments] = useState<WorkspaceDoc[]>([]);
@@ -532,7 +601,7 @@ export default function EspaceTravail() {
                   <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
                   <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
                 </div>
-                <>{documentType === "document" || documentType === "presentation" ? <>
+                <>{documentType === "document" ? <>
                   <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-2">
                     <Button type="button" size="sm" variant="outline" title="Gras" onClick={() => formatEditor("bold")} disabled={!canEditSelected}><Bold className="h-4 w-4" /></Button>
                     <Button type="button" size="sm" variant="outline" title="Italique" onClick={() => formatEditor("italic")} disabled={!canEditSelected}><Italic className="h-4 w-4" /></Button>
@@ -545,8 +614,8 @@ export default function EspaceTravail() {
                     <Button type="button" size="sm" variant="outline" title="Rétablir" onClick={() => formatEditor("redo")} disabled={!canEditSelected}><Redo2 className="h-4 w-4" /></Button>
                     <Button type="button" size="sm" variant="outline" title="Effacer le formatage" onClick={() => formatEditor("removeFormat")} disabled={!canEditSelected}><Eraser className="h-4 w-4" /></Button>
                   </div>
-                  <div className="space-y-1"><Label>{documentType === "presentation" ? "Plan de présentation et notes" : "Contenu du document"}</Label><div ref={editorRef} contentEditable={!saving && canEditSelected} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeWorkspaceHtml(content) }} onInput={() => setHasUnsavedChanges(true)} onBlur={() => { if (editorRef.current) setContent(editorRef.current.innerHTML); }} role="textbox" aria-multiline="true" className="min-h-[320px] rounded-lg border bg-background p-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-6 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-2 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2" /></div>
-                </> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
+                  <div className="space-y-1"><Label>Contenu du document</Label><div ref={editorRef} contentEditable={!saving && canEditSelected} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeWorkspaceHtml(content) }} onInput={() => setHasUnsavedChanges(true)} onBlur={() => { if (editorRef.current) setContent(editorRef.current.innerHTML); }} role="textbox" aria-multiline="true" className="min-h-[320px] rounded-lg border bg-background p-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-6 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-2 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2" /></div>
+                </> : documentType === "presentation" ? <WorkspaceSlidesEditor value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2">{documentType !== "spreadsheet" && <><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button></>}<Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
                 <div className="flex flex-wrap gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => void duplicateDocument()} disabled={saving}><Copy className="mr-2 h-4 w-4" />Créer une copie</Button>{isOwner && <Button variant="destructive" size="sm" onClick={() => void deleteDocument()} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button>}</div>
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button><Button size="sm" variant="outline" disabled={saving || !canEditSelected} onClick={() => void removeAttachment()}><Trash2 className="mr-1 h-4 w-4" />Retirer</Button></>}</div>
