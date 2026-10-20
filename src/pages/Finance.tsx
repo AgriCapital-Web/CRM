@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -45,6 +46,9 @@ export default function Finance(){
   const [expenseSearch,setExpenseSearch]=useState("");
   const [associateForm,setAssociateForm]=useState({associateId:"",amount:"",type:"apport",reference:"",notes:""});
   const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+  const [entryFormOpen,setEntryFormOpen]=useState(false);
+  const [salaryFormOpen,setSalaryFormOpen]=useState(false);
+  const [associateFormOpen,setAssociateFormOpen]=useState(false);
   const [salaryForm,setSalaryForm]=useState({profileId:"",baseSalary:"",payDay:"28"});
   const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
   const [payrollPaymentRunId,setPayrollPaymentRunId]=useState("");
@@ -109,6 +113,7 @@ export default function Finance(){
       if(error)throw error;
       toast({title:"Entrée enregistrée",description:"L'opération est intégrée au journal et aux totaux financiers."});
       setEntryForm({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+      setEntryFormOpen(false);
       await load();
     }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
     finally{setSaving(false);}
@@ -181,6 +186,7 @@ export default function Finance(){
       }
       toast({title:"Mouvement associé enregistré"});
       setAssociateForm({associateId:"",amount:"",type:"apport",reference:"",notes:""});
+      setAssociateFormOpen(false);
       await load();
     } catch(error:any) {
       toast({title:"Enregistrement impossible",description:error?.message||"Le mouvement associé n’a pas été enregistré.",variant:"destructive"});
@@ -205,6 +211,7 @@ export default function Finance(){
       if(error)throw error;
       toast({title:"Paramétrage salaire enregistré"});
       setSalaryForm({profileId:"",baseSalary:"",payDay:"28"});
+      setSalaryFormOpen(false);
       await load();
     }catch(error:any){
       toast({title:"Enregistrement impossible",description:error?.message||"Le paramétrage du salaire n’a pas été enregistré.",variant:"destructive"});
@@ -344,7 +351,7 @@ export default function Finance(){
             {label:"Apports associés",value:transactions.filter((t:any)=>t.status==="valide"&&t.direction==="entree"&&(t.source_type==="apport_associe"||t.category==="ASSOCIE")).reduce((a,t)=>a+Number(t.amount||0),0)}
           ].map(item=><Card key={item.label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{item.label}</p><p className="whitespace-nowrap text-base font-bold tabular-nums">{money(item.value)}</p></CardContent></Card>)}
         </div>
-        <Card><CardHeader className="pb-2"><CardTitle>Nouvelle entrée</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <Dialog open={entryFormOpen} onOpenChange={setEntryFormOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Nouvelle entrée financière</DialogTitle></DialogHeader><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1"><Label>Type d’entrée</Label><Select value={entryForm.type} onValueChange={v=>setEntryForm({...entryForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="financement">Financement</SelectItem><SelectItem value="pret">Prêt reçu</SelectItem><SelectItem value="don">Don</SelectItem><SelectItem value="apport_associe">Apport associé</SelectItem><SelectItem value="vente">Vente / prestation</SelectItem><SelectItem value="autre">Autre entrée</SelectItem></SelectContent></Select></div>
           <div className="space-y-1"><Label>Source / raison sociale / nom</Label><Input value={entryForm.source} onChange={e=>setEntryForm({...entryForm,source:e.target.value})} placeholder="Nom du financeur ou organisme"/></div>
           <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={entryForm.amount} onChange={e=>setEntryForm({...entryForm,amount:e.target.value})} placeholder="Montant reçu"/></div>
@@ -353,7 +360,7 @@ export default function Finance(){
           <div className="space-y-1"><Label>Référence</Label><Input value={entryForm.reference} onChange={e=>setEntryForm({...entryForm,reference:e.target.value})} placeholder="N° de pièce ou transaction"/></div>
           <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Notes / affectation</Label><Textarea rows={2} value={entryForm.notes} onChange={e=>setEntryForm({...entryForm,notes:e.target.value})} placeholder="Objet, conditions du prêt, projet financé…"/></div>
           <div className="sm:col-span-2 lg:col-span-3"><Button className="w-full sm:w-auto" onClick={()=>void saveEntry()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>Enregistrer l’entrée</Button></div>
-        </CardContent></Card>
+        </div></DialogContent></Dialog>
         <Card><CardHeader className="pb-2"><CardTitle>Historique des entrées</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Date</th><th className="text-left">Nature / source</th><th className="text-left">Mode</th><th className="text-right">Montant</th></tr></thead><tbody>{transactions.filter(t=>t.direction==="entree").map(t=><tr key={t.id}><td className="whitespace-nowrap">{new Date(t.transaction_date).toLocaleDateString("fr-FR")}</td><td className="min-w-0">{t.label}</td><td>{t.payment_method||"—"}</td><td className="whitespace-nowrap text-right font-semibold tabular-nums">{money(Number(t.amount||0))}</td></tr>)}{!transactions.some(t=>t.direction==="entree")&&<tr><td colSpan={4} className="p-4 text-center text-muted-foreground">Aucune entrée enregistrée</td></tr>}</tbody></table></div></CardContent></Card>
       </TabsContent>
       <TabsContent value="journal" className="mt-4 min-w-0 space-y-4">
@@ -430,12 +437,12 @@ export default function Finance(){
         </Card>
       </TabsContent>
       <TabsContent value="salaires" className="mt-3 min-w-0 space-y-3"><div className="rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-4"><h2 className="font-semibold">Salaires et préparation de la paie</h2></div><div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
-        {can("finance.payroll")&&<Card><CardHeader><CardTitle>Paramétrer un salaire</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {can("finance.payroll")&&<><Button variant="outline" onClick={()=>setSalaryFormOpen(true)}><Plus className="mr-2 h-4 w-4"/>Paramétrer un salaire</Button><Dialog open={salaryFormOpen} onOpenChange={setSalaryFormOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Paramétrer un salaire</DialogTitle></DialogHeader><div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div className="sm:col-span-2"><Select value={salaryForm.profileId} onValueChange={v=>{const profile=profiles.find((p:any)=>p.id===v);setSalaryForm({...salaryForm,profileId:v,baseSalary:String(profile?.salaire_base ?? "")});}}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>p.actif!==false&&Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_complet} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label>Salaire de base (synchronisé depuis les RH)</Label><Input type="number" placeholder="Salaire défini dans les RH" value={salaryForm.baseSalary} readOnly disabled/></div>
           <div className="space-y-1"><Label>Jour habituel de paiement (1 à 31)</Label><Input type="number" min="1" max="31" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/></div>
           <Button className="w-full sm:col-span-2" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
-        </CardContent></Card>}
+        </div></DialogContent></Dialog></>}
         {can("finance.payroll")&&<Card><CardHeader><CardTitle>Générer la paie</CardTitle></CardHeader><CardContent className="space-y-3"><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><Button className="w-full" onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>GÉNÉRER AUTOMATIQUEMENT</Button><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p>{r.payment_reference&&<p className="text-xs text-muted-foreground">Réf. : {r.payment_reference}</p>}</div><div className="flex flex-wrap items-center gap-2">{r.status==="brouillon"&&<Button size="sm" onClick={()=>void validatePayrollRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>Valider</Button>}{r.status==="valide"&&<Button size="sm" onClick={()=>{setPayrollPaymentRunId(r.id);setPayrollPaymentReference("");setPayrollPaymentMethod("virement");}} disabled={saving}><Banknote className="mr-1 h-4 w-4"/>Enregistrer le paiement</Button>}{r.status==="paye"&&<Badge>Payée</Badge>}{canDeleteDraftPayroll && r.status==="brouillon" && <Button size="sm" variant="destructive" onClick={()=>{if(window.confirm("Supprimer définitivement ce brouillon de paie et ses lignes ?")) void deletePayrollDraft(r);}} disabled={saving}><Trash2 className="mr-1 h-4 w-4"/>Supprimer</Button>}</div></div>)}
         {!!payrollPaymentRunId&&<div className="space-y-3 rounded-lg border bg-muted/30 p-3"><h3 className="font-semibold">Confirmer le paiement du lot {payrollRuns.find(r=>r.id===payrollPaymentRunId)?.period_start?.slice(0,7)}</h3><p className="text-sm text-muted-foreground">N’enregistrez cette étape qu’après avoir effectué le paiement réel.</p><div className="grid gap-2 sm:grid-cols-2"><div className="space-y-1"><Label>Mode de paiement</Label><Select value={payrollPaymentMethod} onValueChange={setPayrollPaymentMethod}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Référence réelle {payrollPaymentMethod==="especes"?"(facultative)":"(obligatoire)"}</Label><Input value={payrollPaymentReference} onChange={e=>setPayrollPaymentReference(e.target.value)} placeholder="Référence transaction / chèque"/></div><div className="space-y-1 sm:col-span-2"><Label>URL du justificatif (facultative)</Label><Input value={payrollPaymentProofUrl} onChange={e=>setPayrollPaymentProofUrl(e.target.value)} placeholder="Lien sécurisé vers le justificatif"/></div></div><div className="flex flex-wrap gap-2"><Button onClick={()=>void payRun()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement enregistré"}</Button><Button variant="outline" onClick={()=>setPayrollPaymentRunId("")} disabled={saving}>Annuler</Button></div></div>}</div></CardContent></Card>}
       </div></TabsContent>
@@ -444,14 +451,14 @@ export default function Finance(){
           {!associates.length&&<p className="text-sm text-muted-foreground">Aucun associé enregistré.</p>}
         </CardContent></Card>
         <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
-        {can("finance.associates")&&<Card><CardHeader><CardTitle>Mouvement associé</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {can("finance.associates")&&<><Button variant="outline" onClick={()=>setAssociateFormOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouveau mouvement</Button><Dialog open={associateFormOpen} onOpenChange={setAssociateFormOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Nouveau mouvement associé</DialogTitle></DialogHeader><div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Select value={associateForm.associateId} onValueChange={v=>setAssociateForm({...associateForm,associateId:v})}><SelectTrigger><SelectValue placeholder="CHOISIR L'ASSOCIÉ"/></SelectTrigger><SelectContent>{associates.map(a=><SelectItem key={a.id} value={a.id}>{a.full_name} — {a.role_label}</SelectItem>)}</SelectContent></Select>
           <Select value={associateForm.type} onValueChange={v=>setAssociateForm({...associateForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">APPORT</SelectItem><SelectItem value="remboursement">REMBOURSEMENT</SelectItem><SelectItem value="autre">AUTRE</SelectItem></SelectContent></Select>
           <Input type="number" placeholder="MONTANT" value={associateForm.amount} onChange={e=>setAssociateForm({...associateForm,amount:e.target.value})}/>
           <Input placeholder="RÉFÉRENCE" value={associateForm.reference} onChange={e=>setAssociateForm({...associateForm,reference:e.target.value})}/>
           <Textarea className="sm:col-span-2" rows={2} placeholder="NOTE" value={associateForm.notes} onChange={e=>setAssociateForm({...associateForm,notes:e.target.value})}/>
           <Button className="w-full sm:col-span-2" onClick={()=>void saveAssociateMovement()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>ENREGISTRER</Button>
-        </CardContent></Card>}
+        </div></DialogContent></Dialog></>}
         <Card><CardHeader><CardTitle>Associés enregistrés</CardTitle></CardHeader><CardContent className="space-y-2">{associates.map(a=><div key={a.id} className="flex items-center gap-2 rounded-lg border p-2"><Badge variant={a.active?"default":"secondary"}>{a.active?"ACTIF":"INACTIF"}</Badge><Badge variant="outline">{a.role_label}</Badge><b className="min-w-0 flex-1 truncate">{a.full_name}</b></div>)}</CardContent></Card>
       </div><Card><CardHeader className="pb-2"><CardTitle>Historique des mouvements associés</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Date</th><th className="text-left">Associé</th><th className="text-left">Mouvement</th><th className="text-left">Référence</th><th className="text-right">Montant</th></tr></thead><tbody>{associateMovements.map(m=><tr key={m.id}><td className="whitespace-nowrap">{new Date(m.finance_transactions?.transaction_date||m.created_at).toLocaleDateString("fr-FR")}</td><td>{associates.find(a=>a.id===m.associate_id)?.full_name||"—"}</td><td>{m.movement_type==="apport"?"Apport":m.movement_type==="remboursement"?"Remboursement":"Autre"}</td><td>{m.finance_transactions?.reference||"—"}</td><td className="whitespace-nowrap text-right tabular-nums">{money(Number(m.finance_transactions?.amount||0))}</td></tr>)}{!associateMovements.length&&<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucun mouvement associé enregistré</td></tr>}</tbody></table></div></CardContent></Card>
       </TabsContent>
