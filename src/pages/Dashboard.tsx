@@ -589,10 +589,10 @@ const Dashboard = () => {
       {label:"Échéances en retard",value:stats.overdueCount,href:"/paiements"},
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
+      ...(can("clients.validate") ? [{group:"Clients",label:"Clients à valider",shortLabel:"À valider",value:stats.clientsPendingValidation,href:"/acquisitions/validation?type=clients"}] : []),
+      ...(can("acquisitions.validate") ? [{group:"Ventes",label:"Ventes à valider",shortLabel:"Ventes à valider",value:stats.salesPendingValidation,href:"/acquisitions/validation?type=ventes"}] : []),
       ...(canClients ? [
         {group:"Clients",label:"Clients / dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
-        {group:"Clients",label:"Clients à valider",shortLabel:"À valider",value:stats.clientsPendingValidation,href:"/acquisitions/validation?type=clients"},
-        {group:"Ventes",label:"Ventes à valider",shortLabel:"Ventes à valider",value:stats.salesPendingValidation,href:"/acquisitions/validation?type=ventes"},
         {group:"Clients",label:"Clients actifs",shortLabel:"Actifs",value:stats.clientsActive,href:"/clients"},
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:"/paiements"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
