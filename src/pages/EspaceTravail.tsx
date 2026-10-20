@@ -437,7 +437,7 @@ export default function EspaceTravail() {
     if (!data?.id) throw new Error("La base n’a pas confirmé la création du document importé.");
     let saved = data;
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = "workspace/" + data.id + "/" + Date.now() + "-" + safeName;
+    const path = user.id + "/workspace/" + data.id + "/" + Date.now() + "-" + safeName;
     const { error: uploadError } = await supabase.storage.from("documents").upload(path, file, {
       upsert: false, contentType: file.type || "application/octet-stream",
     });
@@ -553,7 +553,7 @@ export default function EspaceTravail() {
     setSaving(true);
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `workspace/${selected.id}/${Date.now()}-${safeName}`;
+      const path = `${user?.id || ""}/workspace/${selected.id}/${Date.now()}-${safeName}`;
       const { error: uploadError } = await supabase.storage.from("documents").upload(path, file, { upsert: false, contentType: file.type || "application/octet-stream" });
       if (uploadError) throw uploadError;
       const { data, error } = await (supabase as any).from("workspace_documents").update({
