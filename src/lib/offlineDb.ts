@@ -251,6 +251,55 @@ export async function addToSyncQueue(op: Omit<SyncOperation, 'id' | 'status' | '
   await putItem(STORES.SYNC_QUEUE, { ...op, status: 'pending', retries: 0 });
 }
 
+/**
+ * Persiste la mutation et son état local dans une seule transaction IndexedDB.
+ * La ligne métier et sa file de synchronisation sont donc validées ensemble :
+ * on évite un dossier local sans opération de synchronisation (ou l'inverse).
+ */
+export async function persistQueuedMutation(input: {
+  table: string;
+  operation: SyncOperation["operation"];
+  record_id: string;
+  data: any;
+  timestamp?: number;
+  storeName?: string;
+  record?: any;
+  queueId?: number;
+}): Promise<number> {
+  const db = await openDB();
+  const storeNames = [STORES.SYNC_QUEUE, ...(input.storeName ? [input.storeName] : [])];
+  const tx = db.transaction(storeNames, "readwrite");
+  const queueStore = tx.objectStore(STORES.SYNC_QUEUE);
+  const queueItem: SyncOperation = {
+    ...(input.queueId !== undefined ? { id: input.queueId } : {}),
+    table: input.table,
+    operation: input.operation,
+    record_id: input.record_id,
+    data: input.data,
+    timestamp: input.timestamp ?? Date.now(),
+    status: "pending",
+    retries: 0,
+    next_retry_at: 0,
+  };
+  const request = queueStore.put(queueItem as any);
+  if (input.storeName) {
+    const localStore = tx.objectStore(input.storeName);
+    if (input.operation === "delete") localStore.delete(input.record_id);
+    else if (input.record) localStore.put(normalizeStoreItem(input.storeName, input.record));
+  }
+  return new Promise((resolve, reject) => {
+    let queueId = input.queueId;
+    request.onsuccess = () => { queueId = Number(request.result); };
+    tx.oncomplete = () => {
+      if (queueId === undefined || !Number.isFinite(queueId)) {
+        reject(new Error("La mutation locale n’a pas reçu d’identifiant de synchronisation."));
+      } else resolve(queueId);
+    };
+    tx.onerror = () => reject(tx.error || new Error("Impossible de sauvegarder la mutation locale."));
+    tx.onabort = () => reject(tx.error || new Error("La sauvegarde locale a été annulée."));
+  });
+}
+
 export async function getPendingSyncOps(): Promise<SyncOperation[]> {
   const now = Date.now();
   const all = await getAllItems(STORES.SYNC_QUEUE) as SyncOperation[];

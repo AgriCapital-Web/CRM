@@ -6,7 +6,7 @@ import {
   getCachedClients, getCachedPlantations, getCachedItems,
   getPendingSyncOps, clearSyncedOps, addToSyncQueue, markOpStatus,
   getLastSyncTime, setLastSyncTime, getOfflineStats, getSyncQueueStats,
-  STORES, type SyncOperation, getHttpMutationStats, retryAllHttpMutations,
+  STORES, type SyncOperation, getHttpMutationStats, retryAllHttpMutations, persistQueuedMutation,
 } from '@/lib/offlineDb';
 import { useToast } from '@/hooks/use-toast';
 import { resolveUpdateConflict } from '@/lib/offlineConflict';
@@ -249,16 +249,18 @@ export function useOfflineSync() {
         setPendingFiles(fileCount);
         setPendingCount(stats.pending + stats.error + httpStats.pending + httpStats.error);
 
-        if (syncedCount > 0 || uploadedFiles > 0 || conflictCount > 0) {
+        const failedCount = stats.error + httpStats.error;
+        if (syncedCount > 0 || uploadedFiles > 0 || conflictCount > 0 || failedCount > 0) {
           window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-            detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount, conflictDetails },
+            detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount, failed: failedCount, conflictDetails },
           }));
           const conflictSummary = conflictDetails.slice(0, 3).join(' ; ');
           toast({
-            title: conflictCount > 0 ? 'Conflits de synchronisation détectés' : 'Synchronisation terminée',
+            title: failedCount > 0 ? 'Synchronisation incomplète — données conservées' : conflictCount > 0 ? 'Conflits de synchronisation détectés' : 'Synchronisation terminée',
             description: `${syncedCount} modification(s), ${uploadedFiles} fichier(s) envoyé(s)`
               + `${conflictCount > 0 ? `. ${conflictCount} conflit(s) : les valeurs serveur plus récentes ont été conservées. ${conflictSummary}` : ''}`
-              + `${stats.error + httpStats.error > 0 ? `, ${stats.error + httpStats.error} erreur(s)` : ''}`,
+              + `${failedCount > 0 ? `. ${failedCount} opération(s) restent en attente et seront réessayées ; aucune n’est déclarée comme enregistrée sur le serveur.` : ''}`,
+            ...(failedCount > 0 ? { variant: 'destructive' as const } : {}),
           });
         }
       } finally {
@@ -325,9 +327,7 @@ export function useOfflineSync() {
     recordId: string,
     data: any
   ) => {
-    await addToSyncQueue({ table, operation, record_id: recordId, data: { ...data, id: recordId }, timestamp: Date.now() });
-
-    // Optimistic local update
+    // Optimistic local update et file de synchronisation dans une seule transaction.
     const storeMap: Record<string, string> = {
       clients: STORES.CLIENTS,
       plantations: STORES.PLANTATIONS,
@@ -341,13 +341,15 @@ export function useOfflineSync() {
       rapports_visites_medias: STORES.RAPPORTS_MEDIAS,
     };
     const store = storeMap[table];
-    if (store && operation !== 'delete') {
-      const { putItem } = await import('@/lib/offlineDb');
-      await putItem(store, { id: recordId, ...data, _offline: true, updated_at: new Date().toISOString() });
-    } else if (store && operation === 'delete') {
-      const { deleteItem } = await import('@/lib/offlineDb');
-      await deleteItem(store, recordId);
-    }
+    const existing = store && operation === "update" ? await getCachedItems(store).then(items => items.find((item: any) => String(item.id) === String(recordId))) : null;
+    await persistQueuedMutation({
+      table, operation, record_id: recordId, data: { ...data, id: recordId }, timestamp: Date.now(),
+      storeName: store,
+      record: operation === "delete" ? undefined : {
+        ...(existing || {}), id: recordId, ...data, _offline: true,
+        _pending: operation === "insert" ? "insert" : "update", updated_at: new Date().toISOString(),
+      },
+    });
 
     const stats = await getSyncQueueStats();
     setPendingCount(stats.pending + stats.error);

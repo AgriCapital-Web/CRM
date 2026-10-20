@@ -6,7 +6,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import {
-  STORES, addToSyncQueue, putItem, deleteItem, getItem, getAllItems,
+  STORES, addToSyncQueue, persistQueuedMutation, putItem, deleteItem, getItem, getAllItems,
 } from '@/lib/offlineDb';
 
 const TABLE_TO_STORE: Record<string, string> = {
@@ -76,8 +76,10 @@ export async function offlineInsert(table: string, values: any): Promise<{ data:
     if (store) {
       const tempId = values?.id || genUuid();
       const record = { ...values, id: tempId, _offline: true, _pending: 'insert', created_at: values?.created_at || new Date().toISOString(), updated_at: new Date().toISOString() };
-      await putItem(store, record);
-      await addToSyncQueue({ table, operation: 'insert', record_id: tempId, data: { ...values, id: tempId }, timestamp: Date.now() });
+      await persistQueuedMutation({
+        table, operation: 'insert', record_id: tempId, data: { ...values, id: tempId },
+        timestamp: Date.now(), storeName: store, record,
+      });
       return { data: record, error: null, offline: true };
     }
     return { data: null, error, offline: false };
@@ -92,12 +94,15 @@ export async function offlineInsert(table: string, values: any): Promise<{ data:
     created_at: values?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  // Ne confirmer un enregistrement hors ligne qu'après sauvegarde durable locale.
-  if (store) await putItem(store, record);
-  // Ne jamais envoyer les métadonnées IndexedDB au serveur : seules les colonnes
-  // métier sont transmises, avec le même UUID local.
+  // Refuser une confirmation hors ligne si aucune file locale ne peut garantir
+  // la reprise ultérieure de la mutation.
+  if (!store) return { data: null, error: new Error(`Le formulaire ${table} n’est pas encore compatible avec l’enregistrement hors ligne sécurisé.`), offline: true };
+  // Enregistrer dossier et synchronisation dans une seule transaction durable.
   const serverPayload = { ...values, id: tempId };
-  await addToSyncQueue({ table, operation: 'insert', record_id: tempId, data: serverPayload, timestamp: Date.now() });
+  await persistQueuedMutation({
+    table, operation: 'insert', record_id: tempId, data: serverPayload,
+    timestamp: Date.now(), storeName: store, record,
+  });
   return { data: record, error: null, offline: true };
 }
 
@@ -111,17 +116,14 @@ export async function offlineUpdate(table: string, id: string, values: any): Pro
     ["pending", "error", "syncing"].includes(op.status)
   );
   if (pendingInsert) {
-    await putItem(STORES.SYNC_QUEUE, {
-      ...pendingInsert,
-      data: { ...(pendingInsert.data || {}), ...values, id },
+    const existing = store ? await getItem(store, id) : null;
+    const mergedData = { ...(pendingInsert.data || {}), ...values, id };
+    await persistQueuedMutation({
+      table, operation: "insert", record_id: id, data: mergedData,
       timestamp: Math.min(Number(pendingInsert.timestamp) || Date.now(), Date.now()),
-      status: "pending", retries: 0, next_retry_at: 0,
-      error_message: undefined, sync_started_at: undefined,
+      storeName: store, queueId: pendingInsert.id,
+      record: store ? { ...(existing || { id }), ...values, _offline: true, _pending: "insert", updated_at: new Date().toISOString() } : undefined,
     });
-    if (store) {
-      const existing = await getItem(store, id);
-      await putItem(store, { ...(existing || { id }), ...values, _offline: true, _pending: "insert", updated_at: new Date().toISOString() });
-    }
     return { error: null, offline: true };
   }
 
@@ -139,11 +141,13 @@ export async function offlineUpdate(table: string, id: string, values: any): Pro
     }
     if (!error || !isNetworkError(error)) return { error, offline: false };
   }
-  if (store) {
-    const existing = await getItem(store, id);
-    await putItem(store, { ...(existing || { id }), ...values, _offline: true, _pending: 'update', updated_at: new Date().toISOString() });
-  }
-  await addToSyncQueue({ table, operation: 'update', record_id: id, data: values, timestamp: Date.now() });
+  if (!store) return { error: new Error(`Le formulaire ${table} n’est pas compatible avec la modification hors ligne sécurisée.`), offline: true };
+  const existing = await getItem(store, id);
+  await persistQueuedMutation({
+    table, operation: 'update', record_id: id, data: values, timestamp: Date.now(),
+    storeName: store,
+    record: { ...(existing || { id }), ...values, _offline: true, _pending: 'update', updated_at: new Date().toISOString() },
+  });
   return { error: null, offline: true };
 }
 
@@ -154,7 +158,8 @@ export async function offlineDelete(table: string, id: string): Promise<{ error:
     if (!error && store) { try { await deleteItem(store, id); } catch { /* best effort local cache */ } }
     if (!error || !isNetworkError(error)) return { error, offline: false };
   }
-  if (store) { try { await deleteItem(store, id); } catch { /* best effort local cache */ } }
-  await addToSyncQueue({ table, operation: 'delete', record_id: id, data: {}, timestamp: Date.now() });
+  await persistQueuedMutation({
+    table, operation: 'delete', record_id: id, data: {}, timestamp: Date.now(), storeName: store,
+  });
   return { error: null, offline: true };
 }
