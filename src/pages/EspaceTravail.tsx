@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, FileSpreadsheet, Presentation, FolderOpen, Plus, Save, Users, MessageSquare, History, ExternalLink, Paperclip, Send, RefreshCw, Search, Copy, Trash2, Download, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Undo2, Redo2, Link as LinkIcon, Printer, Heading2, Eraser } from "lucide-react";
 import { toast } from "sonner";
 import OfficeFormatTools, { type OfficeDocumentType } from "@/components/workspace/OfficeFormatTools";
+import * as XLSX from "xlsx";
 
 type WorkspaceDoc = {
   id: string; title: string; document_type: "document" | "spreadsheet" | "presentation" | "file";
@@ -76,7 +77,8 @@ function encodeWorkspaceCsv(rows: string[][]): string {
   }).join("\n");
 }
 const WORKSPACE_WORKBOOK_PREFIX = "__AGRICAPITAL_WORKBOOK_V1__\n";
-type WorkspaceSheet = { name: string; rows: string[][] };
+type WorkspaceCellStyle = { background?: string; color?: string; bold?: boolean; align?: "left" | "center" | "right"; format?: "general" | "number" | "currency" | "percent" | "date" };
+type WorkspaceSheet = { name: string; rows: string[][]; styles?: Record<string, WorkspaceCellStyle>; conditionalFormatting?: boolean };
 function parseWorkspaceWorkbook(input: string): WorkspaceSheet[] {
   if (input.startsWith(WORKSPACE_WORKBOOK_PREFIX)) {
     try {
@@ -85,6 +87,8 @@ function parseWorkspaceWorkbook(input: string): WorkspaceSheet[] {
         return parsed.sheets.map((sheet: any, index: number) => ({
           name: typeof sheet.name === "string" && sheet.name.trim() ? sheet.name : "Feuille " + (index + 1),
           rows: Array.isArray(sheet.rows) ? sheet.rows.map((row: any) => Array.isArray(row) ? row.map((cell: any) => String(cell ?? "")) : []) : [[""]],
+          styles: sheet.styles && typeof sheet.styles === "object" ? sheet.styles : {},
+          conditionalFormatting: Boolean(sheet.conditionalFormatting),
         }));
       }
     } catch { /* Fallback to legacy CSV if workbook metadata is damaged. */ }
@@ -92,7 +96,7 @@ function parseWorkspaceWorkbook(input: string): WorkspaceSheet[] {
   return [{ name: "Feuille 1", rows: parseWorkspaceCsv(input) }];
 }
 function encodeWorkspaceWorkbook(sheets: WorkspaceSheet[]): string {
-  const clean = sheets.map((sheet) => ({ name: sheet.name, rows: parseWorkspaceCsv(encodeWorkspaceCsv(sheet.rows)) }));
+  const clean = sheets.map((sheet) => ({ name: sheet.name, rows: sheet.rows, styles: sheet.styles || {}, conditionalFormatting: Boolean(sheet.conditionalFormatting) }));
   if (clean.length <= 1) return encodeWorkspaceCsv(clean[0]?.rows || [[""]]);
   return WORKSPACE_WORKBOOK_PREFIX + JSON.stringify({ sheets: clean });
 }
@@ -150,76 +154,153 @@ function evaluateWorkspaceCell(raw: string, rows: string[][], visited = new Set<
 }
 function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; onChange: (next: string) => void; disabled: boolean }) {
   const [activeSheet, setActiveSheet] = useState(0);
+  const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
+  const [formulaInput, setFormulaInput] = useState("");
   const workbook = parseWorkspaceWorkbook(value);
   const activeIndex = Math.min(activeSheet, workbook.length - 1);
-  const active = workbook[activeIndex] || { name: "Feuille 1", rows: [[""]] };
+  const active = workbook[activeIndex] || { name: "Feuille 1", rows: [[""]], styles: {}, conditionalFormatting: false };
   const parsed = active.rows;
-  const rowCount = Math.min(100, Math.max(12, parsed.length));
-  const colCount = Math.min(26, Math.max(8, ...parsed.map((row) => row.length)));
+  const rowCount = Math.min(200, Math.max(20, parsed.length));
+  const colCount = Math.min(40, Math.max(12, ...parsed.map((row) => row.length)));
   const rows = Array.from({ length: rowCount }, (_, r) => Array.from({ length: colCount }, (_, c) => parsed[r]?.[c] || ""));
-  const chartData = parsed.slice(1).map((row) => ({ label: (row[0] || "").trim(), value: Number((row[1] || "").replace(",", ".")) }))
-    .filter((item) => item.label && Number.isFinite(item.value)).slice(0, 10);
+  const cellKey = (r: number, c: number) => r + ":" + c;
+  const currentValue = parsed[activeCell.r]?.[activeCell.c] || "";
+  const currentStyle = active.styles?.[cellKey(activeCell.r, activeCell.c)] || {};
+  useEffect(() => setFormulaInput(currentValue), [activeIndex, activeCell.r, activeCell.c, currentValue]);
+  const chartData = parsed.slice(1).map((row) => ({ label: (row[0] || "").trim(), value: Number(evaluateWorkspaceCell(row[1] || "", parsed).replace(",", ".")) }))
+    .filter((item) => item.label && Number.isFinite(item.value)).slice(0, 12);
   const chartMax = Math.max(1, ...chartData.map((item) => Math.abs(item.value)));
+  const updateSheet = (patch: Partial<WorkspaceSheet>) => {
+    const next = workbook.map((sheet, index) => index === activeIndex ? { ...sheet, ...patch } : sheet);
+    onChange(encodeWorkspaceWorkbook(next));
+  };
   const updateCell = (r: number, c: number, next: string) => {
     const updatedRows = parsed.map((row) => [...row]);
     while (updatedRows.length <= r) updatedRows.push([]);
     while (updatedRows[r].length <= c) updatedRows[r].push("");
     updatedRows[r][c] = next;
-    const updatedWorkbook = workbook.map((sheet, index) => index === activeIndex ? { ...sheet, rows: updatedRows } : sheet);
-    onChange(encodeWorkspaceWorkbook(updatedWorkbook));
+    updateSheet({ rows: updatedRows });
+  };
+  const updateStyle = (patch: Partial<WorkspaceCellStyle>) => {
+    const styles = { ...(active.styles || {}), [cellKey(activeCell.r, activeCell.c)]: { ...currentStyle, ...patch } };
+    updateSheet({ styles });
   };
   const addSheet = () => {
     const nextName = "Feuille " + (workbook.length + 1);
-    onChange(encodeWorkspaceWorkbook([...workbook, { name: nextName, rows: [[""]] }]));
-    setActiveSheet(workbook.length);
+    onChange(encodeWorkspaceWorkbook([...workbook, { name: nextName, rows: [[""]], styles: {}, conditionalFormatting: false }]));
+    setActiveSheet(workbook.length); setActiveCell({ r: 0, c: 0 });
   };
   const removeSheet = () => {
     if (workbook.length <= 1 || !window.confirm("Supprimer la feuille « " + active.name + " » ?")) return;
     const next = workbook.filter((_, index) => index !== activeIndex);
-    onChange(encodeWorkspaceWorkbook(next));
-    setActiveSheet(Math.max(0, activeIndex - 1));
+    onChange(encodeWorkspaceWorkbook(next)); setActiveSheet(Math.max(0, activeIndex - 1));
   };
   const exportCsv = () => {
-    const blob = new Blob(["\uFEFF" + encodeWorkspaceCsv(rows)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a"); link.href = url; link.download = "tableur-agricapital.csv"; link.click();
-    URL.revokeObjectURL(url);
+    const blob = new Blob(["\uFEFF" + encodeWorkspaceCsv(parsed)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const link = document.createElement("a");
+    link.href = url; link.download = (titleSafe(active.name) || "tableur") + ".csv"; link.click(); URL.revokeObjectURL(url);
   };
-  const importCsv = async (file?: File) => {
+  const importFile = async (file?: File) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { window.alert("Le fichier CSV ne doit pas dépasser 2 Mo."); return; }
-    onChange(await file.text());
+    if (file.size > 15 * 1024 * 1024) { window.alert("Le fichier ne doit pas dépasser 15 Mo."); return; }
+    try {
+      const lower = file.name.toLowerCase();
+      if (lower.endsWith(".csv") || lower.endsWith(".txt")) {
+        const imported = parseWorkspaceCsv(await file.text());
+        onChange(encodeWorkspaceWorkbook([{ name: file.name.replace(/\.[^.]+$/, "").slice(0, 31) || "Feuille 1", rows: imported, styles: {}, conditionalFormatting: false }]));
+      } else {
+        const bytes = await file.arrayBuffer();
+        const book = XLSX.read(bytes, { type: "array", cellDates: true, cellStyles: true, bookVBA: true });
+        const sheets: WorkspaceSheet[] = book.SheetNames.map((name) => {
+          const sheet = book.Sheets[name];
+          const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+          const matrix: string[][] = [];
+          for (let r = range.s.r; r <= Math.min(range.e.r, 199); r++) {
+            const row: string[] = [];
+            for (let c = range.s.c; c <= Math.min(range.e.c, 39); c++) {
+              const cell = sheet[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined;
+              row[c] = cell ? (cell.f ? "=" + cell.f : cell.w ?? (cell.v instanceof Date ? cell.v.toISOString().slice(0, 10) : String(cell.v ?? ""))) : "";
+            }
+            matrix[r] = row;
+          }
+          return { name: name.slice(0, 31), rows: matrix.length ? matrix : [[""]], styles: {}, conditionalFormatting: false };
+        });
+        onChange(encodeWorkspaceWorkbook(sheets.length ? sheets : [{ name: "Feuille 1", rows: [[""]], styles: {}, conditionalFormatting: false }]));
+        toast.success("Classeur importé. Les valeurs et formules reconnues sont chargées ; les fonctions Excel avancées peuvent nécessiter Excel ou un moteur spécialisé.");
+      }
+    } catch (error: any) { toast.error("Import impossible : " + (error?.message || "format non reconnu")); }
   };
-  return <div className="space-y-2">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="text-xs text-muted-foreground">Tableur intégré · CSV · formules simples : =SUM(A1:A5), =AVERAGE(A1:A5), =MIN(A1:A5), =MAX(A1:A5), =COUNT(A1:A5), =A1 ou =2+3</p>
-      <div className="flex gap-2">
-        <label className="cursor-pointer rounded-md border px-3 py-2 text-xs hover:bg-muted">Importer CSV<input type="file" accept=".csv,text/csv" className="hidden" disabled={disabled} onChange={(e) => { void importCsv(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
-        <button type="button" onClick={exportCsv} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter CSV</button>
+  const exportXlsx = () => {
+    try {
+      const book = XLSX.utils.book_new();
+      workbook.forEach((sheet) => {
+        const data = sheet.rows.map((row) => row.map((raw) => raw.trim().startsWith("=") ? { f: raw.trim().slice(1) } : raw));
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        XLSX.utils.book_append_sheet(book, ws, (sheet.name || "Feuille").slice(0, 31));
+      });
+      XLSX.writeFile(book, "agricapital-" + (titleSafe(active.name) || "classeur") + ".xlsx", { bookType: "xlsx", cellStyles: true });
+      toast.success("Classeur XLSX exporté.");
+    } catch (error: any) { toast.error("Export XLSX impossible : " + (error?.message || "erreur inconnue")); }
+  };
+  const formatted = (raw: string, style: WorkspaceCellStyle) => {
+    const result = raw.trim().startsWith("=") ? evaluateWorkspaceCell(raw, parsed) : raw;
+    const n = Number(result.replace(",", "."));
+    if (result.trim() !== "" && Number.isFinite(n) && style.format && style.format !== "general") {
+      if (style.format === "percent") return new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 2 }).format(n);
+      if (style.format === "currency") return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(n);
+      if (style.format === "number") return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 4 }).format(n);
+    }
+    return result;
+  };
+  return <div className="workspace-spreadsheet min-w-0 max-w-full space-y-3">
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0"><p className="text-sm font-semibold">Tableur AgriCapital</p><p className="text-xs text-muted-foreground">Formules, feuilles multiples, styles, import/export Excel et CSV.</p></div>
+        <div className="flex max-w-full flex-wrap gap-2">
+          <label className="cursor-pointer rounded-md border px-3 py-2 text-xs hover:bg-muted">Importer Excel / CSV<input type="file" accept=".xlsx,.xls,.xlsm,.csv,.txt" className="hidden" disabled={disabled} onChange={(e) => { void importFile(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
+          <button type="button" onClick={exportXlsx} disabled={disabled} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter XLSX</button>
+          <button type="button" onClick={exportCsv} disabled={disabled} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter CSV</button>
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-lg border bg-muted/20 p-2">
+        <span className="rounded border bg-background px-2 py-1.5 text-xs font-semibold">{spreadsheetColumn(activeCell.c)}{activeCell.r + 1}</span>
+        <input aria-label="Contenu ou formule de la cellule sélectionnée" value={formulaInput} onChange={(e) => setFormulaInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") updateCell(activeCell.r, activeCell.c, formulaInput); }} disabled={disabled} className="min-w-[120px] flex-1 rounded border bg-background px-2 py-1.5 text-sm" placeholder="Valeur ou formule, ex. =SUM(A1:A5)" />
+        <button type="button" disabled={disabled} onClick={() => updateCell(activeCell.r, activeCell.c, formulaInput)} className="rounded border bg-background px-3 py-1.5 text-xs">Appliquer</button>
+        <button type="button" title="Gras" disabled={disabled} onClick={() => updateStyle({ bold: !currentStyle.bold })} className={"rounded border px-3 py-1.5 text-xs " + (currentStyle.bold ? "bg-primary/10" : "bg-background")}>B</button>
+        <select aria-label="Couleur de fond" disabled={disabled} value={currentStyle.background || ""} onChange={(e) => updateStyle({ background: e.target.value || undefined })} className="max-w-full rounded border bg-background px-2 py-1.5 text-xs"><option value="">Fond</option><option value="#fff2cc">Jaune</option><option value="#d9ead3">Vert</option><option value="#cfe2f3">Bleu</option><option value="#f4cccc">Rouge</option><option value="#eadcf8">Violet</option><option value="#ffffff">Blanc</option></select>
+        <select aria-label="Couleur du texte" disabled={disabled} value={currentStyle.color || ""} onChange={(e) => updateStyle({ color: e.target.value || undefined })} className="max-w-full rounded border bg-background px-2 py-1.5 text-xs"><option value="">Texte</option><option value="#111827">Noir</option><option value="#166534">Vert</option><option value="#1d4ed8">Bleu</option><option value="#b91c1c">Rouge</option><option value="#ffffff">Blanc</option></select>
+        <select aria-label="Alignement de cellule" disabled={disabled} value={currentStyle.align || "left"} onChange={(e) => updateStyle({ align: e.target.value as WorkspaceCellStyle["align"] })} className="max-w-full rounded border bg-background px-2 py-1.5 text-xs"><option value="left">Gauche</option><option value="center">Centrer</option><option value="right">Droite</option></select>
+        <select aria-label="Format numérique" disabled={disabled} value={currentStyle.format || "general"} onChange={(e) => updateStyle({ format: e.target.value as WorkspaceCellStyle["format"] })} className="max-w-full rounded border bg-background px-2 py-1.5 text-xs"><option value="general">Général</option><option value="number">Nombre</option><option value="currency">FCFA</option><option value="percent">Pourcentage</option></select>
+        <label className="flex items-center gap-1 rounded border bg-background px-2 py-1.5 text-xs"><input type="checkbox" checked={Boolean(active.conditionalFormatting)} disabled={disabled} onChange={(e) => updateSheet({ conditionalFormatting: e.target.checked })} />Couleurs automatiques</label>
       </div>
     </div>
-    <div className="flex flex-wrap items-center gap-1">
-      {workbook.map((sheet, index) => <button type="button" key={sheet.name + index} onClick={() => setActiveSheet(index)} className={"rounded-md border px-3 py-1.5 text-xs " + (index === activeIndex ? "border-primary bg-primary/10 font-semibold" : "bg-background hover:bg-muted")}>{sheet.name}</button>)}
+    <div className="flex min-w-0 flex-wrap items-center gap-1">
+      {workbook.map((sheet, index) => <button type="button" key={sheet.name + index} onClick={() => setActiveSheet(index)} className={"max-w-full truncate rounded-md border px-3 py-1.5 text-xs " + (index === activeIndex ? "border-primary bg-primary/10 font-semibold" : "bg-background hover:bg-muted")}>{sheet.name}</button>)}
       <button type="button" disabled={disabled} onClick={addSheet} className="rounded-md border px-3 py-1.5 text-xs hover:bg-muted">+ Feuille</button>
       <button type="button" disabled={disabled || workbook.length <= 1} onClick={removeSheet} className="rounded-md border px-3 py-1.5 text-xs text-destructive hover:bg-muted">Supprimer la feuille</button>
     </div>
-    <div className="max-h-[440px] overflow-auto rounded-lg border">
-      <table className="w-full border-collapse text-sm">
-        <thead className="sticky top-0 z-10 bg-muted"><tr><th className="w-10 border p-2 text-xs text-muted-foreground">#</th>{Array.from({ length: colCount }, (_, c) => <th key={c} className="min-w-32 border p-2 text-xs font-semibold">{spreadsheetColumn(c)}</th>)}</tr></thead>
-        <tbody>{rows.map((row, r) => <tr key={r}><th className="border bg-muted/40 p-1 text-xs text-muted-foreground">{r + 1}</th>{row.map((cell, c) => <td key={c} className="border p-0"><div className="flex min-w-32 flex-col"><input aria-label={spreadsheetColumn(c) + (r + 1)} value={cell} onChange={(e) => updateCell(r, c, e.target.value)} disabled={disabled} className="w-full min-w-32 bg-transparent px-2 py-1.5 outline-none focus:bg-primary/5 focus:ring-1 focus:ring-inset focus:ring-primary" /><span className="min-h-4 px-2 pb-1 text-[11px] text-muted-foreground">{cell.trim().startsWith("=") ? evaluateWorkspaceCell(cell, rows) : ""}</span></div></td>)}</tr>)}</tbody>
+    <div className="w-full max-w-full overflow-x-auto overflow-y-auto rounded-lg border overscroll-x-contain" style={{ maxHeight: "min(62vh, 560px)" }}>
+      <table className="w-max min-w-full border-collapse text-sm">
+        <thead className="sticky top-0 z-10 bg-muted"><tr><th className="sticky left-0 z-20 min-w-10 border bg-muted p-2 text-xs text-muted-foreground">#</th>{Array.from({ length: colCount }, (_, c) => <th key={c} className="min-w-28 border p-2 text-xs font-semibold">{spreadsheetColumn(c)}</th>)}</tr></thead>
+        <tbody>{rows.map((row, r) => <tr key={r}><th className="sticky left-0 z-[1] border bg-muted/80 p-1 text-xs text-muted-foreground">{r + 1}</th>{row.map((cell, c) => {
+          const style = active.styles?.[cellKey(r, c)] || {};
+          const numeric = Number(formatted(cell, style).replace(/[^\d,.-]/g, "").replace(",", "."));
+          const autoColor = active.conditionalFormatting && cell.trim() !== "" && Number.isFinite(numeric) ? (numeric < 0 ? "#fee2e2" : numeric > 0 ? "#dcfce7" : "#fef3c7") : undefined;
+          const selectedCell = activeCell.r === r && activeCell.c === c;
+          return <td key={c} className={"border p-0 " + (selectedCell ? "outline outline-2 outline-primary outline-offset-[-2px]" : "")}><div className="flex min-w-28 flex-col"><input aria-label={spreadsheetColumn(c) + (r + 1)} value={cell} onFocus={() => { setActiveCell({ r, c }); setFormulaInput(cell); }} onChange={(e) => updateCell(r, c, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setActiveCell({ r: Math.min(rowCount - 1, r + 1), c }); } if (e.key === "Tab") { e.preventDefault(); setActiveCell({ r, c: Math.min(colCount - 1, c + 1) }); } }} disabled={disabled} className="w-full min-w-28 bg-transparent px-2 py-1.5 outline-none focus:bg-primary/5" style={{ backgroundColor: autoColor || style.background, color: style.color, fontWeight: style.bold ? 700 : undefined, textAlign: style.align || "left" }} /><span className="min-h-4 truncate px-2 pb-1 text-[11px] text-muted-foreground" title={cell.trim().startsWith("=") ? formatted(cell, style) : ""}>{cell.trim().startsWith("=") ? formatted(cell, style) : ""}</span></div></td>;
+        })}</tr>)}</tbody>
       </table>
     </div>
-    {chartData.length > 0 && <div className="space-y-3 rounded-lg border bg-background p-3">
+    {chartData.length > 0 && <div className="min-w-0 space-y-3 rounded-lg border bg-background p-3">
       <div><p className="text-sm font-semibold">Aperçu du graphique</p><p className="text-xs text-muted-foreground">Libellés : première colonne · Indicateurs : deuxième colonne</p></div>
-      <div className="space-y-2">{chartData.map((item, index) => <div key={item.label + index} className="grid grid-cols-[minmax(70px,1fr)_minmax(90px,3fr)_70px] items-center gap-2 text-xs">
-        <span className="truncate" title={item.label}>{item.label}</span>
-        <div className="h-5 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-primary/80" style={{ width: Math.max(1, Math.abs(item.value) / chartMax * 100) + "%" }} /></div>
-        <span className="text-right tabular-nums">{item.value.toLocaleString("fr-FR")}</span>
+      <div className="space-y-2">{chartData.map((item, index) => <div key={item.label + index} className="grid grid-cols-[minmax(70px,1fr)_minmax(60px,3fr)_70px] items-center gap-2 text-xs">
+        <span className="truncate" title={item.label}>{item.label}</span><div className="h-5 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-primary/80" style={{ width: Math.max(1, Math.abs(item.value) / chartMax * 100) + "%" }} /></div><span className="text-right tabular-nums">{item.value.toLocaleString("fr-FR")}</span>
       </div>)}</div>
     </div>}
-    <p className="text-xs text-muted-foreground">Les formules sont calculées dans l’interface. Les données et les formules restent enregistrées dans le CRM. Pour les modèles Excel complexes et la coédition de type Excel, un éditeur spécialisé reste nécessaire.</p>
+    <p className="text-xs text-muted-foreground">Les formules sont calculées dans l’interface. Les styles et les feuilles sont conservés dans le CRM. Les classeurs complexes, macros, coédition native et calculs Excel complets nécessitent un moteur spécialisé ; l’export XLSX standard conserve les données et formules simples mais pas nécessairement tous les styles Excel avancés.</p>
   </div>;
 }
+function titleSafe(value: string) { return value.replace(/[\\/:*?"<>|]+/g, "-").trim().slice(0, 60); }
 
 
 type WorkspaceSlide = { title: string; body: string };
@@ -567,7 +648,7 @@ export default function EspaceTravail() {
   };
 
   return <ProtectedRoute><MainLayout>
-    <div className="space-y-5">
+    <div className="workspace-root min-w-0 max-w-full space-y-5 overflow-x-clip">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div><h1 className="text-2xl font-bold">Espace de travail</h1><p className="text-sm text-muted-foreground">Documents partagés, commentaires et collaboration des équipes.</p></div>
         <div className="flex flex-wrap gap-2">
@@ -578,10 +659,10 @@ export default function EspaceTravail() {
       <div className="rounded-xl border p-3 text-sm"><b>Documents et formats ouverts</b><p className="mt-1 text-muted-foreground">Importez un fichier pour en extraire le contenu éditable, conservez l’original en pièce jointe et exportez vos travaux vers les formats bureautiques courants. Aucune installation de serveur bureautique n’est requise pour ces fonctions intégrées.</p></div>
       {officeUrl && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><b>Suite bureautique connectée</b><p className="text-sm text-muted-foreground">Ouvrir la suite pour créer ou modifier des fichiers compatibles.</p></div><Button variant="outline" onClick={() => window.open(officeUrl, "_blank", "noopener,noreferrer")}><ExternalLink className="mr-2 h-4 w-4" />Ouvrir la suite</Button></div>}
       <OfficeFormatTools title={title || "Document AgriCapital"} content={content} documentType={documentType} disabled={saving} onImport={importOfficeDocument} />
-      <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.8fr)]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.8fr)]">
         <Card className="min-w-0">
           <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="min-w-0 space-y-2">
             <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher un document…" /></div>
             {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).length === 0 ? <p className="text-sm text-muted-foreground">{searchQuery ? "Aucun résultat pour cette recherche." : "Aucun document pour le moment. Créez-en un pour commencer."}</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).map((doc) =>
               <button key={doc.id} onClick={() => chooseDocument(doc)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}>
@@ -596,7 +677,7 @@ export default function EspaceTravail() {
           {selected ? <>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><TypeIcon type={documentType} />Éditeur collaboratif</CardTitle></CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="min-w-0 space-y-4">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
                   <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
                   <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
