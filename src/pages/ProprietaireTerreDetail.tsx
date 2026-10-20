@@ -67,10 +67,14 @@ const ProprietaireTerreDetail = () => {
       if (parcelRes.error) throw parcelRes.error;
       setOwner(ownerRes.data);
       setOwnerEditForm({ ...(ownerRes.data || {}) });
+      const resolveOwnerMedia = async (value:string|null|undefined, bucket:string) =>
+        await resolveStorageUrl(bucket, value || null) ||
+        await resolveStorageUrl("documents-fonciers", value || null) ||
+        await resolveStorageUrl("documents", value || null);
       const [photoPreview, rectoPreview, versoPreview] = await Promise.all([
-        resolveStorageUrl("photos-profils", ownerRes.data?.photo_profil_url || null),
-        resolveStorageUrl("pieces-identite", ownerRes.data?.fichier_piece_recto_url || null),
-        resolveStorageUrl("pieces-identite", ownerRes.data?.fichier_piece_verso_url || null),
+        resolveOwnerMedia(ownerRes.data?.photo_profil_url, "photos-profils"),
+        resolveOwnerMedia(ownerRes.data?.fichier_piece_recto_url, "pieces-identite"),
+        resolveOwnerMedia(ownerRes.data?.fichier_piece_verso_url, "pieces-identite"),
       ]);
       setOwnerPhotoPreview(photoPreview);
       setOwnerRectoPreview(rectoPreview);
@@ -253,7 +257,7 @@ const ProprietaireTerreDetail = () => {
                   ["Pièce d'identité — verso",ownerVersoPreview],
                 ].map(([label,src]:any)=><div key={label} className="min-w-0 space-y-2 rounded-lg border p-3">
                   <p className="text-xs font-medium">{label}</p>
-                  {src ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={label} className="h-36 w-full rounded-md object-contain bg-muted/20"/></a> : <div className="flex h-36 items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground">Aucun fichier enregistré</div>}
+                  {src ? (String(label).includes("Photo") || /\.(?:jpe?g|png|webp|gif)(?:[?#]|$)/i.test(String(src)) ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={label} className="h-36 w-full rounded-md object-contain bg-muted/20"/></a> : <a href={src} target="_blank" rel="noreferrer" className="flex h-36 items-center justify-center rounded-md bg-muted/20 text-sm font-medium text-primary underline">Ouvrir le document enregistré</a>) : <div className="flex h-36 items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground">Aucun fichier enregistré</div>}
                 </div>)}
               </div>
               {ownerEditing && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
