@@ -63,6 +63,8 @@ export default function Portefeuilles(){
   const [paymentTarget,setPaymentTarget]=useState<any|null>(null);
   const [paymentMethod,setPaymentMethod]=useState("virement");
   const [paymentReference,setPaymentReference]=useState("");
+  const [paymentType,setPaymentType]=useState<"total"|"partiel">("total");
+  const [paymentAmount,setPaymentAmount]=useState("");
   const [paymentProofFile,setPaymentProofFile]=useState<File|null>(null);
   const [periodStart,setPeriodStart]=useState(iso(q.start));
   const [periodEnd,setPeriodEnd]=useState(iso(q.end));
@@ -158,6 +160,8 @@ export default function Portefeuilles(){
     setPaymentTarget(v);
     setPaymentMethod("virement");
     setPaymentReference("");
+    setPaymentType("total");
+    setPaymentAmount(String(Math.max(0,Number(v.montant_brut||0)-Number(v.montant_paye||0))));
     setPaymentProofFile(null);
   };
 
@@ -165,6 +169,11 @@ export default function Portefeuilles(){
     if(!paymentTarget||saving)return;
     if(paymentMethod!=="especes"&&!paymentReference.trim()){
       toast({variant:"destructive",title:"Référence obligatoire",description:"Saisissez la référence réelle du virement, chèque ou paiement Mobile Money."});return;
+    }
+    const remaining=Math.max(0,Number(paymentTarget.montant_brut||0)-Number(paymentTarget.montant_paye||0));
+    const amount=paymentType==="total"?remaining:Number(paymentAmount);
+    if(!Number.isFinite(amount)||amount<=0||amount>remaining){
+      toast({variant:"destructive",title:"Montant invalide",description:"Le montant doit être positif et ne pas dépasser le solde restant."});return;
     }
     setSaving(true);
     try{
@@ -174,15 +183,16 @@ export default function Portefeuilles(){
         if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");
         proofPath=uploaded.path;
       }
-      const {error}=await (supabase as any).rpc("finance_mark_commission_payout_paid",{
+      const {error}=await (supabase as any).rpc("finance_record_commission_payout_payment",{
         p_versement_id:paymentTarget.id,
+        p_montant:amount,
         p_mode_paiement:paymentMethod,
         p_reference:paymentReference.trim(),
         p_preuve_paiement_url:proofPath
       });
       if(error)throw error;
-      toast({title:"Paiement enregistré",description:"Le statut du versement, les commissions et l’écriture comptable ont été enregistrés ensemble."});
-      setPaymentTarget(null);setPaymentReference("");setPaymentProofFile(null);
+      toast({title:paymentType==="total"?"Paiement enregistré":"Paiement partiel enregistré",description:"Le paiement, le solde restant, les commissions et l’écriture comptable ont été enregistrés ensemble."});
+      setPaymentTarget(null);setPaymentReference("");setPaymentProofFile(null);setPaymentAmount("");
       await load();
     }catch(e:any){toast({variant:"destructive",title:"Paiement non confirmé",description:e?.message||"Le versement n’a pas été marqué comme payé."});}
     finally{setSaving(false);}
