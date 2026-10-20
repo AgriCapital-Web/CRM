@@ -1,0 +1,9 @@
+{$NEXTCLOUD_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy nextcloud:80
+}
+
+{$ONLYOFFICE_DOMAIN} {
+  encode zstd gzip
+  reverse_proxy onlyoffice:80
+}
