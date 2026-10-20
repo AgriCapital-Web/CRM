@@ -10,6 +10,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { uploadFile } from "@/utils/storage";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -57,6 +60,10 @@ export default function Portefeuilles(){
   const [versementPage,setVersementPage]=useState(1);
   const pageSize=useResponsivePageSize();
   const [selected,setSelected]=useState<any|null>(null);
+  const [paymentTarget,setPaymentTarget]=useState<any|null>(null);
+  const [paymentMethod,setPaymentMethod]=useState("virement");
+  const [paymentReference,setPaymentReference]=useState("");
+  const [paymentProofFile,setPaymentProofFile]=useState<File|null>(null);
   const [periodStart,setPeriodStart]=useState(iso(q.start));
   const [periodEnd,setPeriodEnd]=useState(iso(q.end));
 
@@ -124,61 +131,60 @@ export default function Portefeuilles(){
 
   const generate=async()=>{
     if(!canManage||saving)return;
+    if(!periodStart||!periodEnd||periodEnd<periodStart){toast({variant:"destructive",title:"Période invalide",description:"La date de fin doit être égale ou postérieure à la date de début."});return;}
     setSaving(true);
     try{
-      const { data: userData, error: authError } = await supabase.auth.getUser();
-      if(authError)throw authError;
-      const eligible=commissions.filter((c:any)=>(c.statut==="calculee"||c.statut==="validee")&&!commissionIdsAlreadyLinked.has(c.id)&&c.periode>=periodStart&&c.periode<=periodEnd&&visibleProfiles.some((p:any)=>p.id===c.profile_id));
-      const groups=new Map<string,any[]>();
-      eligible.forEach((c:any)=>{if(!groups.has(c.profile_id))groups.set(c.profile_id,[]);groups.get(c.profile_id)!.push(c);});
-      if(groups.size===0){toast({title:"Aucune commission à générer",description:"Aucune commission admissible ne correspond à la période sélectionnée."});return;}
-      for(const [profileId,items] of groups){
-        const amount=items.reduce((s:number,c:any)=>s+Number(c.montant_commission||0),0);
-        const {data:v,error}=await (supabase as any).from("portefeuille_versements").upsert({profile_id:profileId,periode_debut:periodStart,periode_fin:periodEnd,montant_brut:amount,montant_paye:amount,statut:"brouillon",created_by:userData.user?.id||null,updated_at:new Date().toISOString()},{onConflict:"profile_id,periode_debut,periode_fin"}).select().single();
-        if(error)throw error;
-        if(!v?.id)throw new Error("Le versement n’a pas été confirmé par la base de données.");
-        const {error:linesError}=await (supabase as any).from("portefeuille_versement_lignes").upsert(items.map((c:any)=>({versement_id:v.id,commission_id:c.id,montant:c.montant_commission})),{onConflict:"versement_id,commission_id"});
-        if(linesError)throw new Error(`Versement créé pour un collaborateur, mais ses lignes de commissions n’ont pas été enregistrées : ${linesError.message}. Relancez la génération pour compléter les lignes manquantes.`);
-      }
-      toast({title:"Génération terminée",description:`${groups.size} versement(s) créé(s) ou actualisé(s).`});await load();
-    }catch(e:any){toast({variant:"destructive",title:"Génération impossible",description:e?.message||"Erreur."});}
+      const {data,error}=await (supabase as any).rpc("finance_generate_commission_payouts",{p_period_start:periodStart,p_period_end:periodEnd});
+      if(error)throw error;
+      toast({title:"Génération terminée",description:`${Number(data||0)} versement(s) préparé(s) dans la base. Les lignes et les montants ont été créés atomiquement.`});
+      await load();
+    }catch(e:any){toast({variant:"destructive",title:"Génération impossible",description:e?.message||"Aucun versement confirmé."});}
     finally{setSaving(false);}
   };
 
   const validatePayout=async(v:any)=>{
-    if(!canManage)return;
+    if(!canManage||saving)return;
     setSaving(true);
     try{
-      const {data:userData}=await supabase.auth.getUser();
-      const {error}=await (supabase as any).from("portefeuille_versements").update({statut:"valide",valide_par:profiles.find((p:any)=>p.user_id===user?.id)?.id||null,date_validation:new Date().toISOString()}).eq("id",v.id);
+      const {error}=await (supabase as any).rpc("finance_validate_commission_payout",{p_versement_id:v.id});
       if(error)throw error;
-      const ids=(v.lines||[]).map((x:any)=>x.commission_id);
-      if(ids.length){
-        const {error:commissionsError}=await (supabase as any).from("commissions").update({statut:"validee",date_validation:new Date().toISOString()}).in("id",ids);
-        if(commissionsError)throw new Error(`Le versement est validé, mais la mise à jour des commissions a échoué : ${commissionsError.message}. Réessayez après vérification.`);
-      }
-      toast({title:"Versement validé"});await load();
-    }catch(e:any){toast({variant:"destructive",title:"Validation impossible",description:e?.message||"Erreur."});}
+      toast({title:"Versement validé",description:"Les commissions ont été validées dans la même transaction."});
+      await load();
+    }catch(e:any){toast({variant:"destructive",title:"Validation impossible",description:e?.message||"Le versement n’a pas été validé."});}
     finally{setSaving(false);}
   };
 
-  const markPaid=async(v:any)=>{
-    if(!canManage)return;
+  const markPaid=(v:any)=>{
+    setPaymentTarget(v);
+    setPaymentMethod("virement");
+    setPaymentReference("");
+    setPaymentProofFile(null);
+  };
+
+  const confirmMarkPaid=async()=>{
+    if(!paymentTarget||saving)return;
+    if(paymentMethod!=="especes"&&!paymentReference.trim()){
+      toast({variant:"destructive",title:"Référence obligatoire",description:"Saisissez la référence réelle du virement, chèque ou paiement Mobile Money."});return;
+    }
     setSaving(true);
     try{
-      const {data:userData}=await supabase.auth.getUser();
-      const payer=profiles.find((p:any)=>p.user_id===userData.user?.id)?.id||null;
-      const {error}=await (supabase as any).from("portefeuille_versements").update({statut:"paye",paye_par:payer,date_paiement:new Date().toISOString(),montant_paye:Number(v.montant_brut||0)}).eq("id",v.id);
-      if(error)throw error;
-      const ids=(v.lines||[]).map((x:any)=>x.commission_id);
-      if(ids.length){
-        const {error:commissionsError}=await (supabase as any).from("commissions").update({statut:"payee"}).in("id",ids);
-        if(commissionsError)throw new Error(`Le versement est marqué payé, mais la mise à jour des commissions a échoué : ${commissionsError.message}. Réessayez après vérification.`);
+      let proofPath:string|null=null;
+      if(paymentProofFile){
+        const uploaded=await uploadFile("documents",paymentProofFile,"finance/commissions");
+        if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");
+        proofPath=uploaded.path;
       }
-      const {error:recalculationError}=await (supabase as any).rpc("recalculer_portefeuilles_commissions");
-      if(recalculationError)throw new Error(`Le paiement est enregistré, mais le recalcul des portefeuilles a échoué : ${recalculationError.message}.`);
-      toast({title:"Versement enregistré"});await load();
-    }catch(e:any){toast({variant:"destructive",title:"Paiement impossible",description:e?.message||"Erreur."});}
+      const {error}=await (supabase as any).rpc("finance_mark_commission_payout_paid",{
+        p_versement_id:paymentTarget.id,
+        p_mode_paiement:paymentMethod,
+        p_reference:paymentReference.trim(),
+        p_preuve_paiement_url:proofPath
+      });
+      if(error)throw error;
+      toast({title:"Paiement enregistré",description:"Le statut du versement, les commissions et l’écriture comptable ont été enregistrés ensemble."});
+      setPaymentTarget(null);setPaymentReference("");setPaymentProofFile(null);
+      await load();
+    }catch(e:any){toast({variant:"destructive",title:"Paiement non confirmé",description:e?.message||"Le versement n’a pas été marqué comme payé."});}
     finally{setSaving(false);}
   };
 
@@ -267,6 +273,18 @@ export default function Portefeuilles(){
                   <TableCell>{c.periode?format(new Date(c.periode),"dd/MM/yyyy"):"—"}</TableCell>
                 </TableRow>)}</TableBody></Table>
               </div>
+            </div>}
+          </DialogContent>
+        </Dialog>
+        <Dialog open={!!paymentTarget} onOpenChange={(open)=>{if(!open&&!saving)setPaymentTarget(null);}}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Enregistrer le paiement des commissions</DialogTitle></DialogHeader>
+            {paymentTarget&&<div className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-3"><p className="text-sm text-muted-foreground">Collaborateur</p><p className="font-semibold">{profiles.find((p:any)=>p.id===paymentTarget.profile_id)?.nom_complet||"Collaborateur"}</p><p className="mt-2 text-sm text-muted-foreground">Montant à payer</p><p className="text-xl font-bold">{money(paymentTarget.montant_brut)}</p></div>
+              <div className="space-y-1"><Label>Mode de paiement</Label><Select value={paymentMethod} onValueChange={setPaymentMethod}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>
+              <div className="space-y-1"><Label>Référence réelle {paymentMethod==="especes"?"(facultative)":"(obligatoire)"}</Label><Input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)} placeholder="Référence bancaire / Mobile Money / chèque"/></div>
+              <div className="space-y-1"><Label>Justificatif (facultatif)</Label><Input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={e=>setPaymentProofFile(e.target.files?.[0]||null)}/><p className="text-xs text-muted-foreground">{paymentProofFile?.name||"Joindre le reçu ou la preuve du paiement réel."}</p></div>
+              <div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setPaymentTarget(null)} disabled={saving}>Annuler</Button><Button onClick={()=>void confirmMarkPaid()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement effectué"}</Button></div>
             </div>}
           </DialogContent>
         </Dialog>
