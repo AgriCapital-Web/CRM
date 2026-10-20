@@ -90,7 +90,8 @@ const ConfigurationSysteme = () => {
       void logActivity({ tableName: "configurations_systeme", recordId: id, action: "UPDATE", details: "Configuration système modifiée" });
       setEditedValues((prev) => {
         const next = { ...prev };
-        delete next[id];
+        // Conserver toute nouvelle modification saisie pendant la requête.
+        if (next[id] === valeur) delete next[id];
         return next;
       });
       toast({ title: "Configuration enregistrée", description: "La valeur a été sauvegardée." });
@@ -113,7 +114,20 @@ const ConfigurationSysteme = () => {
     onSuccess: async (result) => {
       const saved = typeof result === "number" ? result : result.saved;
       await queryClient.invalidateQueries({ queryKey: ["configurations"] });
-      setEditedValues({});
+      setEditedValues((prev) => {
+        const next = { ...prev };
+        if (typeof result !== "number") {
+          for (const change of result.changes) {
+            if (next[change.id] === change.valeur) delete next[change.id];
+          }
+        } else {
+          for (const [id, valeur] of Object.entries(next)) {
+            const savedValue = configurations?.find((item) => item.id === id)?.valeur;
+            if (savedValue === valeur) delete next[id];
+          }
+        }
+        return next;
+      });
       if (typeof result !== "number") {
         for (const change of result.changes) {
           void logActivity({ tableName: "configurations_systeme", recordId: change.id, action: "UPDATE", details: "Configuration système modifiée via l’enregistrement groupé", nouvellesValeurs: { valeur: change.valeur } });

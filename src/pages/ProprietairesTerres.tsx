@@ -75,7 +75,7 @@ const ProprietairesTerres = () => {
     lieu_residence: "",
     district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
     surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
-    type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
+    type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "",
     statut_foncier: "coutumier", reference_cadastrale: "",
     limites_nord: "", limites_sud: "", limites_est: "", limites_ouest: "",
     servitudes: "", croquis_joint: false,
@@ -395,7 +395,7 @@ const ProprietairesTerres = () => {
       date_delivrance_piece: "", lieu_residence: "", district_id: "", region_id: "",
       departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
       surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
-      type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
+      type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "",
       statut_foncier: "coutumier", reference_cadastrale: "",
       limites_nord: "", limites_sud: "", limites_est: "", limites_ouest: "",
       servitudes: "", croquis_joint: false,
@@ -667,7 +667,7 @@ const ProprietairesTerres = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Nombre de lots AgriCapital (1 ha / lot)</Label>
-                          <Input type="number" min="0" step="1" value={formData.nombre_lots_agricapital} onChange={e => update('nombre_lots_agricapital', e.target.value)} />
+                          <Input type="number" min="0" step="1" value={formData.nombre_lots_agricapital ?? ""} onChange={e => update('nombre_lots_agricapital', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <Label>Date de signature convention</Label>

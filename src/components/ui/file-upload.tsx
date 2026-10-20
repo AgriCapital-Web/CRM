@@ -37,12 +37,15 @@ const FileUpload = ({
 
     if (file.size > maxSizeBytes) {
       setError(`Le fichier est trop volumineux (max: ${Math.round(maxSizeBytes / 1024 / 1024)}MB)`);
+      e.currentTarget.value = "";
       return;
     }
 
     setPreviewType(file.type);
     const reader=new FileReader(); reader.onload=()=>setPreview(String(reader.result||"")); reader.readAsDataURL(file);
     onFileSelect(file);
+    // Permet de sélectionner à nouveau le même fichier après remplacement ou erreur.
+    e.currentTarget.value = "";
   };
 
   const handleClick = () => {

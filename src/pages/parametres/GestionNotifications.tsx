@@ -179,21 +179,23 @@ const GestionNotifications = () => {
   };
 
   const createCampaign = async () => {
-    if (!campaign.nom.trim() || !campaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
-    if ((campaign.canal === "sms" || campaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
-    if (campaign.canal === "whatsapp" && whatsappCount > 350) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 350.`);
-    const selected = campaign.segment_id || segments.find((s) => s.code === campaign.audience)?.id || null;
+    const submittedCampaign = { ...campaign };
+    const submittedMedia = [...campaignMedia];
+    if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
+    if ((submittedCampaign.canal === "sms" || submittedCampaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
+    if (submittedCampaign.canal === "whatsapp" && whatsappCount > 350) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 350.`);
+    const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
     const { error } = await (supabase as any).from("notification_campaigns").insert({
-      nom: campaign.nom.trim(), description: campaign.description || null, canal: campaign.canal,
-      sujet: campaign.sujet || null, contenu: campaign.canal.includes("sms") ? normalizeSms(campaign.contenu) : campaign.contenu,
-      media_attachments: campaignMedia, segment_id: selected, criteres: { audience: campaign.audience },
-      statut: campaign.programme_le ? "programme" : "brouillon",
-      programme_le: campaign.programme_le ? new Date(campaign.programme_le).toISOString() : null,
+      nom: submittedCampaign.nom.trim(), description: submittedCampaign.description || null, canal: submittedCampaign.canal,
+      sujet: submittedCampaign.sujet || null, contenu: submittedCampaign.canal.includes("sms") ? normalizeSms(submittedCampaign.contenu) : submittedCampaign.contenu,
+      media_attachments: submittedMedia, segment_id: selected, criteres: { audience: submittedCampaign.audience },
+      statut: submittedCampaign.programme_le ? "programme" : "brouillon",
+      programme_le: submittedCampaign.programme_le ? new Date(submittedCampaign.programme_le).toISOString() : null,
     });
     if (error) return toast.error(error.message);
-    toast.success(campaign.programme_le ? "Campagne programmee" : "Campagne enregistree");
-    setCampaign({ nom: "", description: "", canal: "app", sujet: "", contenu: "", segment_id: "", audience: "tous", programme_le: "" });
-    setCampaignMedia([]);
+    toast.success(submittedCampaign.programme_le ? "Campagne programmee" : "Campagne enregistree");
+    setCampaign((current) => JSON.stringify(current) === JSON.stringify(submittedCampaign) ? { nom: "", description: "", canal: "app", sujet: "", contenu: "", segment_id: "", audience: "tous", programme_le: "" } : current);
+    setCampaignMedia((current) => JSON.stringify(current) === JSON.stringify(submittedMedia) ? [] : current);
     await load();
   };
 
@@ -206,21 +208,23 @@ const GestionNotifications = () => {
   };
 
   const saveAutomation = async () => {
-    if (!automation.nom.trim() || !automation.code.trim() || !automation.contenu.trim()) return toast.error("Code, nom et contenu obligatoires");
-    if ((automation.canal === "sms" || automation.canal === "email_sms") && automationSmsCount > 155) return toast.error(`Le SMS fait ${automationSmsCount} caractères : limite 155, espaces et signes compris.`);
-    if (automation.canal === "whatsapp" && automationWhatsappCount > 350) return toast.error(`Le message WhatsApp fait ${automationWhatsappCount} caractères : limite 350.`);
+    const submittedAutomation = { ...automation };
+    const submittedMedia = [...automationMedia];
+    if (!submittedAutomation.nom.trim() || !submittedAutomation.code.trim() || !submittedAutomation.contenu.trim()) return toast.error("Code, nom et contenu obligatoires");
+    if ((submittedAutomation.canal === "sms" || submittedAutomation.canal === "email_sms") && automationSmsCount > 155) return toast.error(`Le SMS fait ${automationSmsCount} caractères : limite 155, espaces et signes compris.`);
+    if (submittedAutomation.canal === "whatsapp" && automationWhatsappCount > 350) return toast.error(`Le message WhatsApp fait ${automationWhatsappCount} caractères : limite 350.`);
     const { error } = await (supabase as any).from("notification_automations").upsert({
-      code: automation.code.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_"),
-      nom: automation.nom.trim(), description: automation.description || null,
-      evenement: automation.evenement, canal: automation.canal, sujet: automation.sujet || null,
-      contenu: automation.canal.includes("sms") ? normalizeSms(automation.contenu) : automation.contenu,
-      media_attachments: automationMedia, criteres: { audience: automation.audience }, actif: automation.actif,
-      cooldown_minutes: Math.max(0, Number(automation.cooldown_minutes) || 0),
+      code: submittedAutomation.code.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_"),
+      nom: submittedAutomation.nom.trim(), description: submittedAutomation.description || null,
+      evenement: submittedAutomation.evenement, canal: submittedAutomation.canal, sujet: submittedAutomation.sujet || null,
+      contenu: submittedAutomation.canal.includes("sms") ? normalizeSms(submittedAutomation.contenu) : submittedAutomation.contenu,
+      media_attachments: submittedMedia, criteres: { audience: submittedAutomation.audience }, actif: submittedAutomation.actif,
+      cooldown_minutes: Math.max(0, Number(submittedAutomation.cooldown_minutes) || 0),
     }, { onConflict: "code" });
     if (error) return toast.error(error.message);
     toast.success("Automatisation enregistree");
-    setAutomation({ ...automation, code: "", nom: "", description: "", sujet: "", contenu: "" });
-    setAutomationMedia([]);
+    setAutomation((current) => JSON.stringify(current) === JSON.stringify(submittedAutomation) ? { ...submittedAutomation, code: "", nom: "", description: "", sujet: "", contenu: "" } : current);
+    setAutomationMedia((current) => JSON.stringify(current) === JSON.stringify(submittedMedia) ? [] : current);
     await load();
   };
 

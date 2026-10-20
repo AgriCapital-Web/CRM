@@ -30,6 +30,7 @@ const NouvelleAcquisition = () => {
   const [current,setCurrent]=useState(0);
   const [brouillonId,setBrouillonId]=useState<string|null>(null);
   const [saving,setSaving]=useState(false);
+  const [draftLoading,setDraftLoading]=useState(true);
   const [loadingSteps,setLoadingSteps]=useState(false);
   const [syncState,setSyncState]=useState<SyncState>("draft");
   const {toast}=useToast();
@@ -96,32 +97,40 @@ const NouvelleAcquisition = () => {
     return ()=>{active=false;};
   },[searchParams]);
 
-  // Restaurer le brouillon sans écraser les valeurs déjà saisies ou préremplies.
+  // Restaurer le brouillon avant d'autoriser la saisie : un chargement réseau tardif
+  // ne doit jamais interférer avec les premières modifications de l'utilisateur.
   useEffect(()=>{
     let mounted=true;
+    setDraftLoading(true);
     (async()=>{
-      const currentUser = user;
-      if(!currentUser) return;
-      let data: any[] = [];
       try {
-        const result = await (supabase as any).from("acquisitions_brouillon").select("*").eq("created_by",currentUser.id).order("updated_at",{ascending:false}).limit(1);
-        if (result.error) throw result.error;
-        data = result.data || [];
-      } catch {
-        const cached = await getCachedItems(STORES.ACQUISITIONS_BROUILLON);
-        data = cached
-          .filter((x: any) => x?.created_by === currentUser.id)
-          .sort((a: any,b: any) => String(b?.updated_at||"").localeCompare(String(a?.updated_at||"")))
-          .slice(0,1);
+        const currentUser = user;
+        if(!currentUser) return;
+        let data: any[] = [];
+        try {
+          const result = await (supabase as any).from("acquisitions_brouillon").select("*").eq("created_by",currentUser.id).order("updated_at",{ascending:false}).limit(1);
+          if (result.error) throw result.error;
+          data = result.data || [];
+        } catch {
+          const cached = await getCachedItems(STORES.ACQUISITIONS_BROUILLON);
+          data = cached
+            .filter((x: any) => x?.created_by === currentUser.id)
+            .sort((a: any,b: any) => String(b?.updated_at||"").localeCompare(String(a?.updated_at||"")))
+            .slice(0,1);
+        }
+        if(!mounted) return;
+        if(data?.[0]) {
+          const draft=data[0];
+          setBrouillonId(draft.id);
+          setFormData((current:any)=>({...draft.donnees,...current}));
+          setCurrent((current:number)=>current===0?Math.max(0,Number(draft.etape_actuelle||0)):current);
+        }
+      } catch (error) {
+        console.error("[Acquisition] Impossible de restaurer le brouillon",error);
+      } finally {
+        if(mounted) setDraftLoading(false);
       }
-      if(!mounted) return;
-      if(data?.[0]) {
-        const draft=data[0];
-        setBrouillonId(draft.id);
-        setFormData((current:any)=>({...draft.donnees,...current}));
-        setCurrent((current:number)=>current===0?Math.max(0,Number(draft.etape_actuelle||0)):current);
-      }
-    })().catch((error)=>console.error("[Acquisition] Impossible de restaurer le brouillon",error));
+    })();
     return()=>{mounted=false;};
   },[user]);
 
@@ -349,10 +358,10 @@ const NouvelleAcquisition = () => {
   return <ProtectedRoute requiredPermissionCode="clients.create"><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
     <div><h1 className="text-3xl font-bold">Nouveau Client</h1><SyncStatusBadge state={syncState} className="mt-2"/></div>
     <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>i<=current&&setCurrent(i)}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
-    <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:renderStep()}</Card>
+    <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:renderStep()}</Card>
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-      <Button variant="outline" onClick={()=>setCurrent(v=>Math.max(0,v-1))} disabled={current===0||saving}><ChevronLeft className="mr-2 h-4 w-4"/>Précédent</Button>
-      {!last?<Button onClick={next} disabled={saving||loadingSteps}>{saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:<Button size="lg" onClick={submit} disabled={saving}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}
+      <Button variant="outline" onClick={()=>setCurrent(v=>Math.max(0,v-1))} disabled={current===0||saving||draftLoading||loadingSteps}><ChevronLeft className="mr-2 h-4 w-4"/>Précédent</Button>
+      {!last?<Button onClick={next} disabled={saving||draftLoading||loadingSteps}>{saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:<Button size="lg" onClick={submit} disabled={saving||draftLoading}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}
     </div>
   </div></MainLayout></ProtectedRoute>;
 };

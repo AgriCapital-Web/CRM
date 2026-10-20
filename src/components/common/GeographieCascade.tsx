@@ -39,7 +39,7 @@ export default function GeographieCascade({
   const [sousPrefectures, setSousPrefectures] = useState<GeoRow[]>([]);
   const [villages, setVillages] = useState<GeoRow[]>([]);
   const [villageSearch, setVillageSearch] = useState("");
-  const [villageFocused, setVillageFocused] = useState(false);
+  const [villageDropdownOpen, setVillageDropdownOpen] = useState(false);
   const [villageMatches, setVillageMatches] = useState<GeoRow[]>([]);
   const [searchingVillages, setSearchingVillages] = useState(false);
   const [tick, setTick] = useState(0);
@@ -133,7 +133,7 @@ export default function GeographieCascade({
   useEffect(() => {
     let active = true;
     const term = villageSearch.trim();
-    if (term.length < 2 && !(villageFocused && districtId)) {
+    if (term.length < 2 && !(villageDropdownOpen && districtId)) {
       setVillageMatches([]);
       setSearchingVillages(false);
       return () => { active = false; };
@@ -191,7 +191,7 @@ export default function GeographieCascade({
       }catch{if(active){setVillageMatches([]);setSearchingVillages(false);}}
     },180);
     return()=>{active=false;clearTimeout(timer);};
-  }, [villageSearch,villageFocused,districtId,regionId,departementId,sousPrefectureId,tick,offline]);
+  }, [villageSearch,villageDropdownOpen,districtId,regionId,departementId,sousPrefectureId,tick,offline]);
 
   const villageOptions = useMemo(() => {
     const source = sousPrefectureId ? villages : villageMatches;
@@ -232,7 +232,7 @@ export default function GeographieCascade({
       villageId: id, villageName: name || match?.nom || null,
     });
     setVillageSearch(name || match?.nom || "");
-    setVillageFocused(false);
+    setVillageDropdownOpen(false);
     setVillageMatches([]);
   };
 
@@ -273,16 +273,17 @@ export default function GeographieCascade({
       </div>}
       {showVillage && <div className="space-y-2 relative"><Label>Village / localité{required ? " *" : ""}</Label>
         <input value={villageSearch || ([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || "")}
-          onChange={(e) => { const value=e.target.value; setVillageSearch(value); onChange({ villageId:null, villageName:value }); }}
-          onFocus={() => { setVillageFocused(true); if (villageId) setVillageSearch([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || villageSearch); }}
-          onBlur={() => { window.setTimeout(() => setVillageFocused(false), 160); }}
-          autoComplete="off" role="combobox" aria-expanded={villageMatches.length > 0}
-          placeholder={sousPrefectureId ? "Rechercher un village" : "Saisir le village ou la localité"}
+          onChange={(e) => { const value=e.target.value; setVillageSearch(value); setVillageDropdownOpen(true); onChange({ villageId:null, villageName:value }); }}
+          onClick={() => { setVillageDropdownOpen(true); if (villageId) setVillageSearch(""); }}
+          onBlur={() => { window.setTimeout(() => setVillageDropdownOpen(false), 160); }}
+          autoComplete="off" role="combobox" aria-expanded={villageDropdownOpen && villageMatches.length > 0}
+          aria-autocomplete="list"
+          placeholder={sousPrefectureId ? "Cliquer puis rechercher un village" : "Cliquer pour rechercher ou saisir une localité"}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
         {searchingVillages && <p className="text-xs text-muted-foreground mt-1">Recherche des localités…</p>}
         {villageSearch.trim().length >= 2 && !searchingVillages && villageMatches.length === 0 && !villageId &&
           <p className="text-xs text-muted-foreground mt-1">Aucun village correspondant dans les localités accessibles.</p>}
-        {villageMatches.length > 0 && <div className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-lg">
+        {villageDropdownOpen && villageMatches.length > 0 && <div className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-lg">
           {villageMatches.map((v) => <button type="button" key={v.id} className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
             onMouseDown={(e) => e.preventDefault()} onClick={() => void selectVillage(v.id, v.nom)}>
             <span>{v.nom}</span>{v.sous_prefecture_id && <span className="ml-2 text-xs text-muted-foreground">Sélectionner pour renseigner la hiérarchie</span>}
