@@ -161,7 +161,9 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
     .filter((item) => item.label && Number.isFinite(item.value)).slice(0, 10);
   const chartMax = Math.max(1, ...chartData.map((item) => Math.abs(item.value)));
   const updateCell = (r: number, c: number, next: string) => {
-    const updatedRows = rows.map((row) => [...row]);
+    const updatedRows = parsed.map((row) => [...row]);
+    while (updatedRows.length <= r) updatedRows.push([]);
+    while (updatedRows[r].length <= c) updatedRows[r].push("");
     updatedRows[r][c] = next;
     const updatedWorkbook = workbook.map((sheet, index) => index === activeIndex ? { ...sheet, rows: updatedRows } : sheet);
     onChange(encodeWorkspaceWorkbook(updatedWorkbook));
