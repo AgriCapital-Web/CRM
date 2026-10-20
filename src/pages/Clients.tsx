@@ -41,7 +41,7 @@ const Clients = () => {
   const { can } = usePermissions();
   const { profile, userRoles } = useAuth();
   const serviceClient = (userRoles || []).some((role:string) => ["service_client","chef_equipe_service_client"].includes(role)) || String(profile?.poste || "").toLowerCase().includes("service client") || String(profile?.relation_rh || "").toLowerCase().includes("service client");
-  const canEditClient = can("clients.update") && !serviceClient;
+  const canEditClient = can("clients.update");
   const canDeleteClient = can("clients.delete") && !serviceClient;
   const [clients, setClients] = useState<any[]>([]);
   const [attributions, setAttributions] = useState<any[]>([]);
