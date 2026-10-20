@@ -240,9 +240,13 @@ const GestionNotifications = () => {
     if (error) toast.error(error.message); else await load();
   };
   const uploadMedia = async (files: FileList | null, target: "campaign" | "automation") => {
-    if (!files?.length) return; const { data: { user } } = await supabase.auth.getUser(); if (!user) return toast.error("Connexion requise.");
+    if (!files?.length) return;
+    // FileList is live and the input is reset immediately after selection; snapshot it before awaiting auth.
+    const selectedFiles = Array.from(files);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return toast.error("Connexion requise.");
     setUploadingMedia(true); const uploaded: MediaAttachment[]=[];
-    try { for (const original of Array.from(files)) {
+    try { for (const original of selectedFiles) {
       if(original.type.startsWith("video/")) { const probeUrl=URL.createObjectURL(original); try { const duration=await new Promise<number>((resolve,reject)=>{const probe=document.createElement("video");probe.preload="metadata";probe.onloadedmetadata=()=>resolve(probe.duration);probe.onerror=()=>reject(new Error("Vidéo illisible : "+original.name));probe.src=probeUrl;}); if(duration>30*60)throw new Error(original.name+" dépasse la durée maximale de 30 minutes."); } finally { URL.revokeObjectURL(probeUrl); } }
       const optimizedImage=await compressImage(original), file=await compressVideo(optimizedImage), name=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"), path=`${user.id}/${crypto.randomUUID()}-${name}`;
       const {error}=await supabase.storage.from("notification-media").upload(path,file,{contentType:file.type||"application/octet-stream"});

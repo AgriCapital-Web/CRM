@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/integrations/supabase/client";
 import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
@@ -67,19 +67,26 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     fetchClients();
   }, []);
 
-  // Quand type de paiement change
+  // Ne réinitialiser les relations qu'après un vrai changement de type effectué
+  // après l'initialisation. Le type initial est parfois chargé du référentiel de façon
+  // asynchrone : il ne doit jamais effacer un client déjà choisi pendant ce chargement.
+  const previousPaymentTypeRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (typePaiement && !paiement) {
-      setValue("client_id", "");
-      setValue("plantation_id", "");
-      setValue("acquisition_id", "");
-      setSelectedClient(null);
-      setSelectedPlantation(null);
-      setSelectedAcquisition(null);
-      setClientAcquisitions([]);
-      setPlantations([]);
-    }
-  }, [typePaiement, setValue]);
+    if (!typePaiement) return;
+    const previousType = previousPaymentTypeRef.current;
+    previousPaymentTypeRef.current = typePaiement;
+    if (!previousType || previousType === typePaiement || paiement) return;
+
+    setValue("client_id", "");
+    setValue("plantation_id", "");
+    setValue("acquisition_id", "");
+    setSelectedClient(null);
+    setSelectedPlantation(null);
+    setSelectedAcquisition(null);
+    setAcquisitionPaymentState(null);
+    setClientAcquisitions([]);
+    setPlantations([]);
+  }, [typePaiement, paiement, setValue]);
 
   // Quand client change : charger ses plantations et toutes ses acquisitions financières.
   useEffect(() => {

@@ -384,8 +384,11 @@ const GestionCartes = () => {
                 accept="image/*"
                 className="hidden"
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f && carteSelection) changerPhoto(carteSelection, f);
+                  const input = e.currentTarget;
+                  const selectedFile = input.files?.[0];
+                  // Allow selecting the same photo again after a failed upload or correction.
+                  input.value = "";
+                  if (selectedFile && carteSelection) void changerPhoto(carteSelection, selectedFile);
                 }}
               />
               <Button variant="outline" asChild><span><Upload className="mr-1 h-4 w-4" />Photo</span></Button>

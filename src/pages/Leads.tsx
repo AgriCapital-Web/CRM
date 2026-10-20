@@ -98,7 +98,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [formStage, setFormStage] = useState<"lead" | "prospect">("lead");
   const [editingLead, setEditingLead] = useState<any>(null);
   const emptyLead = {
-    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", region_residence: "", campement_quartier: "",
+    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", region_residence: "", lieu_residence: "",
     type_lead: "client", civilite: "", etape_pipeline: "lead", offre_code: "", formule_code: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
@@ -254,7 +254,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
        const isOwner = (prospect?.assigned_to || lead?.assigned_to) === user?.id || (prospect?.created_by || lead?.created_by) === user?.id;
        if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres dossiers.");
        if (prospectId) {
-         const { error } = await (supabase as any).from("prospects").update({ statut }).eq("id", prospectId);
+         const { error } = await offlineUpdate("prospects", prospectId, { statut });
          if (error) throw error;
          if (leadId) {
            const { error: leadError } = await offlineUpdate("leads", leadId, { statut, etape_pipeline: "prospect" });
@@ -277,13 +277,13 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         const num = (v: string) => (v === "" || v == null ? null : Number(v));
         // Un prospect autonome ne doit jamais déclencher une mise à jour de leads.
         if (editingLead._record_type === "prospect" && !editingLead.lead_id) {
-          const { error } = await (supabase as any).from("prospects").update({
+          const { error } = await offlineUpdate("prospects", editingLead.prospect_id || editingLead.id, {
             nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
             telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
             district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
             departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
             village_id: leadForm.village_id || null, localite: leadForm.localite || null, region_residence: leadForm.region_residence || null,
-            campement_quartier: leadForm.campement_quartier || null,
+            lieu_residence: leadForm.lieu_residence || null,
             dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
             superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
             superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
@@ -297,7 +297,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             source: leadForm.source || editingLead.source,
             assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
             updated_at: new Date().toISOString(),
-          }).eq("id", editingLead.prospect_id || editingLead.id);
+          });
           if (error) throw error;
           return;
         }
@@ -306,7 +306,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
           district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
           departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
-          village_id: leadForm.village_id || null, region_residence: leadForm.region_residence,
+          village_id: leadForm.village_id || null, localite: leadForm.localite || null, region_residence: leadForm.region_residence,
           dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
           superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
           superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
@@ -326,13 +326,13 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         if (error) throw error;
         if (editingLead.prospect_id) {
           const num = (v: string) => (v === "" || v == null ? null : Number(v));
-          const { error: prospectError } = await (supabase as any).from("prospects").update({
+          const { error: prospectError } = await offlineUpdate("prospects", editingLead.prospect_id, {
             nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
             telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
             district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
             departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
             village_id: leadForm.village_id || null, region_residence: leadForm.region_residence || null,
-            campement_quartier: leadForm.campement_quartier || null,
+            lieu_residence: leadForm.lieu_residence || null,
             dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
             superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
             superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
@@ -344,7 +344,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
             source: leadForm.source || editingLead.source,
             assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
-          }).eq("id", editingLead.prospect_id);
+          });
           if (prospectError) throw prospectError;
         }
         return;
@@ -358,8 +358,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
         district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
         departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
-        village_id: leadForm.village_id || null, region_residence: leadForm.region_residence || null,
-        campement_quartier: leadForm.campement_quartier.trim() || null,
+        village_id: leadForm.village_id || null, localite: leadForm.localite || null, region_residence: leadForm.region_residence || null,
+        lieu_residence: leadForm.lieu_residence.trim() || null,
         dispose_terrain: leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui",
         superficie_disponible_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_disponible_ha) : null,
         superficie_a_valoriser_ha: (leadForm.type_lead === "proprietaire_foncier" || (leadForm.type_lead === "client" && leadForm.dispose_terrain === "oui")) ? num(leadForm.superficie_a_valoriser_ha) : null,
@@ -532,7 +532,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       if (isProspect && lead.prospect_id) {
         // Le prospect peut être autonome : ne toucher au lead que si le lien existe.
         if (lead.lead_id) {
-          const { error } = await (supabase as any).from("leads").update({ etape_conversion: "prospect" }).eq("id", lead.lead_id);
+          const { error } = await offlineUpdate("leads", lead.lead_id, { etape_conversion: "prospect" });
           if (error) throw error;
         }
       } else if (lead.id && !lead.prospect_id) {
@@ -552,7 +552,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       prenoms: lead.prenoms || "", telephone: lead.telephone || "", whatsapp: lead.whatsapp || "",
       email: lead.email || "", district_id: lead.district_id || "", region_id: lead.region_id || "",
       departement_id: lead.departement_id || "", sous_prefecture_id: lead.sous_prefecture_id || "",
-      village_id: lead.village_id || "", village: lead.campement_quartier || "",
+      village_id: lead.village_id || "", village: lead.village || lead.localite || "", lieu_residence: lead.lieu_residence || lead.campement_quartier || "",
       offre_code: lead.offre_code || "", formule_code: lead.formule_code || "",
       type_lead: lead.type_lead || "client", dispose_terrain: lead.dispose_terrain ? "oui" : "non",
     });
@@ -884,7 +884,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",localite:g.villageName||x.localite||"",region_residence:g.regionName||x.region_residence||""}))}
                               />
                             </div>
-                            <div><Label>Lieu de résidence</Label><Input value={leadForm.campement_quartier} onChange={(e) => setLeadForm({ ...leadForm, campement_quartier: e.target.value })} placeholder="Lieu de résidence" /></div>
+                            <div><Label>Lieu de résidence</Label><Input value={leadForm.lieu_residence} onChange={(e) => setLeadForm({ ...leadForm, lieu_residence: e.target.value })} placeholder="Lieu de résidence" /></div>
                             {leadForm.type_lead === "client" && <div>
                               <Label>Dispose d'un terrain ?</Label>
                               <Select value={leadForm.dispose_terrain} onValueChange={(v) => setLeadForm({ ...leadForm, dispose_terrain: v })}>
@@ -969,7 +969,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 <div><Label>Prénom(s) *</Label><Input value={leadForm.prenoms} onChange={e => setLeadForm(x => ({ ...x, prenoms: e.target.value.toLocaleUpperCase("fr-FR") }))} placeholder="Prénom(s)" /></div>
                 <div className="sm:col-span-2"><CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif || undefined} localValue={leadForm.telephone_local || leadForm.telephone || ""} onChange={v => setLeadForm(x => ({ ...x, telephone_indicatif: v.callingCode, telephone_local: v.localValue, telephone: v.internationalValue }))} /></div>
                 <div className="sm:col-span-2"><Label>Téléphone WhatsApp ou email complémentaire (facultatif)</Label><Input value={leadForm.email} onChange={e => setLeadForm(x => ({ ...x, email: e.target.value }))} placeholder="Email (facultatif)" type="email" /></div>
-                <div className="sm:col-span-2"><Label>Localité / lieu de résidence (facultatif)</Label><Input value={leadForm.campement_quartier} onChange={e => setLeadForm(x => ({ ...x, campement_quartier: e.target.value, region_residence: e.target.value }))} placeholder="Village, ville, quartier ou campement" /></div>
+                <div className="sm:col-span-2"><Label>Lieu de résidence (facultatif)</Label><Input value={leadForm.lieu_residence} onChange={e => setLeadForm(x => ({ ...x, lieu_residence: e.target.value }))} placeholder="Village, ville ou quartier de résidence" /></div>
                 {leadForm.type_lead === "client" && <div className="sm:col-span-2"><Label>Dispose d’un terrain ?</Label><Select value={leadForm.dispose_terrain} onValueChange={v => setLeadForm(x => ({ ...x, dispose_terrain: v }))}><SelectTrigger><SelectValue placeholder="Choisir Oui ou Non" /></SelectTrigger><SelectContent>{refs("oui_non").map((r:any) => <SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>}
                 <div className="sm:col-span-2"><Label>Note rapide (facultatif)</Label><Textarea value={leadForm.commentaire} onChange={e => setLeadForm(x => ({ ...x, commentaire: e.target.value }))} placeholder="Besoin exprimé ou information utile…" rows={2} /></div>
               </div>

@@ -73,7 +73,7 @@ const ProprietairesTerres = () => {
     telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "",
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
     lieu_residence: "",
-    district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", village: "",
+    district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
     surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
     type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
     statut_foncier: "coutumier", reference_cadastrale: "",
@@ -126,6 +126,7 @@ const ProprietairesTerres = () => {
       departement_id: searchParams.get("departement_id") || current.departement_id,
       sous_prefecture_id: searchParams.get("sous_prefecture_id") || current.sous_prefecture_id,
       village: searchParams.get("village") || current.village,
+      lieu_residence: searchParams.get("lieu_residence") || current.lieu_residence,
     }));
     setIsFormOpen(true);
   }, [conversionLeadId, searchParams]);
@@ -392,7 +393,7 @@ const ProprietairesTerres = () => {
       denomination_sociale: "", numero_enregistrement: "", nombre_membres: "", nom_representant: "",
       telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", type_piece: "", numero_piece: "",
       date_delivrance_piece: "", lieu_residence: "", district_id: "", region_id: "",
-      departement_id: "", sous_prefecture_id: "", village_id: "", village: "",
+      departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
       surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
       type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "0",
       statut_foncier: "coutumier", reference_cadastrale: "",
@@ -418,6 +419,46 @@ const ProprietairesTerres = () => {
   const update = (field: string, value: any) => setFormData(f => ({ ...f, [field]: value }));
   const updateFormPhone = (v: any, field: string) => setFormData(f => ({ ...f, [field]: v.internationalValue, [field+"_indicatif"]: v.callingCode, [field+"_local"]: v.localValue }));
 
+  const formSteps = [
+    { value: "identite", label: "Identité et contacts", short: "Identité" },
+    { value: "localisation", label: "Localisation", short: "Localisation" },
+    { value: "parcelle", label: "Parcelle et convention", short: "Parcelle" },
+    { value: "parties", label: "Cotitulaires et témoins", short: "Parties" },
+    { value: "documents", label: "Documents et validation", short: "Documents" },
+  ];
+  const activeStepIndex = Math.max(0, formSteps.findIndex(step => step.value === activeFormTab));
+  const validateCurrentStep = () => {
+    if (activeFormTab === "identite") {
+      const type = formData.type_proprietaire;
+      const identityMissing =
+        (type === "personne_physique" && (!formData.civilite || !String(formData.nom || "").trim())) ||
+        (type === "personne_morale" && (!String(formData.denomination_sociale || "").trim() || !String(formData.nom_representant || "").trim())) ||
+        (type === "famille_groupement" && (!String(formData.nom || "").trim() || !String(formData.nom_representant || "").trim()));
+      if (identityMissing) {
+        toast({ variant: "destructive", title: "Identité incomplète", description: "Complétez les champs obligatoires du type de propriétaire sélectionné." });
+        return false;
+      }
+      if (!String(formData.telephone || "").trim()) {
+        toast({ variant: "destructive", title: "Téléphone obligatoire", description: "Renseignez le numéro de téléphone du propriétaire avant de continuer." });
+        return false;
+      }
+    }
+    if (activeFormTab === "parcelle" && (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0)) {
+      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro hectare." });
+      return false;
+    }
+    return true;
+  };
+  const goToNextFormStep = () => {
+    if (!validateCurrentStep()) return;
+    const nextStep = formSteps[activeStepIndex + 1];
+    if (nextStep) setActiveFormTab(nextStep.value);
+  };
+  const goToPreviousFormStep = () => {
+    const previousStep = formSteps[activeStepIndex - 1];
+    if (previousStep) setActiveFormTab(previousStep.value);
+  };
+
   return (
     <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}>
       <MainLayout>
@@ -436,12 +477,26 @@ const ProprietairesTerres = () => {
                   <DialogTitle>Convention Planté-Partagé — Identification du Propriétaire</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} noValidate className="space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Étape {activeStepIndex + 1} sur {formSteps.length}</p>
+                        <h3 className="text-base font-semibold">{formSteps[activeStepIndex]?.label}</h3>
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">{Math.round(((activeStepIndex + 1) / formSteps.length) * 100)} %</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((activeStepIndex + 1) / formSteps.length) * 100)}>
+                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((activeStepIndex + 1) / formSteps.length) * 100}%` }} />
+                    </div>
+                  </div>
                   <Tabs value={activeFormTab} onValueChange={setActiveFormTab} className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="identite">Identité</TabsTrigger>
-                      <TabsTrigger value="localisation">Localisation</TabsTrigger>
-                      <TabsTrigger value="parcelle">Parcelle</TabsTrigger>
-                      <TabsTrigger value="documents">Documents</TabsTrigger>
+                    <TabsList className="flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl bg-muted/70 p-1">
+                      {formSteps.map((step, index) => (
+                        <TabsTrigger key={step.value} value={step.value} className="min-w-0 shrink-0 rounded-lg px-3 py-2 text-xs sm:text-sm">
+                          <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px]">{index + 1}</span>
+                          <span>{step.short}</span>
+                        </TabsTrigger>
+                      ))}
                     </TabsList>
 
                     {/* TAB 1: IDENTITÉ */}
@@ -680,6 +735,15 @@ const ProprietairesTerres = () => {
                         <Label>Notes</Label>
                         <Textarea value={formData.notes} onChange={e => update('notes', e.target.value)} rows={2} />
                       </div>
+
+                    </TabsContent>
+
+                    {/* TAB 4: DOCUMENTS (Annexes Convention) */}
+                    <TabsContent value="parties" className="space-y-4">
+                      <div className="rounded-lg border bg-muted/20 p-3">
+                        <h3 className="font-semibold">Cotitulaires, mandataires et signatures</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Renseignez séparément les personnes associées au dossier foncier et les témoins de la convention.</p>
+                      </div>
                       <h4 className="font-semibold mt-4">Co-titulaire / mandataire et signatures</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Nom co-titulaire / mandataire</Label><Input value={formData.co_titulaire_nom} onChange={e => update('co_titulaire_nom', e.target.value)} /></div>
@@ -699,7 +763,6 @@ const ProprietairesTerres = () => {
                       </div>
                     </TabsContent>
 
-                    {/* TAB 4: DOCUMENTS (Annexes Convention) */}
                     <TabsContent value="documents" className="space-y-4">
                       <h4 className="font-semibold">Documents d'identité</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -742,9 +805,16 @@ const ProprietairesTerres = () => {
                     </TabsContent>
                   </Tabs>
 
-                  <div className="flex gap-2 justify-end border-t pt-4">
-                    <Button variant="outline" type="button" onClick={() => setIsFormOpen(false)}>Annuler</Button>
-                    <Button type="submit" disabled={uploading}>{uploading ? "Enregistrement..." : "Enregistrer le Propriétaire"}</Button>
+                  <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                      <Button type="button" variant="outline" onClick={() => { setIsFormOpen(false); resetForm(); }}>Annuler</Button>
+                      <Button type="button" variant="outline" onClick={goToPreviousFormStep} disabled={activeStepIndex === 0 || uploading}>Précédent</Button>
+                    </div>
+                    {activeStepIndex < formSteps.length - 1 ? (
+                      <Button type="button" onClick={goToNextFormStep}>Suivant</Button>
+                    ) : (
+                      <Button type="submit" disabled={uploading}>{uploading ? "Enregistrement..." : "Enregistrer le Propriétaire"}</Button>
+                    )}
                   </div>
                 </form>
               </DialogContent>

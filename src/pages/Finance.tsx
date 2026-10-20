@@ -79,7 +79,7 @@ export default function Finance(){
   useEffect(()=>{if(canView)void load();},[canView]);
 
   const totals=useMemo(()=>{
-    const valid=transactions.filter(t=>t.status==="valide");
+    const valid=transactions.filter((t:any)=>t.status==="valide");
     const income=valid.filter(t=>t.direction==="entree").reduce((s,t)=>s+Number(t.amount||0),0);
     const out=valid.filter(t=>t.direction==="sortie").reduce((s,t)=>s+Number(t.amount||0),0);
     return {income,out,balance:income-out};
@@ -261,11 +261,11 @@ export default function Finance(){
         <div className="rounded-xl border-l-4 border-emerald-600 bg-emerald-600/5 p-3"><h2 className="font-semibold">Entrées financières</h2><p className="text-xs text-muted-foreground">Financements, prêts, dons, apports, ventes et autres recettes.</p></div>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           {[
-            {label:"Entrées validées",value:transactions.filter(t=>t.status==="valide"&&t.direction==="entree").reduce((a,t)=>a+Number(t.amount||0),0)},
-            {label:"Financements",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="financement").reduce((a,t)=>a+Number(t.amount||0),0)},
-            {label:"Dons",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="don").reduce((a,t)=>a+Number(t.amount||0),0)},
-            {label:"Prêts reçus",value:transactions.filter(t=>t.direction==="entree"&&t.source_type==="pret").reduce((a,t)=>a+Number(t.amount||0),0)},
-            {label:"Apports associés",value:transactions.filter(t=>t.direction==="entree"&&(t.source_type==="apport_associe"||t.category==="ASSOCIE")).reduce((a,t)=>a+Number(t.amount||0),0)}
+            {label:"Entrées validées",value:transactions.filter((t:any)=>t.status==="valide"&&t.direction==="entree").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Financements",value:transactions.filter((t:any)=>t.status==="valide"&&t.direction==="entree"&&t.source_type==="financement").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Dons",value:transactions.filter((t:any)=>t.status==="valide"&&t.direction==="entree"&&t.source_type==="don").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Prêts reçus",value:transactions.filter((t:any)=>t.status==="valide"&&t.direction==="entree"&&t.source_type==="pret").reduce((a,t)=>a+Number(t.amount||0),0)},
+            {label:"Apports associés",value:transactions.filter((t:any)=>t.status==="valide"&&t.direction==="entree"&&(t.source_type==="apport_associe"||t.category==="ASSOCIE")).reduce((a,t)=>a+Number(t.amount||0),0)}
           ].map(item=><Card key={item.label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{item.label}</p><p className="whitespace-nowrap text-base font-bold tabular-nums">{money(item.value)}</p></CardContent></Card>)}
         </div>
         <Card><CardHeader className="pb-2"><CardTitle>Nouvelle entrée</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">

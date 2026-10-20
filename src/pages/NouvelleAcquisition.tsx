@@ -43,16 +43,25 @@ const NouvelleAcquisition = () => {
   useEffect(()=>{
     const leadId=searchParams.get("lead_id");
     const prospectId=searchParams.get("prospect_id");
-    if(leadId || prospectId) updateFormData({
-      ...(leadId ? { lead_id: leadId } : {}),
-      ...(prospectId ? { prospect_id: prospectId } : {}),
-      commercial_id:searchParams.get("commercial_id")||undefined,
-      nom_famille:searchParams.get("nom")||"", prenoms:searchParams.get("prenoms")||"",
-      telephone:searchParams.get("telephone")||"", whatsapp:searchParams.get("whatsapp")||"", email:searchParams.get("email")||"",
-      district_id:searchParams.get("district_id")||"", region_id:searchParams.get("region_id")||"",
-      departement_id:searchParams.get("departement_id")||"", sous_prefecture_id:searchParams.get("sous_prefecture_id")||"",
-      village_id:searchParams.get("village_id")||"", domicile:searchParams.get("village")||""
-    });
+    if(!(leadId || prospectId)) return;
+    const params: Record<string, string> = {
+      lead_id: leadId || "",
+      prospect_id: prospectId || "",
+      commercial_id: searchParams.get("commercial_id") || "",
+      nom_famille: searchParams.get("nom") || "",
+      prenoms: searchParams.get("prenoms") || "",
+      telephone: searchParams.get("telephone") || "",
+      whatsapp: searchParams.get("whatsapp") || "",
+      email: searchParams.get("email") || "",
+      district_id: searchParams.get("district_id") || "",
+      region_id: searchParams.get("region_id") || "",
+      departement_id: searchParams.get("departement_id") || "",
+      sous_prefecture_id: searchParams.get("sous_prefecture_id") || "",
+      village_id: searchParams.get("village_id") || "",
+      domicile: searchParams.get("village") || "",
+    };
+    // Une URL ne doit préremplir que les valeurs réellement fournies.
+    updateFormData(Object.fromEntries(Object.entries(params).filter(([, value]) => value !== "")));
   },[searchParams]);
 
   useEffect(()=>{
@@ -71,7 +80,7 @@ const NouvelleAcquisition = () => {
         offerId=offer?.id||"";
       }
       if(!active) return;
-      updateFormData({
+      const sourceValues = {
         ...(isProspect ? {prospect_id:source.id,lead_id:source.lead_id||undefined} : {lead_id:source.id,prospect_id:source.prospect_id||undefined}),
         nom_famille:source.nom_famille||source.nom||"", prenoms:source.prenoms||"",
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
@@ -80,12 +89,14 @@ const NouvelleAcquisition = () => {
         village_id:source.village_id||"", domicile:source.campement_quartier||source.region_residence||"",
         offre_id:offerId, formule_code:source.formule_code||"",
         commercial_id:source.assigned_to||undefined,
-      });
+      };
+      // Empty values from an incomplete lead/prospect must not erase a recovered draft.
+      updateFormData(Object.fromEntries(Object.entries(sourceValues).filter(([, value]) => value !== "" && value !== null && value !== undefined)));
     })();
     return ()=>{active=false;};
   },[searchParams]);
 
-  // Reprise du dernier brouillon Client. L'étape enregistrée est respectée ; sans brouillon, le parcours démarre TOUJOURS à 1.
+  // Restaurer le brouillon sans écraser les valeurs déjà saisies ou préremplies.
   useEffect(()=>{
     let mounted=true;
     (async()=>{
@@ -94,6 +105,7 @@ const NouvelleAcquisition = () => {
       let data: any[] = [];
       try {
         const result = await (supabase as any).from("acquisitions_brouillon").select("*").eq("created_by",currentUser.id).order("updated_at",{ascending:false}).limit(1);
+        if (result.error) throw result.error;
         data = result.data || [];
       } catch {
         const cached = await getCachedItems(STORES.ACQUISITIONS_BROUILLON);
@@ -102,12 +114,14 @@ const NouvelleAcquisition = () => {
           .sort((a: any,b: any) => String(b?.updated_at||"").localeCompare(String(a?.updated_at||"")))
           .slice(0,1);
       }
-      if(!mounted||!data?.[0])return;
-      const draft=data[0];
-      setBrouillonId(draft.id);
-      setFormData(draft.donnees||{});
-      setCurrent(Math.max(0,Number(draft.etape_actuelle||0)));
-    })();
+      if(!mounted) return;
+      if(data?.[0]) {
+        const draft=data[0];
+        setBrouillonId(draft.id);
+        setFormData((current:any)=>({...draft.donnees,...current}));
+        setCurrent((current:number)=>current===0?Math.max(0,Number(draft.etape_actuelle||0)):current);
+      }
+    })().catch((error)=>console.error("[Acquisition] Impossible de restaurer le brouillon",error));
     return()=>{mounted=false;};
   },[user]);
 

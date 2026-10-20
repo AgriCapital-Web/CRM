@@ -61,6 +61,20 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
 
   const setField = (key: string, value: any) => setForm((x: any) => ({ ...x, [key]: value }));
 
+  // Reuse du composant d'édition entre deux clients : ne jamais conserver les
+  // valeurs ou les médias du client précédent lorsque l'identifiant change.
+  useEffect(() => {
+    setForm({ ...(client || {}) });
+    setPhotoFile(null);
+    setPieceRectoFile(null);
+    setPieceVersoFile(null);
+    setPhotoPreview("");
+    setPieceRectoPreview("");
+    setPieceVersoPreview("");
+    setExtraFiles({});
+    setExtraPreviews({});
+  }, [client?.id]);
+
   useEffect(() => {
     let active = true;
     (async () => {
@@ -186,7 +200,7 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
     file: File | null,
     current: string | null,
     currentPreview: string,
-    onSelect: (f: File) => void,
+    onSelect: (f: File | null) => void,
     onPreview: (s: string) => void,
     ocr = false
   ) => (
@@ -196,8 +210,8 @@ const ClientForm = ({ client, onSuccess, onCancel }: ClientFormProps) => {
       accept="image/*,.pdf"
       currentFile={file}
       currentPreview={currentPreview}
-      onFileChange={(_, f, p) => { if (f) onSelect(f); onPreview(p); }}
-      onIdentityNumberDetected={ocr ? n => setField("numero_piece", n) : undefined}
+      onFileChange={(_, f, p) => { onSelect(f); onPreview(p); }}
+      onIdentityNumberDetected={ocr ? n => { if (!String(form.numero_piece || "").trim()) setField("numero_piece", n); } : undefined}
       identityDocumentType={form.type_piece}
       compact
     />

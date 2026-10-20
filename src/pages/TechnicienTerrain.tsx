@@ -457,7 +457,7 @@ const TechnicienTerrain=()=>{
           updated_at:new Date().toISOString()
         };
         // Keep the original date and assigned technician unchanged when editing.
-        const {error}=await (supabase as any).from("interventions_techniques").update(updatePayload).eq("id",editingInterventionId);
+        const {error}=await offlineUpdate("interventions_techniques",editingInterventionId,updatePayload);
         if(error)throw error;
         toast({title:"Modifications enregistrées",description:"La date de l’intervention et le technicien responsable ont été conservés."});
         resetInterventionForm();
@@ -465,7 +465,7 @@ const TechnicienTerrain=()=>{
         return;
       }
       if(!targetParcelleId && !technicalPalmInvest){
-        const {data:createdParcel,error:parcelCreateError}=await (supabase as any).from("parcelles").insert({
+        const {data:createdParcel,error:parcelCreateError}=await offlineInsert("parcelles",{
           nom:intervention.nouvelle_parcelle_nom.trim(),
           surface_totale_ha:Number(intervention.nouvelle_parcelle_surface),
           surface_proprietaire_ha:Number(intervention.nouvelle_parcelle_surface),
@@ -477,21 +477,21 @@ const TechnicienTerrain=()=>{
           localisation_gps_lat:intervention.localisation_gps_lat?Number(intervention.localisation_gps_lat):null,
           localisation_gps_lng:intervention.localisation_gps_lng?Number(intervention.localisation_gps_lng):null,
           statut:"disponible",mode_surface:"foncier",created_by:profile.id,updated_by:profile.id
-        }).select("id").single();
+        });
         if(parcelCreateError)throw parcelCreateError;
         targetParcelleId=createdParcel.id;
         const {error:linkClientError}=interventionAcquisition && interventionClient?.parcelle_id
            ? {error:null}
-           : await (supabase as any).from("clients").update({parcelle_id:targetParcelleId,updated_at:new Date().toISOString()}).eq("id",targetClientId);
+           : await offlineUpdate("clients",targetClientId,{parcelle_id:targetParcelleId,updated_at:new Date().toISOString()});
         if(linkClientError)throw linkClientError;
       }
       if(intervention.localisation_gps_lat && intervention.localisation_gps_lng){
-        const {error:geoError}=await (supabase as any).from("parcelles").update({localisation_gps_lat:Number(intervention.localisation_gps_lat),localisation_gps_lng:Number(intervention.localisation_gps_lng),updated_by:profile.id}).eq("id",targetParcelleId);
+        const {error:geoError}=await offlineUpdate("parcelles",targetParcelleId,{localisation_gps_lat:Number(intervention.localisation_gps_lat),localisation_gps_lng:Number(intervention.localisation_gps_lng),updated_by:profile.id});
         if(geoError)throw geoError;
       }
       if(technicalPalmInvest){
         if(!interventionAcquisition){
-          const {error:clientParcelError}=await (supabase as any).from("clients").update({parcelle_id:targetParcelleId,updated_at:new Date().toISOString()}).eq("id",targetClientId);
+          const {error:clientParcelError}=await offlineUpdate("clients",targetClientId,{parcelle_id:targetParcelleId,updated_at:new Date().toISOString()});
           if(clientParcelError)throw clientParcelError;
         }
         if(interventionAcquisition){
@@ -509,14 +509,14 @@ const TechnicienTerrain=()=>{
           const {error:lotAssignError}=await (supabase as any).from("lots_hectares").update({client_id:targetClientId,statut:"attribue",date_attribution:new Date().toISOString().slice(0,10)}).eq("id",intervention.lot_id).is("client_id",null);
           if(lotAssignError)throw lotAssignError;
           if(intervention.plantation_id){
-            const {error:plantationLotError}=await (supabase as any).from("plantations").update({lot_id:intervention.lot_id,parcelle_id:targetParcelleId,updated_at:new Date().toISOString()}).eq("id",intervention.plantation_id);
+            const {error:plantationLotError}=await offlineUpdate("plantations",intervention.plantation_id,{lot_id:intervention.lot_id,parcelle_id:targetParcelleId,updated_at:new Date().toISOString()});
             if(plantationLotError)throw plantationLotError;
           }
         }
       }
       // Les coordonnées GPS sont conservées dans le formulaire/parcelle, pas dans interventions_techniques.
       // La table des interventions ne possède pas les colonnes localisation_gps_lat/lng : elles ne doivent jamais bloquer la sauvegarde.
-      const {localisation_gps_lat: _gpsLat, localisation_gps_lng: _gpsLng, ...interventionFields}=intervention;
+      const {localisation_gps_lat: _gpsLat, localisation_gps_lng: _gpsLng, nouvelle_parcelle_nom: _newParcelName, nouvelle_parcelle_surface: _newParcelSurface, nouvelle_parcelle_village: _newParcelVillage, ...interventionFields}=intervention;
       const payload={...interventionFields,contenu_client:intervention.contenu_client||null,id:crypto.randomUUID(),agent_technique_id:profile.id,
         client_id:targetClientId,parcelle_id:targetParcelleId,plantation_id:intervention.plantation_id||null,
         acquisition_id:intervention.acquisition_id||null,

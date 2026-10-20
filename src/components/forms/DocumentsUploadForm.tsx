@@ -46,24 +46,24 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
   const handleFileChange = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFiles({ ...files, [key]: file });
+      setFiles((current) => ({ ...current, [key]: file }));
       
       // Create preview for images
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setPreviews({ ...previews, [key]: reader.result as string });
+          setPreviews((current) => ({ ...current, [key]: reader.result as string }));
         };
         reader.readAsDataURL(file);
       } else {
-        setPreviews({ ...previews, [key]: file.name });
+        setPreviews((current) => ({ ...current, [key]: file.name }));
       }
     }
   };
 
   const clearFile = (key: string) => {
-    setFiles({ ...files, [key]: null });
-    setPreviews({ ...previews, [key]: "" });
+    setFiles((current) => ({ ...current, [key]: null }));
+    setPreviews((current) => ({ ...current, [key]: "" }));
   };
 
   const onSubmit = async (data: any) => {
