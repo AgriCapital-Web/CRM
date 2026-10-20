@@ -236,6 +236,7 @@ export default function OfficeFormatTools({ title, content, documentType, disabl
   const [status, setStatus] = useState("");
   const handleImport = async (file?: File) => {
     if (!file) return;
+    if (file.size > 25 * 1024 * 1024) { toast.error("Le fichier dépasse la limite d’import de 25 Mo."); if (fileRef.current) fileRef.current.value = ""; return; }
     setBusy(true); setStatus("Lecture du fichier…");
     try {
       const imported = await importFile(file);
