@@ -5,6 +5,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const ProprietaireTerreDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { can } = usePermissions();
   const [owner, setOwner] = useState<any>(null);
   const [parcelles, setParcelles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,7 @@ const ProprietaireTerreDetail = () => {
     sous_prefecture_id: "", village: "", date_convention: "", notes: "",
   });
 
-  const uploadOwnerDocument=async()=>{if(!id||!ownerDocumentFile)return;try{const uploaded=await uploadFile("documents-fonciers",ownerDocumentFile,`proprietaires/${id}/${Date.now()}-${ownerDocumentFile.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`);if(!uploaded)throw new Error("Téléversement impossible");const {error}=await (supabase as any).from("documents_convention").insert({proprietaire_id:id,type_document:"annexe_libre",designation:ownerDocumentLabel.trim()||ownerDocumentFile.name,statut:"en_attente",fichier_url:uploaded.url,notes:null,uploaded_by:null});if(error)throw error;toast({title:"Document foncier ajouté"});setOwnerDocumentFile(null);setOwnerDocumentLabel("");await load();}catch(e:any){toast({variant:"destructive",title:"Téléversement impossible",description:getSafeErrorMessage(e)});}};
+  const uploadOwnerDocument=async()=>{if(!can("documents.upload")){toast({variant:"destructive",title:"Accès refusé",description:"Votre rôle ne permet pas de téléverser des documents fonciers."});return;}if(!id||!ownerDocumentFile)return;try{const uploaded=await uploadFile("documents-fonciers",ownerDocumentFile,`proprietaires/${id}/${Date.now()}-${ownerDocumentFile.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`);if(!uploaded)throw new Error("Téléversement impossible");const {error}=await (supabase as any).from("documents_convention").insert({proprietaire_id:id,type_document:"annexe_libre",designation:ownerDocumentLabel.trim()||ownerDocumentFile.name,statut:"en_attente",fichier_url:uploaded.url,notes:null,uploaded_by:null});if(error)throw error;toast({title:"Document foncier ajouté"});setOwnerDocumentFile(null);setOwnerDocumentLabel("");await load();}catch(e:any){toast({variant:"destructive",title:"Téléversement impossible",description:getSafeErrorMessage(e)});}};
 
   const load = async () => {
     if (!id) return;
@@ -75,6 +77,7 @@ const ProprietaireTerreDetail = () => {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!can("parcelles.create")) { toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de créer une parcelle." }); return; }
     if (!id) return;
     const surface = Number(form.surface_totale_ha);
     if (!Number.isFinite(surface) || surface < 2) {
