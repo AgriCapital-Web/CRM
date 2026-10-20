@@ -46,6 +46,125 @@ function sanitizeWorkspaceHtml(value: string) {
 }
 const TypeIcon = ({ type }: { type: string }) => type === "spreadsheet" ? <FileSpreadsheet className="h-4 w-4" /> : type === "presentation" ? <Presentation className="h-4 w-4" /> : type === "file" ? <Paperclip className="h-4 w-4" /> : <FileText className="h-4 w-4" />;
 
+
+function parseWorkspaceCsv(input: string): string[][] {
+  if (!input.trim()) return [[""]];
+  const firstLine = input.split(/\r?\n/, 1)[0];
+  const delimiter = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ";" : ",";
+  const rows: string[][] = [];
+  let row: string[] = [], cell = "", quoted = false;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '"' && quoted && input[i + 1] === '"') { cell += '"'; i++; }
+    else if (ch === '"') quoted = !quoted;
+    else if (ch === delimiter && !quoted) { row.push(cell); cell = ""; }
+    else if ((ch === "\n" || ch === "\r") && !quoted) {
+      if (ch === "\r" && input[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = "";
+    } else cell += ch;
+  }
+  row.push(cell); rows.push(row);
+  return rows;
+}
+function encodeWorkspaceCsv(rows: string[][]): string {
+  const trimmed = rows.map((row) => [...row]);
+  while (trimmed.length > 1 && trimmed[trimmed.length - 1].every((cell) => !cell.trim())) trimmed.pop();
+  return trimmed.map((row) => {
+    const last = row.reduce((found, cell, index) => cell.trim() ? index : found, -1);
+    return row.slice(0, Math.max(1, last + 1)).map((cell) => /[;"\r\n]/.test(cell) ? '"' + cell.replace(/"/g, '""') + '"' : cell).join(";");
+  }).join("\n");
+}
+function spreadsheetColumn(index: number): string {
+  let value = index + 1, result = "";
+  while (value > 0) { const remainder = (value - 1) % 26; result = String.fromCharCode(65 + remainder) + result; value = Math.floor((value - 1) / 26); }
+  return result;
+}
+function evaluateWorkspaceCell(raw: string, rows: string[][], visited = new Set<string>()): string {
+  const value = raw.trim();
+  const refValue = (ref: string): number => {
+    const match = /^([A-Z]+)([1-9]\d*)$/i.exec(ref);
+    if (!match) return 0;
+    let col = 0;
+    for (const ch of match[1].toUpperCase()) col = col * 26 + ch.charCodeAt(0) - 64;
+    const key = match[1].toUpperCase() + match[2];
+    if (visited.has(key)) return 0;
+    const nextVisited = new Set(visited); nextVisited.add(key);
+    const source = rows[Number(match[2]) - 1]?.[col - 1] || "";
+    const number = Number(evaluateWorkspaceCell(source, rows, nextVisited));
+    return Number.isFinite(number) ? number : 0;
+  };
+  if (!value.startsWith("=")) return value;
+  const formula = value.slice(1).trim();
+  const aggregate = /^(SUM|AVERAGE|MIN|MAX|COUNT)\(([A-Z]+\d+):([A-Z]+\d+)\)$/i.exec(formula);
+  if (aggregate) {
+    const start = /^([A-Z]+)(\d+)$/i.exec(aggregate[2])!;
+    const end = /^([A-Z]+)(\d+)$/i.exec(aggregate[3])!;
+    const colIndex = (letters: string) => [...letters.toUpperCase()].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
+    const c1 = colIndex(start[1]), c2 = colIndex(end[1]), r1 = Number(start[2]), r2 = Number(end[2]);
+    const values: number[] = [];
+    for (let r = Math.min(r1, r2); r <= Math.max(r1, r2); r++) for (let c = Math.min(c1, c2); c <= Math.max(c1, c2); c++) {
+      const cell = rows[r - 1]?.[c - 1] || "";
+      if (cell.trim() !== "") {
+        const evaluated = evaluateWorkspaceCell(cell, rows, new Set(visited));
+        const number = Number(evaluated);
+        if (Number.isFinite(number)) values.push(number);
+      }
+    }
+    if (aggregate[1].toUpperCase() === "COUNT") return String(values.length);
+    if (aggregate[1].toUpperCase() === "MIN") return values.length ? String(Math.min(...values)) : "0";
+    if (aggregate[1].toUpperCase() === "MAX") return values.length ? String(Math.max(...values)) : "0";
+    const sum = values.reduce((a, b) => a + b, 0);
+    return String(aggregate[1].toUpperCase() === "AVERAGE" ? (values.length ? sum / values.length : 0) : sum);
+  }
+  const direct = /^([A-Z]+\d+)$/i.exec(formula);
+  if (direct) return String(refValue(direct[1]));
+  const arithmetic = /^([+-]?\d+(?:\.\d+)?)\s*([+\-*/])\s*([+-]?\d+(?:\.\d+)?)$/.exec(formula);
+  if (arithmetic) {
+    const a = Number(arithmetic[1]), b = Number(arithmetic[3]);
+    const result = arithmetic[2] === "+" ? a + b : arithmetic[2] === "-" ? a - b : arithmetic[2] === "*" ? a * b : b === 0 ? NaN : a / b;
+    return Number.isFinite(result) ? String(result) : "#ERREUR";
+  }
+  return "#FORMULE?";
+}
+function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; onChange: (next: string) => void; disabled: boolean }) {
+  const parsed = parseWorkspaceCsv(value);
+  const rowCount = Math.min(100, Math.max(12, parsed.length));
+  const colCount = Math.min(26, Math.max(8, ...parsed.map((row) => row.length)));
+  const rows = Array.from({ length: rowCount }, (_, r) => Array.from({ length: colCount }, (_, c) => parsed[r]?.[c] || ""));
+  const updateCell = (r: number, c: number, next: string) => {
+    const updated = rows.map((row) => [...row]);
+    updated[r][c] = next;
+    onChange(encodeWorkspaceCsv(updated));
+  };
+  const exportCsv = () => {
+    const blob = new Blob(["\uFEFF" + encodeWorkspaceCsv(rows)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a"); link.href = url; link.download = "tableur-agricapital.csv"; link.click();
+    URL.revokeObjectURL(url);
+  };
+  const importCsv = async (file?: File) => {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { window.alert("Le fichier CSV ne doit pas dépasser 2 Mo."); return; }
+    onChange(await file.text());
+  };
+  return <div className="space-y-2">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs text-muted-foreground">Tableur intégré · CSV · formules simples : =SUM(A1:A5), =AVERAGE(A1:A5), =MIN(A1:A5), =MAX(A1:A5), =COUNT(A1:A5), =A1 ou =2+3</p>
+      <div className="flex gap-2">
+        <label className="cursor-pointer rounded-md border px-3 py-2 text-xs hover:bg-muted">Importer CSV<input type="file" accept=".csv,text/csv" className="hidden" disabled={disabled} onChange={(e) => { void importCsv(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
+        <button type="button" onClick={exportCsv} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter CSV</button>
+      </div>
+    </div>
+    <div className="max-h-[440px] overflow-auto rounded-lg border">
+      <table className="w-full border-collapse text-sm">
+        <thead className="sticky top-0 z-10 bg-muted"><tr><th className="w-10 border p-2 text-xs text-muted-foreground">#</th>{Array.from({ length: colCount }, (_, c) => <th key={c} className="min-w-32 border p-2 text-xs font-semibold">{spreadsheetColumn(c)}</th>)}</tr></thead>
+        <tbody>{rows.map((row, r) => <tr key={r}><th className="border bg-muted/40 p-1 text-xs text-muted-foreground">{r + 1}</th>{row.map((cell, c) => <td key={c} className="border p-0"><div className="flex min-w-32 flex-col"><input aria-label={spreadsheetColumn(c) + (r + 1)} value={cell} onChange={(e) => updateCell(r, c, e.target.value)} disabled={disabled} className="w-full min-w-32 bg-transparent px-2 py-1.5 outline-none focus:bg-primary/5 focus:ring-1 focus:ring-inset focus:ring-primary" /><span className="min-h-4 px-2 pb-1 text-[11px] text-muted-foreground">{cell.trim().startsWith("=") ? evaluateWorkspaceCell(cell, rows) : ""}</span></div></td>)}</tr>)}</tbody>
+      </table>
+    </div>
+    <p className="text-xs text-muted-foreground">Les formules sont calculées dans l’interface. Les données et les formules restent enregistrées dans le CRM. Pour les modèles Excel complexes et la coédition de type Excel, un éditeur spécialisé reste nécessaire.</p>
+  </div>;
+}
+
 export default function EspaceTravail() {
   const { profile, user } = useAuth();
   const [documents, setDocuments] = useState<WorkspaceDoc[]>([]);
@@ -321,7 +440,7 @@ export default function EspaceTravail() {
                     <Button type="button" size="sm" variant="outline" title="Effacer le formatage" onClick={() => formatEditor("removeFormat")} disabled={!canEditSelected}><Eraser className="h-4 w-4" /></Button>
                   </div>
                   <div className="space-y-1"><Label>{documentType === "presentation" ? "Plan de présentation et notes" : "Contenu du document"}</Label><div ref={editorRef} contentEditable={!saving && canEditSelected} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeWorkspaceHtml(content) }} onInput={() => setHasUnsavedChanges(true)} onBlur={() => { if (editorRef.current) setContent(editorRef.current.innerHTML); }} role="textbox" aria-multiline="true" className="min-h-[320px] rounded-lg border bg-background p-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-6 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-2 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2" /></div>
-                </> : <div className="space-y-1"><Label>Données tabulaires (CSV) ou contenu du fichier</Label><Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Colonne A;Colonne B;Colonne C&#10;Valeur 1;Valeur 2;Valeur 3" disabled={saving || !canEditSelected} /></div>}</>
+                </> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button><Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
                 <div className="flex flex-wrap gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => void duplicateDocument()} disabled={saving}><Copy className="mr-2 h-4 w-4" />Créer une copie</Button>{isOwner && <Button variant="destructive" size="sm" onClick={() => void deleteDocument()} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button>}</div>
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button></>}</div>
