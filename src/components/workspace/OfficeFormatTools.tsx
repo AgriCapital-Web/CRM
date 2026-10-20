@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { FileUp, FileDown, FileText, FileSpreadsheet, Presentation, File as FileIcon, LoaderCircle, ChartColumn } from "lucide-react";
+import { FileUp, FileText, FileSpreadsheet, Presentation, File as FileIcon, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -144,12 +144,40 @@ async function exportPdf(title: string, content: string) {
   }
   pdf.save(safeFilename(title, "pdf"));
 }
-async function exportPptx(title: string, content: string) {
+async function exportPptx(title: string, content: string, documentType: OfficeDocumentType) {
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
   pptx.author = "AgriCapital";
   pptx.subject = "Présentation exportée depuis l’Espace de travail AgriCapital";
   pptx.title = title || "Présentation AgriCapital";
+  if (documentType === "spreadsheet") {
+    const parsedBook = XLSX.read(content, { type: "string", FS: ";" });
+    const sheet = parsedBook.Sheets[parsedBook.SheetNames[0]];
+    const values = sheet ? XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true }) : [];
+    const slide = pptx.addSlide();
+    slide.addText(title || "Analyse des données", { x: 0.55, y: 0.35, w: 12.2, h: 0.65, fontSize: 26, bold: true, color: "17365D" });
+    const headers = (values[0] || []).map((v: any, i: number) => String(v ?? "Colonne " + (i + 1)));
+    const body = values.slice(1).filter((row: any[]) => row.some((v) => v !== null && v !== undefined && String(v).trim() !== ""));
+    if (headers.length && body.length) {
+      const tableRows = [headers.map((text: string) => ({ text, options: { bold: true, color: "FFFFFF", fill: "17365D" } })), ...body.slice(0, 16).map((row: any[]) => headers.map((_: string, i: number) => String(row[i] ?? "")))];
+      slide.addTable(tableRows as any, { x: 0.55, y: 1.15, w: 6.1, h: 5.2, border: { type: "solid", color: "D1D5DB", pt: 0.5 }, fontSize: 9, color: "263238", rowH: 0.28, margin: 0.05 });
+      const labels = body.map((row: any[], i: number) => String(row[0] ?? "Ligne " + (i + 1))).slice(0, 12);
+      const nums = body.map((row: any[]) => Number(row[1])).slice(0, 12);
+      if (nums.length && nums.every((n) => Number.isFinite(n))) {
+        slide.addChart(pptx.ChartType.bar, [{ name: headers[1] || "Valeur", labels, values: nums }], {
+          x: 6.9, y: 1.35, w: 5.7, h: 4.6, catAxisLabelFontSize: 9, valAxisLabelFontSize: 9,
+          showTitle: true, title: headers[1] || "Indicateurs", showLegend: false, showValue: true,
+          showCatName: false, showValAxisTitle: false, showCatAxisTitle: false,
+        });
+      } else {
+        slide.addText("Pour générer un graphique, placez des libellés en première colonne et des valeurs numériques en deuxième colonne.", { x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "mid" });
+      }
+    } else {
+      slide.addText("Ajoutez des en-têtes et des lignes de données au tableur pour créer un rapport.", { x: 0.8, y: 1.5, w: 11.5, h: 1.2, fontSize: 16 });
+    }
+    await pptx.writeFile({ fileName: safeFilename(title, "pptx") });
+    return;
+  }
   const slides = content.split(/\n\s*---+\s*\n/).filter((s) => s.trim());
   (slides.length ? slides : [""]).forEach((text, index) => {
     const slide = pptx.addSlide();
@@ -185,7 +213,7 @@ export default function OfficeFormatTools({ title, content, documentType, disabl
     try {
       if (kind === "docx") await exportDocx(title, content);
       if (kind === "xlsx") await exportXlsx(title, content);
-      if (kind === "pptx") await exportPptx(title, content);
+      if (kind === "pptx") await exportPptx(title, content, documentType);
       if (kind === "pdf") await exportPdf(title, content);
       toast.success("Export " + kind.toUpperCase() + " préparé.");
     } catch (error: any) { toast.error("Export impossible : " + (error?.message || "erreur inconnue")); }
@@ -198,10 +226,10 @@ export default function OfficeFormatTools({ title, content, documentType, disabl
       <input ref={fileRef} type="file" className="hidden" accept=".docx,.doc,.xlsx,.xls,.xlsm,.ods,.pptx,.pdf,.csv,.tsv,.txt" disabled={disabled || busy} onChange={(e) => void handleImport(e.target.files?.[0])} />
     </div>
     <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="outline" size="sm" disabled={disabled || busy} onClick={() => void handleExport("docx")}><FileText className="mr-2 h-4 w-4" />Word (.docx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={disabled || busy} onClick={() => void handleExport("xlsx")}><FileSpreadsheet className="mr-2 h-4 w-4" />Excel (.xlsx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={disabled || busy} onClick={() => void handleExport("pptx")}><Presentation className="mr-2 h-4 w-4" />PowerPoint (.pptx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={disabled || busy} onClick={() => void handleExport("pdf")}><FileIcon className="mr-2 h-4 w-4" />PDF</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("docx")}><FileText className="mr-2 h-4 w-4" />Word (.docx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("xlsx")}><FileSpreadsheet className="mr-2 h-4 w-4" />Excel (.xlsx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pptx")}><Presentation className="mr-2 h-4 w-4" />PowerPoint (.pptx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pdf")}><FileIcon className="mr-2 h-4 w-4" />PDF</Button>
       {busy && <span className="inline-flex items-center text-xs text-muted-foreground"><LoaderCircle className="mr-1 h-4 w-4 animate-spin" />Traitement…</span>}
     </div>
     {status && <p className="text-xs text-muted-foreground">{status}</p>}
