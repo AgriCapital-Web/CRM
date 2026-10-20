@@ -193,6 +193,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFor
       if (error) throw error;
 
       toast({ title: "Dossier mis à jour", description: `${clientPayload.nom_complet || "Le Client"} a été modifié avec succès.` });
+      if (readOnly) setIsEditing(false);
       onSuccess();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Modification impossible", description: getSafeErrorMessage(error) });
