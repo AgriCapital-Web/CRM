@@ -112,11 +112,11 @@ const ProprietaireTerreDetail = () => {
     }
   };
 
-  if (loading) return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><MainLayout><div className="py-20 text-center">Chargement…</div></MainLayout></ProtectedRoute>;
-  if (!owner) return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><MainLayout><Card><CardContent className="py-10 text-center">Propriétaire introuvable.</CardContent></Card></MainLayout></ProtectedRoute>;
+  if (loading) return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PROPRIETAIRES}><MainLayout><div className="py-20 text-center">Chargement…</div></MainLayout></ProtectedRoute>;
+  if (!owner) return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PROPRIETAIRES}><MainLayout><Card><CardContent className="py-10 text-center">Propriétaire introuvable.</CardContent></Card></MainLayout></ProtectedRoute>;
 
   return (
-    <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}>
+    <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PROPRIETAIRES}>
       <MainLayout>
         <div className="min-w-0 space-y-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
