@@ -42,6 +42,7 @@ export const FileUploadVisual = ({
   compact = false,
 }: FileUploadVisualProps) => {
   const [preview, setPreview] = useState<string>(currentPreview || existingPreview || "");
+  const [existingCleared, setExistingCleared] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState("");
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -53,12 +54,18 @@ export const FileUploadVisual = ({
 
   // A parent reset (new record / cleared draft) must clear stale local previews too.
   useEffect(() => {
+    setExistingCleared(false);
+    if (!currentPreview) setPreview(existingPreview || "");
+  }, [existingPreview]);
+
+  useEffect(() => {
     if (currentPreview) setPreview(currentPreview);
-    else setPreview(existingPreview || "");
-  }, [currentPreview, existingPreview]);
+    else if (!existingCleared) setPreview(existingPreview || "");
+  }, [currentPreview, existingPreview, existingCleared]);
 
   const handleFileSelect = (file: File | null) => {
     if (!file) return;
+    setExistingCleared(true);
     const sequence = ++readSequenceRef.current;
     setFileError("");
     setOcrMessage("");
@@ -107,6 +114,7 @@ export const FileUploadVisual = ({
   const clearFile = () => {
     readSequenceRef.current += 1;
     setPreview("");
+    setExistingCleared(true);
     setFileError("");
     setOcrLoading(false);
     setOcrMessage("");
