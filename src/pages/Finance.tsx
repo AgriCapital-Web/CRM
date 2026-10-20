@@ -407,7 +407,7 @@ export default function Finance(){
           <div><h2 className="font-semibold">Gestion des sorties</h2><p className="text-sm text-muted-foreground">Consultez les sorties enregistrées et ouvrez le formulaire uniquement lorsque nécessaire.</p></div>
           {can("finance.expenses")&&<Button onClick={()=>{setSelectedExpense(null);setExpenseFormMode("new");}}><Plus className="mr-2 h-4 w-4"/>Nouvelle sortie</Button>}
         </div>
-        {expenseFormMode!==null&&<Card>
+        {expenseFormMode!==null&&<Dialog open={expenseFormMode!==null} onOpenChange={open=>{if(!open&&!saving){setExpenseFormMode(null);setSelectedExpense(null);setExpenseProof(null);}}}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><Card>
           <CardHeader><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><CardTitle>{expenseFormMode==="new"?"Nouvelle sortie":"Détail de la sortie"}</CardTitle>{expenseFormMode==="view"&&<Badge variant="secondary">Lecture seule</Badge>}</div></CardHeader>
           <CardContent className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1"><Label>Catégorie</Label><Select disabled={expenseFormMode==="view"} value={expenseFormMode==="view"?(selectedExpense?.expense_category||"AUTRE"):expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["SALAIRES","ÉLECTRICITÉ","EAU","INTERNET","TÉLÉPHONE","CARBURANT","TRANSPORT","FRAIS DE MISSION","HÉBERGEMENT","RESTAURATION","FOURNITURES DE BUREAU","FOURNITURES AGRICOLES","ENTRETIEN","RÉPARATIONS","LOYER","ASSURANCE","BANQUE","FRAIS BANCAIRES","IMPÔTS ET TAXES","HONORAIRES","PRESTATIONS","COMMUNICATION","MARKETING","FORMATION","RECRUTEMENT","SÉCURITÉ","NETTOYAGE","ÉQUIPEMENTS","LOGICIELS","ABONNEMENTS","DÉPLACEMENTS","DONS","AUTRE"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
@@ -425,7 +425,7 @@ export default function Finance(){
             {expenseFormMode==="new"&&<div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3"><Button className="w-full sm:w-auto" onClick={()=>void saveExpense()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>{saving?"Enregistrement…":"Enregistrer la sortie"}</Button><Button type="button" variant="outline" onClick={()=>{setExpenseFormMode(null);setExpenseProof(null);}} disabled={saving}>Annuler</Button></div>}
             {expenseFormMode==="view"&&<div className="sm:col-span-2 lg:col-span-3"><Button type="button" variant="outline" onClick={()=>{setExpenseFormMode(null);setSelectedExpense(null);}}>Fermer le détail</Button></div>}
           </CardContent>
-        </Card>}
+        </Card></DialogContent></Dialog>}
         <Card>
           <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Sorties enregistrées</CardTitle><TableSearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Rechercher une sortie…"/></div></CardHeader>
           <CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[680px] text-sm">
