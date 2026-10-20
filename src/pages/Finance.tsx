@@ -41,6 +41,10 @@ export default function Finance(){
   const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
   const [salaryForm,setSalaryForm]=useState({profileId:"",baseSalary:"",payDay:"28"});
   const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
+  const [payrollPaymentRunId,setPayrollPaymentRunId]=useState("");
+  const [payrollPaymentMethod,setPayrollPaymentMethod]=useState("virement");
+  const [payrollPaymentReference,setPayrollPaymentReference]=useState("");
+  const [payrollPaymentProofUrl,setPayrollPaymentProofUrl]=useState("");
 
   const canView=can("finance.view");
   const canManage=can("finance.manage");
@@ -239,20 +243,21 @@ export default function Finance(){
   };
 
   const generatePayroll=async()=>{
+    if(!/^\\d{4}-(0[1-9]|1[0-2])$/.test(period)){toast({title:"Période invalide",description:"Choisissez un mois valide.",variant:"destructive"});return;}
+    if(saving)return;
     const [year,month]=period.split("-").map(Number);
     const start=`${period}-01`;
     const end=new Date(Date.UTC(year,month,0)).toISOString().slice(0,10);
     setSaving(true);
-    const {data:run,error}=await (supabase as any).from("finance_payroll_runs").upsert({period_start:start,period_end:end,status:"brouillon"},{onConflict:"period_start,period_end"}).select("id").single();
-    if(error||!run){toast({title:"Erreur",description:error?.message||"Paie impossible",variant:"destructive"});setSaving(false);return;}
-    for(const sp of salaryProfiles.filter(s=>s.active && Number(s.base_salary)>0)){
-      const commissions=(await (supabase as any).from("commissions").select("montant_commission").eq("profile_id",sp.profile_id).gte("periode",start).lte("periode",end).in("statut",["calculee","validee"])).data||[];
-      const totalCommissions=commissions.reduce((s:any,c:any)=>s+Number(c.montant_commission||0),0);
-      await (supabase as any).from("finance_payroll_items").upsert({
-        payroll_run_id:run.id,profile_id:sp.profile_id,base_salary:Number(sp.base_salary||0),commissions:totalCommissions,status:"calcule"
-      },{onConflict:"payroll_run_id,profile_id"});
-    }
-    toast({title:"Paie générée",description:`Période ${period.toUpperCase()} prête à validation.`});await load();setSaving(false);
+    try {
+      const {data,error}=await (supabase as any).rpc("finance_generate_payroll_run",{p_period_start:start,p_period_end:end});
+      if(error)throw error;
+      if(!data)throw new Error("La base n’a pas confirmé la génération du lot.");
+      toast({title:"Brouillon de paie généré",description:`Période ${period.toUpperCase()} : les salaires fixes sont prêts à contrôler. Les commissions restent dans leur circuit distinct pour éviter un double paiement.`});
+      await load();
+    } catch(error:any) {
+      toast({title:"Paie non générée",description:error?.message||"Le lot n’a pas été généré.",variant:"destructive"});
+    } finally {setSaving(false);}
   };
 
   const deletePayrollDraft=async(run:any)=>{
@@ -265,11 +270,37 @@ export default function Finance(){
     setSaving(false);
   };
 
-  const payRun=async(run:any)=>{
+  const validatePayrollRun=async(run:any)=>{
+    if(saving)return;
     setSaving(true);
-    await (supabase as any).from("finance_payroll_runs").update({status:"paye",paid_at:new Date().toISOString()}).eq("id",run.id);
-    await (supabase as any).from("finance_payroll_items").update({status:"paye"}).eq("payroll_run_id",run.id);
-    await load();setSaving(false);toast({title:"Paie déclenchée"});
+    try {
+      const {error}=await (supabase as any).rpc("finance_validate_payroll_run",{p_run_id:run.id});
+      if(error)throw error;
+      toast({title:"Paie validée",description:"Le lot est maintenant prêt à être payé."});
+      await load();
+    } catch(error:any) {toast({title:"Validation impossible",description:error?.message||"La paie n’a pas été validée.",variant:"destructive"});}
+    finally {setSaving(false);}
+  };
+
+  const payRun=async()=>{
+    if(!payrollPaymentRunId||saving)return;
+    if(payrollPaymentMethod!=="especes"&&!payrollPaymentReference.trim()){
+      toast({title:"Référence obligatoire",description:"Saisissez la référence réelle du virement, chèque ou paiement Mobile Money.",variant:"destructive"});return;
+    }
+    setSaving(true);
+    try {
+      const {error}=await (supabase as any).rpc("finance_payroll_mark_paid",{
+        p_run_id:payrollPaymentRunId,
+        p_payment_method:payrollPaymentMethod,
+        p_payment_reference:payrollPaymentReference.trim(),
+        p_payment_proof_url:payrollPaymentProofUrl.trim()||null
+      });
+      if(error)throw error;
+      toast({title:"Paiement de paie enregistré",description:"Les écritures financières et les lignes de paie ont été mises à jour ensemble."});
+      setPayrollPaymentRunId("");setPayrollPaymentReference("");setPayrollPaymentProofUrl("");
+      await load();
+    } catch(error:any) {toast({title:"Paiement non confirmé",description:error?.message||"Aucune confirmation de paiement n’a été enregistrée.",variant:"destructive"});}
+    finally {setSaving(false);}
   };
 
   if(!canView)return null;
@@ -373,7 +404,8 @@ export default function Finance(){
           <div className="space-y-1"><Label>Jour habituel de paiement (1 à 31)</Label><Input type="number" min="1" max="31" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/></div>
           <Button className="w-full sm:col-span-2" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
         </CardContent></Card>}
-        {can("finance.payroll")&&<Card><CardHeader><CardTitle>Générer la paie</CardTitle></CardHeader><CardContent className="space-y-3"><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><Button className="w-full" onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>GÉNÉRER AUTOMATIQUEMENT</Button><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p></div><div className="flex flex-wrap items-center gap-2">{r.status!=="paye"&&<Button size="sm" onClick={()=>void payRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>DÉCLENCHER</Button>}{canDeleteDraftPayroll && r.status==="brouillon" && <Button size="sm" variant="destructive" onClick={()=>{if(window.confirm("Supprimer définitivement ce brouillon de paie et ses lignes ?")) void deletePayrollDraft(r);}} disabled={saving}><Trash2 className="mr-1 h-4 w-4"/>Supprimer</Button>}</div></div>)}</div></CardContent></Card>}
+        {can("finance.payroll")&&<Card><CardHeader><CardTitle>Générer la paie</CardTitle></CardHeader><CardContent className="space-y-3"><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><Button className="w-full" onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>GÉNÉRER AUTOMATIQUEMENT</Button><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p>{r.payment_reference&&<p className="text-xs text-muted-foreground">Réf. : {r.payment_reference}</p>}</div><div className="flex flex-wrap items-center gap-2">{r.status==="brouillon"&&<Button size="sm" onClick={()=>void validatePayrollRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>Valider</Button>}{r.status==="valide"&&<Button size="sm" onClick={()=>{setPayrollPaymentRunId(r.id);setPayrollPaymentReference("");setPayrollPaymentMethod("virement");}} disabled={saving}><Banknote className="mr-1 h-4 w-4"/>Enregistrer le paiement</Button>}{r.status==="paye"&&<Badge>Payée</Badge>}{canDeleteDraftPayroll && r.status==="brouillon" && <Button size="sm" variant="destructive" onClick={()=>{if(window.confirm("Supprimer définitivement ce brouillon de paie et ses lignes ?")) void deletePayrollDraft(r);}} disabled={saving}><Trash2 className="mr-1 h-4 w-4"/>Supprimer</Button>}</div></div>)}
+        {!!payrollPaymentRunId&&<div className="space-y-3 rounded-lg border bg-muted/30 p-3"><h3 className="font-semibold">Confirmer le paiement du lot {payrollRuns.find(r=>r.id===payrollPaymentRunId)?.period_start?.slice(0,7)}</h3><p className="text-sm text-muted-foreground">N’enregistrez cette étape qu’après avoir effectué le paiement réel.</p><div className="grid gap-2 sm:grid-cols-2"><div className="space-y-1"><Label>Mode de paiement</Label><Select value={payrollPaymentMethod} onValueChange={setPayrollPaymentMethod}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Référence réelle {payrollPaymentMethod==="especes"?"(facultative)":"(obligatoire)"}</Label><Input value={payrollPaymentReference} onChange={e=>setPayrollPaymentReference(e.target.value)} placeholder="Référence transaction / chèque"/></div><div className="space-y-1 sm:col-span-2"><Label>URL du justificatif (facultative)</Label><Input value={payrollPaymentProofUrl} onChange={e=>setPayrollPaymentProofUrl(e.target.value)} placeholder="Lien sécurisé vers le justificatif"/></div></div><div className="flex flex-wrap gap-2"><Button onClick={()=>void payRun()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement enregistré"}</Button><Button variant="outline" onClick={()=>setPayrollPaymentRunId("")} disabled={saving}>Annuler</Button></div></div>}</div></CardContent></Card>}
       </div></TabsContent>
       <TabsContent value="associes" className="mt-3 min-w-0 space-y-3"><div className="rounded-xl border-l-4 border-violet-600 bg-violet-600/5 p-3"><h2 className="font-semibold">Comptes des associés</h2><p className="text-xs text-muted-foreground">Apports, remboursements et historique financier.</p></div><div className="grid grid-cols-2 gap-2 lg:grid-cols-4"><Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Associés actifs</p><p className="text-base font-bold">{associates.filter(a=>a.active).length}</p></CardContent></Card><Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Total des apports</p><p className="whitespace-nowrap text-sm font-bold tabular-nums">{money(associateMovements.filter(m=>m.movement_type==="apport"&&m.finance_transactions?.status==="valide").reduce((sum,m)=>sum+Number(m.finance_transactions?.amount||0),0))}</p></CardContent></Card><Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Remboursements</p><p className="whitespace-nowrap text-sm font-bold tabular-nums">{money(associateMovements.filter(m=>m.movement_type==="remboursement"&&m.finance_transactions?.status==="valide").reduce((sum,m)=>sum+Number(m.finance_transactions?.amount||0),0))}</p></CardContent></Card><Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Solde net</p><p className="whitespace-nowrap text-sm font-bold tabular-nums">{money(associateMovements.filter(m=>m.finance_transactions?.status==="valide").reduce((sum,m)=>sum+(m.movement_type==="apport"?1:m.movement_type==="remboursement"?-1:0)*Number(m.finance_transactions?.amount||0),0))}</p></CardContent></Card></div><Card><CardHeader className="pb-2"><CardTitle className="text-base">Répartition des apports par associé</CardTitle></CardHeader><CardContent className="space-y-3">
           {associates.map(a=>{const amount=associateMovements.filter(m=>m.associate_id===a.id&&m.movement_type==="apport"&&m.finance_transactions?.status==="valide").reduce((sum,m)=>sum+Number(m.finance_transactions?.amount||0),0);const total=associateMovements.filter(m=>m.movement_type==="apport"&&m.finance_transactions?.status==="valide").reduce((sum,m)=>sum+Number(m.finance_transactions?.amount||0),0);const pct=total?Math.round(amount/total*100):0;return <div key={a.id} className="space-y-1"><div className="flex items-center justify-between gap-2 text-xs"><span className="min-w-0 truncate">{a.full_name}</span><span className="whitespace-nowrap font-semibold tabular-nums">{money(amount)} · {pct}%</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-emerald-600" style={{width:pct+"%"}}/></div></div>})}

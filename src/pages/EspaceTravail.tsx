@@ -1,0 +1,268 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import MainLayout from "@/components/layout/MainLayout";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { FileText, FileSpreadsheet, Presentation, FolderOpen, Plus, Save, Users, MessageSquare, History, ExternalLink, Paperclip, Send, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+
+type WorkspaceDoc = {
+  id: string; title: string; document_type: "document" | "spreadsheet" | "presentation" | "file";
+  content_text: string | null; owner_profile_id: string; storage_path: string | null; file_name: string | null;
+  updated_at: string; created_at: string;
+};
+type Collaborator = { id: string; nom_complet: string; email: string | null; poste: string | null };
+type DocComment = { id: string; document_id: string; author_profile_id: string; body: string; created_at: string };
+type DocVersion = { id: string; title: string; document_type: string; content_text: string; changed_by_profile_id: string | null; created_at: string };
+
+const typeLabels: Record<string, string> = { document: "Document", spreadsheet: "Tableur / données", presentation: "Présentation", file: "Fichier partagé" };
+const TypeIcon = ({ type }: { type: string }) => type === "spreadsheet" ? <FileSpreadsheet className="h-4 w-4" /> : type === "presentation" ? <Presentation className="h-4 w-4" /> : type === "file" ? <Paperclip className="h-4 w-4" /> : <FileText className="h-4 w-4" />;
+
+export default function EspaceTravail() {
+  const { profile, user } = useAuth();
+  const [documents, setDocuments] = useState<WorkspaceDoc[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [selected, setSelected] = useState<WorkspaceDoc | null>(null);
+  const [title, setTitle] = useState("");
+  const [documentType, setDocumentType] = useState<WorkspaceDoc["document_type"]>("document");
+  const [content, setContent] = useState("");
+  const [comments, setComments] = useState<DocComment[]>([]);
+  const [versions, setVersions] = useState<DocVersion[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [shareProfileId, setShareProfileId] = useState("");
+  const [sharePermission, setSharePermission] = useState<"view" | "edit">("edit");
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [officeUrl] = useState((import.meta as any).env?.VITE_OFFICE_SUITE_URL || "");
+
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [docsResult, collaboratorsResult] = await Promise.all([
+        (supabase as any).from("workspace_documents").select("*").order("updated_at", { ascending: false }),
+        (supabase as any).rpc("workspace_list_collaborators"),
+      ]);
+      if (docsResult.error) throw docsResult.error;
+      if (collaboratorsResult.error) throw collaboratorsResult.error;
+      const list = (docsResult.data || []) as WorkspaceDoc[];
+      setDocuments(list);
+      setCollaborators((collaboratorsResult.data || []) as Collaborator[]);
+      const next = list.find((d) => d.id === selectedId) || list[0] || null;
+      if (next) {
+        setSelectedId(next.id);
+        setSelected(next);
+        setTitle(next.title);
+        setDocumentType(next.document_type);
+        setContent(next.content_text || "");
+      } else {
+        setSelectedId("");
+        setSelected(null);
+        setTitle("");
+        setContent("");
+      }
+    } catch (error: any) {
+      toast.error("Impossible de charger l’espace de travail : " + (error?.message || "erreur inconnue"));
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedId]);
+
+  const loadDetails = useCallback(async (documentId: string) => {
+    if (!documentId) { setComments([]); setMembers([]); return; }
+    const [commentResult, memberResult, versionResult] = await Promise.all([
+      (supabase as any).from("workspace_document_comments").select("*").eq("document_id", documentId).order("created_at", { ascending: true }),
+      (supabase as any).from("workspace_document_members").select("id,document_id,profile_id,permission,created_at").eq("document_id", documentId),
+      (supabase as any).from("workspace_document_versions").select("*").eq("document_id", documentId).order("created_at", { ascending: false }).limit(20),
+    ]);
+    if (commentResult.error) toast.error("Commentaires indisponibles : " + commentResult.error.message);
+    else setComments(commentResult.data || []);
+    if (memberResult.error) toast.error("Partages indisponibles : " + memberResult.error.message);
+    else setMembers(memberResult.data || []);
+    if (versionResult.error) toast.error("Historique indisponible : " + versionResult.error.message);
+    else setVersions(versionResult.data || []);
+  }, []);
+
+  useEffect(() => { void loadDocuments(); }, [loadDocuments]);
+  useEffect(() => { void loadDetails(selectedId); }, [selectedId, loadDetails]);
+  useEffect(() => {
+    const channel = supabase.channel("workspace-live-updates")
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_documents" }, () => { void loadDocuments(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_document_comments" }, (payload: any) => {
+        if (payload.new?.document_id === selectedId || payload.old?.document_id === selectedId) void loadDetails(selectedId);
+      }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [loadDocuments, loadDetails, selectedId]);
+
+  const collaboratorNames = useMemo(() => new Map(collaborators.map((c) => [c.id, c.nom_complet])), [collaborators]);
+  const isOwner = !!selected && selected.owner_profile_id === profile?.id;
+  const canEditSelected = !!selected && (isOwner || members.some((m: any) => m.profile_id === profile?.id && m.permission === "edit"));
+
+  const chooseDocument = (doc: WorkspaceDoc) => {
+    setSelectedId(doc.id); setSelected(doc); setTitle(doc.title); setDocumentType(doc.document_type); setContent(doc.content_text || "");
+  };
+
+  const createDocument = async () => {
+    if (!profile?.id || !user?.id) { toast.error("Votre compte CRM doit être actif pour créer un document."); return; }
+    setSaving(true);
+    try {
+      const { data, error } = await (supabase as any).from("workspace_documents").insert({
+        title: "Nouveau document", document_type: "document", content_text: "", owner_profile_id: profile.id,
+      }).select("*").single();
+      if (error) throw error;
+      if (!data?.id) throw new Error("La base n’a pas confirmé la création du document.");
+      setDocuments((old) => [data, ...old.filter((d) => d.id !== data.id)]);
+      chooseDocument(data);
+      toast.success("Document créé et enregistré.");
+    } catch (error: any) { toast.error("Création impossible : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  const saveDocument = async () => {
+    if (!selected?.id || saving || !canEditSelected) return;
+    if (!title.trim()) { toast.error("Le titre du document est obligatoire."); return; }
+    setSaving(true);
+    try {
+      const { data, error } = await (supabase as any).from("workspace_documents")
+        .update({ title: title.trim(), document_type: documentType, content_text: content, updated_at: new Date().toISOString() })
+        .eq("id", selected.id).select("*").single();
+      if (error) throw error;
+      if (!data?.id) throw new Error("La modification n’a pas été confirmée par la base de données.");
+      setSelected(data); setDocuments((old) => old.map((d) => d.id === data.id ? data : d));
+      toast.success("Modifications enregistrées.");
+    } catch (error: any) { toast.error("Enregistrement impossible. Votre texte reste affiché : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  const addComment = async () => {
+    if (!selected?.id || !profile?.id || !commentDraft.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("workspace_document_comments").insert({
+        document_id: selected.id, author_profile_id: profile.id, body: commentDraft.trim(),
+      });
+      if (error) throw error;
+      setCommentDraft("");
+      await loadDetails(selected.id);
+      toast.success("Commentaire publié.");
+    } catch (error: any) { toast.error("Commentaire non enregistré : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  const shareDocument = async () => {
+    if (!selected?.id || !shareProfileId || !isOwner) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("workspace_document_members").upsert({
+        document_id: selected.id, profile_id: shareProfileId, permission: sharePermission,
+        created_by_profile_id: profile?.id,
+      }, { onConflict: "document_id,profile_id" });
+      if (error) throw error;
+      setShareProfileId("");
+      await loadDetails(selected.id);
+      toast.success("Partage enregistré.");
+    } catch (error: any) { toast.error("Partage impossible : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  const openAttachment = async () => {
+    if (!selected?.storage_path) return;
+    const { data, error } = await supabase.storage.from("documents").createSignedUrl(selected.storage_path, 60);
+    if (error || !data?.signedUrl) { toast.error("Le fichier ne peut pas être ouvert : " + (error?.message || "lien indisponible")); return; }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const uploadAttachment = async (file?: File) => {
+    if (!selected?.id || !file || !canEditSelected) return;
+    setSaving(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `workspace/${selected.id}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from("documents").upload(path, file, { upsert: false, contentType: file.type || "application/octet-stream" });
+      if (uploadError) throw uploadError;
+      const { data, error } = await (supabase as any).from("workspace_documents").update({
+        storage_path: path, file_name: file.name, mime_type: file.type || null, updated_at: new Date().toISOString(),
+      }).eq("id", selected.id).select("*").single();
+      if (error) throw error;
+      setSelected(data); setDocuments((old) => old.map((d) => d.id === data.id ? data : d));
+      toast.success("Fichier joint et enregistré.");
+    } catch (error: any) { toast.error("Fichier non enregistré : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  return <ProtectedRoute><MainLayout>
+    <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div><h1 className="text-2xl font-bold">Espace de travail</h1><p className="text-sm text-muted-foreground">Documents partagés, commentaires et collaboration des équipes.</p></div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => void loadDocuments()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
+          <Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Nouveau document</Button>
+        </div>
+      </div>
+      {!officeUrl && <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm"><b>Suite bureautique avancée à connecter.</b><p className="mt-1 text-muted-foreground">L’espace interne et le partage sont disponibles. La coédition native de fichiers Word/Excel/PowerPoint nécessite de connecter un serveur ONLYOFFICE ou Nextcloud à l’hébergement AgriCapital. Aucun serveur bureautique n’est configuré actuellement.</p></div>}
+      {officeUrl && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><b>Suite bureautique connectée</b><p className="text-sm text-muted-foreground">Ouvrir la suite pour créer ou modifier des fichiers compatibles.</p></div><Button variant="outline" onClick={() => window.open(officeUrl, "_blank", "noopener,noreferrer")}><ExternalLink className="mr-2 h-4 w-4" />Ouvrir la suite</Button></div>}
+      <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.8fr)]">
+        <Card className="min-w-0">
+          <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.length === 0 ? <p className="text-sm text-muted-foreground">Aucun document pour le moment. Créez-en un pour commencer.</p> : documents.map((doc) =>
+              <button key={doc.id} onClick={() => chooseDocument(doc)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}>
+                <div className="flex items-start gap-2"><TypeIcon type={doc.document_type} /><span className="min-w-0 flex-1 truncate font-medium">{doc.title}</span></div>
+                <div className="mt-2 flex flex-wrap gap-1"><Badge variant="outline">{typeLabels[doc.document_type] || "Document"}</Badge>{doc.owner_profile_id === profile?.id && <Badge>Propriétaire</Badge>}</div>
+                <p className="mt-1 text-xs text-muted-foreground">Modifié le {new Date(doc.updated_at).toLocaleString("fr-FR")}</p>
+              </button>
+            )}
+          </CardContent>
+        </Card>
+        <div className="min-w-0 space-y-4">
+          {selected ? <>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><TypeIcon type={documentType} />Éditeur collaboratif</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+                  <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
+                  <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
+                </div>
+                <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Données tabulaires (vous pouvez coller du CSV)" : documentType === "presentation" ? "Plan des diapositives et notes" : "Contenu"}</Label><Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => setContent(e.target.value)} placeholder={documentType === "spreadsheet" ? "Colonne A;Colonne B;Colonne C\nValeur 1;Valeur 2;Valeur 3" : documentType === "presentation" ? "Diapositive 1 — Titre\nPoints clés…\n\nDiapositive 2 — Titre" : "Rédigez votre document ici…"} disabled={saving || !canEditSelected} /></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</p><Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div>
+                <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button></>}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Partage et accès</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {isOwner ? <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px_auto]">
+                  <Select value={shareProfileId} onValueChange={setShareProfileId}><SelectTrigger><SelectValue placeholder="Choisir un collaborateur" /></SelectTrigger><SelectContent>{collaborators.filter((c) => c.id !== profile?.id).map((c) => <SelectItem key={c.id} value={c.id}>{c.nom_complet}{c.email ? ` — ${c.email}` : ""}</SelectItem>)}</SelectContent></Select>
+                  <Select value={sharePermission} onValueChange={(v: any) => setSharePermission(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="view">Lecture seule</SelectItem><SelectItem value="edit">Peut modifier</SelectItem></SelectContent></Select>
+                  <Button onClick={() => void shareDocument()} disabled={!shareProfileId || saving}><Users className="mr-2 h-4 w-4" />Partager</Button>
+                </div> : <p className="text-sm text-muted-foreground">Seul le propriétaire du document peut gérer les accès.</p>}
+                {members.length === 0 ? <p className="text-sm text-muted-foreground">Aucun collaborateur ajouté explicitement.</p> : members.map((member) => <div key={member.id} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"><span>{collaboratorNames.get(member.profile_id) || "Collaborateur"}</span><Badge variant="outline">{member.permission === "edit" ? "Modification" : "Lecture seule"}</Badge></div>)}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />Historique des versions</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {versions.length === 0 ? <p className="text-sm text-muted-foreground">L’historique se remplira à chaque modification enregistrée.</p> : versions.map((version) => <div key={version.id} className="rounded-md border p-2 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><b>{version.title}</b><span className="text-xs text-muted-foreground">{new Date(version.created_at).toLocaleString("fr-FR")}</span></div><p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-muted-foreground">{version.content_text || "Version sans texte"}</p><p className="mt-1 text-xs text-muted-foreground">Par {collaboratorNames.get(version.changed_by_profile_id || "") || "Collaborateur"}</p></div>)}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" />Commentaires et échanges</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {comments.length === 0 ? <p className="text-sm text-muted-foreground">Aucun commentaire. Utilisez cet espace pour échanger sur le document.</p> : comments.map((comment) => <div key={comment.id} className="rounded-lg border p-3"><div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><b>{collaboratorNames.get(comment.author_profile_id) || "Collaborateur"}</b><span>{new Date(comment.created_at).toLocaleString("fr-FR")}</span></div><p className="mt-2 whitespace-pre-wrap text-sm">{comment.body}</p></div>)}
+                <div className="flex flex-col gap-2 sm:flex-row"><Textarea value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} placeholder="Écrire un commentaire…" rows={2} /><Button onClick={() => void addComment()} disabled={saving || !commentDraft.trim()}><Send className="mr-2 h-4 w-4" />Envoyer</Button></div>
+              </CardContent>
+            </Card>
+          </> : <Card><CardContent className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center"><History className="h-10 w-10 text-muted-foreground" /><h2 className="font-semibold">Votre espace de travail</h2><p className="max-w-md text-sm text-muted-foreground">Créez un document, partagez-le avec vos collègues, ajoutez des commentaires et conservez un historique des versions.</p><Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Créer le premier document</Button></CardContent></Card>}
+        </div>
+      </div>
+    </div>
+  </MainLayout></ProtectedRoute>;
+}

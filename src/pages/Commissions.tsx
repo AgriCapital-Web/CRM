@@ -12,14 +12,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, DollarSign, TrendingUp, CheckCircle, Clock3, RefreshCw } from "lucide-react";
+import { Search, DollarSign, TrendingUp, CheckCircle, Clock3, RefreshCw, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
 
 const money = (n: any) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
 const typeLabel = (t: string) => t === "acquisition" ? "Vente commerciale" : t === "recouvrement_mensuel" ? "Recouvrement mensuel" : t === "technique" ? "Commission technique" : t === "mobilisation_fonciere" ? "Mobilisation foncière" : t || "—";
-const statusLabel = (s: string) => s === "calculee" ? "À valider" : s === "validee" ? "À payer" : s === "payee" ? "Payée" : s === "annule" ? "Annulée" : s || "—";
+const statusLabel = (s: string) => s === "calculee" || s === "en_attente" ? "À valider" : s === "validee" ? "À payer" : s === "payee" ? "Payée" : s === "annule" ? "Annulée" : s || "—";
 const statusVariant = (s: string) => s === "payee" ? "default" : s === "validee" ? "secondary" : s === "calculee" ? "outline" : "destructive";
 
 export default function Commissions() {
@@ -29,6 +29,7 @@ export default function Commissions() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<any | null>(null);
+  const [validatingId, setValidatingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -98,6 +99,21 @@ export default function Commissions() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const canValidate = userRoles.some((r: string) => ["pdg","dg","comptable","responsable_operations","super_admin","admin"].includes(r));
+  const validateCommission = async (commissionId: string) => {
+    if (validatingId) return;
+    setValidatingId(commissionId);
+    try {
+      const { error } = await (supabase as any).rpc("workspace_validate_commission", { p_commission_id: commissionId });
+      if (error) throw error;
+      toast({ title: "Commission validée", description: "Elle est maintenant disponible pour le circuit de paiement." });
+      setSelected(null);
+      await load();
+    } catch (error: any) {
+      toast({ title: "Validation impossible", description: error?.message || "La commission n’a pas été validée.", variant: "destructive" });
+    } finally { setValidatingId(null); }
   };
 
   useEffect(() => { void load(); }, []);
@@ -227,7 +243,7 @@ export default function Commissions() {
                   </div>
                   <div className="overflow-x-auto">
                     <Table className="min-w-[950px]">
-                      <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader>
+                      <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                       <TableBody>{selected.details.map((d: any) =>
                         <TableRow key={d.id}>
                           <TableCell>{d.client?.nom_complet || "—"}</TableCell>
@@ -237,7 +253,7 @@ export default function Commissions() {
                           <TableCell>{Number(d.taux_commission || 0) > 0 ? `${d.taux_commission}%` : "—"}</TableCell>
                           <TableCell className="font-semibold">{money(d.montant_commission)}</TableCell>
                           <TableCell>{d.periode ? format(new Date(d.periode), "dd/MM/yyyy", { locale: fr }) : "—"}</TableCell>
-                          <TableCell><Badge variant={statusVariant(d.statut)}>{statusLabel(d.statut)}</Badge></TableCell>
+                          <TableCell><Badge variant={statusVariant(d.statut)}>{statusLabel(d.statut)}</Badge></TableCell><TableCell>{canValidate && ["calculee","en_attente"].includes(d.statut) && <Button size="sm" onClick={() => void validateCommission(d.id)} disabled={!!validatingId}><ShieldCheck className="mr-1 h-3.5 w-3.5" />{validatingId === d.id ? "Validation…" : "Valider"}</Button>}</TableCell>
                         </TableRow>
                       )}</TableBody>
                     </Table>
