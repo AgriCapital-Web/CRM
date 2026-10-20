@@ -221,9 +221,10 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
   (slides.length ? slides : [""]).forEach((text, index) => {
     const slide = pptx.addSlide();
     const lines = text.replace(/<[^>]*>/g, "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    const heading = (lines[0] || (title + " — " + (index + 1))).replace(/^DIAPOSITIVE\s*\d+/i, "").trim() || title || "Diapositive " + (index + 1);
+    if (/^DIAPOSITIVE\s*\d+$/i.test(lines[0] || "")) lines.shift();
+    const heading = (lines.shift() || (title + " — " + (index + 1))).trim() || title || "Diapositive " + (index + 1);
     slide.addText(heading, { x: 0.55, y: 0.35, w: 12.2, h: 0.65, fontFace: "Aptos Display", fontSize: 26, bold: true, color: "17365D", breakLine: false });
-    const body = lines.slice(1).join("\n");
+    const body = lines.join("\n");
     if (body) slide.addText(body, { x: 0.7, y: 1.25, w: 11.8, h: 5.4, fontFace: "Aptos", fontSize: 17, color: "263238", breakLine: false, valign: "top", bullet: false, paraSpaceAfterPt: 10 });
     slide.addText("AgriCapital  •  " + (index + 1), { x: 10.4, y: 7.05, w: 2.2, h: 0.2, fontSize: 9, color: "6B7280", align: "right" });
   });
