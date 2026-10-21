@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { offlineUpdate } from "@/lib/offlineWrite";
+import { offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +52,10 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const [storedVersoPreview, setStoredVersoPreview] = useState("");
   const [pieceRectoPreview, setPieceRectoPreview] = useState("");
   const [pieceVersoPreview, setPieceVersoPreview] = useState("");
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [contractPreview, setContractPreview] = useState("");
+  const [storedContractPreview, setStoredContractPreview] = useState("");
+  const [contractDocument, setContractDocument] = useState<any>(null);
   const { byCategory: refs } = useSystemReferences(["civilite","statut_marital"]);
 
   const setField = (key: string, value: any) => setForm((x: any) => ({ ...x, [key]: value }));
@@ -67,6 +71,8 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     setPhotoPreview("");
     setPieceRectoPreview("");
     setPieceVersoPreview("");
+    setContractFile(null);
+    setContractPreview("");
   }, [client?.id, readOnly]);
 
   useEffect(() => {
@@ -77,10 +83,30 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         resolveStorageUrl("pieces-identite", client?.fichier_piece_recto_url || null),
         resolveStorageUrl("pieces-identite", client?.fichier_piece_verso_url || null),
       ]);
+      let storedContract = null;
+      let contractUrl = "";
+      if (client?.id) {
+        const { data: contractRows, error: contractError } = await (supabase as any)
+          .from("documents_acquisition")
+          .select("id,client_id,type_document,code_document,categorie,source_contractuelle,fichier_url,statut,metadata,created_at")
+          .eq("client_id", client.id)
+          .eq("type_document", "fiche_contrat")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (!contractError && contractRows?.length) {
+          storedContract = contractRows[0];
+          const bucket = storedContract.metadata?.storage_bucket || "documents";
+          contractUrl = await resolveStorageUrl(bucket, storedContract.fichier_url) ||
+            await resolveStorageUrl("documents-fonciers", storedContract.fichier_url) ||
+            await resolveStorageUrl("documents", storedContract.fichier_url) || "";
+        }
+      }
       if (active) {
         setStoredPhotoPreview(photo || "");
         setStoredRectoPreview(recto || "");
         setStoredVersoPreview(verso || "");
+        setContractDocument(storedContract);
+        setStoredContractPreview(contractUrl);
       }
     };
     void loadStoredPreviews();
@@ -153,18 +179,52 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       let photo_profil_url = form.photo_profil_url || null;
       let fichier_piece_recto_url = form.fichier_piece_recto_url || null;
       let fichier_piece_verso_url = form.fichier_piece_verso_url || null;
+      let filesQueued = false;
 
       if (photoFile) {
         const result = await uploadFile("photos-profils", photoFile);
-        if (result) photo_profil_url = result.url;
+        if (!result?.path) throw new Error("La photo de profil n’a pas été enregistrée. Réessayez.");
+        photo_profil_url = result.path;
+        filesQueued ||= result.queued;
       }
       if (pieceRectoFile) {
         const result = await uploadFile("pieces-identite", pieceRectoFile);
-        if (result) fichier_piece_recto_url = result.url;
+        if (!result?.path) throw new Error("Le recto de la pièce d’identité n’a pas été enregistré. Réessayez.");
+        fichier_piece_recto_url = result.path;
+        filesQueued ||= result.queued;
       }
       if (pieceVersoFile) {
         const result = await uploadFile("pieces-identite", pieceVersoFile);
-        if (result) fichier_piece_verso_url = result.url;
+        if (!result?.path) throw new Error("Le verso de la pièce d’identité n’a pas été enregistré. Réessayez.");
+        fichier_piece_verso_url = result.path;
+        filesQueued ||= result.queued;
+      }
+
+      if (contractFile) {
+        const contractUpload = await uploadFile("documents", contractFile, `${user.id}/clients/${client.id}/contrats`);
+        if (!contractUpload?.path) throw new Error("Le contrat n’a pas été enregistré. Réessayez.");
+        filesQueued ||= contractUpload.queued;
+        const contractId = contractDocument?.id || crypto.randomUUID();
+        const { data: savedContract, error: contractSaveError, offline: contractOffline } = await offlineUpsert("documents_acquisition", {
+          id: contractId,
+          client_id: client.id,
+          type_document: "fiche_contrat",
+          code_document: "fiche_contrat",
+          categorie: "souscription",
+          obligatoire: false,
+          source_contractuelle: "fiche_contrat",
+          fichier_url: contractUpload.path,
+          statut: "en_attente",
+          uploaded_by: user.id,
+          metadata: { libelle: "Contrat", source_formulaire: "client", storage_bucket: "documents" },
+        });
+        if (contractSaveError) throw contractSaveError;
+        if (!savedContract) throw new Error("Le fichier a été envoyé, mais son rattachement au dossier client n’a pas été confirmé.");
+        setContractDocument(savedContract);
+        setStoredContractPreview(await resolveStorageUrl("documents", contractUpload.path) || "");
+        setContractFile(null);
+        setContractPreview("");
+        filesQueued ||= contractOffline;
       }
 
       // IMPORTANT : seules les colonnes métier de clients sont envoyées.
@@ -183,10 +243,16 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         clientPayload.validation_at = null;
       }
 
-      const { error } = await offlineUpdate("clients", client.id, clientPayload);
+      const { error, offline: clientOffline } = await offlineUpdate("clients", client.id, clientPayload);
       if (error) throw error;
+      filesQueued ||= clientOffline;
 
-      toast({ title: "Dossier mis à jour", description: `${clientPayload.nom_complet || "Le Client"} a été modifié avec succès.` });
+      toast({
+        title: filesQueued ? "Enregistrement en attente de synchronisation" : "Dossier mis à jour",
+        description: filesQueued
+          ? "Les modifications et/ou fichiers ont été conservés dans la file locale. La synchronisation les transmettra au serveur dès que possible."
+          : `${clientPayload.nom_complet || "Le Client"} a été modifié avec succès.`,
+      });
       if (readOnly) setIsEditing(false);
       onSuccess();
     } catch (error: any) {
@@ -352,6 +418,23 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
           <div className="min-w-0"><Label className="text-xs">Photo profil</Label>{fileUpload("Photo profil","photo_profil",photoFile,form.photo_profil_url,photoPreview,setPhotoFile,setPhotoPreview)}</div>
           <div className="min-w-0"><Label className="text-xs">Pièce recto</Label>{fileUpload("Pièce recto","piece_recto",pieceRectoFile,form.fichier_piece_recto_url,pieceRectoPreview,setPieceRectoFile,setPieceRectoPreview,true)}</div>
           <div className="min-w-0"><Label className="text-xs">Pièce verso</Label>{fileUpload("Pièce verso","piece_verso",pieceVersoFile,form.fichier_piece_verso_url,pieceVersoPreview,setPieceVersoFile,setPieceVersoPreview)}</div>
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Contrat du client</CardTitle></CardHeader>
+        <CardContent className="space-y-2 px-4 pb-3 pt-0">
+          {contractDocument && !contractFile && <p className="text-xs text-muted-foreground">Un contrat est déjà rattaché à ce dossier. Sélectionnez un autre fichier pour le remplacer.</p>}
+          <FileUploadVisual
+            label="Importer le contrat (PDF ou image)"
+            field="fiche_contrat"
+            accept="application/pdf,image/*"
+            currentFile={contractFile}
+            currentPreview={contractPreview}
+            existingPreview={storedContractPreview}
+            onFileChange={(_, file, preview) => { setContractFile(file); setContractPreview(preview); }}
+            compact
+          />
         </CardContent>
       </Card>
 
