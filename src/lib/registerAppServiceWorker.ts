@@ -59,15 +59,17 @@ export async function registerAppServiceWorker() {
       registration.update().catch(() => {
         // A temporary network failure must never break the CRM.
       });
+    const onOnline = () => void checkForUpdate();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void checkForUpdate();
+    };
 
+    // Installed PWAs can remain open while the device regains connectivity.
+    // Check immediately on reconnect, on foregrounding, at startup and periodically.
     void checkForUpdate();
-    setInterval(() => void checkForUpdate(), 15 * 60 * 1000);
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        void checkForUpdate();
-      }
-    });
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.setInterval(() => void checkForUpdate(), 15 * 60 * 1000);
   } catch {
     // Service worker support must remain non-blocking for the CRM.
   }
