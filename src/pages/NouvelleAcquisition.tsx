@@ -244,6 +244,9 @@ const NouvelleAcquisition = () => {
     if(step.code==="offre"&&(!formData.commercial_id||!formData.offre_id||Number(formData.superficie_prevue)<=0)){
       toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez la superficie."}); return false;
     }
+    if(step.code==="offre"&&!formData.formule_code){
+      toast({variant:"destructive",title:"Formule obligatoire",description:"Choisissez d’abord la formule exacte de l’offre avant de passer à l’étape Client."}); return false;
+    }
     if(step.code==="client"){
       const fields=["civilite","nom_famille","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece","telephone","domicile"];
       if(fields.some(f=>!formData[f])||(!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview)){
