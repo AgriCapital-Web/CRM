@@ -49,7 +49,46 @@ serve(async(req)=>{
       .maybeSingle();
 
     if(clientError) throw clientError;
-    if(!client || (!client.compte_actif && client.type_client!=="beneficiaire_particulier")) return json({success:false,error:"Compte portail inactif ou introuvable."},403);
+    const isPreActivation = Boolean(client && !client.compte_actif && client.validation_statut === "valide" && client.type_client !== "beneficiaire_particulier" && !client.is_internal);
+    if(!client || (!client.compte_actif && client.type_client!=="beneficiaire_particulier" && !isPreActivation)) return json({success:false,error:"Compte portail inactif ou dossier client non validé."},403);
+
+    if (isPreActivation) {
+      const [{data: financialState, error: financialError}, {data: initialPayments, error: paymentsError}] = await Promise.all([
+        supabase.rpc("portal_current_payment_state", {_client_id: client.id}),
+        supabase.from("paiements")
+          .select("id,client_id,plantation_id,acquisition_id,type_paiement,est_paiement_initial,montant,montant_paye,statut,reference,mode_paiement,date_paiement,created_at")
+          .eq("client_id", client.id)
+          .eq("est_paiement_initial", true)
+          .in("statut", ["en_attente","valide"])
+          .order("created_at", {ascending:false})
+          .limit(10)
+      ]);
+      if (financialError) throw financialError;
+      if (paymentsError) throw paymentsError;
+      const preActivationClient = {
+        id: client.id,
+        id_unique: client.id_unique,
+        nom_complet: client.nom_complet,
+        telephone: client.telephone || client.whatsapp || client.telephone_local || client.whatsapp_local,
+        email: client.email,
+        compte_actif: false,
+        validation_statut: client.validation_statut,
+        pre_activation: true,
+        type_client: client.type_client,
+        is_beneficiaire_particulier: false,
+        offre_id: client.offre_id,
+        offres: client.offres ? {nom: client.offres.nom, couleur: client.offres.couleur} : null,
+        montant_total_contrat: client.montant_total_contrat,
+        total_hectares: client.total_hectares,
+        contrat_solde_at: client.contrat_solde_at,
+        paiement_personnalise: client.paiement_personnalise,
+        paiement_etat: financialState || {},
+        portal_primary_role: "client",
+        portal_roles: ["client"],
+        portal_config: {}
+      };
+      return json({success:true,pre_activation:true,client:preActivationClient,portal_roles:["client"],parcelles:[],attributions:[],plantations:[],paiements:initialPayments||[],notifications:[]});
+    }
 
     const isOwner=Boolean(client.proprietaire_id);
     const isBeneficiary=client.type_client==="beneficiaire_particulier";
@@ -270,7 +309,7 @@ serve(async(req)=>{
       notifications:notificationRows
     });
   }catch(e:any){
-    console.error("client-portal-data",e);
-    return json({success:false,error:e?.message||"Erreur serveur."},500);
+    console.error("client-portal-data internal error:",e);
+    return json({success:false,code:"TEMPORARY_SERVICE_ERROR",error:"Nous rencontrons une difficulté technique. Veuillez réessayer dans quelques instants. Si le problème persiste, contactez AgriCapital au +225 05 64 55 17 17."},500);
   }
 });
