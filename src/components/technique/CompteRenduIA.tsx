@@ -170,7 +170,7 @@ export default function CompteRenduIA({ contexte, compact = false, onApply }: Pr
     try {
       if (!navigator.onLine) throw new Error("offline-ai");
       // A network fetch is not a reliable connection test on mobile; refresh the session first.
-      let { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       let session = sessionData.session;
       if (session?.refresh_token) {
         const refreshed = await supabase.auth.refreshSession();
