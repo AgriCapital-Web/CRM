@@ -423,7 +423,7 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
   return <div className="workspace-spreadsheet min-w-0 max-w-full space-y-3">
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0"><p className="text-sm font-semibold">Tableur AgriCapital</p><p className="text-xs text-muted-foreground">Formules, feuilles multiples, styles, import/export Excel et CSV.</p></div>
+        <div className="min-w-0"><p className="text-sm font-semibold">Tableur</p></div>
         <div className="flex max-w-full flex-wrap gap-2">
           <label className="cursor-pointer rounded-md border px-3 py-2 text-xs hover:bg-muted">Importer Excel / CSV<input type="file" accept=".xlsx,.csv,.txt" className="hidden" disabled={disabled} onChange={(e) => { void importFile(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
           <button type="button" onClick={() => void exportXlsx()} disabled={disabled} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter XLSX</button>
@@ -465,7 +465,7 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
         <span className="truncate" title={item.label}>{item.label}</span><div className="h-5 overflow-hidden rounded bg-muted"><div className="h-full rounded bg-primary/80" style={{ width: Math.max(1, Math.abs(item.value) / chartMax * 100) + "%" }} /></div><span className="text-right tabular-nums">{item.value.toLocaleString("fr-FR")}</span>
       </div>)}</div>
     </div>}
-    <p className="text-xs text-muted-foreground">Les formules sont calculées dans l’interface. Les styles et les feuilles sont conservés dans le CRM. Les classeurs complexes, macros, coédition native et calculs Excel complets nécessitent un moteur spécialisé ; l’export XLSX standard conserve les données et formules simples mais pas nécessairement tous les styles Excel avancés.</p>
+    
   </div>;
 }
 function titleSafe(value: string) { return value.replace(/[\\/:*?"<>|]+/g, "-").trim().slice(0, 60); }
@@ -509,8 +509,8 @@ function WorkspaceSlidesEditor({ value, onChange, disabled }: { value: string; o
   };
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div><Label>Présentation</Label><p className="text-xs text-muted-foreground">{slides.length} diapositive(s) · modifiez le titre et le contenu, puis enregistrez le document.</p></div>
-      <div className="flex flex-wrap gap-2">
+      <div><Label>Présentation</Label><p className="text-xs text-muted-foreground">{slides.length} diapositive(s)</p></div>
+      <div className="flex min-w-0 flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" disabled={disabled || index === 0} onClick={() => move(-1)}>Monter</Button>
         <Button type="button" variant="outline" size="sm" disabled={disabled || index === slides.length - 1} onClick={() => move(1)}>Descendre</Button>
         <Button type="button" variant="outline" size="sm" disabled={disabled || slides.length <= 1} onClick={remove}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>
@@ -535,7 +535,7 @@ function WorkspaceSlidesEditor({ value, onChange, disabled }: { value: string; o
         <div className="space-y-1"><Label>Texte et notes</Label><Textarea value={slide.body} disabled={disabled} onChange={(e) => update({ body: e.target.value })} className="min-h-[180px]" placeholder="Contenu, chiffres clés, indicateurs et notes…" /></div>
       </div>
     </div>
-    <p className="text-xs text-muted-foreground">L’export PPTX crée des diapositives éditables à partir de ce contenu. Les thèmes complexes, animations, transitions et objets du fichier PowerPoint original ne sont pas reproduits intégralement lors d’une conversion.</p>
+    
   </div>;
 }
 
@@ -816,19 +816,19 @@ export default function EspaceTravail() {
   };
 
   return <ProtectedRoute><MainLayout>
-    <div className="workspace-root min-w-0 max-w-full space-y-5 overflow-x-clip">
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div><h1 className="text-2xl font-bold">Espace de travail</h1><p className="text-sm text-muted-foreground">Documents partagés, commentaires et collaboration des équipes.</p></div>
+    <div className="workspace-root min-w-0 w-full max-w-full space-y-4 overflow-x-clip sm:space-y-5">
+      <div className="flex min-w-0 flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="min-w-0"><h1 className="text-xl font-bold sm:text-2xl">Espace de travail</h1></div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => void loadDocuments()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
-          <Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Nouveau document</Button>
+          <Button className="min-w-0 flex-1 sm:flex-none" onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Nouveau document</Button>
         </div>
       </div>
-      <div className="rounded-xl border p-3 text-sm"><b>Documents et formats ouverts</b><p className="mt-1 text-muted-foreground">Importez un fichier pour en extraire le contenu éditable, conservez l’original en pièce jointe et exportez vos travaux vers les formats bureautiques courants. Aucune installation de serveur bureautique n’est requise pour ces fonctions intégrées.</p></div>
-      {officeUrl && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><b>Suite bureautique connectée</b><p className="text-sm text-muted-foreground">Ouvrir la suite pour créer ou modifier des fichiers compatibles.</p></div><Button variant="outline" onClick={() => window.open(officeUrl, "_blank", "noopener,noreferrer")}><ExternalLink className="mr-2 h-4 w-4" />Ouvrir la suite</Button></div>}
+      
+      {officeUrl && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div className="min-w-0"><b>Suite bureautique</b></div><Button variant="outline" onClick={() => window.open(officeUrl, "_blank", "noopener,noreferrer")}><ExternalLink className="mr-2 h-4 w-4" />Ouvrir la suite</Button></div>}
       <OfficeFormatTools title={title || "Document AgriCapital"} content={content} documentType={documentType} disabled={saving} onImport={importOfficeDocument} />
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.8fr)]">
-        <Card className="min-w-0">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 xl:grid-cols-[minmax(260px,0.85fr)_minmax(0,1.6fr)]">
+        <Card className="min-w-0 w-full">
           <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
           <CardContent className="min-w-0 space-y-2">
             <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher un document…" /></div>
@@ -845,7 +845,7 @@ export default function EspaceTravail() {
           {selected ? <>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><TypeIcon type={documentType} />Éditeur collaboratif</CardTitle></CardHeader>
-              <CardContent className="min-w-0 space-y-4">
+              <CardContent className="min-w-0 space-y-3 sm:space-y-4">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
                   <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
                   <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
@@ -865,7 +865,7 @@ export default function EspaceTravail() {
                   </div>
                   <div className="space-y-1"><Label>Contenu du document</Label><div ref={editorRef} contentEditable={!saving && canEditSelected} suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeWorkspaceHtml(content) }} onInput={() => setHasUnsavedChanges(true)} onBlur={() => { if (editorRef.current) setContent(editorRef.current.innerHTML); }} role="textbox" aria-multiline="true" className="min-h-[320px] rounded-lg border bg-background p-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:ml-6 [&_li]:list-disc [&_ol_li]:list-decimal [&_p]:my-2 [&_table]:w-full [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:p-2" /></div>
                 </> : documentType === "presentation" ? <WorkspaceSlidesEditor value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <div className="space-y-1"><Label>{documentType === "spreadsheet" ? "Tableur" : "Contenu du fichier"}</Label>{documentType === "spreadsheet" ? <WorkspaceSpreadsheet value={content} onChange={(next) => { setContent(next); setHasUnsavedChanges(true); }} disabled={saving || !canEditSelected} key={selectedId} /> : <Textarea className="min-h-[260px] font-mono text-sm" value={content} onChange={(e) => { setContent(e.target.value); setHasUnsavedChanges(true); }} placeholder="Contenu du fichier…" disabled={saving || !canEditSelected} />}</div>}</>
-                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2">{documentType !== "spreadsheet" && <><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button></>}<Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
+                <div className="flex min-w-0 flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center"><p className="min-w-0 break-words text-xs text-muted-foreground">{hasUnsavedChanges ? <span className="font-medium text-amber-600">Modifications non enregistrées</span> : <>Dernière sauvegarde : {new Date(selected.updated_at).toLocaleString("fr-FR")}</>}</p><div className="flex flex-wrap gap-2">{documentType !== "spreadsheet" && <><Button variant="outline" onClick={downloadDocument} disabled={saving}><Download className="mr-2 h-4 w-4" />Exporter HTML</Button><Button variant="outline" onClick={() => window.print()} disabled={saving}><Printer className="mr-2 h-4 w-4" />Imprimer / PDF</Button></>}<Button onClick={() => void saveDocument()} disabled={saving || !title.trim() || !canEditSelected}><Save className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : "Enregistrer"}</Button></div></div>
                 <div className="flex flex-wrap gap-2 border-t pt-3"><Button variant="outline" size="sm" onClick={() => void duplicateDocument()} disabled={saving}><Copy className="mr-2 h-4 w-4" />Créer une copie</Button>{isOwner && <Button variant="destructive" size="sm" onClick={() => void deleteDocument()} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Supprimer</Button>}</div>
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3"><label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"><Paperclip className="mr-2 h-4 w-4" />Joindre un fichier<input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; void uploadAttachment(file); e.currentTarget.value = ""; }} disabled={saving || !canEditSelected} /></label>{selected.file_name && <><span className="max-w-[240px] truncate text-sm">{selected.file_name}</span><Button size="sm" variant="outline" onClick={() => void openAttachment()}>Ouvrir le fichier</Button><Button size="sm" variant="outline" disabled={saving || !canEditSelected} onClick={() => void removeAttachment()}><Trash2 className="mr-1 h-4 w-4" />Retirer</Button></>}</div>
               </CardContent>
@@ -894,7 +894,7 @@ export default function EspaceTravail() {
                 <div className="flex flex-col gap-2 sm:flex-row"><Textarea value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} placeholder="Écrire un commentaire…" rows={2} /><Button onClick={() => void addComment()} disabled={saving || !commentDraft.trim()}><Send className="mr-2 h-4 w-4" />Envoyer</Button></div>
               </CardContent>
             </Card>
-          </> : <Card><CardContent className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center"><History className="h-10 w-10 text-muted-foreground" /><h2 className="font-semibold">Votre espace de travail</h2><p className="max-w-md text-sm text-muted-foreground">Créez un document, partagez-le avec vos collègues, ajoutez des commentaires et conservez un historique des versions.</p><Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Créer le premier document</Button></CardContent></Card>}
+          </> : <Card><CardContent className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center"><History className="h-10 w-10 text-muted-foreground" /><h2 className="font-semibold">Votre espace de travail</h2><Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Créer le premier document</Button></CardContent></Card>}
         </div>
       </div>
     </div>
