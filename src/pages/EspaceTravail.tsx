@@ -558,6 +558,8 @@ export default function EspaceTravail() {
   const [saving, setSaving] = useState(false);
   const [officeUrl] = useState((import.meta as any).env?.VITE_OFFICE_SUITE_URL || "");
   const [searchQuery, setSearchQuery] = useState("");
+  const [documentScope, setDocumentScope] = useState<"all" | "mine" | "shared">("all");
+  const [transferProfileId, setTransferProfileId] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -754,6 +756,50 @@ export default function EspaceTravail() {
     finally { setSaving(false); }
   };
 
+  const updateMemberPermission = async (memberId: string, permission: "view" | "edit") => {
+    if (!selected?.id || !isOwner || saving) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("workspace_document_members").update({ permission }).eq("id", memberId).eq("document_id", selected.id);
+      if (error) throw error;
+      await loadDetails(selected.id);
+      toast.success("Droits du collaborateur mis à jour.");
+    } catch (error: any) { toast.error("Modification des droits impossible : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  const revokeMemberAccess = async (memberId: string) => {
+    if (!selected?.id || !isOwner || saving) return;
+    const member = members.find((m: any) => m.id === memberId);
+    if (!member) return;
+    const name = collaboratorNames.get(member.profile_id) || "ce collaborateur";
+    if (!window.confirm("Révoquer l’accès de " + name + " à ce document ? Il ne pourra plus le consulter ni le modifier.")) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("workspace_document_members").delete().eq("id", memberId).eq("document_id", selected.id);
+      if (error) throw error;
+      await loadDetails(selected.id);
+      toast.success("Accès révoqué.");
+    } catch (error: any) { toast.error("Révocation impossible : " + (error?.message || "erreur inconnue")); }
+    finally { setSaving(false); }
+  };
+
+  const transferOwnership = async () => {
+    if (!selected?.id || !isOwner || !transferProfileId || saving) return;
+    const nextOwner = collaboratorNames.get(transferProfileId) || "l’utilisateur choisi";
+    if (!window.confirm("Transférer la propriété de « " + selected.title + " » à " + nextOwner + " ? Vous conserverez un accès en modification, mais ne serez plus propriétaire.")) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).rpc("workspace_transfer_document_ownership", { p_document_id: selected.id, p_new_owner_profile_id: transferProfileId });
+      if (error) throw error;
+      setTransferProfileId("");
+      await loadDocuments();
+      await loadDetails(selected.id);
+      toast.success("Propriété transférée. Vous conservez un accès en modification.");
+    } catch (error: any) { toast.error("Transfert impossible : " + (error?.message || "la procédure sécurisée n’est peut-être pas encore déployée")); }
+    finally { setSaving(false); }
+  };
+
   const shareDocument = async () => {
     if (!selected?.id || !shareProfileId || !isOwner) return;
     setSaving(true);
@@ -832,10 +878,15 @@ export default function EspaceTravail() {
           <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
           <CardContent className="min-w-0 space-y-2">
             <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher un document…" /></div>
-            {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).length === 0 ? <p className="text-sm text-muted-foreground">{searchQuery ? "Aucun résultat" : "Aucun document"}</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).map((doc) =>
+            <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Filtrer les documents">
+              <Button size="sm" variant={documentScope === "all" ? "default" : "ghost"} className="min-w-0 px-2 text-xs sm:text-sm" onClick={() => setDocumentScope("all")}>Tous</Button>
+              <Button size="sm" variant={documentScope === "mine" ? "default" : "ghost"} className="min-w-0 px-2 text-xs sm:text-sm" onClick={() => setDocumentScope("mine")}>Les miens</Button>
+              <Button size="sm" variant={documentScope === "shared" ? "default" : "ghost"} className="min-w-0 px-2 text-xs sm:text-sm" onClick={() => setDocumentScope("shared")}>Partagés</Button>
+            </div>
+            {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.filter((doc) => (documentScope === "all" || (documentScope === "mine" ? doc.owner_profile_id === profile?.id : doc.owner_profile_id !== profile?.id)) && (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).length === 0 ? <p className="text-sm text-muted-foreground">{searchQuery ? "Aucun résultat" : "Aucun document"}</p> : documents.filter((doc) => (documentScope === "all" || (documentScope === "mine" ? doc.owner_profile_id === profile?.id : doc.owner_profile_id !== profile?.id)) && (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).map((doc) =>
               <button key={doc.id} onClick={() => chooseDocument(doc)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}>
                 <div className="flex items-start gap-2"><TypeIcon type={doc.document_type} /><span className="min-w-0 flex-1 truncate font-medium">{doc.title}</span></div>
-                <div className="mt-2 flex flex-wrap gap-1"><Badge variant="outline">{typeLabels[doc.document_type] || "Document"}</Badge>{doc.owner_profile_id === profile?.id && <Badge>Propriétaire</Badge>}</div>
+                <div className="mt-2 flex flex-wrap gap-1"><Badge variant="outline">{typeLabels[doc.document_type] || "Document"}</Badge>{doc.owner_profile_id === profile?.id ? <Badge>Propriétaire</Badge> : <Badge variant="secondary">Partagé avec moi</Badge>}</div>
                 <p className="mt-1 text-xs text-muted-foreground">Modifié le {new Date(doc.updated_at).toLocaleString("fr-FR")}</p>
               </button>
             )}
@@ -847,8 +898,8 @@ export default function EspaceTravail() {
               <CardHeader><CardTitle className="flex items-center gap-2"><TypeIcon type={documentType} />Éditeur collaboratif</CardTitle></CardHeader>
               <CardContent className="min-w-0 space-y-3 sm:space-y-4">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
-                  <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} /></div>
-                  <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-1"><Label>Titre</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving || !canEditSelected} /></div>
+                  <div className="space-y-1"><Label>Type de contenu</Label><Select value={documentType} onValueChange={(v: any) => setDocumentType(v)} disabled={saving || !canEditSelected}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="document">Document texte</SelectItem><SelectItem value="spreadsheet">Tableur / données CSV</SelectItem><SelectItem value="presentation">Présentation / notes de réunion</SelectItem><SelectItem value="file">Fichier partagé</SelectItem></SelectContent></Select></div>
                 </div>
                 <>{documentType === "document" ? <>
                   <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-2">
@@ -878,7 +929,8 @@ export default function EspaceTravail() {
                   <Select value={sharePermission} onValueChange={(v: any) => setSharePermission(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="view">Lecture seule</SelectItem><SelectItem value="edit">Peut modifier</SelectItem></SelectContent></Select>
                   <Button onClick={() => void shareDocument()} disabled={!shareProfileId || saving}><Users className="mr-2 h-4 w-4" />Partager</Button>
                 </div> : null}
-                {members.length === 0 ? <p className="text-sm text-muted-foreground">Aucun collaborateur ajouté explicitement.</p> : members.map((member) => <div key={member.id} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"><span>{collaboratorNames.get(member.profile_id) || "Collaborateur"}</span><Badge variant="outline">{member.permission === "edit" ? "Modification" : "Lecture seule"}</Badge></div>)}
+                {members.length === 0 ? <p className="text-sm text-muted-foreground">Aucun collaborateur ajouté explicitement.</p> : members.map((member: any) => <div key={member.id} className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="break-words text-sm font-medium">{collaboratorNames.get(member.profile_id) || "Collaborateur"}</p><p className="text-xs text-muted-foreground">Accès accordé le {new Date(member.created_at).toLocaleDateString("fr-FR")}</p></div><div className="flex flex-wrap items-center gap-2">{isOwner ? <><Select value={member.permission} onValueChange={(v: any) => void updateMemberPermission(member.id, v)} disabled={saving}><SelectTrigger className="w-[145px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="view">Lecture seule</SelectItem><SelectItem value="edit">Modification</SelectItem></SelectContent></Select><Button size="sm" variant="outline" onClick={() => void revokeMemberAccess(member.id)} disabled={saving}><Trash2 className="mr-1 h-4 w-4" />Révoquer</Button></> : <Badge variant="outline">{member.permission === "edit" ? "Modification" : "Lecture seule"}</Badge>}</div></div>)}
+                {isOwner && <div className="mt-4 space-y-2 rounded-lg border border-dashed p-3"><div><p className="text-sm font-semibold">Transférer la propriété</p><p className="text-xs text-muted-foreground">Le nouveau propriétaire prendra le contrôle du document. Vous conserverez un accès en modification.</p></div><div className="flex flex-col gap-2 sm:flex-row"><Select value={transferProfileId} onValueChange={setTransferProfileId}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder="Choisir le nouveau propriétaire" /></SelectTrigger><SelectContent>{collaborators.filter((c) => c.id !== profile?.id && c.id !== selected.owner_profile_id).map((c) => <SelectItem key={c.id} value={c.id}>{c.nom_complet}{c.email ? ` — ${c.email}` : ""}</SelectItem>)}</SelectContent></Select><Button variant="outline" onClick={() => void transferOwnership()} disabled={!transferProfileId || saving}>Transférer</Button></div></div>}
               </CardContent>
             </Card>
             <Card>
