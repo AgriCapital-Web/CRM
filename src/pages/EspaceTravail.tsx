@@ -522,14 +522,14 @@ function WorkspaceSlidesEditor({ value, onChange, disabled }: { value: string; o
         {slides.map((item, i) => <button type="button" key={i} onClick={() => setActive(i)} className={"min-w-[150px] rounded-lg border p-2 text-left lg:min-w-0 " + (i === index ? "border-primary bg-primary/5" : "hover:bg-muted/50")}>
           <div className="mb-2 flex aspect-video items-center justify-center rounded border bg-background p-2 text-center text-xs font-semibold">{item.title || "Diapositive " + (i + 1)}</div>
           <p className="truncate text-xs font-medium">{i + 1}. {item.title || "Sans titre"}</p>
-          <p className="line-clamp-2 text-[11px] text-muted-foreground">{item.body || "Contenu vide"}</p>
+          <p className="line-clamp-2 text-[11px] text-muted-foreground">{item.body || "—"}</p>
         </button>)}
       </div>
       <div className="space-y-3">
         <div className="flex aspect-video flex-col justify-center overflow-hidden rounded-xl border bg-background p-5 shadow-sm sm:p-8">
           <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">AgriCapital · {index + 1}/{slides.length}</p>
           <h3 className="mb-4 text-xl font-bold sm:text-3xl">{slide.title || "Titre de la diapositive"}</h3>
-          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground sm:text-base">{slide.body || "Le contenu de cette diapositive apparaîtra ici."}</p>
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground sm:text-base">{slide.body || "—"}</p>
         </div>
         <div className="space-y-1"><Label>Titre de la diapositive</Label><Input value={slide.title} disabled={disabled} onChange={(e) => update({ title: e.target.value })} placeholder="Titre clair et concis" /></div>
         <div className="space-y-1"><Label>Texte et notes</Label><Textarea value={slide.body} disabled={disabled} onChange={(e) => update({ body: e.target.value })} className="min-h-[180px]" placeholder="Contenu, chiffres clés, indicateurs et notes…" /></div>
@@ -832,7 +832,7 @@ export default function EspaceTravail() {
           <CardHeader><CardTitle className="flex items-center gap-2"><FolderOpen className="h-5 w-5" />Mes documents et partages</CardTitle></CardHeader>
           <CardContent className="min-w-0 space-y-2">
             <div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher un document…" /></div>
-            {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).length === 0 ? <p className="text-sm text-muted-foreground">{searchQuery ? "Aucun résultat pour cette recherche." : "Aucun document pour le moment. Créez-en un pour commencer."}</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).map((doc) =>
+            {loading ? <p className="text-sm text-muted-foreground">Chargement…</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).length === 0 ? <p className="text-sm text-muted-foreground">{searchQuery ? "Aucun résultat" : "Aucun document"}</p> : documents.filter((doc) => (doc.title + " " + (doc.content_text || "")).toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())).map((doc) =>
               <button key={doc.id} onClick={() => chooseDocument(doc)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === doc.id ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}>
                 <div className="flex items-start gap-2"><TypeIcon type={doc.document_type} /><span className="min-w-0 flex-1 truncate font-medium">{doc.title}</span></div>
                 <div className="mt-2 flex flex-wrap gap-1"><Badge variant="outline">{typeLabels[doc.document_type] || "Document"}</Badge>{doc.owner_profile_id === profile?.id && <Badge>Propriétaire</Badge>}</div>
@@ -877,20 +877,20 @@ export default function EspaceTravail() {
                   <Select value={shareProfileId} onValueChange={setShareProfileId}><SelectTrigger><SelectValue placeholder="Choisir un collaborateur" /></SelectTrigger><SelectContent>{collaborators.filter((c) => c.id !== profile?.id).map((c) => <SelectItem key={c.id} value={c.id}>{c.nom_complet}{c.email ? ` — ${c.email}` : ""}</SelectItem>)}</SelectContent></Select>
                   <Select value={sharePermission} onValueChange={(v: any) => setSharePermission(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="view">Lecture seule</SelectItem><SelectItem value="edit">Peut modifier</SelectItem></SelectContent></Select>
                   <Button onClick={() => void shareDocument()} disabled={!shareProfileId || saving}><Users className="mr-2 h-4 w-4" />Partager</Button>
-                </div> : <p className="text-sm text-muted-foreground">Seul le propriétaire du document peut gérer les accès.</p>}
+                </div> : null}
                 {members.length === 0 ? <p className="text-sm text-muted-foreground">Aucun collaborateur ajouté explicitement.</p> : members.map((member) => <div key={member.id} className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"><span>{collaboratorNames.get(member.profile_id) || "Collaborateur"}</span><Badge variant="outline">{member.permission === "edit" ? "Modification" : "Lecture seule"}</Badge></div>)}
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />Historique des versions</CardTitle></CardHeader>
               <CardContent className="space-y-2">
-                {versions.length === 0 ? <p className="text-sm text-muted-foreground">L’historique se remplira à chaque modification enregistrée.</p> : versions.map((version) => <div key={version.id} className="rounded-md border p-2 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><b>{version.title}</b><span className="text-xs text-muted-foreground">{new Date(version.created_at).toLocaleString("fr-FR")}</span></div><p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-muted-foreground">{version.content_text || "Version sans texte"}</p><p className="mt-1 text-xs text-muted-foreground">Par {collaboratorNames.get(version.changed_by_profile_id || "") || "Collaborateur"}</p></div>)}
+                {versions.length === 0 ? <p className="text-sm text-muted-foreground">Aucun historique</p> : versions.map((version) => <div key={version.id} className="rounded-md border p-2 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><b>{version.title}</b><span className="text-xs text-muted-foreground">{new Date(version.created_at).toLocaleString("fr-FR")}</span></div><p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-muted-foreground">{version.content_text || "—"}</p><p className="mt-1 text-xs text-muted-foreground">Par {collaboratorNames.get(version.changed_by_profile_id || "") || "Collaborateur"}</p></div>)}
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" />Commentaires et échanges</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                {comments.length === 0 ? <p className="text-sm text-muted-foreground">Aucun commentaire. Utilisez cet espace pour échanger sur le document.</p> : comments.map((comment) => <div key={comment.id} className="rounded-lg border p-3"><div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><b>{collaboratorNames.get(comment.author_profile_id) || "Collaborateur"}</b><span>{new Date(comment.created_at).toLocaleString("fr-FR")}</span></div><p className="mt-2 whitespace-pre-wrap text-sm">{comment.body}</p></div>)}
+                {comments.length === 0 ? <p className="text-sm text-muted-foreground">Aucun commentaire</p> : comments.map((comment) => <div key={comment.id} className="rounded-lg border p-3"><div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><b>{collaboratorNames.get(comment.author_profile_id) || "Collaborateur"}</b><span>{new Date(comment.created_at).toLocaleString("fr-FR")}</span></div><p className="mt-2 whitespace-pre-wrap text-sm">{comment.body}</p></div>)}
                 <div className="flex flex-col gap-2 sm:flex-row"><Textarea value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} placeholder="Écrire un commentaire…" rows={2} /><Button onClick={() => void addComment()} disabled={saving || !commentDraft.trim()}><Send className="mr-2 h-4 w-4" />Envoyer</Button></div>
               </CardContent>
             </Card>
