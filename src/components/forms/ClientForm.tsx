@@ -25,13 +25,6 @@ interface ClientFormProps { client?: any; onSuccess: () => void; onCancel: () =>
 
 const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 
-const EXTRA_CLIENT_DOCUMENTS = [
-  { key: "fiche_contrat", label: "Contrat" },
-  { key: "document_foncier", label: "Document foncier" },
-  { key: "enquete_communautaire", label: "Enquête communautaire" },
-  { key: "attestation_exploitation", label: "Attestation d’exploitation" },
-];
-
 const CLIENT_COLUMNS = new Set([
   "civilite","nom_famille","prenoms","nom_complet","nom","date_naissance","lieu_naissance","statut_marital",
   "type_piece","numero_piece","date_delivrance_piece","telephone","whatsapp","email","domicile","domicile_residence",
@@ -60,8 +53,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const [storedVersoPreview, setStoredVersoPreview] = useState("");
   const [pieceRectoPreview, setPieceRectoPreview] = useState("");
   const [pieceVersoPreview, setPieceVersoPreview] = useState("");
-  const [extraFiles, setExtraFiles] = useState<Record<string, File | null>>({});
-  const [extraPreviews, setExtraPreviews] = useState<Record<string, string>>({});
   const { byCategory: refs } = useSystemReferences(["civilite","statut_marital"]);
 
   const setField = (key: string, value: any) => setForm((x: any) => ({ ...x, [key]: value }));
@@ -77,8 +68,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     setPhotoPreview("");
     setPieceRectoPreview("");
     setPieceVersoPreview("");
-    setExtraFiles({});
-    setExtraPreviews({});
   }, [client?.id, readOnly]);
 
   useEffect(() => {
@@ -179,27 +168,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         if (result) fichier_piece_verso_url = result.url;
       }
 
-      for (const documentType of EXTRA_CLIENT_DOCUMENTS) {
-        const file = extraFiles[documentType.key];
-        if (!file) continue;
-        const result = await uploadFile("documents-fonciers", file);
-        if (!result?.url) throw new Error(`Échec du téléversement : ${documentType.label}`);
-        // documents_souscription does not exist in the live schema.
-        // Store these files in the canonical CRM acquisition-document table.
-        const { error: documentError } = await offlineInsert("documents_acquisition", {
-          client_id: client.id,
-          type_document: documentType.key,
-          code_document: documentType.key,
-          categorie: "souscription",
-          source_contractuelle: documentType.key,
-          fichier_url: result.path || result.url,
-          statut: "en_attente",
-          uploaded_by: user.id,
-          metadata: { libelle: documentType.label, source_formulaire: "client", storage_bucket: "documents-fonciers" },
-        });
-        if (documentError) throw documentError;
-      }
-
       // IMPORTANT : seules les colonnes métier de clients sont envoyées.
       // Les relations chargées pour l'affichage ne doivent jamais être réinjectées dans UPDATE.
       const clientPayload: any = {};
@@ -252,24 +220,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       compact
     />
   );
-  const extraFileUpload = (key: string, label: string) => (
-    <div className="space-y-1 min-w-0">
-      <Label className="text-xs">{label}</Label>
-      <FileUploadVisual
-        label={label}
-        field={key}
-        accept="image/*,.pdf"
-        currentFile={extraFiles[key] || null}
-        currentPreview={extraPreviews[key] || ""}
-        compact
-        onFileChange={(_, file, preview) => {
-          setExtraFiles((previous) => ({ ...previous, [key]: file }));
-          setExtraPreviews((previous) => ({ ...previous, [key]: preview }));
-        }}
-      />
-    </div>
-  );
-
   return (
     <div className="space-y-3">
       {readOnly && <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3"><div><p className="font-semibold">Fiche complète du client</p><p className="text-xs text-muted-foreground">{isEditing ? "Mode modification activé" : "Consultation seule — les champs sont verrouillés"}</p></div>{!isEditing && canEditClient && <Button type="button" onClick={() => setIsEditing(true)}>Modifier</Button>}</div>}
@@ -406,16 +356,9 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         </CardContent>
       </Card>
 
-      {canUploadDocuments && <Card className="overflow-hidden">
-        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Contrat et documents complémentaires</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-2 px-4 pb-3 pt-0">
-          {EXTRA_CLIENT_DOCUMENTS.map((documentType) => <div key={documentType.key} className="min-w-0">{extraFileUpload(documentType.key, documentType.label)}</div>)}
-        </CardContent>
-      </Card>}
-
       </fieldset>
       <div className="flex justify-end gap-3 sticky bottom-0 bg-background py-2 border-t">
-        <Button type="button" variant="secondary" onClick={() => { if (readOnly) { setForm({ ...(client || {}) }); setIsEditing(false); setPhotoFile(null); setPieceRectoFile(null); setPieceVersoFile(null); setExtraFiles({}); setExtraPreviews({}); } else onCancel(); }}>{isEditing ? "Annuler" : "Retour"}</Button>
+        <Button type="button" variant="secondary" onClick={() => { if (readOnly) { setForm({ ...(client || {}) }); setIsEditing(false); setPhotoFile(null); setPieceRectoFile(null); setPieceVersoFile(null); } else onCancel(); }}>{isEditing ? "Annuler" : "Retour"}</Button>
         {isEditing && canEditClient && <Button type="button" onClick={onSubmit} disabled={loading}>{loading ? "Enregistrement..." : "Enregistrer les modifications"}</Button>}
       </div>
     </div>
