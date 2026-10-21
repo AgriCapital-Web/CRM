@@ -321,7 +321,8 @@ const Dashboard = () => {
       const internalAreaHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
-      const activeContracts = clients.filter((c: any) => c.compte_actif === true && !c.is_internal && c.type_client !== "beneficiaire_particulier");
+      // Prévision fondée uniquement sur les contrats validés et les comptes effectivement activés.
+      const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.validation_statut === "valide" && !c.is_internal && c.type_client !== "beneficiaire_particulier");
       const contractRows = activeContracts.filter((c: any) => Number(c.montant_total_contrat || 0) > 0);
       const paidByClient = new Map<string, number>();
       validPayments.forEach((p: any) => paidByClient.set(p.client_id, (paidByClient.get(p.client_id) || 0) + Number(p.montant_paye ?? p.montant ?? 0)));
