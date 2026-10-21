@@ -1,5 +1,5 @@
-# CRM AgriCapital - Privé, ne pas indexer
+# AgriCapital 360 — application privée, ne pas indexer
 User-agent: *
 Disallow: /
 
-# No sitemap - CRM is private
+# No sitemap — AgriCapital 360 is private
