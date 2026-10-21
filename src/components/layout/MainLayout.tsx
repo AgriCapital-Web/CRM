@@ -14,7 +14,7 @@ import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
 import {
-  LayoutDashboard, Users, Sprout, CreditCard, LogOut, Menu, Receipt,
+  LayoutDashboard, Users, Sprout, CreditCard, LogOut, Menu, Receipt, History,
   BarChart3, Ticket, Wallet, FileText, Settings, UserCircle, Wifi, WifiOff, RefreshCw, Signal,
   LandPlot, Layers, Target, CloudUpload, MessageSquare, Files
 } from "lucide-react";
@@ -48,6 +48,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_EQUIPES },
     { icon: Sprout, label: "Technique", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
     { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" },
+    { icon: History, label: "Reprise historique", path: "/finance/historique", permission: "finance.manage" },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
   ];
