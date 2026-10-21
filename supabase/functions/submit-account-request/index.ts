@@ -21,8 +21,8 @@ const escapeHtml = (value: unknown): string =>
 
 const VALID_ROLES = [
   "commercial", "technicien", "chef_equipe_commercial", "chef_equipe_technique",
-  "responsable_commercial", "responsable_technique_agronomique", "responsable_zone",
-  "comptable", "service_client", "operations",
+  "responsable_commercial", "responsable_technique_agronomique", "responsable_district",
+  "mobilisateur_foncier", "superviseur_mobilisation_fonciere", "comptable", "service_client", "operations",
 ];
 
 // Aucun rôle ne peut être auto-attribué : toute demande passe par la validation d'un administrateur.
