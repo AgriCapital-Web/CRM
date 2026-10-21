@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
@@ -873,14 +873,14 @@ const ProprietairesTerres = () => {
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center py-8">Aucun propriétaire</TableCell></TableRow>
                 ) : filtered.map(p => (
-                  <TableRow key={p.id} className="cursor-pointer hover:bg-muted/40">
+                  <TableRow key={p.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche propriétaire ${p.nom_complet || ""}`} onClick={() => navigate(`/proprietaires-terres/${p.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/proprietaires-terres/${p.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">
                         {p.type_proprietaire === 'personne_morale' ? 'Morale' : p.type_proprietaire === 'famille_groupement' ? 'Famille' : 'Physique'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap"><Link to={`/proprietaires-terres/${p.id}`} className="whitespace-nowrap hover:underline">{p.nom_complet}</Link></TableCell>
-                    <TableCell><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ")} kind="proprietaire" status={p.statut || ""}/></TableCell>
+                    <TableCell className="font-medium whitespace-nowrap" onClick={(event) => event.stopPropagation()}><Link to={`/proprietaires-terres/${p.id}`} className="whitespace-nowrap hover:underline">{p.nom_complet}</Link></TableCell>
+                    <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ")} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
                     <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")}</TableCell>
