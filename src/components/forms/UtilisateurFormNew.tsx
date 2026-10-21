@@ -117,10 +117,28 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
     return null;
   };
 
-  const fetchEquipes = async () => {
-    const { data } = await (supabase as any).from("equipes").select("*").eq("actif", true).order("nom");
-    if (data) setEquipes(data);
+  const savePrimaryZoneAssignment = async (userId: string, data: any) => {
+    const field = needsCoverage ? requiredGeoLevel(primaryRole) : null;
+    const zoneId = field ? (data[field] || utilisateur?.[field] || null) : null;
+    const zoneType = field === "district_id" ? "district" : field === "region_id" ? "region" : field === "departement_geo_id" ? "departement" : field === "sous_prefecture_id" ? "sous_prefecture" : null;
+    const { error } = await (supabase as any).rpc("set_user_primary_zone_assignment", {
+      p_user_id: userId,
+      p_zone_type: zoneId ? zoneType : null,
+      p_zone_id: zoneId,
+    });
+    if (error) throw error;
   };
+
+  useEffect(() => {
+    if (!utilisateur?.user_id || !needsCoverage) return;
+    const field = requiredGeoLevel(primaryRole);
+    const zoneType = field === "district_id" ? "district" : field === "region_id" ? "region" : field === "departement_geo_id" ? "departement" : field === "sous_prefecture_id" ? "sous_prefecture" : null;
+    if (!zoneType) return;
+    void (async () => {
+      const { data, error } = await (supabase as any).from("zone_assignments").select("zone_id").eq("user_id", utilisateur.user_id).eq("zone_type", zoneType).limit(1).maybeSingle();
+      if (!error && data?.zone_id) setValue(field, data.zone_id);
+    })();
+  }, [utilisateur?.user_id, primaryRole, needsCoverage, setValue]);
 
 
 
@@ -232,6 +250,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           );
           if (insertRolesError) throw insertRolesError;
 
+          await savePrimaryZoneAssignment(uid, data);
+
           await logAdminAction({
             action: "MODIFICATION_UTILISATEUR",
             entite: "profiles",
@@ -342,6 +362,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           }).eq("user_id", result.user_id);
           if (identityError) throw identityError;
         }
+
+        await savePrimaryZoneAssignment(result.user_id, data);
 
         toast({
           title: createdAccount ? "Enregistrement du compte terminé" : "Utilisateur créé",
