@@ -27,7 +27,7 @@ const htmlToPlainText = (html: string) => {
   return (doc.body.textContent || "").replace(/\u00a0/g, " ").trim();
 };
 const safeFilename = (title: string, extension: string) =>
-  (title.trim().replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-").slice(0, 100) || "document") + "." + extension;
+  (title.trim().replace(/[<>:"/\\|?*]/g, "-").slice(0, 100) || "document") + "." + extension;
 const downloadBlob = (blob: Blob, name: string) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
