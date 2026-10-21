@@ -40,7 +40,8 @@ const compressImageForUpload = async (file: File): Promise<File> => {
 export const uploadFile = async (
   bucket: string,
   file: File,
-  path?: string
+  path?: string,
+  stableObjectName?: string
 ): Promise<{ url: string; path: string } | null> => {
   try {
     const optimizedFile = await compressImageForUpload(file);
@@ -49,7 +50,8 @@ export const uploadFile = async (
     const uniqueId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const fileName = `${uniqueId}.${fileExt}`;
+    const safeStableName = stableObjectName?.trim().replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 100);
+    const fileName = safeStableName ? `${safeStableName}.${fileExt}` : `${uniqueId}.${fileExt}`;
     const { data: { session } } = await supabase.auth.getSession();
     const defaultFolder = session?.user?.id || 'public';
     const filePath = path ? `${path}/${fileName}` : `${defaultFolder}/${fileName}`;
