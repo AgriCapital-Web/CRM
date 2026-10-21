@@ -41,7 +41,8 @@ export const uploadFile = async (
   bucket: string,
   file: File,
   path?: string,
-  stableObjectName?: string
+  stableObjectName?: string,
+  association?: { table?: string; record_id?: string; column?: string; form_id?: string; field?: string }
 ): Promise<{ url: string; path: string; queued: boolean } | null> => {
   try {
     const optimizedFile = await compressImageForUpload(file);
@@ -56,7 +57,7 @@ export const uploadFile = async (
     const defaultFolder = session?.user?.id || 'public';
     const filePath = path ? `${path}/${fileName}` : `${defaultFolder}/${fileName}`;
 
-    const result = await uploadOrQueueFile({ bucket, path: filePath, file: optimizedFile });
+    const result = await uploadOrQueueFile({ bucket, path: filePath, file: optimizedFile, ...association });
     if (result.error) throw result.error;
 
     return { url: result.path, path: result.path, queued: result.queued };
