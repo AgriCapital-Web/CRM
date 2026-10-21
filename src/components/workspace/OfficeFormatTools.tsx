@@ -239,10 +239,14 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
           showValAxisTitle: false, showCatAxisTitle: false,
         });
       } else {
-        
+        slide.addText("Ajoutez des valeurs numériques dans la deuxième colonne pour générer le graphique.", {
+          x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "mid",
+        });
       }
     } else {
-      
+      slide.addText("Ajoutez des en-têtes et des lignes de données au tableur pour créer un rapport.", {
+        x: 0.8, y: 1.5, w: 11.5, h: 1.2, fontSize: 16,
+      });
     }
     await pptx.writeFile({ fileName: safeFilename(title, "pptx") });
     return;
