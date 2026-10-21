@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
+import { offlineUpdate } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
@@ -39,7 +39,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const { can } = usePermissions();
   const canEditClient = can("clients.update") || Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
   const [isEditing, setIsEditing] = useState(!readOnly);
-  const canUploadDocuments = can("documents.upload");
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
   const [offers, setOffers] = useState<any[]>([]);
