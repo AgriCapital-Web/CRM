@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SyncStatusBadge, OnlineBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
-import { getAllItems, getHttpMutationStats, getPendingHttpMutations, retryHttpMutation, retryAllHttpMutations, deleteHttpMutation, STORES } from "@/lib/offlineDb";
+import { getAllItems, getHttpMutationStats, getPendingHttpMutations, getSyncQueueStats, retrySyncOperation, retryAllSyncOperations, retryHttpMutation, retryAllHttpMutations, deleteHttpMutation, STORES } from "@/lib/offlineDb";
 import {
   getAllQueuedFiles, retryQueuedFile, retryAllQueuedFiles, discardQueuedFile,
   getFileQueueStats, startFileQueueResume, flushFileQueue,
@@ -19,10 +19,12 @@ export function SyncQueueContent() {
   const [files, setFiles] = useState<any[]>([]);
   const [fileStats, setFileStats] = useState({ pending: 0, error: 0, waiting: 0, total: 0 });
   const [httpStats, setHttpStats] = useState({ pending: 0, error: 0, total: 0 });
+  const [syncStats, setSyncStats] = useState({ pending: 0, error: 0, total: 0 });
   const [httpMutations, setHttpMutations] = useState<any[]>([]);
   const load = useCallback(async () => {
     const queue = await getAllItems(STORES.SYNC_QUEUE);
     setOps((queue as any[]).filter((o) => o.status !== "synced"));
+    setSyncStats(await getSyncQueueStats());
     setFiles(await getAllQueuedFiles());
     setFileStats(await getFileQueueStats());
     await getPendingHttpMutations();
@@ -62,11 +64,11 @@ export function SyncQueueContent() {
             variant="outline"
             size="sm"
             className="w-full min-w-0 sm:flex-1 lg:w-auto lg:min-w-[230px] lg:flex-none"
-            onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await retryAllHttpMutations(); await syncNow(); await load(); }}
-            disabled={!isOnline || fileStats.error + fileStats.waiting + httpStats.error === 0}
+            onClick={async () => { await retryAllSyncOperations(); await retryAllQueuedFiles(); await flushFileQueue(); await retryAllHttpMutations(); await syncNow(); await load(); }}
+            disabled={!isOnline || fileStats.error + fileStats.waiting + httpStats.error + syncStats.error === 0}
           >
             <RotateCcw className="mr-2 h-4 w-4" />
-            Relancer les échecs ({fileStats.error + fileStats.waiting + httpStats.error})
+            Relancer les échecs ({fileStats.error + fileStats.waiting + httpStats.error + syncStats.error})
           </Button>
           <Button
             onClick={async () => { await retryAllQueuedFiles(); await flushFileQueue(); await syncNow(); await load(); }}
@@ -138,6 +140,7 @@ export function SyncQueueContent() {
                     <TableHead>Action</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>État</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -148,7 +151,11 @@ export function SyncQueueContent() {
                       <TableCell className="text-xs">{new Date(op.timestamp).toLocaleString("fr-FR")}</TableCell>
                       <TableCell>
                         <SyncStatusBadge state={stateOf(op.status)} />
-                        {op.error && <p className="mt-1 text-xs text-destructive break-words">{op.error}</p>}
+                        {op.error_message && <p className="mt-1 text-xs text-destructive break-words">{op.error_message}</p>}
+                        {op.retries > 0 && <p className="mt-1 text-xs text-muted-foreground">{op.retries} reprise(s){op.next_retry_at > Date.now() ? ` • prochaine tentative ${new Date(op.next_retry_at).toLocaleTimeString("fr-FR")}` : ""}</p>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {op.status === "error" && <Button size="sm" variant="outline" aria-label="Relancer cette opération" onClick={async () => { await retrySyncOperation(op.id); await syncNow(); await load(); }} disabled={!isOnline || isSyncing}><RotateCcw className="h-3 w-3" /></Button>}
                       </TableCell>
                     </TableRow>
                   ))}
