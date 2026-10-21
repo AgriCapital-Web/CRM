@@ -41,7 +41,7 @@ serve(async (req) => {
     const body = await req.json();
     const {
       username, password, email, nom_complet, telephone, telephone_indicatif, telephone_local, role_souhaite,
-      poste_souhaite, district_id, region_id, departement_geo_id, departement, justification, photo_url,
+      poste_souhaite, district_id, region_id, departement_geo_id, sous_prefecture_id, departement, justification, photo_url,
     } = body ?? {};
 
     if (!username || !password || !email || !nom_complet || !telephone || !role_souhaite) {
@@ -163,6 +163,7 @@ serve(async (req) => {
       district_id: district_id ?? null,
       region_id: region_id ?? null,
       departement_geo_id: departement_geo_id ?? null,
+      sous_prefecture_id: sous_prefecture_id ?? null,
       departement: departement ?? null,
       justification: justification ?? null,
       photo_url: photo_url ?? null,
