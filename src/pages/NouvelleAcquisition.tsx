@@ -640,7 +640,7 @@ const NouvelleAcquisition = () => {
     <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:renderStep()}</Card>
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
       <Button variant="outline" onClick={()=>setCurrent(v=>Math.max(0,v-1))} disabled={current===0||saving||draftLoading||loadingSteps}><ChevronLeft className="mr-2 h-4 w-4"/>Précédent</Button>
-      {!last?<Button onClick={next} disabled={saving||draftLoading||loadingSteps}>{saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:<Button size="lg" onClick={submit} disabled={saving||draftLoading}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}
+      {!last?<Button onClick={next} disabled={saving||draftLoading||loadingSteps}>{saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:<Button size="lg" onClick={() => void submit()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}
     </div>
   </div></MainLayout></ProtectedRoute>;
 };
