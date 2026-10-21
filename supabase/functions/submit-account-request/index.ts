@@ -84,7 +84,7 @@ serve(async (req) => {
         district: "v_geo_districts", region: "v_geo_regions",
         departement: "v_geo_departements", sous_prefecture: "v_geo_sous_prefectures",
       };
-      const { data: target, error: targetError } = await admin.from(tableByScope[scope]).select("*").eq("id", targetId).maybeSingle();
+      const { data: target, error: targetError } = await (admin as any).from(tableByScope[scope]).select("*").eq("id", targetId).maybeSingle();
       if (targetError || !target) return json({ error: "La zone sélectionnée n'existe pas ou n'est pas active.", step: "validate_geo" }, 400);
 
       if (scope === "district") {
@@ -94,13 +94,13 @@ serve(async (req) => {
       } else if (scope === "departement") {
         departement_geo_id = target.id; region_id = target.region_id || null;
         if (region_id) {
-          const { data: parentRegion } = await admin.from("v_geo_regions").select("district_id").eq("id", region_id).maybeSingle();
+          const { data: parentRegion } = await (admin as any).from("v_geo_regions").select("district_id").eq("id", region_id).maybeSingle();
           district_id = parentRegion?.district_id || null;
         }
       } else {
         sous_prefecture_id = target.id; departement_geo_id = target.departement_id || null;
         if (departement_geo_id) {
-          const { data: parentDepartment } = await admin.from("v_geo_departements").select("region_id").eq("id", departement_geo_id).maybeSingle();
+          const { data: parentDepartment } = await (admin as any).from("v_geo_departements").select("region_id").eq("id", departement_geo_id).maybeSingle();
           region_id = parentDepartment?.region_id || null;
         }
         if (region_id) {
