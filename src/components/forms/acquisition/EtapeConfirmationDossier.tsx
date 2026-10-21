@@ -8,7 +8,9 @@ const value=(v:any,empty="Non renseigné")=>v!==undefined&&v!==null&&String(v).t
 const fileName=(f:any)=>f?.name||null;
 export const EtapeConfirmationDossier=({formData,updateFormData}:Props)=>{
  const offre=formData.offre||{}; const ha=Number(formData.superficie_prevue||0); const rep=Boolean(formData.has_representant);
- const docs=Object.keys(formData).filter(k=>k.startsWith("doc_")&&k.endsWith("_file")&&formData[k]);
+ const identityDocs=["photo_profil_file","photo_piece_recto_file","photo_piece_verso_file"].filter(k=>formData[k]);
+ const extraDocs=Object.keys(formData).filter(k=>k.startsWith("doc_")&&k.endsWith("_file")&&formData[k]&&!k.startsWith("doc_client_photo_profil")&&!k.startsWith("doc_client_piece_recto")&&!k.startsWith("doc_client_piece_verso"));
+ const docs=[...identityDocs,...extraDocs];
  const contracts=Object.keys(formData).filter(k=>k.startsWith("contrat_")&&k.endsWith("_file")&&formData[k]);
  const location=[formData.district_nom,formData.region_nom,formData.departement_nom,formData.sous_prefecture_nom,formData.village_nom||formData.village_propre].filter(Boolean).join(" / ");
  const clientName=(String(formData.nom_famille||"")+" "+String(formData.prenoms||"")).trim();
