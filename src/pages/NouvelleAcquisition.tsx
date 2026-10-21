@@ -606,7 +606,7 @@ const NouvelleAcquisition = () => {
       window.removeEventListener("online", resumePendingSubmission);
       window.clearInterval(timer);
     };
-  }, [saving, draftLoading, loadingSteps, brouillonId, current, activeSteps.length, formData.contrat_lu, formData.documents_authentiques, formData.autorisation_donnees]);
+  }, [saving, draftLoading, loadingSteps, brouillonId, current, activeSteps.length, formData]);
 
   useEffect(() => {
     if (autoResumeAttempted.current || draftLoading || loadingSteps || saving || !user || !brouillonId) return;
