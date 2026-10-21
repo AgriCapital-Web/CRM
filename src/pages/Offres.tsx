@@ -806,7 +806,7 @@ const Offres = () => {
                         new Date(promo.date_fin) >= now;
                       
                       return (
-                        <TableRow key={promo.id}>
+                        <TableRow key={promo.id} role="button" tabIndex={0} aria-label={`Modifier la promotion ${promo.nom}`} onClick={() => handleEditPromo(promo)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleEditPromo(promo); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                           <TableCell className="font-medium">{promo.nom}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-primary font-bold">
@@ -826,7 +826,7 @@ const Offres = () => {
                               <Badge variant="outline">Inactive</Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-right space-x-2">
+                          <TableCell className="text-right space-x-2" onClick={(event) => event.stopPropagation()}>
                             <Button size="sm" variant="ghost" onClick={() => handleEditPromo(promo)}>
                               <Edit className="h-4 w-4" />
                             </Button>
