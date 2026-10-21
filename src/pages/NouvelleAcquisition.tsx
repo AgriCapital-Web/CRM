@@ -105,6 +105,7 @@ const NouvelleAcquisition = () => {
   const [draftLoading,setDraftLoading]=useState(true);
   const [loadingSteps,setLoadingSteps]=useState(false);
   const [syncState,setSyncState]=useState<SyncState>("draft");
+  const queuedMutationCountRef = useRef(0);
   const {toast}=useToast();
   const navigate=useNavigate();
   const { user } = useAuth();
@@ -112,6 +113,15 @@ const NouvelleAcquisition = () => {
   const {data:promotionActive}=usePromotionActive(formData.offre_id);
 
   const updateFormData=(data:any)=>setFormData((prev:any)=>({...prev,...data}));
+
+  useEffect(() => {
+    const onQueued = () => {
+      queuedMutationCountRef.current += 1;
+      setSyncState("queued");
+    };
+    window.addEventListener("offline-mutation-queued", onQueued);
+    return () => window.removeEventListener("offline-mutation-queued", onQueued);
+  }, []);
 
   useEffect(()=>{
     const leadId=searchParams.get("lead_id");
@@ -338,6 +348,7 @@ const NouvelleAcquisition = () => {
     if(!formData.contrat_lu||!formData.documents_authentiques||!formData.autorisation_donnees){
       toast({variant:"destructive",title:"Validation incomplète",description:"Les validations finales sont obligatoires."});return;
     }
+    const queuedBeforeSubmit = queuedMutationCountRef.current;
     setSaving(true);
     try{
       const currentUser = user;
@@ -508,8 +519,8 @@ const NouvelleAcquisition = () => {
         const {error:draftDeleteError}=await offlineDelete("acquisitions_brouillon",brouillonId);
         if(draftDeleteError) throw draftDeleteError;
       }
-      const savedOffline = !navigator.onLine;
-      toast({title:savedOffline ? "Client enregistré hors ligne" : "Client enregistré",description:savedOffline ? "Le dossier complet, les pièces et les liens sont conservés localement et seront synchronisés automatiquement." : "Le dossier Client et son parcours ont été enregistrés."});
+      const savedOffline = !navigator.onLine || queuedMutationCountRef.current > queuedBeforeSubmit;
+      toast({title:savedOffline ? "Dossier conservé — synchronisation en attente" : "Client enregistré",description:savedOffline ? "Le dossier, les pièces et les liens sont conservés localement. La synchronisation reprendra automatiquement sans actualisation dès que le serveur sera disponible." : "Le dossier Client et son parcours ont été enregistrés dans la base."});
       setSyncState(savedOffline ? "queued" : "synced");
       navigate("/clients");
     }catch(error:any){
