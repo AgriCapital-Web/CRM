@@ -39,7 +39,7 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    const {
+    let {
       username, password, email, nom_complet, telephone, telephone_indicatif, telephone_local, role_souhaite,
       poste_souhaite, district_id, region_id, departement_geo_id, sous_prefecture_id, departement, justification, photo_url,
     } = body ?? {};
@@ -55,6 +55,59 @@ serve(async (req) => {
     }
     if (!VALID_ROLES.includes(String(role_souhaite))) {
       return json({ error: `Rôle invalide: ${role_souhaite}`, step: "validate_role" }, 400);
+    }
+
+    // Geographic scope is derived from the official role, never from arbitrary
+    // client-supplied fields. Every selected zone must be active in its DB view.
+    const roleCode = String(role_souhaite) === "responsable_zone" ? "responsable_district" : String(role_souhaite);
+    const geoLevelByRole: Record<string, "district" | "region" | "departement" | "sous_prefecture"> = {
+      responsable_district: "district",
+      responsable_commercial: "region",
+      chef_equipe_commercial: "departement",
+      commercial: "sous_prefecture",
+      technicien: "departement",
+      mobilisateur_foncier: "departement",
+      chef_equipe_technique: "region",
+      superviseur_mobilisation_fonciere: "region",
+      responsable_technique_agronomique: "region",
+    };
+    const scope = geoLevelByRole[roleCode] || null;
+    district_id = null; region_id = null; departement_geo_id = null; sous_prefecture_id = null;
+    if (scope) {
+      const targetId = scope === "district" ? body?.district_id
+        : scope === "region" ? body?.region_id
+        : scope === "departement" ? body?.departement_geo_id
+        : body?.sous_prefecture_id;
+      if (!targetId) return json({ error: "La zone géographique exigée par le rôle est obligatoire.", step: "validate_geo" }, 400);
+
+      const tableByScope: Record<string, string> = {
+        district: "v_geo_districts", region: "v_geo_regions",
+        departement: "v_geo_departements", sous_prefecture: "v_geo_sous_prefectures",
+      };
+      const { data: target, error: targetError } = await admin.from(tableByScope[scope]).select("*").eq("id", targetId).maybeSingle();
+      if (targetError || !target) return json({ error: "La zone sélectionnée n'existe pas ou n'est pas active.", step: "validate_geo" }, 400);
+
+      if (scope === "district") {
+        district_id = target.id;
+      } else if (scope === "region") {
+        region_id = target.id; district_id = target.district_id || null;
+      } else if (scope === "departement") {
+        departement_geo_id = target.id; region_id = target.region_id || null;
+        if (region_id) {
+          const { data: parentRegion } = await admin.from("v_geo_regions").select("district_id").eq("id", region_id).maybeSingle();
+          district_id = parentRegion?.district_id || null;
+        }
+      } else {
+        sous_prefecture_id = target.id; departement_geo_id = target.departement_id || null;
+        if (departement_geo_id) {
+          const { data: parentDepartment } = await admin.from("v_geo_departements").select("region_id").eq("id", departement_geo_id).maybeSingle();
+          region_id = parentDepartment?.region_id || null;
+        }
+        if (region_id) {
+          const { data: parentRegion } = await admin.from("v_geo_regions").select("district_id").eq("id", region_id).maybeSingle();
+          district_id = parentRegion?.district_id || null;
+        }
+      }
     }
 
     const cleanUsername = String(username).trim();
