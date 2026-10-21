@@ -96,7 +96,7 @@ self.addEventListener("push", (event) => {
     // The in-app realtime channel handles visible tabs; push is for background/closed app delivery.
     if (openClients.some((client) => client.visibilityState === "visible")) return;
     const id = payload.notificationId || payload.id || payload.tag || "general";
-    await self.registration.showNotification(payload.title || "AgriCapital", {
+    await self.registration.showNotification(payload.title || "AgriCapital 360", {
       body: payload.body || payload.message || "",
       icon: payload.icon || "/logo-agricapital.png",
       badge: payload.badge || "/logo-agricapital.png",
