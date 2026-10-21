@@ -39,10 +39,16 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    let {
+    const {
       username, password, email, nom_complet, telephone, telephone_indicatif, telephone_local, role_souhaite,
-      poste_souhaite, district_id, region_id, departement_geo_id, sous_prefecture_id, departement, justification, photo_url,
+      poste_souhaite, district_id: requestedDistrictId, region_id: requestedRegionId,
+      departement_geo_id: requestedDepartementGeoId, sous_prefecture_id: requestedSousPrefectureId,
+      departement, justification, photo_url,
     } = body ?? {};
+    let district_id = requestedDistrictId ?? null;
+    let region_id = requestedRegionId ?? null;
+    let departement_geo_id = requestedDepartementGeoId ?? null;
+    let sous_prefecture_id = requestedSousPrefectureId ?? null;
 
     if (!username || !password || !email || !nom_complet || !telephone || !role_souhaite) {
       return json({ error: "Champs obligatoires manquants (identifiant, mot de passe, email, nom, téléphone, rôle).", step: "validate_body" }, 400);
