@@ -245,7 +245,7 @@ const AccountRequest = () => {
 
             <div className="space-y-3">
               <Label className="text-sm font-medium flex items-center gap-2"><MapPin className="h-4 w-4" /> Couverture géographique</Label>
-              <RoleGeographyFields role={formData.poste} value={{ districtId: formData.district, regionId: formData.region, departementId: formData.departement, sousPrefectureId: formData.sous_prefecture }} className="grid grid-cols-1 gap-3 sm:grid-cols-2" onChange={(g) => setFormData((prev) => ({ ...prev, district: g.districtId || "", region: g.regionId || "", departement: g.departementId || "", sous_prefecture: g.sousPrefectureId || "" }))} />
+              <RoleGeographyFields required role={formData.poste} value={{ districtId: formData.district, regionId: formData.region, departementId: formData.departement, sousPrefectureId: formData.sous_prefecture }} className="grid grid-cols-1 gap-3 sm:grid-cols-2" onChange={(g) => setFormData((prev) => ({ ...prev, district: g.districtId || "", region: g.regionId || "", departement: g.departementId || "", sous_prefecture: g.sousPrefectureId || "" }))} />
             </div>
 
             <div className="space-y-3 rounded-lg border-2 border-primary/30 bg-primary/5 p-4">
