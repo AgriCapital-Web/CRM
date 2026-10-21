@@ -38,7 +38,6 @@ const ClientDetail = () => {
   const { user, userRoles } = useAuth();
   const canViewClientMoney = can("clients.view_money");
   const canValidateClient = can("clients.validate");
-  const canCorrectReturnedClient = Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
   const canUploadDocuments = can("documents.upload");
   const canViewClientPayments = can("paiements.view");
   const canCreatePlantationAcquisition = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
@@ -46,6 +45,7 @@ const ClientDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
+  const canCorrectReturnedClient = Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
   const [validationComment,setValidationComment]=useState("");
   const [isClientFormOpen,setIsClientFormOpen]=useState(false);
   const [savingValidation,setSavingValidation]=useState(false);
