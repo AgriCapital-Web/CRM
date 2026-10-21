@@ -1,0 +1,50 @@
+name: Check Supabase Data API grants
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**/*.sql"
+      - ".github/workflows/check-data-api-grants.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**/*.sql"
+      - ".github/workflows/check-data-api-grants.yml"
+
+jobs:
+  require-explicit-table-grants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Check CREATE TABLE migrations include explicit grants
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          migrations = sorted(Path("supabase/migrations").glob("*.sql"))
+          failures = []
+          create_table = re.compile(r"\bcreate\s+(?:unlogged\s+)?table\b", re.I)
+          grant_table = re.compile(r"\bgrant\b[\s\S]{0,500}?\bon\s+(?:table\s+)?(?:public\.)?[\w\".]+", re.I)
+
+          for path in migrations:
+              sql = path.read_text(encoding="utf-8")
+              # Strip SQL comments to avoid counting examples in comments.
+              sql = re.sub(r"/\*[\s\S]*?\*/", " ", sql)
+              sql = re.sub(r"--[^\n]*", " ", sql)
+              if create_table.search(sql) and not grant_table.search(sql):
+                  failures.append(str(path))
+
+          if failures:
+              print("ERROR: migration(s) create table(s) without an explicit GRANT in the same file:")
+              print("\n".join(f" - {path}" for path in failures))
+              print("Add least-privilege GRANT statements in each table-creation migration, or document a reviewed exception.")
+              sys.exit(1)
+
+          print("All table-creation migrations contain at least one explicit GRANT statement.")
+          PY
