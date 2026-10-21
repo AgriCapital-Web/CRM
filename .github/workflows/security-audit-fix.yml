@@ -21,7 +21,7 @@ jobs:
       - name: Generate lockfile and remediate advisories
         run: |
           npm install --package-lock-only
-          npm audit fix
+          npm audit fix || { status=$?; echo "::warning::npm audit fix exited $status because remaining advisories require breaking upgrades; continuing with verification and the high/critical security gate."; }
       - name: Capture full audit report
         if: always()
         run: |
