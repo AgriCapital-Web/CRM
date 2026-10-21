@@ -148,7 +148,7 @@ const Tickets = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredTickets.map((ticket) => (
-                    <TableRow key={ticket.id}>
+                    <TableRow key={ticket.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ticket ${ticket.titre || ""}`} onClick={() => { setSelectedTicket(ticket); setDialogOpen(true); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedTicket(ticket); setDialogOpen(true); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                       <TableCell>{new Date(ticket.created_at).toLocaleDateString("fr-FR")}</TableCell>
                       <TableCell className="font-medium">{ticket.titre}</TableCell>
                       <TableCell>{ticket.plantation?.nom_plantation || "N/A"}</TableCell>
@@ -164,7 +164,7 @@ const Tickets = () => {
                       </TableCell>
                       <TableCell>{formatUserShortName(ticket.cree_par_profile?.nom_complet || "N/A")}</TableCell>
                       <TableCell>{formatUserShortName(ticket.assigne_a_profile?.nom_complet || "Non assigné")}</TableCell>
-                      <TableCell>
+                      <TableCell onClick={(event) => event.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="sm"
