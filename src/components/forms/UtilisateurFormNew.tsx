@@ -19,6 +19,7 @@ import FileUploadVisual from "@/components/ui/file-upload-visual";
 import { ROLES as APP_ROLES, normalizeRoles } from "@/lib/roles";
 import { logAdminAction } from "@/lib/audit";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
+import RoleGeographyFields from "@/components/common/RoleGeographyFields";
 
 
 const userFormSchema = z.object({
@@ -67,8 +68,6 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const [primaryRole, setPrimaryRole] = useState<string>(
     utilisateur?.user_roles?.find((r: any) => r.is_primary === true)?.role || "",
   );
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [regions, setRegions] = useState<any[]>([]);
   const [equipes, setEquipes] = useState<any[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string>(utilisateur?.photo_url || "");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -89,45 +88,33 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
     setSelectedRoles((current) => current.filter((role) => officialCodes.has(role)));
   }, [rolesDisponibles]);
 
-  // Affichage conditionnel : couverture territoriale pour Commercial / Technique
-  // ou pour tout rôle disposant d'une couverture terrain.
+  // La couverture territoriale dépend du rôle principal, pas seulement du département RH.
   const governanceOnly = relationRH === "PDG" || relationRH === "Associé / Actionnaire";
-  const needsCoverage = useMemo(
-    () => !governanceOnly && (departementSelectionne === "Commercial" || departementSelectionne === "Technique"),
-    [departementSelectionne, governanceOnly],
-  );
-
+  const GEO_ROLES = ["responsable_district","responsable_zone","responsable_commercial","chef_equipe_commercial","commercial","technicien","mobilisateur_foncier","chef_equipe_technique","superviseur_mobilisation_fonciere","responsable_technique_agronomique"];
+  const needsCoverage = useMemo(() => !governanceOnly && GEO_ROLES.includes(primaryRole), [primaryRole, governanceOnly]);
   const isCommercialProfile = departementSelectionne === "Commercial";
-
   const isTechniqueProfile = departementSelectionne === "Technique";
   const showEquipe = isCommercialProfile || isTechniqueProfile;
-
   const equipesFiltrees = useMemo(() => {
     if (isCommercialProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "commercial");
     if (isTechniqueProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "technique");
     return equipes;
   }, [equipes, isCommercialProfile, isTechniqueProfile]);
 
-  useEffect(() => {
-    fetchDistricts();
-    fetchEquipes();
-    if (utilisateur?.district_id) fetchRegions(utilisateur.district_id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { fetchEquipes(); }, []);
 
-  const fetchDistricts = async () => {
-    const { data } = await (supabase as any).from("v_geo_districts").select("*").eq("est_actif_effectif", true).order("nom");
-    setDistricts(data || []);
+  const fetchEquipes = async () => {
+    const { data } = await (supabase as any).from("equipes").select("*").eq("actif", true).order("nom");
+    if (data) setEquipes(data);
   };
 
-  const fetchRegions = async (districtId: string) => {
-    const { data } = await (supabase as any)
-      .from("v_geo_regions")
-      .select("*")
-      .eq("district_id", districtId)
-      .eq("est_active_effectif", true)
-      .order("nom");
-    setRegions(data || []);
+  const requiredGeoLevel = (role: string) => {
+    const code = role === "responsable_zone" ? "responsable_district" : role;
+    if (code === "responsable_district") return "district_id";
+    if (code === "responsable_commercial" || code === "chef_equipe_technique" || code === "superviseur_mobilisation_fonciere" || code === "responsable_technique_agronomique") return "region_id";
+    if (code === "chef_equipe_commercial" || code === "technicien" || code === "mobilisateur_foncier") return "departement_geo_id";
+    if (code === "commercial") return "sous_prefecture_id";
+    return null;
   };
 
   const fetchEquipes = async () => {
@@ -146,12 +133,10 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
       toast({ variant: "destructive", title: "Rôle principal requis", description: "Choisissez un rôle principal parmi les rôles attribués." });
       return;
     }
-    if (needsCoverage && !data.region_id && !utilisateur?.region_id) {
-      toast({
-        variant: "destructive",
-        title: "Couverture requise",
-        description: "Les profils Commercial et Technique doivent avoir un district et une région de couverture.",
-      });
+    const requiredGeo = needsCoverage ? requiredGeoLevel(primaryRole) : null;
+    const existingGeoValue = requiredGeo ? (utilisateur?.[requiredGeo] || (requiredGeo === "departement_geo_id" ? utilisateur?.departement_geo_id : null)) : null;
+    if (requiredGeo && !data[requiredGeo] && !existingGeoValue) {
+      toast({ variant: "destructive", title: "Couverture requise", description: "Sélectionnez la zone géographique exigée par le rôle principal." });
       return;
     }
     setLoading(true);
@@ -584,49 +569,20 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           )}
 
           {needsCoverage && (
-            <>
-              <div className="space-y-2">
-                <Label>District de Couverture *</Label>
-                <Select
-                  defaultValue={utilisateur?.district_id}
-                  onValueChange={(value) => {
-                    setValue("district_id", value);
-                    fetchRegions(value);
-                    setValue("region_id", undefined);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un district" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districts.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Région de Couverture *</Label>
-                <Select
-                  defaultValue={utilisateur?.region_id}
-                  onValueChange={(value) => setValue("region_id", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={regions.length ? "Sélectionner une région" : "Choisir d'abord un district"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regions.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
+            <div className="sm:col-span-2 space-y-2">
+              <Label>Couverture géographique *</Label>
+              <RoleGeographyFields
+                role={primaryRole}
+                value={{ districtId: watch("district_id") || utilisateur?.district_id, regionId: watch("region_id") || utilisateur?.region_id, departementId: watch("departement_geo_id") || utilisateur?.departement_geo_id, sousPrefectureId: watch("sous_prefecture_id") || utilisateur?.sous_prefecture_id }}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                onChange={(g) => {
+                  setValue("district_id", g.districtId || "");
+                  setValue("region_id", g.regionId || "");
+                  setValue("departement_geo_id", g.departementId || "");
+                  setValue("sous_prefecture_id", g.sousPrefectureId || "");
+                }}
+              />
+            </div>
           )}
         </CardContent>
       </Card>
