@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, FileSpreadsheet, Presentation, FolderOpen, Plus, Save, Users, MessageSquare, History, ExternalLink, Paperclip, Send, RefreshCw, Search, Copy, Trash2, Download, Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Undo2, Redo2, Link as LinkIcon, Printer, Heading2, Eraser } from "lucide-react";
 import { toast } from "sonner";
 import OfficeFormatTools, { type OfficeDocumentType } from "@/components/workspace/OfficeFormatTools";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 type WorkspaceDoc = {
   id: string; title: string; document_type: "document" | "spreadsheet" | "presentation" | "file";
@@ -325,36 +325,87 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
         const imported = parseWorkspaceCsv(await file.text());
         onChange(encodeWorkspaceWorkbook([{ name: file.name.replace(/\.[^.]+$/, "").slice(0, 31) || "Feuille 1", rows: imported, styles: {}, conditionalFormatting: false }]));
       } else {
-        const bytes = await file.arrayBuffer();
-        const book = XLSX.read(bytes, { type: "array", cellDates: true, cellStyles: true, bookVBA: true });
-        const sheets: WorkspaceSheet[] = book.SheetNames.map((name) => {
-          const sheet = book.Sheets[name];
-          const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+        if (!lower.endsWith(".xlsx")) {
+          throw new Error("Seuls les classeurs .xlsx sont importés directement. Ouvrez ce fichier dans Excel ou LibreOffice puis enregistrez-le au format .xlsx.");
+        }
+        const book = new ExcelJS.Workbook();
+        await book.xlsx.load(await file.arrayBuffer());
+        const sheets: WorkspaceSheet[] = book.worksheets.map((sheet) => {
           const matrix: string[][] = [];
-          for (let r = range.s.r; r <= Math.min(range.e.r, 199); r++) {
-            const row: string[] = [];
-            for (let c = range.s.c; c <= Math.min(range.e.c, 39); c++) {
-              const cell = sheet[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined;
-              row[c] = cell ? (cell.f ? "=" + cell.f : cell.w ?? (cell.v instanceof Date ? cell.v.toISOString().slice(0, 10) : String(cell.v ?? ""))) : "";
+          const styles: Record<string, WorkspaceCellStyle> = {};
+          sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+            if (rowNumber > 200) return;
+            const values: string[] = [];
+            for (let columnNumber = 1; columnNumber <= Math.min(Math.max(row.cellCount, sheet.columnCount), 40); columnNumber++) {
+              const cell = row.getCell(columnNumber) as any;
+              const raw = cell.value;
+              const value = raw && typeof raw === "object" && "formula" in raw
+                ? "=" + String(raw.formula || "")
+                : raw && typeof raw === "object" && "richText" in raw
+                  ? raw.richText.map((part: { text?: string }) => part.text || "").join("")
+                  : raw && typeof raw === "object" && "text" in raw
+                    ? String(raw.text || "")
+                    : raw instanceof Date
+                      ? raw.toISOString().slice(0, 10)
+                      : raw == null ? "" : String(raw);
+              values[columnNumber - 1] = value;
+              const style: WorkspaceCellStyle = {};
+              const fill = cell.fill as any;
+              const fillArgb = fill?.fgColor?.argb || fill?.bgColor?.argb;
+              if (typeof fillArgb === "string" && fillArgb.length >= 6) style.background = "#" + fillArgb.slice(-6);
+              const fontArgb = cell.font?.color?.argb;
+              if (typeof fontArgb === "string" && fontArgb.length >= 6) style.color = "#" + fontArgb.slice(-6);
+              if (cell.font?.bold) style.bold = true;
+              const horizontal = cell.alignment?.horizontal;
+              if (horizontal === "left" || horizontal === "center" || horizontal === "right") style.align = horizontal;
+              const format = String(cell.numFmt || "");
+              if (format.includes("%")) style.format = "percent";
+              else if (/\$|XOF|FCFA|€|£/i.test(format)) style.format = "currency";
+              else if (/yy|dd|mm/i.test(format) && /[dmy]/i.test(format)) style.format = "date";
+              else if (/0[.,]0|#,##0/.test(format)) style.format = "number";
+              if (Object.keys(style).length) styles[(rowNumber - 1) + ":" + (columnNumber - 1)] = style;
             }
-            matrix[r] = row;
-          }
-          return { name: name.slice(0, 31), rows: matrix.length ? matrix : [[""]], styles: {}, conditionalFormatting: false };
+            matrix[rowNumber - 1] = values;
+          });
+          return { name: sheet.name.slice(0, 31), rows: matrix.length ? matrix : [[""]], styles, conditionalFormatting: false };
         });
         onChange(encodeWorkspaceWorkbook(sheets.length ? sheets : [{ name: "Feuille 1", rows: [[""]], styles: {}, conditionalFormatting: false }]));
-        toast.success("Classeur importé. Les valeurs et formules reconnues sont chargées ; les fonctions Excel avancées peuvent nécessiter Excel ou un moteur spécialisé.");
+        toast.success("Classeur XLSX importé. Les feuilles, valeurs, formules et styles de cellules principaux ont été chargés.");
       }
     } catch (error: any) { toast.error("Import impossible : " + (error?.message || "format non reconnu")); }
   };
-  const exportXlsx = () => {
+  const exportXlsx = async () => {
     try {
-      const book = XLSX.utils.book_new();
+      const book = new ExcelJS.Workbook();
+      book.creator = "AgriCapital 360";
+      book.created = new Date();
       workbook.forEach((sheet) => {
-        const data = sheet.rows.map((row) => row.map((raw) => raw.trim().startsWith("=") ? { f: raw.trim().slice(1) } : raw));
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        XLSX.utils.book_append_sheet(book, ws, (sheet.name || "Feuille").slice(0, 31));
+        const ws = book.addWorksheet((sheet.name || "Feuille").slice(0, 31));
+        sheet.rows.forEach((row, rowIndex) => {
+          const excelRow = ws.addRow(row.map((raw) => raw.trim().startsWith("=") ? { formula: raw.trim().slice(1) } : raw));
+          row.forEach((_, columnIndex) => {
+            const style = sheet.styles?.[rowIndex + ":" + columnIndex];
+            if (!style) return;
+            const cell = excelRow.getCell(columnIndex + 1);
+            if (style.background) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + style.background.replace("#", "").slice(-6) } };
+            if (style.color || style.bold) cell.font = { ...(style.color ? { color: { argb: "FF" + style.color.replace("#", "").slice(-6) } } : {}), ...(style.bold ? { bold: true } : {}) };
+            if (style.align) cell.alignment = { horizontal: style.align };
+            if (style.format === "currency") cell.numFmt = '"FCFA" #,##0';
+            else if (style.format === "percent") cell.numFmt = "0.00%";
+            else if (style.format === "number") cell.numFmt = "#,##0.00";
+            else if (style.format === "date") cell.numFmt = "dd/mm/yyyy";
+          });
+        });
+        ws.views = [{ state: "frozen", ySplit: 1 }];
+        ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+        ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF17643A" } };
+        ws.columns.forEach((column) => { column.width = Math.min(32, Math.max(12, column.width || 14)); });
       });
-      XLSX.writeFile(book, "agricapital-" + (titleSafe(active.name) || "classeur") + ".xlsx", { bookType: "xlsx", cellStyles: true });
+      const output = await book.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([output as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      const link = document.createElement("a");
+      link.href = url; link.download = "agricapital-" + (titleSafe(active.name) || "classeur") + ".xlsx"; link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success("Classeur XLSX exporté.");
     } catch (error: any) { toast.error("Export XLSX impossible : " + (error?.message || "erreur inconnue")); }
   };
@@ -373,8 +424,8 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
         <div className="min-w-0"><p className="text-sm font-semibold">Tableur AgriCapital</p><p className="text-xs text-muted-foreground">Formules, feuilles multiples, styles, import/export Excel et CSV.</p></div>
         <div className="flex max-w-full flex-wrap gap-2">
-          <label className="cursor-pointer rounded-md border px-3 py-2 text-xs hover:bg-muted">Importer Excel / CSV<input type="file" accept=".xlsx,.xls,.xlsm,.csv,.txt" className="hidden" disabled={disabled} onChange={(e) => { void importFile(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
-          <button type="button" onClick={exportXlsx} disabled={disabled} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter XLSX</button>
+          <label className="cursor-pointer rounded-md border px-3 py-2 text-xs hover:bg-muted">Importer Excel / CSV<input type="file" accept=".xlsx,.csv,.txt" className="hidden" disabled={disabled} onChange={(e) => { void importFile(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
+          <button type="button" onClick={() => void exportXlsx()} disabled={disabled} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter XLSX</button>
           <button type="button" onClick={exportCsv} disabled={disabled} className="rounded-md border px-3 py-2 text-xs hover:bg-muted">Exporter CSV</button>
         </div>
       </div>
