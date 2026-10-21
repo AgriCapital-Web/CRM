@@ -6,14 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import logoGreen from "@/assets/logo-green.png";
 import { User, Mail, Phone, Briefcase, MapPin, FileText, KeyRound, AtSign, Camera, Loader2, CheckCircle2, Image as ImageIcon } from "lucide-react";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { getSafeErrorMessage } from "@/lib/safeError";
-import GeographieCascade from "@/components/common/GeographieCascade";
+import RoleGeographyFields from "@/components/common/RoleGeographyFields";
 
 const ROLES = [
   { value: "commercial", label: "Commercial (Comm)" },
@@ -24,7 +23,7 @@ const ROLES = [
   { value: "chef_equipe_technique", label: "Chef d'Équipe Technique (CET)" },
   { value: "responsable_commercial", label: "Responsable Commercial (RCom)" },
   { value: "responsable_technique_agronomique", label: "Responsable Technique & Agronomique (RTA)" },
-  { value: "responsable_zone", label: "Responsable de zone" },
+  { value: "responsable_district", label: "Responsable de district (RD)" },
   { value: "comptable", label: "Comptable" },
   { value: "service_client", label: "Service client / Support" },
   { value: "operations", label: "Opérations" },
@@ -86,14 +85,11 @@ const AccountRequest = () => {
   const [photoPreview, setPhotoPreview] = useState("");
   const [photoPath, setPhotoPath] = useState("");
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [photoSourceOpen, setPhotoSourceOpen] = useState(false);
   const [errorDetail, setErrorDetail] = useState<any>(null);
   const [regions, setRegions] = useState<any[]>([]);
   const [departements, setDepartements] = useState<any[]>([]);
-  const isFoncierSupervisor = formData.poste === "superviseur_mobilisation_fonciere";
   const [districts, setDistricts] = useState<any[]>([]);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -262,24 +258,10 @@ const AccountRequest = () => {
                   {photoPreview ? <img src={photoPreview} alt="Aperçu de la photo" className="h-full w-full object-cover" /> : <ImageIcon className="h-10 w-10 text-muted-foreground" />}
                 </div>
                 <div className="min-w-0 space-y-3">
-                  <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="user" className="sr-only" onChange={(e) => { setPhotoSourceOpen(false); void handlePhoto(e.target.files?.[0]); }} />
-                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { setPhotoSourceOpen(false); void handlePhoto(e.target.files?.[0]); }} />
-                  <Button type="button" onClick={() => setPhotoSourceOpen(true)} className="min-h-11">
-                    <Camera className="mr-2 h-4 w-4" />Ajouter une photo
+                  <input ref={photoInputRef} type="file" accept="image/*" className="sr-only" onChange={(e) => { void handlePhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+                  <Button type="button" onClick={() => photoInputRef.current?.click()} disabled={photoUploading} className="min-h-11">
+                    <Camera className="mr-2 h-4 w-4" />Prendre une photo ou importer une image
                   </Button>
-                  <Dialog open={photoSourceOpen} onOpenChange={setPhotoSourceOpen}>
-                    <DialogContent className="max-w-sm">
-                      <DialogHeader><DialogTitle>Ajouter une photo de profil</DialogTitle></DialogHeader>
-                      <div className="grid grid-cols-1 gap-3">
-                        <Button type="button" onClick={() => cameraInputRef.current?.click()} className="h-12 justify-start">
-                          <Camera className="mr-3 h-5 w-5" /> Prendre une photo avec la caméra
-                        </Button>
-                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="h-12 justify-start">
-                          <ImageIcon className="mr-3 h-5 w-5" /> Choisir depuis le gestionnaire de fichiers
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     {photoUploading ? <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Enregistrement...</span> : photoPath ? <span className="inline-flex items-center gap-1 text-primary"><CheckCircle2 className="h-4 w-4" />Photo enregistrée</span> : <span className="text-muted-foreground">JPG, PNG ou WebP · 10 Mo maximum avant compression</span>}
                   </div>
@@ -288,8 +270,8 @@ const AccountRequest = () => {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-medium flex items-center gap-2"><MapPin className="h-4 w-4" /> Localisation</Label>
-              <GeographieCascade districtId={formData.district} regionId={formData.region} departementId={formData.departement} sousPrefectureId={formData.sous_prefecture} showVillage={false} showDepartement={!isFoncierSupervisor} showSousPrefecture={!isFoncierSupervisor} className="grid grid-cols-1 gap-3 sm:grid-cols-3" onChange={(g)=>setFormData(prev=>({...prev,district:g.districtId||"",region:g.regionId||"",departement:g.departementId||"",sous_prefecture:g.sousPrefectureId||""}))} />
+              <Label className="text-sm font-medium flex items-center gap-2"><MapPin className="h-4 w-4" /> Couverture géographique</Label>
+              <RoleGeographyFields role={formData.poste} value={{ districtId: formData.district, regionId: formData.region, departementId: formData.departement, sousPrefectureId: formData.sous_prefecture }} className="grid grid-cols-1 gap-3 sm:grid-cols-2" onChange={(g) => setFormData((prev) => ({ ...prev, district: g.districtId || "", region: g.regionId || "", departement: g.departementId || "", sous_prefecture: g.sousPrefectureId || "" }))} />
             </div>
 
             <div className="space-y-3 rounded-lg border-2 border-primary/30 bg-primary/5 p-4">
