@@ -70,7 +70,7 @@ const Login = () => {
         
         <div className="relative z-10 flex w-full min-w-0 max-w-full flex-col items-center px-2 text-center">
           <img
-            src="/agricapital360-officiel.png?v=20261021-logo"
+            src="/agricapital360-officiel.png?v=20261021-logo-final"
             alt="AgriCapital 360°"
             className="mx-auto mb-[clamp(1rem,3vh,2rem)] block h-auto w-[clamp(12rem,28vw,34rem)] max-w-full max-h-[55svh] object-contain drop-shadow-2xl"
           />
@@ -92,7 +92,7 @@ const Login = () => {
 
         <div className="login-brand-mobile lg:hidden mb-5 w-full min-w-0 flex flex-col items-center px-1 py-2">
           <img
-            src="/agricapital360-officiel.png?v=20261021-logo"
+            src="/agricapital360-officiel.png?v=20261021-logo-final"
             alt="AgriCapital 360°"
             className="login-brand-mobile__logo mx-auto block h-auto max-w-[min(72vw,20rem)] object-contain"
           />
