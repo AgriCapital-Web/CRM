@@ -79,8 +79,8 @@ with offer_matches as (
   select c.id as client_id, min(o.id::text)::uuid as offre_id, count(*) as match_count
   from public.clients c
   join public.offres o
-    on regexp_replace(upper(coalesce(o.parcours_code, o.famille_offre, o.code)), '[^A-Z0-9]', '', 'g')
-     = regexp_replace(upper(coalesce(c.parcours_code, '')), '[^A-Z0-9]', '', 'g')
+    on regexp_replace(upper(coalesce(nullif(trim(o.parcours_code), ''), nullif(trim(o.famille_offre), ''), o.code)), '[^A-Z0-9]', '', 'g')
+     = regexp_replace(upper(coalesce(nullif(trim(c.parcours_code), ''), '')), '[^A-Z0-9]', '', 'g')
   where c.offre_id is null
     and nullif(trim(c.parcours_code), '') is not null
   group by c.id
