@@ -101,7 +101,6 @@ where c.id = p.client_id
 update public.clients
 set pi_paye_at = coalesce(pi_paye_at, now()),
     paiement_initial_paye_at = coalesce(paiement_initial_paye_at, now()),
-    mode_paiement = 'Wave',
     compte_actif = true,
     statut = 'actif',
     statut_global = 'actif',
