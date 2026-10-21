@@ -182,29 +182,31 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       let filesQueued = false;
 
       if (photoFile) {
-        const result = await uploadFile("photos-profils", photoFile);
+        const result = await uploadFile("photos-profils", photoFile, undefined, undefined, { table: "clients", record_id: client.id, column: "photo_profil_url", field: "photo_profil" });
         if (!result?.path) throw new Error("La photo de profil n’a pas été enregistrée. Réessayez.");
         photo_profil_url = result.path;
         filesQueued ||= result.queued;
       }
       if (pieceRectoFile) {
-        const result = await uploadFile("pieces-identite", pieceRectoFile);
+        const result = await uploadFile("pieces-identite", pieceRectoFile, undefined, undefined, { table: "clients", record_id: client.id, column: "fichier_piece_recto_url", field: "piece_recto" });
         if (!result?.path) throw new Error("Le recto de la pièce d’identité n’a pas été enregistré. Réessayez.");
         fichier_piece_recto_url = result.path;
         filesQueued ||= result.queued;
       }
       if (pieceVersoFile) {
-        const result = await uploadFile("pieces-identite", pieceVersoFile);
+        const result = await uploadFile("pieces-identite", pieceVersoFile, undefined, undefined, { table: "clients", record_id: client.id, column: "fichier_piece_verso_url", field: "piece_verso" });
         if (!result?.path) throw new Error("Le verso de la pièce d’identité n’a pas été enregistré. Réessayez.");
         fichier_piece_verso_url = result.path;
         filesQueued ||= result.queued;
       }
 
       if (contractFile) {
-        const contractUpload = await uploadFile("documents", contractFile, `${user.id}/clients/${client.id}/contrats`);
+        const contractId = contractDocument?.id || crypto.randomUUID();
+        const contractUpload = await uploadFile("documents", contractFile, `${user.id}/clients/${client.id}/contrats`, undefined, {
+          table: "documents_acquisition", record_id: contractId, column: "fichier_url", field: "fiche_contrat",
+        });
         if (!contractUpload?.path) throw new Error("Le contrat n’a pas été enregistré. Réessayez.");
         filesQueued ||= contractUpload.queued;
-        const contractId = contractDocument?.id || crypto.randomUUID();
         const { data: savedContract, error: contractSaveError, offline: contractOffline } = await offlineUpsert("documents_acquisition", {
           id: contractId,
           client_id: client.id,
