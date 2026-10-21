@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -112,7 +112,7 @@ const NouvelleAcquisition = () => {
   const [searchParams]=useSearchParams();
   const {data:promotionActive}=usePromotionActive(formData.offre_id);
 
-  const updateFormData=(data:any)=>setFormData((prev:any)=>({...prev,...data}));
+  const updateFormData = useCallback((data: any) => setFormData((prev: any) => ({ ...prev, ...data })), []);
 
   useEffect(() => {
     const onQueued = () => {
@@ -241,8 +241,14 @@ const NouvelleAcquisition = () => {
 
   const validateStep=async()=>{
     if(!step)return false;
-    if(step.code==="offre"&&(!formData.commercial_id||!formData.offre_id||Number(formData.superficie_prevue)<=0)){
-      toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez la superficie."}); return false;
+    if(step.code==="offre"){
+      if(!formData.commercial_id||!formData.offre_id||Number(formData.superficie_prevue)<=0){
+        toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez la superficie."}); return false;
+      }
+      const configuredFormulas = Array.isArray(formData.offre?.formules_configuration) ? formData.offre.formules_configuration : [];
+      if(configuredFormulas.length > 1 && !configuredFormulas.some((formula: any) => formula.code === formData.formule_code)){
+        toast({variant:"destructive",title:"Formule obligatoire",description:"Choisissez la formule de cette offre avant de passer à l’étape suivante."}); return false;
+      }
     }
     if(step.code==="offre"&&!formData.formule_code){
       toast({variant:"destructive",title:"Formule obligatoire",description:"Choisissez d’abord la formule exacte de l’offre avant de passer à l’étape Client."}); return false;
@@ -362,7 +368,10 @@ const NouvelleAcquisition = () => {
       if(offerError)throw offerError;
       if(!baseOffer)throw new Error("Offre sélectionnée introuvable");
       const formulas = Array.isArray(baseOffer.formules_configuration) ? baseOffer.formules_configuration : [];
-      const selectedFormula = formulas.find((formula: any) => formula.code === formData.formule_code) || formulas[0] || null;
+      const selectedFormula = formulas.find((formula: any) => formula.code === formData.formule_code) || (formulas.length === 1 ? formulas[0] : null);
+      if (formulas.length > 1 && !selectedFormula) {
+        throw new Error("Choisissez une formule précise pour cette offre avant d’enregistrer le dossier.");
+      }
       const offer: any = selectedFormula ? {
         ...baseOffer,
         formule_code: selectedFormula.code || baseOffer.formule_code || baseOffer.code,
@@ -390,31 +399,24 @@ const NouvelleAcquisition = () => {
         civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,nationalite:formData.nationalite||null,
         statut_marital:formData.statut_marital||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,date_delivrance_piece:formData.date_delivrance_piece||null,
         telephone:formData.telephone||"",telephone_indicatif:formData.telephone_indicatif||null,telephone_local:formData.telephone_local||null,whatsapp:formData.whatsapp||null,
-        whatsapp_indicatif:formData.whatsapp_indicatif||null,whatsapp_local:formData.whatsapp_local||null,email:formData.email||null,domicile:formData.domicile||null,
+        whatsapp_indicatif:formData.whatsapp_indicatif||null,whatsapp_local:formData.whatsapp_local||null,email:formData.email||null,
+        domicile:formData.domicile||null,domicile_residence:formData.domicile||null,
         district_id:formData.district_id||null,region_id:formData.region_id||null,departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
         localite:formData.domicile||null,montant_total_contrat:total,
         mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
         montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
-        famille_offre:offer.famille_offre||null,formule_code:offer.formule_code||offer.code,formule_nom:offer.formule_nom||offer.nom,parcours_code:offer.parcours_code||offer.code,
+        famille_offre:offer.famille_offre||null,
+        formule_code:offer.formule_code|| (formulas.length === 0 ? offer.code : null),
+        formule_nom:offer.formule_nom|| (formulas.length === 0 ? offer.nom : null),
+        parcours_code:offer.parcours_code||offer.code,
         statut:"actif",statut_global:"actif",contrat_acquisition_statut:offer.contrat_acquisition_requis?"a_signer":"non_requis",contrat_accompagnement_statut:offer.contrat_accompagnement_requis?"a_signer":"non_requis",
         created_by:currentUser.id,updated_by:currentUser.id,compte_actif:false,phase_actuelle:"pre_activation",total_hectares:ha
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
 
-      // Conserver les liens du dossier d'origine sans fabriquer de lead pour un prospect autonome.
-      const convertedAt=new Date().toISOString();
-      if(formData.lead_id){
-        const {error:leadError}=await offlineUpdate("leads",formData.lead_id,{client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:convertedAt,updated_at:convertedAt});
-        if(leadError) throw leadError;
-        if (formData.prospect_id) {
-          const {error:prospectError}=await offlineUpdate("prospects",formData.prospect_id,{client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt});
-          if(prospectError) throw prospectError;
-        }
-      } else if(formData.prospect_id) {
-        const {error:prospectError}=await offlineUpdate("prospects",formData.prospect_id,{client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt});
-        if(prospectError) throw prospectError;
-      }
-
+      // Le lien lead/prospect est finalisé APRÈS les médias et documents.
+      // Ainsi un délai sur le lead ne coupe plus l'envoi des photos et ne laisse pas
+      // un client à moitié enregistré.
       const identityUploadedPaths: Record<string, { path: string; bucket: string }> = {};
       for (const [code, config] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
         const existingPath = (client as any)[config.column];
@@ -453,10 +455,26 @@ const NouvelleAcquisition = () => {
         }
       }
 
+      // Les trois pièces d'identité sont gérées ici depuis leurs champs uniques
+      // de l'étape Client. Elles ne doivent pas être répétées dans la configuration
+      // des documents dynamiques ni téléversées une seconde fois.
+      for (const [code, config] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
+        const uploaded = identityUploadedPaths[code];
+        if (!uploaded?.path) throw new Error("Pièce d’identité manquante ou non téléversée : " + code);
+        const { error: identityDocError } = await offlineUpsert("documents_acquisition", {
+          id: stableUuid(stableClientId, "document:" + code),
+          client_id: client.id, type_document: code, code_document: code, categorie: "identite",
+          obligatoire: true, source_contractuelle: null, fichier_url: uploaded.path, statut: "en_attente",
+          uploaded_by: currentUser.id,
+          metadata: { offre_id: offer.id, parcours_code: offer.parcours_code || offer.code, storage_bucket: uploaded.bucket },
+        });
+        if (identityDocError) throw identityDocError;
+      }
+
       const {data:docs,error:docsError}=await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",offer.id).eq("actif",true).order("ordre");
       if (docsError) throw docsError;
       if (!docs) throw new Error("Impossible de vérifier les pièces requises pour cette offre.");
-      for(const doc of docs){
+      for(const doc of docs.filter((item: any) => !IDENTITY_DOCUMENT_FIELDS[item.code])){
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
@@ -525,6 +543,20 @@ const NouvelleAcquisition = () => {
         if(contractStatusError)throw contractStatusError;
       }
 
+      // Conserver les liens du dossier d'origine sans fabriquer de lead pour un prospect autonome.
+      const convertedAt=new Date().toISOString();
+      if(formData.lead_id){
+        const {error:leadError}=await offlineUpdate("leads",formData.lead_id,{client_id:client.id,statut:"converti",etape_pipeline:"converti",converti_at:convertedAt,updated_at:convertedAt});
+        if(leadError) throw leadError;
+        if (formData.prospect_id) {
+          const {error:prospectError}=await offlineUpdate("prospects",formData.prospect_id,{client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt});
+          if(prospectError) throw prospectError;
+        }
+      } else if(formData.prospect_id) {
+        const {error:prospectError}=await offlineUpdate("prospects",formData.prospect_id,{client_id:client.id,statut:"converti",converted_client_at:convertedAt,updated_at:convertedAt});
+        if(prospectError) throw prospectError;
+      }
+
       if(brouillonId) {
         const {error:draftDeleteError}=await offlineDelete("acquisitions_brouillon",brouillonId);
         if(draftDeleteError) throw draftDeleteError;
@@ -536,14 +568,19 @@ const NouvelleAcquisition = () => {
     }catch(error:any){
       const message = String(error?.message || getSafeErrorMessage(error) || "");
       const statusCode = Number(error?.status || error?.statusCode || error?.cause?.status || 0);
-      const retryable = navigator.onLine && (statusCode >= 500 || /timeout|temporarily unavailable|network|failed to fetch|connection|gateway|warp server|thread killed|502|503|504|server error/i.test(message));
+      const retryable = !navigator.onLine || statusCode >= 500 || /timeout|temporarily unavailable|network|failed to fetch|connection|gateway|warp server|thread killed|502|503|504|server error|upload|téléversement impossible|storage/i.test(message);
       if (retryable && retryAttempt < 4) {
         setSyncState("queued");
         if (retryAttempt === 0) toast({title:"Dossier conservé",description:"Le serveur répond difficilement. Votre dossier reste sauvegardé et une nouvelle tentative automatique va être effectuée sans actualiser la page."});
         window.setTimeout(() => { void submit(retryAttempt + 1); }, Math.min(15000, 1800 * Math.pow(2, retryAttempt)));
       } else {
         setSyncState(retryable ? "queued" : "error");
-        toast({variant:"destructive",title:retryable ? "Dossier conservé — reprise en attente" : "Erreur d’enregistrement",description:retryable ? "Vos informations restent dans le brouillon. Le formulaire pourra reprendre automatiquement dès que le serveur sera disponible." : getSafeErrorMessage(error)});
+        toast({variant:"destructive",title:retryable ? "Dossier conservé — reprise en attente" : "Erreur d’enregistrement",description:retryable ? "Vos informations restent dans le brouillon. Une nouvelle tentative sera lancée automatiquement sans actualiser la page." : getSafeErrorMessage(error)});
+        if (retryable) {
+          window.setTimeout(() => {
+            if (navigator.onLine) void submit(0);
+          }, 30000);
+        }
       }
     }finally{setSaving(false);}
   };
