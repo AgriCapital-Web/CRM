@@ -143,7 +143,7 @@ const importFile = async (file: File): Promise<{ type: OfficeDocumentType; conte
     return { type: "spreadsheet", content: await readXlsx(file) };
   }
   if (["pptx"].includes(ext || "")) return { type: "presentation", content: await readPptx(file) };
-  if (ext === "pdf") return { type: "document", content: "<h1>" + file.name.replace(/[<>]/g, "") + "</h1><p>Texte extrait du PDF. La mise en page, les images, les signatures et les annotations du PDF original ne sont pas converties en éléments éditables.</p><pre>" + (await readPdf(file)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</pre>" };
+  if (ext === "pdf") return { type: "document", content: "<h1>" + file.name.replace(/[<>]/g, "") + "</h1><pre>" + (await readPdf(file)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</pre>" };
   if (["csv", "tsv", "txt"].includes(ext || "")) return { type: ext === "txt" ? "document" : "spreadsheet", content: await file.text() };
   throw new Error("Format non pris en charge pour la conversion directe. Formats reconnus : DOCX, XLSX, XLS, ODS, PPTX, PDF, CSV, TSV et TXT.");
 };
@@ -239,10 +239,10 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
           showValAxisTitle: false, showCatAxisTitle: false,
         });
       } else {
-        slide.addText("Pour générer un graphique, placez des libellés en première colonne et des valeurs numériques en deuxième colonne.", { x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "middle" });
+        
       }
     } else {
-      slide.addText("Ajoutez des en-têtes et des lignes de données au tableur pour créer un rapport.", { x: 0.8, y: 1.5, w: 11.5, h: 1.2, fontSize: 16 });
+      
     }
     await pptx.writeFile({ fileName: safeFilename(title, "pptx") });
     return;
@@ -290,20 +290,19 @@ export default function OfficeFormatTools({ title, content, documentType, disabl
     } catch (error: any) { toast.error("Export impossible : " + (error?.message || "erreur inconnue")); }
     finally { setBusy(false); }
   };
-  return <section className="space-y-2 rounded-lg border bg-muted/20 p-3">
+  return <section className="min-w-0 max-w-full space-y-2 rounded-lg border bg-muted/20 p-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div><p className="text-sm font-semibold">Formats bureautiques</p><p className="text-xs text-muted-foreground">Importer, convertir et réutiliser les contenus avec d’autres logiciels.</p></div>
+      <div><p className="text-sm font-semibold">Formats bureautiques</p></div>
       <Button type="button" variant="outline" size="sm" disabled={disabled || busy} onClick={() => fileRef.current?.click()}><FileUp className="mr-2 h-4 w-4" />Importer un fichier</Button>
       <input ref={fileRef} type="file" className="hidden" accept=".docx,.doc,.xlsx,.xls,.xlsm,.ods,.pptx,.pdf,.csv,.tsv,.txt" disabled={disabled || busy} onChange={(e) => void handleImport(e.target.files?.[0])} />
     </div>
-    <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("docx")}><FileText className="mr-2 h-4 w-4" />Word (.docx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("xlsx")}><FileSpreadsheet className="mr-2 h-4 w-4" />Excel (.xlsx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pptx")}><Presentation className="mr-2 h-4 w-4" />PowerPoint (.pptx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pdf")}><FileIcon className="mr-2 h-4 w-4" />PDF</Button>
+    <div className="flex min-w-0 flex-wrap gap-2">
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("docx")}><FileText className="mr-1 h-4 w-4 sm:mr-2" />Word (.docx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("xlsx")}><FileSpreadsheet className="mr-1 h-4 w-4 sm:mr-2" />Excel (.xlsx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pptx")}><Presentation className="mr-1 h-4 w-4 sm:mr-2" />PowerPoint (.pptx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pdf")}><FileIcon className="mr-1 h-4 w-4 sm:mr-2" />PDF</Button>
       {busy && <span className="inline-flex items-center text-xs text-muted-foreground"><LoaderCircle className="mr-1 h-4 w-4 animate-spin" />Traitement…</span>}
     </div>
     {status && <p className="text-xs text-muted-foreground">{status}</p>}
-    <p className="text-xs text-muted-foreground">La conversion conserve le contenu textuel principal. Les mises en page complexes, macros, graphiques incorporés et certains objets Office peuvent nécessiter une vérification après conversion. Les fichiers d’origine peuvent rester joints au document pour référence.</p>
   </section>;
 }

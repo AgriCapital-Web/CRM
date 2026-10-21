@@ -703,7 +703,7 @@ const Dashboard = () => {
                               >
                                 <h3 className={`mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground ${groupName === "Leads" || groupName === "Prospects" ? "hidden sm:block" : ""}`}>{groupName}</h3>
                                 <div className={isClients
-                                  ? "crm-compact-kpi-grid crm-compact-kpi-grid--clients grid grid-cols-5 gap-1 sm:grid-cols-5 sm:gap-2"
+                                  ? "crm-compact-kpi-grid crm-compact-kpi-grid--clients grid grid-cols-3 gap-1 sm:grid-cols-3 sm:gap-2 lg:grid-cols-6"
                                   : groupName === "Leads"
                                     ? "crm-compact-kpi-grid crm-compact-kpi-grid--leads grid grid-cols-4 gap-1 sm:gap-2"
                                     : "crm-compact-kpi-grid crm-compact-kpi-grid--prospects grid grid-cols-3 gap-1 sm:gap-2"
