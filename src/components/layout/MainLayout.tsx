@@ -9,7 +9,6 @@ import { NotificationCenter } from "@/components/common/NotificationCenter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import AIAssistant from "@/components/ai/AIAssistant";
-import logoV2 from "@/assets/logo-agricapital-v2.png";
 import { cn, formatUserShortName } from "@/lib/utils";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
@@ -66,7 +65,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     <div className="flex h-full flex-col bg-primary text-primary-foreground shadow-xl">
       <div className="border-b border-primary-foreground/10 px-4 py-5 bg-white/95 backdrop-blur">
         <button onClick={() => navigate('/dashboard')} className="flex w-full items-center justify-center">
-          <img src={logoV2} alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital" className="w-full max-w-[220px] h-auto object-contain" />
+          <img src="/agricapital360-logo.svg?v=20261021" alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital" className="w-full max-w-[220px] h-auto object-contain" />
           <span className="sr-only">AgriCapital 360 — La plateforme métier intelligente d’AgriCapital</span>
         </button>
         <p className="mt-2 text-center text-[10px] font-medium leading-tight text-primary/75">AgriCapital 360</p>

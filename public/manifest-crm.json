@@ -1,8 +1,8 @@
 {
-  "name": "AgriCapital 360",
+  "name": "AgriCapital 360°",
   "short_name": "AgriCapital 360",
-  "description": "La plateforme métier intelligente d’AgriCapital.",
-  "theme_color": "#00643C",
+  "description": "La plateforme métier intelligente d’AgriCapital : équipes, clients, opérations agricoles, finances et documents.",
+  "theme_color": "#087d47",
   "background_color": "#ffffff",
   "display": "standalone",
   "orientation": "any",
@@ -11,19 +11,16 @@
   "id": "ac-teams",
   "icons": [
     {
-      "src": "/logo-agricapital.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/logo-agricapital.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
+      "src": "/agricapital360-icon.svg?v=20261021",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "lang": "fr-FR",
   "dir": "ltr",
   "author": "Inocent KOFFI",

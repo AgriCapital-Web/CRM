@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
@@ -22,7 +22,6 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
 
 const Plantations = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const statutFilter = searchParams.get("statut");
   const [plantations, setPlantations] = useState<any[]>([]);
@@ -182,11 +181,11 @@ const Plantations = () => {
                 {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement...</TableCell></TableRow>
                 : filteredPlantations.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8">Aucune plantation trouvée</TableCell></TableRow>
                 : paginatedPlantations.map((plantation) => (
-                  <TableRow key={plantation.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche plantation ${plantation.nom_plantation || plantation.nom || ""}`} onClick={() => navigate(`/plantations/${plantation.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/plantations/${plantation.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <TableRow key={plantation.id} className="hover:bg-muted/40">
                     <TableCell className="font-mono text-xs font-medium">
                       <Link to={`/plantations/${plantation.id}`} className="hover:underline" title={plantation.nom_plantation || plantation.nom || "Plantation"}><span className="block max-w-[9rem] truncate">{plantation.nom_plantation || plantation.nom || "Plantation"}</span><span className="text-[10px] text-muted-foreground">{plantation.id_unique || "—"}</span></Link>
                     </TableCell>
-                    <TableCell className="font-medium" onClick={(event) => event.stopPropagation()}>
+                    <TableCell className="font-medium">
                       {plantation.clients ? (
                         <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline" title={plantation.clients.nom_complet || [plantation.clients.nom, plantation.clients.prenoms].filter(Boolean).join(" ")}>
                           <span className="block max-w-[12rem] truncate">{plantation.clients.nom_complet || [plantation.clients.nom, plantation.clients.prenoms].filter(Boolean).join(" ") || "Client"}</span>
@@ -205,7 +204,7 @@ const Plantations = () => {
                     <TableCell className="font-semibold tabular-nums">{Math.round(Number(plantation.surface_reellement_plantee ?? plantation.superficie_activee ?? plantation.superficie_ha ?? 0)).toLocaleString("fr-FR")} ha</TableCell>
                     <TableCell><div className="flex items-center gap-1 whitespace-nowrap"><MapPin className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="text-xs">{plantation.regions?.nom || "—"}</span></div></TableCell>
                     <TableCell><Badge className={"whitespace-nowrap text-[10px] px-1.5 py-0 " + getStatutBadge(plantation.statut_global || plantation.statut)}>{formatStatut(plantation.statut_global || plantation.statut || "actif")}</Badge></TableCell>
-                    <TableCell onClick={(event) => event.stopPropagation()}>
+                    <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" asChild><Link to={`/plantations/${plantation.id}`} title="Voir la fiche"><Eye className="h-4 w-4" /></Link></Button>
                         <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>

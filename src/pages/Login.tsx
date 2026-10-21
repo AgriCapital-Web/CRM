@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
-import logoV2 from "@/assets/logo-agricapital-v2.png";
-import logoWhite from "@/assets/logo-white.png";
 import { Eye, EyeOff, LogIn, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -72,8 +70,8 @@ const Login = () => {
         
         <div className="relative z-10 flex w-full min-w-0 max-w-full flex-col items-center px-2 text-center">
           <img
-            src={logoWhite}
-            alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital"
+            src="/agricapital360-logo.svg?v=20261021"
+            alt="AgriCapital 360°"
             className="mx-auto mb-[clamp(1rem,3vh,2rem)] block h-auto w-[clamp(12rem,28vw,34rem)] max-w-full max-h-[55svh] object-contain drop-shadow-2xl"
           />
           <p className="text-white text-xl xl:text-2xl font-semibold mb-2">AgriCapital 360</p>
@@ -94,8 +92,8 @@ const Login = () => {
 
         <div className="login-brand-mobile lg:hidden mb-5 w-full min-w-0 flex flex-col items-center px-1 py-2">
           <img
-            src={logoV2}
-            alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital"
+            src="/agricapital360-logo.svg?v=20261021"
+            alt="AgriCapital 360°"
             className="login-brand-mobile__logo mx-auto block h-auto max-w-[min(72vw,20rem)] object-contain"
           />
           

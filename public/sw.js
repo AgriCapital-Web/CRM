@@ -1,9 +1,9 @@
-const CACHE_NAME = "agricapital-crm-v15";
+const CACHE_NAME = "agricapital-crm-v16";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 13;
 const HTTP_QUEUE_STORE = "http_mutations";
-const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json", "/asset-manifest.json", "/logo-agricapital.png", "/apple-touch-icon.png"];
+const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json", "/asset-manifest.json", "/logo-agricapital.png", "/apple-touch-icon.png", "/agricapital360-logo.svg", "/agricapital360-icon.svg"];
 const FONT_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
 
 self.addEventListener("install", (event) => {
