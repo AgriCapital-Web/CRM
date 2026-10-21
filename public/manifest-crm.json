@@ -11,10 +11,10 @@
   "id": "ac-teams",
   "icons": [
     {
-      "src": "/agricapital360-icon.svg?v=20261022",
+      "src": "https://www.agricapital.ci/agricapital360-officiel.png?v=20261021-logo",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "categories": [

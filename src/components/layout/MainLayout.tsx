@@ -65,7 +65,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     <div className="flex h-full flex-col bg-primary text-primary-foreground shadow-xl">
       <div className="border-b border-primary-foreground/10 px-4 py-5 bg-white/95 backdrop-blur">
         <button onClick={() => navigate('/dashboard')} className="flex w-full items-center justify-center">
-          <img src="/agricapital360-logo.svg?v=20261022" alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital" className="w-full max-w-[220px] h-auto object-contain" />
+          <img src="https://www.agricapital.ci/agricapital360-officiel.png?v=20261021-logo" alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital" className="w-full max-w-[220px] h-auto object-contain" />
           <span className="sr-only">AgriCapital 360 — La plateforme métier intelligente d’AgriCapital</span>
         </button>
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
