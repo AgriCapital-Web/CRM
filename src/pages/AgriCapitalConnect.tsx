@@ -121,7 +121,7 @@ export default function AgriCapitalConnect() {
     if (newKind === "direct" && targets.length !== 2) { toast.error("Sélectionnez un autre utilisateur."); return; }
     if (newKind !== "direct" && targets.length < 2) { toast.error("Ajoutez au moins un autre utilisateur."); return; }
     const { data: conv, error } = await (supabase as any).from("internal_conversations")
-      .insert({ conversation_type: newKind, title: newTitle.trim() || null, created_by_profile_id: profileId })
+      .insert({ conversation_type: newKind, title: newKind === "direct" ? (staff.find(s => s.id === newMembers[0])?.nom_complet || null) : (newTitle.trim() || null), created_by_profile_id: profileId })
       .select("id,conversation_type,title,last_message_at,created_by_profile_id").single();
     if (error || !conv) { toast.error(error?.message || "Création impossible."); return; }
     const members = targets.map(id => ({ conversation_id: conv.id, profile_id: id, member_role: id === profileId ? "owner" : "member" }));
