@@ -151,7 +151,7 @@ function htmlToDocxParagraphs(html: string): Paragraph[] {
     return [new Paragraph({
       children: runs.length ? runs : [new TextRun(text)],
       heading: heading === "h1" ? HeadingLevel.HEADING_1 : heading === "h2" ? HeadingLevel.HEADING_2 : heading === "h3" ? HeadingLevel.HEADING_3 : undefined,
-      bullet: heading === "li" ? { indent: 360 } : undefined,
+      bullet: heading === "li" ? { level: 0 } : undefined,
       spacing: { after: 120 },
     })];
   });
@@ -206,10 +206,10 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
         slide.addChart(pptx.ChartType.bar, [{ name: headers[1] || "Valeur", labels, values: nums }], {
           x: 6.9, y: 1.35, w: 5.7, h: 4.6, catAxisLabelFontSize: 9, valAxisLabelFontSize: 9,
           showTitle: true, title: headers[1] || "Indicateurs", showLegend: false, showValue: true,
-          showCatName: false, showValAxisTitle: false, showCatAxisTitle: false,
+          showValAxisTitle: false, showCatAxisTitle: false,
         });
       } else {
-        slide.addText("Pour générer un graphique, placez des libellés en première colonne et des valeurs numériques en deuxième colonne.", { x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "mid" });
+        slide.addText("Pour générer un graphique, placez des libellés en première colonne et des valeurs numériques en deuxième colonne.", { x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "middle" });
       }
     } else {
       slide.addText("Ajoutez des en-têtes et des lignes de données au tableur pour créer un rapport.", { x: 0.8, y: 1.5, w: 11.5, h: 1.2, fontSize: 16 });
@@ -225,7 +225,7 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
     const heading = (lines.shift() || (title + " — " + (index + 1))).trim() || title || "Diapositive " + (index + 1);
     slide.addText(heading, { x: 0.55, y: 0.35, w: 12.2, h: 0.65, fontFace: "Aptos Display", fontSize: 26, bold: true, color: "17365D", breakLine: false });
     const body = lines.join("\n");
-    if (body) slide.addText(body, { x: 0.7, y: 1.25, w: 11.8, h: 5.4, fontFace: "Aptos", fontSize: 17, color: "263238", breakLine: false, valign: "top", bullet: false, paraSpaceAfterPt: 10 });
+    if (body) slide.addText(body, { x: 0.7, y: 1.25, w: 11.8, h: 5.4, fontFace: "Aptos", fontSize: 17, color: "263238", breakLine: false, valign: "top", bullet: false, paraSpaceAfter: 10 });
     slide.addText("AgriCapital  •  " + (index + 1), { x: 10.4, y: 7.05, w: 2.2, h: 0.2, fontSize: 9, color: "6B7280", align: "right" });
   });
   await pptx.writeFile({ fileName: safeFilename(title, "pptx") });
