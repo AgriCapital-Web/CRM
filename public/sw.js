@@ -1,9 +1,9 @@
-const CACHE_NAME = "agricapital-crm-v17";
+const CACHE_NAME = "agricapital-crm-v18";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 13;
 const HTTP_QUEUE_STORE = "http_mutations";
-const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json", "/asset-manifest.json", "/agricapital360-logo.svg?v=20261021", "/agricapital360-icon.svg?v=20261021"];
+const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json", "/asset-manifest.json", "/agricapital360-logo.svg?v=20261022", "/agricapital360-icon.svg?v=20261022"];
 const FONT_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
 
 self.addEventListener("install", (event) => {
@@ -98,8 +98,8 @@ self.addEventListener("push", (event) => {
     const id = payload.notificationId || payload.id || payload.tag || "general";
     await self.registration.showNotification(payload.title || "AgriCapital 360", {
       body: payload.body || payload.message || "",
-      icon: payload.icon || "/agricapital360-icon.svg?v=20261021",
-      badge: payload.badge || "/agricapital360-icon.svg?v=20261021",
+      icon: payload.icon || "/agricapital360-icon.svg?v=20261022",
+      badge: payload.badge || "/agricapital360-icon.svg?v=20261022",
       tag: "agricapital-notification-" + id,
       renotify: false,
       data: { ...(payload.data || {}), url: payload.url || payload.data?.route || "/" },
