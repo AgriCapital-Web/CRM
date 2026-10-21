@@ -304,6 +304,5 @@ export default function OfficeFormatTools({ title, content, documentType, disabl
       {busy && <span className="inline-flex items-center text-xs text-muted-foreground"><LoaderCircle className="mr-1 h-4 w-4 animate-spin" />Traitement…</span>}
     </div>
     {status && <p className="text-xs text-muted-foreground">{status}</p>}
-    <p className="text-xs text-muted-foreground">La conversion conserve le contenu textuel principal. Les mises en page complexes, macros, graphiques incorporés et certains objets Office peuvent nécessiter une vérification après conversion. Les fichiers d’origine peuvent rester joints au document pour référence.</p>
   </section>;
 }
