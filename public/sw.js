@@ -116,7 +116,7 @@ self.addEventListener("notificationclick", (event) => {
     try {
       const parsed = new URL(target, self.location.origin);
       if (parsed.origin === self.location.origin) safeTarget = parsed.pathname + parsed.search + parsed.hash;
-    } catch { /* Stay on the CRM home route. */ }
+    } catch { /* Stay on the AgriCapital 360 home route. */ }
     for (const client of windows) {
       if ("focus" in client) {
         try { await client.navigate(safeTarget); } catch { /* Some browser clients cannot navigate. */ }
