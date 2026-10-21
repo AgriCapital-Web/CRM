@@ -1,4 +1,4 @@
-const CACHE_NAME = "agricapital-crm-v16";
+const CACHE_NAME = "agricapital-crm-v17";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 13;
@@ -98,8 +98,8 @@ self.addEventListener("push", (event) => {
     const id = payload.notificationId || payload.id || payload.tag || "general";
     await self.registration.showNotification(payload.title || "AgriCapital 360", {
       body: payload.body || payload.message || "",
-      icon: payload.icon || "/logo-agricapital.png",
-      badge: payload.badge || "/logo-agricapital.png",
+      icon: payload.icon || "/agricapital360-icon.svg?v=20261021",
+      badge: payload.badge || "/agricapital360-icon.svg?v=20261021",
       tag: "agricapital-notification-" + id,
       renotify: false,
       data: { ...(payload.data || {}), url: payload.url || payload.data?.route || "/" },
