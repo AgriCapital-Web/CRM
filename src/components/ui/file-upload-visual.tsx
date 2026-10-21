@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveStorageUrl } from "@/utils/storage";
 import { Loader2, ScanText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,9 +56,20 @@ export const FileUploadVisual = ({
   }, [existingPreview]);
 
   useEffect(() => {
-    if (currentPreview) setPreview(currentPreview);
-    else if (!existingCleared) setPreview(existingPreview || "");
-  }, [currentPreview, existingPreview, existingCleared]);
+    let active = true;
+    const source = currentPreview || existingPreview || "";
+    if (existingCleared) return () => { active = false; };
+    if (!source) { setPreview(""); return () => { active = false; }; }
+    if (/^(https?:|data:|blob:)/i.test(source)) {
+      setPreview(source);
+      return () => { active = false; };
+    }
+    const bucket = field === "photo" ? "photos-profils" : "pieces-identite";
+    void resolveStorageUrl(bucket, source).then((url) => {
+      if (active && url) setPreview(url);
+    }).catch(() => { if (active) setPreview(""); });
+    return () => { active = false; };
+  }, [currentPreview, existingPreview, existingCleared, field]);
 
   const handleFileSelect = (file: File | null) => {
     if (!file) return;
