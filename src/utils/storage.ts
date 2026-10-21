@@ -42,7 +42,7 @@ export const uploadFile = async (
   file: File,
   path?: string,
   stableObjectName?: string
-): Promise<{ url: string; path: string } | null> => {
+): Promise<{ url: string; path: string; queued: boolean } | null> => {
   try {
     const optimizedFile = await compressImageForUpload(file);
     const originalExtension = optimizedFile.name.includes('.') ? optimizedFile.name.split('.').pop() : '';
@@ -59,7 +59,7 @@ export const uploadFile = async (
     const result = await uploadOrQueueFile({ bucket, path: filePath, file: optimizedFile });
     if (result.error) throw result.error;
 
-    return { url: result.path, path: result.path };
+    return { url: result.path, path: result.path, queued: result.queued };
   } catch (error) {
     console.error('Error uploading file:', error);
     throw error instanceof Error ? error : new Error('Le téléversement du fichier a échoué.');
