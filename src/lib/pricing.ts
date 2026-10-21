@@ -3,7 +3,7 @@
  * PI = Paiement Initial.
  * Une promotion PI réduit uniquement le PI.
  * Une promotion prix global réduit le total puis conserve la structure
- * An 1 / An 2 / An 3 de l'offre en appliquant un coefficient à chaque tranche.
+ * de mensualité uniforme ou les tranches explicitement configurées.
  */
 export interface TranchePaiement {
   mois?: number | null;
@@ -103,7 +103,7 @@ export const normaliserTranches = (offre: OffreBase): TranchePaiement[] => {
   const duree = Math.max(0, num(offre.duree_paiement_mois));
   const mensualite = Math.max(0, num(offre.mensualite_par_ha));
   if (!duree || !mensualite) return [];
-  return [{ annee: 1, mois_debut: 1, mois_fin: duree, mois: duree,
+  return [{ type: "mensualite_unique", mois_debut: 1, mois_fin: duree, mois: duree,
     mensualite_par_ha: mensualite, total_periode_par_ha: mensualite*duree }];
 };
 
