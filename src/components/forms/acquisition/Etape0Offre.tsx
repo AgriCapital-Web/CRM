@@ -94,6 +94,50 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     return [...groups.entries()];
   }, [offres]);
 
+  // Restore the selected offer from a lead or saved draft without silently
+  // choosing the first formula when the offer has multiple configured formulas.
+  useEffect(() => {
+    if (!formData.offre_id || !offres?.length) return;
+    const baseOffer: any = offres.find((item) => item.id === formData.offre_id);
+    if (!baseOffer) return;
+    const formulas = Array.isArray(baseOffer.formules_configuration) ? baseOffer.formules_configuration : [];
+    const selected = formulas.find((formula: any) => formula.code === formData.formule_code);
+
+    if (formulas.length > 1 && !selected) {
+      const patch: any = {};
+      if (formData.offre?.id !== baseOffer.id) patch.offre = baseOffer;
+      if (formData.formule_code || formData.formule_nom || formData.formule_confirmed) {
+        patch.formule_code = "";
+        patch.formule_nom = "";
+        patch.formule_confirmed = false;
+      }
+      if (Object.keys(patch).length) updateFormData(patch);
+      return;
+    }
+
+    const formula = selected || (formulas.length === 1 ? formulas[0] : null);
+    const resolvedOffer = formula ? applyFormulaConfig(baseOffer, formula) : baseOffer;
+    const formulaCode = formula?.code || (formulas.length === 0 ? baseOffer.formule_code || baseOffer.code : "");
+    const formulaName = formula?.nom || (formulas.length === 0 ? baseOffer.formule_nom || baseOffer.nom : "");
+    if (
+      formData.offre?.id !== baseOffer.id ||
+      formData.formule_code !== formulaCode ||
+      formData.formule_nom !== formulaName ||
+      (Boolean(formula) && !formData.formule_confirmed)
+    ) {
+      updateFormData({
+        offre: resolvedOffer,
+        formule_code: formulaCode,
+        formule_nom: formulaName,
+        formule_confirmed: Boolean(formula),
+        gestion_type: formula?.gestion_type || baseOffer.gestion_type || null,
+        type_client: baseOffer.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
+      });
+    }
+  }, [offres, formData.offre_id, formData.offre?.id, formData.formule_code, formData.formule_nom, formData.formule_confirmed, updateFormData]);
+
+
+
   const formatMontant = (montant: number) => new Intl.NumberFormat("fr-FR").format(montant);
 
 
