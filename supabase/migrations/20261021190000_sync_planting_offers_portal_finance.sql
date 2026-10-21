@@ -165,21 +165,19 @@ begin
 
   v_rank := case lower(coalesce(new.type_intervention,''))
     when 'validation_parcelle' then 1
-    when 'defrichage' then 2
-    when 'piquetage' then 3
-    when 'trouaison' then 4
-    when 'mise_en_terre' then 5
+    when 'piquetage' then 2
+    when 'trouaison' then 3
+    when 'mise_en_terre' then 4
     else 0
   end;
 
   if v_rank <= 1 then return new; end if;
 
-  foreach v_stage in array array['validation_parcelle','defrichage','piquetage','trouaison'] loop
+  foreach v_stage in array array['validation_parcelle','piquetage','trouaison'] loop
     exit when (case v_stage
       when 'validation_parcelle' then 1
-      when 'defrichage' then 2
-      when 'piquetage' then 3
-      when 'trouaison' then 4
+      when 'piquetage' then 2
+      when 'trouaison' then 3
       else 0 end) >= v_rank;
 
     update public.interventions_techniques i
@@ -246,7 +244,7 @@ set plantation_id = p.id, updated_at = now()
 from public.plantations p
 where i.client_id = p.client_id
   and i.plantation_id is null
-  and i.type_intervention in ('validation_parcelle','defrichage','piquetage','trouaison','mise_en_terre')
+  and i.type_intervention in ('validation_parcelle','piquetage','trouaison','mise_en_terre')
   and i.parcelle_id = p.parcelle_id
   and p.client_id in (
     select id from public.clients where id_unique in ('AGC-000006','AGC-000008')
