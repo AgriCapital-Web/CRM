@@ -49,6 +49,7 @@ const Clients = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"view" | "edit" | "new">("new");
   const [teamPerformance,setTeamPerformance]=useState<any[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<any>(null);
@@ -390,14 +391,14 @@ const Clients = () => {
                       </TableRow>
                     ) : (
                       filteredClients.map((client) => (
-                        <TableRow key={client.id} className="[&>td]:px-2 [&>td]:py-1">
+                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
                           <TableCell className="font-medium text-xs whitespace-nowrap">
                             {client.nom_complet || [client.nom, client.prenoms].filter(Boolean).join(" ")}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap text-xs"><ContactLauncher phone={client.telephone} whatsapp={client.whatsapp} email={client.email} name={client.nom_complet || client.id_unique || "Client"} kind="client" status={client.statut || client.status || ""}/></TableCell>
+                          <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={client.telephone} whatsapp={client.whatsapp} email={client.email} name={client.nom_complet || client.id_unique || "Client"} kind="client" status={client.statut || client.status || ""}/></TableCell>
                           <TableCell>
                             {client.type_client === "beneficiaire_particulier" ? (
                               <Badge variant="secondary" className="whitespace-nowrap">B. particulier</Badge>
@@ -430,13 +431,11 @@ const Clients = () => {
                           <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
                             {format(new Date(client.created_at), "dd MMM yyyy", { locale: fr })}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">
+                          <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
                             <div className="flex items-center gap-1">
-                              <Link to={`/acquisitions/${client.id}`}>
-                                <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" title="Fiche client" aria-label="Fiche client" onClick={() => { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); }}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                              </Link>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm">
@@ -444,7 +443,7 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {canEditClient && <DropdownMenuItem onClick={() => { setSelectedClient(client); setIsFormOpen(true); }}><Edit className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>}
+                                  {canEditClient && <DropdownMenuItem onClick={() => { setSelectedClient(client); setFormMode("edit"); setIsFormOpen(true); }}><Edit className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>}
                                   {canEditClient && <DropdownMenuSeparator />}
                                   {canEditClient && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
@@ -495,11 +494,12 @@ const Clients = () => {
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {selectedClient ? "Modifier" : "Nouveau"} Client
+                {formMode === "view" ? "Fiche client" : formMode === "edit" ? "Modification client" : "Nouveau client"}
               </DialogTitle>
             </DialogHeader>
             <ClientForm
               client={selectedClient}
+              readOnly={formMode === "view"}
               onSuccess={handleFormSuccess}
               onCancel={() => {
                 setIsFormOpen(false);
