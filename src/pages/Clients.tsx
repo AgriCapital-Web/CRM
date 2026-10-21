@@ -33,7 +33,29 @@ const formatHectares = (value: unknown) => {
 };
 
 const getOfferDisplayName = (client: any) => {
-  const name = String(client?.offres?.nom || client?.formule_nom || client?.formule_code || "—").trim();
+  const offer = client?.offres;
+  const formulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
+  const code = String(client?.formule_code || "").trim();
+  const formulaName = String(client?.formule_nom || "").trim();
+  const exactFormula = formulas.find((formula: any) => formula.code === code);
+  if (exactFormula?.nom) return exactFormula.nom;
+
+  // Old records sometimes copied the offer name into the formula fields.
+  // Never present the offer itself as if it were a configured formula.
+  const genericFormula = !code || code === offer?.code || formulaName === offer?.nom;
+  if (genericFormula && formulas.length) {
+    const hectares = Number(client?.total_hectares || 0);
+    const total = Number(client?.montant_total_contrat || 0);
+    const perHa = hectares > 0 ? total / hectares : total;
+    const matchingFormula = formulas.find((formula: any) => {
+      const configured = Number(formula.montant_total_par_ha ?? formula.montant_cash_par_ha);
+      return Number.isFinite(configured) && configured > 0 && Math.abs(configured - perHa) < 0.01;
+    });
+    if (matchingFormula?.nom) return matchingFormula.nom;
+    return "Formule à vérifier";
+  }
+
+  const name = formulaName || code || offer?.nom || "—";
   return /^essential$/i.test(name) ? "Offre 1.3" : name;
 };
 
@@ -112,7 +134,7 @@ const Clients = () => {
         Promise.all(clientIdBatches.map((batch) =>
           (supabase as any).from("beneficiaire_attributions").select("id,client_id,plantation_id,surface_attribuee_ha,role_attribution,statut").eq("statut", "active").in("client_id", batch)
         )),
-        supabase.from("offres").select("id,nom,couleur"),
+        supabase.from("offres").select("id,nom,couleur,code,formules_configuration"),
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
       ]);
