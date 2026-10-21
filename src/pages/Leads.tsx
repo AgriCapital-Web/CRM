@@ -698,7 +698,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                        {(
+                        {view !== "prospects" && (
                           <div className="flex justify-end">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -722,7 +722,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                             </DropdownMenu>
                           </div>
                         )}
-                        <div className={view === "prospects" ? "ml-auto hidden max-w-[148px] flex-wrap justify-end gap-1 sm:flex" : "ml-auto flex max-w-[148px] flex-wrap justify-end gap-1"}>
+                        <div className="ml-auto flex max-w-[148px] flex-wrap justify-end gap-1">
                         <Button size="icon" className="h-8 w-8 shrink-0" variant="outline" title="Détails" aria-label="Détails" onClick={() => openOfficialLeadForm(l, "view")}><Eye className="h-4 w-4" /></Button>
                         {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
                           <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => openOfficialLeadForm(l, "edit")}><Pencil className="h-4 w-4" /></Button>
