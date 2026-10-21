@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { FileUp, FileText, FileSpreadsheet, Presentation, File as FileIcon, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import mammoth from "mammoth";
 import PptxGenJS from "pptxgenjs";
@@ -40,38 +40,53 @@ const readDocx = async (file: File) => {
   return result.value || "<p></p>";
 };
 const WORKBOOK_PREFIX = "__AGRICAPITAL_WORKBOOK_V1__\n";
-const sheetToRows = (sheet: XLSX.WorkSheet): string[][] => {
-  if (!sheet["!ref"]) return [[""]];
-  const range = XLSX.utils.decode_range(sheet["!ref"]);
-  const rows: string[][] = [];
-  for (let r = range.s.r; r <= range.e.r; r++) {
-    const row: string[] = [];
-    for (let c = range.s.c; c <= range.e.c; c++) {
-      const cell = sheet[XLSX.utils.encode_cell({ r, c })] as any;
-      row.push(cell?.f ? "=" + cell.f : cell?.w ?? (cell?.v == null ? "" : String(cell.v)));
-    }
-    rows.push(row);
+const cellToText = (value: ExcelJS.CellValue): string => {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    if ("formula" in value) return "=" + value.formula;
+    if ("richText" in value) return value.richText.map((part) => part.text).join("");
+    if ("text" in value) return value.text;
+    if ("hyperlink" in value && "text" in value) return value.text;
+    if ("result" in value && value.result != null) return String(value.result);
+    if ("error" in value) return String(value.error);
+    if (Array.isArray(value)) return value.map(String).join(", ");
   }
-  return rows;
+  return String(value);
+};
+const sheetToRows = (sheet: ExcelJS.Worksheet): string[][] => {
+  const rows: string[][] = [];
+  sheet.eachRow({ includeEmpty: true }, (row) => {
+    const cells: string[] = [];
+    for (let column = 1; column <= Math.max(row.cellCount, sheet.columnCount); column++) {
+      cells.push(cellToText(row.getCell(column).value));
+    }
+    rows.push(cells);
+  });
+  return rows.length ? rows : [[""]];
 };
 const encodeCsvRows = (rows: string[][]) => rows.map((row) => row.map((cell) => /[;"\r\n]/.test(cell) ? '"' + cell.replace(/"/g, '""') + '"' : cell).join(";")).join("\n");
-const readXlsx = async (file: File) => {
-  const book = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  if (!book.SheetNames.length) throw new Error("Le classeur ne contient aucune feuille.");
-  const sheets = book.SheetNames.map((name) => ({ name, rows: sheetToRows(book.Sheets[name]) }));
-  return sheets.length === 1 ? encodeCsvRows(sheets[0].rows) : WORKBOOK_PREFIX + JSON.stringify({ sheets });
+const parseCsvRows = (input: string): string[][] => {
+  const rows: string[][] = [];
+  let row: string[] = [], cell = "", quoted = false;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (ch === '"' && quoted && input[i + 1] === '"') { cell += '"'; i++; }
+    else if (ch === '"') quoted = !quoted;
+    else if (ch === ";" && !quoted) { row.push(cell); cell = ""; }
+    else if ((ch === "\n" || ch === "\r") && !quoted) {
+      if (ch === "\r" && input[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = "";
+    } else cell += ch;
+  }
+  row.push(cell); rows.push(row);
+  return rows;
 };
-const buildWorksheet = (rows: any[][]): XLSX.WorkSheet => {
-  const worksheet = XLSX.utils.aoa_to_sheet(rows);
-  Object.keys(worksheet).filter((key) => !key.startsWith("!")).forEach((key) => {
-    const cell = worksheet[key] as any;
-    if (typeof cell.v === "string" && cell.v.startsWith("=") && cell.v.length > 1) {
-      cell.f = cell.v.slice(1);
-      delete cell.v;
-      cell.t = "n";
-    }
-  });
-  return worksheet;
+const readXlsx = async (file: File) => {
+  const book = new ExcelJS.Workbook();
+  await book.xlsx.load(await file.arrayBuffer());
+  if (!book.worksheets.length) throw new Error("Le classeur ne contient aucune feuille.");
+  const sheets = book.worksheets.map((sheet) => ({ name: sheet.name, rows: sheetToRows(sheet) }));
+  return sheets.length === 1 ? encodeCsvRows(sheets[0].rows) : WORKBOOK_PREFIX + JSON.stringify({ sheets });
 };
 const parseSpreadsheetContent = (content: string): { name: string; rows: any[][] }[] => {
   if (content.startsWith(WORKBOOK_PREFIX)) {
@@ -80,9 +95,15 @@ const parseSpreadsheetContent = (content: string): { name: string; rows: any[][]
       if (Array.isArray(value.sheets) && value.sheets.length) return value.sheets.map((sheet: any) => ({ name: String(sheet.name || "Feuille"), rows: Array.isArray(sheet.rows) ? sheet.rows : [[""]] }));
     } catch { /* fallback to CSV */ }
   }
-  const book = XLSX.read(content, { type: "string", FS: ";" });
-  const sheet = book.Sheets[book.SheetNames[0]];
-  return [{ name: "Données", rows: sheet ? XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: true }) : [] }];
+  return [{ name: "Données", rows: parseCsvRows(content) }];
+};
+const buildWorksheet = (sheet: ExcelJS.Worksheet, rows: any[][]) => {
+  rows.forEach((row, rowIndex) => {
+    sheet.addRow(row.map((value) => {
+      if (typeof value === "string" && value.startsWith("=") && value.length > 1) return { formula: value.slice(1) };
+      return value;
+    }));
+  });
 };
 const readPptx = async (file: File) => {
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
@@ -119,6 +140,7 @@ const importFile = async (file: File): Promise<{ type: OfficeDocumentType; conte
   }
   if (["xlsx", "xls", "xlsm", "ods"].includes(ext || "")) {
     if (ext === "xlsm") throw new Error("Les macros Excel ne sont pas exécutées. Exportez une copie sans macros (.xlsx) avant l’import.");
+    if (ext !== "xlsx") throw new Error("Le format " + ext?.toUpperCase() + " n’est pas pris en charge par le convertisseur sécurisé. Enregistrez le classeur au format .xlsx puis réessayez.");
     return { type: "spreadsheet", content: await readXlsx(file) };
   }
   if (["pptx"].includes(ext || "")) return { type: "presentation", content: await readPptx(file) };
@@ -162,14 +184,23 @@ async function exportDocx(title: string, content: string) {
   downloadBlob(await Packer.toBlob(doc), safeFilename(title, "docx"));
 }
 async function exportXlsx(title: string, content: string) {
-  const book = XLSX.utils.book_new();
+  const book = new ExcelJS.Workbook();
+  book.creator = "AgriCapital 360";
+  book.created = new Date();
   const sheets = parseSpreadsheetContent(content);
   sheets.forEach((sheet, index) => {
-    const worksheet = buildWorksheet(sheet.rows);
-    XLSX.utils.book_append_sheet(book, worksheet, (sheet.name || "Feuille " + (index + 1)).slice(0, 31) || "Feuille" + index);
+    const name = (sheet.name || "Feuille " + (index + 1)).slice(0, 31) || "Feuille" + index;
+    const worksheet = book.addWorksheet(name);
+    buildWorksheet(worksheet, sheet.rows);
+    const header = worksheet.getRow(1);
+    header.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    header.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF17643A" } };
+    header.alignment = { vertical: "middle", wrapText: true };
+    worksheet.views = [{ state: "frozen", ySplit: 1 }];
+    worksheet.columns.forEach((column) => { column.width = Math.min(32, Math.max(12, column.width || 14)); });
   });
-  const output = XLSX.write(book, { bookType: "xlsx", type: "array" });
-  downloadBlob(new Blob([output], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeFilename(title, "xlsx"));
+  const output = await book.xlsx.writeBuffer();
+  downloadBlob(new Blob([output as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeFilename(title, "xlsx"));
 }
 async function exportPdf(title: string, content: string) {
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
