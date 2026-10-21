@@ -240,7 +240,7 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
         });
       } else {
         slide.addText("Ajoutez des valeurs numériques dans la deuxième colonne pour générer le graphique.", {
-          x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "mid",
+          x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "middle",
         });
       }
     } else {
