@@ -4,8 +4,7 @@ import { Loader2, ScanText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, X, Upload, FileText, Camera } from "lucide-react";
+import { Eye, X, Upload, FileText } from "lucide-react";
 
 const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
@@ -45,10 +44,7 @@ export const FileUploadVisual = ({
   const [existingCleared, setExistingCleared] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState("");
-  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [fileError, setFileError] = useState("");
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const readSequenceRef = useRef(0);
 
@@ -69,7 +65,6 @@ export const FileUploadVisual = ({
     const sequence = ++readSequenceRef.current;
     setFileError("");
     setOcrMessage("");
-    setSourceDialogOpen(false);
 
     // Store the File immediately. A slow FileReader must not leave the form
     // with a visible selection that is absent from the parent's submit state.
@@ -119,15 +114,12 @@ export const FileUploadVisual = ({
     setOcrLoading(false);
     setOcrMessage("");
     onFileChange(field, null, "");
-    for (const input of [inputRef.current, cameraInputRef.current, fileInputRef.current]) {
-      if (input) input.value = "";
-    }
+    if (inputRef.current) inputRef.current.value = "";
   };
 
-  const openPicker = () => {
-    if (accept.includes("image")) setSourceDialogOpen(true);
-    else inputRef.current?.click();
-  };
+  // A single native picker supports gallery/file selection and, on mobile,
+  // the camera option offered by the operating system. No competing inputs.
+  const openPicker = () => inputRef.current?.click();
   const isImage = currentFile?.type?.startsWith("image/") || preview.startsWith("data:image");
   const isVideo = currentFile?.type?.startsWith("video/") || preview.startsWith("data:video");
 
@@ -141,16 +133,7 @@ export const FileUploadVisual = ({
         handleFileSelect(e.currentTarget.files?.[0] || null);
         e.currentTarget.value = "";
       }} className="hidden" id={`upload-${field}`} />
-      <Input ref={fileInputRef} type="file" accept={accept} onChange={(e) => {
-        e.stopPropagation();
-        handleFileSelect(e.currentTarget.files?.[0] || null);
-        e.currentTarget.value = "";
-      }} className="hidden" />
-      <Input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => {
-        e.stopPropagation();
-        handleFileSelect(e.currentTarget.files?.[0] || null);
-        e.currentTarget.value = "";
-      }} className="hidden" />
+
 
       {!preview ? (
         <div className={`border-2 border-dashed rounded-lg ${compact ? "p-1" : "p-6"} text-center hover:border-primary transition-colors`}>
@@ -187,19 +170,7 @@ export const FileUploadVisual = ({
       )}
 
       {fileError && <p className="text-sm text-destructive">{fileError}</p>}
-      <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Ajouter une photo</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 gap-3">
-            <Button type="button" aria-label="Prendre une photo avec la caméra" onClick={() => cameraInputRef.current?.click()} className={compact ? "h-9 w-full justify-center" : "h-12 justify-start"}>
-              <Camera className={compact ? "h-4 w-4" : "mr-3 h-5 w-5"} />{!compact && "Prendre une photo avec la caméra"}
-            </Button>
-            <Button type="button" variant="outline" aria-label="Choisir depuis le gestionnaire de fichiers" onClick={() => fileInputRef.current?.click()} className={compact ? "h-9 w-full justify-center" : "h-12 justify-start"}>
-              <Upload className={compact ? "h-4 w-4" : "mr-3 h-5 w-5"} />{!compact && "Choisir depuis le gestionnaire de fichiers"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 };
