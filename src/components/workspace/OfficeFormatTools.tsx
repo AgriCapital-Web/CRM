@@ -46,7 +46,6 @@ const cellToText = (value: ExcelJS.CellValue): string => {
     if ("formula" in value) return "=" + value.formula;
     if ("richText" in value) return value.richText.map((part) => part.text).join("");
     if ("text" in value) return String(value.text ?? "");
-    if ("hyperlink" in value && "text" in value) return value.text;
     if ("result" in value && value.result != null) return String(value.result);
     if ("error" in value) return String(value.error);
     if (Array.isArray(value)) return value.map(String).join(", ");
