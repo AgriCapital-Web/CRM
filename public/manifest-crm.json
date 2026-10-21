@@ -11,8 +11,8 @@
   "id": "ac-teams",
   "icons": [
     {
-      "src": "/agricapital360-pwa.jpg?v=20261021-pwa-final",
-      "sizes": "192x192",
+      "src": "/agricapital360-pwa.jpg?v=20261021-pwa-final-v2",
+      "sizes": "any",
       "type": "image/jpeg",
       "purpose": "any"
     }
