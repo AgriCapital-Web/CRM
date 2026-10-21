@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Download, Smartphone, WifiOff, Zap, HardDrive, X } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event { prompt(): Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }>; }
-const DISMISS_KEY="pwa-install-last-dismissed-agricapital-360";
+const DISMISS_KEY="pwa-install-last-dismissed-ac-teams";
 const DAY=24*60*60*1000;
 const standalone=()=>window.matchMedia("(display-mode: standalone)").matches||window.matchMedia("(display-mode: fullscreen)").matches||window.matchMedia("(display-mode: minimal-ui)").matches||(window.navigator as any).standalone===true;
 async function installed(){if(standalone())return true;try{const f=(navigator as any).getInstalledRelatedApps;if(typeof f==="function"){const a=await f.call(navigator);return Array.isArray(a)&&a.length>0;}}catch(error){ void error; }return false;}
