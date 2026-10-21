@@ -21,7 +21,7 @@ import GeographieCascade from "@/components/common/GeographieCascade";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 
-interface ClientFormProps { client?: any; onSuccess: () => void; onCancel: () => void; readOnly?: boolean; }
+interface ClientFormProps { client?: any; onSuccess: () => void; onCancel: () => void; readOnly?: boolean; lockCommercialAssignment?: boolean; }
 
 const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 
@@ -41,10 +41,10 @@ const CLIENT_COLUMNS = new Set([
   "whatsapp_indicatif","whatsapp_local","latitude","longitude","updated_by"
 ]);
 
-const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFormProps) => {
-  const { user } = useAuth();
+const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommercialAssignment = false }: ClientFormProps) => {
+  const { user, userRoles } = useAuth();
   const { can } = usePermissions();
-  const canEditClient = can("clients.update") || Boolean(user?.id && client?.created_by === user.id && client?.validation_statut === "modification_demandee");
+  const canEditClient = can("clients.update") || Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
   const [isEditing, setIsEditing] = useState(!readOnly);
   const canUploadDocuments = can("documents.upload");
   const { toast } = useToast();
@@ -209,7 +209,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFor
       clientPayload.fichier_piece_verso_url = fichier_piece_verso_url;
       clientPayload.nom_complet = form.nom_complet || [form.nom_famille || form.nom, form.prenoms].filter(Boolean).join(" ").trim();
       clientPayload.updated_by = user.id;
-      if (client?.created_by === user.id && client?.validation_statut === "modification_demandee") {
+      if (client?.validation_statut === "modification_demandee") {
         clientPayload.validation_statut = "a_valider";
         clientPayload.validation_commentaire = null;
         clientPayload.validation_demande_at = null;
@@ -281,7 +281,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false }: ClientFor
         <CardContent className="px-4 pb-3 pt-0">
           <CommercialCombobox
             value={form.commercial_id || null}
-            onChange={(value) => setField("commercial_id", value)}
+            onChange={(value) => setField("commercial_id", value)}\n            disabled={isEditing && (lockCommercialAssignment || client?.validation_statut === "modification_demandee")}
             placeholder="Rechercher ou sélectionner un commercial"
           />
         </CardContent>
