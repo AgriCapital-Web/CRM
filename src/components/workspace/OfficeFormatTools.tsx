@@ -143,7 +143,7 @@ const importFile = async (file: File): Promise<{ type: OfficeDocumentType; conte
     return { type: "spreadsheet", content: await readXlsx(file) };
   }
   if (["pptx"].includes(ext || "")) return { type: "presentation", content: await readPptx(file) };
-  if (ext === "pdf") return { type: "document", content: "<h1>" + file.name.replace(/[<>]/g, "") + "</h1><p>Texte extrait du PDF. La mise en page, les images, les signatures et les annotations du PDF original ne sont pas converties en éléments éditables.</p><pre>" + (await readPdf(file)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</pre>" };
+  if (ext === "pdf") return { type: "document", content: "<h1>" + file.name.replace(/[<>]/g, "") + "</h1><pre>" + (await readPdf(file)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</pre>" };
   if (["csv", "tsv", "txt"].includes(ext || "")) return { type: ext === "txt" ? "document" : "spreadsheet", content: await file.text() };
   throw new Error("Format non pris en charge pour la conversion directe. Formats reconnus : DOCX, XLSX, XLS, ODS, PPTX, PDF, CSV, TSV et TXT.");
 };
@@ -239,10 +239,10 @@ async function exportPptx(title: string, content: string, documentType: OfficeDo
           showValAxisTitle: false, showCatAxisTitle: false,
         });
       } else {
-        slide.addText("Pour générer un graphique, placez des libellés en première colonne et des valeurs numériques en deuxième colonne.", { x: 6.9, y: 1.5, w: 5.6, h: 1.2, fontSize: 14, color: "6B7280", valign: "middle" });
+        
       }
     } else {
-      slide.addText("Ajoutez des en-têtes et des lignes de données au tableur pour créer un rapport.", { x: 0.8, y: 1.5, w: 11.5, h: 1.2, fontSize: 16 });
+      
     }
     await pptx.writeFile({ fileName: safeFilename(title, "pptx") });
     return;
