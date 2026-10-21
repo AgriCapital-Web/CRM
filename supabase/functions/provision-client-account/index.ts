@@ -40,20 +40,22 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const secret = Deno.env.get("NOTIFICATION_CRON_SECRET") || "";
   const internal = req.headers.get("x-agricapital-account-secret") || "";
-  if ((!secret || internal !== secret) && internal !== serviceKey) {
-    return json({ success: false, error: "Non autorisé" }, 401);
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL") || "",
+    serviceKey,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  let authorized = Boolean(internal && ((secret && internal === secret) || internal === serviceKey));
+  if (!authorized && internal) {
+    const { data: expectedSecret, error: secretError } = await admin.rpc("notification_get_internal_secret");
+    authorized = !secretError && typeof expectedSecret === "string" && internal === expectedSecret;
   }
+  if (!authorized) return json({ success: false, error: "Non autorisé" }, 401);
 
   try {
     const body = await req.json();
     const clientId = String(body?.client_id || "");
     if (!clientId) return json({ success: false, error: "client_id requis" }, 400);
-
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
 
     const { data: s, error: sError } = await admin.from("clients")
       .select("id,user_id,nom_complet,telephone,email,numero_contrat,id_unique,compte_actif")
