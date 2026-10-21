@@ -14,7 +14,7 @@ const conditionActive = (doc: any, formData: any) => {
   const condition = doc.condition || {};
   if (condition.relation === "mandataire" && formData.representant_type !== "mandataire") return false;
   if (condition.when === "representant_active") return Boolean(formData.has_representant);
-  if (condition.when === "offre_plus") return String(formData.offre_code || "").endsWith("-plus");
+  if (condition.when === "offre_plus") return /PLUS|DELEGUE|\\+/i.test(String(formData.formule_code || "") + " " + String(formData.formule_nom || ""));
   if (condition.when === "necessaire") return Boolean(formData.document_securisation_necessaire);
   if (condition.when === "client_land") return Boolean(formData.offre?.necessite_foncier_client);
   if (condition.when === "acquisition") return Boolean(formData.offre?.contrat_acquisition_requis);
@@ -45,9 +45,10 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
     return () => { mounted = false; };
   }, [formData.offre_id]);
 
+  const identityDocumentCodes = new Set(["client_piece_recto", "client_piece_verso", "client_photo_profil"]);
   const visibleDocuments = useMemo(
-    () => documents.filter((doc) => conditionActive(doc, formData)),
-    [documents, formData.has_representant, formData.offre_code, formData.document_securisation_necessaire]
+    () => documents.filter((doc) => !identityDocumentCodes.has(doc.code) && conditionActive(doc, formData)),
+    [documents, formData.has_representant, formData.offre_code, formData.formule_code, formData.formule_nom, formData.document_securisation_necessaire]
   );
 
   const handleFileChange = (code: string, file: File | null, preview: string) => {
@@ -67,6 +68,9 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
           
         </CardHeader>
         <CardContent className="space-y-4">
+          {documents.some((doc) => identityDocumentCodes.has(doc.code) && doc.actif) && (
+            <p className="text-sm text-muted-foreground rounded-md bg-muted/40 p-3">La photo du Client et les deux faces de sa pièce d’identité ont déjà été recueillies à l’étape « Informations du client ». Elles seront jointes automatiquement au dossier : inutile de les téléverser une seconde fois.</p>
+          )}
           {visibleDocuments.length === 0 && (
             <p className="text-sm text-muted-foreground">Aucune pièce supplémentaire à téléverser à cette étape.</p>
           )}
