@@ -21,7 +21,7 @@ jobs:
       - name: Generate lockfile and remediate advisories
         run: |
           npm install --package-lock-only
-          npm audit fix --force
+          npm audit fix
       - name: Capture full audit report
         if: always()
         run: |
@@ -42,3 +42,14 @@ jobs:
       - name: Require no high or critical advisories
         run: |
           node -e "const r=require('./audit-report.json'); const v=Object.values(r.vulnerabilities||{}); if(v.some(x=>x.severity==='critical'||x.severity==='high')) { console.error('High/critical advisories remain; see uploaded npm-security-audit artifact.'); process.exit(1); }"
+
+      - name: Commit safe dependency updates
+        if: success()
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: remediate safe npm dependency advisories"
+            git push origin main
+          fi
