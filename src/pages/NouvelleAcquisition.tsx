@@ -169,7 +169,8 @@ const NouvelleAcquisition = () => {
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
         departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
-        village_id:source.village_id||"", domicile:source.lieu_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
+        village_id:source.village_id||"", domicile:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
+        domicile_residence:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
         offre_id:offerId, formule_code:source.formule_code||"",
         commercial_id:source.assigned_to||undefined,
       };
@@ -292,6 +293,8 @@ const NouvelleAcquisition = () => {
 
   const draftSaveInFlight = useRef(false);
   const draftSaveAgain = useRef(false);
+  const submitInFlightRef = useRef(false);
+  const pendingSubmitRetryRef = useRef(false);
   const saveDraft=async(index:number):Promise<string|null>=>{
     const currentUser = user;
     if(!currentUser)return null;
@@ -353,11 +356,13 @@ const NouvelleAcquisition = () => {
   const next=async()=>{if(!(await validateStep()))return;setSaving(true);try{const i=Math.min(activeSteps.length-1,current+1);await saveDraft(i);setCurrent(i);}finally{setSaving(false);}};
 
   const submit=async(retryAttempt = 0)=>{
+    if (submitInFlightRef.current) return;
     if(!(await validateStep()))return;
     if(!formData.contrat_lu||!formData.documents_authentiques||!formData.autorisation_donnees){
       toast({variant:"destructive",title:"Validation incomplète",description:"Les validations finales sont obligatoires."});return;
     }
     const queuedBeforeSubmit = queuedMutationCountRef.current;
+    submitInFlightRef.current = true;
     setSaving(true);
     try{
       const currentUser = user;
@@ -561,6 +566,7 @@ const NouvelleAcquisition = () => {
         const {error:draftDeleteError}=await offlineDelete("acquisitions_brouillon",brouillonId);
         if(draftDeleteError) throw draftDeleteError;
       }
+      pendingSubmitRetryRef.current = false;
       const savedOffline = !navigator.onLine || queuedMutationCountRef.current > queuedBeforeSubmit;
       toast({title:savedOffline ? "Dossier conservé — synchronisation en attente" : "Client enregistré",description:savedOffline ? "Le dossier, les pièces et les liens sont conservés localement. La synchronisation reprendra automatiquement sans actualisation dès que le serveur sera disponible." : "Le dossier Client et son parcours ont été enregistrés dans la base."});
       setSyncState(savedOffline ? "queued" : "synced");
@@ -570,22 +576,38 @@ const NouvelleAcquisition = () => {
       const statusCode = Number(error?.status || error?.statusCode || error?.cause?.status || 0);
       const retryable = !navigator.onLine || statusCode >= 500 || /timeout|temporarily unavailable|network|failed to fetch|connection|gateway|warp server|thread killed|502|503|504|server error|upload|téléversement impossible|storage/i.test(message);
       if (retryable && retryAttempt < 4) {
+        pendingSubmitRetryRef.current = false;
         setSyncState("queued");
         if (retryAttempt === 0) toast({title:"Dossier conservé",description:"Le serveur répond difficilement. Votre dossier reste sauvegardé et une nouvelle tentative automatique va être effectuée sans actualiser la page."});
         window.setTimeout(() => { void submit(retryAttempt + 1); }, Math.min(15000, 1800 * Math.pow(2, retryAttempt)));
       } else {
+        pendingSubmitRetryRef.current = retryable;
         setSyncState(retryable ? "queued" : "error");
         toast({variant:"destructive",title:retryable ? "Dossier conservé — reprise en attente" : "Erreur d’enregistrement",description:retryable ? "Vos informations restent dans le brouillon. Une nouvelle tentative sera lancée automatiquement sans actualiser la page." : getSafeErrorMessage(error)});
-        if (retryable) {
-          window.setTimeout(() => {
-            if (navigator.onLine) void submit(0);
-          }, 30000);
-        }
       }
-    }finally{setSaving(false);}
+    }finally{
+      submitInFlightRef.current = false;
+      setSaving(false);
+    }
   };
 
   const autoResumeAttempted = useRef(false);
+  useEffect(() => {
+    const resumePendingSubmission = () => {
+      if (!pendingSubmitRetryRef.current || !navigator.onLine || submitInFlightRef.current || saving || draftLoading || loadingSteps) return;
+      if (!brouillonId || current !== activeSteps.length - 1) return;
+      if (!formData.contrat_lu || !formData.documents_authentiques || !formData.autorisation_donnees) return;
+      pendingSubmitRetryRef.current = false;
+      void submit(0);
+    };
+    window.addEventListener("online", resumePendingSubmission);
+    const timer = window.setInterval(resumePendingSubmission, 30000);
+    return () => {
+      window.removeEventListener("online", resumePendingSubmission);
+      window.clearInterval(timer);
+    };
+  }, [saving, draftLoading, loadingSteps, brouillonId, current, activeSteps.length, formData.contrat_lu, formData.documents_authentiques, formData.autorisation_donnees]);
+
   useEffect(() => {
     if (autoResumeAttempted.current || draftLoading || loadingSteps || saving || !user || !brouillonId) return;
     if (!formData.offre_id || current !== activeSteps.length - 1) return;
