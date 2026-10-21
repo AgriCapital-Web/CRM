@@ -159,7 +159,7 @@ const NouvelleAcquisition = () => {
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
         departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
-        village_id:source.village_id||"", domicile:source.campement_quartier||source.region_residence||"",
+        village_id:source.village_id||"", domicile:source.lieu_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
         offre_id:offerId, formule_code:source.formule_code||"",
         commercial_id:source.assigned_to||undefined,
       };
@@ -300,7 +300,7 @@ const NouvelleAcquisition = () => {
   // Sauvegarde automatique après une courte pause de saisie. Le brouillon reste
   // conservé même si l’étape finale échoue; aucune actualisation n’est requise.
   useEffect(() => {
-    if (draftLoading || !user || !Object.keys(formData).length) return;
+    if (draftLoading || saving || !user || !Object.keys(formData).length) return;
     const hasMeaningfulData = Boolean(formData.offre_id || formData.lead_id || formData.prospect_id || formData.nom_famille || formData.telephone);
     if (!hasMeaningfulData) return;
     const timer = window.setTimeout(async () => {
@@ -328,7 +328,7 @@ const NouvelleAcquisition = () => {
       }
     }, 1200);
     return () => window.clearTimeout(timer);
-  }, [formData, current, brouillonId, draftLoading, user]);
+  }, [formData, current, brouillonId, draftLoading, saving, user]);
 
   const next=async()=>{if(!(await validateStep()))return;setSaving(true);try{const i=Math.min(activeSteps.length-1,current+1);await saveDraft(i);setCurrent(i);}finally{setSaving(false);}};
 
