@@ -188,3 +188,7 @@ $$;
 
 comment on function public.notify_client_validation_review() is
   'Notifie le service de validation à la création, puis le créateur, le commercial responsable et sa hiérarchie lors d’une demande de correction. La validation du dossier ne déclenche pas à elle seule l’activation du compte portail.';
+
+revoke all on function public.notify_client_validation_review() from public, anon, authenticated;
+revoke all on function public.notify_resubmitted_client_validation() from public, anon, authenticated;
+revoke all on function public.notify_acquisition_validation_review() from public, anon, authenticated;
