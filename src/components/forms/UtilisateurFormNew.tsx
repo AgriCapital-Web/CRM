@@ -599,7 +599,6 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <div className="sm:col-span-2 space-y-2">
               <Label>Couverture géographique *</Label>
               <RoleGeographyFields
-                required
                 role={effectivePrimaryRole}
                 required
                 value={{ districtId: watch("district_id") || utilisateur?.district_id, regionId: watch("region_id") || utilisateur?.region_id, departementId: watch("departement_geo_id") || utilisateur?.departement_geo_id, sousPrefectureId: watch("sous_prefecture_id") || utilisateur?.sous_prefecture_id }}
