@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -12,7 +12,7 @@ import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition
 import { EtapeConfirmationDossier } from "@/components/forms/acquisition/EtapeConfirmationDossier";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile } from "@/utils/storage";
-import { offlineDelete, offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
+import { offlineDelete, offlineInsert, offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
 import { useToast } from "@/hooks/use-toast";
 import { SyncStatusBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { getSafeErrorMessage } from "@/lib/safeError";
@@ -22,6 +22,78 @@ import { useAuth } from "@/hooks/useAuth";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 
 type Step = { code:string; titre:string; description?:string; ordre:number; obligatoire:boolean };
+
+const IDENTITY_DOCUMENT_FIELDS: Record<string, { field: string; column: string; bucket: string }> = {
+  client_photo_profil: { field: "photo_profil", column: "photo_profil_url", bucket: "photos-profils" },
+  client_piece_recto: { field: "photo_piece_recto", column: "fichier_piece_recto_url", bucket: "pieces-identite" },
+  client_piece_verso: { field: "photo_piece_verso", column: "fichier_piece_verso_url", bucket: "pieces-identite" },
+};
+
+function recoverFile(file: any, preview: string | undefined, baseName: string): File | null {
+  if (typeof File !== "undefined" && file instanceof File) return file;
+  if (typeof preview !== "string" || !preview.startsWith("data:")) return null;
+  try {
+    const comma = preview.indexOf(",");
+    if (comma < 0) return null;
+    const header = preview.slice(0, comma);
+    const mime = header.match(/^data:([^;]+)/)?.[1] || "application/octet-stream";
+    const encoded = preview.slice(comma + 1);
+    const bytes = header.includes(";base64")
+      ? Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
+      : new TextEncoder().encode(decodeURIComponent(encoded));
+    const extension = mime.includes("pdf") ? "pdf" : mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("jpeg") ? "jpg" : "bin";
+    return new File([bytes], baseName + "." + extension, { type: mime });
+  } catch {
+    return null;
+  }
+}
+
+function restoreDraftFiles(draft: any): any {
+  const restored = { ...(draft || {}) };
+  for (const key of Object.keys(restored)) {
+    if (!key.endsWith("_file")) continue;
+    const base = key.slice(0, -5);
+    const recovered = recoverFile(restored[key], restored[base + "_preview"], base);
+    if (recovered) restored[key] = recovered;
+  }
+  // Older drafts stored a second copy of identity uploads in the documents step.
+  // Keep the canonical identity fields as the single source of truth.
+  for (const [code, { field }] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
+    const duplicateBase = "doc_" + code;
+    if (!restored[field + "_preview"] && restored[duplicateBase + "_preview"]) restored[field + "_preview"] = restored[duplicateBase + "_preview"];
+    if (!restored[field + "_file"] || !(restored[field + "_file"] instanceof File)) {
+      const file = recoverFile(restored[field + "_file"], restored[field + "_preview"], field);
+      if (file) restored[field + "_file"] = file;
+    }
+    delete restored[duplicateBase + "_file"];
+    delete restored[duplicateBase + "_preview"];
+  }
+  return restored;
+}
+
+function stableUuid(namespace: string, key: string): string {
+  const input = namespace + ":" + key;
+  const hashes: number[] = [];
+  for (const seed of [2166136261, 2246822519, 3266489917, 668265263]) {
+    let hash = seed >>> 0;
+    for (let index = 0; index < input.length; index++) {
+      hash ^= input.charCodeAt(index);
+      hash = Math.imul(hash, 16777619) >>> 0;
+    }
+    hashes.push(hash);
+  }
+  const hex = hashes.map((value) => value.toString(16).padStart(8, "0")).join("").slice(0, 32).split("");
+  hex[12] = "5";
+  hex[16] = ((parseInt(hex[16], 16) & 3) | 8).toString(16);
+  const value = hex.join("");
+  return value.slice(0, 8) + "-" + value.slice(8, 12) + "-" + value.slice(12, 16) + "-" + value.slice(16, 20) + "-" + value.slice(20);
+}
+
+function hasDocumentFile(formData: any, code: string): boolean {
+  const identity = IDENTITY_DOCUMENT_FIELDS[code];
+  if (identity) return Boolean(recoverFile(formData[identity.field + "_file"], formData[identity.field + "_preview"], identity.field));
+  return Boolean(recoverFile(formData["doc_" + code + "_file"], formData["doc_" + code + "_preview"], code));
+}
 const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, documents: FileText, confirmation: CheckCircle2 };
 
 const NouvelleAcquisition = () => {
@@ -122,7 +194,8 @@ const NouvelleAcquisition = () => {
         if(data?.[0]) {
           const draft=data[0];
           setBrouillonId(draft.id);
-          setFormData((current:any)=>({...draft.donnees,...current}));
+          const restoredDraft = restoreDraftFiles(draft.donnees);
+          setFormData((current:any)=>({...restoredDraft,...current}));
           setCurrent((current:number)=>current===0?Math.max(0,Number(draft.etape_actuelle||0)):current);
         }
       } catch (error) {
@@ -180,10 +253,10 @@ const NouvelleAcquisition = () => {
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
-        if(c.when==="offre_plus"&&!String(formData.offre_code||"").endsWith("-plus"))continue;
+        if(c.when==="offre_plus"&&!(/PLUS|DELEGUE|\\+/i.test(String(formData.formule_code||"")+" "+String(formData.formule_nom||""))))continue;
         if(c.when==="client_land"&&!formData.offre?.necessite_foncier_client)continue;
         if(c.when==="acquisition"&&!formData.offre?.contrat_acquisition_requis)continue;
-        if(doc.obligatoire&&!formData["doc_"+doc.code+"_file"]){toast({variant:"destructive",title:"Pièce obligatoire manquante",description:doc.libelle});return false;}
+        if(doc.obligatoire&&!hasDocumentFile(formData, doc.code)){toast({variant:"destructive",title:"Pièce obligatoire manquante",description:doc.libelle});return false;}
       }
     }
     if(step.code==="documents"){
@@ -198,20 +271,64 @@ const NouvelleAcquisition = () => {
     return true;
   };
 
-  const saveDraft=async(index:number)=>{
+  const draftSaveInFlight = useRef(false);
+  const draftSaveAgain = useRef(false);
+  const saveDraft=async(index:number):Promise<string|null>=>{
     const currentUser = user;
-    if(!currentUser)return;
+    if(!currentUser)return null;
     const payload={...formData,parcours_code:formData.offre_code||null};
-    if(brouillonId) {
-      const {error}=await offlineUpdate("acquisitions_brouillon",brouillonId,{etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,updated_at:new Date().toISOString()});
+    // File objects cannot be serialized to JSONB. The data-URL previews are the
+    // durable copy from which files are reconstructed after a reload/reconnect.
+    for (const [code, { field }] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
+      delete payload["doc_" + code + "_file"];
+      delete payload["doc_" + code + "_preview"];
+      if (!payload[field + "_preview"] && formData["doc_" + code + "_preview"]) payload[field + "_preview"] = formData["doc_" + code + "_preview"];
+    }
+    let savedId = brouillonId;
+    if(savedId) {
+      const {error}=await offlineUpdate("acquisitions_brouillon",savedId,{etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,updated_at:new Date().toISOString()});
       if(error) throw error;
     } else {
       const {data,error}=await offlineInsert("acquisitions_brouillon",{etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,created_by:currentUser.id});
       if(error) throw error;
-      if(data?.id) setBrouillonId(data.id);
+      if(data?.id) { savedId = data.id; setBrouillonId(data.id); }
     }
     setSyncState(navigator.onLine ? "synced" : "queued");
+    return savedId;
   };
+
+  // Sauvegarde automatique après une courte pause de saisie. Le brouillon reste
+  // conservé même si l’étape finale échoue; aucune actualisation n’est requise.
+  useEffect(() => {
+    if (draftLoading || !user || !Object.keys(formData).length) return;
+    const hasMeaningfulData = Boolean(formData.offre_id || formData.lead_id || formData.prospect_id || formData.nom_famille || formData.telephone);
+    if (!hasMeaningfulData) return;
+    const timer = window.setTimeout(async () => {
+      if (draftSaveInFlight.current) { draftSaveAgain.current = true; return; }
+      draftSaveInFlight.current = true;
+      try {
+        await saveDraft(current);
+      } catch (error) {
+        console.warn("[Acquisition] Sauvegarde automatique en attente", error);
+        setSyncState("queued");
+      } finally {
+        draftSaveInFlight.current = false;
+        if (draftSaveAgain.current) {
+          draftSaveAgain.current = false;
+          window.setTimeout(() => {
+            if (!draftSaveInFlight.current) {
+              draftSaveInFlight.current = true;
+              void saveDraft(current).catch((error) => {
+                console.warn("[Acquisition] Reprise de sauvegarde en attente", error);
+                setSyncState("queued");
+              }).finally(() => { draftSaveInFlight.current = false; });
+            }
+          }, 250);
+        }
+      }
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [formData, current, brouillonId, draftLoading, user]);
 
   const next=async()=>{if(!(await validateStep()))return;setSaving(true);try{const i=Math.min(activeSteps.length-1,current+1);await saveDraft(i);setCurrent(i);}finally{setSaving(false);}};
 
