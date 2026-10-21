@@ -38,7 +38,7 @@ export default function ValidationDossiers(){
     try{
       const [clientRes,saleRes]=await Promise.all([
         canValidateClients?(supabase as any).from("clients").select("id,id_unique,nom_complet,telephone,email,created_at,created_by,validation_statut,validation_commentaire,offre_id,formule_nom,formule_code,total_hectares").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]}),
-        canValidateSales?(supabase as any).from("acquisitions").select("id,client_id,offre_nom,offre_code,formule_nom,formule_code,superficie_ha,montant_total_contrat,statut,created_at,created_by,validation_statut,validation_commentaire,client:clients(id,id_unique,nom_complet,telephone)").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]})
+        canValidateSales?(supabase as any).from("acquisitions").select("id,client_id,offre_nom,offre_code,formule_nom,formule_code,superficie_ha,montant_total_contrat,statut,created_at,created_by,validation_statut,validation_commentaire,metadata,client:clients(id,id_unique,nom_complet,telephone,validation_statut)").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]})
       ]);
       if(clientRes.error)throw clientRes.error;
       if(saleRes.error)throw saleRes.error;
@@ -104,7 +104,7 @@ export default function ValidationDossiers(){
     finally{setSaving(false);}
   };
   const filteredClients=clients.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase()));
-  const filteredSales=sales.filter((s:any)=>JSON.stringify(s).toLowerCase().includes(search.trim().toLowerCase()));
+  const filteredSales=sales.filter((s:any)=>!((s.metadata?.created_from_client_workflow===true || s.metadata?.source==="clients") || ["a_valider","modification_demandee"].includes(String(s.client?.validation_statut||""))) && JSON.stringify(s).toLowerCase().includes(search.trim().toLowerCase()));
   return <ProtectedRoute><MainLayout><div className="mx-auto w-full max-w-7xl min-w-0 space-y-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-bold">Validation des dossiers</h1></div><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>Actualiser</Button></div>
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><button onClick={()=>setParams({type:"clients"})} className={"rounded-xl border p-4 text-left "+(type==="clients"?"border-primary bg-primary/5":"")}><p className="text-sm text-muted-foreground">Clients à valider</p><p className="text-2xl font-bold">{clients.length}</p></button><button onClick={()=>setParams({type:"ventes"})} className={"rounded-xl border p-4 text-left "+(type==="ventes"?"border-primary bg-primary/5":"")}><p className="text-sm text-muted-foreground">Ventes à valider</p><p className="text-2xl font-bold">{sales.length}</p></button></div>
