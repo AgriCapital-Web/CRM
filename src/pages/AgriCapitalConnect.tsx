@@ -25,7 +25,7 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyl
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase();
 
 export default function AgriCapitalConnect() {
-  const { profile, user } = useAuth();
+  const { profile } = useAuth();
   const { can } = usePermissions();
   const profileId = profile?.id as string | undefined;
   const [tab, setTab] = useState("messages");
