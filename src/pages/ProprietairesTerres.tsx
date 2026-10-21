@@ -49,6 +49,7 @@ const createInitialAnnexStatuses = (): Record<string, "joint" | "a_fournir"> =>
   }, {});
 
 const ProprietairesTerres = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { can } = usePermissions();
   const canCreateProprietaire = can("proprietaires.create");
