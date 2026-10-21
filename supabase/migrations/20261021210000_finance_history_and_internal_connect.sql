@@ -203,9 +203,8 @@ using (public.internal_is_conversation_member(conversation_id));
 drop policy if exists internal_members_insert on public.internal_conversation_members;
 create policy internal_members_insert on public.internal_conversation_members for insert to authenticated
 with check (
-  (profile_id = public.internal_current_profile_id()
-    and exists (select 1 from public.internal_conversations c where c.id=conversation_id and c.created_by_profile_id=public.internal_current_profile_id()))
-  or exists (select 1 from public.internal_conversations c where c.id=conversation_id and c.created_by_profile_id=public.internal_current_profile_id())
+  exists (select 1 from public.internal_conversations c where c.id=conversation_id and c.created_by_profile_id=public.internal_current_profile_id())
+  and exists (select 1 from public.profiles p where p.id=profile_id and coalesce(p.actif,false)=true and p.user_id is not null)
 );
 drop policy if exists internal_members_update on public.internal_conversation_members;
 create policy internal_members_update on public.internal_conversation_members for update to authenticated
