@@ -230,7 +230,8 @@ function evaluateWorkspaceCell(raw: string, rows: string[][], visited = new Set<
       if (takeIf("(")) {
         const args: FormulaValue[] = [];
         if (peek()?.value !== ")") {
-          do { args.push(parseExpression(0)); if (peek()?.value !== ";" && peek()?.value !== ",") break; take(); } while (true);
+          args.push(parseExpression(0));
+          while (peek()?.value === ";" || peek()?.value === ",") { take(); args.push(parseExpression(0)); }
         }
         if (take()?.value !== ")") throw new Error("Parenthèse manquante");
         return callFunction(name, args);
