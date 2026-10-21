@@ -60,6 +60,7 @@ export async function registerAppServiceWorker() {
         // A temporary network failure must never break the CRM.
       });
     const onOnline = () => void checkForUpdate();
+    const onPageShow = () => void checkForUpdate();
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") void checkForUpdate();
     };
@@ -68,6 +69,7 @@ export async function registerAppServiceWorker() {
     // Check immediately on reconnect, on foregrounding, at startup and periodically.
     void checkForUpdate();
     window.addEventListener("online", onOnline);
+    window.addEventListener("pageshow", onPageShow);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.setInterval(() => void checkForUpdate(), 15 * 60 * 1000);
   } catch {
