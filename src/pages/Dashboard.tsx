@@ -582,7 +582,7 @@ const Dashboard = () => {
 
   const kpis: any[] = [
     { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canFinancialOverview, metrics:[
-      {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/paiements"},
+      {label:"Valeur totale des contrats",value:money(stats.forecastRevenue),href:"/paiements"},
       {label:"Encaissé",value:money(stats.collected),href:"/paiements"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/paiements"},
       {label:"Clients soldés",value:stats.settledClients,href:"/paiements"},
