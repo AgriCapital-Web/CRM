@@ -372,7 +372,8 @@ const NouvelleAcquisition = () => {
         ),
       } : baseOffer;
       const ha=Number(formData.superficie_prevue);
-      const modePaiement = formData.mode_paiement === "comptant" ? "comptant" : "echeancier";
+      // The client contract workflow currently enforces the échéancier mode in the DB.
+      const modePaiement = "echeancier" as const;
       const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement});
       const total=Number(prix.montant_total_effectif||prix.montant_total_base||0)*ha;
       const paiementInitial=Number(prix.pi_effectif||0)*ha;
