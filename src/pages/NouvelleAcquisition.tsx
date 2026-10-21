@@ -520,6 +520,20 @@ const NouvelleAcquisition = () => {
     }finally{setSaving(false);}
   };
 
+  const autoResumeAttempted = useRef(false);
+  useEffect(() => {
+    if (autoResumeAttempted.current || draftLoading || loadingSteps || saving || !user || !brouillonId) return;
+    if (!formData.offre_id || current !== activeSteps.length - 1) return;
+    if (!formData.contrat_lu || !formData.documents_authentiques || !formData.autorisation_donnees) return;
+    const requiredIdentityReady = ["photo_profil", "photo_piece_recto", "photo_piece_verso"].every((field) =>
+      Boolean(recoverFile(formData[field + "_file"], formData[field + "_preview"], field))
+    );
+    if (!requiredIdentityReady) return;
+    autoResumeAttempted.current = true;
+    const timer = window.setTimeout(() => { void submit(); }, 900);
+    return () => window.clearTimeout(timer);
+  }, [draftLoading, loadingSteps, saving, user, brouillonId, formData, current, activeSteps.length]);
+
   const renderStep=()=>{
     if(!step)return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
     switch(step.code){
