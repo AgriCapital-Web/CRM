@@ -30,7 +30,7 @@ const VALID_ROLES = [
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  let step = "init";
+  const step = "init";
   try {
     const admin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
