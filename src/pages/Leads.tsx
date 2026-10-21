@@ -89,6 +89,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [offers, setOffers] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [formReadOnly, setFormReadOnly] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertLead, setConvertLead] = useState<any>(null);
   const [contactOpen, setContactOpen] = useState(false);
@@ -110,6 +111,22 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     statut: "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
   };
   const [leadForm, setLeadForm] = useState<Record<string, string>>({ ...emptyLead, assigned_to: "" });
+
+  const openOfficialLeadForm = (lead: any, mode: "view" | "edit") => {
+    setSelected(null);
+    setEditingLead(lead);
+    setFormStage(lead.etape_pipeline === "prospect" || lead._record_type === "prospect" ? "prospect" : "lead");
+    setLeadForm({
+      ...emptyLead,
+      ...Object.fromEntries(Object.entries(lead).map(([key, value]) => [key, value == null ? "" : String(value)])),
+      dispose_terrain: lead.dispose_terrain ? "oui" : "non",
+      assigned_to: lead.assigned_to || "",
+      telephone_indicatif: "", telephone_local: lead.telephone || "",
+      whatsapp_indicatif: "", whatsapp_local: lead.whatsapp || "",
+    });
+    setFormReadOnly(mode === "view");
+    setCreateOpen(true);
+  };
 
   useEffect(() => {
     let active = true;
@@ -670,17 +687,17 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
-                    <TableRow key={l.id} className="[&>td]:py-1.5 [&>td]:px-2">
+                    <TableRow key={l.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${l.etape_pipeline === "prospect" ? "prospect" : "lead"} ${[l.prenoms, l.nom].filter(Boolean).join(" ")}`} onClick={() => openOfficialLeadForm(l, "view")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openOfficialLeadForm(l, "view"); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:py-1.5 [&>td]:px-2">
                       <TableCell><div className="font-medium leading-tight">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
-                      <TableCell className="text-sm"><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} email={l.email} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /><br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
+                      <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} email={l.email} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /><br/><span className="text-xs text-muted-foreground">{l.email || "—"}</span></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
-                      <TableCell className="min-w-0">
+                      <TableCell className="min-w-0" onClick={(event) => event.stopPropagation()}>
                         <Select value={l.statut} disabled={!canUpdateLeads || !((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
                           <SelectTrigger className="h-8 w-28 max-w-28 overflow-hidden px-2 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                         {(
                           <div className="flex justify-end">
                             <DropdownMenu>
@@ -690,21 +707,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onSelect={() => setSelected(l)}><Eye className="mr-2 h-4 w-4" />Détail</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "view")}><Eye className="mr-2 h-4 w-4" />Fiche</DropdownMenuItem>
                                 {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
-                                  <DropdownMenuItem onSelect={() => {
-                                    setEditingLead(l);
-                                    setFormStage(l.etape_pipeline === "prospect" ? "prospect" : "lead");
-                                    setLeadForm({
-                                      ...emptyLead,
-                                      ...Object.fromEntries(Object.entries(l).map(([k, v]) => [k, v == null ? "" : String(v)])),
-                                      dispose_terrain: l.dispose_terrain ? "oui" : "non",
-                                      assigned_to: l.assigned_to || "",
-                                      telephone_indicatif: "", telephone_local: l.telephone || "",
-                                      whatsapp_indicatif: "", whatsapp_local: l.whatsapp || "",
-                                    });
-                                    setCreateOpen(true);
-                                  }}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
+                                  <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "edit")}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem onSelect={() => startContact(l)}><Contact className="mr-2 h-4 w-4" />Contacter</DropdownMenuItem>
                                 {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (
@@ -718,21 +723,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                           </div>
                         )}
                         <div className={view === "prospects" ? "ml-auto hidden max-w-[148px] flex-wrap justify-end gap-1 sm:flex" : "ml-auto flex max-w-[148px] flex-wrap justify-end gap-1"}>
-                        <Button size="icon" className="h-8 w-8 shrink-0" variant="outline" title="Détails" aria-label="Détails" onClick={() => setSelected(l)}><Eye className="h-4 w-4" /></Button>
+                        <Button size="icon" className="h-8 w-8 shrink-0" variant="outline" title="Détails" aria-label="Détails" onClick={() => openOfficialLeadForm(l, "view")}><Eye className="h-4 w-4" /></Button>
                         {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
-                          <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => {
-                            setEditingLead(l);
-                            setFormStage(l.etape_pipeline === "prospect" ? "prospect" : "lead");
-                            setLeadForm({
-                              ...emptyLead,
-                              ...Object.fromEntries(Object.entries(l).map(([k, v]) => [k, v == null ? "" : String(v)])),
-                              dispose_terrain: l.dispose_terrain ? "oui" : "non",
-                              assigned_to: l.assigned_to || "",
-                              telephone_indicatif: "", telephone_local: l.telephone || "",
-                              whatsapp_indicatif: "", whatsapp_local: l.whatsapp || "",
-                            });
-                            setCreateOpen(true);
-                          }}><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => openOfficialLeadForm(l, "edit")}><Pencil className="h-4 w-4" /></Button>
                         )}
                         <Button size="icon" className="h-8 w-8" variant="outline" title="Contacter" aria-label="Contacter" onClick={() => startContact(l)}><Contact className="h-4 w-4" /></Button>
                         {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
@@ -862,7 +855,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editingLead ? (formStage === "prospect" ? "Modifier le prospect" : "Modifier le lead") : (formStage === "prospect" ? "Nouveau prospect" : "Nouveau lead")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{formReadOnly ? (formStage === "prospect" ? "Fiche prospect" : "Fiche lead") : editingLead ? (formStage === "prospect" ? "Modification prospect" : "Modification lead") : (formStage === "prospect" ? "Nouveau prospect" : "Nouveau lead")}</DialogTitle></DialogHeader>
+            <fieldset disabled={formReadOnly} className="min-w-0 space-y-3">
             {formStage === "prospect" ? (
                           <div className="grid gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2">
@@ -983,12 +977,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 <div className="sm:col-span-2"><Label>Note rapide (facultatif)</Label><Textarea value={leadForm.commentaire} onChange={e => setLeadForm(x => ({ ...x, commentaire: e.target.value }))} placeholder="Besoin exprimé ou information utile…" rows={2} /></div>
               </div>
             )}
+            </fieldset>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button>
-              <Button
-                onClick={() => createLead.mutate()}
-                disabled={createLead.isPending || (editingLead ? !canUpdateLeads : !canCreateLeads) || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim()}
-              >{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button>
+              {formReadOnly ? <><Button variant="outline" onClick={() => setCreateOpen(false)}>Fermer</Button>{canUpdateLeads && ((editingLead?.assigned_to === user?.id || editingLead?.created_by === user?.id) || isGlobalAdmin) && <Button onClick={() => setFormReadOnly(false)}>Modifier</Button>}</> : <><Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button><Button onClick={() => createLead.mutate()} disabled={createLead.isPending || (editingLead ? !canUpdateLeads : !canCreateLeads) || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim()}>{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button></>} 
             </DialogFooter>
           </DialogContent>
         </Dialog>
