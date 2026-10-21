@@ -33,10 +33,10 @@ const verifyPortalSession = async (supabase: any, token: unknown): Promise<strin
 
   const { data: client } = await supabase
     .from("clients")
-    .select("telephone,whatsapp,telephone_local,whatsapp_local,compte_actif,type_client")
+    .select("telephone,whatsapp,telephone_local,whatsapp_local,compte_actif,validation_statut,is_internal,type_client")
     .eq("id", session.client_id)
     .maybeSingle();
-  if (!client || (!client.compte_actif && client.type_client !== "beneficiaire_particulier")) return null;
+  if (!client || (!client.compte_actif && client.type_client !== "beneficiaire_particulier" && !(client.validation_statut === "valide" && !client.is_internal))) return null;
 
   await supabase.from("client_portal_sessions")
     .update({
@@ -149,7 +149,7 @@ serve(async (req) => {
 
     const assertFinancialEligibility = async (clientId: string) => {
       const { data: client, error } = await supabase.from("clients")
-        .select("id,type_client,is_internal,contrat_solde_at,montant_total_contrat")
+        .select("id,type_client,is_internal,contrat_solde_at,montant_total_contrat,compte_actif,validation_statut")
         .eq("id", clientId).maybeSingle();
       if (error) throw error;
       if (!client) throw new Error("Client introuvable");
@@ -162,6 +162,8 @@ serve(async (req) => {
       const hasSummary = Boolean(summary);
       const remaining = Number(summary?.reste_a_payer ?? Number.POSITIVE_INFINITY);
       if (client.contrat_solde_at || (hasSummary && total > 0 && remaining <= 0)) throw new Error("Ce contrat est déjà soldé.");
+      if (!client.compte_actif && client.validation_statut !== "valide") throw new Error("Le dossier client doit être validé avant tout paiement initial.");
+      return client;
     };
 
     // === PI à 0 F : activation automatique sans passer par KKiaPay ===
@@ -270,7 +272,9 @@ serve(async (req) => {
       }
 
       if (!(await assertOwnsClient(client_id))) return unauthorized("Accès refusé à ce client");
-      await assertFinancialEligibility(client_id);
+      const financialClient = await assertFinancialEligibility(client_id);
+      const isPreActivation = !financialClient.compte_actif && financialClient.validation_statut === "valide";
+      if (isPreActivation && canonicalType !== "PI") throw new Error("Seul le Paiement initial est disponible avant l’activation du compte.");
 
       if (plantation_id) {
         const { data: plantation } = await supabase
@@ -323,8 +327,8 @@ serve(async (req) => {
         }
       }
 
-      if (canonicalType === "PI" && !plantation_id) {
-        throw new Error("Une plantation réelle est requise pour le Paiement initial.");
+      if (canonicalType === "PI" && !plantation_id && !isPreActivation) {
+        throw new Error("Une plantation réelle est requise pour le Paiement initial de ce compte actif.");
       }
       const amount = requestedAmount;
 
