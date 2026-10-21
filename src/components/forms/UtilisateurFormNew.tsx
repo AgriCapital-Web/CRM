@@ -95,7 +95,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   // La couverture territoriale dépend du rôle principal, pas seulement du département RH.
   const governanceOnly = relationRH === "PDG" || relationRH === "Associé / Actionnaire";
   const GEO_ROLES = ["responsable_district","responsable_zone","responsable_commercial","chef_equipe_commercial","commercial","technicien","mobilisateur_foncier","chef_equipe_technique","superviseur_mobilisation_fonciere","responsable_technique_agronomique"];
-  const needsCoverage = useMemo(() => !governanceOnly && GEO_ROLES.includes(primaryRole), [primaryRole, governanceOnly]);
+  const effectivePrimaryRole = primaryRole || selectedRoles[0] || "";
+  const needsCoverage = useMemo(() => !governanceOnly && GEO_ROLES.includes(effectivePrimaryRole), [effectivePrimaryRole, governanceOnly]);
   const isCommercialProfile = departementSelectionne === "Commercial";
   const isTechniqueProfile = departementSelectionne === "Technique";
   const showEquipe = isCommercialProfile || isTechniqueProfile;
@@ -112,7 +113,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
     if (data) setEquipes(data);
   };
 
-  const requiredGeoLevel = (role: string) => {
+  const requiredGeoLevel = (role: string): "district_id" | "region_id" | "departement_geo_id" | "sous_prefecture_id" | null => {
     const code = role === "responsable_zone" ? "responsable_district" : role;
     if (code === "responsable_district") return "district_id";
     if (code === "responsable_commercial" || code === "chef_equipe_technique" || code === "superviseur_mobilisation_fonciere" || code === "responsable_technique_agronomique") return "region_id";
@@ -122,7 +123,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   };
 
   const savePrimaryZoneAssignment = async (userId: string, data: any) => {
-    const field = needsCoverage ? requiredGeoLevel(primaryRole) : null;
+    const field = needsCoverage ? requiredGeoLevel(effectivePrimaryRole) : null;
     const zoneId = field ? (data[field] || utilisateur?.[field] || null) : null;
     const zoneType = field === "district_id" ? "district" : field === "region_id" ? "region" : field === "departement_geo_id" ? "departement" : field === "sous_prefecture_id" ? "sous_prefecture" : null;
     const { error } = await (supabase as any).rpc("set_user_primary_zone_assignment", {
@@ -135,9 +136,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
 
   useEffect(() => {
     if (!utilisateur?.user_id || !needsCoverage) return;
-    const field = requiredGeoLevel(primaryRole);
+    const field = requiredGeoLevel(effectivePrimaryRole);
     const zoneType = field === "district_id" ? "district" : field === "region_id" ? "region" : field === "departement_geo_id" ? "departement" : field === "sous_prefecture_id" ? "sous_prefecture" : null;
-    if (!zoneType) return;
+    if (!field || !zoneType) return;
     void (async () => {
       const { data, error } = await (supabase as any).from("zone_assignments").select("zone_id").eq("user_id", utilisateur.user_id).eq("zone_type", zoneType).limit(1).maybeSingle();
       if (!error && data?.zone_id) setValue(field, data.zone_id);
@@ -599,7 +600,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
               <Label>Couverture géographique *</Label>
               <RoleGeographyFields
                 required
-                role={primaryRole}
+                role={effectivePrimaryRole}
+                required
                 value={{ districtId: watch("district_id") || utilisateur?.district_id, regionId: watch("region_id") || utilisateur?.region_id, departementId: watch("departement_geo_id") || utilisateur?.departement_geo_id, sousPrefectureId: watch("sous_prefecture_id") || utilisateur?.sous_prefecture_id }}
                 className="grid grid-cols-1 gap-3 sm:grid-cols-2"
                 onChange={(g) => {
