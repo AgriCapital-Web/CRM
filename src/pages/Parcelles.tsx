@@ -131,7 +131,7 @@ const Parcelles = () => {
                   const parcelClients = clientsByParcel.get(p.id) || [];
                   const parcelLots = lotsByParcel.get(p.id) || [];
                   const ownClient = String(p.mode_surface || "").toLowerCase() === "propriete_client";
-                  return <TableRow key={p.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche parcelle ${p.nom || p.village || ""}`} onClick={() => { /* Parcelle : aucune fiche dédiée n’est actuellement déclarée dans cette vue. */ }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  return <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nom || p.village || "Parcelle"}</TableCell>
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
