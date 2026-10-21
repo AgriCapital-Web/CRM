@@ -196,7 +196,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         const cached = await getCachedItems(STORES.LEADS);
         return cached.sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''));
       }
-      const { data, error } = await (supabase as any).from("leads").select("*").order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("leads").select("*").order("id_unique", { ascending: false });
       if (error) throw error;
       return data || [];
     },
