@@ -46,6 +46,7 @@ const ClientDetail = () => {
   const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
   const [validationComment,setValidationComment]=useState("");
+  const [isClientFormOpen,setIsClientFormOpen]=useState(false);
   const [savingValidation,setSavingValidation]=useState(false);
   const [saleCorrectionSurface,setSaleCorrectionSurface]=useState("");
   const [saleCorrectionNotes,setSaleCorrectionNotes]=useState("");
@@ -548,7 +549,8 @@ const ClientDetail = () => {
                 )}
               </div>
             </div>
-            <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
+            <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Fiche complète du client</DialogTitle></DialogHeader>{client && <ClientForm client={client} readOnly lockCommercialAssignment onCancel={()=>setIsClientFormOpen(false)} onSuccess={()=>{setIsClientFormOpen(false);void fetchData();}} />}</DialogContent></Dialog>
+      <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Racheter la monnaie client</DialogTitle></DialogHeader>
           <div className="space-y-3">
@@ -789,9 +791,9 @@ const ClientDetail = () => {
           <section className="rounded-xl border p-3 sm:p-4 space-y-3">
             <div>
               <h2 className="text-lg font-semibold">Fiche complète du client</h2>
-              <p className="text-sm text-muted-foreground">Formulaire de référence avec les données réelles du dossier. Les champs restent verrouillés en consultation et ne deviennent modifiables qu'après clic sur « Modifier » si le rôle est autorisé.</p>
+              
             </div>
-            {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div>{client.validation_commentaire && <p className="text-sm">{client.validation_commentaire}</p>}<Label>Commentaire de contrôle</Label><Textarea rows={2} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction"/><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></div></div>}
+            {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div>{client.validation_commentaire && <p className="text-sm">{client.validation_commentaire}</p>}<Label>Commentaire de contrôle</Label><Textarea rows={2} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction"/><div className="flex flex-wrap gap-2">{client.validation_statut === "modification_demandee" && <Button variant="outline" onClick={()=>setIsClientFormOpen(true)}>Modifier le dossier</Button>}<Button variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></div></div>}
             {returnedAcquisition && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Correction de la vente demandée</h3><Badge variant="destructive">À corriger</Badge></div>
               {returnedAcquisition.validation_commentaire && <p className="text-sm">{returnedAcquisition.validation_commentaire}</p>}
