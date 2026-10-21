@@ -345,7 +345,7 @@ const Equipes = () => {
             <TableRow><TableCell colSpan={8} className="text-center py-4">Aucune équipe {activeTab === "technique" ? "technique" : "commerciale"}</TableCell></TableRow>
           ) : (
             paginatedEquipes.map((equipe) => (
-              <TableRow key={equipe.id} className="h-11">
+              <TableRow key={equipe.id} role="button" tabIndex={0} aria-label={`Ouvrir le formulaire de l’équipe ${equipe.nom}`} onClick={() => handleEdit(equipe)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleEdit(equipe); } }} className="h-11 cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <TableCell className="w-14 px-2 py-1">
                   {equipe.photo_url ? <img src={equipe.photo_url} alt={`Logo ${equipe.nom}`} className="h-8 w-8 rounded-md border object-cover" loading="lazy" /> : <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">{equipe.type_equipe === "technique" ? <Wrench className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}</div>}
                 </TableCell>
@@ -359,7 +359,7 @@ const Equipes = () => {
                     {equipe.actif ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(event) => event.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
