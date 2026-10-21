@@ -51,7 +51,7 @@ with formula_candidates as (
 )
 update public.clients c
 set formule_code = candidate.formula_code,
-    formule_nom = candidate.formule_nom,
+    formule_nom = candidate.formula_nom,
     updated_at = now()
 from formula_candidates candidate
 where candidate.client_id = c.id
