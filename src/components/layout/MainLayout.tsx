@@ -48,6 +48,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_EQUIPES },
     { icon: Sprout, label: "Technique", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
     { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" },
+    { icon: BarChart3, label: "Analytique financière", path: "/finance/analytique", permission: "finance.view" },
     { icon: History, label: "Reprise historique", path: "/finance/historique", permission: "finance.manage" },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
