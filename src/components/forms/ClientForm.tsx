@@ -281,7 +281,8 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         <CardContent className="px-4 pb-3 pt-0">
           <CommercialCombobox
             value={form.commercial_id || null}
-            onChange={(value) => setField("commercial_id", value)}\n            disabled={isEditing && (lockCommercialAssignment || client?.validation_statut === "modification_demandee")}
+            onChange={(value) => setField("commercial_id", value)}
+            disabled={isEditing && (lockCommercialAssignment || client?.validation_statut === "modification_demandee")}
             placeholder="Rechercher ou sélectionner un commercial"
           />
         </CardContent>
