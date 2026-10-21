@@ -35,9 +35,10 @@ const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(Math.
 
 const ClientDetail = () => {
   const { can } = usePermissions();
-  const { user } = useAuth();
+  const { user, userRoles } = useAuth();
   const canViewClientMoney = can("clients.view_money");
   const canValidateClient = can("clients.validate");
+  const canCorrectReturnedClient = Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
   const canUploadDocuments = can("documents.upload");
   const canViewClientPayments = can("paiements.view");
   const canCreatePlantationAcquisition = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
@@ -794,6 +795,7 @@ const ClientDetail = () => {
               
             </div>
             {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div>{client.validation_commentaire && <p className="text-sm">{client.validation_commentaire}</p>}<Label>Commentaire de contrôle</Label><Textarea rows={2} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction"/><div className="flex flex-wrap gap-2">{client.validation_statut === "modification_demandee" && <Button variant="outline" onClick={()=>setIsClientFormOpen(true)}>Modifier le dossier</Button>}<Button variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></div></div>}
+            {canCorrectReturnedClient && !canValidateClient && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Corrections demandées</h3><Badge variant="destructive">À corriger</Badge></div>{client.validation_commentaire && <p className="break-words text-sm">{client.validation_commentaire}</p>}<Button onClick={()=>setIsClientFormOpen(true)}>Modifier le dossier</Button></div>}
             {returnedAcquisition && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Correction de la vente demandée</h3><Badge variant="destructive">À corriger</Badge></div>
               {returnedAcquisition.validation_commentaire && <p className="text-sm">{returnedAcquisition.validation_commentaire}</p>}
