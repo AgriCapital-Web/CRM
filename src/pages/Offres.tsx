@@ -545,7 +545,7 @@ const Offres = () => {
                                   <div className="mt-2 space-y-1">
                                     {(Array.isArray(formula.tranches_paiement) ? formula.tranches_paiement : []).map((tranche: any, index: number) => (
                                       <div key={tranche.annee || index} className="flex justify-between gap-2 rounded bg-background p-2 text-xs">
-                                        <span>An {tranche.annee || index + 1} · {tranche.mois || 12} mois</span>
+                                        <span>{tranche.type === "mensualite_unique" ? `Mensualité unique · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois` : `An ${tranche.annee || index + 1} · ${tranche.mois || 12} mois`}</span>
                                         <b>{formatMontant(Number(tranche.mensualite_par_ha || 0))} F/ha</b>
                                       </div>
                                     ))}
