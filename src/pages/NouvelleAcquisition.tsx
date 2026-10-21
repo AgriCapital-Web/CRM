@@ -372,8 +372,12 @@ const NouvelleAcquisition = () => {
         ),
       } : baseOffer;
       const ha=Number(formData.superficie_prevue);
-      const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement:"echeancier"});
+      const modePaiement = formData.mode_paiement === "comptant" ? "comptant" : "echeancier";
+      const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement});
       const total=Number(prix.montant_total_effectif||prix.montant_total_base||0)*ha;
+      const paiementInitial=Number(prix.pi_effectif||0)*ha;
+      const mensualite=Number(prix.mensualite_effective||0)*ha;
+      const reduction=Number(prix.reduction_montant||0)*ha;
       const external=!offer.necessite_foncier_client;
       const nomComplet=(String(formData.nom_famille||"")+" "+String(formData.prenoms||"")).trim();
       const {data:client,error:clientError}=await offlineUpsert("clients",{id:stableClientId,
@@ -385,6 +389,8 @@ const NouvelleAcquisition = () => {
         whatsapp_indicatif:formData.whatsapp_indicatif||null,whatsapp_local:formData.whatsapp_local||null,email:formData.email||null,domicile:formData.domicile||null,
         district_id:formData.district_id||null,region_id:formData.region_id||null,departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
         localite:formData.domicile||null,montant_total_contrat:total,
+        mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
+        montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
         famille_offre:offer.famille_offre||null,formule_code:offer.formule_code||offer.code,formule_nom:offer.formule_nom||offer.nom,parcours_code:offer.parcours_code||offer.code,
         statut:"actif",statut_global:"actif",contrat_acquisition_statut:offer.contrat_acquisition_requis?"a_signer":"non_requis",contrat_accompagnement_statut:offer.contrat_accompagnement_requis?"a_signer":"non_requis",
         created_by:currentUser.id,updated_by:currentUser.id,compte_actif:false,phase_actuelle:"pre_activation",total_hectares:ha
