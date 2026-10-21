@@ -148,7 +148,7 @@ const AccountRequests = () => {
             </TableHeader>
             <TableBody>
               {filteredRequests.map((request) => (
-                <TableRow key={request.id}>
+                <TableRow key={request.id} role="button" tabIndex={0} aria-label={`Ouvrir la demande ${request.id}`} onClick={() => setSelectedRequest(request)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedRequest(request); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   <TableCell>
                     {new Date(request.created_at).toLocaleDateString('fr-FR')}
                   </TableCell>
