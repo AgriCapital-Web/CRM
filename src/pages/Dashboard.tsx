@@ -589,8 +589,6 @@ const Dashboard = () => {
       {label:"Échéances en retard",value:stats.overdueCount,href:"/paiements"},
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
-      ...(can("clients.validate") ? [{group:"Clients",label:"Clients à valider",shortLabel:"À valider",value:stats.clientsPendingValidation,href:"/acquisitions/validation?type=clients"}] : []),
-      ...(can("acquisitions.validate") ? [{group:"Ventes",label:"Ventes à valider",shortLabel:"Ventes à valider",value:stats.salesPendingValidation,href:"/acquisitions/validation?type=ventes"}] : []),
       ...(canClients ? [
         {group:"Clients",label:"Clients / dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
         {group:"Clients",label:"Clients actifs",shortLabel:"Actifs",value:stats.clientsActive,href:"/clients"},
@@ -598,15 +596,7 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:"/paiements"}
       ] : []),
-      ...(canLeads ? [
-        {group:"Leads",label:"Leads",shortLabel:"Leads",value:stats.leads,href:"/leads"},
-        {group:"Leads",label:"Leads convertis",shortLabel:"Leads conv.",value:stats.leadsConverted,href:"/leads"},
-        {group:"Leads",label:"Taux de conversion des leads",shortLabel:"Taux conv. leads",value:stats.conversionRate+"%",href:"/leads"},
-        {group:"Prospects",label:"Prospects",shortLabel:"Prospects",value:stats.prospects,href:"/prospects"},
-        {group:"Prospects",label:"Prospects convertis",shortLabel:"Prospects conv.",value:stats.prospectsConverted,href:"/prospects"},
-        {group:"Prospects",label:"Taux de conversion des prospects",shortLabel:"Taux conv. prospects",value:stats.prospectsConversionRate+"%",href:"/prospects"},
-        {group:"Relances",label:"À relancer",shortLabel:"À relancer",value:stats.leadsFollowup,href:"/leads"}
-      ] : []),
+      ...(can("clients.validate") ? [{group:"Clients",label:"Clients à valider",shortLabel:"À valider",value:stats.clientsPendingValidation,href:"/acquisitions/validation?type=clients"}] : []),
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
@@ -687,37 +677,13 @@ const Dashboard = () => {
                         {k.label}
                       </h2>
                       {k.label === "Développement commercial" ? (
-                        <div className="grid min-w-0 grid-cols-1 gap-2 sm:gap-3 md:grid-cols-2">
-                          {["Clients", "Leads", "Prospects"].map((groupName) => {
-                            // « À relancer » reste une carte KPI normale dans la rangée commerciale,
-                            // et ne crée jamais une section séparée.
-                            const items = groupName === "Leads"
-                              ? k.metrics.filter((metric: any) => metric.group === "Leads" || metric.group === "Relances")
-                              : k.metrics.filter((metric: any) => metric.group === groupName);
-                            if (!items.length) return null;
-                            const isClients = groupName === "Clients";
-                            return (
-                              <section
-                                key={groupName}
-                                className={`min-w-0 rounded-xl border border-border/70 bg-background/60 p-2 ${isClients ? "md:col-span-2" : ""}`}
-                              >
-                                <h3 className={`mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground ${groupName === "Leads" || groupName === "Prospects" ? "hidden sm:block" : ""}`}>{groupName}</h3>
-                                <div className={isClients
-                                  ? "crm-compact-kpi-grid crm-compact-kpi-grid--clients grid grid-cols-3 gap-1 sm:grid-cols-3 sm:gap-2 lg:grid-cols-6"
-                                  : groupName === "Leads"
-                                    ? "crm-compact-kpi-grid crm-compact-kpi-grid--leads grid grid-cols-4 gap-1 sm:gap-2"
-                                    : "crm-compact-kpi-grid crm-compact-kpi-grid--prospects grid grid-cols-3 gap-1 sm:gap-2"
-                                }>
-                                  {items.map((metric: any, index: number) => (
-                                    <Link key={metric.label} to={metric.href || k.href} className={`group flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 sm:p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isClients ? "col-span-1" : ""}`}>
-                                      <span title={metric.label} className="block min-w-0 truncate whitespace-nowrap text-[9px] leading-tight text-muted-foreground sm:text-[10px]">{metric.shortLabel || metric.label}</span>
-                                      <span className="mt-1 block whitespace-nowrap text-xs font-bold leading-tight tabular-nums text-foreground sm:text-sm">{loading ? "…" : metric.value}</span>
-                                    </Link>
-                                  ))}
-                                </div>
-                              </section>
-                            );
-                          })}
+                        <div className="crm-compact-kpi-grid crm-compact-kpi-grid--commercial grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2 lg:grid-cols-6">
+                          {k.metrics.map((metric: any) => (
+                            <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-2">
+                              <span title={metric.label} className="block min-w-0 truncate whitespace-nowrap text-[9px] leading-tight text-muted-foreground sm:text-[10px]">{metric.shortLabel || metric.label}</span>
+                              <span className="mt-1 block min-w-0 whitespace-nowrap text-xs font-bold leading-tight tabular-nums text-foreground sm:text-sm">{loading ? "…" : metric.value}</span>
+                            </Link>
+                          ))}
                         </div>
                       ) : (
                         <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]">
