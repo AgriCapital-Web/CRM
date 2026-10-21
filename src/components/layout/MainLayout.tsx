@@ -68,8 +68,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <img src="/agricapital360-logo.svg?v=20261021" alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital" className="w-full max-w-[220px] h-auto object-contain" />
           <span className="sr-only">AgriCapital 360 — La plateforme métier intelligente d’AgriCapital</span>
         </button>
-        <p className="mt-2 text-center text-[10px] font-medium leading-tight text-primary/75">AgriCapital 360</p>
-        <p className="text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
+        <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
