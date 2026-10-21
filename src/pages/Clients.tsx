@@ -106,8 +106,7 @@ const Clients = () => {
         let clientsQuery = supabase
           .from("clients")
           .select("*")
-          .order("numero_ordre_global", { ascending: true, nullsFirst: false })
-          .order("id", { ascending: true })
+          .order("id_unique", { ascending: false })
           .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
 
         if (safeSearch) {
@@ -174,7 +173,7 @@ const Clients = () => {
           getCachedPlantations(),
         ]);
         const enrichedData = cachedClients
-          .sort((a: any, b: any) => Number(a.numero_ordre_global || 999999) - Number(b.numero_ordre_global || 999999))
+          .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
             return {
