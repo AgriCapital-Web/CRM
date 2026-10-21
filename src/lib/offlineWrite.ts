@@ -106,6 +106,31 @@ export async function offlineInsert(table: string, values: any): Promise<{ data:
   return { data: record, error: null, offline: true };
 }
 
+/**
+ * Idempotent write for multi-step submissions. Replaying the same UUID must
+ * update the existing row instead of creating a duplicate after a timeout.
+ */
+export async function offlineUpsert(table: string, values: any): Promise<{ data: any | null; error: any | null; offline: boolean }> {
+  const store = TABLE_TO_STORE[table];
+  const id = values?.id || genUuid();
+  const record = { ...values, id };
+  if (navigator.onLine) {
+    const { data, error } = await (supabase as any).from(table).upsert(record, { onConflict: 'id' }).select().maybeSingle();
+    if (!error && data && store) {
+      try { await putItem(store, data); } catch (cacheError) { console.error("[OfflineWrite] Upsert succeeded, local cache refresh failed", cacheError); }
+    }
+    if (!error && !data) return { data: null, error: new Error("Le serveur n’a retourné aucun enregistrement après l’enregistrement."), offline: false };
+    if (!error || !isNetworkError(error)) return { data, error, offline: false };
+  }
+  if (!store) return { data: null, error: new Error(`Le formulaire ${table} n’est pas compatible avec l’enregistrement hors ligne sécurisé.`), offline: !navigator.onLine };
+  const queuedRecord = { ...record, _offline: true, _pending: 'insert', created_at: record.created_at || new Date().toISOString(), updated_at: new Date().toISOString() };
+  await persistQueuedMutation({
+    table, operation: 'insert', record_id: id, data: record,
+    timestamp: Date.now(), storeName: store, record: queuedRecord,
+  });
+  return { data: queuedRecord, error: null, offline: true };
+}
+
 export async function offlineUpdate(table: string, id: string, values: any): Promise<{ error: any | null; offline: boolean }> {
   const store = TABLE_TO_STORE[table];
   // A record created offline may be edited before its INSERT reaches the server.
