@@ -1,6 +1,6 @@
 # Supabase Data API permissions for AgriCapital 360
 
-Effective 2026-10-30, do not rely on automatic Data API grants for newly created tables in `public`.
+Effective 2026-10-21, do not rely on automatic Data API grants for newly created tables in `public`.
 
 ## Required migration rule
 
@@ -30,8 +30,20 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.backend_table TO service_ro
 - [ ] Never expose `service_role` keys in browser code or the PWA.
 - [ ] Test anonymous, authenticated, and backend access paths after applying the migration.
 
+## Production audit snapshot — 2026-10-21
+
+Read-only catalog queries against production project `rfzfsmpsuempafhkqhra` found:
+
+- All ordinary/partitioned tables in `public` had RLS enabled at the time of the check.
+- 35 public relations had some ACL privilege for `anon`; this includes intentionally public geographic/reference reads and anonymous insert paths, but also ACL entries such as `TRUNCATE`, `REFERENCES`, and `TRIGGER` on several tables that warrant object-by-object review.
+- Six geographic views were selectable by `anon`; views do not expose RLS flags like ordinary tables, so their definitions and underlying access/security-invoker behavior must be reviewed separately.
+- Six relations had no applicable RLS because they were views; no ordinary/partitioned table was found with RLS disabled by this query.
+- Catalog inspection of policies alone is not a complete authorization test. Test actual requests as `anon`, `authenticated`, and trusted backend roles before declaring the project secure.
+
+These findings are a review queue, not proof that all grants are safe. No existing object grants were changed during this audit because the requested preservation constraint prohibits blanket revocation. Review any excess `anon` privileges individually and remove only after confirming they are unintended and not required by an existing public flow.
+
 ## Production default-privilege change
 
 A production attempt to change default privileges was rejected by Supabase with PostgreSQL error `42501: permission denied to change default privileges`, even though the SQL session reports `current_user = postgres`. Do not retry with a broad workaround or alter existing grants. A database owner / Supabase support-approved path is needed if default privileges must be managed centrally. Until then, explicit grants per object migration are the supported project-level control.
 
-This document is guidance, not an applied database migration. Do not mark the production project compliant until the permissions and migrations have been audited and tested.
+This document is guidance and audit notes, not an applied database migration. Do not mark the production project compliant until default privileges are resolved, existing grants have been reviewed, and authorization paths have been tested.
