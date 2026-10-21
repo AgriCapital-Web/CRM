@@ -641,9 +641,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Prospects</h1>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
+            {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
             <Button className="w-full sm:w-auto" variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}><Copy className="h-4 w-4 mr-2" />Lien public</Button>
-            {canCreateLeads && <Button className="col-span-2 w-full sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
+            {canCreateLeads && <Button className="col-span-2 w-full sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
           </div>
         </div>
 
