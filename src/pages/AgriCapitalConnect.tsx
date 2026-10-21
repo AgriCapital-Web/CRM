@@ -1,0 +1,205 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import MainLayout from "@/components/layout/MainLayout";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarDays, Check, Clock3, Loader2, MessageCircle, Plus, Send, ShieldCheck, Users, Video } from "lucide-react";
+import { toast } from "sonner";
+
+type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
+type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
+type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null };
+type Meeting = { id: string; title: string; description: string | null; agenda: string | null; starts_at: string; ends_at: string; status: string; provider: string; join_url: string | null; created_by_profile_id: string };
+
+const dateLabel = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase();
+
+export default function AgriCapitalConnect() {
+  const { profile, user } = useAuth();
+  const { can } = usePermissions();
+  const profileId = profile?.id as string | undefined;
+  const [tab, setTab] = useState("messages");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [selected, setSelected] = useState<string>("");
+  const [draft, setDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newKind, setNewKind] = useState<"direct" | "group" | "channel">("direct");
+  const [newMembers, setNewMembers] = useState<string[]>([]);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingStart, setMeetingStart] = useState("");
+  const [meetingEnd, setMeetingEnd] = useState("");
+  const [meetingAgenda, setMeetingAgenda] = useState("");
+  const [meetingDescription, setMeetingDescription] = useState("");
+
+  const loadConversations = useCallback(async () => {
+    if (!profileId) return;
+    const { data, error } = await (supabase as any).from("internal_conversations")
+      .select("id,conversation_type,title,last_message_at,created_by_profile_id,internal_conversation_members!inner(profile_id)")
+      .eq("internal_conversation_members.profile_id", profileId)
+      .order("last_message_at", { ascending: false });
+    if (error) { console.error(error); toast.error("Impossible de charger les conversations."); return; }
+    const rows = (data || []).map((row: any) => ({ ...row, internal_conversation_members: undefined })) as Conversation[];
+    setConversations(rows);
+    if (!selected && rows[0]?.id) setSelected(rows[0].id);
+  }, [profileId, selected]);
+
+  const loadStaff = useCallback(async () => {
+    const { data, error } = await (supabase as any).rpc("workspace_list_collaborators");
+    if (error) { console.error(error); setStaff([]); return; }
+    setStaff((data || []) as Staff[]);
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    if (!conversationId) { setMessages([]); return; }
+    const { data, error } = await (supabase as any).from("internal_messages")
+      .select("id,conversation_id,sender_profile_id,body,created_at,edited_at,message_type")
+      .eq("conversation_id", conversationId).is("deleted_at", null).order("created_at", { ascending: true }).limit(500);
+    if (error) { console.error(error); setMessages([]); return; }
+    const rows = (data || []) as Message[];
+    setMessages(rows);
+    if (profileId) {
+      const now = new Date().toISOString();
+      const receipts = rows.filter(m => m.sender_profile_id !== profileId).map(m => ({ message_id: m.id, profile_id: profileId, delivered_at: now, read_at: now }));
+      if (receipts.length) {
+        const { error: receiptError } = await (supabase as any).from("internal_message_receipts").upsert(receipts, { onConflict: "message_id,profile_id" });
+        if (receiptError) console.warn("Receipt de lecture non enregistré", receiptError);
+      }
+      await (supabase as any).from("internal_conversation_members").update({ last_read_at: now }).eq("conversation_id", conversationId).eq("profile_id", profileId);
+    }
+  }, [profileId]);
+
+  const loadMeetings = useCallback(async () => {
+    const { data, error } = await (supabase as any).from("internal_meetings")
+      .select("id,title,description,agenda,starts_at,ends_at,status,provider,join_url,created_by_profile_id")
+      .order("starts_at", { ascending: true }).limit(100);
+    if (error) { console.error(error); setMeetings([]); return; }
+    setMeetings((data || []) as Meeting[]);
+  }, []);
+
+  useEffect(() => {
+    if (!can("messagerie.view") || !profileId) { setLoading(false); return; }
+    let alive = true;
+    void Promise.all([loadConversations(), loadStaff(), loadMeetings()]).finally(() => { if (alive) setLoading(false); });
+    const channel = supabase.channel("agricapital-connect-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "internal_messages" }, (payload: any) => {
+        if (payload.new?.conversation_id && payload.new.conversation_id === selected) void loadMessages(selected);
+        void loadConversations();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "internal_conversations" }, () => void loadConversations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "internal_meetings" }, () => void loadMeetings())
+      .subscribe();
+    return () => { alive = false; void supabase.removeChannel(channel); };
+  }, [can, profileId, selected, loadConversations, loadStaff, loadMeetings, loadMessages]);
+
+  useEffect(() => { if (selected) void loadMessages(selected); else setMessages([]); }, [selected, loadMessages]);
+
+  const visibleConversations = useMemo(() => conversations.filter(c => (c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe" : "Canal")).toLocaleLowerCase("fr").includes(search.toLocaleLowerCase("fr"))), [conversations, search]);
+  const selectedConversation = conversations.find(c => c.id === selected);
+
+  const createConversation = async () => {
+    if (!profileId) return;
+    const targets = Array.from(new Set([profileId, ...newMembers]));
+    if (newKind === "direct" && targets.length !== 2) { toast.error("Sélectionnez un autre utilisateur."); return; }
+    if (newKind !== "direct" && targets.length < 2) { toast.error("Ajoutez au moins un autre utilisateur."); return; }
+    const { data: conv, error } = await (supabase as any).from("internal_conversations")
+      .insert({ conversation_type: newKind, title: newTitle.trim() || null, created_by_profile_id: profileId })
+      .select("id,conversation_type,title,last_message_at,created_by_profile_id").single();
+    if (error || !conv) { toast.error(error?.message || "Création impossible."); return; }
+    const members = targets.map(id => ({ conversation_id: conv.id, profile_id: id, member_role: id === profileId ? "owner" : "member" }));
+    const { error: memberError } = await (supabase as any).from("internal_conversation_members").insert(members);
+    if (memberError) { toast.error("Conversation créée mais ajout des participants incomplet. Contactez l'administrateur."); console.error(memberError); return; }
+    setConversations(current => [conv, ...current.filter(c => c.id !== conv.id)]);
+    setSelected(conv.id); setNewTitle(""); setNewMembers([]); setCreateOpen(false);
+    toast.success("Conversation créée.");
+  };
+
+  const sendMessage = async () => {
+    if (!profileId || !selected || !draft.trim() || sending) return;
+    setSending(true);
+    const { error } = await (supabase as any).from("internal_messages").insert({ conversation_id: selected, sender_profile_id: profileId, body: draft.trim() });
+    setSending(false);
+    if (error) { toast.error("Message non envoyé. Vérifiez vos droits et votre connexion."); console.error(error); return; }
+    setDraft("");
+    await loadMessages(selected);
+  };
+
+  const createMeeting = async () => {
+    if (!profileId || !meetingTitle.trim() || !meetingStart || !meetingEnd || new Date(meetingEnd) <= new Date(meetingStart)) {
+      toast.error("Renseignez un titre et des horaires valides."); return;
+    }
+    const { data, error } = await (supabase as any).from("internal_meetings")
+      .insert({ title: meetingTitle.trim(), description: meetingDescription.trim() || null, agenda: meetingAgenda.trim() || null,
+        starts_at: new Date(meetingStart).toISOString(), ends_at: new Date(meetingEnd).toISOString(), created_by_profile_id: profileId })
+      .select("id").single();
+    if (error || !data) { toast.error("Réunion non créée."); console.error(error); return; }
+    const { error: participantError } = await (supabase as any).from("internal_meeting_participants")
+      .insert({ meeting_id: data.id, profile_id: profileId, participant_role: "host", response: "accepted" });
+    if (participantError) console.warn("La réunion existe mais l'hôte n'a pas pu être ajouté", participantError);
+    setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription("");
+    await loadMeetings(); toast.success("Réunion planifiée. La visioconférence sera activée après configuration du fournisseur vidéo.");
+  };
+
+  if (!can("messagerie.view")) {
+    return <ProtectedRoute requiredPermission={"messagerie.view" as any}><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
+  }
+
+  return (
+    <ProtectedRoute requiredPermission={"messagerie.view" as any}>
+      <MainLayout>
+        <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 overflow-x-hidden p-3 pb-8 pt-16 md:p-6 md:pt-6">
+          <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">AgriCapital Connect</h1></div>
+              <p className="mt-1 text-sm text-muted-foreground">Messagerie interne, réunions et coordination d'équipe.</p>
+            </div>
+            <Badge variant="outline" className="w-fit gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Espace interne sécurisé</Badge>
+          </header>
+          <Tabs value={tab} onValueChange={setTab} className="min-w-0">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:w-fit">
+              <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages</TabsTrigger>
+              <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
+            </TabsList>
+            <TabsContent value="messages" className="mt-3 min-w-0">
+              <div className="grid min-w-0 gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
+                <Card className={selected ? "hidden min-w-0 lg:block" : "min-w-0"}>
+                  <CardHeader className="space-y-3 p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><CardTitle className="text-base">Conversations</CardTitle><Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogTrigger asChild><Button size="icon" variant="outline" aria-label="Nouvelle conversation"><Plus className="h-4 w-4" /></Button></DialogTrigger><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Nouvelle conversation</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Type</Label><Select value={newKind} onValueChange={(v: any) => setNewKind(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="direct">Privée</SelectItem><SelectItem value="group">Groupe</SelectItem><SelectItem value="channel">Canal d'équipe</SelectItem></SelectContent></Select></div>{newKind !== "direct" && <div className="space-y-1"><Label>Nom du groupe / canal</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Ex. Direction, Terrain, Finance" /> </div>}<div className="space-y-1"><Label>Participants</Label><div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border p-2">{staff.filter(s => s.id !== profileId).map(s => <label key={s.id} className="flex cursor-pointer items-center gap-2 rounded-md p-2 hover:bg-muted"><input type={newKind === "direct" ? "radio" : "checkbox"} checked={newMembers.includes(s.id)} onChange={e => setNewMembers(current => newKind === "direct" ? (e.target.checked ? [s.id] : []) : (e.target.checked ? [...current, s.id] : current.filter(id => id !== s.id)))} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{s.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{s.poste || s.email || "Utilisateur"}</span></span></label>)}</div></div><Button className="w-full" onClick={() => void createConversation()}>Créer la conversation</Button></div></DialogContent></Dialog></div><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une conversation…" /></CardHeader>
+                  <CardContent className="space-y-1 p-2">{loading ? <div className="flex justify-center p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : visibleConversations.length ? visibleConversations.map(c => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full min-w-0 items-center gap-3 rounded-lg p-3 text-left transition-colors ${selected === c.id ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted"}`}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials(c.title || (c.conversation_type === "direct" ? "Privé" : c.conversation_type === "group" ? "Groupe" : "Canal"))}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe d'équipe" : "Canal")}</span><span className="block text-xs text-muted-foreground">{dateLabel(c.last_message_at)}</span></span></button>) : <p className="p-5 text-center text-sm text-muted-foreground">Aucune conversation. Créez votre première discussion interne.</p>}</CardContent>
+                </Card>
+                <Card className={selected ? "flex min-w-0 flex-col overflow-hidden" : "hidden min-w-0 lg:flex lg:flex-col"}>
+                  <CardHeader className="border-b p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><CardTitle className="truncate text-base">{selectedConversation?.title || (selectedConversation?.conversation_type === "direct" ? "Conversation privée" : selectedConversation?.conversation_type === "group" ? "Groupe d'équipe" : "Canal interne")}</CardTitle><p className="text-xs text-muted-foreground">Messages en temps réel · accusés de lecture</p></div><Button variant="outline" size="sm" className="shrink-0 gap-2" onClick={() => setTab("meetings")}><Video className="h-4 w-4" /><span className="hidden sm:inline">Réunions</span></Button></div></CardHeader>
+                  <CardContent className="flex min-h-[360px] flex-1 flex-col p-3 sm:min-h-[500px] sm:p-4">
+                    <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain pb-3">{messages.map(m => <div key={m.id} className={`flex ${m.sender_profile_id === profileId ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] min-w-0 rounded-2xl px-3 py-2 ${m.sender_profile_id === profileId ? "bg-primary text-primary-foreground" : "bg-muted"}`}><p className="whitespace-pre-wrap break-words text-sm">{m.body}</p><div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70"><span>{dateLabel(m.created_at)}</span>{m.sender_profile_id === profileId && <Check className="h-3 w-3" />}</div></div></div>)}{selected && !messages.length && <p className="py-12 text-center text-sm text-muted-foreground">Écrivez le premier message de cette conversation.</p>}</div>
+                    <form className="flex min-w-0 items-end gap-2 border-t pt-3" onSubmit={e => { e.preventDefault(); void sendMessage(); }}><Textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Écrire un message…" rows={2} className="min-h-[44px] min-w-0 resize-y" disabled={!selected || sending} /><Button type="submit" size="icon" aria-label="Envoyer" disabled={!selected || !draft.trim() || sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button></form>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            <TabsContent value="meetings" className="mt-3 min-w-0 space-y-3">
+              <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"><div><h2 className="font-semibold">Agenda et réunions</h2><p className="text-sm text-muted-foreground">Planifiez les réunions, l'ordre du jour et les horaires.</p></div><Dialog open={meetingOpen} onOpenChange={setMeetingOpen}><DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" />Planifier une réunion</Button></DialogTrigger><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Nouvelle réunion</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Titre</Label><Input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} placeholder="Réunion de coordination" /></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label>Début</Label><Input type="datetime-local" value={meetingStart} onChange={e => setMeetingStart(e.target.value)} /></div><div className="space-y-1"><Label>Fin</Label><Input type="datetime-local" value={meetingEnd} onChange={e => setMeetingEnd(e.target.value)} /></div></div><div className="space-y-1"><Label>Ordre du jour</Label><Textarea value={meetingAgenda} onChange={e => setMeetingAgenda(e.target.value)} rows={3} /></div><div className="space-y-1"><Label>Description / préparation</Label><Textarea value={meetingDescription} onChange={e => setMeetingDescription(e.target.value)} rows={2} /></div><Button className="w-full" onClick={() => void createMeeting()}>Enregistrer la réunion</Button></div></DialogContent></Dialog></div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{meetings.map(m => <Card key={m.id} className="min-w-0 overflow-hidden"><CardHeader className="pb-2"><div className="flex items-start justify-between gap-2"><CardTitle className="min-w-0 break-words text-base">{m.title}</CardTitle><Badge variant={m.status === "cancelled" ? "destructive" : "outline"}>{m.status === "scheduled" ? "Planifiée" : m.status === "in_progress" ? "En cours" : m.status === "completed" ? "Terminée" : "Annulée"}</Badge></div></CardHeader><CardContent className="space-y-3"><p className="flex items-start gap-2 text-sm"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span>{dateLabel(m.starts_at)} – {dateLabel(m.ends_at)}</span></p>{m.agenda && <div><p className="text-xs font-semibold text-muted-foreground">ORDRE DU JOUR</p><p className="mt-1 whitespace-pre-wrap break-words text-sm">{m.agenda}</p></div>}<div className="flex flex-wrap items-center gap-2"><Badge variant="secondary"><Users className="mr-1 h-3 w-3" />Participants sur invitation</Badge>{m.provider === "unconfigured" ? <Badge variant="outline">Vidéo à configurer</Badge> : m.join_url ? <a href={m.join_url} target="_blank" rel="noreferrer" className="text-sm text-primary underline">Rejoindre la réunion</a> : null}</div><p className="text-xs text-muted-foreground">Le lien de visioconférence sera activé quand le service vidéo sera configuré côté serveur.</p></CardContent></Card>)}</div>
+              {meetings.length === 0 && <Card><CardContent className="p-8 text-center text-sm text-muted-foreground"><Clock3 className="mx-auto mb-2 h-6 w-6" />Aucune réunion planifiée.</CardContent></Card>}
+            </TabsContent>
+          </Tabs>
+        </main>
+      </MainLayout>
+    </ProtectedRoute>
+  );
+}
