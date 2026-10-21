@@ -337,6 +337,37 @@ export async function markOpStatus(id: number, status: SyncOperation['status'], 
   }
 }
 
+/** Force la reprise immédiate d'une opération en erreur depuis l'écran Synchronisation. */
+export async function retrySyncOperation(id: number): Promise<void> {
+  const item = await getItem(STORES.SYNC_QUEUE, id) as SyncOperation | undefined;
+  if (!item) return;
+  item.status = 'pending';
+  item.sync_started_at = undefined;
+  item.next_retry_at = 0;
+  item.error_message = undefined;
+  await putItem(STORES.SYNC_QUEUE, item);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('offline-mutation-queued'));
+  }
+}
+
+/** Remet toutes les opérations en erreur en attente immédiate, sans supprimer leurs données. */
+export async function retryAllSyncOperations(): Promise<number> {
+  const all = await getAllItems(STORES.SYNC_QUEUE) as SyncOperation[];
+  const failed = all.filter((item) => item.status === 'error');
+  for (const item of failed) {
+    item.status = 'pending';
+    item.sync_started_at = undefined;
+    item.next_retry_at = 0;
+    item.error_message = undefined;
+    await putItem(STORES.SYNC_QUEUE, item);
+  }
+  if (failed.length && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('offline-mutation-queued'));
+  }
+  return failed.length;
+}
+
 export async function clearSyncedOps(): Promise<void> {
   const all = await getAllItems(STORES.SYNC_QUEUE);
   const db = await openDB();
