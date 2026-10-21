@@ -203,16 +203,30 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                   className="flex w-full min-w-0 items-center gap-3 p-3 text-left sm:p-4"
                   onClick={() => {
                     if (selectedFamily) return;
+                    const formulaCount = familyOffers.reduce((count, item: any) =>
+                      count + (Array.isArray(item.formules_configuration) && item.formules_configuration.length
+                        ? item.formules_configuration.length : 1), 0);
+                    const typeClient = first.type_offre === "sans_terre" ? "sans_terre" : "avec_terre";
+                    if (formulaCount > 1) {
+                      // Keep the user on step 1 until a specific formula is chosen.
+                      updateFormData({
+                        offre_id: first.id, offre_code: first.code, offre: first,
+                        formule_code: "", formule_nom: "", formule_confirmed: false,
+                        gestion_type: first.gestion_type || null, type_client: typeClient,
+                      });
+                      return;
+                    }
                     const formula = getFormulaConfig(first);
-                    const selected = applyFormulaConfig(first, formula);
+                    const selected = formula ? applyFormulaConfig(first, formula) : first;
                     updateFormData({
                       offre_id: first.id,
                       offre_code: first.code,
                       offre: selected,
                       formule_code: formula?.code || first.formule_code || first.code,
                       formule_nom: formula?.nom || first.formule_nom || first.nom,
+                      formule_confirmed: true,
                       gestion_type: formula?.gestion_type || first.gestion_type || null,
-                      type_client: first.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
+                      type_client: typeClient,
                     });
                   }}
                 >
@@ -230,19 +244,25 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                   <div className="border-t px-3 pb-3 pt-3 sm:px-4">
                     <Label className="text-xs">Formule</Label>
                     <Select
-                      value={familyOffers.flatMap((item: any) => Array.isArray(item.formules_configuration) ? item.formules_configuration : []).some((formula: any) => formula.code === formData.formule_code) ? formData.formule_code : (getFormulaConfig(first)?.code || first.formule_code || first.code)}
+                      value={formData.formule_code || ""}
                       onValueChange={(value) => {
-                        const formulaOwner = familyOffers.find((item: any) => (item.formules_configuration || []).some((f: any) => f.code === value)) || first;
-                        const formula = (Array.isArray(formulaOwner.formules_configuration) ? formulaOwner.formules_configuration : []).find((f: any) => f.code === value) as any;
-                        if (!formula) return;
-                        const selected = applyFormulaConfig(formulaOwner, formula);
+                        const formulaOwner = familyOffers.find((item: any) => {
+                          const configured = Array.isArray(item.formules_configuration) ? item.formules_configuration : [];
+                          return configured.length ? configured.some((f: any) => f.code === value) : (item.formule_code || item.code) === value;
+                        }) || first;
+                        const formulas = Array.isArray(formulaOwner.formules_configuration) ? formulaOwner.formules_configuration : [];
+                        const formula = formulas.find((f: any) => f.code === value) as any;
+                        const selected = formula ? applyFormulaConfig(formulaOwner, formula) : formulaOwner;
+                        const selectedCode = formula?.code || formulaOwner.formule_code || formulaOwner.code;
+                        const selectedName = formula?.nom || formulaOwner.formule_nom || formulaOwner.nom;
                         updateFormData({
                           offre_id: formulaOwner.id,
                           offre_code: formulaOwner.code,
                           offre: selected,
-                          formule_code: formula.code,
-                          formule_nom: formula.nom,
-                          gestion_type: formula.gestion_type || formulaOwner.gestion_type || null,
+                          formule_code: selectedCode,
+                          formule_nom: selectedName,
+                          formule_confirmed: true,
+                          gestion_type: formula?.gestion_type || formulaOwner.gestion_type || null,
                           type_client: formulaOwner.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
                           ...(formulaOwner.type_offre === "sans_terre" ? {} : { parcelle_id: null }),
                         });
