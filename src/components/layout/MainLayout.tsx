@@ -36,9 +36,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: LayoutDashboard, label: "Tableau de bord", path: "/dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: Users, label: "Prospects", path: "/prospects", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Acquisitions", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
-    { icon: MessageSquare, label: "Messagerie clients", path: "/messagerie", permission: "messagerie.view" as any },
-    { icon: MessageSquare, label: "AgriCapital Connect", path: "/connect", permission: "messagerie.view" as any },
-    { icon: Files, label: "Espace de travail", path: "/espace-travail", permission: PERMISSIONS.VIEW_DASHBOARD },
+    { icon: MessageSquare, label: "Espace de travail & communication", path: "/connect", permission: "messagerie.view" as any },
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: LandPlot, label: "Propriétaires", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
@@ -48,8 +46,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_EQUIPES },
     { icon: Sprout, label: "Technique", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
     { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" },
-    { icon: BarChart3, label: "Analytique financière", path: "/finance/analytique", permission: "finance.view" },
-    { icon: History, label: "Reprise historique", path: "/finance/historique", permission: "finance.manage" },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
   ];
@@ -65,7 +61,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   };
 
   const SidebarContent = () => (
-    <div className="flex h-full flex-col bg-primary text-primary-foreground shadow-xl">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-primary text-primary-foreground shadow-xl">
       <div className="border-b border-primary-foreground/10 px-4 py-5 bg-white/95 backdrop-blur">
         <button onClick={() => navigate('/dashboard')} className="flex w-full items-center justify-center">
           <img src="/agricapital360-officiel.png?v=20261021-logo-v3" alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital" className="w-full max-w-[220px] h-auto object-contain" />
@@ -74,7 +70,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4">
         {visibleMenuItems.length === 0 && (
           <div className="rounded-md bg-primary-foreground/10 px-3 py-4 text-xs text-primary-foreground/90">
             Aucun rôle attribué à votre compte. Contactez un administrateur ou reconnectez-vous.
@@ -130,8 +126,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   );
 
   return (
-    <div className="flex min-h-screen bg-muted/35">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden h-screen w-64 flex-shrink-0 md:flex"><SidebarContent /></aside>
+    <div className="flex min-h-screen min-w-0 bg-muted/35">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden h-dvh w-64 flex-shrink-0 overflow-hidden md:flex"><SidebarContent /></aside>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-background/95 px-3 backdrop-blur md:hidden">
@@ -143,7 +139,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           </div>
           <Avatar className="h-8 w-8 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(formatUserShortName(profile?.nom_complet))}</AvatarFallback></Avatar>
         </div>
-        <SheetContent side="left" className="w-72 p-0"><SidebarContent /></SheetContent>
+        <SheetContent side="left" className="h-dvh max-h-dvh w-72 overflow-hidden p-0"><SidebarContent /></SheetContent>
       </Sheet>
 
       <main className="min-w-0 flex-1 overflow-x-hidden pt-14 md:ml-64 md:pt-0 bg-muted/20">
