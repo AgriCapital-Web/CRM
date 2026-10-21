@@ -217,3 +217,14 @@ BEGIN
   END LOOP;
 END
 $function$;
+
+
+CREATE OR REPLACE FUNCTION public.trg_recalculer_parametres_financiers_client()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $function$
+begin
+  if pg_trigger_depth() > 1 then return new; end if;
+  perform public.recalculer_parametres_financiers_client(new.id);
+  return new;
+end
+$function$;
