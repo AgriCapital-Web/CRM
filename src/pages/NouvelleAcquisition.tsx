@@ -282,6 +282,7 @@ const NouvelleAcquisition = () => {
     for (const [code, { field }] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
       delete payload["doc_" + code + "_file"];
       delete payload["doc_" + code + "_preview"];
+      delete payload[field + "_file"];
       if (!payload[field + "_preview"] && formData["doc_" + code + "_preview"]) payload[field + "_preview"] = formData["doc_" + code + "_preview"];
     }
     let savedId = brouillonId;
