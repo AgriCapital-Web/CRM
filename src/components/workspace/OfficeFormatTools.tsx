@@ -290,17 +290,17 @@ export default function OfficeFormatTools({ title, content, documentType, disabl
     } catch (error: any) { toast.error("Export impossible : " + (error?.message || "erreur inconnue")); }
     finally { setBusy(false); }
   };
-  return <section className="space-y-2 rounded-lg border bg-muted/20 p-3">
+  return <section className="min-w-0 max-w-full space-y-2 rounded-lg border bg-muted/20 p-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div><p className="text-sm font-semibold">Formats bureautiques</p><p className="text-xs text-muted-foreground">Importer, convertir et réutiliser les contenus avec d’autres logiciels.</p></div>
+      <div><p className="text-sm font-semibold">Formats bureautiques</p></div>
       <Button type="button" variant="outline" size="sm" disabled={disabled || busy} onClick={() => fileRef.current?.click()}><FileUp className="mr-2 h-4 w-4" />Importer un fichier</Button>
       <input ref={fileRef} type="file" className="hidden" accept=".docx,.doc,.xlsx,.xls,.xlsm,.ods,.pptx,.pdf,.csv,.tsv,.txt" disabled={disabled || busy} onChange={(e) => void handleImport(e.target.files?.[0])} />
     </div>
-    <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("docx")}><FileText className="mr-2 h-4 w-4" />Word (.docx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("xlsx")}><FileSpreadsheet className="mr-2 h-4 w-4" />Excel (.xlsx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pptx")}><Presentation className="mr-2 h-4 w-4" />PowerPoint (.pptx)</Button>
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pdf")}><FileIcon className="mr-2 h-4 w-4" />PDF</Button>
+    <div className="flex min-w-0 flex-wrap gap-2">
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("docx")}><FileText className="mr-1 h-4 w-4 sm:mr-2" />Word (.docx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("xlsx")}><FileSpreadsheet className="mr-1 h-4 w-4 sm:mr-2" />Excel (.xlsx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pptx")}><Presentation className="mr-1 h-4 w-4 sm:mr-2" />PowerPoint (.pptx)</Button>
+      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleExport("pdf")}><FileIcon className="mr-1 h-4 w-4 sm:mr-2" />PDF</Button>
       {busy && <span className="inline-flex items-center text-xs text-muted-foreground"><LoaderCircle className="mr-1 h-4 w-4 animate-spin" />Traitement…</span>}
     </div>
     {status && <p className="text-xs text-muted-foreground">{status}</p>}
