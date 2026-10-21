@@ -344,7 +344,8 @@ const NouvelleAcquisition = () => {
       const savedDraftId = await saveDraft(current);
       const stableClientId = savedDraftId || stableUuid(currentUser.id, "client:" + String(formData.telephone || formData.nom_famille || "draft"));
       const {data:baseOffer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
-      if(offerError||!baseOffer)throw new Error("Offre sélectionnée introuvable");
+      if(offerError)throw offerError;
+      if(!baseOffer)throw new Error("Offre sélectionnée introuvable");
       const formulas = Array.isArray(baseOffer.formules_configuration) ? baseOffer.formules_configuration : [];
       const selectedFormula = formulas.find((formula: any) => formula.code === formData.formule_code) || formulas[0] || null;
       const offer: any = selectedFormula ? {
@@ -430,8 +431,10 @@ const NouvelleAcquisition = () => {
         }
       }
 
-      const {data:docs}=await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",offer.id).eq("actif",true).order("ordre");
-      for(const doc of docs||[]){
+      const {data:docs,error:docsError}=await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",offer.id).eq("actif",true).order("ordre");
+      if (docsError) throw docsError;
+      if (!docs) throw new Error("Impossible de vérifier les pièces requises pour cette offre.");
+      for(const doc of docs){
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
@@ -476,8 +479,10 @@ const NouvelleAcquisition = () => {
         if(error)throw error;
       }
 
-      const {data:contracts}=await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",offer.id).eq("actif",true);
-      for(const contract of contracts||[]){
+      const {data:contracts,error:contractsError}=await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",offer.id).eq("actif",true);
+      if (contractsError) throw contractsError;
+      if (!contracts) throw new Error("Impossible de vérifier les contrats requis pour cette offre.");
+      for(const contract of contracts){
         const key="contrat_"+contract.type_contrat;
         const file=recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
         if(file){
@@ -508,7 +513,8 @@ const NouvelleAcquisition = () => {
       navigate("/clients");
     }catch(error:any){
       const message = String(error?.message || getSafeErrorMessage(error) || "");
-      const retryable = navigator.onLine && /timeout|temporarily unavailable|network|failed to fetch|connection|gateway|warp server|thread killed|502|503|504|server error/i.test(message);
+      const statusCode = Number(error?.status || error?.statusCode || error?.cause?.status || 0);
+      const retryable = navigator.onLine && (statusCode >= 500 || /timeout|temporarily unavailable|network|failed to fetch|connection|gateway|warp server|thread killed|502|503|504|server error/i.test(message));
       if (retryable && retryAttempt < 4) {
         setSyncState("queued");
         if (retryAttempt === 0) toast({title:"Dossier conservé",description:"Le serveur répond difficilement. Votre dossier reste sauvegardé et une nouvelle tentative automatique va être effectuée sans actualiser la page."});
