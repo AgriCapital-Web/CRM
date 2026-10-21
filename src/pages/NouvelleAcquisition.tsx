@@ -263,7 +263,7 @@ const NouvelleAcquisition = () => {
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
-        if(c.when==="offre_plus"&&!(/PLUS|DELEGUE|\\+/i.test(String(formData.formule_code||"")+" "+String(formData.formule_nom||""))))continue;
+        if(c.when==="offre_plus"&&!(/PLUS|DELEGUE|\+/i.test(String(formData.formule_code||"")+" "+String(formData.formule_nom||""))))continue;
         if(c.when==="client_land"&&!formData.offre?.necessite_foncier_client)continue;
         if(c.when==="acquisition"&&!formData.offre?.contrat_acquisition_requis)continue;
         if(doc.obligatoire&&!hasDocumentFile(formData, doc.code)){toast({variant:"destructive",title:"Pièce obligatoire manquante",description:doc.libelle});return false;}
@@ -457,7 +457,7 @@ const NouvelleAcquisition = () => {
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
-        if(c.when==="offre_plus"&&!(/PLUS|DELEGUE|\\+/i.test(String(offer.formule_code||"")+" "+String(offer.formule_nom||""))))continue;
+        if(c.when==="offre_plus"&&!(/PLUS|DELEGUE|\+/i.test(String(offer.formule_code||"")+" "+String(offer.formule_nom||""))))continue;
         if(c.when==="client_land"&&!offer.necessite_foncier_client)continue;
         if(c.when==="acquisition"&&!offer.contrat_acquisition_requis)continue;
         if(doc.obligatoire&&!hasDocumentFile(formData,doc.code))throw new Error("Pièce obligatoire manquante : "+doc.libelle);
