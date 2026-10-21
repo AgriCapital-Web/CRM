@@ -93,13 +93,13 @@ begin
         total_verse = coalesce((
           select sum(v.montant_paye)
           from public.portefeuille_versements v
-          where v.profile_id = new.created_by
+          where v.profile_id = v_profile_id
             and v.statut = 'paye'
         ), 0),
         total_retire = coalesce((
           select sum(v.montant_paye)
           from public.portefeuille_versements v
-          where v.profile_id = new.created_by
+          where v.profile_id = v_profile_id
             and v.statut = 'paye'
         ), 0),
         updated_at = now()
