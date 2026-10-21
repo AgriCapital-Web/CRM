@@ -122,8 +122,8 @@ as $function$
 declare v_result boolean;
 begin
   if auth.role() is distinct from 'service_role'
-     and auth.uid() is not null
-     and not private.can_access_client(auth.uid(), _id) then
+     and current_user not in ('postgres', 'supabase_admin')
+     and (auth.uid() is null or not private.can_access_client(auth.uid(), _id)) then
     raise exception 'Accès refusé' using errcode = '42501';
   end if;
 
