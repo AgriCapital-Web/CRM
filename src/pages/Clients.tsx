@@ -274,6 +274,7 @@ const Clients = () => {
     plantations: plantationIds.size,
     clientsOfficiels,
     beneficiaires,
+    clientsPendingValidation: clients.filter((c:any) => !c.is_internal && ["a_valider","modification_demandee"].includes(String(c.validation_statut || ""))).length,
   };
 
   return (
@@ -305,8 +306,9 @@ const Clients = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8 gap-2">
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground whitespace-nowrap">{stats.clientsOfficiels} clients · {stats.beneficiaires} B. part.</p></CardContent></Card>
+            {can("clients.validate") && <Link to="/acquisitions/validation?type=clients" className="block min-w-0"><Card className="h-full min-w-0 border-primary/40 transition-colors hover:bg-primary/5"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-semibold leading-tight">Clients à valider</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.clientsPendingValidation}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Dossiers en attente</p></CardContent></Card></Link>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Actifs</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.actifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statut actif</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Inactifs / suspendus</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.inactifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statuts inactifs</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Total hectares</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Surface cumulée</p></CardContent></Card>
