@@ -609,9 +609,27 @@ export function installOfflineFetch(): typeof fetch {
 
     if (isMutation(method)) {
       // Lire le corps AVANT l'envoi : un Request déjà envoyé ne peut plus être cloné.
-      const originalBody = method === "DELETE" && !request.body
+      let originalBody = method === "DELETE" && !request.body
         ? ""
         : await request.clone().text().catch(() => "");
+
+      // Donner un identifiant stable aux INSERT compatibles AVANT le premier appel
+      // réseau. Si PostgREST expire après l'exécution SQL, la reprise sera idempotente.
+      const table = getTableFromUrl(request.url);
+      if (method === "POST" && table && TABLE_TO_OFFLINE_STORE[table] &&
+          !TABLES_WITHOUT_SYNTHETIC_ID.has(table) && originalBody) {
+        try {
+          const payload = JSON.parse(originalBody);
+          const withStableIds = (row: any) => row && typeof row === "object" && !row.id
+            ? { ...row, id: crypto.randomUUID ? crypto.randomUUID() : "off-" + Date.now() + "-" + Math.random().toString(16).slice(2) }
+            : row;
+          const next = Array.isArray(payload) ? payload.map(withStableIds) : withStableIds(payload);
+          originalBody = JSON.stringify(next);
+        } catch {
+          // Preserve non-JSON PostgREST payloads unchanged.
+        }
+      }
+
       try {
         if (!navigator.onLine) throw new TypeError("offline");
         const response = await baseFetch(request.url, {
@@ -628,6 +646,37 @@ export function installOfflineFetch(): typeof fetch {
           } catch {
             // La réponse serveur fait foi; le prochain pull réparera le cache local.
           }
+          return response;
+        }
+
+        // Ne pas confondre une erreur métier (400/401/403/409) avec une panne
+        // temporaire de PostgREST. Les expirations serveur 5xx sont mises en file
+        // au lieu de faire échouer tous les formulaires au même moment.
+        const diagnostic = await response.clone().text().catch(() => "");
+        const transientServerFailure = [502, 503, 504].includes(response.status) ||
+          (response.status === 500 && /timeout manager|gateway timeout|temporarily unavailable|connection pool|upstream timeout/i.test(diagnostic));
+        if (transientServerFailure) {
+          const prefer = (request.headers.get("prefer") || "").toLowerCase();
+          const accept = (request.headers.get("accept") || "").toLowerCase();
+          let responseMode: HttpMutation["responseMode"] = "empty";
+          if (accept.includes("application/vnd.pgrst.object+json")) responseMode = "object";
+          else if (prefer.includes("return=representation")) responseMode = "array";
+
+          const body = await prepareOfflineMutationBody(request.url, method, originalBody);
+          await addHttpMutation({
+            url: request.url,
+            method,
+            headers: headersToRecord(request.headers),
+            body: body || null,
+            responseMode,
+          });
+          window.dispatchEvent(new CustomEvent("offline-mutation-queued"));
+          void scheduleBackgroundOfflineSync();
+          return makeQueuedResponse(new Request(request.url, {
+            method,
+            headers: request.headers,
+            body: body || undefined,
+          }));
         }
         return response;
       } catch (error) {
