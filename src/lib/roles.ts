@@ -5,6 +5,7 @@ export const ROLES = {
   DG: 'dg',
   RESPONSABLE_OPERATIONS: 'responsable_operations',
   RESPONSABLE_COMMERCIAL: 'responsable_commercial',
+  RESPONSABLE_DISTRICT: 'responsable_district',
   COMPTABLE: 'comptable',
   COMMERCIAL: 'commercial',
   SERVICE_CLIENT: 'service_client',
@@ -34,7 +35,8 @@ export const OFFICIAL_ROLES: RoleDefinition[] = [
   { code: ROLES.PDG, nom: 'PDG', court: 'PDG', description: 'Accès global à la plateforme au titre de la Direction Générale / gouvernance exécutive', niveau: 1, niveauLabel: 'Direction Générale', couleur: 'bg-primary/10 text-primary' },
   { code: ROLES.DG, nom: 'DG', court: 'DG', description: 'Accès global à la plateforme, distinct du PDG, avec les accès exécutifs nécessaires à la Direction Générale', niveau: 1, niveauLabel: 'Direction Générale', couleur: 'bg-primary/10 text-primary' },
   { code: ROLES.RESPONSABLE_OPERATIONS, nom: 'Responsable des Opérations', court: 'ROps', description: 'Pilotage des opérations, offres et paramétrage métier', niveau: 2, niveauLabel: 'Direction', couleur: 'bg-primary/10 text-primary' },
-  { code: ROLES.RESPONSABLE_COMMERCIAL, nom: 'Responsable Commercial', court: 'RCom', description: "Pilotage commercial et gestion d'une zone", niveau: 3, niveauLabel: 'Management', couleur: 'bg-accent/20 text-accent-foreground' },
+  { code: ROLES.RESPONSABLE_COMMERCIAL, nom: 'Responsable Commercial', court: 'RCom', description: "Pilotage commercial à l'échelle d'une région", niveau: 3, niveauLabel: 'Management', couleur: 'bg-accent/20 text-accent-foreground' },
+  { code: ROLES.RESPONSABLE_DISTRICT, nom: 'Responsable de district', court: 'RD', description: "Responsable du périmètre de district", niveau: 4, niveauLabel: 'Encadrement territorial', couleur: 'bg-secondary text-secondary-foreground' },
   { code: ROLES.COMPTABLE, nom: 'Comptable', court: 'Compta', description: 'Gestion financière, paiements et comptabilité', niveau: 3, niveauLabel: 'Management', couleur: 'bg-accent/20 text-accent-foreground' },
   { code: ROLES.CHEF_EQUIPE_COMMERCIAL, nom: "Chef d'Equipe Commercial", court: 'CEC', description: "Encadrement d'une équipe commerciale terrain", niveau: 4, niveauLabel: 'Encadrement', couleur: 'bg-secondary text-secondary-foreground' },
   { code: ROLES.CHEF_EQUIPE_TECHNIQUE, nom: "Chef d'Equipe Technique", court: 'CET', description: "Encadrement d'une équipe technique terrain", niveau: 4, niveauLabel: 'Encadrement', couleur: 'bg-secondary text-secondary-foreground' },
@@ -52,7 +54,8 @@ export const OFFICIAL_ROLE_CODES: string[] = OFFICIAL_ROLES.map((r) => r.code);
 
 /** Normalisation de format uniquement. Le catalogue officiel des rôles vient de la base (app_roles). */
 export function normalizeRole(role?: string | null): string {
-  return role?.trim() || '';
+  const code = role?.trim() || '';
+  return code === 'responsable_zone' ? ROLES.RESPONSABLE_DISTRICT : code;
 }
 
 export function normalizeRoles(roles: string[] = []): string[] {
