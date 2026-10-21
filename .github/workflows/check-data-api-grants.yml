@@ -1,0 +1,65 @@
+name: Check Supabase Data API grants
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**/*.sql"
+      - ".github/workflows/check-data-api-grants.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**/*.sql"
+      - ".github/workflows/check-data-api-grants.yml"
+
+jobs:
+  require-explicit-table-grants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Check changed CREATE TABLE migrations
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            RANGE="$BASE_SHA...$HEAD_SHA"
+          else
+            RANGE="$HEAD_SHA^..$HEAD_SHA"
+          fi
+          git diff --name-only "$RANGE" -- 'supabase/migrations/*.sql' > /tmp/changed-migrations.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import sys
+
+          changed = [p for p in Path("/tmp/changed-migrations.txt").read_text().splitlines() if p]
+          failures = []
+          create_table = re.compile(r"\bcreate\s+(?:unlogged\s+)?table\b", re.I)
+          grant = re.compile(r"\bgrant\b", re.I)
+
+          for name in changed:
+              path = Path(name)
+              if not path.exists():
+                  continue
+              sql = path.read_text(encoding="utf-8")
+              sql = re.sub(r"/\*[\s\S]*?\*/", " ", sql)
+              sql = re.sub(r"--[^\n]*", " ", sql)
+              if create_table.search(sql) and not grant.search(sql):
+                  failures.append(name)
+
+          if failures:
+              print("ERROR: these changed migrations create tables but contain no explicit GRANT statement:")
+              print("\n".join(f" - {name}" for name in failures))
+              print("Add least-privilege GRANT statements in the same migration as each exposed table.")
+              sys.exit(1)
+
+          print(f"Checked {len(changed)} changed migration file(s).")
+          PY
