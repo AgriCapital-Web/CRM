@@ -68,9 +68,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
           
         </CardHeader>
         <CardContent className="space-y-4">
-          {documents.some((doc) => identityDocumentCodes.has(doc.code) && doc.actif) && (
-            <p className="text-sm text-muted-foreground rounded-md bg-muted/40 p-3">La photo du Client et les deux faces de sa pièce d’identité ont déjà été recueillies à l’étape « Informations du client ». Elles seront jointes automatiquement au dossier : inutile de les téléverser une seconde fois.</p>
-          )}
+          <p className="text-sm text-muted-foreground rounded-md bg-muted/40 p-3">La photo du Client et les deux faces de sa pièce d’identité sont recueillies une seule fois à l’étape « Informations du client ». Elles sont jointes automatiquement au dossier : inutile de les téléverser une seconde fois.</p>
           {visibleDocuments.length === 0 && (
             <p className="text-sm text-muted-foreground">Aucune pièce supplémentaire à téléverser à cette étape.</p>
           )}
