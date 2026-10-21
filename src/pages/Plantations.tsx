@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
@@ -22,6 +22,7 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
 
 const Plantations = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const statutFilter = searchParams.get("statut");
   const [plantations, setPlantations] = useState<any[]>([]);
@@ -181,8 +182,8 @@ const Plantations = () => {
                 {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement...</TableCell></TableRow>
                 : filteredPlantations.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8">Aucune plantation trouvée</TableCell></TableRow>
                 : paginatedPlantations.map((plantation) => (
-                  <TableRow key={plantation.id} className="hover:bg-muted/40">
-                    <TableCell className="font-mono text-xs font-medium">
+                  <TableRow key={plantation.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche plantation ${plantation.nom_plantation || plantation.nom || ""}`} onClick={() => navigate(`/plantations/${plantation.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/plantations/${plantation.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    <TableCell className="font-mono text-xs font-medium" onClick={(event) => event.stopPropagation()}>
                       <Link to={`/plantations/${plantation.id}`} className="hover:underline" title={plantation.nom_plantation || plantation.nom || "Plantation"}><span className="block max-w-[9rem] truncate">{plantation.nom_plantation || plantation.nom || "Plantation"}</span><span className="text-[10px] text-muted-foreground">{plantation.id_unique || "—"}</span></Link>
                     </TableCell>
                     <TableCell className="font-medium">
