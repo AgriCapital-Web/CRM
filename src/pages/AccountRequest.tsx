@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,41 +86,10 @@ const AccountRequest = () => {
   const [photoPath, setPhotoPath] = useState("");
   const [photoUploading, setPhotoUploading] = useState(false);
   const [errorDetail, setErrorDetail] = useState<any>(null);
-  const [regions, setRegions] = useState<any[]>([]);
-  const [departements, setDepartements] = useState<any[]>([]);
-  const [districts, setDistricts] = useState<any[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    void (async () => {
-      const { data } = await (supabase as any).from("v_geo_districts").select("*").eq("est_actif_effectif", true).order("nom");
-      setDistricts(data || []);
-    })();
-  }, []);
-
-  useEffect(() => {
-    void (async () => {
-      if (!formData.district) { setRegions([]); return; }
-      const { data } = await (supabase as any).from("v_geo_regions").select("*")
-        .eq("district_id", formData.district).eq("est_active_effectif", true).order("nom");
-      setRegions(data || []);
-      setFormData((prev) => ({ ...prev, region: "", departement: "" }));
-      setDepartements([]);
-    })();
-  }, [formData.district]);
-
-  useEffect(() => {
-    void (async () => {
-      if (!formData.region) { setDepartements([]); return; }
-      const { data } = await (supabase as any).from("v_geo_departements").select("*")
-        .eq("region_id", formData.region).eq("est_actif_effectif", true).order("nom");
-      setDepartements(data || []);
-      setFormData((prev) => ({ ...prev, departement: "" }));
-    })();
-  }, [formData.region]);
 
   const deletePendingPhoto = async (pathToDelete: string) => {
     if (!pathToDelete) return;
@@ -172,8 +141,13 @@ const AccountRequest = () => {
 
     setIsSubmitting(true);
     try {
-      const regionName = regions.find((r) => r.id === formData.region)?.nom || "";
-      const deptName = departements.find((d) => d.id === formData.departement)?.nom || "";
+      const [regionLookup, departmentLookup] = await Promise.all([
+        formData.region ? (supabase as any).from("v_geo_regions").select("nom").eq("id", formData.region).maybeSingle() : Promise.resolve({ data: null, error: null }),
+        formData.departement ? (supabase as any).from("v_geo_departements").select("nom").eq("id", formData.departement).maybeSingle() : Promise.resolve({ data: null, error: null }),
+      ]);
+      if (regionLookup.error || departmentLookup.error) throw regionLookup.error || departmentLookup.error;
+      const regionName = regionLookup.data?.nom || "";
+      const deptName = departmentLookup.data?.nom || "";
       const { data, error } = await supabase.functions.invoke("submit-account-request", {
         body: {
           nom_complet: formData.nom_complet.trim(),
