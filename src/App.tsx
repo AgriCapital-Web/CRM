@@ -40,6 +40,7 @@ import TechnicienTerrain from "./pages/TechnicienTerrain";
 import Messagerie from "./pages/Messagerie";
 import EspaceTravail from "./pages/EspaceTravail";
 import AgriCapitalConnect from "./pages/AgriCapitalConnect";
+import FinanceHistoryImport from "./pages/FinanceHistoryImport";
 
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -112,6 +113,7 @@ const DomainRouter = () => {
             
       {/* Rapports */}
       <Route path="/finance" element={<ProtectedRoute requiredPermission="finance.view"><Finance /></ProtectedRoute>} />
+      <Route path="/finance/historique" element={<ProtectedRoute requiredPermission="finance.manage"><FinanceHistoryImport /></ProtectedRoute>} />
       <Route path="/terrain" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES}><TechnicienTerrain /></ProtectedRoute>} />
       
       {/* Finances */}
