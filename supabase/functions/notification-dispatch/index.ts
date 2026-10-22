@@ -134,18 +134,20 @@ async function internalAuthorized(req: Request) {
   return !error && data === supplied;
 }
 
-async function staffAuthorized(req: Request) {
+async function staffAuthorized(req: Request, requiredPermission: "messagerie.view" | "messagerie.send" = "messagerie.view") {
   if (await internalAuthorized(req)) return true;
   const auth = req.headers.get("Authorization") || "";
   if (!auth.startsWith("Bearer ")) return false;
-  const { data } = await admin.auth.getUser(auth.slice(7));
-  if (!data.user) return false;
-  const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", data.user.id);
-  return (roles || []).some((r) => [
-    "pdg","dg","admin","super_admin","directeur_tc","responsable_operations","responsable_commercial",
-    "chef_equipe_commercial","chef_equipe_technique","service_client","chef_equipe_service_client","comptable",
-    "commercial_terrain","mobilisateur_foncier","superviseur_mobilisation_fonciere"
-  ].includes(r.role));
+  const { data, error: authError } = await admin.auth.getUser(auth.slice(7));
+  if (authError || !data.user) return false;
+  const { data: roles, error: rolesError } = await admin.from("user_roles").select("role").eq("user_id", data.user.id);
+  if (rolesError || !roles?.length) return false;
+  const roleCodes = [...new Set(roles.map((item) => item.role).filter(Boolean))];
+  const { data: grants, error: grantsError } = await admin.from("role_permissions")
+    .select("role_code")
+    .in("role_code", roleCodes)
+    .eq("permission_code", requiredPermission);
+  return !grantsError && Boolean(grants?.length);
 }
 
 async function getSenndoClient() {
@@ -709,7 +711,7 @@ serve(async (req) => {
       // Les événements déclenchés depuis le CRM peuvent venir d'un utilisateur du personnel.
       // Les appels cron restent protégés par le secret interne ; un appel manuel exige une session
       // authentifiée et un rôle du personnel reconnu par staffAuthorized.
-      const authorized = await internalAuthorized(req) || await staffAuthorized(req);
+      const authorized = await internalAuthorized(req) || await staffAuthorized(req, "messagerie.send");
       if (!authorized) return json(req, { error: "Accès refusé : session du personnel requise." }, 401);
       const events = Array.isArray(body.events) ? body.events : [];
       return json(req, { ok: true, results: await runEvents(events) });
@@ -724,7 +726,8 @@ serve(async (req) => {
       if (authError || !authData.user) return json(req, { error: "Session invalide" }, 401);
       return json(req, { ok: true, providers: await providerStatus() });
     }
-    if (!(await staffAuthorized(req))) return json(req, { error: "Accès refusé : session du personnel requise." }, 401);
+    const requiredPermission = mode === "preview" ? "messagerie.view" : "messagerie.send";
+    if (!(await staffAuthorized(req, requiredPermission))) return json(req, { error: "Accès refusé : votre rôle ne possède pas la permission de messagerie requise." }, 401);
     if (mode === "manual_contact") {
       const leadId = String(body.lead_id || "").trim();
       const channel = String(body.channel || "");
