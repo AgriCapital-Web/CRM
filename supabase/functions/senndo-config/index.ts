@@ -37,6 +37,16 @@ Deno.serve(async (req) => {
       }));
       const values = Object.fromEntries(reads.map((r) => [r.name, r.value])) as Record<string,string>;
       const errors = Object.fromEntries(reads.filter((r) => r.error).map((r) => [r.name, r.error]));
+      // Repair the historical default that included an invalid extra leading zero.
+      // This is a deterministic correction of the known AgriCapital sender number only.
+      if (values.senndo_whatsapp_sender_phone === "+2250564551717") {
+        const { error: repairError } = await admin.rpc("senndo_store_secret", {
+          p_name: "senndo_whatsapp_sender_phone",
+          p_value: "+22564551717",
+        });
+        if (!repairError) values.senndo_whatsapp_sender_phone = "+22564551717";
+        else errors.senndo_whatsapp_sender_phone = "Le numéro WhatsApp historique doit être corrigé dans Paramètres > Passerelle Senndo.";
+      }
       let apiValid = false;
       let apiError: string | null = null;
       if (values.senndo_api_key) {
