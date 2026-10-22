@@ -324,6 +324,20 @@ async function deliver(args: {
 
       if (existing?.statut === "envoye" || existing?.statut === "livre" || existing?.statut === "en_cours") continue;
 
+      // Render the message separately for each recipient/channel. These variables must
+      // exist before building the delivery row and before invoking the provider.
+      const rendered = render(args.content, contact, args.context || {});
+      const renderedSubject = render(args.subject || "", contact, args.context || {});
+      const attachments = args.mediaAttachments || [];
+      const mediaForChannel = channel === "whatsapp" ? preparedMedia : [];
+      const attachmentMetadata = attachments.map((item) => ({
+        bucket: item.bucket || "notification-media",
+        path: item.path,
+        name: item.name,
+        mimeType: item.mimeType,
+        size: item.size ?? null,
+      }));
+
       const deliveryPayload = {
         campaign_id: args.campaignId || null, automation_id: args.automationId || null,
         user_id: contact.user_id || null, source_type: contact.source_type, source_id: contact.source_id,
