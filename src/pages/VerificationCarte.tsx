@@ -17,6 +17,7 @@ interface CarteVerifiee {
   nom_complet: string;
   poste: string | null;
   type_contrat: string | null;
+  role_code?: string | null;
   date_expiration: string | null;
   statut: string | null;
   valide: boolean;
@@ -151,11 +152,11 @@ const VerificationCarte = () => {
                   </div>
                   <div className="min-w-0">
                     <dt className="text-xs text-muted-foreground">Type de contrat</dt>
-                    <dd>{contratLabel(carte.type_contrat)}</dd>
+                    <dd>{String(carte.role_code || "").toLowerCase() === "pdg" ? "Sans objet — Fondateur" : contratLabel(carte.type_contrat)}</dd>
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Valide jusqu'au</dt>
-                    <dd>{fdate(carte.date_expiration)}</dd>
+                    <dt className="text-xs text-muted-foreground">Validité de la carte</dt>
+                    <dd>{String(carte.role_code || "").toLowerCase() === "pdg" ? "Indéterminée" : fdate(carte.date_expiration)}</dd>
                   </div>
                   <div className="min-w-0">
                     <dt className="text-xs text-muted-foreground">Statut</dt>
