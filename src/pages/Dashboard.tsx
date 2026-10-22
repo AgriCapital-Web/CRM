@@ -68,6 +68,7 @@ const Dashboard = () => {
 
   const [stats, setStats] = useState({
     clients: 0,
+    commercialClients: 0,
     clientsActive: 0,
     clientsOverdue: 0,
     clientsSuspended: 0,
@@ -594,8 +595,8 @@ const Dashboard = () => {
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
       ...(canClients ? [
-        {group:"Clients",label:"Dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
-        {group:"Clients",label:"Clients actifs (sur "+stats.clients+" dossiers)",shortLabel:"Actifs / "+stats.clients,value:stats.clientsActive,href:"/clients"},
+        {group:"Clients",label:"Dossiers",shortLabel:"Dossiers",value:stats.commercialClients,href:"/acquisitions"},
+        {group:"Clients",label:"Clients actifs (sur "+stats.commercialClients+" dossiers)",shortLabel:"Actifs / "+stats.commercialClients,value:stats.clientsActive,href:"/clients"},
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:"/paiements"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:"/paiements"}
