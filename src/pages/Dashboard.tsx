@@ -236,16 +236,18 @@ const Dashboard = () => {
       const directory = directoryRes.data || [];
 
       const validPayments = payments.filter((p: any) => p.statut === "valide" && Number(p.montant_paye ?? p.montant ?? 0) > 0);
-      const collected = validPayments.reduce((s: number, p: any) => s + Number(p.montant_paye ?? p.montant ?? 0), 0);
+      const commercialValidPayments = validPayments.filter((p: any) => commercialClients.some((client: any) => client.id === p.client_id));
+      const collected = commercialValidPayments.reduce((s: number, p: any) => s + Number(p.montant_paye ?? p.montant ?? 0), 0);
       const overdue = payments.filter((p: any) => {
+        if (!commercialClients.some((client: any) => client.id === p.client_id)) return false;
         if (p.statut === "valide" || p.statut === "annule" || p.statut === "planifie") return false;
         if (!p.date_echeance) return false;
         return new Date(p.date_echeance) <= today() && Number(p.montant_paye || 0) < Number(p.montant || 0);
       });
       const overdueAmount = overdue.reduce((s: number, p: any) => s + Math.max(0, Number(p.montant || 0) - Number(p.montant_paye || 0)), 0);
 
-      const dashboardClientIds = new Set(clients.filter((c: any) => true).map((c: any) => c.id));
-      const engagedHa = clients.filter((c:any)=>true).reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
+      const dashboardClientIds = new Set(commercialClients.map((c: any) => c.id));
+      const engagedHa = commercialClients.reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const scopedPlantations = plantations.filter((p: any) => p.client_id && dashboardClientIds.has(p.client_id));
       const plantedHa = scopedPlantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
@@ -332,7 +334,7 @@ const Dashboard = () => {
       const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.validation_statut === "valide" && !c.is_internal && !isAgriCapitalInternal(c) && String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier");
       const contractRows = activeContracts.filter((c: any) => Number(c.montant_total_contrat || 0) > 0);
       const paidByClient = new Map<string, number>();
-      validPayments.forEach((p: any) => paidByClient.set(p.client_id, (paidByClient.get(p.client_id) || 0) + Number(p.montant_paye ?? p.montant ?? 0)));
+      commercialValidPayments.forEach((p: any) => paidByClient.set(p.client_id, (paidByClient.get(p.client_id) || 0) + Number(p.montant_paye ?? p.montant ?? 0)));
       const contractProgress = contractRows.map((c: any) => {
         const total = Number(c.montant_total_contrat || 0);
         const paid = paidByClient.get(c.id) || 0;
@@ -343,7 +345,7 @@ const Dashboard = () => {
       const dueAmount = contractProgress.reduce((s: number, r: any) => s + r.remaining, 0);
       const settledClients = contractProgress.filter((r: any) => r.total > 0 && r.remaining <= 0).length;
 
-      const clientCredit = monnaieRows.reduce((sum: number, row: any) => sum + Math.max(0, Number(row.monnaie_client || 0)), 0);
+      const clientCredit = monnaieRows.filter((row: any) => commercialClients.some((client: any) => client.id === row.client_id)).reduce((sum: number, row: any) => sum + Math.max(0, Number(row.monnaie_client || 0)), 0);
       const contractEndDates = contractRows
         .map((r: any) => r.contrat_fin_at ? new Date(r.contrat_fin_at) : null)
         .filter((d: Date | null): d is Date => Boolean(d && d.getTime() > Date.now()));
