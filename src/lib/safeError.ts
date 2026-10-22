@@ -56,6 +56,12 @@ export function getSafeErrorMessage(
   if (/network|fetch|timeout/i.test(message)) {
     return 'Problème de connexion réseau. Veuillez réessayer.';
   }
+  if (/schema cache|could not find the .* column|column .* does not exist/i.test(message)) {
+    return 'Le formulaire et la structure de la base ne sont pas synchronisés. Le détail technique a été journalisé pour correction.';
+  }
+  if (/violates .* constraint|invalid input syntax|invalid enum/i.test(message)) {
+    return 'Une valeur envoyée par le formulaire est invalide. Vérifiez les choix et les champs obligatoires.';
+  }
 
   return fallback;
 }
