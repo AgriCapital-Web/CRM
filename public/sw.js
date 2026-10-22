@@ -3,7 +3,7 @@ const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 15;
 const HTTP_QUEUE_STORE = "http_mutations";
-const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json?v=20261022-brand-360", "/asset-manifest.json", "/agricapital360-officiel.png?v=20261021-logo-v3", "/agricapital360-pwa.jpg?v=20261021-pwa-v3"];
+const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json?v=20261022-brand-360-v2", "/asset-manifest.json", "/agricapital360-officiel.png?v=20261021-logo-v3", "/agricapital360-pwa.jpg?v=20261021-pwa-v3"];
 const FONT_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
 
 self.addEventListener("install", (event) => {
