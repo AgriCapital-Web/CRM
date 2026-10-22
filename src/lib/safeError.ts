@@ -43,6 +43,18 @@ export function getSafeErrorMessage(
 
   const message = typeof err.message === 'string' ? err.message : '';
 
+  // Business validation errors raised by PostgreSQL use P0001. Surface known,
+  // actionable validation messages instead of hiding them behind "try again".
+  if (/t[eé]l[eé]phone invalide|whatsapp invalide/i.test(message)) {
+    return "Numéro invalide. Saisissez un numéro ivoirien complet à 10 chiffres, commençant par 0, ou un numéro international valide.";
+  }
+  if (/trop de demandes/i.test(message)) {
+    return "Trop de demandes ont été enregistrées récemment. Veuillez patienter avant de réessayer.";
+  }
+  if (/formule.*(inactive|invalide|n'existe pas)|offre.*(inactive|invalide|n'existe pas)/i.test(message)) {
+    return "L'offre ou la formule sélectionnée n'est plus disponible. Actualisez la liste puis choisissez une option active.";
+  }
+
   if (SAFE_PASSTHROUGH.some((m) => message.includes(m))) {
     return message === 'Invalid login credentials' ? 'Identifiants incorrects' : message;
   }
