@@ -144,6 +144,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       ? selectedLeadOffer.formules_configuration.filter((f: any) => typeof f?.code === "string" && f.code.trim() && typeof f?.nom === "string" && f.nom.trim())
       : [];
     // Only explicitly configured formulas are selectable; never synthesize a default from the offer.
+    return configured;
   })();
 
   useEffect(() => {
