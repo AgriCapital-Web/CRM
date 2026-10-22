@@ -24,9 +24,9 @@ interface Etape0Props {
 
 const getFormulaConfig = (offer: any, code?: string) => {
   const formulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
-  if (code) return formulas.find((formula: any) => formula.code === code) || null;
-  // Never choose an arbitrary formula when an offer has multiple configured options.
-  return formulas.length === 1 ? formulas[0] : null;
+  // Every formula must be selected explicitly, even when the offer currently has only one.
+  if (!code) return null;
+  return formulas.find((formula: any) => formula.code === code) || null;
 };
 
 const applyFormulaConfig = (offer: any, formula: any) => {
@@ -104,7 +104,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     const formulas = Array.isArray(baseOffer.formules_configuration) ? baseOffer.formules_configuration : [];
     const selected = formulas.find((formula: any) => formula.code === formData.formule_code);
 
-    if (formulas.length > 1 && !selected) {
+    if (!selected) {
       const patch: any = {};
       if (formData.offre?.id !== baseOffer.id) patch.offre = baseOffer;
       if (formData.formule_code || formData.formule_nom || formData.formule_confirmed) {
@@ -116,10 +116,10 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
       return;
     }
 
-    const formula = selected || (formulas.length === 1 ? formulas[0] : null);
+    const formula = selected;
     const resolvedOffer = formula ? applyFormulaConfig(baseOffer, formula) : baseOffer;
-    const formulaCode = formula?.code || (formulas.length === 0 ? baseOffer.formule_code || baseOffer.code : "");
-    const formulaName = formula?.nom || (formulas.length === 0 ? baseOffer.formule_nom || baseOffer.nom : "");
+    const formulaCode = formula?.code || "";
+    const formulaName = formula?.nom || "";
     if (
       formData.offre?.id !== baseOffer.id ||
       formData.formule_code !== formulaCode ||
@@ -150,7 +150,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     const formula = getFormulaConfig(baseOffer, formData.formule_code);
     const configuredFormulas = Array.isArray((baseOffer as any).formules_configuration) ? (baseOffer as any).formules_configuration : [];
     // No prices are displayed or calculated until a specific formula has been selected.
-    if (configuredFormulas.length > 0 && !formula) return null;
+    if (configuredFormulas.length === 0 || !formula) return null;
     const offre = applyFormulaConfig(baseOffer, formula);
 
     const ha = Number(formData.superficie_prevue);
@@ -251,29 +251,16 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                   className="flex w-full min-w-0 items-center gap-3 p-3 text-left sm:p-4"
                   onClick={() => {
                     if (selectedFamily) return;
-                    const formulaCount = familyOffers.reduce((count, item: any) =>
-                      count + (Array.isArray(item.formules_configuration) && item.formules_configuration.length
-                        ? item.formules_configuration.length : 1), 0);
                     const typeClient = first.type_offre === "sans_terre" ? "sans_terre" : "avec_terre";
-                    if (formulaCount > 1) {
-                      // Keep the user on step 1 until a specific formula is chosen.
-                      updateFormData({
-                        offre_id: first.id, offre_code: first.code, offre: first,
-                        formule_code: "", formule_nom: "", formule_confirmed: false,
-                        gestion_type: first.gestion_type || null, type_client: typeClient,
-                      });
-                      return;
-                    }
-                    const formula = getFormulaConfig(first);
-                    const selected = formula ? applyFormulaConfig(first, formula) : first;
+                    // Selecting an offer only opens its formulas. It never chooses one automatically.
                     updateFormData({
                       offre_id: first.id,
                       offre_code: first.code,
-                      offre: selected,
-                      formule_code: formula?.code || first.formule_code || first.code,
-                      formule_nom: formula?.nom || first.formule_nom || first.nom,
-                      formule_confirmed: true,
-                      gestion_type: formula?.gestion_type || first.gestion_type || null,
+                      offre: first,
+                      formule_code: "",
+                      formule_nom: "",
+                      formule_confirmed: false,
+                      gestion_type: first.gestion_type || null,
                       type_client: typeClient,
                     });
                   }}
@@ -283,7 +270,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-bold text-primary">{familleLabel}</span>
-                    <span className="block text-xs text-muted-foreground">{familyOffers.reduce((count, item: any) => count + (Array.isArray(item.formules_configuration) ? item.formules_configuration.length : 1), 0)} formules disponibles</span>
+                    <span className="block text-xs text-muted-foreground">{familyOffers.reduce((count, item: any) => count + (Array.isArray(item.formules_configuration) ? item.formules_configuration.length : 0), 0)} formules configurées</span>
                   </span>
                   <span className="text-xs font-medium text-muted-foreground">{selectedFamily ? "Ouvert" : "Choisir"}</span>
                 </button>
@@ -296,13 +283,14 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                       onValueChange={(value) => {
                         const formulaOwner = familyOffers.find((item: any) => {
                           const configured = Array.isArray(item.formules_configuration) ? item.formules_configuration : [];
-                          return configured.length ? configured.some((f: any) => f.code === value) : (item.formule_code || item.code) === value;
+                          return configured.some((f: any) => f.code === value);
                         }) || first;
                         const formulas = Array.isArray(formulaOwner.formules_configuration) ? formulaOwner.formules_configuration : [];
                         const formula = formulas.find((f: any) => f.code === value) as any;
                         const selected = formula ? applyFormulaConfig(formulaOwner, formula) : formulaOwner;
-                        const selectedCode = formula?.code || formulaOwner.formule_code || formulaOwner.code;
-                        const selectedName = formula?.nom || formulaOwner.formule_nom || formulaOwner.nom;
+                        if (!formula) return;
+                        const selectedCode = formula.code;
+                        const selectedName = formula.nom;
                         updateFormData({
                           offre_id: formulaOwner.id,
                           offre_code: formulaOwner.code,
@@ -320,9 +308,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                       <SelectContent>
                         {familyOffers.flatMap((item: any) => {
                           const formulas = Array.isArray(item.formules_configuration) ? item.formules_configuration : [];
-                          return formulas.length
-                            ? formulas.map((formula: any) => <SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)
-                            : [<SelectItem key={item.id} value={item.formule_code || item.code}>{item.formule_nom || item.nom}</SelectItem>];
+                          return formulas.map((formula: any) => <SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>);
                         })}
                       </SelectContent>
                     </Select>
