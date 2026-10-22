@@ -592,7 +592,7 @@ const Dashboard = () => {
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
       ...(canClients ? [
         {group:"Clients",label:"Clients / dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
-        {group:"Clients",label:"Clients actifs",shortLabel:"Actifs",value:stats.clientsActive,href:"/clients"},
+        {group:"Clients",label:"Clients actifs (sur "+stats.clients+" dossiers)",shortLabel:"Actifs / "+stats.clients,value:stats.clientsActive,href:"/clients"},
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:"/paiements"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:"/paiements"}
