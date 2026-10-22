@@ -30,7 +30,6 @@ import ProprietairesTerres from "./pages/ProprietairesTerres";
 import ProprietaireTerreDetail from "./pages/ProprietaireTerreDetail";
 import Parcelles from "./pages/Parcelles";
 import Documents from "./pages/Documents";
-import Prospects from "./pages/Prospects";
 import Leads from "./pages/Leads";
 import SyncQueue from "./pages/SyncQueue";
 import PublicLead from "./pages/PublicLead";
