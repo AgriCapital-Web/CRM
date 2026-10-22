@@ -44,12 +44,38 @@ const ProprietaireTerreDetail = () => {
   const [ownerVersoPreview,setOwnerVersoPreview]=useState<string|null>(null);
   const [ownerDocumentFile,setOwnerDocumentFile]=useState<File|null>(null);
   const [ownerDocumentLabel,setOwnerDocumentLabel]=useState("");
+  const [replacingDocumentId,setReplacingDocumentId]=useState<string|null>(null);
   const [form, setForm] = useState({
     nom: "", surface_totale_ha: "", district_id: "", region_id: "", departement_id: "",
     sous_prefecture_id: "", village: "", date_convention: "", notes: "",
   });
 
   const uploadOwnerDocument=async()=>{if(!can("documents.upload")){toast({variant:"destructive",title:"Accès refusé",description:"Votre rôle ne permet pas de téléverser des documents fonciers."});return;}if(!id||!ownerDocumentFile)return;try{const uploaded=await uploadFile("documents-fonciers",ownerDocumentFile,`proprietaires/${id}/${Date.now()}-${ownerDocumentFile.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`);if(!uploaded)throw new Error("Téléversement impossible");const {error}=await (supabase as any).from("documents_convention").insert({proprietaire_id:id,type_document:"annexe_libre",designation:ownerDocumentLabel.trim()||ownerDocumentFile.name,statut:"en_attente",fichier_url:uploaded.url,notes:null,uploaded_by:null});if(error)throw error;toast({title:"Document foncier ajouté"});setOwnerDocumentFile(null);setOwnerDocumentLabel("");await load();}catch(e:any){toast({variant:"destructive",title:"Téléversement impossible",description:getSafeErrorMessage(e)});}};
+
+  const replaceOwnerDocument = async (doc: any, file: File) => {
+    if (!can("documents.upload")) {
+      toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de remplacer les documents fonciers." });
+      return;
+    }
+    if (!id || !doc?.id || !file || replacingDocumentId) return;
+    setReplacingDocumentId(doc.id);
+    try {
+      const uploaded = await uploadFile("documents-fonciers", file, `proprietaires/${id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
+      if (!uploaded?.path) throw new Error("Le nouveau document n’a pas été téléversé.");
+      const { error } = await (supabase as any).from("documents_convention").update({
+        fichier_url: uploaded.path,
+        designation: doc.designation || file.name,
+        updated_at: new Date().toISOString(),
+      }).eq("id", doc.id).eq("proprietaire_id", id);
+      if (error) throw error;
+      toast({ title: "Document foncier remplacé" });
+      await load();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Remplacement impossible", description: getSafeErrorMessage(e) });
+    } finally {
+      setReplacingDocumentId(null);
+    }
+  };
 
   const load = async () => {
     if (!id) return;
@@ -268,7 +294,7 @@ const ProprietaireTerreDetail = () => {
             </CardContent>
           </Card>
 
-          <Card><CardHeader><CardTitle className="flex items-center justify-between gap-3"><span>Documents fonciers</span><div className="inline-flex"><input id="owner-document-upload" type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{e.stopPropagation();setOwnerDocumentFile(e.currentTarget.files?.[0]||null);e.currentTarget.value="";}}/><Button type="button" variant="outline" size="sm" onClick={(e)=>{e.preventDefault();e.stopPropagation();document.getElementById("owner-document-upload")?.click();}}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button></div></CardTitle></CardHeader><CardContent><div className="mb-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input placeholder="Libellé du document (convention, annexe…)" value={ownerDocumentLabel} onChange={e=>setOwnerDocumentLabel(e.target.value)}/>{ownerDocumentFile&&<Button onClick={()=>void uploadOwnerDocument()}>Enregistrer</Button>}</div><div className="space-y-2">{ownerDocuments.length?ownerDocuments.map((doc:any)=><div key={doc.id} className="flex items-center justify-between gap-3 border rounded-lg p-3"><div><p className="font-medium">{doc.designation||doc.type_document}</p><p className="text-xs text-muted-foreground">{doc.statut||"en_attente"}</p></div>{doc.displayUrl&&<Button variant="outline" size="sm" asChild><a href={doc.displayUrl} target="_blank" rel="noreferrer">Ouvrir</a></Button>}</div>):<p className="text-sm text-muted-foreground">Aucun document enregistré.</p>}</div></CardContent></Card>
+          <Card><CardHeader><CardTitle className="flex items-center justify-between gap-3"><span>Documents fonciers</span><div className="inline-flex"><input id="owner-document-upload" type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{e.stopPropagation();setOwnerDocumentFile(e.currentTarget.files?.[0]||null);e.currentTarget.value="";}}/><Button type="button" variant="outline" size="sm" onClick={(e)=>{e.preventDefault();e.stopPropagation();document.getElementById("owner-document-upload")?.click();}}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button></div></CardTitle></CardHeader><CardContent><div className="mb-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input placeholder="Libellé du document (convention, annexe…)" value={ownerDocumentLabel} onChange={e=>setOwnerDocumentLabel(e.target.value)}/>{ownerDocumentFile&&<Button onClick={()=>void uploadOwnerDocument()}>Enregistrer</Button>}</div><div className="space-y-2">{ownerDocuments.length?ownerDocuments.map((doc:any)=><div key={doc.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><div className="min-w-0"><p className="break-words font-medium">{doc.designation||doc.type_document}</p><p className="text-xs text-muted-foreground">{doc.statut||"en_attente"}</p></div><div className="flex flex-wrap items-center gap-2">{doc.displayUrl&&<Button variant="outline" size="sm" asChild><a href={doc.displayUrl} target="_blank" rel="noreferrer">Ouvrir</a></Button>}{can("documents.upload")&&<><input id={`replace-owner-doc-${doc.id}`} type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" disabled={replacingDocumentId===doc.id} onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value="";if(file)void replaceOwnerDocument(doc,file);}}/><Button type="button" variant="outline" size="sm" disabled={replacingDocumentId===doc.id} onClick={()=>document.getElementById(`replace-owner-doc-${doc.id}`)?.click()}>{replacingDocumentId===doc.id?"Remplacement…":"Remplacer"}</Button></>}</div></div>):<p className="text-sm text-muted-foreground">Aucun document enregistré.</p>}</div></CardContent></Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <div><CardTitle>Parcelles</CardTitle></div>
