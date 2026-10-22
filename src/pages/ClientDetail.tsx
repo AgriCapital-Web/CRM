@@ -62,6 +62,7 @@ const ClientDetail = () => {
   const [parcelle, setParcelle] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [documentFile,setDocumentFile]=useState<File|null>(null);
+  const [isDocumentDialogOpen,setIsDocumentDialogOpen]=useState(false);
   const [documentLabel,setDocumentLabel]=useState("");
   const [attributions, setAttributions] = useState<any[]>([]);
   const [monnaieClient, setMonnaieClient] = useState(0);
@@ -129,7 +130,7 @@ const ClientDetail = () => {
         metadata:{libelle:documentLabel.trim()||documentFile.name,source:"fiche_client",storage_bucket:"documents"}
       });
       if(error)throw error;
-      toast({title:"Document ajouté"});setDocumentFile(null);setDocumentLabel("");await fetchData();
+      toast({title:"Document ajouté"});setDocumentFile(null);setDocumentLabel("");setIsDocumentDialogOpen(false);await fetchData();
     }catch(e:any){toast({variant:"destructive",title:"Téléversement impossible",description:getSafeErrorMessage(e)});}
   };
 
@@ -551,6 +552,7 @@ const ClientDetail = () => {
               </div>
             </div>
             <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Fiche officielle du client</DialogTitle><DialogDescription>Consultez ou modifiez les données, la photo et les pièces d’identité dans le formulaire officiel.</DialogDescription></DialogHeader>{client && <ClientForm client={client} readOnly lockCommercialAssignment onCancel={()=>setIsClientFormOpen(false)} onSuccess={()=>{setIsClientFormOpen(false);void fetchData();}} />}</DialogContent></Dialog>
+      <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Ajouter un document au dossier</DialogTitle><DialogDescription>Le fichier est téléversé dans le stockage privé puis rattaché au dossier du client.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Libellé du document</Label><Input placeholder="Contrat, annexe…" value={documentLabel} onChange={e=>setDocumentLabel(e.target.value)} /></div><div className="space-y-1"><Label>Fichier</Label><Input type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>setDocumentFile(e.target.files?.[0]||null)} /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>{setIsDocumentDialogOpen(false);setDocumentFile(null);setDocumentLabel("");}}>Annuler</Button><Button type="button" onClick={()=>void uploadClientDocument()} disabled={!documentFile}>Enregistrer le document</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Racheter la monnaie client</DialogTitle></DialogHeader>
@@ -1094,10 +1096,10 @@ const ClientDetail = () => {
 
                   <Card className="lg:col-span-2">
                     <CardHeader>
-                      <CardTitle className="flex items-center justify-between gap-3"><span>Documents du dossier</span>{canUploadDocuments&&<div className="inline-flex"><input id="client-dossier-document-upload" type="file" className="sr-only" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>{e.stopPropagation();setDocumentFile(e.currentTarget.files?.[0]||null);e.currentTarget.value="";}}/><Button type="button" variant="outline" size="sm" onClick={(e)=>{e.preventDefault();e.stopPropagation();document.getElementById("client-dossier-document-upload")?.click();}}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button></div>}</CardTitle>
+                      <CardTitle className="flex items-center justify-between gap-3"><span>Documents du dossier</span>{canUploadDocuments&&<Button type="button" variant="outline" size="sm" onClick={()=>setIsDocumentDialogOpen(true)}><Upload className="mr-2 h-4 w-4"/>Ajouter</Button>}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {canUploadDocuments&&<div className="mb-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><Input placeholder="Libellé du document (contrat, annexe…)" value={documentLabel} onChange={e=>setDocumentLabel(e.target.value)}/>{documentFile&&<Button onClick={()=>void uploadClientDocument()}><Upload className="mr-2 h-4 w-4"/>Enregistrer</Button>}</div>}<div className="space-y-2">
+                      <div className="space-y-2">
                         {documents.length === 0 ? (
                           <p className="text-sm text-muted-foreground">Aucun document enregistré.</p>
                         ) : documents.map((doc: any) => (
