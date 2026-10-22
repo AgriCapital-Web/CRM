@@ -13,7 +13,7 @@ export const useOffresPrixEffectif = () => {
       const [o, p] = await Promise.all([
         (supabase as any)
           .from("offres")
-          .select("id, code, nom, montant_total_par_ha, montant_pi_par_ha, montant_cash_par_ha, contribution_mensuelle_par_ha, duree_paiement_mois, tranches_paiement, actif")
+          .select("id, code, nom, montant_total_par_ha, montant_pi_par_ha, montant_cash_par_ha, mensualite_par_ha, duree_paiement_mois, tranches_paiement, actif")
           .eq("actif", true)
           .order("ordre", { ascending: true }),
         (supabase as any)
