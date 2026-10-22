@@ -70,7 +70,7 @@ const Login = () => {
         
         <div className="relative z-10 flex w-full min-w-0 max-w-full flex-col items-center px-2 text-center">
           <img
-            src="/agricapital360-officiel.png?v=20261022-logo-png"
+            src="/agricapital360-pwa.jpg?v=20261022-logo-jpg"
             alt="Logo officiel AgriCapital 360"
             className="mx-auto mb-[clamp(1rem,3vh,2rem)] block h-auto w-[clamp(12rem,28vw,34rem)] max-w-full max-h-[55svh] rounded-lg bg-white p-2 object-contain shadow-2xl"
           />
