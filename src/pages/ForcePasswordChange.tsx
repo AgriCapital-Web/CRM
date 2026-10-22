@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import logoGreen from "@/assets/logo-green.png";
+
 import { getSafeErrorMessage } from "@/lib/safeError";
 
 const ForcePasswordChange = () => {
@@ -61,7 +61,7 @@ const ForcePasswordChange = () => {
     <main className="min-h-screen flex items-center justify-center bg-background px-3 py-6">
       <Card className="w-full max-w-lg shadow-lg">
         <CardHeader className="items-center text-center space-y-3">
-          <img src={logoGreen} alt="AgriCapital" className="h-16 w-auto max-w-full" />
+          <img src="/agricapital360-officiel.png?v=20261022-logo-png" alt="AgriCapital" className="h-16 w-auto max-w-full" />
           <div className="rounded-full bg-primary/10 p-3 text-primary"><ShieldCheck className="h-7 w-7" /></div>
           <CardTitle className="text-2xl">Modification obligatoire du mot de passe</CardTitle>
           <CardDescription>
