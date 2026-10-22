@@ -27,6 +27,9 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 
+// AgriCapital est un compte interne et ne doit jamais apparaître dans les listes commerciales.
+const isAgriCapitalInternal = (client: any) => /agricapital/i.test(String(client?.nom_complet || client?.nom || "").trim());
+
 const formatHectares = (value: unknown) => {
   const hectares = Number(value || 0);
   return Math.round(hectares).toLocaleString("fr-FR");
@@ -108,7 +111,8 @@ const Clients = () => {
         let clientsQuery = supabase
           .from("clients")
           .select("*")
-          .or("is_internal.is.null,is_internal.eq.false");
+          .or("is_internal.is.null,is_internal.eq.false")
+          .not("nom_complet", "ilike", "%agricapital%");
         // Acquisitions ne présente que les clients commerciaux : les bénéficiaires particuliers
         // restent accessibles dans la liste générale des clients et les tableaux de suivi.
         if (acquisitionsView) clientsQuery = clientsQuery.or("type_client.is.null,type_client.neq.beneficiaire_particulier");
@@ -180,7 +184,7 @@ const Clients = () => {
           getCachedPlantations(),
         ]);
         const enrichedData = cachedClients
-          .filter((client: any) => !client.is_internal && (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
+          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) && (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
           .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
