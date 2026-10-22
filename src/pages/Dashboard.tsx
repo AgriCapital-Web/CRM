@@ -403,7 +403,7 @@ const Dashboard = () => {
         overdueAmount,
         dueAmount,
         recoveryRate,
-        documentsPending: docs.filter((d: any) => d.statut === "en_attente").length,
+        documentsPending: docs.filter((d: any) => d.statut === "en_attente" && commercialClients.some((client: any) => client.id === d.client_id)).length,
         proprietaires: proprietaires.length,
         parcelles: parcelles.length,
         proprietaireParcelles: parcelles.filter((p: any) => Boolean(p.proprietaire_id)).length,
@@ -538,8 +538,9 @@ const Dashboard = () => {
 
       const newAlerts: any[] = [];
       if (canPayments && overdue.length) newAlerts.push({ type: "error", message: `${overdue.length} paiement(s) arrivé(s) à échéance et non réglé(s) — ${money(overdueAmount)}`, href: "/paiements" });
-      if (canClients && docs.filter((d: any) => d.statut === "en_attente").length) newAlerts.push({ type: "warning", message: `${docs.filter((d: any) => d.statut === "en_attente").length} document(s) en attente de vérification`, href: "/documents" });
-      const technicalAlerts = plantations.filter((p: any) => p.statut_global !== "en_production" && (p.alerte_non_paiement || p.alerte_visite_retard));
+      const pendingCommercialDocs = docs.filter((d: any) => d.statut === "en_attente" && commercialClients.some((client: any) => client.id === d.client_id)).length;
+       if (canClients && pendingCommercialDocs) newAlerts.push({ type: "warning", message: `${pendingCommercialDocs} document(s) en attente de vérification`, href: "/documents" });
+      const technicalAlerts = scopedPlantations.filter((p: any) => p.statut_global !== "en_production" && (p.alerte_non_paiement || p.alerte_visite_retard));
       if (canTechnical && technicalAlerts.length) newAlerts.push({ type: "warning", message: `${technicalAlerts.length} plantation(s) nécessitent une intervention`, href: "/plantations" });
       setAlerts(newAlerts);
 
