@@ -148,7 +148,17 @@ export default function ConfigurationSenndo() {
       if (emailSenderId.trim()) payload.emailSenderId = emailSenderId.trim();
       if (whatsappSenderPhone.trim()) payload.whatsappSenderPhone = whatsappSenderPhone.trim();
       const { data, error } = await supabase.functions.invoke("senndo-config", { body: payload });
-      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Enregistrement refusé");
+      if (error || !data?.ok) {
+        let serverMessage = typeof data?.error === "string" ? data.error : "";
+        try {
+          const context = (error as any)?.context;
+          if (context && typeof context.clone === "function") {
+            const payloadFromServer = await context.clone().json();
+            if (typeof payloadFromServer?.error === "string" && payloadFromServer.error.trim()) serverMessage = payloadFromServer.error;
+          }
+        } catch { /* Preserve the best server message already received. */ }
+        throw new Error(serverMessage || error?.message || "Enregistrement refusé par le serveur.");
+      }
       setApiKey("");
       setWebhookSecret("");
       await refreshStatus();
