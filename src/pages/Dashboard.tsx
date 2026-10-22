@@ -31,6 +31,9 @@ const money = (n: number) =>
 
 const num = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(Number(n || 0)));
 
+// AgriCapital est un compte interne, jamais un client commercial, même si un ancien enregistrement est mal catégorisé.
+const isAgriCapitalInternal = (client: any) => /agricapital/i.test(String(client?.nom_complet || client?.nom || "").trim());
+
 const today = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -215,7 +218,7 @@ const Dashboard = () => {
       const clients = clientsRes.data || [];
       // Les indicateurs commerciaux excluent les comptes internes et les bénéficiaires particuliers.
       // Ces derniers restent disponibles dans les tableaux et dans le suivi technique.
-      const commercialClients = clients.filter((c: any) => !c.is_internal && String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier");
+      const commercialClients = clients.filter((c: any) => !c.is_internal && !isAgriCapitalInternal(c) && String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier");
       const acquisitionsForValidation = acquisitionsValidationRes.data || [];
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
