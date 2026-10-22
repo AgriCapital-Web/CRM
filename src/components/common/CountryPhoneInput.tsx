@@ -45,7 +45,17 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
   const normalizedLocal = (value: string, country: Country) => {
     let valueDigits = digits(value);
     const callingDigits = digits(country.callingCode);
-    if (callingDigits && valueDigits.startsWith(callingDigits) && valueDigits.length > (maxLocalDigits || 15)) valueDigits = valueDigits.slice(callingDigits.length);
+    // People often paste a full international number into the national-number field.
+    // Strip the selected country's prefix by parsing the complete number, not by
+    // comparing against maxLocalDigits (which used to leave +225 inside the local field).
+    if (callingDigits && valueDigits.startsWith(callingDigits) && valueDigits.length > callingDigits.length) {
+      const parsedInternational = parsePhoneNumberFromString("+" + valueDigits);
+      if (parsedInternational?.countryCallingCode === callingDigits && parsedInternational.nationalNumber) {
+        valueDigits = parsedInternational.nationalNumber;
+      } else if (country.code === "CI" && valueDigits.length === 13 && valueDigits.startsWith("225")) {
+        valueDigits = valueDigits.slice(3);
+      }
+    }
     return valueDigits.slice(0, maxLocalDigits || 15);
   };
   const currentLocal = normalizedLocal(localValue, selected);
