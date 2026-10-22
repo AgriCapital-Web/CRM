@@ -14,18 +14,22 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import TableSearchInput from "@/components/common/TableSearchInput";
-import { CheckCircle2, Eye, RefreshCw, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Eye, RefreshCw, ShieldAlert, LandPlot } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
 export default function ValidationDossiers(){
   const type: string = "ventes"; // Cette page est volontairement dédiée à la validation des ventes.
   const {can}=usePermissions();
   const {userRoles=[]}=useAuth();
+  const navigate=useNavigate();
   const {toast}=useToast();
   const canValidateClients=can("clients.validate") || ["pdg","service_client","chef_equipe_service_client"].some((role) => (userRoles || []).includes(role));
   const canValidateSales=can("acquisitions.validate") || ["pdg","service_client","chef_equipe_service_client"].some((role) => (userRoles || []).includes(role));
   const [clients,setClients]=useState<any[]>([]);
   const [sales,setSales]=useState<any[]>([]);
+  const [ownersPending,setOwnersPending]=useState<any[]>([]);
+  const canReviewOwners=can("proprietaires.validate") || ["pdg","service_client","chef_equipe_service_client"].some((role) => (userRoles || []).includes(role));
   const [loading,setLoading]=useState(false);
   const [search,setSearch]=useState("");
   const [selectedSale,setSelectedSale]=useState<any|null>(null);
@@ -36,17 +40,19 @@ export default function ValidationDossiers(){
   const load=async()=>{
     setLoading(true);
     try{
-      const [clientRes,saleRes]=await Promise.all([
+      const [clientRes,saleRes,ownersRes]=await Promise.all([
         canValidateClients?(supabase as any).from("clients").select("id,id_unique,nom_complet,telephone,email,created_at,created_by,validation_statut,validation_commentaire,offre_id,formule_nom,formule_code,total_hectares").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]}),
-        canValidateSales?(supabase as any).from("acquisitions").select("id,client_id,offre_nom,offre_code,formule_nom,formule_code,superficie_ha,montant_total_contrat,statut,created_at,created_by,validation_statut,validation_commentaire,metadata,client:clients(id,id_unique,nom_complet,telephone,validation_statut)").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]})
+        canValidateSales?(supabase as any).from("acquisitions").select("id,client_id,offre_nom,offre_code,formule_nom,formule_code,superficie_ha,montant_total_contrat,statut,created_at,created_by,validation_statut,validation_commentaire,metadata,client:clients(id,id_unique,nom_complet,telephone,validation_statut)").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]}),
+        canReviewOwners?(supabase as any).from("proprietaires_terres").select("id,nom_complet,telephone,created_at,validation_statut").eq("validation_statut","a_valider").order("created_at",{ascending:false}):Promise.resolve({data:[]})
       ]);
       if(clientRes.error)throw clientRes.error;
       if(saleRes.error)throw saleRes.error;
-      setClients(clientRes.data||[]);setSales(saleRes.data||[]);
+      if(ownersRes.error)throw ownersRes.error;
+      setClients(clientRes.data||[]);setSales(saleRes.data||[]);setOwnersPending(ownersRes.data||[]);
     }catch(e:any){toast({variant:"destructive",title:"Dossiers indisponibles",description:e?.message||"Impossible de charger la file de validation."});}
     finally{setLoading(false);}
   };
-  useEffect(()=>{void load();},[canValidateClients,canValidateSales]);
+  useEffect(()=>{void load();},[canValidateClients,canValidateSales,canReviewOwners]);
   const loadRef = useRef(load);
   loadRef.current = load;
   useEffect(() => {
@@ -108,7 +114,7 @@ export default function ValidationDossiers(){
   const filteredSales=pendingSales.filter((s:any)=>JSON.stringify(s).toLowerCase().includes(search.trim().toLowerCase()));
   return <ProtectedRoute><MainLayout><div className="mx-auto w-full max-w-7xl min-w-0 space-y-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-bold">Validation des dossiers</h1></div><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className={"mr-2 h-4 w-4 "+(loading?"animate-spin":"")}/>Actualiser</Button></div>
-    <div className="grid grid-cols-1 gap-3"><Card className="border-primary/30"><CardContent className="flex items-center justify-between gap-3 p-4"><div><p className="text-sm text-muted-foreground">Ventes à valider</p><p className="text-2xl font-bold">{pendingSales.length}</p></div><CheckCircle2 className="h-6 w-6 text-primary" /></CardContent></Card></div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><Card className="border-primary/30"><CardContent className="flex items-center justify-between gap-3 p-4"><div><p className="text-sm text-muted-foreground">Ventes à valider</p><p className="text-2xl font-bold">{pendingSales.length}</p></div><CheckCircle2 className="h-6 w-6 text-primary" /></CardContent></Card><Card className="border-primary/30"><CardContent className="flex items-center justify-between gap-3 p-4"><div><p className="text-sm text-muted-foreground">Propriétaires fonciers à valider</p><p className="text-2xl font-bold">{ownersPending.length}</p></div><Button variant="outline" onClick={()=>navigate("/proprietaires-terres?validation=a_valider")}><LandPlot className="mr-2 h-4 w-4"/>Examiner</Button></CardContent></Card></div>
     <Card><CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>{type==="clients"?"Clients en attente de validation":"Ventes en attente de validation"}</CardTitle><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher dans les dossiers…"/></div></CardHeader><CardContent><div className="space-y-2 md:hidden">{type==="clients" ? filteredClients.map((c:any)=><div key={c.id} className="rounded-xl border p-3"><button type="button" onClick={()=>void openClientDetails(c)} className="block min-w-0 text-left"><p className="break-words font-semibold">{c.nom_complet||"Client sans nom"}</p><p className="break-all text-xs text-muted-foreground">{c.id_unique||c.id}</p></button><div className="mt-2 grid grid-cols-2 gap-2 text-sm"><div><p className="text-xs text-muted-foreground">Téléphone</p><p className="break-words">{c.telephone||"—"}</p></div><div><p className="text-xs text-muted-foreground">Offre</p><p className="break-words">{c.formule_nom||c.formule_code||"—"}</p></div></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2"><Badge variant={c.validation_statut==="modification_demandee"?"destructive":"secondary"}>{c.validation_statut==="modification_demandee"?"Correction demandée":"À valider"}</Badge><Button size="sm" onClick={()=>void openClientDetails(c)}><Eye className="mr-1 h-4 w-4"/>Ouvrir le dossier</Button></div></div>) : filteredSales.map((sale:any)=><div key={sale.id} className="rounded-xl border p-3"><p className="break-words font-semibold">{sale.client?.nom_complet||"Client non renseigné"}</p><p className="mt-1 text-xs text-muted-foreground">{sale.offre_nom||sale.formule_nom||sale.offre_code||sale.formule_code||"—"}</p><div className="mt-2 flex flex-wrap items-center justify-between gap-2"><Badge variant={sale.validation_statut==="modification_demandee"?"destructive":"secondary"}>{sale.validation_statut==="modification_demandee"?"Correction demandée":"À valider"}</Badge><Button size="sm" onClick={()=>{setSelectedSale(sale);setComment(sale.validation_commentaire||"");}}><Eye className="mr-1 h-4 w-4"/>Examiner</Button></div></div>)}</div><div className="hidden overflow-x-auto md:block"><Table className="min-w-[760px]"><TableHeader><TableRow>{type==="clients"?<><TableHead>Client</TableHead><TableHead>Téléphone</TableHead><TableHead>Offre</TableHead><TableHead>Créé le</TableHead><TableHead>État</TableHead><TableHead>Action</TableHead></>:<><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Surface</TableHead><TableHead>Montant</TableHead><TableHead>État</TableHead><TableHead>Action</TableHead></>}</TableRow></TableHeader><TableBody>
     {loading?<TableRow><TableCell colSpan={6} className="py-8 text-center">Chargement…</TableCell></TableRow>:type==="clients"?filteredClients.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Aucun client en attente.</TableCell></TableRow>:filteredClients.map((c:any)=><TableRow key={c.id}><TableCell><span className="font-medium">{c.nom_complet||"Client sans nom"}</span><span className="block text-xs text-muted-foreground">{c.id_unique||c.id}</span></TableCell><TableCell>{c.telephone||"—"}</TableCell><TableCell>{c.formule_nom||c.formule_code||"—"}</TableCell><TableCell>{c.created_at?new Date(c.created_at).toLocaleDateString("fr-FR"):"—"}</TableCell><TableCell><Badge variant={c.validation_statut==="modification_demandee"?"destructive":"secondary"}>{c.validation_statut==="modification_demandee"?"Correction demandée":"À valider"}</Badge></TableCell><TableCell><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={()=>void openClientDetails(c)}><Eye className="mr-1 h-4 w-4"/>Voir</Button><Button size="sm" onClick={()=>{setSelectedClient(c);setComment(c.validation_commentaire||"");}}>Décider</Button></div></TableCell></TableRow>):filteredSales.length===0?<TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Aucune vente en attente.</TableCell></TableRow>:filteredSales.map((s:any)=><TableRow key={s.id}><TableCell><span className="font-medium">{s.client?.nom_complet||"Client non renseigné"}</span><span className="block text-xs text-muted-foreground">{s.client?.id_unique||s.client_id}</span></TableCell><TableCell>{s.offre_nom||s.formule_nom||s.offre_code||s.formule_code||"—"}</TableCell><TableCell>{Number(s.superficie_ha||0).toLocaleString("fr-FR")} ha</TableCell><TableCell>{money(s.montant_total_contrat)}</TableCell><TableCell><Badge variant={s.validation_statut==="modification_demandee"?"destructive":"secondary"}>{s.validation_statut==="modification_demandee"?"Correction demandée":"À valider"}</Badge></TableCell><TableCell><Button size="sm" onClick={()=>{setSelectedSale(s);setComment(s.validation_commentaire||"");}}><Eye className="mr-1 h-4 w-4"/>Voir</Button></TableCell></TableRow>)}
     </TableBody></Table></div></CardContent></Card>
