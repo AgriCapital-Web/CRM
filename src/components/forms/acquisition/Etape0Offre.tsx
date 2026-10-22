@@ -25,7 +25,8 @@ interface Etape0Props {
 const getFormulaConfig = (offer: any, code?: string) => {
   const formulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
   if (code) return formulas.find((formula: any) => formula.code === code) || null;
-  return formulas[0] || null;
+  // Never choose an arbitrary formula when an offer has multiple configured options.
+  return formulas.length === 1 ? formulas[0] : null;
 };
 
 const applyFormulaConfig = (offer: any, formula: any) => {
@@ -147,6 +148,9 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     const baseOffer = offres.find((o) => o.id === formData.offre_id);
     if (!baseOffer) return null;
     const formula = getFormulaConfig(baseOffer, formData.formule_code);
+    const configuredFormulas = Array.isArray((baseOffer as any).formules_configuration) ? (baseOffer as any).formules_configuration : [];
+    // No prices are displayed or calculated until a specific formula has been selected.
+    if (configuredFormulas.length > 0 && !formula) return null;
     const offre = applyFormulaConfig(baseOffer, formula);
 
     const ha = Number(formData.superficie_prevue);
