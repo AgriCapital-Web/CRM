@@ -120,19 +120,44 @@ Deno.serve(async (req) => {
         const detail = typeof sessionsPayload?.message === "string" ? sessionsPayload.message.slice(0, 250) : "";
         return reply(req, { error: "Impossible de lire les sessions WhatsApp Senndo (HTTP " + sessionsResponse.status + ")." + (detail ? " " + detail : ""), providerStatus: sessionsResponse.status, code: "WHATSAPP_SESSION_LOOKUP_FAILED" }, 502);
       }
-      const rawSessions = Array.isArray(sessionsPayload) ? sessionsPayload
-        : Array.isArray(sessionsPayload?.sessions) ? sessionsPayload.sessions
-        : Array.isArray(sessionsPayload?.data?.sessions) ? sessionsPayload.data.sessions
-        : Array.isArray(sessionsPayload?.data) ? sessionsPayload.data
-        : Array.isArray(sessionsPayload?.items) ? sessionsPayload.items
-        : Array.isArray(sessionsPayload?.results) ? sessionsPayload.results : [];
-      const sessions = rawSessions.map((item: any) => {
-        if (!item?.session || typeof item.session !== "object") return item;
-        return { ...item.session, id: item.session.id ?? item.id,
-          sessionId: item.session.sessionId ?? item.session.session_id ?? item.sessionId ?? item.session_id,
-          senderSessionId: item.session.senderSessionId ?? item.senderSessionId,
-          uuid: item.session.uuid ?? item.uuid };
-      });
+      const asArray = (value: any): any[] => Array.isArray(value) ? value : value && typeof value === "object" ? Object.values(value) : [];
+      const rawSessions = [
+        ...asArray(sessionsPayload),
+        ...asArray(sessionsPayload?.sessions),
+        ...asArray(sessionsPayload?.data?.sessions),
+        ...asArray(sessionsPayload?.data),
+        ...asArray(sessionsPayload?.items),
+        ...asArray(sessionsPayload?.results),
+        ...asArray(sessionsPayload?.data?.items),
+        ...asArray(sessionsPayload?.data?.results),
+        ...asArray(sessionsPayload?.session),
+        ...asArray(sessionsPayload?.data?.session),
+      ];
+      const seenSessions = new Set<any>();
+      const sessions = rawSessions.filter((item: any) => item && typeof item === "object" && !seenSessions.has(item) && (seenSessions.add(item), true))
+        .map((item: any) => {
+          const nested = item.session && typeof item.session === "object" ? item.session
+            : item.data?.session && typeof item.data.session === "object" ? item.data.session : null;
+          return nested ? { ...item, ...nested,
+            id: nested.id ?? item.id,
+            sessionId: nested.sessionId ?? nested.session_id ?? item.sessionId ?? item.session_id,
+            senderSessionId: nested.senderSessionId ?? nested.sender_session_id ?? item.senderSessionId ?? item.sender_session_id,
+            uuid: nested.uuid ?? item.uuid } : item;
+        });
+      const nestedObjects = (root: any, depth = 0): any[] => {
+        if (!root || typeof root !== "object" || depth > 5) return [];
+        return [root, ...Object.values(root).flatMap((value: any) => nestedObjects(value, depth + 1))];
+      };
+      const technicalSessionId = (session: any) => {
+        const objects = nestedObjects(session);
+        const preferred = ["senderSessionId","sender_session_id","sessionId","session_id","uniqueSessionId","unique_session_id","sessionKey","session_key","uuid","id"];
+        for (const key of preferred) {
+          const value = objects.map((object: any) => object?.[key]).find((candidate: any) =>
+            (typeof candidate === "string" && candidate.trim()) || (typeof candidate === "number" && Number.isFinite(candidate)));
+          if (value !== undefined) return String(value).trim();
+        }
+        return "";
+      };
       // Senndo peut retourner le même numéro ivoirien en format historique (8 chiffres)
       // ou nouveau format (préfixe opérateur 01/05/07 + 8 chiffres).
       const normalizePhone = (value: unknown) => {
@@ -158,16 +183,8 @@ Deno.serve(async (req) => {
       const connected = sessions.filter((s: any) => ["connected","open","ready","authenticated"].includes(statusOf(s)));
       const matches = connected.filter((s: any) => phoneValues(s).some((v: string) => normalizePhone(v) === senderDigits));
       const session = matches.length === 1 ? matches[0] : null;
-      const idCandidates = session ? [
-        session.id,session.sessionId,session.session_id,session.senderSessionId,session.sender_session_id,
-        session.uuid,session.sessionKey,session.session_key,session.uniqueSessionId,session.unique_session_id,
-        session.sessionName,session.session_name,session.name,session.key,
-        session.session?.id,session.session?.sessionId,session.session?.session_id,session.session?.uniqueSessionId
-      ] : [];
-      const senderSessionId = idCandidates.find((value: unknown) =>
-        (typeof value === "string" && value.trim().length > 0) || (typeof value === "number" && Number.isFinite(value))
-      );
-      if (!session || senderSessionId === undefined || String(senderSessionId).trim() === "") return reply(req, {
+      const senderSessionId = session ? technicalSessionId(session) : "";
+      if (!session || !senderSessionId) return reply(req, {
         error: connected.length === 0 ? "Aucune session WhatsApp connectée n’a été trouvée dans Senndo."
           : connected.length > 1 && matches.length !== 1 ? "Plusieurs sessions WhatsApp sont connectées sans correspondance unique avec le numéro AgriCapital."
           : "La session WhatsApp est connectée, mais Senndo ne fournit pas son identifiant technique. Vérifiez la session dans Senndo.",
@@ -178,7 +195,7 @@ Deno.serve(async (req) => {
       const sendResponse = await fetch("https://api.senndo.com/v1/messages", {
         method: "POST",
         headers: { authorization: "Bearer " + apiKey, "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ channel: "whatsapp_baileys", to, text, senderSessionId: String(senderSessionId), idempotencyKey: crypto.randomUUID() }),
+        body: JSON.stringify({ channel: "whatsapp_baileys", to, text, senderSessionId, idempotencyKey: crypto.randomUUID() }),
         signal: AbortSignal.timeout(30000),
       });
       const sendPayload = await sendResponse.json().catch(() => null);
