@@ -61,8 +61,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   };
 
   const SidebarContent = () => (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-primary text-primary-foreground shadow-xl">
-      <div className="border-b border-primary-foreground/10 px-4 py-5 bg-white/95 backdrop-blur">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-primary text-primary-foreground shadow-xl">
+      <div className="shrink-0 border-b border-primary-foreground/10 px-4 py-3 bg-white/95 backdrop-blur">
         <button onClick={() => navigate('/dashboard')} className="flex w-full items-center justify-center">
           <img src="/agricapital360-officiel.png?v=20261021-logo-v3" alt="AgriCapital 360 — La plateforme métier intelligente d’AgriCapital" className="w-full max-w-[220px] h-auto object-contain" />
           <span className="sr-only">AgriCapital 360 — La plateforme métier intelligente d’AgriCapital</span>
@@ -70,7 +70,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4">
+      <nav aria-label="Navigation principale" className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-3 py-3 [scrollbar-width:thin]">
         {visibleMenuItems.length === 0 && (
           <div className="rounded-md bg-primary-foreground/10 px-3 py-4 text-xs text-primary-foreground/90">
             Aucun rôle attribué à votre compte. Contactez un administrateur ou reconnectez-vous.
@@ -97,7 +97,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         })}
       </nav>
 
-      <div className="border-t border-primary-foreground/10 p-3">
+      <div className="shrink-0 border-t border-primary-foreground/10 p-3">
         <div className="mb-2 rounded-md bg-primary-foreground/10 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
             <NetworkIndicator />
@@ -139,7 +139,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           </div>
           <Avatar className="h-8 w-8 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(formatUserShortName(profile?.nom_complet))}</AvatarFallback></Avatar>
         </div>
-        <SheetContent side="left" className="h-dvh max-h-dvh w-72 overflow-hidden p-0"><SidebarContent /></SheetContent>
+        <SheetContent side="left" className="h-[100dvh] max-h-[100dvh] w-72 overflow-hidden p-0"><SidebarContent /></SheetContent>
       </Sheet>
 
       <main className="min-w-0 flex-1 overflow-x-hidden pt-14 md:ml-64 md:pt-0 bg-muted/20">
