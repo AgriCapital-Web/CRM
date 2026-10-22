@@ -790,13 +790,6 @@ const Dashboard = () => {
               {(canPlantations || canClients || canPayments || canTechnical || canLeads) && (
               <section aria-labelledby="dashboard-activity" className="space-y-3 rounded-2xl border-2 border-amber-500/60 bg-amber-50/20 p-3 sm:p-4 dark:bg-amber-950/10">
                 <div><h2 id="dashboard-activity" className="text-lg font-extrabold uppercase tracking-wide">Activités récentes et carte interactive</h2></div>
-              {(canPlantations || canClients) && stats.documentsPending > 0 && (
-                <section aria-labelledby="dashboard-documents" className="space-y-2">
-                  <h2 id="dashboard-documents" className="text-lg font-bold tracking-tight">5. Opérations — documents à vérifier</h2>
-                  <Card><CardContent className="flex items-center justify-between p-4"><span className="text-sm text-muted-foreground">Documents en attente</span><Badge variant="secondary">{stats.documentsPending}</Badge></CardContent></Card>
-                </section>
-              )}
-
               {canPlantations && <PlantationsMap />}
 
               {((canClients && recentClients.length > 0) || (canPayments && recentPayments.length > 0)) && (
