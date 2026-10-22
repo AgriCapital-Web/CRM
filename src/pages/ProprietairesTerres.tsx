@@ -493,17 +493,6 @@ const ProprietairesTerres = () => {
               <h1 className="text-2xl sm:text-3xl font-bold">Propriétaires de Terres</h1>
               <p className="text-muted-foreground mt-1">{filtered.length} affiché(s) · {proprietaires.length} propriétaire(s)</p>
             </div>
-            {canValidateOwners && <Card>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div>
-                  <p className="font-semibold">Foncier à valider</p>
-                  <p className="text-sm text-muted-foreground">{pendingOwnerCount} dossier(s) soumis par les équipes terrain</p>
-                </div>
-                <Button type="button" variant={pendingOnly ? "default" : "outline"} onClick={() => setPendingOnly(value => !value)}>
-                  {pendingOnly ? "Afficher tous les propriétaires" : "Voir les dossiers à valider"}
-                </Button>
-              </CardContent>
-            </Card>}
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               {canCreateProprietaire && <DialogTrigger asChild>
                 <Button><Plus className="mr-2 h-4 w-4" />Nouveau Propriétaire</Button>
@@ -857,6 +846,17 @@ const ProprietairesTerres = () => {
             </Dialog>
           </div>
 
+            {canValidateOwners && <Card>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="font-semibold">Foncier à valider</p>
+                  <p className="text-sm text-muted-foreground">{pendingOwnerCount} dossier(s) soumis par les équipes terrain</p>
+                </div>
+                <Button type="button" variant={pendingOnly ? "default" : "outline"} onClick={() => setPendingOnly(value => !value)}>
+                  {pendingOnly ? "Afficher tous les propriétaires" : "Voir les dossiers à valider"}
+                </Button>
+              </CardContent>
+            </Card>}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <Card>
               <CardContent className="p-2 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0">
