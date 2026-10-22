@@ -144,6 +144,27 @@ export default function AgriCapitalConnect() {
     await loadMessages(selected);
   };
 
+  const startVideoCall = async () => {
+    if (!profileId || !selected) { toast.error("Ouvrez une conversation avant de lancer un appel."); return; }
+    const roomToken = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const joinUrl = `https://meet.jit.si/AgriCapital-${roomToken}`;
+    window.open(joinUrl, "_blank", "noopener,noreferrer");
+    const { error } = await (supabase as any).from("internal_messages").insert({
+      conversation_id: selected,
+      sender_profile_id: profileId,
+      body: `Appel audio/vidéo AgriCapital — rejoignez ici : ${joinUrl}`,
+    });
+    if (error) {
+      toast.error("L'appel s'ouvre, mais le lien n'a pas pu être partagé dans la conversation.");
+      console.error(error);
+      return;
+    }
+    await loadMessages(selected);
+    toast.success("Appel audio/vidéo lancé et lien partagé.");
+  };
+
   const createMeeting = async () => {
     if (!profileId || !meetingTitle.trim() || !meetingStart || !meetingEnd || new Date(meetingEnd) <= new Date(meetingStart)) {
       toast.error("Renseignez un titre et des horaires valides."); return;
@@ -162,7 +183,7 @@ export default function AgriCapitalConnect() {
     const { error: participantError } = await (supabase as any).from("internal_meeting_participants").insert(invitees);
     if (participantError) console.warn("La réunion existe mais l'hôte n'a pas pu être ajouté", participantError);
     setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription(""); setMeetingMembers([]);
-    await loadMeetings(); toast.success("Réunion planifiée. La visioconférence sera activée après configuration du fournisseur vidéo.");
+    await loadMeetings(); toast.success("Réunion planifiée avec un lien audio/vidéo Jitsi Meet.");
   };
 
   if (!can("messagerie.view")) {
@@ -196,9 +217,9 @@ export default function AgriCapitalConnect() {
                   <CardContent className="space-y-1 p-2">{loading ? <div className="flex justify-center p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : visibleConversations.length ? visibleConversations.map(c => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full min-w-0 items-center gap-3 rounded-lg p-3 text-left transition-colors ${selected === c.id ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted"}`}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials(c.title || (c.conversation_type === "direct" ? "Privé" : c.conversation_type === "group" ? "Groupe" : "Canal"))}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe d'équipe" : "Canal")}</span><span className="block text-xs text-muted-foreground">{dateLabel(c.last_message_at)}</span></span></button>) : <p className="p-5 text-center text-sm text-muted-foreground">Aucune conversation. Créez votre première discussion interne.</p>}</CardContent>
                 </Card>
                 <Card className={selected ? "flex min-w-0 flex-col overflow-hidden" : "hidden min-w-0 lg:flex lg:flex-col"}>
-                  <CardHeader className="border-b p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><CardTitle className="truncate text-base">{selectedConversation?.title || (selectedConversation?.conversation_type === "direct" ? "Conversation privée" : selectedConversation?.conversation_type === "group" ? "Groupe d'équipe" : "Canal interne")}</CardTitle><p className="text-xs text-muted-foreground">Messages en temps réel · accusés de lecture</p></div><Button variant="outline" size="sm" className="shrink-0 gap-2" onClick={() => setTab("meetings")}><Video className="h-4 w-4" /><span className="hidden sm:inline">Réunions</span></Button></div></CardHeader>
+                  <CardHeader className="border-b p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><CardTitle className="truncate text-base">{selectedConversation?.title || (selectedConversation?.conversation_type === "direct" ? "Conversation privée" : selectedConversation?.conversation_type === "group" ? "Groupe d'équipe" : "Canal interne")}</CardTitle><p className="text-xs text-muted-foreground">Messages en temps réel · accusés de lecture</p></div><div className="flex shrink-0 gap-1"><Button variant="outline" size="sm" className="gap-1" onClick={() => void startVideoCall()} disabled={!selected}><Video className="h-4 w-4" /><span className="hidden sm:inline">Appel audio/vidéo</span><span className="sm:hidden">Appel</span></Button><Button variant="outline" size="sm" className="gap-1" onClick={() => setTab("meetings")}><CalendarDays className="h-4 w-4" /><span className="hidden sm:inline">Réunions</span></Button></div></div></CardHeader>
                   <CardContent className="flex min-h-[360px] flex-1 flex-col p-3 sm:min-h-[500px] sm:p-4">
-                    <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain pb-3">{messages.map(m => <div key={m.id} className={`flex ${m.sender_profile_id === profileId ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] min-w-0 rounded-2xl px-3 py-2 ${m.sender_profile_id === profileId ? "bg-primary text-primary-foreground" : "bg-muted"}`}><p className="whitespace-pre-wrap break-words text-sm">{m.body}</p><div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70"><span>{dateLabel(m.created_at)}</span>{m.sender_profile_id === profileId && <Check className="h-3 w-3" />}</div></div></div>)}{selected && !messages.length && <p className="py-12 text-center text-sm text-muted-foreground">Écrivez le premier message de cette conversation.</p>}</div>
+                    <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain pb-3">{messages.map(m => <div key={m.id} className={`flex ${m.sender_profile_id === profileId ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] min-w-0 rounded-2xl px-3 py-2 ${m.sender_profile_id === profileId ? "bg-primary text-primary-foreground" : "bg-muted"}`}><div className="whitespace-pre-wrap break-words text-sm">{(() => { const callUrl = m.body.match(/https:\/\/meet\.jit\.si\/[^\s]+/)?.[0]; return callUrl ? <><span>{m.body.replace(callUrl, "").trim()}</span><a href={callUrl} target="_blank" rel="noreferrer" className="mt-2 block font-semibold underline underline-offset-2">Rejoindre l’appel audio/vidéo</a></> : m.body; })()}</div><div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70"><span>{dateLabel(m.created_at)}</span>{m.sender_profile_id === profileId && <Check className="h-3 w-3" />}</div></div></div>)}{selected && !messages.length && <p className="py-12 text-center text-sm text-muted-foreground">Écrivez le premier message de cette conversation.</p>}</div>
                     <form className="flex min-w-0 items-end gap-2 border-t pt-3" onSubmit={e => { e.preventDefault(); void sendMessage(); }}><Textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Écrire un message…" rows={2} className="min-h-[44px] min-w-0 resize-y" disabled={!selected || sending} /><Button type="submit" size="icon" aria-label="Envoyer" disabled={!selected || !draft.trim() || sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button></form>
                   </CardContent>
                 </Card>
