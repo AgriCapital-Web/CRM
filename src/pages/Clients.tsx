@@ -149,10 +149,10 @@ const Clients = () => {
         supabase.from("offres").select("id,nom,couleur,code,formules_configuration"),
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
-        can("acquisitions.validate") ? (supabase as any).from("acquisitions").select("id,validation_statut").in("validation_statut", ["a_valider", "modification_demandee"]) : Promise.resolve({ data: [] }),
+        can("acquisitions.validate") ? (supabase as any).from("acquisitions").select("id,validation_statut,metadata,client:clients(id,validation_statut)").in("validation_statut", ["a_valider", "modification_demandee"]) : Promise.resolve({ data: [] }),
       ]);
 
-      setSalesPendingValidation((pendingSalesRes?.data || []).filter((s: any) => ["a_valider", "modification_demandee"].includes(String(s.validation_statut || ""))).length);
+      setSalesPendingValidation((pendingSalesRes?.data || []).filter((s: any) => !(s.metadata?.created_from_client_workflow === true || s.metadata?.source === "clients") && !["a_valider", "modification_demandee"].includes(String(s.client?.validation_statut || ""))).length);
       const plantations = plantationBatches.flatMap((result: any) => result.data || []);
       const attributionsData = attributionBatches.flatMap((result: any) => result.data || []);
       const offresMap = new Map((offresRes.data || []).map((o: any) => [o.id, o]));
