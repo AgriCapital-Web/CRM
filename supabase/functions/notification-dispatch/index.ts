@@ -289,9 +289,33 @@ async function sendVoice(contact: Contact, content: string, dedupeKey: string) {
 async function resolveContacts(criteria: Record<string, unknown>) {
   const { data, error } = await admin.rpc("notification_resolve_recipients", { _criteres: criteria });
   if (error) throw error;
+  const rows = (data || []) as Contact[];
+  // The legacy RPC folds WhatsApp into the telephone field and does not return a
+  // separate whatsapp property. Hydrate that property server-side so "auto"
+  // can select the paired WhatsApp channel instead of silently choosing SMS.
+  const clientIds = [...new Set(rows.filter((row) => row.source_type !== "prospect" && row.source_type !== "equipe").map((row) => row.source_id))];
+  const prospectIds = [...new Set(rows.filter((row) => row.source_type === "prospect").map((row) => row.source_id))];
+  const staffProfileIds = [...new Set(rows.filter((row) => row.source_type === "equipe").map((row) => row.source_id))];
+  const [clientsResult, prospectsResult, staffResult] = await Promise.all([
+    clientIds.length ? admin.from("clients").select("id,whatsapp").in("id", clientIds) : Promise.resolve({ data: [], error: null }),
+    prospectIds.length ? admin.from("leads").select("id,whatsapp").in("id", prospectIds) : Promise.resolve({ data: [], error: null }),
+    staffProfileIds.length ? admin.from("profiles").select("id,whatsapp").in("id", staffProfileIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (clientsResult.error) throw clientsResult.error;
+  if (prospectsResult.error) throw prospectsResult.error;
+  if (staffResult.error) throw staffResult.error;
+  const clientWhatsApp = new Map((clientsResult.data || []).map((row: any) => [row.id, row.whatsapp]));
+  const prospectWhatsApp = new Map((prospectsResult.data || []).map((row: any) => [row.id, row.whatsapp]));
+  const staffWhatsApp = new Map((staffResult.data || []).map((row: any) => [row.id, row.whatsapp]));
   const map = new Map<string, Contact>();
-  for (const row of (data || []) as Contact[]) {
-    const key = row.user_id || row.email?.toLowerCase() || row.telephone || row.source_type + ":" + row.source_id;
+  for (const original of rows) {
+    const whatsapp = original.source_type === "prospect"
+      ? prospectWhatsApp.get(original.source_id)
+      : original.source_type === "equipe"
+        ? staffWhatsApp.get(original.source_id)
+        : clientWhatsApp.get(original.source_id);
+    const row: Contact = { ...original, whatsapp: typeof whatsapp === "string" && whatsapp.trim() ? whatsapp : null };
+    const key = row.user_id || row.email?.toLowerCase() || row.whatsapp || row.telephone || row.source_type + ":" + row.source_id;
     if (!map.has(key)) map.set(key, row);
   }
   return [...map.values()];
