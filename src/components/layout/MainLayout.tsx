@@ -86,12 +86,12 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               asChild
               variant="ghost"
               className={cn(
-                "h-9 min-h-9 w-full min-w-0 shrink-0 justify-start gap-2.5 overflow-hidden whitespace-nowrap rounded-lg px-2.5 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
+                "!h-9 !min-h-9 w-full min-w-0 shrink-0 justify-start gap-2.5 overflow-hidden whitespace-nowrap rounded-lg px-2.5 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
                 active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
               )}
               title={item.label}
             >
-              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex h-full w-full min-w-0 items-center gap-2.5">
+              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex !h-full !min-h-0 w-full min-w-0 items-center gap-2.5">
                 <item.icon className="h-4 w-4 flex-shrink-0" />
                 <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium leading-normal">{item.label}</span>
               </Link>
