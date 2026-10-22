@@ -53,12 +53,14 @@ const ProprietairesTerres = () => {
   const { user } = useAuth();
   const { can } = usePermissions();
   const canCreateProprietaire = can("proprietaires.create");
+  const canValidateOwners = can("proprietaires.validate");
   const [searchParams] = useSearchParams();
   const conversionLeadId = searchParams.get("lead_id");
   const conversionProspectId = searchParams.get("prospect_id");
   const [proprietaires, setProprietaires] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pendingOnly, setPendingOnly] = useState(searchParams.get("validation") === "a_valider");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [activeFormTab, setActiveFormTab] = useState("identite");
   const [districts, setDistricts] = useState<any[]>([]);
@@ -299,6 +301,9 @@ const ProprietairesTerres = () => {
         created_by: currentUser.id,
         updated_by: user.id,
         statut: "actif",
+        validation_statut: "a_valider",
+        validated_by: null,
+        validated_at: null,
       };
       const { data: proprietaire, error } = await offlineInsert("proprietaires_terres", propPayload);
       if (error) throw error;
@@ -318,6 +323,7 @@ const ProprietairesTerres = () => {
           plantation_type_culture: formData.plantation_type_culture || "Palmier à huile",
           plantation_densite_plants: 143,
           plantation_date_activation: formData.plantation_date_activation || null,
+          statut: "a_valider",
           district_id: formData.district_id || null,
           region_id: formData.region_id || null,
           departement_id: formData.departement_id || null,
@@ -352,7 +358,7 @@ const ProprietairesTerres = () => {
         part_agricapital_ha: partAgriHa,
         caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
         caution_totale: cautionTotale,
-        statut: "active",
+        statut: "a_valider",
         notes: formData.notes || null,
         created_by: currentUser.id,
       };
@@ -390,8 +396,8 @@ const ProprietairesTerres = () => {
       toast({
         title: isOnline ? "Succès" : "Enregistré hors ligne",
         description: isOnline
-          ? `Propriétaire ${proprietaire.id_unique || proprietaire.id} enregistré`
-          : "Propriétaire, parcelle, convention, documents et pièces jointes enregistrés localement et en attente de synchronisation.",
+          ? `Dossier ${proprietaire.id_unique || proprietaire.id} enregistré et soumis à validation.`
+          : "Dossier foncier enregistré localement ; la soumission à validation sera synchronisée dès le retour du réseau.",
       });
       setIsFormOpen(false);
       resetForm();
@@ -425,10 +431,14 @@ const ProprietairesTerres = () => {
     setAnnexStatuses(createInitialAnnexStatuses());
   };
 
+  const pendingOwnerCount = proprietaires.filter(p => p.validation_statut === "a_valider").length;
   const filtered = proprietaires.filter(p =>
-    p.nom_complet?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.id_unique?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.telephone?.includes(searchTerm)
+    (!pendingOnly || p.validation_statut === "a_valider") &&
+    (
+      p.nom_complet?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.id_unique?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.telephone?.includes(searchTerm)
+    )
   );
 
   const update = (field: string, value: any) => setFormData(f => ({ ...f, [field]: value }));
@@ -481,8 +491,19 @@ const ProprietairesTerres = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">Propriétaires de Terres</h1>
-              <p className="text-muted-foreground mt-1">{proprietaires.length} propriétaire(s)</p>
+              <p className="text-muted-foreground mt-1">{filtered.length} affiché(s) · {proprietaires.length} propriétaire(s)</p>
             </div>
+            {canValidateOwners && <Card>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="font-semibold">Foncier à valider</p>
+                  <p className="text-sm text-muted-foreground">{pendingOwnerCount} dossier(s) soumis par les équipes terrain</p>
+                </div>
+                <Button type="button" variant={pendingOnly ? "default" : "outline"} onClick={() => setPendingOnly(value => !value)}>
+                  {pendingOnly ? "Afficher tous les propriétaires" : "Voir les dossiers à valider"}
+                </Button>
+              </CardContent>
+            </Card>}
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               {canCreateProprietaire && <DialogTrigger asChild>
                 <Button><Plus className="mr-2 h-4 w-4" />Nouveau Propriétaire</Button>
@@ -873,13 +894,14 @@ const ProprietairesTerres = () => {
                   <TableHead>Parcelles</TableHead>
                   <TableHead>Surface (ha)</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead>Validation</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8">Chargement...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8">Aucun propriétaire</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-8">Aucun propriétaire</TableCell></TableRow>
                 ) : filtered.map(p => (
                   <TableRow key={p.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche propriétaire ${p.nom_complet || ""}`} onClick={() => navigate(`/proprietaires-terres/${p.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/proprietaires-terres/${p.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <TableCell>
@@ -893,6 +915,7 @@ const ProprietairesTerres = () => {
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
                     <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")}</TableCell>
                     <TableCell><Badge className={p.statut === "actif" ? "bg-green-500" : "bg-red-500"}>{p.statut}</Badge></TableCell>
+                    <TableCell><Badge variant={p.validation_statut === "valide" ? "default" : p.validation_statut === "refuse" ? "destructive" : "outline"}>{p.validation_statut === "valide" ? "Validé" : p.validation_statut === "refuse" ? "Refusé" : "À valider"}</Badge></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
