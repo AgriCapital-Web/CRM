@@ -24,7 +24,7 @@ export default function ConfigurationSenndo() {
   const [testing, setTesting] = useState(false);
   const [diagnosingWhatsApp, setDiagnosingWhatsApp] = useState(false);
   const [whatsappDiagnostics, setWhatsappDiagnostics] = useState<any>(null);
-  const [testChannel, setTestChannel] = useState<"sms" | "email" | "whatsapp" | "voice">("sms");
+  const [testChannel, setTestChannel] = useState<"sms" | "email" | "whatsapp" | "voice">("whatsapp");
   const [testDestination, setTestDestination] = useState("");
   const [testSubject, setTestSubject] = useState("Test AgriCapital");
   const [testMessage, setTestMessage] = useState("Ceci est un message de test de la passerelle de notifications AgriCapital.");
@@ -195,7 +195,7 @@ export default function ConfigurationSenndo() {
               <select id="senndo-test-channel" value={testChannel} onChange={(e) => setTestChannel(e.target.value as typeof testChannel)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 <option value="sms">SMS · Sender ID AgriCapital</option>
                 <option value="email">E-mail · expéditeur vérifié</option>
-                <option value="whatsapp">WhatsApp appairé · +225 05 64 55 17 17</option>
+                <option value="whatsapp">WhatsApp appairé · +225 64 55 17 17</option>
                 <option value="voice">Appel vocal · Senndo Voice</option>
               </select>
             </div>
