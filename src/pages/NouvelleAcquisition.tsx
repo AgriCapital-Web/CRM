@@ -265,8 +265,22 @@ const NouvelleAcquisition = () => {
       if(configuredFormulas.length === 0){
         toast({variant:"destructive",title:"Offre mal configurée",description:"Cette offre n’a aucune formule enregistrée dans Paramètres > Offres. Aucun tarif générique ne sera utilisé."}); return false;
       }
-      if(!configuredFormulas.some((formula: any) => formula.code === formData.formule_code)){
+      const selectedFormula = configuredFormulas.find((formula: any) => formula.code === formData.formule_code);
+      if(!selectedFormula){
         toast({variant:"destructive",title:"Formule obligatoire",description:"Choisissez explicitement une formule configurée avant de passer à l’étape suivante."}); return false;
+      }
+      const sharedTariff = selectedFormula.utilise_tarif_commun === true;
+      const effectiveValue = (key: string) => selectedFormula[key] ?? (sharedTariff ? formData.offre?.[key] : null);
+      const requiredValues = [
+        ["paiement initial", effectiveValue("montant_pi_par_ha")],
+        ["coût total", effectiveValue("montant_total_par_ha") ?? effectiveValue("montant_cash_par_ha")],
+        ["mensualité", effectiveValue("mensualite_par_ha")],
+        ["durée", effectiveValue("duree_paiement_mois")],
+      ] as const;
+      const missingValues = requiredValues.filter(([, value]) => value === null || value === undefined || Number(value) <= 0);
+      if (missingValues.length) {
+        toast({variant:"destructive",title:"Formule incomplète",description:"Corrigez Paramètres > Offres : " + missingValues.map(([label]) => label).join(", ") + ". L’étape suivante reste bloquée tant que les paramètres sont incomplets."});
+        return false;
       }
     }
     if(step.code==="offre"&&!formData.formule_code){
