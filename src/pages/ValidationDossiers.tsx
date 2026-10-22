@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +17,6 @@ import { CheckCircle2, Eye, RefreshCw, ShieldAlert } from "lucide-react";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
 export default function ValidationDossiers(){
-  const [params,setParams]=useSearchParams();
   const type="ventes";
   const {can}=usePermissions();
   const {toast}=useToast();
