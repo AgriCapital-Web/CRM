@@ -591,7 +591,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const publicUrl = `${window.location.origin}/leads/public`;
 
   const legacyStage = (l: any) => l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead");
-  const stageLeads = view === "prospects"
+  const stageLeads = view !== "leads"
     ? [
         ...leads.filter((l: any) => legacyStage(l) === "lead"),
         ...prospects.map((p: any) => {
