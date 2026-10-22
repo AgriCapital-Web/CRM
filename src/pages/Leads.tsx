@@ -830,11 +830,11 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
         <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Convertir le lead</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{convertLead?.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir le lead"}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">Choisissez la prochaine étape pour {convertLead ? [convertLead.prenoms, convertLead.nom].filter(Boolean).join(" ") : "ce contact"}.</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <Button variant="outline" className="h-auto justify-start p-4" onClick={() => convertLead && convertToProspect(convertLead)}><Users className="mr-2 h-4 w-4" /><span className="text-left"><span className="block font-semibold">Convertir en prospect</span><span className="block text-xs font-normal">Ouvrir la fiche commerciale complète</span></span></Button>
-              <Button className="h-auto justify-start p-4" onClick={() => { if (convertLead) convertToClient(convertLead); setConvertOpen(false); }}><ArrowRight className="mr-2 h-4 w-4" /><span className="text-left"><span className="block font-semibold">Convertir en client</span><span className="block text-xs font-normal">Démarrer le dossier d’acquisition</span></span></Button>
+              <Button className="h-auto justify-start p-4" onClick={() => { if (convertLead) convertToClient(convertLead); setConvertOpen(false); }}><ArrowRight className="mr-2 h-4 w-4" /><span className="text-left"><span className="block font-semibold">{convertLead?.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"}</span><span className="block text-xs font-normal">{convertLead?.type_lead === "proprietaire_foncier" ? "Ouvrir le formulaire officiel du propriétaire foncier" : "Démarrer le dossier d’acquisition"}</span></span></Button>
             </div>
           </DialogContent>
         </Dialog>
