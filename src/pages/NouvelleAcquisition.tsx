@@ -395,17 +395,28 @@ const NouvelleAcquisition = () => {
       if (formulas.length === 0 || !selectedFormula) {
         throw new Error("Choisissez une formule explicitement configurée pour cette offre avant d’enregistrer le dossier. Aucun tarif générique ne sera appliqué.");
       }
-      const offer: any = selectedFormula ? {
+      const sharedTariff = selectedFormula.utilise_tarif_commun === true;
+      const offer: any = {
         ...baseOffer,
         formule_code: selectedFormula.code,
         formule_nom: selectedFormula.nom,
-        gestion_type: selectedFormula.gestion_type ?? baseOffer.gestion_type,
-        ...Object.fromEntries(
-          ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]
-            .filter((key) => selectedFormula[key] !== undefined && selectedFormula[key] !== null)
-            .map((key) => [key, selectedFormula[key]])
-        ),
-      } : baseOffer;
+        gestion_type: selectedFormula.gestion_type ?? (sharedTariff ? baseOffer.gestion_type : null),
+      };
+      for (const key of ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]) {
+        if (selectedFormula[key] !== undefined && selectedFormula[key] !== null) offer[key] = selectedFormula[key];
+        else if (sharedTariff) offer[key] = baseOffer[key] ?? null;
+        else offer[key] = null;
+      }
+      const requiredFormulaValues = [
+        ["paiement initial", offer.montant_pi_par_ha],
+        ["coût total", offer.montant_total_par_ha ?? offer.montant_cash_par_ha],
+        ["mensualité", offer.mensualite_par_ha],
+        ["durée", offer.duree_paiement_mois],
+      ] as const;
+      const missingFormulaValues = requiredFormulaValues.filter(([, value]) => value === null || value === undefined || Number(value) <= 0);
+      if (missingFormulaValues.length) {
+        throw new Error("La formule " + selectedFormula.nom + " est incomplète dans Paramètres > Offres : " + missingFormulaValues.map(([label]) => label).join(", ") + ". Aucun tarif générique ne sera utilisé.");
+      }
       const ha=Number(formData.superficie_prevue);
       // The client contract workflow currently enforces the échéancier mode in the DB.
       const modePaiement = "echeancier" as const;
