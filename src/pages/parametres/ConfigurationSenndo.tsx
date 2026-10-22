@@ -72,7 +72,9 @@ export default function ConfigurationSenndo() {
             const payload = await context.clone().json();
             if (typeof payload?.error === "string") message = payload.error;
           }
-        } catch {}
+        } catch (parseError) {
+          if (parseError instanceof Error && parseError.message) message = message || parseError.message;
+        }
         throw new Error(message);
       }
       setWhatsappDiagnostics(data);
