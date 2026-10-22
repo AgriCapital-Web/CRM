@@ -70,7 +70,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
-      <nav aria-label="Navigation principale" className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-3 py-3 [scrollbar-width:thin]">
+      <nav aria-label="Navigation principale" className="h-0 min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-scroll overscroll-y-contain touch-pan-y px-3 py-3 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
         {visibleMenuItems.length === 0 && (
           <div className="rounded-md bg-primary-foreground/10 px-3 py-4 text-xs text-primary-foreground/90">
             Aucun rôle attribué à votre compte. Contactez un administrateur ou reconnectez-vous.
