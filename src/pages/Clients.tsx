@@ -111,7 +111,7 @@ const Clients = () => {
           .or("is_internal.is.null,is_internal.eq.false");
         // Acquisitions ne présente que les clients commerciaux : les bénéficiaires particuliers
         // restent accessibles dans la liste générale des clients et les tableaux de suivi.
-        if (acquisitionsView) clientsQuery = clientsQuery.neq("type_client", "beneficiaire_particulier");
+        if (acquisitionsView) clientsQuery = clientsQuery.or("type_client.is.null,type_client.neq.beneficiaire_particulier");
         clientsQuery = clientsQuery
           .order("id_unique", { ascending: false })
           .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
