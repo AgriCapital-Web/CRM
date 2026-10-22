@@ -1588,3 +1588,15 @@ button > span, [role="button"] > span {
     white-space: nowrap !important;
   }
 }
+
+
+/* Keep action controls inside CRM tables compact even under the mobile 44px touch-target rule. */
+@layer components {
+  table button,
+  table [role="combobox"],
+  table [data-radix-select-trigger] {
+    min-height: 28px !important;
+    height: 28px !important;
+  }
+  table td { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+}
