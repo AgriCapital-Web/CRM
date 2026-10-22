@@ -300,7 +300,7 @@ const ProprietairesTerres = () => {
         notes: formData.notes || null,
         created_by: currentUser.id,
         updated_by: user.id,
-        statut: "actif",
+        statut: "en_attente_validation",
         validation_statut: "a_valider",
         validated_by: null,
         validated_at: null,
