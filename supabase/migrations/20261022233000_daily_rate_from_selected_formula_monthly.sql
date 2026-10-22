@@ -303,7 +303,7 @@ begin
 
   -- The saved contractual monthly amount is authoritative for existing clients.
   if coalesce(c.mensualite_montant,0) > 0 then
-    return greatest(c.mensualite_montant / greatest(coalesce(nullif(c.total_hectares,0),1),1) / 30, 0);
+    return greatest(c.mensualite_montant / coalesce(nullif(c.total_hectares,0),1) / 30, 0);
   end if;
 
   select * into o from public.offres where id = c.offre_id;
