@@ -22,6 +22,8 @@ export default function ConfigurationSenndo() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [diagnosingWhatsApp, setDiagnosingWhatsApp] = useState(false);
+  const [whatsappDiagnostics, setWhatsappDiagnostics] = useState<any>(null);
   const [testChannel, setTestChannel] = useState<"sms" | "email" | "whatsapp" | "voice">("sms");
   const [testDestination, setTestDestination] = useState("");
   const [testSubject, setTestSubject] = useState("Test AgriCapital");
@@ -55,6 +57,31 @@ export default function ConfigurationSenndo() {
       toast.error(error instanceof Error ? error.message : "Connexion Senndo impossible");
     } finally {
       setTesting(false);
+    }
+  };
+
+  const diagnoseWhatsApp = async () => {
+    setDiagnosingWhatsApp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("senndo-config", { body: { mode: "whatsapp_diagnostics" } });
+      if (error || !data?.ok) {
+        let message = data?.error || error?.message || "Diagnostic WhatsApp impossible.";
+        try {
+          const context = (error as any)?.context;
+          if (context && typeof context.clone === "function") {
+            const payload = await context.clone().json();
+            if (typeof payload?.error === "string") message = payload.error;
+          }
+        } catch {}
+        throw new Error(message);
+      }
+      setWhatsappDiagnostics(data);
+      toast.success("Diagnostic WhatsApp terminé.");
+      await refreshStatus();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Diagnostic WhatsApp impossible.");
+    } finally {
+      setDiagnosingWhatsApp(false);
     }
   };
 
@@ -133,9 +160,19 @@ export default function ConfigurationSenndo() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-semibold tracking-tight">Passerelle Senndo</h2><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void refreshStatus()} disabled={loading || saving || testing}><RefreshCw className="mr-2 h-4 w-4" />Actualiser l’état</Button><Button onClick={() => void testConnection()} disabled={loading || saving || testing}><CheckCircle2 className="mr-2 h-4 w-4" />{testing ? "Test en cours…" : "Tester la connexion"}</Button></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-semibold tracking-tight">Passerelle Senndo</h2><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void refreshStatus()} disabled={loading || saving || testing || diagnosingWhatsApp}><RefreshCw className="mr-2 h-4 w-4" />Actualiser l’état</Button><Button variant="outline" onClick={() => void diagnoseWhatsApp()} disabled={loading || saving || testing || diagnosingWhatsApp}>{diagnosingWhatsApp ? "Diagnostic…" : "Diagnostiquer WhatsApp"}</Button><Button onClick={() => void testConnection()} disabled={loading || saving || testing || diagnosingWhatsApp}><CheckCircle2 className="mr-2 h-4 w-4" />{testing ? "Test en cours…" : "Tester la connexion"}</Button></div></div>
 
       {(status.apiError || Object.keys(status.statusErrors || {}).length > 0) && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"><p className="font-medium">Diagnostic de configuration</p>{status.apiError && <p>{status.apiError}</p>}{Object.entries(status.statusErrors || {}).map(([key, message]) => <p key={key}>{key} : {message}</p>)}</div>}
+      {whatsappDiagnostics && <Card>
+        <CardHeader><CardTitle>Diagnostic WhatsApp Senndo</CardTitle><CardDescription>Ce diagnostic ne consomme pas de crédit et n’envoie aucun message.</CardDescription></CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p><strong>Appairage :</strong> {status.whatsappSession === "connected" ? "Le numéro configuré correspond à une session connectée." : status.whatsappSession === "disconnected" ? "Aucune session connectée correspondant au numéro configuré n’a été trouvée." : "Statut indisponible ; vérifiez la clé API et le numéro expéditeur."}</p>
+          <p><strong>WhatsApp Cloud :</strong> {whatsappDiagnostics.whatsappCloud?.available ? String(whatsappDiagnostics.whatsappCloud.numbers?.length || 0) + " numéro(s) Cloud détecté(s)" : "Indisponible"}</p>
+          <p><strong>Modèles Cloud :</strong> {whatsappDiagnostics.whatsappCloudTemplates?.available ? String(whatsappDiagnostics.whatsappCloudTemplates.templates?.length || 0) + " modèle(s)" : "Lecture indisponible"}</p>
+          <p><strong>Modèles hébergés :</strong> {whatsappDiagnostics.whatsappTwilio?.available ? String(whatsappDiagnostics.whatsappTwilio.templates?.length || 0) + " modèle(s)" : "Lecture indisponible"}</p>
+          <p className="text-muted-foreground">{whatsappDiagnostics.pairedSessionApi || "Le CRM utilise l’API REST Senndo pour les sessions WhatsApp appairées."}</p>
+        </CardContent>
+      </Card>}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.apiValid ? "default" : "secondary"}>{status.apiValid ? "API vérifiée" : status.apiKey ? "Clé enregistrée · test requis" : "Clé à configurer"}</Badge></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Webhook</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Webhook className="h-4 w-4" />Réception Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.webhookSecret ? "default" : "secondary"}>{status.webhookSecret ? "Secret enregistré" : "Secret à renseigner"}</Badge></CardContent></Card>
