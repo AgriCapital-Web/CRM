@@ -56,15 +56,17 @@ begin
     if new.validation_statut not in ('a_valider','valide','refuse') then
       raise exception 'Statut de validation foncière invalide.' using errcode='23514';
     end if;
-    if new.validation_statut = 'valide' then
-      new.validated_by := auth.uid();
-      new.validated_at := now();
-    elsif new.validation_statut = 'refuse' then
+    if new.validation_statut in ('valide','refuse') then
       new.validated_by := auth.uid();
       new.validated_at := now();
     else
       new.validated_by := null;
       new.validated_at := null;
+    end if;
+  elsif new.validated_by is distinct from old.validated_by
+     or new.validated_at is distinct from old.validated_at then
+    if current_setting('request.jwt.claim.role',true) is distinct from 'service_role' then
+      raise exception 'Les métadonnées de validation sont gérées automatiquement.' using errcode='42501';
     end if;
   end if;
   return new;
