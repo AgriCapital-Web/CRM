@@ -225,6 +225,7 @@ declare
   c record;
   o record;
   f jsonb;
+  v_use_shared boolean := false;
   total numeric;
   pi numeric;
   days int;
