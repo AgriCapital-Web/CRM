@@ -247,8 +247,11 @@ const NouvelleAcquisition = () => {
         toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez la superficie."}); return false;
       }
       const configuredFormulas = Array.isArray(formData.offre?.formules_configuration) ? formData.offre.formules_configuration : [];
-      if(configuredFormulas.length > 1 && !configuredFormulas.some((formula: any) => formula.code === formData.formule_code)){
-        toast({variant:"destructive",title:"Formule obligatoire",description:"Choisissez la formule de cette offre avant de passer à l’étape suivante."}); return false;
+      if(configuredFormulas.length === 0){
+        toast({variant:"destructive",title:"Offre mal configurée",description:"Cette offre n’a aucune formule enregistrée dans Paramètres > Offres. Aucun tarif générique ne sera utilisé."}); return false;
+      }
+      if(!configuredFormulas.some((formula: any) => formula.code === formData.formule_code)){
+        toast({variant:"destructive",title:"Formule obligatoire",description:"Choisissez explicitement une formule configurée avant de passer à l’étape suivante."}); return false;
       }
     }
     if(step.code==="offre"&&!formData.formule_code){
@@ -373,14 +376,14 @@ const NouvelleAcquisition = () => {
       if(offerError)throw offerError;
       if(!baseOffer)throw new Error("Offre sélectionnée introuvable");
       const formulas = Array.isArray(baseOffer.formules_configuration) ? baseOffer.formules_configuration : [];
-      const selectedFormula = formulas.find((formula: any) => formula.code === formData.formule_code) || (formulas.length === 1 ? formulas[0] : null);
-      if (formulas.length > 1 && !selectedFormula) {
-        throw new Error("Choisissez une formule précise pour cette offre avant d’enregistrer le dossier.");
+      const selectedFormula = formulas.find((formula: any) => formula.code === formData.formule_code) || null;
+      if (formulas.length === 0 || !selectedFormula) {
+        throw new Error("Choisissez une formule explicitement configurée pour cette offre avant d’enregistrer le dossier. Aucun tarif générique ne sera appliqué.");
       }
       const offer: any = selectedFormula ? {
         ...baseOffer,
-        formule_code: selectedFormula.code || baseOffer.formule_code || baseOffer.code,
-        formule_nom: selectedFormula.nom || baseOffer.formule_nom || baseOffer.nom,
+        formule_code: selectedFormula.code,
+        formule_nom: selectedFormula.nom,
         gestion_type: selectedFormula.gestion_type ?? baseOffer.gestion_type,
         ...Object.fromEntries(
           ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]
@@ -411,8 +414,8 @@ const NouvelleAcquisition = () => {
         mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
         montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
         famille_offre:offer.famille_offre||null,
-        formule_code:offer.formule_code|| (formulas.length === 0 ? offer.code : null),
-        formule_nom:offer.formule_nom|| (formulas.length === 0 ? offer.nom : null),
+        formule_code:selectedFormula.code,
+        formule_nom:selectedFormula.nom,
         parcours_code:offer.parcours_code||offer.code,
         statut:"actif",statut_global:"actif",contrat_acquisition_statut:offer.contrat_acquisition_requis?"a_signer":"non_requis",contrat_accompagnement_statut:offer.contrat_accompagnement_requis?"a_signer":"non_requis",
         created_by:currentUser.id,updated_by:currentUser.id,compte_actif:false,phase_actuelle:"pre_activation",total_hectares:ha
