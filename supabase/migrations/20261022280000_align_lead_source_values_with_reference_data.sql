@@ -12,4 +12,4 @@ check (source = any (array[
   'recommandation',
   'salon_evenement',
   'appel_entrant'
-]::text[]);
+]::text[]));
