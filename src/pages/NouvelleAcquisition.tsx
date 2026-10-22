@@ -225,7 +225,7 @@ const NouvelleAcquisition = () => {
       }
     })();
     return()=>{mounted=false;};
-  },[user]);
+  },[user, searchParams]);
 
   useEffect(()=>{
     if(!formData.offre_id){ setSteps([]); setCurrent(0); return; }
