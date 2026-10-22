@@ -550,7 +550,7 @@ const ClientDetail = () => {
                 )}
               </div>
             </div>
-            <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Fiche complète du client</DialogTitle></DialogHeader>{client && <ClientForm client={client} readOnly lockCommercialAssignment onCancel={()=>setIsClientFormOpen(false)} onSuccess={()=>{setIsClientFormOpen(false);void fetchData();}} />}</DialogContent></Dialog>
+            <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Fiche officielle du client</DialogTitle><DialogDescription>Consultez ou modifiez les données, la photo et les pièces d’identité dans le formulaire officiel.</DialogDescription></DialogHeader>{client && <ClientForm client={client} readOnly lockCommercialAssignment onCancel={()=>setIsClientFormOpen(false)} onSuccess={()=>{setIsClientFormOpen(false);void fetchData();}} />}</DialogContent></Dialog>
       <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Racheter la monnaie client</DialogTitle></DialogHeader>
@@ -790,9 +790,9 @@ const ClientDetail = () => {
           </Dialog>
 
           <section className="rounded-xl border p-3 sm:p-4 space-y-3">
-            <div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">Fiche complète du client</h2>
-              
+              <Button type="button" variant="outline" onClick={() => setIsClientFormOpen(true)}>Ouvrir la fiche officielle</Button>
             </div>
             {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div>{client.validation_commentaire && <p className="text-sm">{client.validation_commentaire}</p>}<Label>Commentaire de contrôle</Label><Textarea rows={2} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction"/><div className="flex flex-wrap gap-2">{client.validation_statut === "modification_demandee" && <Button variant="outline" onClick={()=>setIsClientFormOpen(true)}>Modifier le dossier</Button>}<Button variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></div></div>}
             {canCorrectReturnedClient && !canValidateClient && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Corrections demandées</h3><Badge variant="destructive">À corriger</Badge></div>{client.validation_commentaire && <p className="break-words text-sm">{client.validation_commentaire}</p>}<Button onClick={()=>setIsClientFormOpen(true)}>Modifier le dossier</Button></div>}
@@ -806,7 +806,7 @@ const ClientDetail = () => {
               </div>
               <div className="flex justify-end"><Button onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer pour validation"}</Button></div>
             </div>}
-            <ClientForm client={client} readOnly onSuccess={fetchData} onCancel={() => { void fetchData(); }} />
+
           </section>
 
           <Tabs defaultValue="plantations" className="space-y-3">
