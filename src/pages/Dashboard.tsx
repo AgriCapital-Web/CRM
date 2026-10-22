@@ -329,7 +329,7 @@ const Dashboard = () => {
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
       // Prévision fondée uniquement sur les contrats validés et les comptes effectivement activés.
-      const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.validation_statut === "valide" && !c.is_internal && c.type_client !== "beneficiaire_particulier");
+      const activeContracts = clients.filter((c: any) => c.compte_actif === true && c.validation_statut === "valide" && !c.is_internal && !isAgriCapitalInternal(c) && String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier");
       const contractRows = activeContracts.filter((c: any) => Number(c.montant_total_contrat || 0) > 0);
       const paidByClient = new Map<string, number>();
       validPayments.forEach((p: any) => paidByClient.set(p.client_id, (paidByClient.get(p.client_id) || 0) + Number(p.montant_paye ?? p.montant ?? 0)));
