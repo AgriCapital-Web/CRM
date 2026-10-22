@@ -171,11 +171,17 @@ const NouvelleAcquisition = () => {
         departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
         village_id:source.village_id||"", domicile:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
         domicile_residence:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
-        offre_id:offerId, formule_code:source.formule_code||"",
+        offre_id:offerId,
         commercial_id:source.assigned_to||undefined,
       };
-      // Empty values from an incomplete lead/prospect must not erase a recovered draft.
-      updateFormData(Object.fromEntries(Object.entries(sourceValues).filter(([, value]) => value !== "" && value !== null && value !== undefined)));
+      // Never carry a possibly historical/defaulted formula from a lead or prospect.
+      // Conversion must require an explicit formula choice in the first acquisition step.
+      updateFormData({
+        ...Object.fromEntries(Object.entries(sourceValues).filter(([, value]) => value !== "" && value !== null && value !== undefined)),
+        formule_code: "",
+        formule_nom: "",
+        formule_confirmed: false,
+      });
     })();
     return ()=>{active=false;};
   },[searchParams]);
