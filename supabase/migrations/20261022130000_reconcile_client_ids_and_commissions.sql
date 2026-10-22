@@ -186,7 +186,7 @@ SET transaction_date='2026-10-19 00:00:00+00',
     source_id=NULL,
     notes='Acompte partiel de 6 000 FCFA payé le 19/10/2026 pour les interventions techniques chez Guy Laurent, Tionon Madou et Ferdinand.',
     updated_at=now()
-WHERE id=(SELECT e.transaction_id FROM public.finance_expenses e JOIN public.finance_transactions t ON t.id=e.transaction_id WHERE lower(coalesce(e.supplier_name,'')) LIKE '%jean marie%' AND lower(coalesce(e.description,'')) LIKE '%commission technique%' AND t.amount=6000 AND t.direction='sortie' ORDER BY e.created_at DESC LIMIT 1)
+WHERE id=(SELECT e.transaction_id FROM public.finance_expenses e JOIN public.finance_transactions t ON t.id=e.transaction_id WHERE lower(coalesce(e.supplier_name,'')) LIKE '%jean%marie%' AND lower(coalesce(e.description,'')) LIKE '%commission technique%' AND t.amount=6000 AND t.direction='sortie' ORDER BY e.created_at DESC LIMIT 1)
   AND amount=6000 AND direction='sortie';
 
 UPDATE public.finance_expenses
@@ -194,7 +194,7 @@ SET expense_category='PRESTATIONS',
     supplier_name='YAO KONAN JEAN-MARIE',
     description='Commission technique — acompte partiel de 6 000 FCFA payé le 19/10/2026 pour Guy Laurent, Tionon Madou et Ferdinand.',
     profile_id=(SELECT id FROM public.profiles WHERE upper(trim(nom_complet))='YAO KONAN JEAN-MARIE' LIMIT 1)
-WHERE transaction_id=(SELECT e.transaction_id FROM public.finance_expenses e JOIN public.finance_transactions t ON t.id=e.transaction_id WHERE lower(coalesce(e.supplier_name,'')) LIKE '%jean marie%' AND lower(coalesce(e.description,'')) LIKE '%commission technique%' AND t.amount=6000 AND t.direction='sortie' ORDER BY e.created_at DESC LIMIT 1);
+WHERE transaction_id=(SELECT e.transaction_id FROM public.finance_expenses e JOIN public.finance_transactions t ON t.id=e.transaction_id WHERE lower(coalesce(e.supplier_name,'')) LIKE '%jean%marie%' AND lower(coalesce(e.description,'')) LIKE '%commission technique%' AND t.amount=6000 AND t.direction='sortie' ORDER BY e.created_at DESC LIMIT 1);
 
 -- Remove invalid duplicate commission transactions before recalculating statuses.
 DELETE FROM public.finance_expenses e
@@ -254,7 +254,7 @@ WHERE c.type_commission='acquisition'
 
 -- Link the existing 6,000 payment to the three outstanding technical commissions.
 INSERT INTO public.commission_payment_allocations(commission_id,transaction_id,amount)
-SELECT c.id, (SELECT e.transaction_id FROM public.finance_expenses e JOIN public.finance_transactions t ON t.id=e.transaction_id WHERE lower(coalesce(e.supplier_name,'')) LIKE '%jean marie%' AND lower(coalesce(e.description,'')) LIKE '%commission technique%' AND t.amount=6000 AND t.direction='sortie' ORDER BY e.created_at DESC LIMIT 1), 2000
+SELECT c.id, (SELECT e.transaction_id FROM public.finance_expenses e JOIN public.finance_transactions t ON t.id=e.transaction_id WHERE lower(coalesce(e.supplier_name,'')) LIKE '%jean%marie%' AND lower(coalesce(e.description,'')) LIKE '%commission technique%' AND t.amount=6000 AND t.direction='sortie' ORDER BY e.created_at DESC LIMIT 1), 2000
 FROM public.commissions c
 JOIN public.clients cl ON cl.id=c.client_id
 WHERE c.type_commission='technique'
