@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
       };
       const technicalSessionId = (session: any) => {
         const objects = nestedObjects(session);
-        const preferred = ["senderSessionId","sender_session_id","sessionId","session_id","uniqueSessionId","unique_session_id","sessionKey","session_key","uuid","id"];
+        const preferred = ["senderSessionId","sender_session_id","sessionId","session_id","uniqueSessionId","unique_session_id","sessionKey","session_key","sessionUid","session_uid","sessionIdentifier","session_identifier","instanceId","instance_id","deviceId","device_id","sessionName","session_name","sid","uuid","id","key","name"];
         for (const key of preferred) {
           const value = objects.map((object: any) => object?.[key]).find((candidate: any) =>
             (typeof candidate === "string" && candidate.trim()) || (typeof candidate === "number" && Number.isFinite(candidate)));
