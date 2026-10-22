@@ -34,8 +34,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Tableau de bord", path: "/dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
-    { icon: Users, label: "Leads", path: "/leads", permission: "leads.view" as any },
-    { icon: Users, label: "Prospects", path: "/prospects", permission: PERMISSIONS.VIEW_LEADS },
+    { icon: Users, label: "Leads et prospects", path: "/leads", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Acquisitions / Clients", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
     { icon: LandPlot, label: "Propriétaires fonciers", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
@@ -71,7 +70,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
-      <nav aria-label="Navigation principale" className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+      <nav aria-label="Navigation principale" className="flex min-h-0 flex-1 flex-col gap-0 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
         {visibleMenuItems.length === 0 && (
           <div className="rounded-md bg-primary-foreground/10 px-3 py-4 text-xs text-primary-foreground/90">
             Aucun rôle attribué à votre compte. Contactez un administrateur ou reconnectez-vous.
@@ -86,12 +85,12 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               asChild
               variant="ghost"
               className={cn(
-                "!h-9 !min-h-9 w-full min-w-0 shrink-0 justify-start gap-2.5 overflow-hidden whitespace-nowrap rounded-lg px-2.5 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
+                "!h-8 !min-h-0 py-0 my-0 w-full min-w-0 shrink-0 justify-start gap-2.5 overflow-hidden whitespace-nowrap rounded-lg px-2.5 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
                 active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
               )}
               title={item.label}
             >
-              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex !h-full !min-h-0 w-full min-w-0 items-center gap-2.5">
+              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex !h-full !min-h-0 py-0 my-0 w-full min-w-0 items-center gap-2.5">
                 <item.icon className="h-4 w-4 flex-shrink-0" />
                 <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium leading-normal">{item.label}</span>
               </Link>
