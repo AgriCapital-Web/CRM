@@ -196,19 +196,19 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       let filesQueued = false;
 
       if (photoFile) {
-        const result = await uploadFile("photos-profils", photoFile, undefined, undefined, { table: "clients", record_id: client.id, column: "photo_profil_url", field: "photo_profil" });
+        const result = await uploadFile("photos-profils", photoFile, `${user.id}/clients/${client.id}`, undefined, { table: "clients", record_id: client.id, column: "photo_profil_url", field: "photo_profil" });
         if (!result?.path) throw new Error("La photo de profil n’a pas été enregistrée. Réessayez.");
         photo_profil_url = result.path;
         filesQueued ||= result.queued;
       }
       if (pieceRectoFile) {
-        const result = await uploadFile("pieces-identite", pieceRectoFile, undefined, undefined, { table: "clients", record_id: client.id, column: "fichier_piece_recto_url", field: "piece_recto" });
+        const result = await uploadFile("pieces-identite", pieceRectoFile, `${user.id}/clients/${client.id}`, undefined, { table: "clients", record_id: client.id, column: "fichier_piece_recto_url", field: "piece_recto" });
         if (!result?.path) throw new Error("Le recto de la pièce d’identité n’a pas été enregistré. Réessayez.");
         fichier_piece_recto_url = result.path;
         filesQueued ||= result.queued;
       }
       if (pieceVersoFile) {
-        const result = await uploadFile("pieces-identite", pieceVersoFile, undefined, undefined, { table: "clients", record_id: client.id, column: "fichier_piece_verso_url", field: "piece_verso" });
+        const result = await uploadFile("pieces-identite", pieceVersoFile, `${user.id}/clients/${client.id}`, undefined, { table: "clients", record_id: client.id, column: "fichier_piece_verso_url", field: "piece_verso" });
         if (!result?.path) throw new Error("Le verso de la pièce d’identité n’a pas été enregistré. Réessayez.");
         fichier_piece_verso_url = result.path;
         filesQueued ||= result.queued;
