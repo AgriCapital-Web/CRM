@@ -139,7 +139,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
 
   const offer = useMemo(() => offers.find(o => o.id === form.offre_id) || null, [offers, form.offre_id]);
   const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
-  const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || (offerFormulas.length === 1 && !form.formule_code ? offerFormulas[0] : null);
+  const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || null;
   const effectiveOffer = useMemo(() => {
     if (!offer) return null;
     const result: any = { ...offer };
@@ -369,7 +369,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         <CardContent className="space-y-2 px-4 pb-3 pt-0">
           <div className="grid md:grid-cols-3 gap-2">
             <div><Label className="text-xs">Type de dossier</Label><Input className="h-8" value={isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"} disabled /></div>
-            <div><Label className="text-xs">Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{const selected=offers.find(o=>o.id===v);if(!selected)return;const formulas=Array.isArray(selected.formules_configuration)?selected.formules_configuration:[];const formula=formulas[0]||null;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:formula?.code||selected.formule_code||selected.code,formule_nom:formula?.nom||selected.formule_nom||selected.nom,parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}}><SelectTrigger className="h-8"><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{const selected=offers.find(o=>o.id===v);if(!selected)return;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:"",formule_nom:"",parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}}><SelectTrigger className="h-8"><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
             <div><Label className="text-xs">Formule</Label><Select value={selectedFormula?.code || ""} onValueChange={code=>{const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={!offerFormulas.length}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
           </div>
           {effectiveOffer && (
