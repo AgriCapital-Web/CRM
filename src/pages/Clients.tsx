@@ -180,6 +180,7 @@ const Clients = () => {
           getCachedPlantations(),
         ]);
         const enrichedData = cachedClients
+          .filter((client: any) => !client.is_internal && (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
           .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
@@ -207,7 +208,7 @@ const Clients = () => {
   useEffect(() => {
     const timer = window.setTimeout(() => { void fetchData(); }, searchTerm ? 250 : 0);
     return () => window.clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, acquisitionsView]);
 
   useRealtime({ table: "clients", onChange: fetchData });
   useRealtime({ table: "plantations", onChange: fetchData });
