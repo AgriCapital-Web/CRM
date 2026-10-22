@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import logoGreen from "@/assets/logo-green.png";
+
 import { ArrowLeft } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 
@@ -61,7 +61,7 @@ const ForgotPassword = () => {
       <Card className="w-full max-w-md shadow-strong relative z-10 backdrop-blur-sm bg-white/95">
         <CardHeader className="space-y-4 text-center pb-8">
           <div className="flex justify-center mb-4">
-            <img src={logoGreen} alt="AgriCapital Logo" className="h-32 w-auto" />
+            <img src="/agricapital360-officiel.png?v=20261022-logo-png" alt="AgriCapital Logo" className="h-32 w-auto" />
           </div>
           <CardTitle className="text-2xl font-bold text-primary">
             Mot de passe oublié ?
