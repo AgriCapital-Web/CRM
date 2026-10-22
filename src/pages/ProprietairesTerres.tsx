@@ -55,6 +55,7 @@ const ProprietairesTerres = () => {
   const canCreateProprietaire = can("proprietaires.create");
   const [searchParams] = useSearchParams();
   const conversionLeadId = searchParams.get("lead_id");
+  const conversionProspectId = searchParams.get("prospect_id");
   const [proprietaires, setProprietaires] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -379,6 +380,12 @@ const ProprietairesTerres = () => {
           converti_at: new Date().toISOString(), proprietaire_id: proprietaire.id,
         });
         if (leadUpdateError) throw leadUpdateError;
+      }
+      if (conversionProspectId) {
+        const { error: prospectUpdateError } = await offlineUpdate("prospects", conversionProspectId, {
+          statut: "converti", proprietaire_id: proprietaire.id, updated_at: new Date().toISOString(),
+        });
+        if (prospectUpdateError) throw prospectUpdateError;
       }
       toast({
         title: isOnline ? "Succès" : "Enregistré hors ligne",
