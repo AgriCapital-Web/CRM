@@ -176,7 +176,7 @@ export default function AgriCapitalConnect() {
     const { data, error } = await (supabase as any).from("internal_meetings")
       .insert({ title: meetingTitle.trim(), description: meetingDescription.trim() || null, agenda: meetingAgenda.trim() || null,
         starts_at: new Date(meetingStart).toISOString(), ends_at: new Date(meetingEnd).toISOString(),
-        provider: "jitsi", join_url: joinUrl, created_by_profile_id: profileId })
+        provider: "external", provider_room_id: roomToken, join_url: joinUrl, created_by_profile_id: profileId })
       .select("id").single();
     if (error || !data) { toast.error("Réunion non créée."); console.error(error); return; }
     const invitees = Array.from(new Set([profileId, ...meetingMembers])).map(id => ({ meeting_id: data.id, profile_id: id, participant_role: id === profileId ? "host" : "participant", response: id === profileId ? "accepted" : "pending" }));
