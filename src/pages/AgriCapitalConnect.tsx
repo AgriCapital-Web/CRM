@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, Check, Clock3, Loader2, MessageCircle, Plus, Send, ShieldCheck, Users, Video } from "lucide-react";
+import { CalendarDays, Check, Clock3, Files, Loader2, MessageCircle, Plus, Send, ShieldCheck, Users, Video } from "lucide-react";
 import { toast } from "sonner";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
@@ -25,6 +26,7 @@ const dateLabel = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyl
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase();
 
 export default function AgriCapitalConnect() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { can } = usePermissions();
   const profileId = profile?.id as string | undefined;
@@ -168,11 +170,16 @@ export default function AgriCapitalConnect() {
         <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 overflow-x-hidden p-3 pb-8 pt-16 md:p-6 md:pt-6">
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">AgriCapital Connect</h1></div>
-              <p className="mt-1 text-sm text-muted-foreground">Messagerie interne, réunions et coordination d'équipe.</p>
+              <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">Espace de travail & communication</h1></div>
+              <p className="mt-1 text-sm text-muted-foreground">Documents partagés, outils de travail, messagerie interne et réunions d’équipe regroupés ici.</p>
             </div>
             <Badge variant="outline" className="w-fit gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Espace interne sécurisé</Badge>
           </header>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => navigate("/espace-travail")}><Files className="mr-2 h-4 w-4 shrink-0" />Documents, tableurs et présentations</Button>
+            <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => navigate("/messagerie")}><MessageCircle className="mr-2 h-4 w-4 shrink-0" />Messages des clients</Button>
+            <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>
+          </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
             <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:w-fit">
               <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages</TabsTrigger>
