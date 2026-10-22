@@ -212,6 +212,9 @@ const Dashboard = () => {
       ]);
 
       const clients = clientsRes.data || [];
+      // Les indicateurs commerciaux excluent les comptes internes et les bénéficiaires particuliers.
+      // Ces derniers restent disponibles dans les tableaux et dans le suivi technique.
+      const commercialClients = clients.filter((c: any) => !c.is_internal && String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier");
       const acquisitionsForValidation = acquisitionsValidationRes.data || [];
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
@@ -351,11 +354,11 @@ const Dashboard = () => {
       const portfolioTotal = commissions.filter((c: any) => c.statut !== "annule" && c.statut !== "payee").reduce((s: number, c: any) => s + Number(c.montant_commission || 0), 0);
 
       setStats({
-        clients: clients.filter((c: any) => !c.is_internal).length,
-        clientsActive: clients.filter((c:any)=>!c.is_internal && (["actif","active"].includes(String(c.statut||"").toLowerCase()) || ["actif","active"].includes(String(c.statut_global||"").toLowerCase()))).length,
-        clientsOverdue: clients.filter((c:any)=>!c.is_internal && (["en_retard","retard","impaye"].includes(String(c.statut||"").toLowerCase()) || ["en_retard","retard","impaye"].includes(String(c.statut_global||"").toLowerCase()))).length,
-        clientsSuspended: clients.filter((c:any)=>!c.is_internal && ["suspendu","suspendue","suspended"].includes(String(c.statut||c.statut_global||"").toLowerCase())).length,
-        clientsPendingValidation: clients.filter((c:any)=>!c.is_internal && ["a_valider","modification_demandee"].includes(String(c.validation_statut||""))).length,
+        clients: commercialClients.length,
+        clientsActive: commercialClients.filter((c:any)=>(["actif","active"].includes(String(c.statut||"").toLowerCase()) || ["actif","active"].includes(String(c.statut_global||"").toLowerCase()))).length,
+        clientsOverdue: commercialClients.filter((c:any)=>( ["en_retard","retard","impaye"].includes(String(c.statut||"").toLowerCase()) || ["en_retard","retard","impaye"].includes(String(c.statut_global||"").toLowerCase()))).length,
+        clientsSuspended: commercialClients.filter((c:any)=>["suspendu","suspendue","suspended"].includes(String(c.statut||c.statut_global||"").toLowerCase())).length,
+        clientsPendingValidation: commercialClients.filter((c:any)=>["a_valider","modification_demandee"].includes(String(c.validation_statut||""))).length,
         salesPendingValidation: acquisitionsForValidation.filter((a:any)=>["a_valider","modification_demandee"].includes(String(a.validation_statut||""))).length,
         leads: pipelineLeads.length,
         prospects: pipelineProspects.length,
@@ -444,7 +447,7 @@ const Dashboard = () => {
           if (!member.equipe_id) return;
           membersByTeam.set(member.equipe_id, (membersByTeam.get(member.equipe_id) || 0) + 1);
         });
-        if (canCommercialTeamPerformance) clients.filter((cl: any) => !cl.is_internal).forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:"Équipe commerciale",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.clients+=1; row.hectares+=Number(cl.total_hectares||0); teamMap.set(key,row); });
+        if (canCommercialTeamPerformance) commercialClients.forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:"Équipe commerciale",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.clients+=1; row.hectares+=Number(cl.total_hectares||0); teamMap.set(key,row); });
         if (canTechnicalTeamPerformance) interventions.forEach((i: any) => { const p=profileById.get(i.agent_technique_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="technique:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"technique",nom:"Équipe technique",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.interventions+=1; teamMap.set(key,row); });
         setTeamPerformance([...teamMap.values()].sort((a,b)=>(b.clients+b.interventions)-(a.clients+a.interventions)).slice(0,10));
       }
