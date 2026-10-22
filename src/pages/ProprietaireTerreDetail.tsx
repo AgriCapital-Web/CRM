@@ -6,6 +6,7 @@ import { PERMISSIONS } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -26,8 +27,9 @@ const ProprietaireTerreDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { can } = usePermissions();
+  const { userRoles = [] } = useAuth();
   const canEditOwner = can("proprietaires.update");
-  const canValidateOwner = can("proprietaires.validate");
+  const canValidateOwner = can("proprietaires.validate") || ["pdg", "service_client", "chef_equipe_service_client"].some((role) => userRoles.includes(role));
   const canCreateOwnerDocs = can("documents.upload") || can("proprietaires.create") || canEditOwner;
   const canEditOwnerDocs = can("documents.upload") || canEditOwner;
   const [validationBusy, setValidationBusy] = useState(false);
