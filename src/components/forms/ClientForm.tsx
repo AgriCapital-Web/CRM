@@ -144,12 +144,18 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     if (!offer) return null;
     const result: any = { ...offer };
     if (selectedFormula) {
+      const sharedTariff = selectedFormula.utilise_tarif_commun === true;
       for (const key of [
         "montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha",
         "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement",
-        "gestion_type", "necessite_foncier_client", "necessite_cotitulaire",
-        "contrat_acquisition_requis", "contrat_accompagnement_requis",
       ]) {
+        if (selectedFormula[key] !== undefined && selectedFormula[key] !== null) result[key] = selectedFormula[key];
+        else if (sharedTariff) result[key] = (offer as any)[key] ?? null;
+        else result[key] = null;
+      }
+      if (selectedFormula.gestion_type !== undefined && selectedFormula.gestion_type !== null) result.gestion_type = selectedFormula.gestion_type;
+      else if (!sharedTariff) result.gestion_type = null;
+      for (const key of ["necessite_foncier_client", "necessite_cotitulaire", "contrat_acquisition_requis", "contrat_accompagnement_requis"]) {
         if (selectedFormula[key] !== undefined && selectedFormula[key] !== null) result[key] = selectedFormula[key];
       }
     } else if (offerFormulas.length > 0) {
