@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       })) : [];
       return reply(req, {
         ok: true,
-        pairedSessionApi: "not documented by @senndo/sdk 1.5.0; no paired-session send method exposed by the configured SDK",
+        pairedSessionApi: "Le CRM interroge /v1/wa/sessions et envoie via /v1/messages avec le canal whatsapp_baileys. L’appairage initial du téléphone se fait dans Senndo.",
         whatsappCloud: results[0].status === "fulfilled" ? { available: true, numbers: cloudNumbers } : { available: false, error: safeError((results[0] as PromiseRejectedResult).reason) },
         whatsappCloudTemplates: results[1].status === "fulfilled" ? { available: true, templates } : { available: false, error: safeError((results[1] as PromiseRejectedResult).reason) },
         whatsappTwilio: results[2].status === "fulfilled" ? { available: true, reason: hostedTemplates?.reason || null, templates: content } : { available: false, error: safeError((results[2] as PromiseRejectedResult).reason) },
