@@ -306,17 +306,17 @@ const Clients = () => {
   const plantationIds = new Set<string>();
   clients.forEach((client: any) => (client.plantations || []).forEach((p: any) => plantationIds.add(p.id)));
   attributions.forEach((a: any) => { if (a.plantation_id) plantationIds.add(a.plantation_id); });
-  const clientsOfficiels = clients.filter((c: any) => c.type_client !== "beneficiaire_particulier").length;
-  const beneficiaires = clients.filter((c: any) => c.type_client === "beneficiaire_particulier").length;
+  // Les bénéficiaires particuliers restent visibles dans la table, mais ne gonflent aucun indicateur commercial.
+  const commercialClients = clients.filter((c: any) => !["beneficiaire_particulier", "proprietaire_foncier"].includes(String(c.type_client || "").toLowerCase()));
+  const clientsOfficiels = commercialClients.length;
 
   const stats = {
-    total: clients.length,
-    actifs: clients.filter(s => s.statut === "actif" || s.statut_global === "actif").length,
-    inactifs: clients.filter(s => s.statut === "inactif" || s.statut === "suspendu" || s.statut === "archive").length,
-    totalHectares: clients.reduce((sum, s) => sum + Number(s.total_hectares || 0), 0),
+    total: commercialClients.length,
+    actifs: commercialClients.filter(s => s.statut === "actif" || s.statut_global === "actif").length,
+    inactifs: commercialClients.filter(s => s.statut === "inactif" || s.statut === "suspendu" || s.statut === "archive").length,
+    totalHectares: commercialClients.reduce((sum, s) => sum + Number(s.total_hectares || 0), 0),
     plantations: plantationIds.size,
     clientsOfficiels,
-    beneficiaires,
     salesPendingValidation,
   };
 
@@ -350,13 +350,12 @@ const Clients = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8 gap-2">
-            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground whitespace-nowrap">{stats.clientsOfficiels} clients · {stats.beneficiaires} B. part.</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground whitespace-nowrap">Clients commerciaux uniquement</p></CardContent></Card>
             {can("acquisitions.validate") && <Link to="/acquisitions/validation?type=ventes" className="block min-w-0"><Card className="h-full min-w-0 border-primary/40 transition-colors hover:bg-primary/5"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-semibold leading-tight">Ventes à valider</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.salesPendingValidation}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Ventes en attente</p></CardContent></Card></Link>}
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Actifs</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.actifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statut actif</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Inactifs / suspendus</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.inactifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statuts inactifs</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Total hectares</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Surface cumulée</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Clients officiels</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.clientsOfficiels}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Dossiers commerciaux</p></CardContent></Card>
-            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">B. particuliers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.beneficiaires}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Personnes rattachées</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Plantations</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.plantations}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Actifs agricoles</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Superficie rattachée</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Toutes superficies</p></CardContent></Card>
           </div>
