@@ -106,6 +106,7 @@ const Clients = () => {
         let clientsQuery = supabase
           .from("clients")
           .select("*")
+          .or("is_internal.is.null,is_internal.eq.false")
           .order("id_unique", { ascending: false })
           .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
 
