@@ -36,11 +36,11 @@ export default function Commissions() {
     try {
       const { data, error } = await (supabase as any)
         .from("commissions")
-        .select("*,profile:profiles!commissions_profile_id_fkey(id,nom_complet,telephone,equipe_id,equipe:equipes!profiles_equipe_id_fkey(id,nom,type_equipe)),plantation:plantations(id_unique,nom_plantation),client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom)")
+        .select("*,profile:profiles!commissions_profile_id_fkey(id,nom_complet,telephone,equipe_id,equipe:equipes!profiles_equipe_id_fkey(id,nom,type_equipe)),plantation:plantations(id_unique,nom_plantation),client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),payment_allocations:commission_payment_allocations(amount)")
         .order("periode", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      const allRows = data || [];
+      const allRows = (data || []).filter((row: any) => row.statut !== "annule").map((row: any) => {\n        const allocated = (row.payment_allocations || []).reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);\n        const amount = Number(row.montant_commission || 0);\n        const paidAmount = row.statut === "payee" ? amount : Math.min(amount, allocated);\n        return { ...row, paidAmount, remainingAmount: Math.max(0, amount - paidAmount) };\n      });
       // Les affectations réelles vivent dans equipe_membres : profiles.equipe_id
       // n'est que l'équipe principale et peut être NULL ou incomplet.
       const { data: membershipRows, error: membershipError } = await (supabase as any)
