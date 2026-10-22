@@ -149,7 +149,7 @@ const Clients = () => {
         supabase.from("offres").select("id,nom,couleur,code,formules_configuration"),
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
-        (supabase as any).from("acquisitions").select("id,validation_statut").in("validation_statut", ["a_valider", "modification_demandee"),
+        (supabase as any).from("acquisitions").select("id,validation_statut").in("validation_statut", ["a_valider", "modification_demandee"]),
       ]);
 
       setSalesPendingValidation((pendingSalesRes?.data || []).filter((s: any) => ["a_valider", "modification_demandee"].includes(String(s.validation_statut || ""))).length);
