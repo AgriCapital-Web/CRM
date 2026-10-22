@@ -43,7 +43,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: CreditCard, label: "Paiements", path: "/paiements", permission: PERMISSIONS.VIEW_PAIEMENTS },
     { icon: Receipt, label: "Commissions", path: "/commissions", permission: PERMISSIONS.VIEW_COMMISSIONS },
     { icon: Wallet, label: "Portefeuilles", path: "/portefeuilles", permission: PERMISSIONS.VIEW_PORTEFEUILLES },
-    { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_EQUIPES },
+    { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_PARAMETRES },
     { icon: Sprout, label: "Technique", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
     { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
