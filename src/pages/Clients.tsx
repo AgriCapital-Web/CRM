@@ -176,7 +176,12 @@ const Clients = () => {
 
       setTeamPerformance(teamPerfRes.data||[]);
       setAttributions(attributionsData);
-      setClients(enrichedData);
+      // Exclure l'entité interne AgriCapital même si is_internal n'est pas renseigné.
+      // Les bénéficiaires particuliers restent visibles dans la liste générale, mais pas dans Acquisitions.
+      setClients(enrichedData.filter((client: any) =>
+        !client.is_internal && !isAgriCapitalInternal(client) &&
+        (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier")
+      ));
     } catch (error: any) {
       if (!navigator.onLine) {
         const [cachedClients, cachedPlantations] = await Promise.all([
