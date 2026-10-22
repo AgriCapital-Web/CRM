@@ -27,6 +27,9 @@ const ProprietaireTerreDetail = () => {
   const { toast } = useToast();
   const { can } = usePermissions();
   const canEditOwner = can("proprietaires.update");
+  const canValidateOwner = can("proprietaires.validate");
+  const [validationBusy, setValidationBusy] = useState(false);
+  const [validationNotes, setValidationNotes] = useState("");
   const [owner, setOwner] = useState<any>(null);
   const [parcelles, setParcelles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,6 +132,32 @@ const ProprietaireTerreDetail = () => {
       return s + Math.max(0, ac - used);
     }, 0),
   }), [parcelles]);
+
+  const decideOwnerValidation = async (decision: "valide" | "refuse") => {
+    if (!id || !owner || !canValidateOwner || validationBusy || owner.validation_statut !== "a_valider") return;
+    setValidationBusy(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("validate_proprietaire_foncier", {
+        _proprietaire_id: id,
+        _decision: decision,
+        _notes: validationNotes.trim() || null,
+      });
+      if (error) throw error;
+      if (!data?.proprietaire_id) throw new Error("La base n’a pas confirmé la validation du dossier.");
+      toast({
+        title: decision === "valide" ? "Dossier foncier validé" : "Dossier foncier refusé",
+        description: decision === "valide"
+          ? "Le propriétaire, ses parcelles et sa convention ont été traités."
+          : "Le refus et son motif éventuel ont été enregistrés.",
+      });
+      setValidationNotes("");
+      await load();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Validation impossible", description: getSafeErrorMessage(error) });
+    } finally {
+      setValidationBusy(false);
+    }
+  };
 
   const saveOwner = async () => {
     if (!id || !owner || !canEditOwner || ownerSaving) return;
@@ -238,8 +267,32 @@ const ProprietaireTerreDetail = () => {
                 <h1 className="text-2xl font-bold">{owner.nom_complet}</h1>
               </div>
             </div>
-            <Badge>{owner.statut === "actif" ? "Actif" : owner.statut}</Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>{owner.statut === "actif" ? "Actif" : owner.statut}</Badge>
+              <Badge variant={owner.validation_statut === "valide" ? "default" : owner.validation_statut === "refuse" ? "destructive" : "outline"}>
+                {owner.validation_statut === "valide" ? "Dossier validé" : owner.validation_statut === "refuse" ? "Dossier refusé" : "À valider"}
+              </Badge>
+            </div>
           </div>
+
+          {canValidateOwner && owner.validation_statut === "a_valider" && <Card>
+            <CardHeader><CardTitle>Validation du dossier foncier</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">Vérifiez les informations, la parcelle et les pièces jointes avant de valider. La validation active la convention et rend les parcelles soumises disponibles dans le suivi foncier.</p>
+              <div className="space-y-1">
+                <Label htmlFor="owner-validation-notes">Commentaire de validation ou motif de refus</Label>
+                <Textarea id="owner-validation-notes" value={validationNotes} onChange={e => setValidationNotes(e.target.value)} rows={3} placeholder="Observations facultatives…" />
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="destructive" onClick={() => void decideOwnerValidation("refuse")} disabled={validationBusy}>
+                  {validationBusy ? "Traitement…" : "Refuser le dossier"}
+                </Button>
+                <Button type="button" onClick={() => void decideOwnerValidation("valide")} disabled={validationBusy}>
+                  {validationBusy ? "Traitement…" : "Valider le dossier"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Parcelles</p><p className="mt-1 text-2xl font-bold">{totals.count}</p></CardContent></Card>
