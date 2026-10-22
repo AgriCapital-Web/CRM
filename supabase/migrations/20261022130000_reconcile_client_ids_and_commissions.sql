@@ -33,7 +33,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
 AS $function$
 BEGIN
   IF TG_TABLE_NAME = 'clients' AND (NEW.id_unique IS NULL OR NEW.id_unique = '') THEN
-    IF coalesce(NEW.is_internal,false) OR lower(coalesce(NEW.nom_complet,NEW.nom,'')) LIKE '%agricapital%' THEN
+    IF coalesce(NEW.is_internal,false) OR lower(coalesce(NEW.nom_complet,'')) LIKE '%agricapital%' THEN
       NEW.id_unique := 'AC-INTERNAL';
     ELSE
       NEW.id_unique := public.generate_client_id(NEW.type_client);
