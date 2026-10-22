@@ -70,7 +70,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
-      <nav aria-label="Navigation principale" className="flex min-h-0 flex-1 flex-col gap-0 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-0.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+      <nav aria-label="Navigation principale" className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-2 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
         {visibleMenuItems.length === 0 && (
           <div className="rounded-md bg-primary-foreground/10 px-3 py-4 text-xs text-primary-foreground/90">
             Aucun rôle attribué à votre compte. Contactez un administrateur ou reconnectez-vous.
@@ -85,14 +85,14 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               asChild
               variant="ghost"
               className={cn(
-                "block h-7 min-h-7 w-full min-w-0 shrink-0 justify-start gap-1.5 overflow-hidden whitespace-nowrap rounded-md px-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
+                "h-10 min-h-10 w-full min-w-0 shrink-0 justify-start gap-3 overflow-hidden whitespace-nowrap rounded-lg px-3 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
                 active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
               )}
               title={item.label}
             >
-              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex h-full w-full min-w-0 items-center gap-1.5">
-                <item.icon className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-xs font-medium leading-tight">{item.label}</span>
+              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex h-full w-full min-w-0 items-center gap-3">
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium leading-normal">{item.label}</span>
               </Link>
             </Button>
           );
