@@ -59,6 +59,8 @@ declare
   v_ha numeric;
   v_amount numeric;
   v_formula jsonb;
+  v_offre public.offres%rowtype;
+  v_use_shared boolean := false;
 begin
   if coalesce(new.compte_actif, false) = true or new.offre_id is null then return new; end if;
   if tg_op = 'UPDATE'
@@ -70,10 +72,10 @@ begin
     return new;
   end if;
 
+  select * into v_offre from public.offres where id = new.offre_id;
   select item.value into v_formula
-    from public.offres o
-    cross join lateral jsonb_array_elements(coalesce(o.formules_configuration, '[]'::jsonb)) item(value)
-   where o.id = new.offre_id and item.value->>'code' = new.formule_code
+    from jsonb_array_elements(coalesce(v_offre.formules_configuration, '[]'::jsonb)) item(value)
+   where item.value->>'code' = new.formule_code
    limit 1;
 
   if v_formula is null then
@@ -81,17 +83,21 @@ begin
       using errcode = '23514';
   end if;
 
-  select nullif(v_formula->>'duree_paiement_mois', '')::int into v_duree;
+  v_use_shared := coalesce((v_formula->>'utilise_tarif_commun')::boolean, false);
   v_ha := coalesce(new.total_hectares, 0);
   if v_ha <= 0 then return new; end if;
   new.mode_paiement := coalesce(new.mode_paiement, 'echeancier');
 
-  v_di := nullif(v_formula->>'montant_pi_par_ha', '')::numeric;
+  v_di := coalesce(nullif(v_formula->>'montant_pi_par_ha', '')::numeric,
+                   case when v_use_shared then coalesce(v_offre.montant_pi_par_ha, v_offre.paiement_signature_par_ha) end);
   v_base_total := coalesce(nullif(v_formula->>'montant_total_par_ha', '')::numeric,
-                           nullif(v_formula->>'montant_cash_par_ha', '')::numeric);
+                           nullif(v_formula->>'montant_cash_par_ha', '')::numeric,
+                           case when v_use_shared then coalesce(v_offre.montant_total_par_ha, v_offre.montant_cash_par_ha) end);
   v_total := v_base_total;
-  v_mens := nullif(v_formula->>'mensualite_par_ha', '')::numeric;
-  v_duree := nullif(v_formula->>'duree_paiement_mois', '')::int;
+  v_mens := coalesce(nullif(v_formula->>'mensualite_par_ha', '')::numeric,
+                     case when v_use_shared then v_offre.mensualite_par_ha end);
+  v_duree := coalesce(nullif(v_formula->>'duree_paiement_mois', '')::int,
+                      case when v_use_shared then v_offre.duree_paiement_mois end);
 
   if new.mode_paiement = 'comptant' then
     v_di := coalesce(nullif(new.montant_total_contrat, 0) / v_ha, v_total);
@@ -150,6 +156,7 @@ declare
   daily numeric;
   ha numeric;
   formula_total numeric;
+  v_use_shared boolean := false;
 begin
   select * into c from public.clients where id = _client_id;
   if not found then return; end if;
@@ -180,9 +187,12 @@ begin
   end if;
   if ha <= 0 then return; end if;
 
-  months := nullif(f->>'duree_paiement_mois', '')::integer;
+  v_use_shared := coalesce((f->>'utilise_tarif_commun')::boolean, false);
+  months := coalesce(nullif(f->>'duree_paiement_mois', '')::integer,
+                     case when v_use_shared then o.duree_paiement_mois end);
   formula_total := coalesce(nullif(f->>'montant_total_par_ha', '')::numeric,
-                            nullif(f->>'montant_cash_par_ha', '')::numeric) * ha;
+                            nullif(f->>'montant_cash_par_ha', '')::numeric,
+                            case when v_use_shared then coalesce(o.montant_total_par_ha, o.montant_cash_par_ha) end) * ha;
   if c.mode_paiement = 'comptant' then
     months := 1;
     total := coalesce(nullif(c.montant_total_contrat, 0), formula_total);
@@ -190,9 +200,11 @@ begin
     monthly := 0;
   else
     initial := coalesce(nullif(c.paiement_initial_montant, 0),
-                        nullif(f->>'montant_pi_par_ha', '')::numeric * ha);
+                        coalesce(nullif(f->>'montant_pi_par_ha', '')::numeric,
+                                 case when v_use_shared then coalesce(o.montant_pi_par_ha, o.paiement_signature_par_ha) end) * ha);
     monthly := coalesce(nullif(c.mensualite_montant, 0),
-                        nullif(f->>'mensualite_par_ha', '')::numeric * ha);
+                        coalesce(nullif(f->>'mensualite_par_ha', '')::numeric,
+                                 case when v_use_shared then o.mensualite_par_ha end) * ha);
     total := case
       when coalesce(c.montant_promo_applique, 0) > 0 and coalesce(c.montant_total_contrat, 0) > 0 then c.montant_total_contrat
       else coalesce(nullif(c.montant_total_contrat, 0), formula_total)
@@ -258,19 +270,27 @@ begin
   end if;
   if ha <= 0 then return; end if;
 
-  days := nullif(f->>'duree_paiement_mois', '')::int * 30;
+  v_use_shared := coalesce((f->>'utilise_tarif_commun')::boolean, false);
+  days := coalesce(nullif(f->>'duree_paiement_mois', '')::int,
+                   case when v_use_shared then o.duree_paiement_mois end) * 30;
   if c.mode_paiement = 'comptant' then
     total := coalesce(nullif(c.montant_total_contrat, 0),
-      coalesce(nullif(f->>'montant_cash_par_ha', '')::numeric, nullif(f->>'montant_total_par_ha', '')::numeric) * ha);
+      coalesce(nullif(f->>'montant_cash_par_ha', '')::numeric, nullif(f->>'montant_total_par_ha', '')::numeric,
+               case when v_use_shared then coalesce(o.montant_cash_par_ha, o.montant_total_par_ha) end) * ha);
     pi := total;
     monthly := 0;
     days := 30;
   else
-    pi := coalesce(nullif(c.paiement_initial_montant, 0), nullif(f->>'montant_pi_par_ha', '')::numeric * ha);
-    monthly := coalesce(nullif(c.mensualite_montant, 0), nullif(f->>'mensualite_par_ha', '')::numeric * ha);
+    pi := coalesce(nullif(c.paiement_initial_montant, 0),
+                   coalesce(nullif(f->>'montant_pi_par_ha', '')::numeric,
+                            case when v_use_shared then coalesce(o.montant_pi_par_ha, o.paiement_signature_par_ha) end) * ha);
+    monthly := coalesce(nullif(c.mensualite_montant, 0),
+                        coalesce(nullif(f->>'mensualite_par_ha', '')::numeric,
+                                 case when v_use_shared then o.mensualite_par_ha end) * ha);
     total := case when coalesce(c.montant_promo_applique, 0) > 0 and coalesce(c.montant_total_contrat, 0) > 0
       then c.montant_total_contrat
-      else coalesce(nullif(f->>'montant_total_par_ha', '')::numeric, nullif(f->>'montant_cash_par_ha', '')::numeric) * ha end;
+      else coalesce(nullif(f->>'montant_total_par_ha', '')::numeric, nullif(f->>'montant_cash_par_ha', '')::numeric,
+                    case when v_use_shared then coalesce(o.montant_total_par_ha, o.montant_cash_par_ha) end) * ha end;
   end if;
 
   if total is null or pi is null or monthly is null or days is null or days <= 0 then
