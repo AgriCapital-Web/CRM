@@ -439,7 +439,7 @@ const Dashboard = () => {
       );
 
       const officialOffers = new Map([["PalmInvest",{name:"PalmInvest",clients:0,hectares:0}],["TerraPalm",{name:"TerraPalm",clients:0,hectares:0}],["PalmTerroir",{name:"PalmTerroir",clients:0,hectares:0}]]);
-      clients.filter((c:any)=>!c.is_internal&&c.type_client!=="beneficiaire_particulier"&&officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
+      clients.filter((c:any)=>!c.is_internal&&!isAgriCapitalInternal(c)&&String(c.type_client||"").toLowerCase()!=="beneficiaire_particulier"&&officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
       setOfferPerformance([...officialOffers.values()].filter((x:any)=>x.clients>0).sort((a,b)=>b.clients-a.clients));
 
       if (canCommercialTeamPerformance || canTechnicalTeamPerformance) {
