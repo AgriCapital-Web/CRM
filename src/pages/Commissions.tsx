@@ -30,6 +30,13 @@ export default function Commissions() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<any | null>(null);
   const [validatingId, setValidatingId] = useState<string | null>(null);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentIds, setPaymentIds] = useState<string[]>([]);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [paymentMethod, setPaymentMethod] = useState("virement");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentSaving, setPaymentSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -145,6 +152,47 @@ export default function Commissions() {
   }, [rows]);
 
   const canSeeTeamCommission = userRoles.some((r: string) => ["pdg","dg","comptable","responsable_operations","responsable_commercial","chef_equipe_commercial","chef_equipe_technique"].includes(r));
+  const openPaymentDialog = () => {
+    if (!selected) return;
+    const eligible = selected.details.filter((d: any) => Number(d.remainingAmount || 0) > 0 && ["validee", "payee"].includes(d.statut));
+    if (!eligible.length) {
+      toast({ title: "Aucun solde à payer", description: "Toutes les commissions de ce collaborateur sont déjà réglées." });
+      return;
+    }
+    setPaymentIds(eligible.map((d: any) => d.id));
+    setPaymentAmount(String(eligible.reduce((sum: number, d: any) => sum + Number(d.remainingAmount || 0), 0)));
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentMethod("virement");
+    setPaymentReference("");
+    setPaymentOpen(true);
+  };
+  const recordCommissionPayment = async () => {
+    if (!selected || paymentSaving) return;
+    if (!paymentIds.length || !paymentDate || Number(paymentAmount) <= 0) {
+      toast({ title: "Informations requises", description: "Sélectionnez au moins une commission, une date et un montant positif.", variant: "destructive" });
+      return;
+    }
+    setPaymentSaving(true);
+    try {
+      const { error } = await (supabase as any).rpc("finance_record_commission_payment", {
+        p_profile_id: selected.profile_id,
+        p_commission_ids: paymentIds,
+        p_amount: Number(paymentAmount),
+        p_payment_date: paymentDate,
+        p_payment_method: paymentMethod,
+        p_reference: paymentReference.trim() || null,
+      });
+      if (error) throw error;
+      toast({ title: "Paiement enregistré", description: "Le paiement, ses affectations et le solde des commissions sont synchronisés avec la comptabilité." });
+      setPaymentOpen(false);
+      setSelected(null);
+      await load();
+    } catch (error: any) {
+      toast({ title: "Paiement non enregistré", description: error?.message || "La transaction a été annulée.", variant: "destructive" });
+    } finally {
+      setPaymentSaving(false);
+    }
+  };
 
   const teamGroups = useMemo(() => {
     const map = new Map<string, any>();
@@ -237,7 +285,7 @@ export default function Commissions() {
 
           <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
             <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-              <DialogHeader><DialogTitle>{selected?.nom}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{selected?.nom}</DialogTitle></DialogHeader>\n              {selected && <div className="flex justify-end"><Button onClick={openPaymentDialog}>Enregistrer un paiement</Button></div>}
               {selected && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
