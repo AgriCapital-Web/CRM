@@ -1,4 +1,4 @@
-const CACHE_NAME = "agricapital-crm-v26";
+const CACHE_NAME = "agricapital-crm-v27";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 15;
