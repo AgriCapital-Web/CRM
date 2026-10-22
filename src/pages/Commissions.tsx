@@ -285,7 +285,8 @@ export default function Commissions() {
 
           <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
             <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-              <DialogHeader><DialogTitle>{selected?.nom}</DialogTitle></DialogHeader>\n              {selected && <div className="flex justify-end"><Button onClick={openPaymentDialog}>Enregistrer un paiement</Button></div>}
+              <DialogHeader><DialogTitle>{selected?.nom}</DialogTitle></DialogHeader>
+              {selected && <div className="flex justify-end"><Button onClick={openPaymentDialog}>Enregistrer un paiement</Button></div>}
               {selected && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -315,6 +316,30 @@ export default function Commissions() {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={paymentOpen} onOpenChange={(open) => { if (!paymentSaving) setPaymentOpen(open); }}>
+            <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+              <DialogHeader><DialogTitle>Enregistrer un paiement de commission</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">Le paiement sera inscrit une seule fois en comptabilité et réparti sur les soldes sélectionnés.</p>
+                <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border p-2">
+                  {(selected?.details || []).filter((d: any) => Number(d.remainingAmount || 0) > 0 && ["validee", "payee"].includes(d.statut)).map((d: any) => (
+                    <label key={d.id} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 hover:bg-muted/50">
+                      <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={paymentIds.includes(d.id)} onChange={(event) => setPaymentIds(current => event.target.checked ? [...current, d.id] : current.filter(id => id !== d.id))} />
+                      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{d.client?.nom_complet || "Intervention sans client"} · {typeLabel(d.type_commission)}</span><span className="block text-xs text-muted-foreground">Solde restant : {money(d.remainingAmount)}</span></span>
+                    </label>
+                  ))}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1"><p className="text-sm font-medium">Montant réellement payé (FCFA)</p><Input type="number" min="1" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} /></div>
+                  <div className="space-y-1"><p className="text-sm font-medium">Date du paiement</p><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
+                  <div className="space-y-1"><p className="text-sm font-medium">Mode de paiement</p><Input value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} placeholder="Virement, espèces, Wave…" /></div>
+                  <div className="space-y-1"><p className="text-sm font-medium">Référence (facultative)</p><Input value={paymentReference} onChange={e => setPaymentReference(e.target.value)} placeholder="Référence ou pièce" /></div>
+                </div>
+                <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setPaymentOpen(false)} disabled={paymentSaving}>Annuler</Button><Button onClick={() => void recordCommissionPayment()} disabled={paymentSaving}>{paymentSaving ? "Enregistrement…" : "Confirmer le paiement"}</Button></div>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
