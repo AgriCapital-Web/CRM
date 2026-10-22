@@ -114,6 +114,7 @@ export default function Commissions() {
   };
 
   const canValidate = userRoles.some((r: string) => ["pdg","dg","comptable","responsable_operations","super_admin","admin"].includes(r));
+  const canRecordPayment = userRoles.some((r: string) => ["pdg","dg","comptable","super_admin","admin"].includes(r));
   const validateCommission = async (commissionId: string) => {
     if (validatingId) return;
     setValidatingId(commissionId);
@@ -286,7 +287,7 @@ export default function Commissions() {
           <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
             <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
               <DialogHeader><DialogTitle>{selected?.nom}</DialogTitle></DialogHeader>
-              {selected && <div className="flex justify-end"><Button onClick={openPaymentDialog}>Enregistrer un paiement</Button></div>}
+              {selected && canRecordPayment && <div className="flex justify-end"><Button onClick={openPaymentDialog}>Enregistrer un paiement</Button></div>}
               {selected && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
