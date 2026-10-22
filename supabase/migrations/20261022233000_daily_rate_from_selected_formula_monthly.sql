@@ -295,10 +295,10 @@ begin
     if nullif(monthly->>'date_debut','') is not null and _at_date < (monthly->>'date_debut')::date then return 0; end if;
     if nullif(monthly->>'date_debut','') is null
        and c.contrat_debut_at is not null
-       and _at_date < (c.contrat_debut_at + (greatest(0,coalesce((monthly->>'decalage_mois')::integer,0)||' months')::interval)::date then
+       and _at_date < (c.contrat_debut_at + (greatest(0,coalesce((monthly->>'decalage_mois')::integer,0)) || ' months')::interval)::date then
       return 0;
     end if;
-    return greatest((monthly->>'montant')::numeric / greatest(coalesce(nullif(c.total_hectares,0),1),1) / 30, 0);
+    return greatest((monthly->>'montant')::numeric / coalesce(nullif(c.total_hectares,0),1) / 30, 0);
   end if;
 
   -- The saved contractual monthly amount is authoritative for existing clients.
