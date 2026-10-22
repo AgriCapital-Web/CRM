@@ -578,7 +578,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       email: lead.email || "", district_id: lead.district_id || "", region_id: lead.region_id || "",
       departement_id: lead.departement_id || "", sous_prefecture_id: lead.sous_prefecture_id || "",
       village_id: lead.village_id || "", village: lead.village || lead.localite || "", lieu_residence: lead.lieu_residence || lead.campement_quartier || "",
-      offre_code: lead.offre_code || "", formule_code: lead.formule_code || "",
+      offre_code: lead.offre_code || "",
       type_lead: lead.type_lead || "client", dispose_terrain: lead.dispose_terrain ? "oui" : "non",
     });
     if (lead.type_lead === "proprietaire_foncier") {
