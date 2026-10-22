@@ -143,7 +143,11 @@ Deno.serve(async (req) => {
         if (national.length === 8) return "225" + national;
         return raw;
       };
-      const senderDigits = normalizePhone("+2250564551717");
+      const { data: configuredPhone, error: phoneConfigError } = await admin.rpc("senndo_get_secret", { p_name: "senndo_whatsapp_sender_phone" });
+      if (phoneConfigError || typeof configuredPhone !== "string" || !configuredPhone.trim()) {
+        return reply(req, { error: "Numéro WhatsApp appairé non configuré. Enregistrez-le dans Paramètres > Notifications > Passerelle Senndo.", code: "WHATSAPP_SENDER_PHONE_MISSING" }, 400);
+      }
+      const senderDigits = normalizePhone(configuredPhone);
       const phoneValues = (s: any) => [
         s?.phoneNumber,s?.phone_number,s?.phone,s?.displayPhoneNumber,s?.display_phone_number,s?.number,s?.jid,
         s?.user?.id,s?.user?.jid,s?.me?.id,s?.me?.jid,s?.account?.phone,s?.account?.phoneNumber,s?.profile?.phone,s?.whatsapp?.phone,
@@ -183,7 +187,7 @@ Deno.serve(async (req) => {
         const code = typeof sendPayload?.code === "string" ? sendPayload.code.slice(0, 80) : "SEN NDO_VALIDATION";
         return reply(req, { error: "Senndo a refusé l’envoi WhatsApp appairé (HTTP " + sendResponse.status + ")." + (detail ? " " + detail : ""), providerStatus: sendResponse.status, providerCode: code, code: "WHATSAPP_SEND_REJECTED" }, 502);
       }
-      return reply(req, { ok: true, channel: "whatsapp_baileys", accepted: true, messageId: sendPayload?.id ?? sendPayload?.messageId ?? sendPayload?.message?.id ?? null, senderPhone: "+2250564551717", message: "Demande WhatsApp appairée acceptée par Senndo. Vérifiez le statut de livraison pour confirmer la réception." });
+      return reply(req, { ok: true, channel: "whatsapp_baileys", accepted: true, messageId: sendPayload?.id ?? sendPayload?.messageId ?? sendPayload?.message?.id ?? null, senderPhone: configuredPhone, message: "Demande WhatsApp appairée acceptée par Senndo. Vérifiez le statut de livraison pour confirmer la réception." });
     } else if (channel === "sms") {
       // Prefer a configured sender ID; otherwise resolve the registered Senndo sender.
       const senderResult = await client.listSenderIds();
