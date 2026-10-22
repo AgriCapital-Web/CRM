@@ -47,10 +47,10 @@ begin
      and not private.has_role_permission('finance.manage') then return false; end if;
   parts:=storage.foldername(_path);
   if coalesce(parts[1],'')<>'' then
-    begin v_client_id:=parts[1]::uuid; exception when others then v_client_id:=null; end;
-    if v_client_id is null then
-      begin v_payment_id:=parts[1]::uuid; exception when others then v_payment_id:=null; end;
-      if v_payment_id is not null then
+    begin v_payment_id:=parts[1]::uuid; exception when others then v_payment_id:=null; end;
+    if v_payment_id is not null then
+      select c.id into v_client_id from public.clients c where c.id=v_payment_id;
+      if v_client_id is null then
         select p.client_id into v_client_id from public.paiements p where p.id=v_payment_id;
       end if;
     end if;
@@ -90,25 +90,25 @@ drop policy if exists "Staff read private land docs" on storage.objects;
 drop policy if exists "Staff update private land docs" on storage.objects;
 drop policy if exists "Staff delete private land docs" on storage.objects;
 
-drop policy if exists "Staff read business files excluding profile photos" on storage.objects;
-create policy "Staff read business files excluding profile photos" on storage.objects for select to authenticated
+drop policy if exists "Staff read plantation photos" on storage.objects;
+create policy "Staff read plantation photos" on storage.objects for select to authenticated
 using (bucket_id='photos-plantations'
   and (private.crm_plantation_storage_scope_ok(auth.uid(),name,'plantations.view')
        or private.crm_plantation_storage_scope_ok(auth.uid(),name,'plantations.update')));
 
-drop policy if exists "Staff upload business files excluding profile photos" on storage.objects;
-create policy "Staff upload business files excluding profile photos" on storage.objects for insert to authenticated
+drop policy if exists "Staff upload plantation photos" on storage.objects;
+create policy "Staff upload plantation photos" on storage.objects for insert to authenticated
 with check (bucket_id='photos-plantations'
   and (private.crm_plantation_storage_scope_ok(auth.uid(),name,'plantations.create')
        or private.crm_plantation_storage_scope_ok(auth.uid(),name,'plantations.update')));
 
-drop policy if exists "Staff update business files excluding profile photos" on storage.objects;
-create policy "Staff update business files excluding profile photos" on storage.objects for update to authenticated
+drop policy if exists "Staff update plantation photos" on storage.objects;
+create policy "Staff update plantation photos" on storage.objects for update to authenticated
 using (bucket_id='photos-plantations' and private.crm_plantation_storage_scope_ok(auth.uid(),name,'plantations.update'))
 with check (bucket_id='photos-plantations' and private.crm_plantation_storage_scope_ok(auth.uid(),name,'plantations.update'));
 
-drop policy if exists "Staff delete business files excluding profile photos" on storage.objects;
-create policy "Staff delete business files excluding profile photos" on storage.objects for delete to authenticated
+drop policy if exists "Staff delete plantation photos" on storage.objects;
+create policy "Staff delete plantation photos" on storage.objects for delete to authenticated
 using (bucket_id='photos-plantations' and private.crm_plantation_storage_scope_ok(auth.uid(),name,'plantations.delete'));
 
 -- Client documents use client permissions and the existing client access scope.
