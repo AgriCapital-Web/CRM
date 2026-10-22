@@ -128,7 +128,7 @@ export default function AgriCapitalConnect() {
     if (error || !conv) { toast.error(error?.message || "Création impossible."); return; }
     const members = targets.map(id => ({ conversation_id: conv.id, profile_id: id, member_role: id === profileId ? "owner" : "member" }));
     const { error: memberError } = await (supabase as any).from("internal_conversation_members").insert(members);
-    if (memberError) { toast.error("Conversation créée mais ajout des participants incomplet. Contactez l'administrateur."); console.error(memberError); return; }
+    if (memberError) { await (supabase as any).from("internal_conversations").delete().eq("id", conv.id); toast.error("La conversation n’a pas pu être créée : impossible d’enregistrer tous les participants."); console.error(memberError); return; }
     setConversations(current => [conv, ...current.filter(c => c.id !== conv.id)]);
     setSelected(conv.id); setNewTitle(""); setNewMembers([]); setCreateOpen(false);
     toast.success("Conversation créée.");
@@ -181,9 +181,9 @@ export default function AgriCapitalConnect() {
     if (error || !data) { toast.error("Réunion non créée."); console.error(error); return; }
     const invitees = Array.from(new Set([profileId, ...meetingMembers])).map(id => ({ meeting_id: data.id, profile_id: id, participant_role: id === profileId ? "host" : "participant", response: id === profileId ? "accepted" : "pending" }));
     const { error: participantError } = await (supabase as any).from("internal_meeting_participants").insert(invitees);
-    if (participantError) console.warn("La réunion existe mais l'hôte n'a pas pu être ajouté", participantError);
+    if (participantError) { toast.error("La réunion est enregistrée, mais les invitations n’ont pas toutes été sauvegardées. Vérifiez les droits d’accès."); console.error(participantError); }
     setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription(""); setMeetingMembers([]);
-    await loadMeetings(); toast.success("Réunion planifiée avec un lien audio/vidéo Jitsi Meet.");
+    await loadMeetings(); if (!participantError) toast.success("Réunion planifiée et invitations enregistrées avec un lien audio/vidéo Jitsi Meet.");
   };
 
   if (!can("messagerie.view")) {
@@ -207,7 +207,7 @@ export default function AgriCapitalConnect() {
           </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
             <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:w-fit">
-              <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages</TabsTrigger>
+              <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
               <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
             </TabsList>
             <TabsContent value="messages" className="mt-3 min-w-0">
