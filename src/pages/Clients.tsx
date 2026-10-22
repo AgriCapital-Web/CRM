@@ -71,6 +71,7 @@ const Clients = () => {
   const canEditClient = can("clients.update");
   const canDeleteClient = can("clients.delete") && !serviceClient;
   const [clients, setClients] = useState<any[]>([]);
+  const [salesPendingValidation, setSalesPendingValidation] = useState(0);
   const [attributions, setAttributions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -112,7 +113,8 @@ const Clients = () => {
           .from("clients")
           .select("*")
           .or("is_internal.is.null,is_internal.eq.false")
-          .not("nom_complet", "ilike", "%agricapital%");
+          .not("nom_complet", "ilike", "%agricapital%")
+          .or("type_client.is.null,type_client.neq.proprietaire_foncier");
         // Acquisitions ne présente que les clients commerciaux : les bénéficiaires particuliers
         // restent accessibles dans la liste générale des clients et les tableaux de suivi.
         if (acquisitionsView) clientsQuery = clientsQuery.or("type_client.is.null,type_client.neq.beneficiaire_particulier");
@@ -137,7 +139,7 @@ const Clients = () => {
       // Découper les identifiants en lots pour éviter des requêtes URL trop longues.
       const clientIdBatches: string[][] = [];
       for (let i = 0; i < ids.length; i += 250) clientIdBatches.push(ids.slice(i, i + 250));
-      const [plantationBatches, attributionBatches, offresRes, regionsRes, teamPerfRes] = await Promise.all([
+      const [plantationBatches, attributionBatches, offresRes, regionsRes, teamPerfRes, pendingSalesRes] = await Promise.all([
         Promise.all(clientIdBatches.map((batch) =>
           supabase.from("plantations").select("id,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,role_attribution").in("client_id", batch)
         )),
@@ -147,8 +149,10 @@ const Clients = () => {
         supabase.from("offres").select("id,nom,couleur,code,formules_configuration"),
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
+        (supabase as any).from("acquisitions").select("id,validation_statut").in("validation_statut", ["a_valider", "modification_demandee"),
       ]);
 
+      setSalesPendingValidation((pendingSalesRes?.data || []).filter((s: any) => ["a_valider", "modification_demandee"].includes(String(s.validation_statut || ""))).length);
       const plantations = plantationBatches.flatMap((result: any) => result.data || []);
       const attributionsData = attributionBatches.flatMap((result: any) => result.data || []);
       const offresMap = new Map((offresRes.data || []).map((o: any) => [o.id, o]));
@@ -179,7 +183,7 @@ const Clients = () => {
       // Exclure l'entité interne AgriCapital même si is_internal n'est pas renseigné.
       // Les bénéficiaires particuliers restent visibles dans la liste générale, mais pas dans Acquisitions.
       setClients(enrichedData.filter((client: any) =>
-        !client.is_internal && !isAgriCapitalInternal(client) &&
+        !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" &&
         (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier")
       ));
     } catch (error: any) {
@@ -189,7 +193,7 @@ const Clients = () => {
           getCachedPlantations(),
         ]);
         const enrichedData = cachedClients
-          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) && (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
+          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" && (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
           .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
@@ -313,7 +317,7 @@ const Clients = () => {
     plantations: plantationIds.size,
     clientsOfficiels,
     beneficiaires,
-    clientsPendingValidation: clients.filter((c:any) => !c.is_internal && ["a_valider","modification_demandee"].includes(String(c.validation_statut || ""))).length,
+    salesPendingValidation,
   };
 
   return (
@@ -347,7 +351,7 @@ const Clients = () => {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8 gap-2">
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground whitespace-nowrap">{stats.clientsOfficiels} clients · {stats.beneficiaires} B. part.</p></CardContent></Card>
-            {can("clients.validate") && <Link to="/acquisitions/validation?type=clients" className="block min-w-0"><Card className="h-full min-w-0 border-primary/40 transition-colors hover:bg-primary/5"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-semibold leading-tight">Clients à valider</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.clientsPendingValidation}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Dossiers en attente</p></CardContent></Card></Link>}
+            {can("acquisitions.validate") && <Link to="/acquisitions/validation?type=ventes" className="block min-w-0"><Card className="h-full min-w-0 border-primary/40 transition-colors hover:bg-primary/5"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-semibold leading-tight">Ventes à valider</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.salesPendingValidation}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Ventes en attente</p></CardContent></Card></Link>}
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Actifs</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.actifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statut actif</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Inactifs / suspendus</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.inactifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statuts inactifs</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Total hectares</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Surface cumulée</p></CardContent></Card>
