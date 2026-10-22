@@ -139,7 +139,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
 
   const offer = useMemo(() => offers.find(o => o.id === form.offre_id) || null, [offers, form.offre_id]);
   const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
-  const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || (!form.formule_code ? offerFormulas[0] : null) || null;
+  const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || (offerFormulas.length === 1 && !form.formule_code ? offerFormulas[0] : null);
   const effectiveOffer = useMemo(() => {
     if (!offer) return null;
     const result: any = { ...offer };
@@ -152,9 +152,17 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       ]) {
         if (selectedFormula[key] !== undefined && selectedFormula[key] !== null) result[key] = selectedFormula[key];
       }
+    } else if (offerFormulas.length > 0) {
+      // A legacy/custom client contract must not fall back to the offer's generic price.
+      const hectares = Math.max(Number(form.total_hectares || 0), 1);
+      result.montant_pi_par_ha = Number(form.paiement_initial_montant || 0) / hectares;
+      result.montant_total_par_ha = Number(form.montant_total_contrat || 0) / hectares;
+      result.mensualite_par_ha = Number(form.mensualite_montant || 0) / hectares;
+      result.tranches_paiement = [];
+      result.duree_paiement_mois = Math.max(0, Math.ceil(Number(form.jours_contrat_total || 0) / 30));
     }
     return result;
-  }, [offer, selectedFormula]);
+  }, [offer, selectedFormula, offerFormulas.length, form.total_hectares, form.paiement_initial_montant, form.montant_total_contrat, form.mensualite_montant, form.jours_contrat_total]);
   const formatOfferAmount = (value: unknown) => {
     const amount = Number(value);
     return value !== null && value !== undefined && value !== "" && Number.isFinite(amount)
