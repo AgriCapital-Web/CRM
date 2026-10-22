@@ -319,7 +319,7 @@ const Dashboard = () => {
       const agriCapitalSoldToClientsHa = partnershipMetrics.agriTransferred;
       const foncierPlantedHa = partnershipMetrics.agriPlanted;
       const foncierRemainingHa = partnershipMetrics.agriRemaining;
-      const clientParcelIds = new Set(clients.filter((c: any) => !c.is_internal && c.type_client !== "beneficiaire_particulier" && c.parcelle_id).map((c: any) => c.parcelle_id).filter((id: string) => !validatedPartnershipParcelIds.has(id)));
+      const clientParcelIds = new Set(commercialClients.filter((c: any) => c.parcelle_id).map((c: any) => c.parcelle_id).filter((id: string) => !validatedPartnershipParcelIds.has(id)));
       const clientParcelRows = parcelles.filter((p: any) => clientParcelIds.has(p.id));
       const clientParcelCount = clientParcelRows.length;
       const clientParcelAreaHa = clientParcelRows.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
@@ -421,7 +421,7 @@ const Dashboard = () => {
 
       // IMPORTANT: "Clients récents" = ordre de création récent, pas numéro métier.
       setRecentClients(
-        [...clients].filter((c: any) => !c.is_internal)
+        [...clients].filter((c: any) => !c.is_internal && String(c.type_client || "").toLowerCase() !== "proprietaire_foncier")
           .sort((a: any, b: any) => {
             const byDate = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
             return byDate || Number(b.numero_ordre_global || 0) - Number(a.numero_ordre_global || 0);
@@ -441,7 +441,7 @@ const Dashboard = () => {
       );
 
       const officialOffers = new Map([["PalmInvest",{name:"PalmInvest",clients:0,hectares:0}],["TerraPalm",{name:"TerraPalm",clients:0,hectares:0}],["PalmTerroir",{name:"PalmTerroir",clients:0,hectares:0}]]);
-      clients.filter((c:any)=>!c.is_internal&&!isAgriCapitalInternal(c)&&String(c.type_client||"").toLowerCase()!=="beneficiaire_particulier"&&officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
+      commercialClients.filter((c:any)=>officialOffers.has(c.formule_nom)).forEach((c:any)=>{const row=officialOffers.get(c.formule_nom)!;row.clients+=1;row.hectares+=Number(c.total_hectares||0);});
       setOfferPerformance([...officialOffers.values()].filter((x:any)=>x.clients>0).sort((a,b)=>b.clients-a.clients));
 
       if (canCommercialTeamPerformance || canTechnicalTeamPerformance) {
@@ -555,8 +555,7 @@ const Dashboard = () => {
       setTopClients(
         superficieGroups.map((group) => ({
           label: group.label,
-          count: clients.filter((client: any) => {
-            if (client.is_internal) return false;
+          count: commercialClients.filter((client: any) => {
             const ha = Number(client.total_hectares || 0);
             if (group.min === group.max) return Math.round(ha * 100) / 100 === group.min;
             return ha >= group.min && ha < group.max;
