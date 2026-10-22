@@ -618,8 +618,18 @@ async function runEvents(events: Array<{ id: string; event_code: string; context
         const push = await dispatchPortalWebPush(event.context || {});
         results.push({ id: event.id, ok: true, push });
       } else {
-        await runEvent(event.event_code, event.context || {});
-        results.push({ id: event.id, ok: true });
+        const deliveries = await runEvent(event.event_code, event.context || {});
+        const failed = deliveries.reduce((sum: number, item: any) => sum + Math.max(0, Number(item?.failed) || 0), 0);
+        if (failed > 0) {
+          results.push({
+            id: event.id,
+            ok: false,
+            error: `Échec de livraison pour ${failed} canal(aux). Le dossier de notification sera réessayé.`,
+            deliveries,
+          });
+        } else {
+          results.push({ id: event.id, ok: true, deliveries });
+        }
       }
     } catch (error) {
       results.push({ id: event.id, ok: false, error: error instanceof Error ? error.message : String(error) });
