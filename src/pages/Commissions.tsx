@@ -297,7 +297,7 @@ export default function Commissions() {
                   </div>
                   <div className="overflow-x-auto">
                     <Table className="min-w-[1120px]">
-                      <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Déjà payé</TableHead><TableHead>Solde</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableHeader>
+                      <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Déjà payé</TableHead><TableHead>Solde</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                       <TableBody>{selected.details.map((d: any) =>
                         <TableRow key={d.id}>
                           <TableCell>{d.client?.nom_complet || "—"}</TableCell>
