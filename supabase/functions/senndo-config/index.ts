@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
         statusErrors: errors,
         apiError,
         emailSenderId: values.senndo_email_sender_id || "",
-        whatsappSenderPhone: values.senndo_whatsapp_sender_phone || "+2250564551717",
-        senderId: "AgriCapital", whatsappNumber: values.senndo_whatsapp_sender_phone || "+2250564551717", provider: "Senndo",
+        whatsappSenderPhone: values.senndo_whatsapp_sender_phone || "+22564551717",
+        senderId: "AgriCapital", whatsappNumber: values.senndo_whatsapp_sender_phone || "+22564551717", provider: "Senndo",
         webhookUrl: "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook",
       });
     }
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     }
     if (whatsappSenderPhone) {
       const normalizedPhone = whatsappSenderPhone.replace(/[\s().-]/g, "");
-      if (normalizedPhone !== "+2250564551717") return reply(req,{error:"Le numéro WhatsApp autorisé pour AgriCapital est +22564551717."},400);
+      if (normalizedPhone !== "+22564551717") return reply(req,{error:"Le numéro WhatsApp autorisé pour AgriCapital est +22564551717."},400);
       const { error } = await admin.rpc("senndo_store_secret", { p_name:"senndo_whatsapp_sender_phone", p_value:normalizedPhone });
       if (error) throw error;
     }
