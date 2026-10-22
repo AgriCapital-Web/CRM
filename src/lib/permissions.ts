@@ -26,7 +26,7 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   ...build("clients", "Clients", [["view", "Consulter"], ["view_money", "Consulter la monnaie client"], ["create", "Créer"], ["update", "Modifier"], ["archive", "Archiver"], ["delete", "Supprimer"]]),
   ...build("plantations", "Plantations", [["view", "Consulter"], ["create", "Créer"], ["update", "Modifier"], ["archive", "Archiver"], ["delete", "Supprimer"]]),
   ...build("parcelles", "Parcelles", [["view", "Consulter"], ["create", "Créer"], ["update", "Modifier"], ["archive", "Archiver"], ["delete", "Supprimer"]]),
-  ...build("proprietaires", "Propriétaires partenaires", [["view", "Consulter"], ["create", "Créer"], ["update", "Modifier"], ["archive", "Archiver"], ["delete", "Supprimer"]]),
+  ...build("proprietaires", "Propriétaires partenaires", [["view", "Consulter"], ["create", "Créer"], ["update", "Modifier"], ["archive", "Archiver"], ["delete", "Supprimer"], ["validate", "Valider les dossiers fonciers"]]),
   ...build("paiements", "Paiements", [["view", "Consulter"], ["create", "Créer"], ["record", "Enregistrer"], ["execute", "Effectuer"], ["update", "Modifier"], ["cancel", "Annuler"], ["validate", "Valider"]]),
   ...build("documents", "Documents", [["view", "Consulter"], ["upload", "Téléverser"], ["validate", "Valider"]]),
   ...build("rapports", "Rapports", [["view_technique", "Voir les rapports techniques"], ["view_financier", "Voir les rapports financiers"], ["export", "Exporter les données"]]),
