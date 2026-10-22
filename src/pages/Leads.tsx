@@ -68,7 +68,7 @@ const RESULTATS = [
   { v: "en_reflexion", l: "En réflexion" }, { v: "non_interesse", l: "Non intéressé" },
 ];
 
-export default function Leads({ view = "leads" }: { view?: "leads" | "prospects" }) {
+export default function Leads({ view = "leads" }: { view?: "leads" | "prospects" | "all" }) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -637,7 +637,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       <div className="space-y-6">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Prospects</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Leads et prospects</h1>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
@@ -697,7 +697,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                        {view !== "prospects" && (
+                        {view === "leads" && (
                           <div className="flex justify-end">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -730,7 +730,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                         {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
                           <Button size="icon" className="h-8 w-8" title="Convertir" aria-label="Convertir" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-4 w-4" /></Button>
                         )}
-                        {view === "prospects" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
+                        {view !== "leads" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
                           <Button size="icon" className="h-8 w-8 shrink-0" title={l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"} aria-label={l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"} onClick={() => void convertToClient(l)}><ArrowRight className="h-4 w-4" /></Button>
                         )}
                         </div>
