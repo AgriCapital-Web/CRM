@@ -54,6 +54,7 @@ const Dashboard = () => {
   const canClients = can(PERMISSIONS.VIEW_CLIENTS);
   const canLeads = can(PERMISSIONS.VIEW_LEADS);
   const canOwners = can(PERMISSIONS.VIEW_PROPRIETAIRES);
+  const canValidateOwners = can("proprietaires.validate");
   const canParcelles = can(PERMISSIONS.VIEW_PARCELLES);
   const canPlantations = can(PERMISSIONS.VIEW_PLANTATIONS);
   const canPayments = can(PERMISSIONS.VIEW_PAIEMENTS);
@@ -115,6 +116,7 @@ const Dashboard = () => {
     recoveryRate: 0,
     documentsPending: 0,
     proprietaires: 0,
+    ownersPendingValidation: 0,
     parcelles: 0,
     proprietaireParcelles: 0,
     beneficiaries: 0,
@@ -183,7 +185,7 @@ const Dashboard = () => {
           ? (supabase as any).from("documents_acquisition").select("id,client_id,statut,obligatoire,created_at")
           : Promise.resolve({ data: [] }),
         canOwners || canPlantations || canClients || globalAdmin
-          ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut")
+          ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut,validation_statut")
           : Promise.resolve({ data: [] }),
         canParcelles || canPlantations || canClients || globalAdmin
           ? (supabase as any).from("parcelles").select("id,proprietaire_id,surface_totale_ha,surface_proprietaire_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
@@ -405,6 +407,7 @@ const Dashboard = () => {
         recoveryRate,
         documentsPending: docs.filter((d: any) => d.statut === "en_attente" && commercialClients.some((client: any) => client.id === d.client_id)).length,
         proprietaires: proprietaires.length,
+        ownersPendingValidation: proprietaires.filter((owner: any) => owner.validation_statut === "a_valider").length,
         parcelles: parcelles.length,
         proprietaireParcelles: parcelles.filter((p: any) => Boolean(p.proprietaire_id)).length,
         beneficiaries: new Set(beneficiaries.map((b: any) => b.client_id).filter(Boolean)).size,
@@ -610,6 +613,7 @@ const Dashboard = () => {
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
+      ...(canValidateOwners ? [{label:"Foncier à valider",value:stats.ownersPendingValidation,href:"/proprietaires-terres?validation=a_valider"}] : []),
       ...(canParcelles || canPlantations ? [{label:"Parcelles",value:stats.proprietaireParcelles,href:"/parcelles"},{label:"Surface partenaire",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},{label:"Plantée partenaire",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},{label:"Restante partenaire",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},{label:"Part propriétaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/proprietaires-terres"},{label:"Plantée propriétaire",value:num(stats.partnerOwnerPlantedHa)+" ha",href:"/plantations"},{label:"Restante propriétaire",value:num(stats.partnerOwnerRemainingHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},{label:"Part AgriCapital cédée",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital disponible",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},{label:"Parcelles clients",value:stats.clientParcelCount,href:"/parcelles"},{label:"Surface parcelles clients",value:num(stats.clientParcelAreaHa)+" ha",href:"/parcelles"}] : []),
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
