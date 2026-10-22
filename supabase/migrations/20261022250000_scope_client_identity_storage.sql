@@ -103,7 +103,8 @@ using (bucket_id='pieces-identite'
 drop policy if exists "Staff upload private identity docs" on storage.objects;
 create policy "Staff upload private identity docs" on storage.objects for insert to authenticated
 with check (bucket_id='pieces-identite'
-  and private.crm_client_storage_scope_ok(auth.uid(),name,'clients.update'));
+  and (private.crm_client_storage_scope_ok(auth.uid(),name,'clients.create')
+       or private.crm_client_storage_scope_ok(auth.uid(),name,'clients.update')));
 
 drop policy if exists "Staff update private identity docs" on storage.objects;
 create policy "Staff update private identity docs" on storage.objects for update to authenticated
