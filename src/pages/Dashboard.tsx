@@ -460,16 +460,17 @@ const Dashboard = () => {
 
       // Le pilotage technique est un parcours CLIENT, pas un simple comptage de lignes d'intervention.
       // Dès que le paiement initial est validé, le dossier entre dans le périmètre technique.
-      // Les bénéficiaires particuliers actifs sont également suivis techniquement sans PI.
-      const technicalClients = clients.filter((c: any) =>
+      // Les bénéficiaires restent visibles dans les tableaux, mais sont exclus des indicateurs clients.
+      const technicalClients = commercialClients.filter((c: any) =>
         c.compte_actif === true &&
         !["archive", "supprime", "supprimé"].includes(String(c.statut_global || "").toLowerCase()) &&
-        (
-          Boolean(c.paiement_initial_paye_at || c.pi_paye_at) ||
-          String(c.type_client || "").toLowerCase() === "beneficiaire_particulier"
-        )
+        Boolean(c.paiement_initial_paye_at || c.pi_paye_at)
       );
-      const technicalClientIds = new Set([...technicalClients.map((c: any) => c.id).filter(Boolean), ...interventions.map((i: any) => i.client_id).filter(Boolean)]);
+      const commercialClientIdsForTechnical = new Set(commercialClients.map((c: any) => c.id));
+      const technicalClientIds = new Set([
+        ...technicalClients.map((c: any) => c.id).filter(Boolean),
+        ...interventions.filter((i: any) => commercialClientIdsForTechnical.has(i.client_id)).map((i: any) => i.client_id).filter(Boolean),
+      ]);
 
       const cycleTypes = [
         ["validation_parcelle", "Parcelles validées"],
@@ -508,7 +509,7 @@ const Dashboard = () => {
 
       const regionMap = new Map<string, string>(regions.map((r: any) => [String(r.id), String(r.nom)]));
       const regionCounts = new Map<string, number>();
-      plantations.forEach((p: any) => {
+      scopedPlantations.forEach((p: any) => {
         const name = regionMap.get(p.region_id) || "Non renseignée";
         regionCounts.set(name, (regionCounts.get(name) || 0) + 1);
       });
