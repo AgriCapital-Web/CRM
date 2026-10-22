@@ -64,7 +64,7 @@ const Dashboard = () => {
   const canPortfolios = can(PERMISSIONS.VIEW_PORTEFEUILLES);
   const canTickets = can(PERMISSIONS.VIEW_TICKETS);
   const canCreateAcquisition = can(PERMISSIONS.CREATE_ACQUISITION);
-  const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS);
+  const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate");
 
   const [connectionTime] = useState(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
   const [loading, setLoading] = useState(true);
@@ -613,7 +613,7 @@ const Dashboard = () => {
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
-      ...(canValidateOwners ? [{label:"Foncier à valider",value:stats.ownersPendingValidation,href:"/proprietaires-terres?validation=a_valider"}] : []),
+
       ...(canParcelles || canPlantations ? [{label:"Parcelles",value:stats.proprietaireParcelles,href:"/parcelles"},{label:"Surface partenaire",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},{label:"Plantée partenaire",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},{label:"Restante partenaire",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},{label:"Part propriétaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/proprietaires-terres"},{label:"Plantée propriétaire",value:num(stats.partnerOwnerPlantedHa)+" ha",href:"/plantations"},{label:"Restante propriétaire",value:num(stats.partnerOwnerRemainingHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},{label:"Part AgriCapital cédée",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital disponible",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},{label:"Parcelles clients",value:stats.clientParcelCount,href:"/parcelles"},{label:"Surface parcelles clients",value:num(stats.clientParcelAreaHa)+" ha",href:"/parcelles"}] : []),
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
@@ -673,7 +673,7 @@ const Dashboard = () => {
               {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/leads?new=1"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
               {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/paiements"><CreditCard className="mr-2 h-4 w-4 shrink-0" />Paiement</Link></Button>}
               {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/plantations"><Sprout className="mr-2 h-4 w-4 shrink-0" />Plantations</Link></Button>}
-              {canValidateDocuments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/documents"><FileCheck className="mr-2 h-4 w-4 shrink-0" />Documents</Link></Button>}
+              {canValidateDocuments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/acquisitions/validation"><FileCheck className="mr-2 h-4 w-4 shrink-0" />Dossiers à valider</Link></Button>}
             </div>
           )}
 
