@@ -317,9 +317,9 @@ const GestionCartes = () => {
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{data.poste || roleLabel(data.role_code)}</TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{carte ? data.matricule : <span className="text-muted-foreground">—</span>}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{carte ? contratLabel(data.type_contrat) : "—"}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{String(data.role_code || "").toLowerCase() === "pdg" ? "Sans objet — Fondateur" : carte ? contratLabel(data.type_contrat) : "—"}</TableCell>
                       <TableCell className="text-sm whitespace-nowrap">
-                        {data.date_expiration ? format(new Date(data.date_expiration), "dd/MM/yyyy", { locale: fr }) : "—"}
+                        {String(data.role_code || "").toLowerCase() === "pdg" ? "Indéterminée" : data.date_expiration ? format(new Date(data.date_expiration), "dd/MM/yyyy", { locale: fr }) : "—"}
                       </TableCell>
                       <TableCell>
                         {!carte ? (
