@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import Index from "./pages/Index";
@@ -114,8 +114,8 @@ const DomainRouter = () => {
             
       {/* Rapports */}
       <Route path="/finance" element={<ProtectedRoute requiredPermission="finance.view"><Finance /></ProtectedRoute>} />
-      <Route path="/finance/historique" element={<ProtectedRoute requiredPermission="finance.manage"><FinanceHistoryImport /></ProtectedRoute>} />
-      <Route path="/finance/analytique" element={<ProtectedRoute requiredPermission="finance.view"><FinanceAnalytics /></ProtectedRoute>} />
+      <Route path="/finance/historique" element={<ProtectedRoute requiredPermission="finance.manage"><Navigate to="/finance?tab=historique" replace /></ProtectedRoute>} />
+      <Route path="/finance/analytique" element={<ProtectedRoute requiredPermission="finance.view"><Navigate to="/finance?tab=analytique" replace /></ProtectedRoute>} />
       <Route path="/terrain" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES}><TechnicienTerrain /></ProtectedRoute>} />
       
       {/* Finances */}
