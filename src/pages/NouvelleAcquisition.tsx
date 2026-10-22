@@ -184,6 +184,15 @@ const NouvelleAcquisition = () => {
   // ne doit jamais interférer avec les premières modifications de l'utilisateur.
   useEffect(()=>{
     let mounted=true;
+    const isLeadOrProspectConversion = Boolean(searchParams.get("lead_id") || searchParams.get("prospect_id"));
+    if (isLeadOrProspectConversion) {
+      // A conversion always starts at the first official step. Never restore an unrelated
+      // draft's step index into a lead/prospect conversion.
+      setBrouillonId(null);
+      setCurrent(0);
+      setDraftLoading(false);
+      return () => { mounted = false; };
+    }
     setDraftLoading(true);
     (async()=>{
       try {
