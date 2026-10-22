@@ -48,7 +48,6 @@ const Dashboard = () => {
   const isClientOnly = userRoles.length > 0 && userRoles.every((r) => r === "user");
   const globalAdmin = isPdg || isDg;
   const canDashboardExecutiveFinance = globalAdmin || can("finance.view");
-  const canFinancialOverview = canDashboardExecutiveFinance || can("rapports.view_financier");
   const canCommercialTeamPerformance = globalAdmin || can("parametres.manage_teams");
   const canTechnicalTeamPerformance = globalAdmin || can("parametres.manage_teams");
 
