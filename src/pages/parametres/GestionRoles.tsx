@@ -116,10 +116,11 @@ const GestionRoles = () => {
   };
 
   const selectedProfileRecord = profiles.find((p) => p.id === selectedProfile);
-  const selectedProfileHasPrimary = Boolean(
-    selectedProfileRecord?.user_id &&
-    userRoles.some((ur) => ur.user_id === selectedProfileRecord.user_id && ur.is_primary === true)
-  );
+  const selectedProfilePrimaryRole = selectedProfileRecord?.user_id
+    ? userRoles.find((ur) => ur.user_id === selectedProfileRecord.user_id && ur.is_primary === true) || null
+    : null;
+  const selectedProfileHasPrimary = Boolean(selectedProfilePrimaryRole);
+  const selectedRoleIsCurrentPrimary = Boolean(selectedProfilePrimaryRole && selectedProfilePrimaryRole.role === selectedRole);
 
   /** Utilisateurs dont le rôle n'appartient pas au catalogue officiel en base */
   const divergences = useMemo(() => {
@@ -158,7 +159,28 @@ const GestionRoles = () => {
       const existingRole = profile.user_id
         ? userRoles.find((ur) => ur.user_id === profile.user_id && ur.role === selectedRole)
         : null;
+      const currentPrimary = profile.user_id
+        ? userRoles.find((ur) => ur.user_id === profile.user_id && ur.is_primary === true) || null
+        : null;
+      if (selectedPrimaryRole && currentPrimary && currentPrimary.role !== selectedRole) {
+        throw new Error("Décochez d’abord le rôle principal actuel avant d’en définir un autre.");
+      }
       if (existingRole) {
+        if (!selectedPrimaryRole && existingRole.is_primary) {
+          const { error: unsetError } = await (supabase as any).from("user_roles")
+            .update({ is_primary: false }).eq("user_id", profile.user_id).eq("role", selectedRole);
+          if (unsetError) throw unsetError;
+          const { data: verifiedUnset, error: verifyUnsetError } = await (supabase as any)
+            .from("user_roles").select("is_primary").eq("user_id", profile.user_id).eq("role", selectedRole).maybeSingle();
+          if (verifyUnsetError) throw verifyUnsetError;
+          if (verifiedUnset?.is_primary !== false) throw new Error("Le retrait du rôle principal n’a pas été confirmé.");
+          await logAdminAction({ action: "ROLE_PRINCIPAL_RETIRE", entite: "user_roles", cible_user_id: profile.user_id,
+            cible_libelle: profile.nom_complet, nouvelle_valeur: { role: selectedRole, is_primary: false } });
+          toast({ title: "Rôle principal décoché", description: "Vous pouvez maintenant choisir un autre rôle principal." });
+          setAssignDialogOpen(false); setSelectedProfile(""); setSelectedRole(""); setSelectedPrimaryRole(true);
+          await fetchData();
+          return;
+        }
         if (!selectedPrimaryRole) {
           toast({ variant: "destructive", title: "Rôle déjà attribué", description: "Ce rôle est déjà assigné à cet utilisateur." });
           return;
@@ -522,7 +544,10 @@ const GestionRoles = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Rôle à attribuer</Label>
-                    <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <Select value={selectedRole} onValueChange={(value) => {
+                      setSelectedRole(value);
+                      setSelectedPrimaryRole(selectedProfileHasPrimary ? selectedProfilePrimaryRole?.role === value : true);
+                    }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un rôle" />
                       </SelectTrigger>
@@ -535,15 +560,15 @@ const GestionRoles = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {selectedProfile && !selectedProfileHasPrimary && (
+                  {selectedProfile && (!selectedProfileHasPrimary || selectedRoleIsCurrentPrimary) && (
                     <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
                       <Checkbox checked={selectedPrimaryRole} onCheckedChange={(checked)=>setSelectedPrimaryRole(checked===true)} />
-                      <span>Définir comme rôle principal</span>
+                      <span>{selectedRoleIsCurrentPrimary ? "Rôle principal actuel" : "Définir comme rôle principal"}</span>
                     </label>
                   )}
-                  {selectedProfile && selectedProfileHasPrimary && (
+                  {selectedProfile && selectedProfileHasPrimary && !selectedRoleIsCurrentPrimary && (
                     <p className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
-                      Cet utilisateur a déjà un rôle principal. Pour éviter deux rôles principaux, cette option est masquée.
+                      Un rôle principal est déjà défini. Décochez d’abord « {roles.find((r) => r.code === selectedProfilePrimaryRole?.role)?.nom || selectedProfilePrimaryRole?.role} » avant de définir un autre rôle principal.
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">Le statut principal est enregistré dans la base de données et utilisé pour déterminer le périmètre principal de l’utilisateur.</p>
