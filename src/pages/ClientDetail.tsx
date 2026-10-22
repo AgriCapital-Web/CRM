@@ -63,6 +63,8 @@ const ClientDetail = () => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [documentFile,setDocumentFile]=useState<File|null>(null);
   const [isDocumentDialogOpen,setIsDocumentDialogOpen]=useState(false);
+  const [isValidationDialogOpen,setIsValidationDialogOpen]=useState(false);
+  const [isSaleCorrectionDialogOpen,setIsSaleCorrectionDialogOpen]=useState(false);
   const [documentLabel,setDocumentLabel]=useState("");
   const [attributions, setAttributions] = useState<any[]>([]);
   const [monnaieClient, setMonnaieClient] = useState(0);
@@ -149,6 +151,7 @@ const ClientDetail = () => {
       toast({ title: action === "valider" ? "Client validé" : "Demande de modification envoyée",
         description: action === "valider" ? "La décision est enregistrée dans Supabase." : "Une notification a été créée pour le créateur du dossier." });
       setValidationComment("");
+      setIsValidationDialogOpen(false);
       await fetchData();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action impossible", description: getSafeErrorMessage(error) });
@@ -171,6 +174,7 @@ const ClientDetail = () => {
       });
       if (error) throw error;
       toast({ title: "Vente corrigée et renvoyée", description: "La vente a été renvoyée à la file de validation. Les montants proportionnels ont été recalculés à partir du contrat existant." });
+      setIsSaleCorrectionDialogOpen(false);
       await fetchData();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Correction impossible", description: getSafeErrorMessage(error) });
@@ -553,6 +557,8 @@ const ClientDetail = () => {
             </div>
             <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Fiche officielle du client</DialogTitle><DialogDescription>Consultez ou modifiez les données, la photo et les pièces d’identité dans le formulaire officiel.</DialogDescription></DialogHeader>{client && <ClientForm client={client} readOnly lockCommercialAssignment onCancel={()=>setIsClientFormOpen(false)} onSuccess={()=>{setIsClientFormOpen(false);void fetchData();}} />}</DialogContent></Dialog>
       <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Ajouter un document au dossier</DialogTitle><DialogDescription>Le fichier est téléversé dans le stockage privé puis rattaché au dossier du client.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Libellé du document</Label><Input placeholder="Contrat, annexe…" value={documentLabel} onChange={e=>setDocumentLabel(e.target.value)} /></div><div className="space-y-1"><Label>Fichier</Label><Input type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>setDocumentFile(e.target.files?.[0]||null)} /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>{setIsDocumentDialogOpen(false);setDocumentFile(null);setDocumentLabel("");}}>Annuler</Button><Button type="button" onClick={()=>void uploadClientDocument()} disabled={!documentFile}>Enregistrer le document</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isValidationDialogOpen} onOpenChange={setIsValidationDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Contrôle du dossier client</DialogTitle><DialogDescription>La décision et le commentaire sont enregistrés dans Supabase.</DialogDescription></DialogHeader><div className="space-y-2"><Label>Commentaire de contrôle</Label><Textarea rows={3} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction" /></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsValidationDialogOpen(false)}>Annuler</Button>{client?.validation_statut === "modification_demandee" && <Button type="button" variant="outline" onClick={()=>{setIsValidationDialogOpen(false);setIsClientFormOpen(true);}}>Modifier le dossier</Button>}<Button type="button" variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button type="button" onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isSaleCorrectionDialogOpen} onOpenChange={setIsSaleCorrectionDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Correction de la vente</DialogTitle><DialogDescription>Les montants seront recalculés proportionnellement au contrat existant, sans créer d’échéancier futur.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Superficie corrigée (ha)</Label><Input type="number" min="0.01" step="0.01" value={saleCorrectionSurface} onChange={e=>setSaleCorrectionSurface(e.target.value)} /></div><div className="space-y-1"><Label>Note de correction (facultatif)</Label><Textarea rows={3} value={saleCorrectionNotes} onChange={e=>setSaleCorrectionNotes(e.target.value)} placeholder="Précision transmise au validateur" /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsSaleCorrectionDialogOpen(false)}>Annuler</Button><Button type="button" onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer"}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Racheter la monnaie client</DialogTitle></DialogHeader>
@@ -796,17 +802,13 @@ const ClientDetail = () => {
               <h2 className="text-lg font-semibold">Fiche complète du client</h2>
               <Button type="button" variant="outline" onClick={() => setIsClientFormOpen(true)}>Ouvrir la fiche officielle</Button>
             </div>
-            {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div>{client.validation_commentaire && <p className="text-sm">{client.validation_commentaire}</p>}<Label>Commentaire de contrôle</Label><Textarea rows={2} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction"/><div className="flex flex-wrap gap-2">{client.validation_statut === "modification_demandee" && <Button variant="outline" onClick={()=>setIsClientFormOpen(true)}>Modifier le dossier</Button>}<Button variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></div></div>}
+            {canValidateClient && client && client.validation_statut !== "valide" && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold">Validation du dossier</h3><Badge>{client.validation_statut === "modification_demandee" ? "Correction demandée" : "À valider"}</Badge></div><Button type="button" variant="outline" onClick={()=>setIsValidationDialogOpen(true)}>Ouvrir le contrôle</Button></div>{client.validation_commentaire && <p className="mt-2 text-sm">{client.validation_commentaire}</p>}</div>}
             {canCorrectReturnedClient && !canValidateClient && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Corrections demandées</h3><Badge variant="destructive">À corriger</Badge></div>{client.validation_commentaire && <p className="break-words text-sm">{client.validation_commentaire}</p>}<Button onClick={()=>setIsClientFormOpen(true)}>Modifier le dossier</Button></div>}
-            {returnedAcquisition && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+            {returnedAcquisition && <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Correction de la vente demandée</h3><Badge variant="destructive">À corriger</Badge></div>
               {returnedAcquisition.validation_commentaire && <p className="text-sm">{returnedAcquisition.validation_commentaire}</p>}
-              <p className="text-sm text-muted-foreground">Corrigez les données de vente ci-dessous puis renvoyez le dossier. Le montant du contrat, le paiement initial total et la mensualité totale sont recalculés proportionnellement à partir des montants déjà enregistrés. Aucun échéancier futur n'est créé.</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>Superficie corrigée (ha)</Label><Input type="number" min="0.01" step="0.01" value={saleCorrectionSurface} onChange={e=>setSaleCorrectionSurface(e.target.value)} /></div>
-                <div className="space-y-1"><Label>Note de correction (facultatif)</Label><Textarea rows={2} value={saleCorrectionNotes} onChange={e=>setSaleCorrectionNotes(e.target.value)} placeholder="Précision transmise au validateur" /></div>
-              </div>
-              <div className="flex justify-end"><Button onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer pour validation"}</Button></div>
+              <p className="text-sm text-muted-foreground">Ouvrez le formulaire dédié pour corriger la superficie et les notes de vente.</p>
+              <Button type="button" onClick={()=>setIsSaleCorrectionDialogOpen(true)}>Corriger la vente</Button>
             </div>}
 
           </section>
