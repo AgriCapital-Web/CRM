@@ -33,8 +33,8 @@ const applyFormulaConfig = (offer: any, formula: any) => {
   if (!offer || !formula) return offer;
   const next = {
     ...offer,
-    formule_code: formula.code || offer.formule_code || offer.code,
-    formule_nom: formula.nom || offer.formule_nom || offer.nom,
+    formule_code: formula.code,
+    formule_nom: formula.nom,
     gestion_type: formula.gestion_type ?? offer.gestion_type,
   };
   // Une formule qui porte ses propres paramètres tarifaires doit toujours primer sur les valeurs
