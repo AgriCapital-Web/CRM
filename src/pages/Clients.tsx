@@ -310,7 +310,9 @@ const Clients = () => {
   const commercialClients = clients.filter((c: any) => !["beneficiaire_particulier", "proprietaire_foncier"].includes(String(c.type_client || "").toLowerCase()));
   const clientsOfficiels = commercialClients.length;
   const commercialClientIds = new Set(commercialClients.map((c: any) => c.id));
-  const commercialPlantationCount = new Set(plantations.filter((p: any) => commercialClientIds.has(p.client_id)).map((p: any) => p.id)).size;
+  const commercialPlantationCount = new Set(
+    commercialClients.flatMap((client: any) => (client.plantations || []).map((plantation: any) => plantation.id))
+  ).size;
 
   const stats = {
     total: commercialClients.length,
