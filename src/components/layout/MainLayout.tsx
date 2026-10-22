@@ -36,7 +36,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: LayoutDashboard, label: "Tableau de bord", path: "/dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: Users, label: "Prospects", path: "/prospects", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Acquisitions", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
-    { icon: MessageSquare, label: "Espace de travail & communication", path: "/connect", permission: "messagerie.view" as any },
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: LandPlot, label: "Propriétaires", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
@@ -47,6 +46,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Sprout, label: "Technique", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
     { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
+    { icon: MessageSquare, label: "Espace de travail & communication", path: "/connect", permission: "messagerie.view" as any },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
   ];
 
