@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -132,36 +131,6 @@ const DomainRouter = () => {
   );
 };
 
-const SpaNavigationGuard = () => {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const pathAnchor = event.composedPath().find((node) => node instanceof HTMLAnchorElement) as HTMLAnchorElement | undefined;
-      const target = event.target as Element | null;
-      const anchor = pathAnchor || target?.closest("a[href]") as HTMLAnchorElement | null;
-      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download") || anchor.dataset.nativeNavigation === "true") return;
-      const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin) return;
-      if (/\.(?:pdf|jpg|jpeg|png|gif|webp|mp4|webm|csv|xlsx?|docx?|pptx?)$/i.test(url.pathname)) return;
-      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash === window.location.hash) {
-        event.preventDefault();
-        return;
-      }
-      event.preventDefault();
-      navigate(url.pathname + url.search + url.hash);
-    };
-
-    document.addEventListener("click", onClick, true);
-    return () => {
-      document.removeEventListener("click", onClick, true);
-    };
-  }, [navigate]);
-
-  return null;
-};
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -169,7 +138,6 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <SpaNavigationGuard />
           <InstallPrompt />
           <DomainRouter />
         </BrowserRouter>
