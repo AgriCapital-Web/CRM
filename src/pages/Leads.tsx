@@ -716,7 +716,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                   <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
                                 )}
                                 {(l._record_type === "prospect" || l.etape_pipeline === "prospect" || !!l.prospect_id) && l.statut !== "converti" && (
-                                  <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />Convertir en client</DropdownMenuItem>
+                                  <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />{l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"}</DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -732,7 +732,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                           <Button size="icon" className="h-8 w-8" title="Convertir" aria-label="Convertir" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-4 w-4" /></Button>
                         )}
                         {view === "prospects" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
-                          <Button size="icon" className="h-8 w-8 shrink-0" title="Convertir" aria-label="Convertir" onClick={() => void convertToClient(l)}><ArrowRight className="h-4 w-4" /></Button>
+                          <Button size="icon" className="h-8 w-8 shrink-0" title={l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"} aria-label={l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"} onClick={() => void convertToClient(l)}><ArrowRight className="h-4 w-4" /></Button>
                         )}
                         </div>
                       </TableCell>
