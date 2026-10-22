@@ -180,7 +180,7 @@ const Dashboard = () => {
           ? (supabase as any).from("leads").select("id,statut,created_at,converti_at,prochaine_relance_at,assigned_to,type_lead,etape_pipeline,etape_conversion")
           : Promise.resolve({ data: [] }),
         canClients || globalAdmin
-          ? (supabase as any).from("documents_acquisition").select("id,statut,obligatoire,created_at")
+          ? (supabase as any).from("documents_acquisition").select("id,client_id,statut,obligatoire,created_at")
           : Promise.resolve({ data: [] }),
         canOwners || canPlantations || canClients || globalAdmin
           ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut")
@@ -520,11 +520,11 @@ const Dashboard = () => {
         d.setMonth(d.getMonth() - i, 1);
         d.setHours(0, 0, 0, 0);
         const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
-        const mPlant = plantations.filter((p: any) => {
+        const mPlant = scopedPlantations.filter((p: any) => {
           const dt = new Date(p.date_plantation || p.date_activation || p.created_at);
           return dt >= d && dt <= end;
         }).reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
-        const mPay = validPayments.filter((p: any) => {
+        const mPay = commercialValidPayments.filter((p: any) => {
           const dt = new Date(p.date_paiement || p.created_at);
           return dt >= d && dt <= end;
         }).reduce((s: number, p: any) => s + Number(p.montant_paye ?? p.montant ?? 0), 0);
