@@ -17,7 +17,7 @@ import { CheckCircle2, Eye, RefreshCw, ShieldAlert } from "lucide-react";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
 export default function ValidationDossiers(){
-  const type="ventes";
+  const type: string = "ventes"; // Cette page est volontairement dédiée à la validation des ventes.
   const {can}=usePermissions();
   const {toast}=useToast();
   const canValidateClients=can("clients.validate");
