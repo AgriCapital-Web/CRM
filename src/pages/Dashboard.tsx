@@ -590,21 +590,21 @@ const Dashboard = () => {
   const roleLabel = userRoles.map((r) => ROLE_SHORT_LABELS[r] || r).join(" / ");
 
   const kpis: any[] = [
-    { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canFinancialOverview, metrics:[
+    { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canDashboardExecutiveFinance, metrics:[
       {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
-      {label:"Encaissé",value:money(stats.collected),href:"/paiements"},
-      {label:"À encaisser",value:money(stats.dueAmount),href:"/paiements"},
-      {label:"Clients soldés",value:stats.settledClients,href:"/paiements"},
-      {label:"Monnaie client",value:money(stats.clientCredit),href:"/paiements"},
-      {label:"Échéances en retard",value:stats.overdueCount,href:"/paiements"},
+      {label:"Encaissé",value:money(stats.collected),href:"/finance"},
+      {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
+      {label:"Clients soldés",value:stats.settledClients,href:"/finance"},
+      {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
+      {label:"Échéances en retard",value:stats.overdueCount,href:"/finance"},
     ]},
-    { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
+    { label:"Développement commercial", icon:Target, href:canLeads ? "/leads" : "/acquisitions", show:canClients || canLeads, metrics:[
       ...(canClients ? [
         {group:"Clients",label:"Dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
         {group:"Clients",label:"Clients actifs (sur "+stats.clients+" dossiers)",shortLabel:"Actifs / "+stats.clients,value:stats.clientsActive,href:"/clients"},
-        {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:"/paiements"},
+        {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:canPayments ? "/paiements" : "/clients"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
-        {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:"/paiements"}
+        {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"}
       ] : []),
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
