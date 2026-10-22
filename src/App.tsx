@@ -40,8 +40,6 @@ import TechnicienTerrain from "./pages/TechnicienTerrain";
 import Messagerie from "./pages/Messagerie";
 import EspaceTravail from "./pages/EspaceTravail";
 import AgriCapitalConnect from "./pages/AgriCapitalConnect";
-import FinanceHistoryImport from "./pages/FinanceHistoryImport";
-import FinanceAnalytics from "./pages/FinanceAnalytics";
 
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
