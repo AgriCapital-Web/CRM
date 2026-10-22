@@ -64,7 +64,7 @@ const Dashboard = () => {
   const canPortfolios = can(PERMISSIONS.VIEW_PORTEFEUILLES);
   const canTickets = can(PERMISSIONS.VIEW_TICKETS);
   const canCreateAcquisition = can(PERMISSIONS.CREATE_ACQUISITION);
-  const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate");
+  const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate") || userRoles.some((role) => ["pdg", "service_client", "chef_equipe_service_client"].includes(role));
 
   const [connectionTime] = useState(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
   const [loading, setLoading] = useState(true);
