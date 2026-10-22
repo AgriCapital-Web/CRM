@@ -40,7 +40,12 @@ export default function Commissions() {
         .order("periode", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      const allRows = (data || []).filter((row: any) => row.statut !== "annule").map((row: any) => {\n        const allocated = (row.payment_allocations || []).reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);\n        const amount = Number(row.montant_commission || 0);\n        const paidAmount = row.statut === "payee" ? amount : Math.min(amount, allocated);\n        return { ...row, paidAmount, remainingAmount: Math.max(0, amount - paidAmount) };\n      });
+      const allRows = (data || []).filter((row: any) => row.statut !== "annule").map((row: any) => {
+        const allocated = (row.payment_allocations || []).reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+        const amount = Number(row.montant_commission || 0);
+        const paidAmount = row.statut === "payee" ? amount : Math.min(amount, allocated);
+        return { ...row, paidAmount, remainingAmount: Math.max(0, amount - paidAmount) };
+      });
       // Les affectations réelles vivent dans equipe_membres : profiles.equipe_id
       // n'est que l'équipe principale et peut être NULL ou incomplet.
       const { data: membershipRows, error: membershipError } = await (supabase as any)
@@ -130,9 +135,9 @@ export default function Commissions() {
       current.total += Number(row.montant_commission || 0);
       current.base += Number(row.montant_base || 0);
       current.count += 1;
-      if (row.statut === "calculee") current.calculee += Number(row.montant_commission || 0);
-      if (row.statut === "validee") { current.validee += Number(row.montant_commission || 0); current.aPayer += Number(row.montant_commission || 0); }
-      if (row.statut === "payee") current.payee += Number(row.montant_commission || 0);
+      if (row.statut === "calculee") current.calculee += Number(row.remainingAmount || 0);
+      if (row.statut === "validee") { current.validee += Number(row.remainingAmount || 0); current.aPayer += Number(row.remainingAmount || 0); }
+      current.payee += Number(row.paidAmount || 0);
       current.details.push(row);
       map.set(key, current);
     }
@@ -148,9 +153,9 @@ export default function Commissions() {
       const current = map.get(key) || { key, equipe: row.commissionTeam?.nom || "Sans équipe", total: 0, aValider: 0, payee: 0, aPayer: 0 };
       const amount = Number(row.montant_commission || 0);
       current.total += amount;
-      if (row.statut === "payee") current.payee += amount;
-      else if (row.statut === "validee") current.aPayer += amount;
-      else if (row.statut === "calculee") current.aValider += amount;
+      if (row.statut === "calculee") current.aValider += Number(row.remainingAmount || 0);
+      else if (row.statut === "validee") current.aPayer += Number(row.remainingAmount || 0);
+      current.payee += Number(row.paidAmount || 0);
       map.set(key, current);
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
@@ -167,9 +172,9 @@ export default function Commissions() {
 
   const stats = useMemo(() => ({
     total: rows.reduce((s, r) => s + Number(r.montant_commission || 0), 0),
-    aValider: rows.filter(r => r.statut === "calculee").reduce((s, r) => s + Number(r.montant_commission || 0), 0),
-    aPayer: rows.filter(r => r.statut === "validee").reduce((s, r) => s + Number(r.montant_commission || 0), 0),
-    payees: rows.filter(r => r.statut === "payee").reduce((s, r) => s + Number(r.montant_commission || 0), 0),
+    aValider: rows.filter(r => r.statut === "calculee").reduce((s, r) => s + Number(r.remainingAmount || 0), 0),
+    aPayer: rows.filter(r => r.statut === "validee").reduce((s, r) => s + Number(r.remainingAmount || 0), 0),
+    payees: rows.reduce((s, r) => s + Number(r.paidAmount || 0), 0),
   }), [rows]);
 
   return (
@@ -242,8 +247,8 @@ export default function Commissions() {
                     <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Payées</p><p className="font-bold">{money(selected.payee)}</p></CardContent></Card>
                   </div>
                   <div className="overflow-x-auto">
-                    <Table className="min-w-[950px]">
-                      <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
+                    <Table className="min-w-[1120px]">
+                      <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Déjà payé</TableHead><TableHead>Solde</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableHeader>
                       <TableBody>{selected.details.map((d: any) =>
                         <TableRow key={d.id}>
                           <TableCell>{d.client?.nom_complet || "—"}</TableCell>
@@ -252,8 +257,10 @@ export default function Commissions() {
                           <TableCell>{money(d.montant_base)}</TableCell>
                           <TableCell>{Number(d.taux_commission || 0) > 0 ? `${d.taux_commission}%` : "—"}</TableCell>
                           <TableCell className="font-semibold">{money(d.montant_commission)}</TableCell>
+                          <TableCell>{money(d.paidAmount || 0)}</TableCell>
+                          <TableCell className="font-semibold">{money(d.remainingAmount || 0)}</TableCell>
                           <TableCell>{d.periode ? format(new Date(d.periode), "dd/MM/yyyy", { locale: fr }) : "—"}</TableCell>
-                          <TableCell><Badge variant={statusVariant(d.statut)}>{statusLabel(d.statut)}</Badge></TableCell><TableCell>{canValidate && ["calculee","en_attente"].includes(d.statut) && <Button size="sm" onClick={() => void validateCommission(d.id)} disabled={!!validatingId}><ShieldCheck className="mr-1 h-3.5 w-3.5" />{validatingId === d.id ? "Validation…" : "Valider"}</Button>}</TableCell>
+                          <TableCell><Badge variant={statusVariant(d.statut)}>{Number(d.paidAmount || 0) > 0 && d.statut !== "payee" ? "Partiellement payée" : statusLabel(d.statut)}</Badge></TableCell><TableCell>{canValidate && ["calculee","en_attente"].includes(d.statut) && <Button size="sm" onClick={() => void validateCommission(d.id)} disabled={!!validatingId}><ShieldCheck className="mr-1 h-3.5 w-3.5" />{validatingId === d.id ? "Validation…" : "Valider"}</Button>}</TableCell>
                         </TableRow>
                       )}</TableBody>
                     </Table>
