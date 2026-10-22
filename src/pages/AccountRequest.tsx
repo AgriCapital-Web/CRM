@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import logoGreen from "@/assets/logo-green.png";
+
 import { User, Mail, Phone, Briefcase, MapPin, FileText, KeyRound, AtSign, Camera, Loader2, CheckCircle2, Image as ImageIcon } from "lucide-react";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { getSafeErrorMessage } from "@/lib/safeError";
@@ -206,7 +206,7 @@ const AccountRequest = () => {
       <Card className="w-full max-w-[95%] sm:max-w-2xl shadow-strong my-4 min-w-0">
         <CardHeader className="text-center px-4 sm:px-6 pb-4">
           <div className="flex justify-center mb-2 sm:mb-4">
-            <img src={logoGreen} alt="AgriCapital Logo" className="h-16 sm:h-24 w-auto max-w-full" />
+            <img src="/agricapital360-officiel.png?v=20261022-logo-png" alt="AgriCapital Logo" className="h-16 sm:h-24 w-auto max-w-full" />
           </div>
           <CardTitle className="text-xl sm:text-2xl">Demande de Création de Compte</CardTitle>
         </CardHeader>
