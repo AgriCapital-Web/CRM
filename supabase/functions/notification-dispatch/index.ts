@@ -234,8 +234,8 @@ async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderS
   const statusOf = (session: any) => String(session?.status ?? session?.state ?? session?.connectionStatus
     ?? session?.connection_status ?? session?.connection?.status ?? session?.session?.status ?? "").trim().toLowerCase();
   const connected = sessions.filter((session: any) => ["connected", "open", "ready", "authenticated"].includes(statusOf(session)));
-  if (normalizePhone(configuredPhone) !== normalizePhone("+22564551717")) throw new Error("La session WhatsApp autorisée doit être +22564551717.");
-  const senderDigits = normalizePhone("+22564551717");
+  const senderDigits = normalizePhone(configuredPhone);
+  if (!senderDigits) throw new Error("Le numéro de session WhatsApp Senndo configuré est invalide.");
   const matches = connected.filter((session: any) => phoneValues(session).some((value: unknown) => normalizePhone(value) === senderDigits));
   const session = matches.length === 1 ? matches[0] : null;
   const candidates = session ? [
