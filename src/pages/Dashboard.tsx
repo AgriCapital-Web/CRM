@@ -68,6 +68,7 @@ const Dashboard = () => {
 
   const [stats, setStats] = useState({
     clients: 0,
+    dossiersTotal: 0,
     clientsActive: 0,
     clientsOverdue: 0,
     clientsSuspended: 0,
@@ -352,6 +353,7 @@ const Dashboard = () => {
 
       setStats({
         clients: clients.filter((c: any) => !c.is_internal).length,
+        dossiersTotal: clients.length,
         clientsActive: clients.filter((c:any)=>!c.is_internal && (["actif","active"].includes(String(c.statut||"").toLowerCase()) || ["actif","active"].includes(String(c.statut_global||"").toLowerCase()))).length,
         clientsOverdue: clients.filter((c:any)=>!c.is_internal && (["en_retard","retard","impaye"].includes(String(c.statut||"").toLowerCase()) || ["en_retard","retard","impaye"].includes(String(c.statut_global||"").toLowerCase()))).length,
         clientsSuspended: clients.filter((c:any)=>!c.is_internal && ["suspendu","suspendue","suspended"].includes(String(c.statut||c.statut_global||"").toLowerCase())).length,
@@ -582,7 +584,7 @@ const Dashboard = () => {
 
   const kpis: any[] = [
     { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canFinancialOverview, metrics:[
-      {label:"Valeur totale des contrats",value:money(stats.forecastRevenue),href:"/paiements"},
+      {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
       {label:"Encaissé",value:money(stats.collected),href:"/paiements"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/paiements"},
       {label:"Clients soldés",value:stats.settledClients,href:"/paiements"},
@@ -591,7 +593,7 @@ const Dashboard = () => {
     ]},
     { label:"Développement commercial", icon:Target, href:"/leads", show:canClients || canLeads, metrics:[
       ...(canClients ? [
-        {group:"Clients",label:"Clients / dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
+        {group:"Clients",label:"Dossiers",shortLabel:"Dossiers",value:stats.dossiersTotal,href:"/acquisitions"},
         {group:"Clients",label:"Clients actifs (sur "+stats.clients+" dossiers)",shortLabel:"Actifs / "+stats.clients,value:stats.clientsActive,href:"/clients"},
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:"/paiements"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
