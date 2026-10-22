@@ -374,9 +374,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         }
         return;
       }
-      if (leadForm.source === "commercial_terrain" && (canSupervise || isServiceClient) && !leadForm.assigned_to) {
-        throw new Error("Sélectionnez le commercial responsable de ce lead.");
-      }
+      // A creator with leads.create may save a lead without assigning it immediately.
+      // RLS still restricts who may assign it to another user; do not block basic creation
+      // merely because this form has no assignment picker for the current role.
       const num = (v: string) => (v === "" || v == null ? null : Number(v));
       const record = {
         nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
