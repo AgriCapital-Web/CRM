@@ -54,9 +54,28 @@ Deno.serve(async (req) => {
           const response = await fetch("https://api.senndo.com/v1/wa/sessions", { headers: { authorization: "Bearer " + values.senndo_api_key, accept: "application/json" }, signal: AbortSignal.timeout(12000) });
           if (response.ok) {
             const payload = await response.json().catch(() => null);
-            const list = Array.isArray(payload) ? payload : Array.isArray(payload?.sessions) ? payload.sessions : Array.isArray(payload?.data?.sessions) ? payload.data.sessions : Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.items) ? payload.items : [];
-            const connected = list.some((s: any) => ["connected","open","ready","authenticated"].includes(String(s?.status ?? s?.state ?? s?.connectionStatus ?? s?.connection_status ?? s?.connection?.status ?? "").toLowerCase()));
-            whatsappSessionStatus = connected ? "connected" : "disconnected";
+            const rawSessions = Array.isArray(payload) ? payload : Array.isArray(payload?.sessions) ? payload.sessions : Array.isArray(payload?.data?.sessions) ? payload.data.sessions : Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.items) ? payload.items : [];
+            const sessions = rawSessions.map((item: any) => item?.session && typeof item.session === "object"
+              ? { ...item.session, id: item.session.id ?? item.id, sessionId: item.session.sessionId ?? item.session.session_id ?? item.sessionId ?? item.session_id, senderSessionId: item.session.senderSessionId ?? item.senderSessionId, uuid: item.session.uuid ?? item.uuid }
+              : item);
+            const normalizePhone = (value: unknown) => {
+              const raw = String(value ?? "").split("@")[0].split(":")[0].replace(/\D/g, "");
+              if (!raw) return "";
+              const national = raw.startsWith("225") ? raw.slice(3) : raw;
+              if (national.length === 10 && /^0[157]\d{8}$/.test(national)) return "225" + national.slice(-8);
+              if (national.length === 8) return "225" + national;
+              return raw;
+            };
+            const phoneValues = (session: any) => [
+              session?.phoneNumber,session?.phone_number,session?.phone,session?.displayPhoneNumber,session?.display_phone_number,session?.number,session?.jid,
+              session?.user?.id,session?.user?.jid,session?.me?.id,session?.me?.jid,session?.account?.phone,session?.account?.phoneNumber,session?.profile?.phone,
+              session?.whatsapp?.phone,session?.session?.phoneNumber,session?.session?.phone_number,session?.session?.user?.id,session?.session?.me?.id,
+              session?.creds?.me?.id,session?.authState?.creds?.me?.id
+            ].filter((value) => (typeof value === "string" || typeof value === "number") && String(value).trim());
+            const connected = sessions.filter((session: any) => ["connected","open","ready","authenticated"].includes(String(session?.status ?? session?.state ?? session?.connectionStatus ?? session?.connection_status ?? session?.connection?.status ?? session?.session?.status ?? "").toLowerCase()));
+            const configuredDigits = normalizePhone(values.senndo_whatsapp_sender_phone);
+            const matches = configuredDigits ? connected.filter((session: any) => phoneValues(session).some((value: unknown) => normalizePhone(value) === configuredDigits)) : [];
+            whatsappSessionStatus = matches.length === 1 ? "connected" : "disconnected";
           }
         } catch { /* retain unknown when provider status cannot be queried */ }
       }
@@ -67,7 +86,7 @@ Deno.serve(async (req) => {
           apiValid,
           webhookSecret: Boolean(values.senndo_webhook_secret),
           emailSenderId: Boolean(values.senndo_email_sender_id),
-          whatsappSenderPhone: Boolean(values.senndo_whatsapp_sender_phone || values.senndo_api_key),
+          whatsappSenderPhone: Boolean(values.senndo_whatsapp_sender_phone),
           whatsappSession: whatsappSessionStatus,
         },
         statusErrors: errors,
