@@ -360,6 +360,7 @@ const Dashboard = () => {
 
       setStats({
         clients: commercialClients.length,
+        commercialClients: commercialClients.length,
         clientsActive: commercialClients.filter((c:any)=>(["actif","active"].includes(String(c.statut||"").toLowerCase()) || ["actif","active"].includes(String(c.statut_global||"").toLowerCase()))).length,
         clientsOverdue: commercialClients.filter((c:any)=>( ["en_retard","retard","impaye"].includes(String(c.statut||"").toLowerCase()) || ["en_retard","retard","impaye"].includes(String(c.statut_global||"").toLowerCase()))).length,
         clientsSuspended: commercialClients.filter((c:any)=>["suspendu","suspendue","suspended"].includes(String(c.statut||c.statut_global||"").toLowerCase())).length,
