@@ -19,7 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Search, FileText, Eye, CheckCircle, Clock, MoreVertical, Edit, Archive, Ban, Trash2, RotateCcw, LayoutGrid, List, UserRound, Sprout, UsersRound, LandPlot } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import ClientForm from "@/components/forms/ClientForm";
 import ContactLauncher from "@/components/common/ContactLauncher";
 import KanbanPipeline from "@/components/acquisitions/KanbanPipeline";
@@ -60,6 +60,8 @@ const getOfferDisplayName = (client: any) => {
 };
 
 const Clients = () => {
+  const location = useLocation();
+  const acquisitionsView = location.pathname === "/acquisitions";
   const { can } = usePermissions();
   const { profile, userRoles } = useAuth();
   const serviceClient = (userRoles || []).some((role:string) => ["service_client","chef_equipe_service_client"].includes(role)) || String(profile?.poste || "").toLowerCase().includes("service client") || String(profile?.relation_rh || "").toLowerCase().includes("service client");
@@ -106,7 +108,11 @@ const Clients = () => {
         let clientsQuery = supabase
           .from("clients")
           .select("*")
-          .or("is_internal.is.null,is_internal.eq.false")
+          .or("is_internal.is.null,is_internal.eq.false");
+        // Acquisitions ne présente que les clients commerciaux : les bénéficiaires particuliers
+        // restent accessibles dans la liste générale des clients et les tableaux de suivi.
+        if (acquisitionsView) clientsQuery = clientsQuery.neq("type_client", "beneficiaire_particulier");
+        clientsQuery = clientsQuery
           .order("id_unique", { ascending: false })
           .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
 
