@@ -111,7 +111,7 @@ export const missionAuto = (carte: CarteData) => {
 const fdate = (d?: string | null) => (d ? format(new Date(d), "dd/MM/yyyy", { locale: fr }) : "—");
 
 export const validiteTexte = (carte: CarteData) => {
-  if (carte.type_contrat === "cdi") return "Indéterminée";
+  if (String(carte.role_code || "").toLowerCase() === "pdg" || carte.type_contrat === "cdi") return "Indéterminée";
   const debut = carte.date_delivrance ? `Du ${fdate(carte.date_delivrance)} ` : "";
   return carte.date_expiration ? `${debut}au ${fdate(carte.date_expiration)}` : "Indéterminée";
 };
@@ -465,7 +465,7 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 whiteSpace: "nowrap",
               }}
             >
-              {isPdg ? "FONDATEUR" : statutAgentLabel(carte.statut_agent)}
+              {isPdg ? "FONDATEUR · PDG" : statutAgentLabel(carte.statut_agent)}
             </span>
           </div>
 
