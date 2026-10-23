@@ -6,6 +6,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -174,6 +175,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [reassignTo, setReassignTo] = useState("");
   const [reassignMotif, setReassignMotif] = useState("");
   const [tableSearch, setTableSearch] = useState("");
+  // Aucun type coché = vue globale ; un seul coché = filtrage dédié ; les deux = les deux types.
+  const [showLeads, setShowLeads] = useState(false);
+  const [showProspects, setShowProspects] = useState(false);
   const [tablePage, setTablePage] = useState(1);
   const tablePageSize = useResponsivePageSize();
 
@@ -611,9 +615,13 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         ...leads.filter((l: any) => legacyStage(l) === "prospect" && !prospects.some((p: any) => p.lead_id === l.id)),
       ]
     : leads.filter((l: any) => legacyStage(l) === "lead");
-  const filteredLeads = stageLeads.filter((l: any) => JSON.stringify(l).toLowerCase().includes(tableSearch.trim().toLowerCase()));
+  const filteredLeads = stageLeads.filter((l: any) => {
+    const isProspect = l._record_type === "prospect" || legacyStage(l) === "prospect";
+    const typeMatches = (!showLeads && !showProspects) || (showLeads && !showProspects && !isProspect) || (!showLeads && showProspects && isProspect) || (showLeads && showProspects);
+    return typeMatches && JSON.stringify(l).toLowerCase().includes(tableSearch.trim().toLowerCase());
+  });
   const paginatedLeads = filteredLeads.slice((tablePage - 1) * tablePageSize, tablePage * tablePageSize);
-  useEffect(() => { setTablePage(1); }, [tableSearch, tablePageSize]);
+  useEffect(() => { setTablePage(1); }, [tableSearch, showLeads, showProspects, tablePageSize]);
 
   const stats = {
     total: stageLeads.length,
@@ -640,7 +648,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
             <Button className="w-full sm:w-auto" variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}><Copy className="h-4 w-4 mr-2" />Lien public</Button>
-            {canCreateLeads && <Button className="col-span-2 w-full sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
+            {canCreateLeads && <Button className="w-full sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
           </div>
         </div>
 
@@ -671,7 +679,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         </div>
 
         <Card>
-          <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Suivi des leads et prospects</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un lead ou prospect…" /></div></CardHeader>
+          <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Suivi des leads et prospects</CardTitle><div className="flex flex-col gap-2 sm:flex-row sm:items-center"><div className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2 text-sm"><label className="flex items-center gap-2 cursor-pointer"><Checkbox checked={showLeads} onCheckedChange={(checked) => setShowLeads(checked === true)} />Lead</label><label className="flex items-center gap-2 cursor-pointer"><Checkbox checked={showProspects} onCheckedChange={(checked) => setShowProspects(checked === true)} />Prospect</label></div><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un lead ou prospect…" /></div></div></CardHeader>
           <CardContent>
             <Table className="responsive-data-table">
               <TableHeader><TableRow>
