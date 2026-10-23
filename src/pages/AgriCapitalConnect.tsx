@@ -104,7 +104,7 @@ export default function AgriCapitalConnect() {
       if (filesError) console.warn("Pièces jointes indisponibles", filesError);
       const grouped: Record<string, any[]> = {};
       for (const file of files || []) {
-        const { data: signed } = await supabase.storage.from("workspace-attachments").createSignedUrl(file.storage_path, 3600);
+        const { data: signed } = await supabase.storage.from("internal-message-attachments").createSignedUrl(file.storage_path, 3600);
         (grouped[file.message_id] ||= []).push({ ...file, url: signed?.signedUrl || null });
       }
       setMessageAttachments(grouped);
@@ -133,7 +133,7 @@ export default function AgriCapitalConnect() {
       if (filesError) console.warn("Documents de réunion indisponibles", filesError);
       const grouped: Record<string, any[]> = {};
       for (const file of files || []) {
-        const { data: signed } = await supabase.storage.from("workspace-attachments").createSignedUrl(file.storage_path, 3600);
+        const { data: signed } = await supabase.storage.from("internal-message-attachments").createSignedUrl(file.storage_path, 3600);
         (grouped[file.meeting_id] ||= []).push({ ...file, url: signed?.signedUrl || null });
       }
       setMeetingAttachments(grouped);
@@ -187,7 +187,7 @@ export default function AgriCapitalConnect() {
       if (messageFile) {
         const safeName = messageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         uploadedPath = `${profileId}/messages/${crypto.randomUUID()}-${safeName}`;
-        const { error: uploadError } = await (supabase as any).storage.from("workspace-attachments").upload(uploadedPath, messageFile, { contentType: messageFile.type || "application/octet-stream", upsert: false });
+        const { error: uploadError } = await (supabase as any).storage.from("internal-message-attachments").upload(uploadedPath, messageFile, { contentType: messageFile.type || "application/octet-stream", upsert: false });
         if (uploadError) throw uploadError;
       }
       const body = draft.trim() || (messageFile ? `Pièce jointe : ${messageFile.name}` : "");
@@ -200,7 +200,7 @@ export default function AgriCapitalConnect() {
       setDraft(""); setMessageFile(null);
       await loadMessages(selected);
     } catch (error) {
-      if (uploadedPath) await (supabase as any).storage.from("workspace-attachments").remove([uploadedPath]);
+      if (uploadedPath) await (supabase as any).storage.from("internal-message-attachments").remove([uploadedPath]);
       console.error(error); toast.error("Le message ou le fichier n’a pas pu être envoyé. Vérifiez les droits et le format du fichier.");
     } finally { setSending(false); }
   };
@@ -254,10 +254,10 @@ export default function AgriCapitalConnect() {
     for (const file of meetingFiles) {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${profileId}/meetings/${meetingId}/${crypto.randomUUID()}-${safeName}`;
-      const { error: uploadError } = await (supabase as any).storage.from("workspace-attachments").upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
+      const { error: uploadError } = await (supabase as any).storage.from("internal-message-attachments").upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
       if (uploadError) { attachmentsFailed = true; console.error(uploadError); continue; }
       const { error: metadataError } = await (supabase as any).from("internal_meeting_attachments").insert({ meeting_id: meetingId, uploaded_by_profile_id: profileId, storage_path: path, file_name: file.name, mime_type: file.type || null, file_size: file.size });
-      if (metadataError) { attachmentsFailed = true; console.error(metadataError); await (supabase as any).storage.from("workspace-attachments").remove([path]); }
+      if (metadataError) { attachmentsFailed = true; console.error(metadataError); await (supabase as any).storage.from("internal-message-attachments").remove([path]); }
     }
     setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription(""); setMeetingMembers([]); setMeetingRoles([]); setMeetingTeams([]); setMeetingFiles([]); setMeetingRoleFilter(""); setMeetingAudience("selected");
     await loadMeetings();
