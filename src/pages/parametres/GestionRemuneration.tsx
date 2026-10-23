@@ -23,9 +23,7 @@ type Rule = {
 const money = (value: unknown) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0));
 const RULES = {
   partnerSale: "COMMERCIAL_ACQUISITION_PARTENAIRE",
-  partnerYear1: "COMMERCIAL_REC_PARTENAIRE_AN1",
-  partnerYear2: "COMMERCIAL_REC_PARTENAIRE_AN2",
-  partnerYear3: "COMMERCIAL_REC_PARTENAIRE_AN3",
+  partnerRecovery: "COMMERCIAL_REC_PARTENAIRE_AN1",
   essentialSale: "COMMERCIAL_ACQUISITION_ESSENTIEL",
   flexibleSale: "COMMERCIAL_ACQUISITION_FLEXIBLE",
   flexibleRecovery: "COMMERCIAL_REC_FLEXIBLE",
@@ -68,9 +66,21 @@ export default function GestionRemuneration() {
         }).eq("id", row.id);
         if (error) throw error;
       }
-      const { data, error } = await (supabase as any).rpc("recalculer_commissions_depuis_grille");
-      if (error) throw error;
-      toast({ title: "Rémunération enregistrée", description: `Règles enregistrées. Foncier recalculé : ${data?.foncier_recalcule ?? 0} · Technique recalculé : ${data?.technique_recalcule ?? 0}. Les commissions déjà payées sont conservées.` });
+      const recovery = byCode.get(RULES.partnerRecovery);
+      if (recovery) {
+        for (const legacyCode of ["COMMERCIAL_REC_PARTENAIRE_AN2", "COMMERCIAL_REC_PARTENAIRE_AN3"]) {
+          const legacy = rows.find(item => item.code_regle === legacyCode);
+          if (legacy) {
+            const { error } = await (supabase as any).from("grille_remuneration").update({
+              taux_pourcentage: recovery.taux_pourcentage === "" || recovery.taux_pourcentage === null ? null : Number(recovery.taux_pourcentage),
+              actif: recovery.actif !== false,
+              updated_at: new Date().toISOString(),
+            }).eq("id", legacy.id);
+            if (error) throw error;
+          }
+        }
+      }
+      toast({ title: "Rémunération enregistrée", description: "Les nouveaux paiements utiliseront les règles mises à jour. Les commissions déjà calculées et les paiements historiques sont conservés." });
       await load();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enregistrement impossible", description: error?.message || "Une erreur est survenue." });
@@ -97,7 +107,7 @@ export default function GestionRemuneration() {
 
   return <div className="space-y-4">
     <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0"><h2 className="text-lg font-semibold">Rémunération et commissions</h2><p className="text-sm text-muted-foreground">Configurez les règles par équipe et par offre.</p></div>
+      <div className="min-w-0"><h2 className="text-lg font-semibold">Rémunération et commissions</h2><p className="text-sm text-muted-foreground">Configurez une seule règle de vente et une seule règle de recouvrement par famille d’offres. Les modifications s’appliquent aux nouveaux paiements sans réécrire les commissions déjà calculées.</p></div>
       <div className="flex shrink-0 gap-2">
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
         <Button size="sm" onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />Enregistrer</Button>
@@ -114,20 +124,18 @@ export default function GestionRemuneration() {
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">Palme Invest et Terra Palm</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.partnerSale} label="Commission / vente — unique" unit="money" />
-            <RuleEditor code={RULES.partnerYear1} label="Recouvrement mensuel 1-1 — année 1" unit="percent" />
-            <RuleEditor code={RULES.partnerYear2} label="Recouvrement mensuel — 2,5 % (toutes périodes)" unit="percent" />
-            <RuleEditor code={RULES.partnerYear3} label="Recouvrement mensuel — 2,5 % (toutes périodes)" unit="percent" />
+            <RuleEditor code={RULES.partnerSale} label="Commission de vente — une fois par vente" unit="money" />
+            <RuleEditor code={RULES.partnerRecovery} label="Commission de recouvrement — chaque mensualité" unit="percent" />
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule essentielle</CardTitle></CardHeader>
-          <CardContent><RuleEditor code={RULES.essentialSale} label="Commission / vente — unique" unit="money" /><p className="mt-2 text-sm text-muted-foreground">Aucune commission de recouvrement mensuel pour cette formule.</p></CardContent>
+          <CardContent className="space-y-3"><RuleEditor code={RULES.essentialSale} label="Commission de vente — une fois par vente" unit="money" /><p className="text-sm text-muted-foreground">Cette formule ne génère pas de commission de recouvrement mensuel selon la règle actuelle.</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule flexible</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.flexibleSale} label="Commission / vente — unique" unit="money" />
+            <RuleEditor code={RULES.flexibleSale} label="Commission de vente — une fois par vente" unit="money" />
             <RuleEditor code={RULES.flexibleRecovery} label="Commission de 2,5 % sur chaque mensualité" unit="percent" />
           </CardContent>
         </Card>
