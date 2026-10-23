@@ -14,14 +14,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, Check, Clock3, Files, Loader2, MessageCircle, Plus, Send, ShieldCheck, Users, Video } from "lucide-react";
+import { CalendarDays, Check, Clock3, Files, Loader2, MessageCircle, Paperclip, Plus, Send, ShieldCheck, Users, Video } from "lucide-react";
 import { toast } from "sonner";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
 type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null; role_codes?: string[]; role_names?: string[] };
 type StaffRole = { code: string; nom: string; court: string | null };
-type Meeting = { id: string; title: string; description: string | null; agenda: string | null; starts_at: string; ends_at: string; status: string; provider: string; join_url: string | null; created_by_profile_id: string };
+type Meeting = { id: string; title: string; description: string | null; agenda: string | null; starts_at: string; ends_at: string; status: string; provider: string; join_url: string | null; created_by_profile_id: string };\ntype MessageAttachment = { id: string; message_id: string; file_name: string; mime_type: string | null; storage_path: string; url?: string };
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase();
@@ -33,7 +33,7 @@ export default function AgriCapitalConnect() {
   const profileId = profile?.id as string | undefined;
   const [tab, setTab] = useState("messages");
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);\n  const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
   const [staff, setStaff] = useState<Staff[]>([]);\n  const [staffRoles, setStaffRoles] = useState<StaffRole[]>([]);\n  const [newRoleFilter, setNewRoleFilter] = useState("");\n  const [meetingRoleFilter, setMeetingRoleFilter] = useState("");\n  const [messageFile, setMessageFile] = useState<File | null>(null);\n  const [meetingFiles, setMeetingFiles] = useState<File[]>([]);\n  const [meetingAudience, setMeetingAudience] = useState<"selected" | "all">("selected");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selected, setSelected] = useState<string>("");
@@ -141,13 +141,29 @@ export default function AgriCapitalConnect() {
   };
 
   const sendMessage = async () => {
-    if (!profileId || !selected || !draft.trim() || sending) return;
+    if (!profileId || !selected || (!draft.trim() && !messageFile) || sending) return;
     setSending(true);
-    const { error } = await (supabase as any).from("internal_messages").insert({ conversation_id: selected, sender_profile_id: profileId, body: draft.trim() });
-    setSending(false);
-    if (error) { toast.error("Message non envoyé. Vérifiez vos droits et votre connexion."); console.error(error); return; }
-    setDraft("");
-    await loadMessages(selected);
+    let uploadedPath: string | null = null;
+    try {
+      if (messageFile) {
+        const safeName = messageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        uploadedPath = `${profileId}/messages/${crypto.randomUUID()}-${safeName}`;
+        const { error: uploadError } = await (supabase as any).storage.from("workspace-attachments").upload(uploadedPath, messageFile, { contentType: messageFile.type || "application/octet-stream", upsert: false });
+        if (uploadError) throw uploadError;
+      }
+      const body = draft.trim() || (messageFile ? `Pièce jointe : ${messageFile.name}` : "");
+      const { data: msg, error } = await (supabase as any).from("internal_messages").insert({ conversation_id: selected, sender_profile_id: profileId, body, message_type: messageFile ? "file" : "text" }).select("id").single();
+      if (error || !msg) throw error || new Error("Message non confirmé.");
+      if (messageFile && uploadedPath) {
+        const { error: metadataError } = await (supabase as any).from("internal_message_attachments").insert({ message_id: msg.id, conversation_id: selected, uploaded_by_profile_id: profileId, storage_path: uploadedPath, file_name: messageFile.name, mime_type: messageFile.type || null, file_size: messageFile.size });
+        if (metadataError) throw metadataError;
+      }
+      setDraft(""); setMessageFile(null);
+      await loadMessages(selected);
+    } catch (error) {
+      if (uploadedPath) await (supabase as any).storage.from("workspace-attachments").remove([uploadedPath]);
+      console.error(error); toast.error("Le message ou le fichier n’a pas pu être envoyé. Vérifiez les droits et le format du fichier.");
+    } finally { setSending(false); }
   };
 
   const startVideoCall = async () => {
@@ -228,8 +244,8 @@ export default function AgriCapitalConnect() {
                 <Card className={selected ? "flex min-w-0 flex-col overflow-hidden" : "hidden min-w-0 lg:flex lg:flex-col"}>
                   <CardHeader className="border-b p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><CardTitle className="truncate text-base">{selectedConversation?.title || (selectedConversation?.conversation_type === "direct" ? "Conversation privée" : selectedConversation?.conversation_type === "group" ? "Groupe d'équipe" : "Canal interne")}</CardTitle><p className="text-xs text-muted-foreground">Messages en temps réel · accusés de lecture</p></div><div className="flex shrink-0 gap-1"><Button variant="outline" size="sm" className="gap-1" onClick={() => void startVideoCall()} disabled={!selected}><Video className="h-4 w-4" /><span className="hidden sm:inline">Appel audio/vidéo</span><span className="sm:hidden">Appel</span></Button><Button variant="outline" size="sm" className="gap-1" onClick={() => setTab("meetings")}><CalendarDays className="h-4 w-4" /><span className="hidden sm:inline">Réunions</span></Button></div></div></CardHeader>
                   <CardContent className="flex min-h-[360px] flex-1 flex-col p-3 sm:min-h-[500px] sm:p-4">
-                    <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain pb-3">{messages.map(m => <div key={m.id} className={`flex ${m.sender_profile_id === profileId ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] min-w-0 rounded-2xl px-3 py-2 ${m.sender_profile_id === profileId ? "bg-primary text-primary-foreground" : "bg-muted"}`}><div className="whitespace-pre-wrap break-words text-sm">{(() => { const callUrl = m.body.match(/https:\/\/meet\.jit\.si\/[^\s]+/)?.[0]; return callUrl ? <><span>{m.body.replace(callUrl, "").trim()}</span><a href={callUrl} target="_blank" rel="noreferrer" className="mt-2 block font-semibold underline underline-offset-2">Rejoindre l’appel audio/vidéo</a></> : m.body; })()}</div><div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70"><span>{dateLabel(m.created_at)}</span>{m.sender_profile_id === profileId && <Check className="h-3 w-3" />}</div></div></div>)}{selected && !messages.length && <p className="py-12 text-center text-sm text-muted-foreground">Écrivez le premier message de cette conversation.</p>}</div>
-                    <form className="flex min-w-0 items-end gap-2 border-t pt-3" onSubmit={e => { e.preventDefault(); void sendMessage(); }}><Textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Écrire un message…" rows={2} className="min-h-[44px] min-w-0 resize-y" disabled={!selected || sending} /><Button type="submit" size="icon" aria-label="Envoyer" disabled={!selected || !draft.trim() || sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button></form>
+                    <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain pb-3">{messages.map(m => <div key={m.id} className={`flex ${m.sender_profile_id === profileId ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] min-w-0 rounded-2xl px-3 py-2 ${m.sender_profile_id === profileId ? "bg-primary text-primary-foreground" : "bg-muted"}`}><div className="whitespace-pre-wrap break-words text-sm">{(() => { const callUrl = m.body.match(/https:\/\/meet\.jit\.si\/[^\s]+/)?.[0]; return callUrl ? <><span>{m.body.replace(callUrl, "").trim()}</span><a href={callUrl} target="_blank" rel="noreferrer" className="mt-2 block font-semibold underline underline-offset-2">Rejoindre l’appel audio/vidéo</a></> : m.body; })()}</div>{(messageAttachments[m.id] || []).map(a => a.url ? <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-2 break-all text-xs underline"><Paperclip className="h-3 w-3 shrink-0" />{a.file_name}</a> : <p key={a.id} className="mt-2 text-xs">{a.file_name}</p>)}<div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70"><span>{dateLabel(m.created_at)}</span>{m.sender_profile_id === profileId && <Check className="h-3 w-3" />}</div></div></div>)}{selected && !messages.length && <p className="py-12 text-center text-sm text-muted-foreground">Écrivez le premier message de cette conversation.</p>}</div>
+                    <form className="flex min-w-0 items-end gap-2 border-t pt-3" onSubmit={e => { e.preventDefault(); void sendMessage(); }}><label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md border hover:bg-muted" title="Joindre un fichier"><Paperclip className="h-4 w-4" /><input type="file" className="sr-only" onChange={e => setMessageFile(e.target.files?.[0] || null)} disabled={!selected || sending} /></label><div className="min-w-0 flex-1 space-y-1">{messageFile && <p className="truncate text-xs text-muted-foreground">{messageFile.name}</p>}<Textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Écrire un message…" rows={2} className="min-h-[44px] min-w-0 resize-y" disabled={!selected || sending} /></div><Button type="submit" size="icon" aria-label="Envoyer" disabled={!selected || (!draft.trim() && !messageFile) || sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button></form>
                   </CardContent>
                 </Card>
               </div>
