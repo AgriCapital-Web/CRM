@@ -240,26 +240,22 @@ async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderS
   if (!senderDigits) throw new Error("Le numéro de session WhatsApp Senndo configuré est invalide.");
   const matches = connected.filter((session: any) => phoneValues(session).some((value: unknown) => normalizePhone(value) === senderDigits));
   const session = matches.length === 1 ? matches[0] : null;
-  // Senndo's /v1/messages contract expects the senderSessionId from /v1/wa/sessions.
-  // Prefer explicit sender-session identifiers over generic database/session IDs.
-  const candidates = session ? [
-    session.senderSessionId, session.sender_session_id,
-    session.session?.senderSessionId, session.session?.sender_session_id,
-    session.sessionId, session.session_id, session.session?.sessionId, session.session?.session_id,
-    session.uuid, session.session?.uuid, session.uniqueSessionId, session.unique_session_id,
-    session.session?.uniqueSessionId, session.sessionKey, session.session_key,
-    session.id, session.session?.id, session.name, session.sessionName, session.session_name, session.key,
-  ] : [];
-  const senderSessionId = candidates.find((value: unknown) =>
-    (typeof value === "string" && value.trim().length > 0) || (typeof value === "number" && Number.isFinite(value)));
-  if (!session || senderSessionId === undefined || !String(senderSessionId).trim()) {
+  // Deterministic mapping only: use Senndo's explicit senderSessionId, or the
+  // documented session record id. Never guess from UUIDs, names, keys, or other fields.
+  const senderSessionId = session
+    ? (session.senderSessionId ?? session.session?.senderSessionId ?? session.id ?? session.session?.id)
+    : undefined;
+  const validSenderSessionId =
+    (typeof senderSessionId === "string" && senderSessionId.trim().length > 0) ||
+    (typeof senderSessionId === "number" && Number.isFinite(senderSessionId));
+  if (!session || !validSenderSessionId) {
     throw new Error(connected.length === 0
       ? "Aucune session WhatsApp connectée n’a été trouvée dans Senndo."
       : connected.length > 1 && matches.length !== 1
         ? "Plusieurs sessions WhatsApp sont connectées sans correspondance unique avec le numéro configuré."
         : "La session WhatsApp est connectée, mais son identifiant technique est absent.");
   }
-  return { apiKey, senderSessionId: String(senderSessionId), senderPhone: String(configuredPhone) };
+  return { apiKey, senderSessionId: String(senderSessionId).trim(), senderPhone: String(configuredPhone) };
 }
 
 async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string, mediaRef?: string) {
