@@ -19,7 +19,8 @@ import { toast } from "sonner";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
-type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null; role_codes?: string[]; role_names?: string[] };\ntype StaffRole = { code: string; nom: string; court: string | null };
+type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null; role_codes?: string[]; role_names?: string[] };
+type StaffRole = { code: string; nom: string; court: string | null };
 type Meeting = { id: string; title: string; description: string | null; agenda: string | null; starts_at: string; ends_at: string; status: string; provider: string; join_url: string | null; created_by_profile_id: string };
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
