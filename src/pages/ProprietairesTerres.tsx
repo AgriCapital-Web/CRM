@@ -62,6 +62,7 @@ const ProprietairesTerres = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingOnly, setPendingOnly] = useState(searchParams.get("validation") === "a_valider");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingOwner, setEditingOwner] = useState<any>(null);
   const [activeFormTab, setActiveFormTab] = useState("identite");
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
@@ -119,6 +120,27 @@ const ProprietairesTerres = () => {
   };
 
   useEffect(() => { fetchData(); loadDistricts(); }, []);
+  useEffect(() => {
+    const editId = searchParams.get("edit_id");
+    if (!editId) return;
+    let active = true;
+    void (async () => {
+      const { data, error } = await (supabase as any).from("proprietaires_terres").select("*").eq("id", editId).maybeSingle();
+      if (!active) return;
+      if (error || !data) {
+        toast({ variant: "destructive", title: "Dossier indisponible", description: "Impossible d'ouvrir le formulaire de modification du propriétaire." });
+        return;
+      }
+      setEditingOwner(data);
+      setFormData((current:any) => Object.fromEntries(Object.keys(current).map((key) => {
+        const value = data[key];
+        return [key, value == null ? (typeof current[key] === "boolean" ? false : "") : String(value)];
+      })));
+      setFiles({ photo_profil: null, cni_recto: null, cni_verso: null });
+      setIsFormOpen(true);
+    })();
+    return () => { active = false; };
+  }, [searchParams]);
   useEffect(() => {
     if (!conversionLeadId) return;
     setFormData((current:any) => ({
@@ -200,7 +222,7 @@ const ProprietairesTerres = () => {
       const missingAnnex = ANNEXES_CONVENTION.find((a) => annexStatuses[a.field] === "joint" && !files[a.field]);
       if (missingAnnex) throw new Error(`${missingAnnex.label}: fichier obligatoire si “Joint” est coché`);
 
-      let photo_profil_url = null, fichier_piece_recto_url = null, fichier_piece_verso_url = null;
+      let photo_profil_url = editingOwner?.photo_profil_url || null, fichier_piece_recto_url = editingOwner?.fichier_piece_recto_url || null, fichier_piece_verso_url = editingOwner?.fichier_piece_verso_url || null;
       const annexUploads: Record<string, string | null> = {};
       const isOnline = navigator.onLine;
       // uploadToStorage conserve aussi les blobs en IndexedDB hors ligne : on
@@ -305,6 +327,24 @@ const ProprietairesTerres = () => {
         validated_by: null,
         validated_at: null,
       };
+      if (editingOwner) {
+        const { error: updateError } = await offlineUpdate("proprietaires_terres", editingOwner.id, {
+          ...propPayload,
+          updated_by: currentUser.id,
+          // Une modification ne réinitialise pas l'état de validation du dossier.
+          statut: editingOwner.statut,
+          validation_statut: editingOwner.validation_statut,
+          validated_by: editingOwner.validated_by,
+          validated_at: editingOwner.validated_at,
+        });
+        if (updateError) throw updateError;
+        toast({ title: "Propriétaire mis à jour", description: "Les informations et les nouveaux fichiers ont été enregistrés." });
+        setIsFormOpen(false);
+        setEditingOwner(null);
+        setFiles({ photo_profil: null, cni_recto: null, cni_verso: null });
+        await fetchData();
+        return;
+      }
       const { data: proprietaire, error } = await offlineInsert("proprietaires_terres", propPayload);
       if (error) throw error;
 
@@ -838,7 +878,7 @@ const ProprietairesTerres = () => {
                     {activeStepIndex < formSteps.length - 1 ? (
                       <Button type="button" onClick={goToNextFormStep}>Suivant</Button>
                     ) : (
-                      <Button type="submit" disabled={uploading || !canCreateProprietaire}>{uploading ? "Enregistrement..." : "Enregistrer le Propriétaire"}</Button>
+                      <Button type="submit" disabled={uploading || !canCreateProprietaire}>{uploading ? "Enregistrement..." : editingOwner ? "Enregistrer les modifications" : "Enregistrer le Propriétaire"}</Button>
                     )}
                   </div>
                 </form>
