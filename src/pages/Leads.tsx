@@ -182,7 +182,14 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const tablePageSize = useResponsivePageSize();
 
   useEffect(() => {
-    if (searchParams.get("new") === "1") setCreateOpen(true);
+    if (searchParams.get("new") !== "1") return;
+    const requestedType = searchParams.get("type") === "prospect" ? "prospect" : "lead";
+    setFormStage(requestedType);
+    setEditingLead(null);
+    setConversionLeadId(null);
+    setFormReadOnly(false);
+    setLeadForm({ ...emptyLead, statut: requestedType === "prospect" ? "qualifie" : "nouveau", etape_pipeline: requestedType, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
+    setCreateOpen(true);
   }, [searchParams]);
 
   const { data: leads = [] } = useQuery({
