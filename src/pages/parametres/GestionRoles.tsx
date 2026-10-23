@@ -228,7 +228,7 @@ const GestionRoles = () => {
             whatsapp_indicatif: profile.whatsapp_indicatif || null,
             whatsapp_local: profile.whatsapp_local || null,
             departement: profile.departement || null,
-            relation_rh: profile.relation_rh || "Employé",
+            relation_rh: profile.relation_rh || null,
             taux_commission: profile.taux_commission || null,
             district_id: profile.district_id || null,
             region_id: profile.region_id || null,
@@ -560,7 +560,7 @@ const GestionRoles = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {selectedProfile && (!selectedProfileHasPrimary || selectedRoleIsCurrentPrimary) && (
+                  {selectedProfile && selectedRole && (!selectedProfileHasPrimary || selectedRoleIsCurrentPrimary) && (
                     <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
                       <Checkbox checked={selectedPrimaryRole} onCheckedChange={(checked)=>setSelectedPrimaryRole(checked===true)} />
                       <span>{selectedRoleIsCurrentPrimary ? "Rôle principal actuel" : "Définir comme rôle principal"}</span>
