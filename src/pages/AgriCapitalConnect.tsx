@@ -79,7 +79,7 @@ export default function AgriCapitalConnect() {
 
   const loadStaff = useCallback(async () => {
     const [{ data, error }, { data: roleData, error: roleError }, { data: teamData, error: teamError }] = await Promise.all([
-      (supabase as any).rpc("workspace_list_collaborators_with_roles"),
+      (supabase as any).rpc("workspace_list_finance_users"),
       (supabase as any).rpc("workspace_list_roles"),
       (supabase as any).rpc("workspace_list_teams_with_members"),
     ]);
