@@ -206,7 +206,7 @@ const AccountRequest = () => {
       <Card className="w-full max-w-[95%] sm:max-w-2xl shadow-strong my-4 min-w-0">
         <CardHeader className="text-center px-4 sm:px-6 pb-4">
           <div className="flex justify-center mb-2 sm:mb-4">
-            <img src="/agricapital360-officiel.png?v=20261022-logo-png" alt="AgriCapital Logo" className="h-16 sm:h-24 w-auto max-w-full" />
+            <img src="/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official" alt="AgriCapital Logo" className="h-16 sm:h-24 w-auto max-w-full" />
           </div>
           <CardTitle className="text-xl sm:text-2xl">Demande de Création de Compte</CardTitle>
         </CardHeader>
