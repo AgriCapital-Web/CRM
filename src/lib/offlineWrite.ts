@@ -55,7 +55,7 @@ const TABLE_TO_STORE: Record<string, string> = {
 function isNetworkError(error: any): boolean {
   const message = String(error?.message || error?.details || error || '').toLowerCase();
   const status = Number(error?.status || error?.statusCode || error?.cause?.status || 0);
-  const transientHttp = [502, 503, 504].includes(status) ||
+  const transientHttp = [502, 503, 504, 522, 524, 525, 544].includes(status) ||
     (status === 500 && /timeout|warp server|thread killed|temporarily unavailable|connection pool|upstream|gateway/i.test(message));
   return !navigator.onLine || transientHttp || /failed to fetch|network|fetch failed|connection|timeout|offline|load failed/.test(message);
 }
