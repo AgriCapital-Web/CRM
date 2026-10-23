@@ -116,7 +116,7 @@ const VerificationCarte = () => {
             {carte && <section aria-live="polite" className={`overflow-hidden rounded-2xl border ${carte.valide ? "border-emerald-600/30" : "border-destructive/30"}`}>
               <div className={`flex min-w-0 items-start gap-3 p-4 sm:items-center sm:gap-4 sm:p-5 ${carte.valide ? "bg-emerald-600/10" : "bg-destructive/10"}`}>
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm sm:h-28 sm:w-28">
-                  {carte.photo_url ? <img src={carte.photo_url} alt={`Photo de ${carte.nom_complet}`} className="h-full w-full object-cover object-center" /> : <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground"><UserRound className="h-7 w-7 sm:h-9 sm:w-9" /><span className="text-[10px] font-semibold uppercase tracking-wide">{initials || "AC"}</span></div>}
+                  {carte.photo_url ? <img src={carte.photo_url} alt={`Photo de ${carte.nom_complet}`} className="h-full w-full object-cover object-center" /> : <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground"><UserRound className="h-7 w-7 sm:h-9 sm:w-9" /><span className="px-1 text-center text-[9px] font-semibold uppercase leading-tight tracking-wide">Photo non renseignée</span><span className="text-[10px] font-semibold text-muted-foreground/70">{initials || "AC"}</span></div>}
                 </div>
                 <div className="min-w-0 flex-1 space-y-2">
                   <Badge variant={carte.valide ? "default" : "destructive"} className="max-w-full whitespace-normal">
