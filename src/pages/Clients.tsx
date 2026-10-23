@@ -330,19 +330,19 @@ const Clients = () => {
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Acquisitions</h1>
               
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="flex w-full min-w-0 flex-row gap-2 sm:w-auto">
               {can("beneficiaires.create") && (
             <Link to="/beneficiaire-particulier">
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <UserRound className="mr-2 h-4 w-4" />
+                <Button variant="outline" className="h-auto min-h-10 w-full min-w-0 px-2 text-xs sm:w-auto sm:px-4 sm:text-sm">
+                  <UserRound className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
                   Nouveau bénéficiaire
                 </Button>
               </Link>
             )}
               {can("clients.create") && (
                 <Link to="/nouvelle-acquisition">
-                  <Button className="bg-primary hover:bg-primary-hover w-full sm:w-auto">
-                    <FileText className="mr-2 h-4 w-4" />
+                  <Button className="h-auto min-h-10 w-full min-w-0 px-2 text-xs sm:w-auto sm:px-4 sm:text-sm bg-primary hover:bg-primary-hover">
+                    <FileText className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
                     Nouveau Client
                   </Button>
                 </Link>
@@ -351,7 +351,7 @@ const Clients = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8 gap-2">
-            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground whitespace-nowrap">Clients commerciaux uniquement</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground whitespace-nowrap">Clients et bénéficiaires</p></CardContent></Card>
             {can("acquisitions.validate") && <Card className="h-full min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-semibold leading-tight">Ventes à valider</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.salesPendingValidation}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Ventes en attente</p></CardContent></Card>}
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight whitespace-nowrap">Actifs</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.actifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statut actif</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Inactifs / suspendus</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.inactifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statuts inactifs</p></CardContent></Card>
@@ -536,7 +536,7 @@ const Clients = () => {
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {formMode === "view" ? "Fiche client" : formMode === "edit" ? "Modification client" : "Nouveau client"}
+                {formMode === "edit" ? "Modification client" : "Nouveau Client"}
               </DialogTitle>
             </DialogHeader>
             <ClientForm
