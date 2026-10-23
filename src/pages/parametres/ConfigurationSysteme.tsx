@@ -86,7 +86,8 @@ const ConfigurationSysteme = () => {
       return { id, valeur };
     },
     onSuccess: async ({ id, valeur }) => {
-      await queryClient.invalidateQueries({ queryKey: ["configurations"] });
+      // A system setting may affect any CRM module; refresh all cached queries so dependent screens do not keep stale values.
+      await queryClient.invalidateQueries();
       void logActivity({ tableName: "configurations_systeme", recordId: id, action: "UPDATE", details: "Configuration système modifiée" });
       setEditedValues((prev) => {
         const next = { ...prev };
@@ -113,7 +114,8 @@ const ConfigurationSysteme = () => {
     },
     onSuccess: async (result) => {
       const saved = typeof result === "number" ? result : result.saved;
-      await queryClient.invalidateQueries({ queryKey: ["configurations"] });
+      // Batch settings are a single source of truth across the application.
+      await queryClient.invalidateQueries();
       setEditedValues((prev) => {
         const next = { ...prev };
         if (typeof result !== "number") {
