@@ -697,42 +697,27 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.prochaine_relance_at ? format(new Date(l.prochaine_relance_at), "dd MMM", { locale: fr }) : "—"}</TableCell>
                       <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                        {view === "leads" && (
-                          <div className="flex justify-end">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button size="icon" variant="outline" className="h-8 w-8" aria-label={`Actions pour ${l.prenoms || ""} ${l.nom || ""}`.trim()} title="Actions">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "view")}><Eye className="mr-2 h-4 w-4" />Fiche</DropdownMenuItem>
-                                {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
-                                  <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "edit")}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onSelect={() => startContact(l)}><Contact className="mr-2 h-4 w-4" />Contacter</DropdownMenuItem>
-                                {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (
-                                  <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
-                                )}
-                                {(l._record_type === "prospect" || l.etape_pipeline === "prospect" || !!l.prospect_id) && l.statut !== "converti" && (
-                                  <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />{l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"}</DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        )}
-                        <div className="ml-auto flex max-w-[148px] flex-wrap justify-end gap-1">
-                        <Button size="icon" className="h-8 w-8 shrink-0" variant="outline" title="Détails" aria-label="Détails" onClick={() => openOfficialLeadForm(l, "view")}><Eye className="h-4 w-4" /></Button>
-                        {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
-                          <Button size="icon" className="h-8 w-8" variant="secondary" title="Modifier" aria-label="Modifier" onClick={() => openOfficialLeadForm(l, "edit")}><Pencil className="h-4 w-4" /></Button>
-                        )}
-                        <Button size="icon" className="h-8 w-8" variant="outline" title="Contacter" aria-label="Contacter" onClick={() => startContact(l)}><Contact className="h-4 w-4" /></Button>
-                        {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
-                          <Button size="icon" className="h-8 w-8" title="Convertir" aria-label="Convertir" onClick={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="h-4 w-4" /></Button>
-                        )}
-                        {view !== "leads" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && ((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin) && (
-                          <Button size="icon" className="h-8 w-8 shrink-0" title={l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"} aria-label={l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"} onClick={() => void convertToClient(l)}><ArrowRight className="h-4 w-4" /></Button>
-                        )}
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="outline" className="h-7 w-7" aria-label={`Actions pour ${l.prenoms || ""} ${l.nom || ""}`.trim()} title="Actions">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                              <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "view")}><Eye className="mr-2 h-4 w-4" />Fiche</DropdownMenuItem>
+                              {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
+                                <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "edit")}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onSelect={() => startContact(l)}><Contact className="mr-2 h-4 w-4" />Contacter</DropdownMenuItem>
+                              {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
+                                <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
+                              )}
+                              {view !== "leads" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && (
+                                <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />{l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"}</DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
