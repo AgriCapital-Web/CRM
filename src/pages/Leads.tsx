@@ -456,7 +456,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     // que l'utilisateur ait complété puis enregistré le formulaire.
     setFormStage("prospect");
     setEditingLead(null);
-    setConversionLeadId(lead.lead_id || (lead._record_type === "prospect" ? lead.lead_id : lead.id) || null);
+    setConversionLeadId(lead._record_type === "prospect" ? (lead.lead_id || null) : (lead.id || null));
     setFormReadOnly(false);
     setLeadForm({
       ...emptyLead,
