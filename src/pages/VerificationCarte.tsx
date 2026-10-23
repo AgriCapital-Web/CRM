@@ -9,7 +9,6 @@ import { BadgeCheck, ShieldAlert, Search, Loader2, UserRound, IdCard, CalendarCh
 import ScanCarteDialog from "@/components/cartes/ScanCarteDialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import logo from "@/assets/logo-white.png";
 import { contratLabel } from "@/components/cartes/CartePersonnel";
 
 interface CarteVerifiee {
@@ -77,7 +76,7 @@ const VerificationCarte = () => {
     <main className="min-h-screen w-full overflow-x-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/90 via-primary to-primary-hover px-3 py-6 sm:px-5 sm:py-10">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
         <header className="flex flex-col items-center gap-3 text-center">
-          <img src={logo} alt="AgriCapital" className="h-12 max-w-[min(80vw,18rem)] object-contain sm:h-16" />
+          <div className="rounded-xl bg-white px-3 py-2 shadow-sm"><img src="/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official" alt="AgriCapital" className="h-12 max-w-[min(80vw,18rem)] object-contain sm:h-16" /></div>
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/75">Sécurité & authenticité</p>
             <h1 className="text-xl font-extrabold tracking-tight text-primary-foreground sm:text-3xl">Vérification de carte professionnelle</h1>
