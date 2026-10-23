@@ -333,7 +333,7 @@ const ProprietaireTerreDetail = () => {
                   {ownerEditing ? <Textarea rows={3} value={ownerEditForm.notes||""} onChange={e=>setOwnerEditForm((current:any)=>({...current,notes:e.target.value}))}/> : <p className="min-h-9 whitespace-pre-wrap rounded-md border bg-muted/20 px-3 py-2 text-sm">{owner?.notes||"—"}</p>}
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {!ownerEditing && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
                   ["Photo du propriétaire",ownerPhotoPreview],
                   ["Pièce d'identité — recto",ownerRectoPreview],
@@ -342,7 +342,7 @@ const ProprietaireTerreDetail = () => {
                   <p className="text-xs font-medium">{label}</p>
                   {src ? (String(label).includes("Photo") || /\.(?:jpe?g|png|webp|gif)(?:[?#]|$)/i.test(String(src)) ? <a href={src} target="_blank" rel="noreferrer"><img src={src} alt={label} className="h-36 w-full rounded-md object-contain bg-muted/20"/></a> : <a href={src} target="_blank" rel="noreferrer" className="flex h-36 items-center justify-center rounded-md bg-muted/20 text-sm font-medium text-primary underline">Ouvrir le document enregistré</a>) : <div className="flex h-36 items-center justify-center rounded-md bg-muted/30 text-xs text-muted-foreground">Aucun fichier enregistré</div>}
                 </div>)}
-              </div>
+              </div>}
               {ownerEditing && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <FileUploadVisual label="Remplacer la photo" field="owner-photo" accept="image/*" currentFile={ownerPhotoFile} currentPreview="" existingPreview={ownerPhotoPreview||""} onFileChange={(_,file)=>setOwnerPhotoFile(file)}/>
                 <FileUploadVisual label="Remplacer le recto" field="owner-recto" accept="image/*,.pdf" currentFile={ownerRectoFile} currentPreview="" existingPreview={ownerRectoPreview||""} onFileChange={(_,file)=>setOwnerRectoFile(file)}/>
