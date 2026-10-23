@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
-type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null };
+type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null; role_codes?: string[]; role_names?: string[] };\ntype StaffRole = { code: string; nom: string; court: string | null };
 type Meeting = { id: string; title: string; description: string | null; agenda: string | null; starts_at: string; ends_at: string; status: string; provider: string; join_url: string | null; created_by_profile_id: string };
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -33,7 +33,7 @@ export default function AgriCapitalConnect() {
   const [tab, setTab] = useState("messages");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [staff, setStaff] = useState<Staff[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);\n  const [staffRoles, setStaffRoles] = useState<StaffRole[]>([]);\n  const [newRoleFilter, setNewRoleFilter] = useState("");\n  const [meetingRoleFilter, setMeetingRoleFilter] = useState("");\n  const [messageFile, setMessageFile] = useState<File | null>(null);\n  const [meetingFiles, setMeetingFiles] = useState<File[]>([]);\n  const [meetingAudience, setMeetingAudience] = useState<"selected" | "all">("selected");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [draft, setDraft] = useState("");
@@ -65,9 +65,14 @@ export default function AgriCapitalConnect() {
   }, [profileId, selected]);
 
   const loadStaff = useCallback(async () => {
-    const { data, error } = await (supabase as any).rpc("workspace_list_collaborators");
-    if (error) { console.error(error); setStaff([]); return; }
-    setStaff((data || []) as Staff[]);
+    const [{ data, error }, { data: roleData, error: roleError }] = await Promise.all([
+      (supabase as any).rpc("workspace_list_collaborators_with_roles"),
+      (supabase as any).rpc("workspace_list_roles"),
+    ]);
+    if (error) { console.error(error); setStaff([]); }
+    else setStaff((data || []) as Staff[]);
+    if (roleError) { console.error(roleError); setStaffRoles([]); }
+    else setStaffRoles((roleData || []) as StaffRole[]);
   }, []);
 
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -122,15 +127,15 @@ export default function AgriCapitalConnect() {
     const targets = Array.from(new Set([profileId, ...newMembers]));
     if (newKind === "direct" && targets.length !== 2) { toast.error("Sélectionnez un autre utilisateur."); return; }
     if (newKind !== "direct" && targets.length < 2) { toast.error("Ajoutez au moins un autre utilisateur."); return; }
-    const { data: conv, error } = await (supabase as any).from("internal_conversations")
-      .insert({ conversation_type: newKind, title: newKind === "direct" ? (staff.find(s => s.id === newMembers[0])?.nom_complet || null) : (newTitle.trim() || null), created_by_profile_id: profileId })
-      .select("id,conversation_type,title,last_message_at,created_by_profile_id").single();
-    if (error || !conv) { toast.error(error?.message || "Création impossible."); return; }
-    const members = targets.map(id => ({ conversation_id: conv.id, profile_id: id, member_role: id === profileId ? "owner" : "member" }));
-    const { error: memberError } = await (supabase as any).from("internal_conversation_members").insert(members);
-    if (memberError) { await (supabase as any).from("internal_conversations").delete().eq("id", conv.id); toast.error("La conversation n’a pas pu être créée : impossible d’enregistrer tous les participants."); console.error(memberError); return; }
+    const { data, error } = await (supabase as any).rpc("internal_create_conversation", {
+      p_conversation_type: newKind,
+      p_title: newKind === "direct" ? (staff.find(s => s.id === newMembers[0])?.nom_complet || null) : (newTitle.trim() || null),
+      p_member_profile_ids: newMembers,
+    });
+    const conv = Array.isArray(data) ? data[0] : data;
+    if (error || !conv) { console.error(error); toast.error(error?.message || "Création impossible. Vérifiez les participants sélectionnés."); return; }
     setConversations(current => [conv, ...current.filter(c => c.id !== conv.id)]);
-    setSelected(conv.id); setNewTitle(""); setNewMembers([]); setCreateOpen(false);
+    setSelected(conv.id); setNewTitle(""); setNewMembers([]); setNewRoleFilter(""); setCreateOpen(false);
     toast.success("Conversation créée.");
   };
 
