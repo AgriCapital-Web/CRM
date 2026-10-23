@@ -539,7 +539,7 @@ const ProprietairesTerres = () => {
               </DialogTrigger>}
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Convention Planté-Partagé — Identification du Propriétaire</DialogTitle>
+                  <DialogTitle>{editingOwner ? "Modification — Convention Planté-Partagé — Identification du Propriétaire" : "Convention Planté-Partagé — Identification du Propriétaire"}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} noValidate className="space-y-6">
                   <div className="space-y-3">
