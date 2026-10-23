@@ -86,7 +86,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     "chef_equipe_commercial", "service_client", "chef_equipe_service_client"].includes(primaryRole || "");
   const isServiceClient = (userRoles || []).some((r: string) => ["service_client", "chef_equipe_service_client"].includes(r));
   const hasCommercialAccess = (userRoles || []).some((r: string) => COMMERCIAL_ASSIGNABLE_ROLES.includes(r));
-  const [offers, setOffers] = useState<any[]>([]);
+  const { data: offers = [] } = useQuery({ queryKey: ["offres-actives"], queryFn: async () => { const { data, error } = await (supabase as any).from("offres").select("*").eq("actif", true).order("nom"); if (error) throw error; return (data || []).filter((offer: any) => Boolean(offer.code && offer.nom)); }, staleTime: 0, refetchOnMount: "always" });
   const [selected, setSelected] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [formReadOnly, setFormReadOnly] = useState(false);
@@ -129,15 +129,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     setCreateOpen(true);
   };
 
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const { data, error } = await (supabase as any).from("offres")
-        .select("id,code,nom,famille_offre,formule_code,formule_nom,formules_configuration").eq("actif", true).order("nom");
-      if (active) setOffers(error ? [] : (data || []).filter((o: any) => typeof o.code === "string" && o.code.trim() && typeof o.nom === "string" && o.nom.trim()));
-    })();
-    return () => { active = false; };
-  }, []);
+
 
   const selectedLeadOffer = offers.find((o) => o.code && o.code === leadForm.offre_code);
   const selectedLeadFormulas = (() => {
