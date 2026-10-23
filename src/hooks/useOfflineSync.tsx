@@ -252,7 +252,6 @@ export function useOfflineSync() {
           window.dispatchEvent(new CustomEvent('offline-sync-complete', {
             detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount, failed: failedCount, conflictDetails },
           }));
-          const conflictSummary = conflictDetails.slice(0, 3).join(' ; ');
           // Synchronisation automatique silencieuse : aucun message technique ne doit interrompre l'utilisateur.
           // Les opérations non confirmées restent dans la file locale et seront réessayées automatiquement.
         }
@@ -277,7 +276,6 @@ export function useOfflineSync() {
   const syncNow = useCallback(async () => {
     if (syncLockRef.current) return;
     if (!navigator.onLine) {
-      toast({ variant: 'destructive', title: 'Hors ligne', description: 'Synchronisation impossible sans connexion.' });
       return;
     }
     syncLockRef.current = true;
@@ -302,11 +300,8 @@ export function useOfflineSync() {
       ]);
       setPendingCount(httpStats.pending + httpStats.error + localStats.pending + localStats.error);
       setPendingFiles(queuedFiles);
-      if (httpStats.pending + httpStats.error + localStats.pending + localStats.error + queuedFiles === 0) {
-        toast({ title: 'Synchronisation complète', description: 'Les opérations en attente ont été traitées.' });
-      } else {
-        toast({ title: 'Synchronisation partielle', description: `${httpStats.pending + httpStats.error + localStats.pending + localStats.error} opération(s) et ${queuedFiles} fichier(s) restent en attente.` });
-      }
+      // La synchronisation reste silencieuse pour l'utilisateur. La file locale
+      // conserve les éléments en attente jusqu'à confirmation serveur.
     } finally {
       setIsSyncing(false);
       syncLockRef.current = false;
