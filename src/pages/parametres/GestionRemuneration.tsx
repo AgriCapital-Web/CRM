@@ -25,6 +25,7 @@ const RULES = {
   partnerSale: "COMMERCIAL_ACQUISITION_PARTENAIRE",
   partnerRecovery: "COMMERCIAL_REC_PARTENAIRE_AN1",
   essentialSale: "COMMERCIAL_ACQUISITION_ESSENTIEL",
+  essentialRecovery: "COMMERCIAL_REC_ESSENTIEL",
   flexibleSale: "COMMERCIAL_ACQUISITION_FLEXIBLE",
   flexibleRecovery: "COMMERCIAL_REC_FLEXIBLE",
   land: "MOBILISATEUR_FONCIER_PAR_HA",
@@ -130,7 +131,7 @@ export default function GestionRemuneration() {
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule essentielle</CardTitle></CardHeader>
-          <CardContent className="space-y-3"><RuleEditor code={RULES.essentialSale} label="Commission de vente — une fois par vente" unit="money" /><p className="text-sm text-muted-foreground">Cette formule ne génère pas de commission de recouvrement mensuel selon la règle actuelle.</p></CardContent>
+          <CardContent className="grid gap-3 md:grid-cols-2"><RuleEditor code={RULES.essentialSale} label="Commission de vente — une fois par vente" unit="money" /><RuleEditor code={RULES.essentialRecovery} label="Commission de recouvrement — chaque mensualité" unit="percent" /></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule flexible</CardTitle></CardHeader>
@@ -151,6 +152,6 @@ export default function GestionRemuneration() {
         <Card><CardHeader className="pb-3"><CardTitle className="text-base">Mobilisation foncière</CardTitle></CardHeader><CardContent><RuleEditor code={RULES.land} label="Prime par hectare — propriétaire validé" unit="money" /></CardContent></Card>
       </TabsContent>
     </Tabs>}
-    <p className="text-xs text-muted-foreground">Règles de référence : vente PalmTerroir flexible 5 000 F CFA ; essentielle 15 000 F CFA ; PalmInvest / TerraPalm 10 000 F CFA ; commission technique 5 000 F CFA par intervention ; recouvrement mensuel 2,5 % selon les formules éligibles. Les modifications enregistrées doivent recalculer les commissions non payées.</p>
+    <p className="text-xs text-muted-foreground">Règles de référence : vente 10 000 F CFA par offre ; recouvrement 2,5 % par mensualité pour PalmInvest, TerraPalm et les formules PalmTerroir ; commission technique 5 000 F CFA par intervention ; recouvrement mensuel 2,5 % selon les formules éligibles. Les modifications enregistrées doivent recalculer les commissions non payées.</p>
   </div>;
 }
