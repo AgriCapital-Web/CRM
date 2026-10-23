@@ -85,7 +85,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               asChild
               variant="ghost"
               className={cn(
-                "!h-7 !min-h-0 py-0 my-0 w-full min-w-0 shrink-0 justify-start gap-2 overflow-hidden whitespace-nowrap rounded-md px-2 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
+                "!h-6 !min-h-0 !p-0 py-0 my-0 w-full min-w-0 shrink-0 justify-start gap-2 overflow-hidden whitespace-nowrap rounded-md px-2 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
                 active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
               )}
               title={item.label}
