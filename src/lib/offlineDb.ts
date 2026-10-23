@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'agricapital_offline';
-const DB_VERSION = 15;
+const DB_VERSION = 16;
 
 export const STORES = {
   CLIENTS: 'clients',
@@ -57,7 +57,6 @@ export const STORES = {
   TICKETS: 'tickets',
   TICKETS_TECHNIQUES: 'tickets_techniques',
   BENEFICIAIRE_ATTRIBUTIONS: 'beneficiaire_attributions',
-  ACQUISITIONS_BROUILLON: 'acquisitions_brouillon',
   HTTP_CACHE: 'http_cache',
   HTTP_MUTATIONS: 'http_mutations',
 } as const;
@@ -70,6 +69,9 @@ function openDB(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      // Les brouillons de formulaires sont conservés uniquement dans localStorage.
+      // Supprimer l'ancien magasin IndexedDB lors de la mise à niveau.
+      if (db.objectStoreNames.contains('acquisitions_brouillon')) db.deleteObjectStore('acquisitions_brouillon');
       const storeNames = Object.values(STORES);
       for (const name of storeNames) {
         if (!db.objectStoreNames.contains(name)) {
