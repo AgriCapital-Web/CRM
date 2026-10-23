@@ -701,10 +701,10 @@ const Dashboard = () => {
                       ) : (
                         <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]">
                           {k.metrics.map((metric: any) => (
-                            <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 sm:p-2 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <div key={metric.label} className="flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 shadow-sm sm:p-2">
                               <span className={`min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[11px] ${k.label === "Pilotage financier" ? "whitespace-nowrap" : ""}`}>{k.label === "Pilotage financier" && metric.label === "CA prévisionnel" ? <><span className="sm:hidden">CA prév.</span><span className="hidden sm:inline">{metric.label}</span></> : metric.label}</span>
                               <span className={`mt-1 block min-w-0 text-xs font-bold leading-tight tabular-nums text-foreground sm:text-base ${k.label === "Pilotage financier" ? "whitespace-nowrap text-[10px] sm:text-sm" : "break-words"}`}>{loading ? "…" : metric.value}</span>
-                            </Link>
+                            </div>
                           ))}
                         </div>
                       )}
