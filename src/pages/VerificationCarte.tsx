@@ -70,7 +70,7 @@ const VerificationCarte = () => {
     if (code) void verifier(code);
   }, [code]);
 
-  const initials = (carte?.nom_complet || "AC").trim().split(/\\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]?.toUpperCase()).join("");
+  const initials = (carte?.nom_complet || "AC").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]?.toUpperCase()).join("");
 
   return (
     <main className="min-h-screen w-full overflow-x-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/90 via-primary to-primary-hover px-3 py-6 sm:px-5 sm:py-10">
