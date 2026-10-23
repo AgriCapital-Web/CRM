@@ -134,6 +134,7 @@ const Offres = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offres'] });
+      queryClient.invalidateQueries({ queryKey: ['offres-actives'] });
       queryClient.invalidateQueries({ queryKey: ['offres-prix-effectif'] });
       queryClient.invalidateQueries({ queryKey: ['offres-acquisition'] });
       toast({ title: "Offre mise à jour" });
