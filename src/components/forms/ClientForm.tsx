@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,7 +42,17 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const [isEditing, setIsEditing] = useState(!readOnly);
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
-  const [offers, setOffers] = useState<any[]>([]);
+  const { data: offers = [] } = useQuery({
+    queryKey: ["offres"],
+    queryFn: async () => {
+      const columns = "id,code,nom,description,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,necessite_cotitulaire,contrat_acquisition_requis,contrat_accompagnement_requis,gestion_type,montant_pi_par_ha,montant_cash_par_ha,mensualite_par_ha,montant_total_par_ha,duree_paiement_mois,tranches_paiement,paiement_signature_par_ha,paiement_apres_trouaison_par_ha,actif,ordre";
+      const { data, error } = await (supabase as any).from("offres").select(columns).eq("actif", true).order("ordre").order("nom");
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [pieceRectoFile, setPieceRectoFile] = useState<File | null>(null);
@@ -113,29 +124,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     return () => { active = false; };
   }, [client?.id, client?.photo_profil_url, client?.fichier_piece_recto_url, client?.fichier_piece_verso_url]);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const columns = "id,code,nom,description,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,necessite_cotitulaire,contrat_acquisition_requis,contrat_accompagnement_requis,gestion_type,montant_pi_par_ha,montant_cash_par_ha,mensualite_par_ha,montant_total_par_ha,duree_paiement_mois,tranches_paiement,paiement_signature_par_ha,paiement_apres_trouaison_par_ha,actif,ordre";
-      try {
-        const { data, error } = await (supabase as any).from("offres").select(columns).eq("actif", true).order("ordre").order("nom");
-        if (error) throw error;
-        if (active && data?.length) {
-          setOffers(data);
-          return;
-        }
-        // Fallback for environments where the active-only query returns no rows:
-        // do not change DB records; filter the existing offer list in the form.
-        const fallback = await (supabase as any).from("offres").select(columns).order("ordre").order("nom");
-        if (fallback.error) throw fallback.error;
-        if (active) setOffers((fallback.data || []).filter((item: any) => item.actif !== false));
-      } catch (error) {
-        console.error("Chargement des offres impossible", error);
-        if (active) setOffers([]);
-      }
-    })();
-    return () => { active = false; };
-  }, []);
+
 
   const offer = useMemo(() => offers.find(o => o.id === form.offre_id) || null, [offers, form.offre_id]);
   const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
