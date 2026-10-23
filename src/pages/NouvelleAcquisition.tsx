@@ -12,14 +12,14 @@ import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition
 import { EtapeConfirmationDossier } from "@/components/forms/acquisition/EtapeConfirmationDossier";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile } from "@/utils/storage";
-import { offlineDelete, offlineInsert, offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
+import { offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
 import { useToast } from "@/hooks/use-toast";
 import { SyncStatusBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { calculPrixEffectif } from "@/lib/pricing";
 import { usePromotionActive } from "@/hooks/usePromotionActive";
 import { useAuth } from "@/hooks/useAuth";
-import { getCachedItems, STORES } from "@/lib/offlineDb";
+
 
 type Step = { code:string; titre:string; description?:string; ordre:number; obligatoire:boolean };
 
@@ -204,28 +204,16 @@ const NouvelleAcquisition = () => {
       try {
         const currentUser = user;
         if(!currentUser) return;
-        let data: any[] = [];
-        try {
-          const result = await (supabase as any).from("acquisitions_brouillon").select("*").eq("created_by",currentUser.id).order("updated_at",{ascending:false}).limit(1);
-          if (result.error) throw result.error;
-          data = result.data || [];
-        } catch {
-          const cached = await getCachedItems(STORES.ACQUISITIONS_BROUILLON);
-          data = cached
-            .filter((x: any) => x?.created_by === currentUser.id)
-            .sort((a: any,b: any) => String(b?.updated_at||"").localeCompare(String(a?.updated_at||"")))
-            .slice(0,1);
-        }
-        if(!mounted) return;
-        if(data?.[0]) {
-          const draft=data[0];
-          setBrouillonId(draft.id);
-          const restoredDraft = restoreDraftFiles(draft.donnees);
-          setFormData((current:any)=>({...restoredDraft,...current}));
-          setCurrent((current:number)=>current===0?Math.max(0,Number(draft.etape_actuelle||0)):current);
-        }
+        const key = `agricapital:client-draft:${currentUser.id}`;
+        const raw = window.localStorage.getItem(key);
+        if(!raw || !mounted) return;
+        const draft = JSON.parse(raw);
+        setBrouillonId(key);
+        const restoredDraft = restoreDraftFiles(draft.donnees || {});
+        setFormData((current:any)=>({...restoredDraft,...current}));
+        setCurrent((current:number)=>current===0?Math.max(0,Number(draft.etape_actuelle||0)):current);
       } catch (error) {
-        console.error("[Acquisition] Impossible de restaurer le brouillon",error);
+        console.warn("[Client] Brouillon local illisible; aucun brouillon serveur n'est créé.",error);
       } finally {
         if(mounted) setDraftLoading(false);
       }
@@ -331,25 +319,18 @@ const NouvelleAcquisition = () => {
     const currentUser = user;
     if(!currentUser)return null;
     const payload={...formData,parcours_code:formData.offre_code||null};
-    // File objects cannot be serialized to JSONB. The data-URL previews are the
-    // durable copy from which files are reconstructed after a reload/reconnect.
+    // Les brouillons sont exclusivement locaux. On conserve les aperçus des fichiers
+    // pour pouvoir les reconstruire au rechargement, sans écrire en base.
     for (const [code, { field }] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
       delete payload["doc_" + code + "_file"];
-      delete payload["doc_" + code + "_preview"];
       delete payload[field + "_file"];
       if (!payload[field + "_preview"] && formData["doc_" + code + "_preview"]) payload[field + "_preview"] = formData["doc_" + code + "_preview"];
     }
-    let savedId = brouillonId;
-    if(savedId) {
-      const {error}=await offlineUpdate("acquisitions_brouillon",savedId,{etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,updated_at:new Date().toISOString()});
-      if(error) throw error;
-    } else {
-      const {data,error}=await offlineInsert("acquisitions_brouillon",{etape_actuelle:index,donnees:payload,offre_id:formData.offre_id||null,parcours_code:formData.offre_code||null,created_by:currentUser.id});
-      if(error) throw error;
-      if(data?.id) { savedId = data.id; setBrouillonId(data.id); }
-    }
-    setSyncState(navigator.onLine ? "synced" : "queued");
-    return savedId;
+    const key = `agricapital:client-draft:${currentUser.id}`;
+    window.localStorage.setItem(key, JSON.stringify({id:key,created_by:currentUser.id,etape_actuelle:index,donnees:payload,updated_at:new Date().toISOString()}));
+    setBrouillonId(key);
+    setSyncState("draft");
+    return key;
   };
 
   // Sauvegarde automatique après une courte pause de saisie. Le brouillon reste
@@ -400,7 +381,7 @@ const NouvelleAcquisition = () => {
       const currentUser = user;
       if(!currentUser)throw new Error("Session utilisateur introuvable");
       const savedDraftId = await saveDraft(current);
-      const stableClientId = savedDraftId || stableUuid(currentUser.id, "client:" + String(formData.telephone || formData.nom_famille || "draft"));
+      const stableClientId = stableUuid(currentUser.id, "client:" + String(formData.telephone || formData.nom_famille || "draft"));
       const {data:baseOffer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
       if(offerError)throw offerError;
       if(!baseOffer)throw new Error("Offre sélectionnée introuvable");
@@ -605,10 +586,8 @@ const NouvelleAcquisition = () => {
         if(prospectError) throw prospectError;
       }
 
-      if(brouillonId) {
-        const {error:draftDeleteError}=await offlineDelete("acquisitions_brouillon",brouillonId);
-        if(draftDeleteError) throw draftDeleteError;
-      }
+      window.localStorage.removeItem(`agricapital:client-draft:${currentUser.id}`);
+      setBrouillonId(null);
       pendingSubmitRetryRef.current = false;
       const savedOffline = !navigator.onLine || queuedMutationCountRef.current > queuedBeforeSubmit;
       toast({title:savedOffline ? "Dossier conservé — synchronisation en attente" : "Client enregistré",description:savedOffline ? "Le dossier, les pièces et les liens sont conservés localement. La synchronisation reprendra automatiquement sans actualisation dès que le serveur sera disponible." : "Le dossier Client et son parcours ont été enregistrés dans la base."});
