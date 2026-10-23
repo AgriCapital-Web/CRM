@@ -126,6 +126,26 @@ serve(async(req)=>{
       supabase.from("referentiels_systeme").select("code,libelle,ordre").eq("categorie","etape_plantation").eq("actif",true).order("ordre").order("libelle")
     ]);
 
+    // La photo du commercial peut être stockée comme chemin privé dans le bucket
+    // photos-profils. Convertir ce chemin en URL signée utilisable par le portail.
+    if (commercialRes.data?.photo_url) {
+      const rawPhoto = String(commercialRes.data.photo_url).trim();
+      let photoPath = rawPhoto;
+      try {
+        const parsed = new URL(rawPhoto);
+        const match = parsed.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/photos-profils\/(.+)$/);
+        photoPath = match ? decodeURIComponent(match[1]) : "";
+      } catch {
+        // Valeur stockée comme chemin relatif : photoPath est déjà exploitable.
+      }
+      if (photoPath) {
+        const { data: signedPhoto, error: signedPhotoError } = await supabase.storage
+          .from("photos-profils").createSignedUrl(photoPath, 7 * 24 * 60 * 60);
+        if (!signedPhotoError && signedPhoto?.signedUrl) commercialRes.data.photo_url = signedPhoto.signedUrl;
+        else console.warn("[client-portal-data] Photo commerciale indisponible", { profileId: commercialRes.data.id });
+      }
+    }
+
     const owner=ownerRes.data||null;
     const attributions=attributionRes.data||[];
     const directPlantations=directPlantationRes.data||[];
