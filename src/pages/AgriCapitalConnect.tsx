@@ -235,24 +235,29 @@ export default function AgriCapitalConnect() {
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2) + Date.now().toString(36);
     const joinUrl = `https://meet.jit.si/AgriCapital-${roomToken}`;
-    const { data, error } = await (supabase as any).from("internal_meetings")
-      .insert({ title: meetingTitle.trim(), description: meetingDescription.trim() || null, agenda: meetingAgenda.trim() || null,
-        starts_at: new Date(meetingStart).toISOString(), ends_at: new Date(meetingEnd).toISOString(),
-        provider: "external", provider_room_id: roomToken, join_url: joinUrl, created_by_profile_id: profileId })
-      .select("id").single();
-    if (error || !data) { toast.error("Réunion non créée."); console.error(error); return; }
     const roleMembers = staff.filter(s => (s.role_codes || []).some(role => meetingRoles.includes(role))).map(s => s.id);
     const teamMembers = staffTeams.filter(team => meetingTeams.includes(team.id)).flatMap(team => team.member_profile_ids || []);
-    const invitees = Array.from(new Set([profileId, ...meetingMembers, ...roleMembers, ...teamMembers])).map(id => ({ meeting_id: data.id, profile_id: id, participant_role: id === profileId ? "host" : "participant", response: id === profileId ? "accepted" : "pending" }));
-    const { error: participantError } = await (supabase as any).from("internal_meeting_participants").insert(invitees);
-    if (participantError) { toast.error("La réunion est enregistrée, mais les invitations n’ont pas toutes été sauvegardées. Vérifiez les droits d’accès."); console.error(participantError); }
+    const participantIds = Array.from(new Set([...meetingMembers, ...roleMembers, ...teamMembers]));
+    const { data: created, error } = await (supabase as any).rpc("internal_create_meeting", {
+      p_title: meetingTitle.trim(),
+      p_description: meetingDescription.trim() || null,
+      p_agenda: meetingAgenda.trim() || null,
+      p_starts_at: new Date(meetingStart).toISOString(),
+      p_ends_at: new Date(meetingEnd).toISOString(),
+      p_provider_room_id: roomToken,
+      p_join_url: joinUrl,
+      p_participant_profile_ids: participantIds,
+    });
+    const meeting = Array.isArray(created) ? created[0] : created;
+    if (error || !meeting?.id) { toast.error(error?.message || "Réunion non créée. Vérifiez les horaires et les participants."); console.error(error); return; }
+    const meetingId = meeting.id;
     let attachmentsFailed = false;
     for (const file of meetingFiles) {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${profileId}/meetings/${data.id}/${crypto.randomUUID()}-${safeName}`;
+      const path = `${profileId}/meetings/${meetingId}/${crypto.randomUUID()}-${safeName}`;
       const { error: uploadError } = await (supabase as any).storage.from("workspace-attachments").upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
       if (uploadError) { attachmentsFailed = true; console.error(uploadError); continue; }
-      const { error: metadataError } = await (supabase as any).from("internal_meeting_attachments").insert({ meeting_id: data.id, uploaded_by_profile_id: profileId, storage_path: path, file_name: file.name, mime_type: file.type || null, file_size: file.size });
+      const { error: metadataError } = await (supabase as any).from("internal_meeting_attachments").insert({ meeting_id: meetingId, uploaded_by_profile_id: profileId, storage_path: path, file_name: file.name, mime_type: file.type || null, file_size: file.size });
       if (metadataError) { attachmentsFailed = true; console.error(metadataError); await (supabase as any).storage.from("workspace-attachments").remove([path]); }
     }
     setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription(""); setMeetingMembers([]); setMeetingRoles([]); setMeetingTeams([]); setMeetingFile(null); setMeetingFiles([]); setMeetingFile(null); setMeetingRoles([]); setMeetingRoleFilter(""); setMeetingAudience("selected");
