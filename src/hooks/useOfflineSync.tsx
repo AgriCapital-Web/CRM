@@ -394,14 +394,14 @@ export function useOfflineSync() {
       setIsOnline(true);
       const quality = await checkNetworkQuality();
       if (quality !== 'offline') {
-        toast({ title: 'Connexion rétablie', description: 'Synchronisation automatique en cours...' });
+        // Reprise automatique silencieuse après le retour du réseau.
         syncNow();
       }
     };
     const handleOffline = () => {
       setIsOnline(false);
       setNetworkQuality('offline');
-      toast({ variant: 'destructive', title: 'Mode hors ligne', description: 'Vos modifications seront synchronisées automatiquement.' });
+      // Le mode hors ligne est traité sans message intrusif.
     };
 
     window.addEventListener('online', handleOnline);
