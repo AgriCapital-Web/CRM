@@ -312,7 +312,7 @@ const ProprietaireTerreDetail = () => {
                   {ownerEditing ? <>
                     <Button type="button" variant="outline" size="sm" onClick={()=>{setOwnerEditForm({...owner});setOwnerPhotoFile(null);setOwnerRectoFile(null);setOwnerVersoFile(null);setOwnerEditing(false);}}>Annuler</Button>
                     <Button type="button" size="sm" onClick={()=>void saveOwner()} disabled={ownerSaving}>{ownerSaving?"Enregistrement…":"Enregistrer"}</Button>
-                  </> : <Button type="button" size="sm" variant="outline" onClick={()=>setOwnerEditing(true)}>Modifier</Button>}
+                  </> : <Button type="button" size="sm" variant="outline" onClick={()=>navigate(`/proprietaires-terres?edit_id=${encodeURIComponent(id || "")}`)}>Modifier</Button>}
                 </div>}
               </CardTitle>
             </CardHeader>
