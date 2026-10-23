@@ -115,9 +115,7 @@ const Clients = () => {
           .or("is_internal.is.null,is_internal.eq.false")
           .not("nom_complet", "ilike", "%agricapital%")
           .or("type_client.is.null,type_client.neq.proprietaire_foncier");
-        // Acquisitions ne présente que les clients commerciaux : les bénéficiaires particuliers
-        // restent accessibles dans la liste générale des clients et les tableaux de suivi.
-        if (acquisitionsView) clientsQuery = clientsQuery.or("type_client.is.null,type_client.neq.beneficiaire_particulier");
+        // Les bénéficiaires particuliers doivent également apparaître dans le tableau Acquisition.
         clientsQuery = clientsQuery
           .order("id_unique", { ascending: false })
           .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
@@ -180,11 +178,10 @@ const Clients = () => {
 
       setTeamPerformance(teamPerfRes.data||[]);
       setAttributions(attributionsData);
-      // Exclure l'entité interne AgriCapital même si is_internal n'est pas renseigné.
-      // Les bénéficiaires particuliers restent visibles dans la liste générale, mais pas dans Acquisitions.
+      // Exclure uniquement l'entité interne AgriCapital et les propriétaires fonciers.
+      // Les bénéficiaires particuliers sont affichés aussi dans Acquisition.
       setClients(enrichedData.filter((client: any) =>
-        !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" &&
-        (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier")
+        !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier"
       ));
     } catch (error: any) {
       if (!navigator.onLine) {
@@ -193,7 +190,7 @@ const Clients = () => {
           getCachedPlantations(),
         ]);
         const enrichedData = cachedClients
-          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" && (!acquisitionsView || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
+          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier")
           .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
