@@ -253,13 +253,8 @@ export function useOfflineSync() {
             detail: { synced: syncedCount, files: uploadedFiles, conflicts: conflictCount, failed: failedCount, conflictDetails },
           }));
           const conflictSummary = conflictDetails.slice(0, 3).join(' ; ');
-          toast({
-            title: failedCount > 0 ? 'Synchronisation incomplète — données conservées' : conflictCount > 0 ? 'Conflits de synchronisation détectés' : 'Synchronisation terminée',
-            description: `${syncedCount} modification(s), ${uploadedFiles} fichier(s) envoyé(s)`
-              + `${conflictCount > 0 ? `. ${conflictCount} conflit(s) : les valeurs serveur plus récentes ont été conservées. ${conflictSummary}` : ''}`
-              + `${failedCount > 0 ? `. ${failedCount} opération(s) restent en attente et seront réessayées ; aucune n’est déclarée comme enregistrée sur le serveur.` : ''}`,
-            ...(failedCount > 0 ? { variant: 'destructive' as const } : {}),
-          });
+          // Synchronisation automatique silencieuse : aucun message technique ne doit interrompre l'utilisateur.
+          // Les opérations non confirmées restent dans la file locale et seront réessayées automatiquement.
         }
       } finally {
         if (managesSyncState) setIsSyncing(false);
