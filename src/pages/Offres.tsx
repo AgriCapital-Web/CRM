@@ -270,25 +270,10 @@ const Offres = () => {
     return mensuel > 0 && duree > 0 ? [{ annee: 1, mois_debut: 1, mois_fin: duree, mois: duree, mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * duree }] : [];
   };
 
-  const buildFormulaTranches = (duration: number, monthly: number) => {
-    const tranches: any[] = [];
-    let start = 1;
-    let year = 1;
-    while (start <= duration) {
-      const months = Math.min(12, duration - start + 1);
-      tranches.push({
-        annee: year,
-        mois_debut: start,
-        mois_fin: start + months - 1,
-        mois: months,
-        mensualite_par_ha: monthly,
-        total_periode_par_ha: monthly * months,
-      });
-      start += months;
-      year += 1;
-    }
-    return tranches;
-  };
+  const buildFormulaTranches = (_duration: number, monthly: number) => [{
+    annee: 1, mois_debut: 1, mois_fin: 42, mois: 42, type: "mensualite_unique",
+    mensualite_par_ha: monthly, total_periode_par_ha: monthly * 42,
+  }];
 
   const handleSaveOffre = () => {
     if (!editOffre) return;
@@ -297,7 +282,7 @@ const Offres = () => {
       const formulas = (Array.isArray((editOffre as any).formules_configuration) ? (editOffre as any).formules_configuration : []).map((formula: any) => {
         const pi = Math.max(0, Number(formula.montant_pi_par_ha) || 0);
         const monthly = Math.max(0, Number(formula.mensualite_par_ha) || 0);
-        const duration = Math.max(1, Number(formula.duree_paiement_mois) || 36);
+        const duration = 42;
         const tranches = buildFormulaTranches(duration, monthly);
         const total = pi + tranches.reduce((sum, tranche) => sum + tranche.total_periode_par_ha, 0);
         return {
@@ -333,23 +318,18 @@ const Offres = () => {
     }
 
     const pi = Math.max(0, Number(editOffre.montant_pi_par_ha) || 0);
-    const tranches = getTranches(editOffre).map((t: any, index: number) => {
-      const mois = Math.max(0, Number(t.mois) || ((Number(t.mois_fin) || 0) - (Number(t.mois_debut) || 0) + 1));
-      const mensuel = Math.max(0, Number(t.mensualite_par_ha) || 0);
-      const debut = Number(t.mois_debut) || tranchesStartMonth(index, getTranches(editOffre));
-      return { ...t, annee: Number(t.annee) || index + 1, mois_debut: debut, mois_fin: Number(t.mois_fin) || debut + mois - 1, mois, mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * mois };
-    });
-    const duree = Math.max(0, Number(editOffre.duree_paiement_mois) || tranches.reduce((sum: number, t: any) => sum + Number(t.mois || 0), 0));
-    const totalMensualites = tranches.reduce((sum: number, t: any) => sum + (Number(t.mensualite_par_ha || 0) * Number(t.mois || 0)), 0);
-    const total = pi + totalMensualites;
-    const lastMonthly = Number(tranches[tranches.length - 1]?.mensualite_par_ha || 0);
+    const monthly = Math.max(0, Number(getTranches(editOffre).slice(-1)[0]?.mensualite_par_ha) || 0);
+    const tranches = buildFormulaTranches(42, monthly);
+    const duree = 42;
+    const total = pi + monthly * 42;
+    const lastMonthly = monthly;
     updateOffreMutation.mutate({
       id: editOffre.id,
       updates: {
         nom: editOffre.nom,
         description: editOffre.description,
         montant_pi_par_ha: pi,
-        montant_cash_par_ha: Math.max(0, Number(editOffre.montant_cash_par_ha) || 0),
+        montant_cash_par_ha: total,
         mensualite_par_ha: lastMonthly,
         montant_total_par_ha: total,
         duree_paiement_mois: duree,
@@ -609,10 +589,7 @@ const Offres = () => {
                               const next=(editOffre as any).formules_configuration.map((item: any) => item.code===formula.code ? {...item,mensualite_par_ha:Number(e.target.value)} : item);
                               setEditOffre({...editOffre,formules_configuration:next} as any);
                             }} /></div>
-                            <div><Label>Durée (mois)</Label><Input type="number" min="1" value={formula.duree_paiement_mois ?? 36} onChange={e => {
-                              const next=(editOffre as any).formules_configuration.map((item: any) => item.code===formula.code ? {...item,duree_paiement_mois:Math.max(1,Number(e.target.value)||1)} : item);
-                              setEditOffre({...editOffre,formules_configuration:next} as any);
-                            }} /></div>
+                            <div className="flex flex-col justify-center rounded-md border px-3 py-2"><Label>Durée de paiement</Label><span className="mt-1 font-semibold">42 mois fixes</span></div>
                           </div>
                           
                         </div>
@@ -623,13 +600,13 @@ const Offres = () => {
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div><Label>PI / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_pi_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_pi_par_ha:Number(e.target.value)})} /></div>
                         <div><Label>Comptant / ha (F)</Label><Input type="number" min="0" value={editOffre.montant_cash_par_ha ?? ""} onChange={e => setEditOffre({...editOffre, montant_cash_par_ha:Number(e.target.value)})} /></div>
-                        <div><Label>Durée (mois)</Label><Input type="number" min="1" value={editOffre.duree_paiement_mois ?? ""} onChange={e => setEditOffre({...editOffre, duree_paiement_mois:Number(e.target.value)})} /></div>
+                        <div className="flex flex-col justify-center rounded-md border px-3 py-2"><Label>Durée de paiement</Label><span className="mt-1 font-semibold">42 mois fixes</span></div>
                       </div>
                       <div className="rounded-xl border p-3">
                         <p className="mb-2 text-sm font-semibold">Échéancier mensuel</p>
                         {getTranches(editOffre).map((t:any,i:number) => (
                           <div key={i} className="grid grid-cols-1 gap-2 border-t py-2 first:border-t-0 sm:grid-cols-3">
-                            <Label className="text-xs">An {t.annee ?? i+1} · {t.mois ?? 0} mois</Label>
+                            <Label className="text-xs">Mensualité unique · 42 mois</Label>
                             <Input type="number" min="1" placeholder="Mois" value={t.mois ?? ""} onChange={e => {
                               const next=getTranches(editOffre).map((x:any,j:number)=>j===i?{...x,mois:Number(e.target.value)}:x);
                               setEditOffre({...editOffre,tranches_paiement:next} as any);
