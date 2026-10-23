@@ -93,11 +93,13 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         const clientAcquisitions = acquisitionMap.get(c.id) || [];
         const acquisitionTotal = clientAcquisitions.reduce((sum: number, s: any) => sum + Number(s.montant_total_contrat || 0), 0);
         const summary = byClient.get(c.id) || null;
-        const principalTotal = Number(summary?.montant_total_contrat ?? (Number(c.montant_total_contrat || 0) + acquisitionTotal));
+        const principalTotal = Number(summary?.montant_total_contrat ?? (acquisitionTotal > 0 ? acquisitionTotal : Number(c.montant_total_contrat || 0)));
         return {
           ...c,
           summary,
           acquisitionTotal,
+          hasAcquisitions: clientAcquisitions.length > 0,
+          baseContractTotal: clientAcquisitions.length > 0 ? 0 : Number(c.montant_total_contrat || 0),
           acquisitions: clientAcquisitions,
           formule_nom: c.formule_nom || clientAcquisitions.map((s: any) => s.formule_nom || s.offre_nom).filter(Boolean).join(" · "),
           montant_total_contrat: principalTotal,
@@ -199,21 +201,21 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         allClientPlantations = [...unique.values()];
       }
       const basePaid = (basePaymentsRes.data || []).reduce((sum: number, p: any) => sum + Number(p.montant_paye ?? p.montant ?? 0), 0);
-      const baseTotal = Number(client.montant_total_contrat || 0);
+      const baseTotal = Number(client.baseContractTotal ?? (client.acquisitionTotal > 0 ? 0 : client.montant_total_contrat || 0));
       const normalizedBaseState = {
         ...(stateRes.data || {}),
         reste_contrat: baseTotal > 0 ? Math.max(0, baseTotal - basePaid) : Number(client.summary?.reste_a_payer || 0),
       };
       setBaseState(normalizedBaseState);
       setPlantations(allClientPlantations);
-      const nextContracts: ContractState[] = [{
+      const nextContracts: ContractState[] = baseTotal > 0 ? [{
         id: "principal",
         label: "Contrat initial du client",
         acquisitionId: null,
         plantationId: allClientPlantations.find((p: any) => !p.acquisition_id)?.id || null,
         surface: Number(client.total_hectares || 0),
         state: normalizedBaseState,
-      }];
+      }] : [];
       for (const sub of (subsRes.data || [])) {
         const [subStateRes] = await Promise.all([
           (supabase as any).rpc("acquisition_current_payment_state", { _acquisition_id: sub.id }),
