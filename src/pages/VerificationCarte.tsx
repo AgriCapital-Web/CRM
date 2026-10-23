@@ -5,12 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BadgeCheck, ShieldAlert, Search, Loader2 } from "lucide-react";
+import { BadgeCheck, ShieldAlert, Search, Loader2, UserRound, IdCard, CalendarCheck, BriefcaseBusiness, ShieldCheck } from "lucide-react";
 import ScanCarteDialog from "@/components/cartes/ScanCarteDialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import logo from "@/assets/logo-white.png";
 import { contratLabel } from "@/components/cartes/CartePersonnel";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
+import { CARTE_BUCKET } from "@/lib/photoCarte";
 
 interface CarteVerifiee {
   matricule: string;
@@ -19,11 +21,18 @@ interface CarteVerifiee {
   type_contrat: string | null;
   role_code?: string | null;
   date_expiration: string | null;
+  date_delivrance?: string | null;
   statut: string | null;
   valide: boolean;
+  photo_url?: string | null;
+  photo_bucket?: string | null;
 }
 
-const fdate = (d?: string | null) => (d ? format(new Date(d), "dd MMMM yyyy", { locale: fr }) : "—");
+const fdate = (d?: string | null) => {
+  if (!d) return "—";
+  const date = new Date(d);
+  return Number.isNaN(date.getTime()) ? "—" : format(date, "dd MMMM yyyy", { locale: fr });
+};
 
 const VerificationCarte = () => {
   const { code } = useParams();
@@ -33,6 +42,9 @@ const VerificationCarte = () => {
   const [carte, setCarte] = useState<CarteVerifiee | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [scanOpen, setScanOpen] = useState(true);
+  const photoBucket = carte?.photo_bucket || CARTE_BUCKET;
+  const photo = useSignedUrl(photoBucket, carte?.photo_url);
+  const isPdg = String(carte?.role_code || "").toLowerCase() === "pdg";
 
   const verifier = async (valeur: string) => {
     const c = valeur.trim();
@@ -59,122 +71,96 @@ const VerificationCarte = () => {
   };
 
   useEffect(() => {
-    if (code) verifier(code);
+    if (code) void verifier(code);
   }, [code]);
 
-  return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-primary via-primary to-primary-hover px-3 py-8 sm:px-4">
-      <div className="mx-auto w-full max-w-lg space-y-4">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <img src={logo} alt="AgriCapital" className="h-14 w-auto sm:h-20" />
-          <h1 className="text-lg font-bold text-primary-foreground sm:text-2xl">
-            Vérification d'une carte professionnelle
-          </h1>
-          
-        </div>
+  const initials = (carte?.nom_complet || "AC").trim().split(/\\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]?.toUpperCase()).join("");
 
-        <Card className="w-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-lg">Code de vérification</CardTitle>
+  return (
+    <main className="min-h-screen w-full overflow-x-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/90 via-primary to-primary-hover px-3 py-6 sm:px-5 sm:py-10">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+        <header className="flex flex-col items-center gap-3 text-center">
+          <img src={logo} alt="AgriCapital" className="h-12 max-w-[min(80vw,18rem)] object-contain sm:h-16" />
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/75">Sécurité & authenticité</p>
+            <h1 className="text-xl font-extrabold tracking-tight text-primary-foreground sm:text-3xl">Vérification de carte professionnelle</h1>
+            <p className="mx-auto max-w-lg text-sm leading-relaxed text-primary-foreground/80">Contrôlez l’identité du titulaire et le statut de sa carte depuis le registre AgriCapital.</p>
+          </div>
+        </header>
+
+        <Card className="w-full overflow-hidden rounded-2xl border-0 shadow-2xl">
+          <CardHeader className="border-b bg-muted/30 px-4 py-4 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg"><Search className="h-5 w-5 shrink-0 text-primary" />Rechercher une carte</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <form
-              className="flex flex-col gap-2 sm:flex-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                navigate(`/verify/${saisie.trim()}`);
-                verifier(saisie);
-              }}
-            >
-              <Input
-                value={saisie}
-                onChange={(e) => setSaisie(e.target.value)}
-                placeholder="Ex: AC7F3K9QX2"
-                className="h-11 w-full min-w-0"
-                autoCapitalize="characters"
-              />
-              <Button type="submit" className="h-11 w-full sm:w-auto" disabled={loading}>
-                {loading ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Search className="mr-1 h-4 w-4" />}
+          <CardContent className="space-y-5 p-4 sm:p-6">
+            <form className="flex min-w-0 flex-col gap-2 sm:flex-row" onSubmit={(e) => {
+              e.preventDefault();
+              const nextCode = saisie.trim();
+              navigate(nextCode ? `/verify/${encodeURIComponent(nextCode)}` : "/verify");
+              if (nextCode) void verifier(nextCode);
+            }}>
+              <Input value={saisie} onChange={(e) => setSaisie(e.target.value)} placeholder="Code de vérification" className="h-11 w-full min-w-0" autoCapitalize="characters" />
+              <Button type="submit" className="h-11 w-full shrink-0 sm:w-auto" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                 Vérifier
               </Button>
             </form>
 
-            <ScanCarteDialog
-              open={scanOpen}
-              onOpenChange={setScanOpen}
-              onCode={(c) => {
-                setSaisie(c);
-                navigate(`/verify/${c}`);
-                verifier(c);
-              }}
-            />
+            <ScanCarteDialog open={scanOpen} onOpenChange={setScanOpen} onCode={(c) => {
+              setSaisie(c);
+              navigate(`/verify/${encodeURIComponent(c)}`);
+              void verifier(c);
+            }} />
 
+            {erreur && <div role="alert" className="flex min-w-0 items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 sm:p-4">
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div className="min-w-0"><p className="text-sm font-bold text-destructive">Carte non vérifiée</p><p className="mt-1 break-words text-sm text-muted-foreground">{erreur}</p></div>
+            </div>}
 
-            {erreur && (
-              <div className="flex items-start gap-2 rounded-lg border-2 border-destructive/40 bg-destructive/5 p-3">
-                <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-destructive">Carte non vérifiée</p>
-                  <p className="break-words text-xs text-muted-foreground">{erreur}</p>
+            {carte && <section aria-live="polite" className={`overflow-hidden rounded-2xl border ${carte.valide ? "border-emerald-600/30" : "border-destructive/30"}`}>
+              <div className={`flex min-w-0 items-start gap-3 p-4 sm:items-center sm:gap-4 sm:p-5 ${carte.valide ? "bg-emerald-600/10" : "bg-destructive/10"}`}>
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm sm:h-28 sm:w-28">
+                  {photo ? <img src={photo} alt={`Photo de ${carte.nom_complet}`} className="h-full w-full object-cover object-center" /> : <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground"><UserRound className="h-7 w-7 sm:h-9 sm:w-9" /><span className="text-[10px] font-semibold uppercase tracking-wide">{initials || "AC"}</span></div>}
                 </div>
-              </div>
-            )}
-
-            {carte && (
-              <div
-                className={`space-y-3 rounded-lg border-2 p-3 sm:p-4 ${
-                  carte.valide ? "border-primary/40 bg-primary/5" : "border-destructive/40 bg-destructive/5"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {carte.valide ? (
-                    <BadgeCheck className="h-6 w-6 shrink-0 text-primary" />
-                  ) : (
-                    <ShieldAlert className="h-6 w-6 shrink-0 text-destructive" />
-                  )}
-                  <p className={`text-sm font-bold sm:text-base ${carte.valide ? "text-primary" : "text-destructive"}`}>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Badge variant={carte.valide ? "default" : "destructive"} className="max-w-full whitespace-normal">
+                    {carte.valide ? <BadgeCheck className="mr-1 h-3.5 w-3.5 shrink-0" /> : <ShieldAlert className="mr-1 h-3.5 w-3.5 shrink-0" />}
                     {carte.valide ? "Carte authentique et valide" : "Carte non valide"}
-                  </p>
+                  </Badge>
+                  <h2 className="break-words text-lg font-extrabold uppercase leading-tight tracking-tight sm:text-2xl">{carte.nom_complet || "Titulaire non renseigné"}</h2>
+                  <p className="break-words text-sm font-medium text-muted-foreground">{carte.poste || (isPdg ? "Fondateur — PDG" : "Fonction non renseignée")}</p>
+                  <p className="break-all font-mono text-xs text-muted-foreground">Matricule : {carte.matricule || "—"}</p>
                 </div>
-
-                <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Nom complet</dt>
-                    <dd className="break-words font-semibold uppercase">{carte.nom_complet}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Matricule</dt>
-                    <dd className="break-all font-mono">{carte.matricule}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Fonction</dt>
-                    <dd className="break-words">{carte.poste || "—"}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Type de contrat</dt>
-                    <dd>{String(carte.role_code || "").toLowerCase() === "pdg" ? "Sans objet — Fondateur" : contratLabel(carte.type_contrat)}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Validité de la carte</dt>
-                    <dd>{String(carte.role_code || "").toLowerCase() === "pdg" ? "Indéterminée" : fdate(carte.date_expiration)}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Statut</dt>
-                    <dd>
-                      <Badge variant={carte.statut === "active" ? "default" : "destructive"}>
-                        {carte.statut === "active" ? "Active" : carte.statut === "suspendue" ? "Suspendue" : "Révoquée"}
-                      </Badge>
-                    </dd>
-                  </div>
-                </dl>
               </div>
-            )}
 
-            
+              <div className="grid min-w-0 grid-cols-1 gap-0 sm:grid-cols-2">
+                <div className="flex min-w-0 items-start gap-3 border-b p-4 sm:border-r">
+                  <BriefcaseBusiness className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0"><p className="text-xs font-medium text-muted-foreground">Type de contrat</p><p className="break-words text-sm font-semibold">{isPdg ? "Sans objet — Fondateur" : contratLabel(carte.type_contrat)}</p></div>
+                </div>
+                <div className="flex min-w-0 items-start gap-3 border-b p-4">
+                  <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0"><p className="text-xs font-medium text-muted-foreground">Validité</p><p className="break-words text-sm font-semibold">{isPdg ? "Indéterminée" : carte.date_expiration ? fdate(carte.date_expiration) : "Indéterminée"}</p></div>
+                </div>
+                <div className="flex min-w-0 items-start gap-3 border-b p-4 sm:border-r sm:border-b-0">
+                  <IdCard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0"><p className="text-xs font-medium text-muted-foreground">Délivrance</p><p className="break-words text-sm font-semibold">{fdate(carte.date_delivrance)}</p></div>
+                </div>
+                <div className="flex min-w-0 items-start gap-3 p-4">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div className="min-w-0"><p className="text-xs font-medium text-muted-foreground">Statut administratif</p><div className="mt-1"><Badge variant={carte.statut === "active" ? "default" : "destructive"}>{carte.statut === "active" ? "Active" : carte.statut === "suspendue" ? "Suspendue" : "Révoquée"}</Badge></div></div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 border-t bg-muted/30 px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-5">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <p className="min-w-0 break-words">Cette fiche est issue du registre de vérification AgriCapital. La photo et les informations affichées dépendent des données enregistrées pour cette carte.</p>
+              </div>
+            </section>}
           </CardContent>
         </Card>
+        <footer className="pb-2 text-center text-xs text-primary-foreground/70">AgriCapital S.A.R.L. · Daloa-Gonaté, Côte d’Ivoire</footer>
       </div>
-    </div>
+    </main>
   );
 };
 
