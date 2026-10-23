@@ -270,9 +270,9 @@ const Offres = () => {
     return mensuel > 0 && duree > 0 ? [{ annee: 1, mois_debut: 1, mois_fin: duree, mois: duree, mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * duree }] : [];
   };
 
-  const buildFormulaTranches = (_duration: number, monthly: number) => [{
-    annee: 1, mois_debut: 1, mois_fin: 42, mois: 42, type: "mensualite_unique",
-    mensualite_par_ha: monthly, total_periode_par_ha: monthly * 42,
+  const buildFormulaTranches = (duration: number, monthly: number) => [{
+    annee: 1, mois_debut: 1, mois_fin: duration, mois: duration, type: "mensualite_unique",
+    mensualite_par_ha: monthly, total_periode_par_ha: monthly * duration,
   }];
 
   const handleSaveOffre = () => {
@@ -282,7 +282,7 @@ const Offres = () => {
       const formulas = (Array.isArray((editOffre as any).formules_configuration) ? (editOffre as any).formules_configuration : []).map((formula: any) => {
         const pi = Math.max(0, Number(formula.montant_pi_par_ha) || 0);
         const monthly = Math.max(0, Number(formula.mensualite_par_ha) || 0);
-        const duration = 42;
+        const duration = 36;
         const tranches = buildFormulaTranches(duration, monthly);
         const total = pi + tranches.reduce((sum, tranche) => sum + tranche.total_periode_par_ha, 0);
         return {
