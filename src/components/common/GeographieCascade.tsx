@@ -236,7 +236,7 @@ export default function GeographieCascade({
     setVillageMatches([]);
   };
 
-  const hasChildren = true;
+  const hasChildren = Boolean(districtId) && !/diaspora/i.test(selectedDistrict?.nom || "") && regions.some((region) => region.district_id === districtId);
   return <div className={className}>
     {showDistrict && <div className="space-y-2"><Label>District{required ? " *" : ""}</Label>
       <SearchableSelect value={districtId || ""} onValueChange={(value) => onChange({
