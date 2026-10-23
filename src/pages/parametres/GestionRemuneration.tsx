@@ -123,21 +123,36 @@ export default function GestionRemuneration() {
 
       <TabsContent value="commercial" className="space-y-4">
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Palme Invest et Terra Palm</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-base">PalmInvest</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.partnerSale} label="Commission de vente — une fois par vente" unit="money" />
-            <RuleEditor code={RULES.partnerRecovery} label="Commission de recouvrement — chaque mensualité" unit="percent" />
+            <RuleEditor code={RULES.partnerSale} label="Commission de vente — paiement unique" unit="money" />
+            <RuleEditor code={RULES.partnerRecovery} label="Pourcentage de commission sur chaque mensualité encaissée" unit="percent" />
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule essentielle</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2"><RuleEditor code={RULES.essentialSale} label="Commission de vente — une fois par vente" unit="money" /><RuleEditor code={RULES.essentialRecovery} label="Commission de recouvrement — chaque mensualité" unit="percent" /></CardContent>
+          <CardHeader className="pb-3"><CardTitle className="text-base">TerraPalm</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <RuleEditor code={RULES.partnerSale} label="Commission de vente — paiement unique (règle commune PalmInvest/TerraPalm)" unit="money" />
+            <RuleEditor code={RULES.partnerRecovery} label="Pourcentage de commission sur chaque mensualité encaissée (règle commune PalmInvest/TerraPalm)" unit="percent" />
+          </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir — Formule flexible</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.flexibleSale} label="Commission de vente — une fois par vente" unit="money" />
-            <RuleEditor code={RULES.flexibleRecovery} label="Commission de 2,5 % sur chaque mensualité" unit="percent" />
+          <CardHeader className="pb-3"><CardTitle className="text-base">PalmTerroir</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border p-3">
+              <h4 className="mb-3 text-sm font-semibold">Formule essentielle</h4>
+              <div className="grid gap-3 md:grid-cols-2">
+                <RuleEditor code={RULES.essentialSale} label="Commission de vente — paiement unique" unit="money" />
+                <RuleEditor code={RULES.essentialRecovery} label="Pourcentage sur chaque mensualité encaissée" unit="percent" />
+              </div>
+            </div>
+            <div className="rounded-md border p-3">
+              <h4 className="mb-3 text-sm font-semibold">Formule flexible</h4>
+              <div className="grid gap-3 md:grid-cols-2">
+                <RuleEditor code={RULES.flexibleSale} label="Commission de vente — paiement unique" unit="money" />
+                <RuleEditor code={RULES.flexibleRecovery} label="Pourcentage sur chaque mensualité encaissée" unit="percent" />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </TabsContent>
