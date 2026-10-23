@@ -85,14 +85,14 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               asChild
               variant="ghost"
               className={cn(
-                "!h-6 !min-h-0 !p-0 py-0 my-0 mb-[2px] w-full min-w-0 shrink-0 justify-start gap-2 overflow-hidden whitespace-nowrap rounded-md px-2 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
+                "!h-[2px] !min-h-[2px] !max-h-[2px] !p-0 py-0 my-0 mb-[2px] w-full min-w-0 shrink-0 justify-start gap-0 overflow-visible whitespace-nowrap rounded-sm px-1 text-[2px] leading-none text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
                 active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
               )}
               title={item.label}
             >
-              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex !h-full !min-h-0 py-0 my-0 w-full min-w-0 items-center gap-2">
-                <item.icon className="h-4 w-4 flex-shrink-0" />
-                <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium leading-normal">{item.label}</span>
+              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex !h-[2px] !min-h-[2px] !max-h-[2px] py-0 my-0 w-full min-w-0 items-center gap-0 overflow-visible">
+                <item.icon className="h-[2px] w-[2px] flex-shrink-0" />
+                <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-[2px] font-medium leading-none">{item.label}</span>
               </Link>
             </Button>
           );
