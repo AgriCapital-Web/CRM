@@ -11,6 +11,7 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
   const remoteVideo = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const peers = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const pendingIce = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const channelRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -53,15 +54,24 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
         } else if (signal.kind === "offer" && signal.sdp) {
           const pc = makePeer(signal.from);
           await pc.setRemoteDescription(signal.sdp);
+          const queued = pendingIce.current.get(signal.from) || [];
+          for (const candidate of queued) await pc.addIceCandidate(candidate);
+          pendingIce.current.delete(signal.from);
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           send({ from: profileId, to: signal.from, kind: "answer", sdp: answer });
         } else if (signal.kind === "answer" && signal.sdp) {
           const pc = peers.current.get(signal.from);
-          if (pc && !pc.remoteDescription) await pc.setRemoteDescription(signal.sdp);
+          if (pc && !pc.remoteDescription) {
+            await pc.setRemoteDescription(signal.sdp);
+            const queued = pendingIce.current.get(signal.from) || [];
+            for (const candidate of queued) await pc.addIceCandidate(candidate);
+            pendingIce.current.delete(signal.from);
+          }
         } else if (signal.kind === "ice" && signal.candidate) {
           const pc = peers.current.get(signal.from) || makePeer(signal.from);
           if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
+          else pendingIce.current.set(signal.from, [...(pendingIce.current.get(signal.from) || []), signal.candidate]);
         }
       } catch (e) { console.error("Internal call signaling failed", e); setStatus("Connexion interrompue. Réessayez l’appel."); }
     };
@@ -92,6 +102,7 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
       streamRef.current?.getTracks().forEach(t => t.stop());
       peers.current.forEach(pc => pc.close());
       peers.current.clear();
+      pendingIce.current.clear();
       if (channelRef.current) void supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     };
