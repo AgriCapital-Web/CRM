@@ -112,7 +112,7 @@ serve(async(req)=>{
         .eq("client_id",client.id).order("created_at",{ascending:false}),
       supabase.from("paiements").select("*").eq("client_id",client.id).eq("statut","valide").order("date_paiement",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false}).limit(500),
       client.commercial_id
-        ? supabase.from("profiles").select("id,user_id,nom_complet,telephone,email,photo_url,whatsapp,poste,telephone_indicatif,telephone_local,whatsapp_indicatif,whatsapp_local").eq("user_id",client.commercial_id).maybeSingle()
+        ? supabase.from("profiles").select("id,user_id,nom_complet,telephone,email,photo_url,whatsapp,poste,telephone_indicatif,telephone_local,whatsapp_indicatif,whatsapp_local").or(`user_id.eq.${client.commercial_id},id.eq.${client.commercial_id}`).maybeSingle()
         : Promise.resolve({data:null}),
       supabase.from("portail_notifications").select("id,type,title,message,data,read,created_at")
         .eq("client_id",client.id).order("created_at",{ascending:false}).limit(50),
