@@ -92,7 +92,7 @@ const Login = () => {
 
         <div className="login-brand-mobile lg:hidden mb-5 w-full min-w-0 flex flex-col items-center px-1 py-2">
           <img
-            src="/agricapital360-officiel.png?v=20261022-logo-png-v2"
+            src="/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official"
             alt="AgriCapital 360"
             className="login-brand-mobile__logo mx-auto block h-auto max-w-[min(72vw,20rem)] object-contain"
           />
