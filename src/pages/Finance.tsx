@@ -90,17 +90,9 @@ export default function Finance(){
         (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}),
         (supabase as any).from("finance_associates").select("*").order("full_name"),
         (async () => {
-          const rows:any[]=[];
-          for(let offset=0; ; offset+=1000){
-            const page=await (supabase as any).from("profiles")
-              .select("id,nom_complet,email,poste,relation_rh,actif,salaire_base")
-              .order("nom_complet").order("id").range(offset,offset+999);
-            if(page.error) throw page.error;
-            const batch=page.data||[];
-            rows.push(...batch);
-            if(batch.length<1000) break;
-          }
-          return {data:rows,error:null};
+          const result = await (supabase as any).rpc("workspace_list_finance_users");
+          if (result.error) throw result.error;
+          return { data: result.data || [], error: null };
         })(),
         (supabase as any).from("finance_salary_profiles").select("*").order("created_at",{ascending:false}),
         (supabase as any).from("finance_payroll_runs").select("*").order("period_start",{ascending:false}).limit(24),
