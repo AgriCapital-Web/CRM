@@ -260,9 +260,9 @@ export default function AgriCapitalConnect() {
       const { error: metadataError } = await (supabase as any).from("internal_meeting_attachments").insert({ meeting_id: meetingId, uploaded_by_profile_id: profileId, storage_path: path, file_name: file.name, mime_type: file.type || null, file_size: file.size });
       if (metadataError) { attachmentsFailed = true; console.error(metadataError); await (supabase as any).storage.from("workspace-attachments").remove([path]); }
     }
-    setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription(""); setMeetingMembers([]); setMeetingRoles([]); setMeetingTeams([]); setMeetingFile(null); setMeetingFiles([]); setMeetingFile(null); setMeetingRoles([]); setMeetingRoleFilter(""); setMeetingAudience("selected");
+    setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription(""); setMeetingMembers([]); setMeetingRoles([]); setMeetingTeams([]); setMeetingFiles([]); setMeetingRoleFilter(""); setMeetingAudience("selected");
     await loadMeetings();
-    if (!participantError && !attachmentsFailed) toast.success("Réunion planifiée avec invitations et pièces jointes enregistrées.");
+    if (!attachmentsFailed) toast.success("Réunion planifiée avec invitations enregistrées.");
     else if (attachmentsFailed) toast.error("La réunion est planifiée, mais certains fichiers n’ont pas été joints.");
 
   };
