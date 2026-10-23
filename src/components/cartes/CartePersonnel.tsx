@@ -2,7 +2,7 @@ import { forwardRef, type ReactNode } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import logo from "@/assets/logo-agricapital-v2.png";
+const logo = "/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official";
 import symbole from "@/assets/symbole-agricapital.png";
 import signature from "@/assets/signature-direction.png";
 import cachet from "@/assets/cachet-agricapital.png";
