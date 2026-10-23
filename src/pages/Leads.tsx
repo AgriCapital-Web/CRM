@@ -444,22 +444,23 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
   const convertToProspect = async (lead: any) => {
     const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
-    if (!isOwner && !canSupervise) { toast({ variant: "destructive", title: "Conversion refusée", description: "Ce lead appartient à un autre commercial." }); return; }
-    try {
-      // Conversion atomique côté PostgreSQL : crée un prospect avec son propre UUID,
-      // conserve le lead et son historique, puis relie les deux dossiers.
-      const { data: prospectId, error } = await (supabase as any).rpc("convert_lead_to_prospect", { _lead_id: lead.id });
-      if (error) throw error;
-      if (!prospectId) throw new Error("La base n'a retourné aucun identifiant de prospect.");
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["leads"] }),
-        qc.invalidateQueries({ queryKey: ["prospects"] }),
-      ]);
-      setConvertOpen(false); setConvertLead(null);
-      toast({ title: "Prospect créé", description: "Un dossier Prospect distinct a été créé et lié au lead d'origine." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Conversion impossible", description: getSafeErrorMessage(e) });
+    if (!isOwner && !canSupervise && !isGlobalAdmin) {
+      toast({ variant: "destructive", title: "Accès refusé", description: "Ce lead appartient à un autre commercial." });
+      return;
     }
+    // Ne crée et ne convertit aucune donnée ici : l'utilisateur doit compléter
+    // puis enregistrer lui-même le formulaire officiel de prospect.
+    setFormStage("prospect");
+    setEditingLead(null);
+    setFormReadOnly(false);
+    setLeadForm({
+      ...emptyLead,
+      assigned_to: lead.assigned_to || (hasCommercialAccess ? user?.id || "" : ""),
+      source: lead.source || "commercial_terrain",
+    });
+    setConvertOpen(false);
+    setConvertLead(null);
+    setCreateOpen(true);
   };
 
   const startContact = (lead: any) => {
