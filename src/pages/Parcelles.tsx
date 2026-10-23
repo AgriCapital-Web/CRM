@@ -13,29 +13,33 @@ const Parcelles = () => {
   const [parcelles, setParcelles] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [lots, setLots] = useState<any[]>([]);
+  const [plantations, setPlantations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [{ data: p, error: pe }, { data: c, error: ce }, { data: l, error: le }] = await Promise.all([
+      const [{ data: p, error: pe }, { data: c, error: ce }, { data: l, error: le }, { data: plant, error: ple }] = await Promise.all([
         (supabase as any).from("parcelles")
           .select("*, proprietaires_terres(id,id_unique,nom_complet), districts(nom), regions(nom), departements(nom), sous_prefectures(nom)")
           .order("id_unique", { ascending: true }),
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,parcelle_id,formule_code,formule_nom,total_hectares")
+          .select("id,id_unique,nom_complet,parcelle_id,formule_code,formule_nom,total_hectares,statut,validation_statut")
           .not("parcelle_id", "is", null),
         (supabase as any).from("lots_hectares")
           .select("id,reference,parcelle_id,client_id,surface_ha,statut,numero_h")
           .order("reference", { ascending: true }),
+        (supabase as any).from("plantations").select("id,parcelle_id,client_id,statut,surface_reellement_plantee,superficie_ha"),
       ]);
       if (pe) throw pe;
       if (ce) throw ce;
       if (le) throw le;
+      if (ple) throw ple;
       setParcelles(p || []);
       setClients(c || []);
       setLots(l || []);
+      setPlantations(plant || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -67,6 +71,17 @@ const Parcelles = () => {
     return m;
   }, [lots]);
 
+  const plantationsByParcel = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const planting of plantations) {
+      if (!planting.parcelle_id) continue;
+      const rows = map.get(planting.parcelle_id) || [];
+      rows.push(planting);
+      map.set(planting.parcelle_id, rows);
+    }
+    return map;
+  }, [plantations]);
+
   const filtered = parcelles.filter((p) => {
     const owner = p.proprietaires_terres?.nom_complet || "";
     const parcelClients = clientsByParcel.get(p.id) || [];
@@ -83,12 +98,12 @@ const Parcelles = () => {
   const totalAgri = parcelles.reduce((s, p) => s + Number(p.surface_agricapital_ha || 0), 0);
   const totalLots = lots.length;
 
-  const statusLabel = (s: string) =>
-    s === "saturee" ? "Saturée" :
-    s === "partiellement_attribuee" ? "Partiellement attribuée" :
-    s === "validee" ? "Validée" :
-    s === "a_valider" ? "À valider" :
-    s === "disponible" ? "Disponible" : (s || "—");
+  const statusLabel = (p: any, parcelClients: any[], parcelPlantations: any[]) => {
+    const activePlantation = parcelPlantations.some((planting) => ["actif", "active", "plantee", "plantée", "en_cours"].includes(String(planting.statut || "").toLowerCase()));
+    const validatedClient = parcelClients.some((client) => ["valide", "validee", "validé", "validée", "actif", "active"].includes(String(client.validation_statut || client.statut || "").toLowerCase()));
+    if (activePlantation && validatedClient && p.statut === "disponible") return "Plantation active";
+    return p.statut === "saturee" ? "Saturée" : p.statut === "partiellement_attribuee" ? "Partiellement attribuée" : p.statut === "validee" ? "Validée" : p.statut === "a_valider" ? "À valider" : p.statut === "disponible" ? "Disponible" : (p.statut || "—");
+  };
 
   return (
     <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PLANTATIONS}>
@@ -130,6 +145,7 @@ const Parcelles = () => {
                 filtered.map((p) => {
                   const parcelClients = clientsByParcel.get(p.id) || [];
                   const parcelLots = lotsByParcel.get(p.id) || [];
+                  const parcelPlantations = plantationsByParcel.get(p.id) || [];
                   const ownClient = String(p.mode_surface || "").toLowerCase() === "propriete_client";
                   return <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nom || p.village || "Parcelle"}</TableCell>
@@ -142,7 +158,7 @@ const Parcelles = () => {
                     <TableCell className="max-w-[280px] text-xs">
                       {parcelClients.length ? parcelClients.map(c => <div key={c.id}>{c.nom_complet} · {c.total_hectares} ha</div>) : "—"}
                     </TableCell>
-                    <TableCell><Badge>{statusLabel(p.statut)}</Badge></TableCell>
+                    <TableCell><Badge>{statusLabel(p, parcelClients, parcelPlantations)}</Badge></TableCell>
                   </TableRow>;
                 })}
               </TableBody>

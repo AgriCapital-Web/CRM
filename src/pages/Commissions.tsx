@@ -135,11 +135,16 @@ export default function Commissions() {
   const groups = useMemo(() => {
     const map = new Map<string, any>();
     for (const row of rows) {
-      const key = [row.profile_id || row.profile?.nom_complet || "sans-commercial", row.commissionTeam?.id || "sans-equipe", row.type_commission || "inconnu"].join(":");
+      // Une seule ligne par collaborateur; les différents types et équipes
+      // sont consolidés dans le même portefeuille de commissions.
+      const key = row.profile_id || String(row.profile?.nom_complet || "sans-commercial").trim().toLowerCase();
       const current = map.get(key) || {
-        key, profile_id: row.profile_id, nom: formatUserShortName(row.profile?.nom_complet || "Collaborateur non renseigné"), type: row.type_commission === "technique" ? "Technicien" : "Commercial", equipe: row.commissionTeam?.nom || "Sans équipe",
+        key, profile_id: row.profile_id, nom: formatUserShortName(row.profile?.nom_complet || "Collaborateur non renseigné"), type: row.type_commission === "technique" ? "Technicien" : "Commercial", equipes: new Set<string>(),
         total: 0, base: 0, count: 0, calculee: 0, validee: 0, payee: 0, aPayer: 0, details: []
       };
+      if (row.type_commission === "technique") current.type = current.type === "Commercial" ? "Mixte" : current.type;
+      else if (current.type === "Technicien") current.type = "Mixte";
+      if (row.commissionTeam?.nom) current.equipes.add(row.commissionTeam.nom);
       current.total += Number(row.montant_commission || 0);
       current.base += Number(row.montant_base || 0);
       current.count += 1;
@@ -149,7 +154,7 @@ export default function Commissions() {
       current.details.push(row);
       map.set(key, current);
     }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+    return Array.from(map.values()).map((g: any) => ({ ...g, equipe: Array.from(g.equipes).join(" / ") || "Sans équipe" })).sort((a, b) => b.total - a.total);
   }, [rows]);
 
   const canSeeTeamCommission = userRoles.some((r: string) => ["pdg","dg","comptable","responsable_operations","responsable_commercial","chef_equipe_commercial","chef_equipe_technique"].includes(r));
