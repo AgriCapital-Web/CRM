@@ -274,9 +274,13 @@ const Dashboard = () => {
       const activeConventionIds = new Set(conventions
         .filter((c: any) => String(c.statut || "").toLowerCase() === "active")
         .map((c: any) => c.id));
+      const validatedOwnerIds = new Set(proprietaires
+        .filter((owner: any) => ["valide", "validee", "validé", "validée", "actif", "active"].includes(String(owner.validation_statut || owner.statut || "").toLowerCase()))
+        .map((owner: any) => owner.id));
       const validatedPartnershipParcels = parcelles.filter((p: any) =>
-        ["validee", "saturee"].includes(String(p.statut || "").toLowerCase()) &&
-        Boolean(p.proprietaire_id) && (p.plantation_partagee_activee === true || activeConventionIds.has(p.convention_id))
+        Boolean(p.proprietaire_id) && validatedOwnerIds.has(p.proprietaire_id) &&
+        (p.plantation_partagee_activee === true || activeConventionIds.has(p.convention_id)) &&
+        !["archive", "annulee", "annulée"].includes(String(p.statut || "").toLowerCase())
       );
       const validatedPartnershipParcelIds = new Set(validatedPartnershipParcels.map((p: any) => p.id));
       const activeConventionByParcel = new Map<string, any>();
