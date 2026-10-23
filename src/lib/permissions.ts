@@ -19,6 +19,7 @@ const CRUD: [string, string][] = [
 export const PERMISSION_CATALOG: PermissionDef[] = [
   ...build("dashboard", "Tableau de bord", [["view", "Consulter le tableau de bord"]]),
   ...build("utilisateurs", "Utilisateurs", [...CRUD, ["reset_password", "Réinitialiser le mot de passe"], ["manage_roles", "Modifier les rôles d'un utilisateur"]]),
+  ...build("ressources_humaines", "Ressources humaines", [["view", "Consulter les dossiers du personnel"], ["manage_cards", "Gérer les cartes du personnel et les contrats"], ["manage_contracts", "Gérer les types de contrat et leur durée"], ["manage_payroll", "Gérer les éléments RH liés à la paie"]]),
   ...build("roles", "Rôles", [...CRUD, ["manage_permissions", "Gérer les permissions"]]),
   ...build("offres", "Offres", [...CRUD, ["manage_prices", "Gérer les prix et le Paiement Initial"], ["manage_promotions", "Gérer les promotions"]]),
   ...build("promotions", "Promotions", [...CRUD, ["activate", "Activer / désactiver"], ["view_history", "Consulter l'historique"]]),
