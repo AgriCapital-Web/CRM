@@ -72,6 +72,7 @@ const Clients = () => {
   const canDeleteClient = can("clients.delete") && !serviceClient;
   const [clients, setClients] = useState<any[]>([]);
   const [salesPendingValidation, setSalesPendingValidation] = useState(0);
+  const [landownerCount, setLandownerCount] = useState(0);
   const [attributions, setAttributions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -137,7 +138,7 @@ const Clients = () => {
       // Découper les identifiants en lots pour éviter des requêtes URL trop longues.
       const clientIdBatches: string[][] = [];
       for (let i = 0; i < ids.length; i += 250) clientIdBatches.push(ids.slice(i, i + 250));
-      const [plantationBatches, attributionBatches, offresRes, regionsRes, teamPerfRes, pendingSalesRes] = await Promise.all([
+      const [plantationBatches, attributionBatches, offresRes, regionsRes, teamPerfRes, pendingSalesRes, landownersRes] = await Promise.all([
         Promise.all(clientIdBatches.map((batch) =>
           supabase.from("plantations").select("id,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,role_attribution").in("client_id", batch)
         )),
@@ -148,9 +149,11 @@ const Clients = () => {
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
         can("acquisitions.validate") ? (supabase as any).from("clients").select("id,validation_statut,metadata").in("validation_statut", ["a_valider", "modification_demandee"]) : Promise.resolve({ data: [] }),
+        (supabase as any).from("proprietaires_terres").select("id", { count: "exact", head: true }),
       ]);
 
       setSalesPendingValidation((pendingSalesRes?.data || []).filter((client: any) => ["a_valider", "modification_demandee"].includes(String(client.validation_statut || ""))).length);
+      if (!landownersRes.error) setLandownerCount(Number(landownersRes.count || 0));
       const plantations = plantationBatches.flatMap((result: any) => result.data || []);
       const attributionsData = attributionBatches.flatMap((result: any) => result.data || []);
       const offresMap = new Map((offresRes.data || []).map((o: any) => [o.id, o]));
@@ -307,6 +310,9 @@ const Clients = () => {
   const commercialClients = clients.filter((c: any) => !["beneficiaire_particulier", "proprietaire_foncier"].includes(String(c.type_client || "").toLowerCase()));
   const clientsOfficiels = commercialClients.length;
   const commercialClientIds = new Set(commercialClients.map((c: any) => c.id));
+  const beneficiaryCount = clients.filter((c: any) => String(c.type_client || "").toLowerCase() === "beneficiaire_particulier").length;
+  // Un dossier sans ligne plantation est le seul considéré comme non planté; une plantation enregistrée à 0 ha reste à vérifier techniquement.
+  const clientsNotYetPlanted = commercialClients.filter((c: any) => !(c.plantations || []).length).length;
   const commercialPlantationCount = new Set(
     commercialClients.flatMap((client: any) => (client.plantations || []).map((plantation: any) => plantation.id))
   ).size;
@@ -377,6 +383,9 @@ const Clients = () => {
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Superficie totale</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Sans double comptage</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Clients officiels</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.clientsOfficiels}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Dossiers commerciaux</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Plantations</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.plantations}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Actifs agricoles</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Bénéficiaires</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{beneficiaryCount}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Personnes bénéficiaires</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Propriétaires fonciers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{landownerCount}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Registre foncier</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Clients non plantés</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{clientsNotYetPlanted}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Aucune plantation enregistrée</p></CardContent></Card>
           </div>
 
           <div className="space-y-2">
