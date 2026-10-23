@@ -34,8 +34,15 @@ export default function AgriCapitalConnect() {
   const profileId = profile?.id as string | undefined;
   const [tab, setTab] = useState("messages");
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);\n  const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
-  const [staff, setStaff] = useState<Staff[]>([]);\n  const [staffRoles, setStaffRoles] = useState<StaffRole[]>([]);\n  const [newRoleFilter, setNewRoleFilter] = useState("");\n  const [meetingRoleFilter, setMeetingRoleFilter] = useState("");\n  const [messageFile, setMessageFile] = useState<File | null>(null);\n  const [meetingFiles, setMeetingFiles] = useState<File[]>([]);\n  const [meetingAudience, setMeetingAudience] = useState<"selected" | "all">("selected");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [staffRoles, setStaffRoles] = useState<StaffRole[]>([]);
+  const [newRoleFilter, setNewRoleFilter] = useState("");
+  const [meetingRoleFilter, setMeetingRoleFilter] = useState("");
+  const [messageFile, setMessageFile] = useState<File | null>(null);
+  const [meetingFiles, setMeetingFiles] = useState<File[]>([]);
+  const [meetingAudience, setMeetingAudience] = useState<"selected" | "all">("selected");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [draft, setDraft] = useState("");
