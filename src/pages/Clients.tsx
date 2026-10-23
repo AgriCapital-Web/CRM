@@ -326,7 +326,7 @@ const Clients = () => {
     count: commercialClients.filter((client: any) => band.matches(clientSurface(client))).length,
   }));
   const classifiedSurfaceClientIds = new Set(
-    surfaceBands.flatMap((band) => commercialClients.filter((client: any) => band.matches(clientSurface(client)).map((client: any) => client.id))
+    surfaceBands.flatMap((band) => commercialClients.filter((client: any) => band.matches(clientSurface(client))).map((client: any) => client.id))
   );
   const otherSurfaceCount = commercialClients.filter((client: any) => clientSurface(client) > 0 && !classifiedSurfaceClientIds.has(client.id)).length;
 
