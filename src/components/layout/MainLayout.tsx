@@ -70,7 +70,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
-      <nav aria-label="Navigation principale" className="flex min-h-0 flex-1 flex-col gap-[2px] overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+      <nav aria-label="Navigation principale" className="flex min-h-0 flex-1 flex-col gap-0 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
         {visibleMenuItems.length === 0 && (
           <div className="rounded-md bg-primary-foreground/10 px-3 py-4 text-xs text-primary-foreground/90">
             Aucun rôle attribué à votre compte. Contactez un administrateur ou reconnectez-vous.
@@ -85,7 +85,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               asChild
               variant="ghost"
               className={cn(
-                "!h-6 !min-h-0 !p-0 py-0 my-0 w-full min-w-0 shrink-0 justify-start gap-2 overflow-hidden whitespace-nowrap rounded-md px-2 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
+                "!h-6 !min-h-0 !p-0 py-0 my-0 mb-[2px] w-full min-w-0 shrink-0 justify-start gap-2 overflow-hidden whitespace-nowrap rounded-md px-2 text-primary-foreground/85 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
                 active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
               )}
               title={item.label}
@@ -110,16 +110,16 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             )}
           </div>
         </div>
-        <div className="space-y-1">
-          <Button variant="ghost" className={cn("h-10 w-full justify-start gap-3 rounded-md text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground", location.pathname === "/profil" && "bg-primary-foreground/15 text-primary-foreground")} onClick={() => { navigate("/profil"); setOpen(false); }}>
+        <div className="space-y-0">
+          <Button variant="ghost" className={cn("!h-8 w-full justify-start gap-2 rounded-md px-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground", location.pathname === "/profil" && "bg-primary-foreground/15 text-primary-foreground")} onClick={() => { navigate("/profil"); setOpen(false); }}>
             <UserCircle className="h-4 w-4" /><span className="text-sm font-medium">Profil</span>
           </Button>
           {can("parametres.view") && (
-            <Button variant="ghost" className={cn("h-10 w-full justify-start gap-3 rounded-md text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground", location.pathname === "/parametres" && "bg-primary-foreground/15 text-primary-foreground")} onClick={() => { navigate("/parametres"); setOpen(false); }}>
+            <Button variant="ghost" className={cn("!h-8 w-full justify-start gap-2 rounded-md px-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground", location.pathname === "/parametres" && "bg-primary-foreground/15 text-primary-foreground")} onClick={() => { navigate("/parametres"); setOpen(false); }}>
               <Settings className="h-4 w-4" /><span className="text-sm font-medium">Paramètres</span>
             </Button>
           )}
-          <Button variant="ghost" className="h-10 w-full justify-start gap-3 rounded-md text-primary-foreground/80 hover:bg-destructive hover:text-destructive-foreground" onClick={handleLogout}>
+          <Button variant="ghost" className="!h-8 w-full justify-start gap-2 rounded-md px-2 text-primary-foreground/80 hover:bg-destructive hover:text-destructive-foreground" onClick={handleLogout}>
             <LogOut className="h-4 w-4" /><span className="text-sm font-medium">Déconnexion</span>
           </Button>
         </div>
