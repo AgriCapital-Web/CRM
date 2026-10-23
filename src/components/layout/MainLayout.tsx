@@ -35,7 +35,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const menuItems = [
     { icon: LayoutDashboard, label: "Tableau de bord", path: "/dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: Users, label: "Leads et prospects", path: "/leads", permission: PERMISSIONS.VIEW_LEADS },
-    { icon: Users, label: "Acquisitions / Clients", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
+    { icon: Users, label: "Acquisition", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
     { icon: LandPlot, label: "Propriétaires fonciers", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
