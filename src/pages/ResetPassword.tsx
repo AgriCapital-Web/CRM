@@ -65,7 +65,7 @@ const ResetPassword = () => {
       <Card className="w-full max-w-md shadow-strong relative z-10 backdrop-blur-sm bg-white/95">
         <CardHeader className="space-y-4 text-center pb-8">
           <div className="flex justify-center mb-4">
-            <img src="/agricapital360-officiel.png?v=20261022-logo-png" alt="AgriCapital Logo" className="h-32 w-auto" />
+            <img src="/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official" alt="AgriCapital Logo" className="h-32 w-auto" />
           </div>
           <CardTitle className="text-2xl font-bold text-primary">
             Nouveau mot de passe
