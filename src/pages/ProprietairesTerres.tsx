@@ -943,13 +943,13 @@ const ProprietairesTerres = () => {
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="text-center py-8">Aucun propriétaire</TableCell></TableRow>
                 ) : filtered.map(p => (
-                  <TableRow key={p.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche propriétaire ${p.nom_complet || ""}`} onClick={() => navigate(`/proprietaires-terres/${p.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/proprietaires-terres/${p.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <TableRow key={p.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche propriétaire ${p.nom_complet || ""}`} onClick={() => navigate(`/proprietaires-terres?edit_id=${p.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/proprietaires-terres?edit_id=${p.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">
                         {p.type_proprietaire === 'personne_morale' ? 'Morale' : p.type_proprietaire === 'famille_groupement' ? 'Famille' : 'Physique'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap" onClick={(event) => event.stopPropagation()}><Link to={`/proprietaires-terres/${p.id}`} className="whitespace-nowrap hover:underline">{p.nom_complet}</Link></TableCell>
+                    <TableCell className="font-medium whitespace-nowrap" onClick={(event) => event.stopPropagation()}><Link to={`/proprietaires-terres?edit_id=${p.id}`} className="whitespace-nowrap hover:underline">{p.nom_complet}</Link></TableCell>
                     <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ")} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
