@@ -170,7 +170,7 @@ export default function AgriCapitalConnect() {
     const { data, error } = await (supabase as any).rpc("internal_create_conversation", {
       p_conversation_type: newKind,
       p_title: newKind === "direct" ? (staff.find(s => s.id === newMembers[0])?.nom_complet || null) : (newTitle.trim() || null),
-      p_member_profile_ids: Array.from(new Set([...newMembers, ...roleMembers])),
+      p_member_profile_ids: targets.filter(id => id !== profileId),
     });
     const conv = Array.isArray(data) ? data[0] : data;
     if (error || !conv) { console.error(error); toast.error(error?.message || "Création impossible. Vérifiez les participants sélectionnés."); return; }
