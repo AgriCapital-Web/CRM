@@ -130,13 +130,15 @@ serve(async(req)=>{
     // photos-profils. Convertir ce chemin en URL signée utilisable par le portail.
     if (commercialRes.data?.photo_url) {
       const rawPhoto = String(commercialRes.data.photo_url).trim();
-      let photoPath = rawPhoto;
+      let photoPath = rawPhoto.replace(/^\/+/, "");
+      const relativeMatch = photoPath.match(/^storage\/v1\/object\/(?:public|sign)\/photos-profils\/(.+)$/);
+      if (relativeMatch) photoPath = decodeURIComponent(relativeMatch[1]);
       try {
         const parsed = new URL(rawPhoto);
         const match = parsed.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/photos-profils\/(.+)$/);
-        photoPath = match ? decodeURIComponent(match[1]) : "";
+        photoPath = match ? decodeURIComponent(match[1]) : (/^https?:\/\//i.test(rawPhoto) ? "" : photoPath);
       } catch {
-        // Valeur stockée comme chemin relatif : photoPath est déjà exploitable.
+        // Valeur stockée comme chemin relatif.
       }
       if (photoPath) {
         const { data: signedPhoto, error: signedPhotoError } = await supabase.storage
