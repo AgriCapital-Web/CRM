@@ -182,7 +182,9 @@ Deno.serve(async (req) => {
       const statusOf = (s: any) => String(s?.status ?? s?.state ?? s?.connectionStatus ?? s?.connection_status ?? s?.connection?.status ?? s?.session?.status ?? "").trim().toLowerCase();
       const connected = sessions.filter((s: any) => ["connected","open","ready","authenticated"].includes(statusOf(s)));
       const matches = connected.filter((s: any) => phoneValues(s).some((v: string) => normalizePhone(v) === senderDigits));
-      const session = matches.length === 1 ? matches[0] : null;
+      // If Senndo exposes exactly one connected paired session but omits its phone in the response,
+      // use that sole session (historical working behavior); never guess when several are connected.
+      const session = matches.length === 1 ? matches[0] : (matches.length === 0 && connected.length === 1 ? connected[0] : null);
       const senderSessionId = session ? technicalSessionId(session) : "";
       if (!session || !senderSessionId) return reply(req, {
         error: connected.length === 0 ? "Aucune session WhatsApp connectée n’a été trouvée dans Senndo."
