@@ -240,11 +240,15 @@ async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderS
   if (!senderDigits) throw new Error("Le numéro de session WhatsApp Senndo configuré est invalide.");
   const matches = connected.filter((session: any) => phoneValues(session).some((value: unknown) => normalizePhone(value) === senderDigits));
   const session = matches.length === 1 ? matches[0] : null;
+  // Senndo's /v1/messages contract expects the senderSessionId from /v1/wa/sessions.
+  // Prefer explicit sender-session identifiers over generic database/session IDs.
   const candidates = session ? [
-    session.id, session.sessionId, session.session_id, session.senderSessionId, session.sender_session_id,
-    session.uuid, session.sessionKey, session.session_key, session.uniqueSessionId, session.unique_session_id,
-    session.sessionName, session.session_name, session.name, session.key,
-    session.session?.id, session.session?.sessionId, session.session?.session_id, session.session?.uniqueSessionId,
+    session.senderSessionId, session.sender_session_id,
+    session.session?.senderSessionId, session.session?.sender_session_id,
+    session.sessionId, session.session_id, session.session?.sessionId, session.session?.session_id,
+    session.uuid, session.session?.uuid, session.uniqueSessionId, session.unique_session_id,
+    session.session?.uniqueSessionId, session.sessionKey, session.session_key,
+    session.id, session.session?.id, session.name, session.sessionName, session.session_name, session.key,
   ] : [];
   const senderSessionId = candidates.find((value: unknown) =>
     (typeof value === "string" && value.trim().length > 0) || (typeof value === "number" && Number.isFinite(value)));
