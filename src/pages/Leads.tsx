@@ -103,6 +103,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [contactSending, setContactSending] = useState(false);
   const [formStage, setFormStage] = useState<"lead" | "prospect">("lead");
   const [editingLead, setEditingLead] = useState<any>(null);
+  const [conversionLeadId, setConversionLeadId] = useState<string | null>(null);
   const emptyLead = {
     nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", region_residence: "", lieu_residence: "",
     type_lead: "client", civilite: "", etape_pipeline: "lead", offre_code: "", formule_code: "",
@@ -379,6 +380,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       // merely because this form has no assignment picker for the current role.
       const num = (v: string) => (v === "" || v == null ? null : Number(v));
       const record = {
+        ...(formStage === "prospect" && conversionLeadId ? { lead_id: conversionLeadId } : {}),
         nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
         telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
         district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
@@ -400,9 +402,18 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           ? (leadForm.assigned_to || null) : user.id,
       };
       if (formStage === "prospect") {
-        // Création directe dans prospects : aucun lead artificiel n'est créé.
+        // Le prospect n'est créé qu'après validation manuelle du formulaire.
         const { error } = await offlineInsert("prospects", record);
         if (error) throw error;
+        if (conversionLeadId) {
+          const { error: linkError } = await offlineUpdate("leads", conversionLeadId, {
+            etape_pipeline: "prospect",
+            etape_conversion: "prospect",
+            statut: record.statut || "qualifie",
+            updated_at: new Date().toISOString(),
+          });
+          if (linkError) throw linkError;
+        }
       } else {
         const { error } = await offlineInsert("leads", { ...record, etape_pipeline: "lead" });
         if (error) throw error;
@@ -413,6 +424,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
       setCreateOpen(false);
       setEditingLead(null);
+      setConversionLeadId(null);
       toast({ title: editingLead ? (editingLead._record_type === "prospect" || editingLead.etape_pipeline === "prospect" ? "Prospect modifié" : "Lead modifié") : (formStage === "prospect" ? (navigator.onLine ? "Prospect créé" : "Prospect enregistré") : (navigator.onLine ? "Lead créé" : "Lead enregistré hors ligne")) });
     },
     onError: (e: any) => toast({ variant: "destructive", title: "Création impossible", description: getSafeErrorMessage(e) }),
@@ -448,15 +460,23 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       toast({ variant: "destructive", title: "Accès refusé", description: "Ce lead appartient à un autre commercial." });
       return;
     }
-    // Ne crée et ne convertit aucune donnée ici : l'utilisateur doit compléter
-    // puis enregistrer lui-même le formulaire officiel de prospect.
+    // Préremplir les données connues du lead, sans créer le prospect avant
+    // que l'utilisateur ait complété puis enregistré le formulaire.
     setFormStage("prospect");
     setEditingLead(null);
+    setConversionLeadId(lead.lead_id || (lead._record_type === "prospect" ? lead.lead_id : lead.id) || null);
     setFormReadOnly(false);
     setLeadForm({
       ...emptyLead,
+      ...Object.fromEntries(Object.entries(lead).filter(([key, value]) =>
+        key in emptyLead && value !== null && value !== undefined
+      ).map(([key, value]) => [key, String(value)])),
+      statut: lead.statut && !["nouveau", "contacte", "converti"].includes(lead.statut) ? lead.statut : "qualifie",
+      etape_pipeline: "prospect",
       assigned_to: lead.assigned_to || (hasCommercialAccess ? user?.id || "" : ""),
       source: lead.source || "commercial_terrain",
+      telephone_local: lead.telephone || "",
+      whatsapp_local: lead.whatsapp || "",
     });
     setConvertOpen(false);
     setConvertLead(null);
@@ -554,23 +574,6 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       return;
     }
     const isProspect = lead._record_type === "prospect" || lead.etape_pipeline === "prospect" || !!lead.prospect_id;
-    try {
-      if (isProspect && lead.prospect_id) {
-        // Le prospect peut être autonome : ne toucher au lead que si le lien existe.
-        if (lead.lead_id) {
-          const { error } = await offlineUpdate("leads", lead.lead_id, { etape_conversion: "prospect" });
-          if (error) throw error;
-        }
-      } else if (lead.id && !lead.prospect_id) {
-        const { error } = await offlineUpdate("leads", lead.id, {
-          etape_conversion: "lead",
-        });
-        if (error) throw error;
-      }
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Conversion impossible", description: getSafeErrorMessage(e) });
-      return;
-    }
     const params = new URLSearchParams({
       ...(lead.lead_id ? { lead_id: lead.lead_id } : (!isProspect ? { lead_id: lead.id } : {})),
       ...(lead.prospect_id || (isProspect ? lead.id : null) ? { prospect_id: lead.prospect_id || lead.id } : {}),
@@ -580,6 +583,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       departement_id: lead.departement_id || "", sous_prefecture_id: lead.sous_prefecture_id || "",
       village_id: lead.village_id || "", village: lead.village || lead.localite || "", lieu_residence: lead.lieu_residence || lead.campement_quartier || "",
       offre_code: lead.offre_code || "",
+      formule_code: lead.formule_code || "",
+      formule_nom: lead.formule_nom || "",
       type_lead: lead.type_lead || "client", dispose_terrain: lead.dispose_terrain ? "oui" : "non",
     });
     if (lead.type_lead === "proprietaire_foncier") {
