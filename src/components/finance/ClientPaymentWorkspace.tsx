@@ -32,6 +32,9 @@ type ClientFinanceRow = {
   formule_nom?: string | null;
   montant_total_contrat?: number | null;
   total_hectares?: number | null;
+  acquisitionTotal?: number;
+  baseContractTotal?: number;
+  hasAcquisitions?: boolean;
   summary: any;
 };
 
