@@ -174,12 +174,12 @@ const NouvelleAcquisition = () => {
         offre_id:offerId,
         commercial_id:source.assigned_to||undefined,
       };
-      // Never carry a possibly historical/defaulted formula from a lead or prospect.
-      // Conversion must require an explicit formula choice in the first acquisition step.
+      // Keep the source formula when it still exists in the current offer configuration.
+      // The first acquisition step validates it against the latest active formulas.
       updateFormData({
         ...Object.fromEntries(Object.entries(sourceValues).filter(([, value]) => value !== "" && value !== null && value !== undefined)),
-        formule_code: "",
-        formule_nom: "",
+        formule_code: source.formule_code || "",
+        formule_nom: source.formule_nom || "",
         formule_confirmed: false,
       });
     })();
