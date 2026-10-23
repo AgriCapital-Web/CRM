@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ const RULES = {
 
 export default function GestionRemuneration() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [rows, setRows] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -81,6 +83,8 @@ export default function GestionRemuneration() {
           }
         }
       }
+      // Les règles de rémunération sont consommées par plusieurs modules (paiements, finance, commissions et tableaux de bord).
+      await queryClient.invalidateQueries();
       toast({ title: "Rémunération enregistrée", description: "Les nouveaux paiements utiliseront les règles mises à jour. Les commissions déjà calculées et les paiements historiques sont conservés." });
       await load();
     } catch (error: any) {
