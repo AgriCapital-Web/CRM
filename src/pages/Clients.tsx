@@ -311,7 +311,7 @@ const Clients = () => {
     commercialClients.flatMap((client: any) => (client.plantations || []).map((plantation: any) => plantation.id))
   ).size;
 
-  const clientSurface = (client: any) => Number(client.total_hectares ?? client.superficie_ha ?? 0);
+  const clientSurface = (client: any) => Number(client.total_hectares || client.superficie_ha || 0);
   const surfaceBands = [
     { key: "1", label: "1 ha", matches: (ha: number) => ha === 1 },
     { key: "2", label: "2 ha", matches: (ha: number) => ha === 2 },
