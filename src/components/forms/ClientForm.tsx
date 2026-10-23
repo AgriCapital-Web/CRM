@@ -43,7 +43,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
   const { data: offers = [] } = useQuery({
-    queryKey: ["offres"],
+    queryKey: ["offres-actives"],
     queryFn: async () => {
       const columns = "id,code,nom,description,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,necessite_cotitulaire,contrat_acquisition_requis,contrat_accompagnement_requis,gestion_type,montant_pi_par_ha,montant_cash_par_ha,mensualite_par_ha,montant_total_par_ha,duree_paiement_mois,tranches_paiement,paiement_signature_par_ha,paiement_apres_trouaison_par_ha,actif,ordre";
       const { data, error } = await (supabase as any).from("offres").select(columns).eq("actif", true).order("ordre").order("nom");
