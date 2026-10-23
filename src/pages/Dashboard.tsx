@@ -667,8 +667,10 @@ const Dashboard = () => {
 
           {!isClientOnly && (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/nouvelle-acquisition"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau client</Link></Button>}
-              {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/leads?new=1&type=prospect"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau prospect</Link></Button>}
+              <div className="grid w-full grid-cols-2 gap-2">
+                {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-2 text-xs sm:text-sm" to="/nouvelle-acquisition"><Plus className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />Nouveau client</Link></Button>}
+                <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-2 text-xs sm:text-sm" to="/leads?new=1&type=prospect"><Plus className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />Nouveau prospect</Link></Button>
+              </div>
               {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/leads?new=1"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
               {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/paiements"><CreditCard className="mr-2 h-4 w-4 shrink-0" />Paiement</Link></Button>}
               {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/plantations"><Sprout className="mr-2 h-4 w-4 shrink-0" />Plantations</Link></Button>}

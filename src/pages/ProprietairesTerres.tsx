@@ -63,6 +63,7 @@ const ProprietairesTerres = () => {
   const [pendingOnly, setPendingOnly] = useState(searchParams.get("validation") === "a_valider");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOwner, setEditingOwner] = useState<any>(null);
+  const [ownerReadOnly, setOwnerReadOnly] = useState(false);
   const [activeFormTab, setActiveFormTab] = useState("identite");
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
@@ -132,6 +133,7 @@ const ProprietairesTerres = () => {
         return;
       }
       setEditingOwner(data);
+      setOwnerReadOnly(true);
       setFormData((current:any) => Object.fromEntries(Object.keys(current).map((key) => {
         const value = data[key];
         return [key, value == null ? (typeof current[key] === "boolean" ? false : "") : String(value)];
@@ -469,6 +471,9 @@ const ProprietairesTerres = () => {
     });
     setFiles({ photo_profil: null, cni_recto: null, cni_verso: null });
     setAnnexStatuses(createInitialAnnexStatuses());
+    setEditingOwner(null);
+    setOwnerReadOnly(false);
+    setActiveFormTab("identite");
   };
 
   const pendingOwnerCount = proprietaires.filter(p => p.validation_statut === "a_valider").length;
@@ -533,13 +538,13 @@ const ProprietairesTerres = () => {
               <h1 className="text-2xl sm:text-3xl font-bold">Propriétaires de Terres</h1>
               <p className="text-muted-foreground mt-1">{filtered.length} affiché(s) · {proprietaires.length} propriétaire(s)</p>
             </div>
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) { resetForm(); setEditingOwner(null); setOwnerReadOnly(false); } }}>
               {canCreateProprietaire && <DialogTrigger asChild>
-                <Button><Plus className="mr-2 h-4 w-4" />Nouveau Propriétaire</Button>
+                <Button onClick={() => { resetForm(); setEditingOwner(null); setOwnerReadOnly(false); setActiveFormTab("identite"); }}><Plus className="mr-2 h-4 w-4" />Nouvelle convention</Button>
               </DialogTrigger>}
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>{editingOwner ? "Modification — Convention Planté-Partagé — Identification du Propriétaire" : "Convention Planté-Partagé — Identification du Propriétaire"}</DialogTitle>
+                  <DialogTitle>Convention Planté-Partagé — Identification du Propriétaire</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} noValidate className="space-y-6">
                   <div className="space-y-3">
@@ -554,6 +559,7 @@ const ProprietairesTerres = () => {
                       <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((activeStepIndex + 1) / formSteps.length) * 100}%` }} />
                     </div>
                   </div>
+                  <fieldset disabled={ownerReadOnly} className="contents">
                   <Tabs value={activeFormTab} onValueChange={setActiveFormTab} className="space-y-4">
                     <TabsList className="flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl bg-muted/70 p-1">
                       {formSteps.map((step, index) => (
@@ -869,16 +875,26 @@ const ProprietairesTerres = () => {
                       </div>
                     </TabsContent>
                   </Tabs>
+                  </fieldset>
 
                   <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                      <Button type="button" variant="outline" onClick={() => { setIsFormOpen(false); resetForm(); }}>Annuler</Button>
-                      <Button type="button" variant="outline" onClick={goToPreviousFormStep} disabled={activeStepIndex === 0 || uploading}>Précédent</Button>
-                    </div>
-                    {activeStepIndex < formSteps.length - 1 ? (
-                      <Button type="button" onClick={goToNextFormStep}>Suivant</Button>
+                    {ownerReadOnly ? (
+                      <div className="flex w-full justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => { setIsFormOpen(false); resetForm(); }}>Fermer</Button>
+                        <Button type="button" onClick={() => setOwnerReadOnly(false)}>Modifier</Button>
+                      </div>
                     ) : (
-                      <Button type="submit" disabled={uploading || !canCreateProprietaire}>{uploading ? "Enregistrement..." : editingOwner ? "Enregistrer les modifications" : "Enregistrer le Propriétaire"}</Button>
+                      <>
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                          <Button type="button" variant="outline" onClick={() => { setIsFormOpen(false); resetForm(); }}>Annuler</Button>
+                          <Button type="button" variant="outline" onClick={goToPreviousFormStep} disabled={activeStepIndex === 0 || uploading}>Précédent</Button>
+                        </div>
+                        {activeStepIndex < formSteps.length - 1 ? (
+                          <Button type="button" onClick={goToNextFormStep}>Suivant</Button>
+                        ) : (
+                          <Button type="submit" disabled={uploading || !canCreateProprietaire}>{uploading ? "Enregistrement..." : editingOwner ? "Enregistrer les modifications" : "Enregistrer la convention"}</Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </form>

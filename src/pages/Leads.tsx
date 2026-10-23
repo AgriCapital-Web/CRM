@@ -655,13 +655,13 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
             <Button className="w-full sm:w-auto" variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}><Copy className="h-4 w-4 mr-2" />Lien public</Button>
-            {canCreateLeads && <Button className="w-full sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
+            {canCreateLeads && <Button className="col-span-2 w-full sm:col-span-1 sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
           </div>
         </div>
 
         <div className={view === "prospects"
           ? "crm-prospects-stat-grid flex min-w-0 flex-wrap gap-2"
-          : "grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7"
+          : "grid min-w-0 grid-cols-3 gap-1.5 sm:grid-cols-4 sm:gap-2 xl:grid-cols-7"
         }>
           {[
             {l:"Leads",short:"Leads",v:totalLeads,i:Target},
