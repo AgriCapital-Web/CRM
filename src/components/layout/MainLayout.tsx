@@ -70,7 +70,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         <p className="mt-2 text-center text-[10px] leading-tight text-muted-foreground">La plateforme métier intelligente d’AgriCapital.</p>
       </div>
 
-      <nav aria-label="Navigation principale" className="flex min-h-0 flex-1 flex-col gap-0 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+      <nav aria-label="Navigation principale" className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-0 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y px-2 py-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
         {visibleMenuItems.length === 0 && (
           <div className="rounded-md bg-primary-foreground/10 px-3 py-4 text-xs text-primary-foreground/90">
             Aucun rôle attribué à votre compte. Contactez un administrateur ou reconnectez-vous.
@@ -90,7 +90,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               )}
               title={item.label}
             >
-              <Link to={item.path} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2">
+              <Link to={item.path} onClick={() => { if (open) setOpen(false); }} aria-current={active ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2">
                 <item.icon className="h-4 w-4 flex-shrink-0" />
                 <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">{item.label}</span>
               </Link>
@@ -129,7 +129,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   return (
     <div className="flex min-h-screen min-w-0 bg-muted/35">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden h-dvh w-64 flex-shrink-0 overflow-hidden md:flex"><SidebarContent /></aside>
+      <aside className="fixed inset-y-0 left-0 z-[60] hidden h-dvh w-64 flex-shrink-0 overflow-hidden pointer-events-auto md:flex"><SidebarContent /></aside>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-background/95 px-3 backdrop-blur md:hidden">
@@ -141,7 +141,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           </div>
           <Avatar className="h-8 w-8 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(formatUserShortName(profile?.nom_complet))}</AvatarFallback></Avatar>
         </div>
-        <SheetContent side="left" className="h-[100dvh] max-h-[100dvh] w-72 overflow-hidden p-0"><SidebarContent /></SheetContent>
+        <SheetContent side="left" className="z-[60] h-[100dvh] max-h-[100dvh] w-72 overflow-hidden p-0 pointer-events-auto"><SidebarContent /></SheetContent>
       </Sheet>
 
       <main className="min-w-0 flex-1 overflow-x-hidden pt-14 md:ml-64 md:pt-0 bg-muted/20">
