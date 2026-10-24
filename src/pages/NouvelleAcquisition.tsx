@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { calculPrixEffectif } from "@/lib/pricing";
 import { usePromotionActive } from "@/hooks/usePromotionActive";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/roles";
 
 
 type Step = { code:string; titre:string; description?:string; ordre:number; obligatoire:boolean };
@@ -105,10 +107,17 @@ const NouvelleAcquisition = () => {
   const [draftLoading,setDraftLoading]=useState(true);
   const [loadingSteps,setLoadingSteps]=useState(false);
   const [syncState,setSyncState]=useState<SyncState>("draft");
+  const { id: recordId } = useParams();
+  const [existingClientId,setExistingClientId]=useState<string|null>(null);
+  const [existingAcquisitionId,setExistingAcquisitionId]=useState<string|null>(null);
+  const [existingRecord,setExistingRecord]=useState<any|null>(null);
+  const [editExisting,setEditExisting]=useState(false);
   const queuedMutationCountRef = useRef(0);
   const {toast}=useToast();
   const navigate=useNavigate();
-  const { user } = useAuth();
+  const { user, userRoles=[] } = useAuth();
+  const { can } = usePermissions();
+  const canEditExisting = can("clients.update") && (userRoles || []).some((role:string)=>["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
   const [searchParams]=useSearchParams();
   const {data:promotionActive}=usePromotionActive(formData.offre_id);
 
@@ -186,10 +195,73 @@ const NouvelleAcquisition = () => {
     return ()=>{active=false;};
   },[searchParams]);
 
+  useEffect(()=>{
+    if(!recordId) return;
+    let active=true;
+    setDraftLoading(true);
+    void (async()=>{
+      try{
+        let acquisition:any=null;
+        const acquisitionResult=await (supabase as any).from("acquisitions").select("*").eq("id",recordId).maybeSingle();
+        if(acquisitionResult.error) throw acquisitionResult.error;
+        acquisition=acquisitionResult.data;
+        const clientId=acquisition?.client_id||recordId;
+        const clientResult=await (supabase as any).from("clients").select("*").eq("id",clientId).maybeSingle();
+        if(clientResult.error) throw clientResult.error;
+        const client=clientResult.data;
+        if(!client) throw new Error("Dossier client introuvable.");
+        if(!acquisition){
+          const result=await (supabase as any).from("acquisitions").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
+          if(result.error) throw result.error;
+          acquisition=result.data;
+        }
+        const offerId=acquisition?.offre_id||client.offre_id||"";
+        let offer:any=null;
+        if(offerId){
+          const result=await (supabase as any).from("offres").select("*").eq("id",offerId).maybeSingle();
+          if(result.error) throw result.error;
+          offer=result.data;
+        }
+        const [docsResult,repResult]=await Promise.all([
+          (supabase as any).from("documents_acquisition").select("*").eq("client_id",client.id).order("created_at",{ascending:false}),
+          (supabase as any).from("client_cotitulaires_mandataires").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(1).maybeSingle()
+        ]);
+        if(docsResult.error) throw docsResult.error;
+        if(repResult.error) throw repResult.error;
+        const values:any={...client,commercial_id:client.commercial_id||acquisition?.created_by||"",offre_id:offerId,offre:offer,
+          formule_code:acquisition?.formule_code||client.formule_code||offer?.formule_code||"",
+          formule_nom:acquisition?.formule_nom||client.formule_nom||offer?.formule_nom||"",
+          formule_confirmed:true,superficie_prevue:String(acquisition?.superficie_ha??client.total_hectares??client.superficie_ha??""),
+          photo_profil_preview:client.photo_profil_url||"",photo_piece_recto_preview:client.fichier_piece_recto_url||"",
+          photo_piece_verso_preview:client.fichier_piece_verso_url||"",contrat_lu:true,documents_authentiques:true,autorisation_donnees:true};
+        if(repResult.data) Object.assign(values,{has_representant:true,representant_type:repResult.data.type_relation||"cotitulaire",
+          representant_lien:repResult.data.lien_client||"",representant_civilite:repResult.data.civilite||"",
+          representant_nom:repResult.data.nom||"",representant_prenoms:repResult.data.prenoms||"",
+          representant_date_naissance:repResult.data.date_naissance||"",representant_lieu_naissance:repResult.data.lieu_naissance||"",
+          representant_type_piece:repResult.data.type_piece||"",representant_numero_piece:repResult.data.numero_piece||"",
+          representant_telephone:repResult.data.telephone||""});
+        for(const doc of docsResult.data||[]){
+          const code=String(doc.code_document||doc.type_document||"");
+          if(code==="client_photo_profil") values.photo_profil_preview=doc.fichier_url||values.photo_profil_preview;
+          else if(code==="client_piece_recto") values.photo_piece_recto_preview=doc.fichier_url||values.photo_piece_recto_preview;
+          else if(code==="client_piece_verso") values.photo_piece_verso_preview=doc.fichier_url||values.photo_piece_verso_preview;
+          else if(doc.categorie==="contrat"||code.includes("contrat")){values["contrat_"+code+"_preview"]=doc.fichier_url||"";values["contrat_"+code+"_statut"]=doc.statut||"a_preparer";}
+          else values["doc_"+code+"_preview"]=doc.fichier_url||"";
+        }
+        if(!active)return;
+        setExistingClientId(client.id);setExistingAcquisitionId(acquisition?.id||null);
+        setExistingRecord({client,acquisition,offer});setEditExisting(false);setCurrent(0);setFormData(values);
+      }catch(error:any){if(active)toast({variant:"destructive",title:"Dossier impossible à ouvrir",description:getSafeErrorMessage(error)});}
+      finally{if(active)setDraftLoading(false);}
+    })();
+    return()=>{active=false;};
+  },[recordId]);
+
   // Restaurer le brouillon avant d'autoriser la saisie : un chargement réseau tardif
   // ne doit jamais interférer avec les premières modifications de l'utilisateur.
   useEffect(()=>{
     let mounted=true;
+    if(recordId){setBrouillonId(null);setDraftLoading(true);return()=>{mounted=false;};}
     const isLeadOrProspectConversion = Boolean(searchParams.get("lead_id") || searchParams.get("prospect_id"));
     if (isLeadOrProspectConversion) {
       // A conversion always starts at the first official step. Never restore an unrelated
@@ -219,7 +291,7 @@ const NouvelleAcquisition = () => {
       }
     })();
     return()=>{mounted=false;};
-  },[user, searchParams]);
+  },[user, searchParams, recordId]);
 
   useEffect(()=>{
     if(!formData.offre_id){ setSteps([]); setCurrent(0); return; }
@@ -366,7 +438,7 @@ const NouvelleAcquisition = () => {
     return () => window.clearTimeout(timer);
   }, [formData, current, brouillonId, draftLoading, saving, user]);
 
-  const next=async()=>{if(!(await validateStep()))return;setSaving(true);try{const i=Math.min(activeSteps.length-1,current+1);await saveDraft(i);setCurrent(i);}finally{setSaving(false);}};
+  const next=async()=>{if(recordId){setCurrent(v=>Math.min(activeSteps.length-1,v+1));return;}if(!(await validateStep()))return;setSaving(true);try{const i=Math.min(activeSteps.length-1,current+1);await saveDraft(i);setCurrent(i);}finally{setSaving(false);}};
 
   const submit=async(retryAttempt = 0)=>{
     if (submitInFlightRef.current) return;
@@ -613,6 +685,62 @@ const NouvelleAcquisition = () => {
     }
   };
 
+  const saveExistingRecord=async()=>{
+    if(!existingRecord||!existingClientId||!user?.id||!canEditExisting)return;
+    setSaving(true);
+    try{
+      const hectares=Math.max(0,Number(formData.superficie_prevue)||0);
+      const {data:offer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
+      if(offerError)throw offerError;
+      const formulas=Array.isArray(offer.formules_configuration)?offer.formules_configuration:[];
+      const formula=formulas.find((item:any)=>item.code===formData.formule_code);
+      if(!formula)throw new Error("La formule sélectionnée n’existe plus dans la configuration.");
+      const shared=formula.utilise_tarif_commun===true;
+      const effective=(key:string)=>formula[key]??(shared?offer[key]:null);
+      const pricingOffer:any={...offer,formule_code:formula.code,formule_nom:formula.nom,montant_pi_par_ha:effective("montant_pi_par_ha"),
+        montant_cash_par_ha:effective("montant_cash_par_ha"),mensualite_par_ha:effective("mensualite_par_ha"),
+        montant_total_par_ha:effective("montant_total_par_ha"),duree_paiement_mois:effective("duree_paiement_mois")};
+      const price=calculPrixEffectif(pricingOffer,promotionActive?[promotionActive as any]:[],{modePaiement:"echeancier"});
+      const total=Number(price.montant_total_effectif||price.montant_total_base||0)*hectares;
+      const pi=Number(price.pi_effectif||0)*hectares;
+      const monthly=Number(price.mensualite_effective||0)*hectares;
+      const payload:any={nom:formData.nom_famille||formData.nom||"",nom_famille:formData.nom_famille||formData.nom||"",
+        prenoms:formData.prenoms||"",nom_complet:[formData.nom_famille||formData.nom,formData.prenoms].filter(Boolean).join(" ").trim(),
+        civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,
+        nationalite:formData.nationalite||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,
+        date_delivrance_piece:formData.date_delivrance_piece||null,telephone:formData.telephone||"",
+        telephone_indicatif:formData.telephone_indicatif||null,telephone_local:formData.telephone_local||null,
+        telephone_secondaire:formData.telephone_secondaire||null,telephone_secondaire_indicatif:formData.telephone_secondaire_indicatif||null,
+        telephone_secondaire_local:formData.telephone_secondaire_local||null,telephone_principal_whatsapp:!!formData.telephone_principal_whatsapp,
+        telephone_secondaire_whatsapp:!!formData.telephone_secondaire_whatsapp,
+        whatsapp:formData.telephone_principal_whatsapp?formData.telephone:formData.telephone_secondaire_whatsapp?(formData.telephone_secondaire||null):null,
+        email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
+        domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
+        departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
+        offre_id:offer.id,famille_offre:offer.famille_offre||null,formule_code:formula.code,formule_nom:formula.nom,
+        parcours_code:offer.parcours_code||offer.code,commercial_id:formData.commercial_id||null,total_hectares:hectares,superficie_ha:hectares,
+        montant_total_contrat:total,paiement_initial_montant:pi,montant_pi_total:pi,mensualite_montant:monthly,
+        duree_paiement_mois:Number(pricingOffer.duree_paiement_mois||offer.duree_paiement_mois||0),
+        montant_promo_applique:Number(price.reduction_montant||0)*hectares,promotion_id:price.promotion_id||null,updated_by:user.id,updated_at:new Date().toISOString()};
+      for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
+        const file=recoverFile(formData[field+"_file"],formData[field+"_preview"],field);
+        if(file){const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+existingClientId,"identity-"+field);if(!uploaded)throw new Error("Téléversement impossible : "+field);payload[column]=uploaded.path;}
+      }
+      const {error:clientError}=await offlineUpdate("clients",existingClientId,payload);
+      if(clientError)throw clientError;
+      if(existingAcquisitionId){
+        const {error:acquisitionError}=await offlineUpdate("acquisitions",existingAcquisitionId,{offre_id:offer.id,offre_nom:offer.nom,offre_code:offer.code,
+          famille_offre:offer.famille_offre||null,formule_code:formula.code,formule_nom:formula.nom,superficie_ha:hectares,
+          montant_total_contrat:total,montant_pi_total:pi,mensualite_montant:monthly,duree_paiement_mois:Number(pricingOffer.duree_paiement_mois||offer.duree_paiement_mois||0),
+          montant_promo_applique:Number(price.reduction_montant||0)*hectares,promotion_id:price.promotion_id||null,updated_at:new Date().toISOString()});
+        if(acquisitionError)throw acquisitionError;
+      }
+      toast({title:"Dossier mis à jour",description:"Les informations du client et de sa souscription ont été enregistrées sans créer de doublon."});
+      setEditExisting(false);
+    }catch(error:any){toast({variant:"destructive",title:"Modification impossible",description:getSafeErrorMessage(error)});}
+    finally{setSaving(false);}
+  };
+
   const autoResumeAttempted = useRef(false);
   useEffect(() => {
     const resumePendingSubmission = () => {
@@ -656,13 +784,13 @@ const NouvelleAcquisition = () => {
   };
 
   const last=current===activeSteps.length-1&&activeSteps.length>0;
-  return <ProtectedRoute requiredPermissionCode="clients.create"><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
-    <div><h1 className="text-3xl font-bold">Nouveau Client</h1><SyncStatusBadge state={syncState} className="mt-2"/></div>
-    <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>i<=current&&setCurrent(i)}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
-    <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:renderStep()}</Card>
-    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-      <Button variant="outline" onClick={()=>setCurrent(v=>Math.max(0,v-1))} disabled={current===0||saving||draftLoading||loadingSteps}><ChevronLeft className="mr-2 h-4 w-4"/>Précédent</Button>
-      {!last?<Button onClick={next} disabled={saving||draftLoading||loadingSteps}>{saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:<Button size="lg" onClick={() => void submit()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}
+  return <ProtectedRoute requiredPermission={recordId ? "clients.view" as any : PERMISSIONS.CREATE_ACQUISITION}><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl sm:text-3xl font-bold">{recordId?(existingRecord?.client?.nom_complet||"Fiche client"):"Nouveau Client"}</h1><p className="text-sm text-muted-foreground">{recordId?(editExisting?"Mode modification":"Consultation du dossier complet, étape par étape"):"Formulaire officiel de souscription"}</p>{!recordId&&<SyncStatusBadge state={syncState} className="mt-2"/>}</div>{recordId&&!editExisting&&canEditExisting&&<Button type="button" onClick={()=>setEditExisting(true)}>Modifier</Button>}</div>
+    <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} type="button" size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>{if(recordId||i<=current)setCurrent(i);}}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
+    <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:<fieldset disabled={Boolean(recordId&&!editExisting)} className="min-w-0">{renderStep()}</fieldset>}</Card>
+    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between"><Button variant="outline" onClick={()=>recordId&&editExisting?setEditExisting(false):navigate(-1)} disabled={saving||draftLoading||loadingSteps}>{recordId&&editExisting?"Annuler les modifications":"Retour"}</Button>
+      <div className="flex flex-wrap justify-end gap-2">{!recordId&&<Button variant="outline" onClick={()=>setCurrent(v=>Math.max(0,v-1))} disabled={current===0||saving||draftLoading||loadingSteps}><ChevronLeft className="mr-2 h-4 w-4"/>Précédent</Button>}
+      {!last?<Button onClick={next} disabled={saving||draftLoading||loadingSteps}>{recordId?"Étape suivante":saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:recordId?(editExisting?<Button size="lg" onClick={()=>void saveExistingRecord()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"Enregistrer les modifications"}</Button>:<Button size="lg" variant="outline" onClick={()=>navigate(-1)}>Fermer le dossier</Button>):<Button size="lg" onClick={()=>void submit()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}</div>
     </div>
   </div></MainLayout></ProtectedRoute>;
 };
