@@ -77,7 +77,6 @@ const Plantations = () => {
     const { data, error } = await (supabase as any)
       .from("clients")
       .select("id,id_unique,nom_complet,famille_offre,formule_code,formule_nom,is_internal")
-      .eq("is_internal", false)
       .order("nom_complet");
     if (error) {
       toast({ variant: "destructive", title: "Chargement des destinataires impossible", description: getSafeErrorMessage(error) });
