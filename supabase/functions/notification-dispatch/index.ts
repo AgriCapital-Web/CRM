@@ -72,7 +72,7 @@ async function sendWebPush(contact: Contact, title: string, body: string, dedupe
 
 type Contact = {
   source_type: string; source_id: string; user_id?: string | null;
-  nom_complet?: string | null; email?: string | null; telephone?: string | null; whatsapp?: string | null;
+  nom_complet?: string | null; email?: string | null; telephone?: string | null; telephone_secondaire?: string | null; whatsapp?: string | null;
   role_code?: string | null; offre_id?: string | null; offre_code?: string | null; offre_nom?: string | null;
 };
 
@@ -297,24 +297,28 @@ async function resolveContacts(criteria: Record<string, unknown>) {
   const prospectIds = [...new Set(rows.filter((row) => row.source_type === "prospect").map((row) => row.source_id))];
   const staffProfileIds = [...new Set(rows.filter((row) => row.source_type === "equipe").map((row) => row.source_id))];
   const [clientsResult, prospectsResult, staffResult] = await Promise.all([
-    clientIds.length ? admin.from("clients").select("id,whatsapp").in("id", clientIds) : Promise.resolve({ data: [], error: null }),
-    prospectIds.length ? admin.from("leads").select("id,whatsapp").in("id", prospectIds) : Promise.resolve({ data: [], error: null }),
-    staffProfileIds.length ? admin.from("profiles").select("id,whatsapp").in("id", staffProfileIds) : Promise.resolve({ data: [], error: null }),
+    clientIds.length ? admin.from("clients").select("id,whatsapp,telephone_secondaire").in("id", clientIds) : Promise.resolve({ data: [], error: null }),
+    prospectIds.length ? admin.from("leads").select("id,whatsapp,telephone_secondaire").in("id", prospectIds) : Promise.resolve({ data: [], error: null }),
+    staffProfileIds.length ? admin.from("profiles").select("id,whatsapp,telephone_secondaire").in("id", staffProfileIds) : Promise.resolve({ data: [], error: null }),
   ]);
   if (clientsResult.error) throw clientsResult.error;
   if (prospectsResult.error) throw prospectsResult.error;
   if (staffResult.error) throw staffResult.error;
-  const clientWhatsApp = new Map((clientsResult.data || []).map((row: any) => [row.id, row.whatsapp]));
-  const prospectWhatsApp = new Map((prospectsResult.data || []).map((row: any) => [row.id, row.whatsapp]));
-  const staffWhatsApp = new Map((staffResult.data || []).map((row: any) => [row.id, row.whatsapp]));
+  const clientContacts = new Map((clientsResult.data || []).map((row: any) => [row.id, row]));
+  const prospectContacts = new Map((prospectsResult.data || []).map((row: any) => [row.id, row]));
+  const staffContacts = new Map((staffResult.data || []).map((row: any) => [row.id, row]));
   const map = new Map<string, Contact>();
   for (const original of rows) {
-    const whatsapp = original.source_type === "prospect"
-      ? prospectWhatsApp.get(original.source_id)
+    const contactData:any = original.source_type === "prospect"
+      ? prospectContacts.get(original.source_id)
       : original.source_type === "equipe"
-        ? staffWhatsApp.get(original.source_id)
-        : clientWhatsApp.get(original.source_id);
-    const row: Contact = { ...original, whatsapp: typeof whatsapp === "string" && whatsapp.trim() ? whatsapp : null };
+        ? staffContacts.get(original.source_id)
+        : clientContacts.get(original.source_id);
+    const row: Contact = {
+      ...original,
+      whatsapp: typeof contactData?.whatsapp === "string" && contactData.whatsapp.trim() ? contactData.whatsapp : null,
+      telephone_secondaire: typeof contactData?.telephone_secondaire === "string" && contactData.telephone_secondaire.trim() ? contactData.telephone_secondaire : null,
+    };
     const key = row.user_id || row.email?.toLowerCase() || row.whatsapp || row.telephone || row.source_type + ":" + row.source_id;
     if (!map.has(key)) map.set(key, row);
   }
@@ -339,7 +343,11 @@ async function deliver(args: {
     const channels = args.canal === "email_sms"
       ? ["email", "sms"]
       : args.canal === "auto"
-        ? [primaryAutoChannel || "email", "email"]
+        ? (contact.whatsapp
+            ? ["whatsapp", "sms", "email"]
+            : contact.telephone
+              ? ["sms", "email"]
+              : ["email"])
         : [args.canal];
     for (const channel of [...new Set(channels)]) {
       if (channel === "app" && !contact.user_id && contact.source_type === "equipe") continue;
@@ -348,7 +356,7 @@ async function deliver(args: {
       const { data: existing } = await admin.from("notification_deliveries")
         .select("id,statut,created_at").eq("dedupe_key", dedupeKey).maybeSingle();
 
-      if (existing?.statut === "envoye" || existing?.statut === "livre" || existing?.statut === "en_cours") continue;
+      if (existing?.statut === "envoye" || existing?.statut === "livre" || existing?.statut === "en_cours") { if (args.canal === "auto") break; else continue; }
 
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
