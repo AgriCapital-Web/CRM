@@ -739,10 +739,9 @@ const Dashboard = () => {
 
           {!isClientOnly && (
             <div className="grid min-w-0 grid-cols-2 gap-2 md:grid-cols-6">
-              <div className="grid min-w-0 grid-cols-2 gap-2 md:col-span-2">
+
                 {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="flex min-w-0 w-full items-center justify-center whitespace-nowrap px-2 text-[11px] sm:text-sm" to="/nouvelle-acquisition"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau client</Link></Button>}
                 <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full min-w-0 items-center justify-center whitespace-nowrap px-2 text-[11px] sm:text-sm" to="/leads?new=1&type=prospect"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau prospect</Link></Button>
-              </div>
               {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/leads?new=1"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
               {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/paiements"><CreditCard className="mr-1 h-4 w-4 shrink-0" />Paiement</Link></Button>}
               {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/plantations"><Sprout className="mr-1 h-4 w-4 shrink-0" />Plantations</Link></Button>}
