@@ -106,7 +106,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [editingLead, setEditingLead] = useState<any>(null);
   const [conversionLeadId, setConversionLeadId] = useState<string | null>(null);
   const emptyLead = {
-    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", region_residence: "", lieu_residence: "",
+    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", telephone_secondaire: "", telephone_principal_whatsapp: false, telephone_secondaire_whatsapp: false, whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", region_residence: "", lieu_residence: "",
     type_lead: "client", civilite: "", etape_pipeline: "lead", offre_code: "", formule_code: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
@@ -308,7 +308,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         if (editingLead._record_type === "prospect" && !editingLead.lead_id) {
           const { error } = await offlineUpdate("prospects", editingLead.prospect_id || editingLead.id, {
             nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
-            telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+            telephone: leadForm.telephone, telephone_secondaire: leadForm.telephone_secondaire || null, telephone_principal_whatsapp: !!leadForm.telephone_principal_whatsapp, telephone_secondaire_whatsapp: !!leadForm.telephone_secondaire_whatsapp, whatsapp: leadForm.telephone_principal_whatsapp ? leadForm.telephone : leadForm.telephone_secondaire_whatsapp ? (leadForm.telephone_secondaire || null) : null, email: leadForm.email || null,
             district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
             departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
             village_id: leadForm.village_id || null, localite: leadForm.localite || null, region_residence: leadForm.region_residence || null,
@@ -869,8 +869,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                             </>}
                             <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={(e) => setLeadForm({ ...leadForm, nom: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
                             <div><Label>Prénom(s) *</Label><Input value={leadForm.prenoms} onChange={(e) => setLeadForm({ ...leadForm, prenoms: e.target.value.toLocaleUpperCase("fr-FR") })} /></div>
-                            <CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif||undefined} localValue={leadForm.telephone_local||""} onChange={v=>setLeadForm(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
-                            <CountryPhoneInput label="WhatsApp" countryCode={leadForm.whatsapp_indicatif||undefined} localValue={leadForm.whatsapp_local||""} onChange={v=>setLeadForm(x=>({...x,whatsapp_indicatif:v.callingCode,whatsapp_local:v.localValue,whatsapp:v.internationalValue}))}/>
+                            <div className="space-y-1"><CountryPhoneInput label="Téléphone principal" required countryCode={leadForm.telephone_indicatif||undefined} localValue={leadForm.telephone_local||leadForm.telephone||""} onChange={v=>setLeadForm(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!leadForm.telephone_principal_whatsapp} onCheckedChange={v=>setLeadForm(x=>({...x,telephone_principal_whatsapp:v===true,telephone_secondaire_whatsapp:v===true?false:x.telephone_secondaire_whatsapp}))}/>Ce numéro utilise WhatsApp</label></div>
+                            <div className="space-y-1"><CountryPhoneInput label="Téléphone secondaire" countryCode={leadForm.telephone_secondaire_indicatif||undefined} localValue={leadForm.telephone_secondaire_local||leadForm.telephone_secondaire||""} onChange={v=>setLeadForm(x=>({...x,telephone_secondaire_indicatif:v.callingCode,telephone_secondaire_local:v.localValue,telephone_secondaire:v.internationalValue}))}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!leadForm.telephone_secondaire_whatsapp} onCheckedChange={v=>setLeadForm(x=>({...x,telephone_secondaire_whatsapp:v===true,telephone_principal_whatsapp:v===true?false:x.telephone_principal_whatsapp}))}/>Ce numéro utilise WhatsApp</label></div>
                             <div><Label>Email</Label><Input type="email" value={leadForm.email} onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })} /></div>
               
                             <div className="sm:col-span-2">
