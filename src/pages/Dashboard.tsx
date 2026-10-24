@@ -165,7 +165,8 @@ const Dashboard = () => {
         portfoliosRes,
         regionsRes,
         monnaieRes,
-        directoryRes
+        directoryRes,
+        teamsRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations || globalAdmin
           ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
@@ -217,13 +218,23 @@ const Dashboard = () => {
           : Promise.resolve({ data: [] }),
         canCommercialTeamPerformance || canTechnicalTeamPerformance
           ? (supabase as any).from("profils_annuaire").select("id,user_id,nom_complet,equipe_id")
+          : Promise.resolve({ data: [] }),
+        canCommercialTeamPerformance || canTechnicalTeamPerformance
+          ? (supabase as any).from("equipes").select("id,nom,type_equipe")
           : Promise.resolve({ data: [] })
       ]);
 
       const clients = clientsRes.data || [];
       const acquisitionsForValidation = acquisitionsValidationRes.data || [];
       const acquisitions = acquisitionsRes.data || [];
+      const teamRows = teamsRes.data || [];
+      const teamNameById = new Map(teamRows.map((team: any) => [team.id, String(team.nom || "").trim()]));
       const activeAcquisitionStatuses = new Set(["active", "en_attente_activation", "en_attente_intervention", "en_attente_paiement", "en_cours", "valide"]);
+      const activeAcquisitionAreaByClient = new Map<string, number>();
+      acquisitions.filter((a: any) => activeAcquisitionStatuses.has(String(a.statut || "").toLowerCase()) || activeAcquisitionStatuses.has(String(a.statut_technique || "").toLowerCase())).forEach((a: any) => {
+        if (!a.client_id) return;
+        activeAcquisitionAreaByClient.set(a.client_id, (activeAcquisitionAreaByClient.get(a.client_id) || 0) + Math.max(0, Number(a.superficie_ha || 0)));
+      });
       const clientsWithAcquisitions = new Set(acquisitions
         .filter((a: any) => activeAcquisitionStatuses.has(String(a.statut || "").toLowerCase()) || activeAcquisitionStatuses.has(String(a.statut_technique || "").toLowerCase()))
         .map((a: any) => a.client_id)
@@ -489,8 +500,8 @@ const Dashboard = () => {
           if (!member.equipe_id) return;
           membersByTeam.set(member.equipe_id, (membersByTeam.get(member.equipe_id) || 0) + 1);
         });
-        if (canCommercialTeamPerformance) commercialClients.forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:"Équipe commerciale",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.clients+=1; row.hectares+=Number(cl.total_hectares||0); teamMap.set(key,row); });
-        if (canTechnicalTeamPerformance) interventions.forEach((i: any) => { const p=profileById.get(i.agent_technique_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="technique:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"technique",nom:"Équipe technique",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.interventions+=1; teamMap.set(key,row); });
+        if (canCommercialTeamPerformance) commercialClients.forEach((cl: any) => { const p=profileByUser.get(cl.commercial_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="commercial:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:teamNameById.get(teamId)||"Équipe commerciale",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.clients+=1; row.hectares+=activeAcquisitionAreaByClient.get(cl.id)||0; teamMap.set(key,row); });
+        if (canTechnicalTeamPerformance) interventions.forEach((i: any) => { const p=profileById.get(i.agent_technique_id) as any; const teamId=p?.equipe_id; if(!teamId)return; const key="technique:"+teamId; const row=teamMap.get(key)||{key,teamId,type:"technique",nom:teamNameById.get(teamId)||"Équipe technique",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0}; row.interventions+=1; teamMap.set(key,row); });
         setTeamPerformance([...teamMap.values()].sort((a,b)=>(b.clients+b.interventions)-(a.clients+a.interventions)).slice(0,10));
       }
 
