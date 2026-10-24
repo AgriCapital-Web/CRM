@@ -272,11 +272,11 @@ const Offres = () => {
     if (mensualites.length) return mensualites;
     const duree = Number(offre?.duree_paiement_mois) || 0;
     const mensuel = Number(offre?.mensualite_par_ha) || 0;
-    return mensuel > 0 && duree > 0 ? [{ annee: 1, mois_debut: 1, mois_fin: duree, mois: duree, mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * duree }] : [];
+    return mensuel > 0 && duree > 0 ? [{ mois_debut: 1, mois_fin: duree, mois: duree, type: "mensualite_unique", mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * duree }] : [];
   };
 
   const buildFormulaTranches = (duration: number, monthly: number) => [{
-    annee: 1, mois_debut: 1, mois_fin: duration, mois: duration, type: "mensualite_unique",
+    mois_debut: 1, mois_fin: duration, mois: duration, type: "mensualite_unique",
     mensualite_par_ha: monthly, total_periode_par_ha: monthly * duration,
   }];
 
@@ -531,8 +531,8 @@ const Offres = () => {
                                   </div>
                                   <div className="mt-2 space-y-1">
                                     {(Array.isArray(formula.tranches_paiement) ? formula.tranches_paiement : []).map((tranche: any, index: number) => (
-                                      <div key={tranche.annee || index} className="flex justify-between gap-2 rounded bg-background p-2 text-xs">
-                                        <span>{tranche.type === "mensualite_unique" ? `Mensualité unique · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois` : `An ${tranche.annee || index + 1} · ${tranche.mois || 12} mois`}</span>
+                                      <div key={`${tranche.mois_debut || index}-${tranche.mois_fin || tranche.mois || index}`} className="flex justify-between gap-2 rounded bg-background p-2 text-xs">
+                                        <span>{tranche.type === "mensualite_unique" ? `Mensualité unique · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois` : `Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois`}</span>
                                         <b>{formatMontant(Number(tranche.mensualite_par_ha || 0))} F/ha</b>
                                       </div>
                                     ))}
