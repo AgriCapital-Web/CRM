@@ -152,11 +152,13 @@ serve(async(req)=>{
     const acquisitionRows=acquisitionRes.data||[];
     const financialSubscriptions=acquisitionRows.filter((a:any)=>!["annule","annulee","annulée","cancelled","supprime","supprimee","supprimé","refuse","refusee","refusé"].includes(String(a.statut||"").toLowerCase()));
     const hasFinancialSubscriptions=financialSubscriptions.length>0;
-    const isStakeholder=(isOwner||isBeneficiary)&&!hasFinancialSubscriptions;
+    // Un compte propriétaire est toujours un espace foncier, jamais un compte de paiement.
+    // Un bénéficiaire particulier sans souscription financière reste également un compte non financier.
+    const isStakeholder=isOwner || (isBeneficiary && !hasFinancialSubscriptions);
     const portalRoles=[
       ...(isOwner?["proprietaire_foncier"]:[]),
       ...(isBeneficiary?["beneficiaire_particulier"]:[]),
-      ...(hasFinancialSubscriptions||(!isOwner&&!isBeneficiary)?["client"]:[])
+      ...(!isOwner && (hasFinancialSubscriptions||!isBeneficiary)?["client"]:[])
     ];
     if(configRes.error) throw configRes.error;
     if(referenceRes.error) throw referenceRes.error;
@@ -215,15 +217,17 @@ serve(async(req)=>{
 
     // L'état financier est exclusivement calculé en DB à partir des paiements validés.
     // Aucune échéance future n'est créée et aucune règle tarifaire n'est reproduite dans le portail.
-    const {data:paymentState,error:paymentStateError}=await supabase.rpc("portal_current_payment_state",{_client_id:client.id});
-    if(paymentStateError) throw paymentStateError;
-    const financialState=paymentState||{
+    const paymentStateResult = isStakeholder
+      ? {data:null,error:null}
+      : await supabase.rpc("portal_current_payment_state",{_client_id:client.id});
+    if(paymentStateResult.error) throw paymentStateResult.error;
+    const financialState=paymentStateResult.data||{
       paiement_initial:{montant_officiel:0,deja_paye:0,solde:0,disponible:false},
       mensualite:{montant:0,montant_a_payer:0,disponible:false,jours_retard:0,montant_arriere:0,hectares_actifs:0},
       total_paye:0
     };
     const plantationsWithPaymentState=await Promise.all(plantations.map(async (p:any)=>{
-      if(p.client_id!==client.id) return {...p,paiement_etat:null};
+      if(isStakeholder || p.client_id!==client.id) return {...p,paiement_etat:null};
       const {data:plantationPaymentState,error:plantationPaymentStateError}=await supabase.rpc("portal_plantation_payment_state",{_client_id:client.id,_plantation_id:p.id});
       if(plantationPaymentStateError){
         console.warn("[client-portal-data] État financier de plantation indisponible",{plantationId:p.id});
@@ -286,7 +290,7 @@ serve(async(req)=>{
       p.etapes=plantationInterventions.map((i:any)=>({
         key:i.type_intervention,type:i.type_intervention,statut:normalizeStatus(i.statut),date_realisation:i.date_intervention,commentaire:i.observations
       }));
-      p.taux_journalier_ha=dailyRate;
+      p.taux_journalier_ha=isStakeholder ? null : dailyRate;
     }
 
     const progressionKeys=(referenceRes.data||[]).map((x:any)=>[x.code,x.libelle]);
@@ -304,8 +308,8 @@ serve(async(req)=>{
     },portal_roles:portalRoles,portal_primary_role:hasFinancialSubscriptions?"client":(portalRoles[0]||"client"),
       is_proprietaire_foncier:isOwner,is_beneficiaire_particulier:isBeneficiary,
       promotion_active:client.promotions||null,
-      has_financial_subscriptions:hasFinancialSubscriptions,
-      financial_subscriptions:financialSubscriptions,
+      has_financial_subscriptions:isStakeholder ? false : hasFinancialSubscriptions,
+      financial_subscriptions:isStakeholder ? [] : financialSubscriptions,
       proprietaire:owner,
       parcelle:parcel,
       parcelles,
@@ -333,15 +337,33 @@ serve(async(req)=>{
     delete safe.user_id; delete safe.created_by; delete safe.updated_by; delete safe.numero_piece;
     delete safe.fichier_piece_url; delete safe.fichier_piece_recto_url; delete safe.fichier_piece_verso_url; delete safe.numero_compte;
     if(isStakeholder){
-      delete safe.offre_id; delete safe.offres; delete safe.famille_offre; delete safe.formule_code; delete safe.formule_nom;
-      delete safe.montant_total_contrat; delete safe.paiement_initial_montant; delete safe.paiement_initial_paye_at; delete safe.pi_paye_at;
-      delete safe.mensualite_montant; delete safe.prochaine_echeance; delete safe.paiement_personnalise; delete safe.jours_payes; delete safe.jours_retard;
-      delete safe.taux_journalier_ha; delete safe.taux_journalier_actuel_ha;
+      // Défense en profondeur : aucune donnée tarifaire ou de paiement ne quitte cette fonction
+      // pour un compte propriétaire/bénéficiaire, même si un ancien lien financier existe.
+      for (const key of Object.keys(safe)) {
+        if (/paiement|montant|solde|echeance|financier|finance|offre|promotion|commission|jours_payes|jours_retard|taux_journalier|acquisition|contrat|retard/i.test(key)) delete safe[key];
+      }
+      safe.portal_config = {
+        contact_telephone: portalConfig.contact_telephone,
+        contact_whatsapp: portalConfig.contact_whatsapp,
+        contact_email: portalConfig.contact_email,
+        plantation_densite_defaut: portalConfig.plantation_densite_defaut,
+      };
     }
+
+    const portalPlantations = isStakeholder
+      ? plantationsWithPaymentState.map((p:any) => {
+          const ownerPlantation:any = {...p, nom_plantation:"Plantation de la part du propriétaire", nom:"Plantation de la part du propriétaire", role_attribution:"part_proprietaire", paiement_etat:null, taux_journalier_ha:null};
+          for (const key of Object.keys(ownerPlantation)) {
+            if (/paiement|montant|solde|echeance|offre|promotion|commission|acquisition|client_id|lot_id|taux_journalier|alerte_non_paiement/i.test(key)) delete ownerPlantation[key];
+          }
+          return ownerPlantation;
+        })
+      : plantationsWithPaymentState;
 
     return json({
       success:true,client:safe,
-      portal_roles:portalRoles,parcelles,attributions,plantations:plantationsWithPaymentState,paiements,
+      portal_roles:portalRoles,parcelles,attributions,plantations:portalPlantations,
+      paiements:isStakeholder ? [] : paiements,
       notifications:notificationRows
     });
   }catch(e:any){
