@@ -24,12 +24,22 @@ function parseVCard(text: string): ImportedContact[] {
     const n = get("N");
     const parts = n.split(";").map((part) => part.trim());
     const phoneLines = lines.filter((line) => /^TEL(?:;|:)/i.test(line));
-    const phones = phoneLines.map((line) => line.split(":").slice(1).join(":").trim()).filter(Boolean);
-    const email = lines.find((line) => /^EMAIL(?:;|:)/i.test(line))?.split(":").slice(1).join(":").trim() || "";
+    const phoneEntries = phoneLines.map((line) => {
+      const colon = line.indexOf(":");
+      const metadata = colon >= 0 ? line.slice(0, colon) : line;
+      const value = colon >= 0 ? line.slice(colon + 1).trim() : "";
+      // Some address books export an explicit WhatsApp label in vCard TYPE/X-ABLABEL.
+      // This is source metadata only, not a live verification of a WhatsApp account.
+      const whatsappTagged = /WHATSAPP|X-ABLABEL[^:]*\\bWhatsApp\\b/i.test(metadata) || /WHATSAPP/i.test(value);
+      return { phone: normalizePhone(value), whatsappTagged };
+    }).filter((entry) => entry.phone);
+    const phones = phoneEntries.map((entry) => entry.phone);
+    const emailLines = lines.filter((line) => /^EMAIL(?:;|\.)/i.test(line) || /^EMAIL:/i.test(line));
+    const email = emailLines.map((line) => line.slice(line.indexOf(":") + 1).trim()).find(Boolean) || "";
     const name = fn || [parts[1], parts[0]].filter(Boolean).join(" ");
     const words = name.trim().split(/\s+/);
-    const phone = normalizePhone(phones[0] || "");
-    return { key: contactKey(name, phone) || String(index), nom: words.length > 1 ? words.slice(1).join(" ") : words[0] || "", prenoms: words.length > 1 ? words[0] : "", telephone: phone, telephone_secondaire: normalizePhone(phones[1] || ""), email, whatsapp_principal: false, whatsapp_secondaire: false, selected: Boolean(phone), source: "vCard" };
+    const phone = phones[0] || "";
+    return { key: contactKey(name, phone) || String(index), nom: words.length > 1 ? words.slice(1).join(" ") : words[0] || "", prenoms: words.length > 1 ? words[0] : "", telephone: phone, telephone_secondaire: phones[1] || "", email, whatsapp_principal: Boolean(phoneEntries[0]?.whatsappTagged), whatsapp_secondaire: Boolean(phoneEntries[1]?.whatsappTagged), selected: Boolean(phone), source: "vCard" };
   }).filter((item) => item.nom || item.prenoms || item.telephone || item.email);
 }
 function parseCsv(text: string): ImportedContact[] {
@@ -59,9 +69,9 @@ export default function ImportContacts() {
   const { toast } = useToast();
   const { user } = useAuth();
   const selected = contacts.filter((contact) => contact.selected && contact.telephone);
+  const filtered = useMemo(() => contacts.filter((contact) => [contact.nom, contact.prenoms, contact.telephone, contact.email].join(" ").toLowerCase().includes(search.toLowerCase())), [contacts, search]);
   const selectableFiltered = filtered.filter((contact) => Boolean(contact.telephone));
   const allFilteredSelected = selectableFiltered.length > 0 && selectableFiltered.every((contact) => contact.selected);
-  const filtered = useMemo(() => contacts.filter((contact) => [contact.nom, contact.prenoms, contact.telephone, contact.email].join(" ").toLowerCase().includes(search.toLowerCase())), [contacts, search]);
   const setContact = (key: string, patch: Partial<ImportedContact>) => setContacts((all) => all.map((contact) => contact.key === key ? { ...contact, ...patch } : contact));
   const mergeContacts = (incoming: ImportedContact[]) => {
     setContacts((previous) => {
