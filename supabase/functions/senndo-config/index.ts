@@ -64,10 +64,41 @@ Deno.serve(async (req) => {
           const response = await fetch("https://api.senndo.com/v1/wa/sessions", { headers: { authorization: "Bearer " + values.senndo_api_key, accept: "application/json" }, signal: AbortSignal.timeout(12000) });
           if (response.ok) {
             const payload = await response.json().catch(() => null);
-            const rawSessions = Array.isArray(payload) ? payload : Array.isArray(payload?.sessions) ? payload.sessions : Array.isArray(payload?.data?.sessions) ? payload.data.sessions : Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.items) ? payload.items : [];
-            const sessions = rawSessions.map((item: any) => item?.session && typeof item.session === "object"
-              ? { ...item.session, id: item.session.id ?? item.id, sessionId: item.session.sessionId ?? item.session.session_id ?? item.sessionId ?? item.session_id, senderSessionId: item.session.senderSessionId ?? item.senderSessionId, uuid: item.session.uuid ?? item.uuid }
-              : item);
+            const asArray = (value: any): any[] => Array.isArray(value) ? value : value && typeof value === "object" ? Object.values(value) : [];
+            const rawSessions = [
+              ...asArray(payload), ...asArray(payload?.sessions), ...asArray(payload?.data?.sessions),
+              ...asArray(payload?.data), ...asArray(payload?.items), ...asArray(payload?.results),
+              ...asArray(payload?.data?.items), ...asArray(payload?.data?.results),
+              ...asArray(payload?.session), ...asArray(payload?.data?.session),
+            ];
+            const seenSessions = new Set<any>();
+            const sessions = rawSessions
+              .filter((item: any) => item && typeof item === "object" && !seenSessions.has(item) && (seenSessions.add(item), true))
+              .map((item: any) => {
+                const nested = item.session && typeof item.session === "object" ? item.session
+                  : item.data?.session && typeof item.data.session === "object" ? item.data.session : null;
+                return nested ? {
+                  ...item, ...nested,
+                  id: nested.id ?? item.id,
+                  sessionId: nested.sessionId ?? nested.session_id ?? item.sessionId ?? item.session_id,
+                  senderSessionId: nested.senderSessionId ?? nested.sender_session_id ?? item.senderSessionId ?? item.sender_session_id,
+                  uuid: nested.uuid ?? item.uuid,
+                } : item;
+              });
+            const nestedObjects = (root: any, depth = 0): any[] => {
+              if (!root || typeof root !== "object" || depth > 5) return [];
+              return [root, ...Object.values(root).flatMap((value: any) => nestedObjects(value, depth + 1))];
+            };
+            const technicalSessionId = (session: any): string => {
+              const objects = nestedObjects(session);
+              const preferred = ["senderSessionId", "sender_session_id", "sessionId", "session_id", "uniqueSessionId", "unique_session_id", "sessionKey", "session_key", "sessionUid", "session_uid", "sessionIdentifier", "session_identifier", "instanceId", "instance_id", "deviceId", "device_id", "sid", "uuid", "id"];
+              for (const key of preferred) {
+                const value = objects.map((object: any) => object?.[key]).find((candidate: any) =>
+                  (typeof candidate === "string" && candidate.trim()) || (typeof candidate === "number" && Number.isFinite(candidate)));
+                if (value !== undefined) return String(value).trim();
+              }
+              return "";
+            };
             const normalizePhone = (value: unknown) => {
               const raw = String(value ?? "").split("@")[0].split(":")[0].replace(/\D/g, "");
               if (!raw) return "";
@@ -77,15 +108,21 @@ Deno.serve(async (req) => {
               return raw;
             };
             const phoneValues = (session: any) => [
-              session?.phoneNumber,session?.phone_number,session?.phone,session?.displayPhoneNumber,session?.display_phone_number,session?.number,session?.jid,
-              session?.user?.id,session?.user?.jid,session?.me?.id,session?.me?.jid,session?.account?.phone,session?.account?.phoneNumber,session?.profile?.phone,
-              session?.whatsapp?.phone,session?.session?.phoneNumber,session?.session?.phone_number,session?.session?.user?.id,session?.session?.me?.id,
-              session?.creds?.me?.id,session?.authState?.creds?.me?.id
+              session?.phoneNumber, session?.phone_number, session?.phone, session?.displayPhoneNumber,
+              session?.display_phone_number, session?.number, session?.jid, session?.user?.id,
+              session?.user?.jid, session?.me?.id, session?.me?.jid, session?.account?.phone,
+              session?.account?.phoneNumber, session?.profile?.phone, session?.whatsapp?.phone,
+              session?.session?.phoneNumber, session?.session?.phone_number, session?.session?.user?.id,
+              session?.session?.me?.id, session?.creds?.me?.id, session?.authState?.creds?.me?.id,
             ].filter((value) => (typeof value === "string" || typeof value === "number") && String(value).trim());
-            const connected = sessions.filter((session: any) => ["connected","open","ready","authenticated"].includes(String(session?.status ?? session?.state ?? session?.connectionStatus ?? session?.connection_status ?? session?.connection?.status ?? session?.session?.status ?? "").toLowerCase()));
+            const connected = sessions.filter((session: any) => ["connected", "open", "ready", "authenticated"].includes(String(
+              session?.status ?? session?.state ?? session?.connectionStatus ?? session?.connection_status ??
+              session?.connection?.status ?? session?.session?.status ?? ""
+            ).trim().toLowerCase()));
             const configuredDigits = normalizePhone(values.senndo_whatsapp_sender_phone);
             const matches = configuredDigits ? connected.filter((session: any) => phoneValues(session).some((value: unknown) => normalizePhone(value) === configuredDigits)) : [];
-            whatsappSessionStatus = matches.length === 1 ? "connected" : "disconnected";
+            const selectedSession = matches.length === 1 ? matches[0] : (matches.length === 0 && connected.length === 1 ? connected[0] : null);
+            whatsappSessionStatus = selectedSession && technicalSessionId(selectedSession) ? "connected" : "disconnected";
           }
         } catch { /* retain unknown when provider status cannot be queried */ }
       }
