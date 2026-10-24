@@ -79,15 +79,45 @@ const cibleOffre = (p: PromotionBase, offre: OffreBase) => {
   return ids.includes(String(offre.id)) || ids.includes(String(offre.code || ""));
 };
 
-export const promotionsEligibles = (offre: OffreBase, promotions: PromotionBase[], at: Date = new Date()) =>
-  promotions.filter(p => promotionActiveMaintenant(p, at) && cibleOffre(p, offre))
-    .sort((a,b) =>
-      num(b.pourcentage_reduction)-num(a.pourcentage_reduction) ||
-      num(b.montant_fixe_reduction)-num(a.montant_fixe_reduction) ||
-      String(b.created_at||"").localeCompare(String(a.created_at||"")));
+const reductionPotentielle = (
+  offre: OffreBase,
+  promotion: PromotionBase,
+  modePaiement: "echeancier" | "comptant" = "echeancier",
+) => {
+  const cible = promotionCible(promotion);
+  const pct = Math.min(100, Math.max(0, num(promotion.pourcentage_reduction))) / 100;
+  const fixe = Math.max(0, num(promotion.montant_fixe_reduction));
+  const cash = Math.max(0, num(offre.montant_cash_par_ha));
+  const total = modePaiement === "comptant" && cash > 0
+    ? cash : Math.max(0, num(offre.montant_total_par_ha));
+  const assiette = cible === "cout_global"
+    ? total
+    : modePaiement === "comptant" ? 0 : Math.max(0, num(offre.montant_pi_par_ha));
+  return Math.min(assiette, Math.max(0, assiette * pct + fixe));
+};
 
-export const meilleurePromotion = (offre: OffreBase, promotions: PromotionBase[], at: Date = new Date()) =>
-  promotionsEligibles(offre, promotions, at)[0] || null;
+export const promotionsEligibles = (
+  offre: OffreBase,
+  promotions: PromotionBase[],
+  at: Date = new Date(),
+  modePaiement: "echeancier" | "comptant" = "echeancier",
+) =>
+  promotions.filter(p =>
+    promotionActiveMaintenant(p, at) &&
+    cibleOffre(p, offre) &&
+    reductionPotentielle(offre, p, modePaiement) > 0
+  ).sort((a, b) =>
+    reductionPotentielle(offre, b, modePaiement) - reductionPotentielle(offre, a, modePaiement) ||
+    num(b.pourcentage_reduction) - num(a.pourcentage_reduction) ||
+    String(b.created_at || "").localeCompare(String(a.created_at || ""))
+  );
+
+export const meilleurePromotion = (
+  offre: OffreBase,
+  promotions: PromotionBase[],
+  at: Date = new Date(),
+  modePaiement: "echeancier" | "comptant" = "echeancier",
+) => promotionsEligibles(offre, promotions, at, modePaiement)[0] || null;
 
 const trancheBase = (t: TranchePaiement) => {
   const mensualite = Math.max(0, num(t.mensualite_par_ha));
@@ -126,10 +156,10 @@ export const calculPrixEffectif = (
   options: { modePaiement?: "echeancier" | "comptant"; at?: Date } = {},
 ): PrixEffectif => {
   const mode = options.modePaiement || "echeancier";
-  const promo = meilleurePromotion(offre, promotions, options.at);
+  const promo = meilleurePromotion(offre, promotions, options.at, mode);
   const cible = promo ? promotionCible(promo) : null;
-  const pct = num(promo?.pourcentage_reduction);
-  const fixe = num(promo?.montant_fixe_reduction);
+  const pct = Math.min(100, Math.max(0, num(promo?.pourcentage_reduction)));
+  const fixe = Math.max(0, num(promo?.montant_fixe_reduction));
   const piBase = Math.max(0, num(offre.montant_pi_par_ha));
   const cashBase = Math.max(0, num(offre.montant_cash_par_ha));
   const totalBase = mode === "comptant" && cashBase > 0 ? cashBase : Math.max(0, num(offre.montant_total_par_ha));
