@@ -408,7 +408,8 @@ const ClientDetail = () => {
   }, [isNewPlantationOpen, id, client?.proprietaire_id, client?.parcelle_id, toast]);
 
   const uploadAdditionalContract = async (acquisitionId: string) => {
-    if (!id || !newContractFile) return;
+    if (!id) throw new Error("Fiche client introuvable.");
+    if (!newContractFile) throw new Error("Sélectionnez le fichier du contrat avant de réessayer.");
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) throw new Error("Session utilisateur introuvable.");
     const uploaded = await uploadFile("documents", newContractFile, `${authData.user.id}/clients/${id}/contrats`, `contrat-acquisition-${acquisitionId}`);
@@ -711,7 +712,7 @@ const ClientDetail = () => {
               setNewAcquisitionFormData({ commercial_id: client?.commercial_id || "", mode_paiement: "echeancier" });
               setNewPlantationLotId("");
               setNewPlantationNotes("");
-              setNewContractFile(null);
+              if (!pendingContractAcquisitionId) setNewContractFile(null);
               setNewPlantationParcelId("");
             }
           }}>
