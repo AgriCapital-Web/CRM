@@ -48,7 +48,7 @@ const applyFormulaConfig = (offer: any, formula: any) => {
 };
 
 export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false }: Etape0Props) => {
-  const { data: promotionActive } = usePromotionActive(formData.offre_id);
+  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code);
   const [loadingCommercialDefault, setLoadingCommercialDefault] = useState(false);
 
   useEffect(() => {
