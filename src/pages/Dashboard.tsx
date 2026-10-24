@@ -170,7 +170,7 @@ const Dashboard = () => {
         teamMembersRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations || globalAdmin
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canClients || globalAdmin
           ? (supabase as any).from("clients").select("id,validation_statut")
@@ -233,7 +233,7 @@ const Dashboard = () => {
       const acquisitions = acquisitionsRes.data || [];
       const teamRows = teamsRes.data || [];
       const teamNameById = new Map(teamRows.map((team: any) => [team.id, String(team.nom || "").trim()]));
-      const activeAcquisitionStatuses = new Set(["active", "en_attente_activation", "en_attente_intervention", "en_attente_paiement", "en_cours", "valide"]);
+      const activeAcquisitionStatuses = new Set(["active", "en_attente_activation", "en_attente_intervention", "en_attente_paiement", "en_cours", "valide", "souscrite"]);
       const activeAcquisitionAreaByClient = new Map<string, number>();
       acquisitions.filter((a: any) => activeAcquisitionStatuses.has(String(a.statut || "").toLowerCase()) || activeAcquisitionStatuses.has(String(a.statut_technique || "").toLowerCase())).forEach((a: any) => {
         if (!a.client_id) return;
@@ -513,8 +513,10 @@ const Dashboard = () => {
         });
         const teamMap = new Map<string, any>();
         if (canCommercialTeamPerformance) commercialClients.forEach((cl: any) => {
-          const profile = (profileByUser.get(cl.commercial_id) || profileById.get(cl.commercial_id)) as any;
-          const teamIds = teamsByMember.get(String(cl.commercial_id)) || teamsByMember.get(String(profile?.id || "")) || teamsByMember.get(String(profile?.user_id || "")) || new Set<string>();
+          // Commercial affecté en priorité ; à défaut, créateur historique du dossier.
+          const responsibleId = cl.commercial_id || cl.created_by;
+          const profile = (profileByUser.get(responsibleId) || profileById.get(responsibleId)) as any;
+          const teamIds = teamsByMember.get(String(responsibleId || "")) || teamsByMember.get(String(profile?.id || "")) || teamsByMember.get(String(profile?.user_id || "")) || new Set<string>();
           teamIds.forEach((teamId) => {
             const key="commercial:"+teamId;
             const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:teamNameById.get(teamId)||"Équipe commerciale",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0};
