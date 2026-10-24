@@ -114,10 +114,29 @@ begin
          updated_by=v_client.created_by,updated_at=now()
    where acquisition_id=v_acquisition_id;
 
+  insert into public.beneficiaire_attributions(
+    client_id,parcelle_id,plantation_id,surface_attribuee_ha,role_attribution,statut,notes,created_by,updated_by
+  )
+  select p.client_id,p.parcelle_id,p.id,p.superficie_ha,'beneficiaire','active',
+         'Attribution liée à la souscription personnalisée PALMTERROIR de 0,43 ha à Kouassikankro — Camp Bethel; 58 plants.',
+         v_client.created_by,v_client.created_by
+    from public.plantations p
+   where p.acquisition_id=v_acquisition_id
+     and not exists(
+       select 1 from public.beneficiaire_attributions ba
+        where ba.client_id=p.client_id and ba.parcelle_id=p.parcelle_id
+          and ba.plantation_id=p.id and ba.statut='active'
+     );
+
   update public.clients set montant_total_contrat=87200,paiement_initial_montant=20000,montant_pi_total=20000,
     mensualite_montant=5600,duree_paiement_mois=12,montant_total_par_ha=v_total_per_ha,
     montant_pi_par_ha=v_pi_per_ha,mensualite_par_ha=v_monthly_per_ha,updated_by=v_client.created_by,updated_at=now()
   where id=v_client.id;
+
+  update public.clients c
+     set offre_code=o.code,offre_nom=o.nom,famille_offre=coalesce(c.famille_offre,o.famille_offre),updated_at=now()
+    from public.offres o
+   where c.id=v_client.id and o.id=c.offre_id;
 
   if not exists(select 1 from public.plantations where acquisition_id=v_acquisition_id) then
     raise exception 'La plantation n’a pas été créée par le workflow technique.';
