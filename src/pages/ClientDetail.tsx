@@ -79,6 +79,8 @@ const ClientDetail = () => {
   const [newPlantationParcelId, setNewPlantationParcelId] = useState("");
   const [newPlantationLotId, setNewPlantationLotId] = useState("");
   const [newPlantationNotes, setNewPlantationNotes] = useState("");
+  const [newContractFile, setNewContractFile] = useState<File | null>(null);
+  const [pendingContractAcquisitionId, setPendingContractAcquisitionId] = useState<string | null>(null);
   const [newAcquisitionFormData, setNewAcquisitionFormData] = useState<any>({ mode_paiement: "echeancier" });
   const [isRachatOpen,setIsRachatOpen]=useState(false);
   const [rachatJours,setRachatJours]=useState("1");
@@ -405,6 +407,35 @@ const ClientDetail = () => {
     return () => { active = false; };
   }, [isNewPlantationOpen, id, client?.proprietaire_id, client?.parcelle_id, toast]);
 
+  const uploadAdditionalContract = async (acquisitionId: string) => {
+    if (!id || !newContractFile) return;
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) throw new Error("Session utilisateur introuvable.");
+    const uploaded = await uploadFile("documents", newContractFile, `${authData.user.id}/clients/${id}/contrats`, `contrat-acquisition-${acquisitionId}`);
+    if (!uploaded?.path) throw new Error("Téléversement du contrat impossible.");
+    const { error } = await (supabase as any).from("documents_acquisition").insert({
+      client_id: id,
+      acquisition_id: acquisitionId,
+      type_document: "contrat_acquisition_client",
+      code_document: "contrat_acquisition_client",
+      categorie: "contrat",
+      obligatoire: true,
+      source_contractuelle: "contrat_acquisition_client",
+      fichier_url: uploaded.path,
+      statut: "en_attente",
+      uploaded_by: authData.user.id,
+      metadata: {
+        libelle: `Contrat de souscription additionnelle — ${newAcquisitionFormData.offre?.nom || newAcquisitionFormData.offre_nom || "Offre"}`,
+        storage_bucket: "documents",
+        source: "fiche_client",
+        acquisition_id: acquisitionId,
+        offre_id: newAcquisitionFormData.offre_id,
+        formule_code: newAcquisitionFormData.formule_code,
+      },
+    });
+    if (error) throw error;
+  };
+
   const saveAdditionalPlantation = async () => {
     if (!id || savingNewPlantation) return;
     if (!navigator.onLine) {
@@ -422,6 +453,15 @@ const ClientDetail = () => {
     }
     setSavingNewPlantation(true);
     try {
+      if (pendingContractAcquisitionId) {
+        await uploadAdditionalContract(pendingContractAcquisitionId);
+        setPendingContractAcquisitionId(null);
+        setNewContractFile(null);
+        setIsNewPlantationOpen(false);
+        toast({ title: "Contrat ajouté", description: "Le contrat a été rattaché à la souscription déjà enregistrée." });
+        await fetchData();
+        return;
+      }
       const { data, error } = await (supabase as any).rpc("create_client_acquisition", {
         p_client_id: id,
         p_offre_id: newAcquisitionFormData.offre_id,
@@ -433,6 +473,18 @@ const ClientDetail = () => {
         p_notes: newPlantationNotes.trim() || null,
       });
       if (error) throw error;
+      const acquisitionId = String(data?.acquisition_id || data?.id || "");
+      if (newContractFile) {
+        if (!acquisitionId) throw new Error("L’acquisition a été créée, mais son identifiant n’a pas été retourné; le contrat n’a pas pu être rattaché.");
+        try {
+          await uploadAdditionalContract(acquisitionId);
+        } catch (uploadError: any) {
+          setPendingContractAcquisitionId(acquisitionId);
+          toast({ variant: "destructive", title: "Acquisition enregistrée — contrat à joindre", description: getSafeErrorMessage(uploadError, "Réessayez l’envoi du contrat sans recréer l’acquisition.") });
+          await fetchData();
+          return;
+        }
+      }
       const total = Number(data?.montant_total_contrat || 0).toLocaleString("fr-FR");
       const pi = Number(data?.montant_pi_total || 0).toLocaleString("fr-FR");
       toast({
@@ -443,6 +495,8 @@ const ClientDetail = () => {
       setNewPlantationParcelId("");
       setNewPlantationLotId("");
       setNewPlantationNotes("");
+      setNewContractFile(null);
+      setPendingContractAcquisitionId(null);
       setNewAcquisitionFormData({ mode_paiement: "echeancier" });
       await fetchData();
     } catch (error: any) {
@@ -657,6 +711,7 @@ const ClientDetail = () => {
               setNewAcquisitionFormData({ commercial_id: client?.commercial_id || "", mode_paiement: "echeancier" });
               setNewPlantationLotId("");
               setNewPlantationNotes("");
+              setNewContractFile(null);
               setNewPlantationParcelId("");
             }
           }}>
@@ -679,6 +734,13 @@ const ClientDetail = () => {
                   showCommercial={false}
                   surfaceReadOnly={!!newPlantationLotId}
                 />
+
+                <div className="space-y-2 rounded-lg border p-3">
+                  <Label>Contrat de cette nouvelle offre (PDF, JPG ou PNG)</Label>
+                  <Input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onChange={e => setNewContractFile(e.target.files?.[0] || null)} />
+                  {newContractFile && <p className="text-xs text-muted-foreground">Fichier sélectionné : {newContractFile.name}</p>}
+                  {pendingContractAcquisitionId && <p className="text-xs text-amber-700">L’acquisition est déjà enregistrée. Le prochain clic réessaiera uniquement l’envoi du contrat, sans créer de doublon.</p>}
+                </div>
 
                 <div className="space-y-2">
                   <Label>Échéancier contractuel</Label>
