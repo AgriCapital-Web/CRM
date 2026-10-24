@@ -22,6 +22,7 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { useOffresPrixEffectif } from "@/hooks/useOffresPrixEffectif";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
+import { promotionCible } from "@/lib/pricing";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 
 type Offre = Tables<'offres'>;
@@ -395,6 +396,30 @@ const Offres = () => {
 
   const handleSubmitPromo = (e: React.FormEvent) => {
     e.preventDefault();
+    const pct = Number(promoFormData.pourcentage_reduction || 0);
+    const fixed = Number(promoFormData.montant_fixe_reduction || 0);
+    if (!promoFormData.nom.trim()) {
+      toast({ variant: "destructive", title: "Nom obligatoire", description: "Renseignez le nom de la promotion." });
+      return;
+    }
+    if (!promoFormData.date_debut || !promoFormData.date_fin || promoFormData.date_fin < promoFormData.date_debut) {
+      toast({ variant: "destructive", title: "Dates invalides", description: "La date de fin doit être égale ou postérieure à la date de début." });
+      return;
+    }
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100 || !Number.isFinite(fixed) || fixed < 0 || (pct === 0 && fixed === 0)) {
+      toast({ variant: "destructive", title: "Réduction invalide", description: "Indiquez une réduction positive : un pourcentage entre 0 et 100 et/ou un montant fixe positif." });
+      return;
+    }
+    if (!promoFormData.applique_toutes_offres) {
+      const activeIds = new Set((offres || []).filter((offre: any) => offre.actif).map((offre: any) => String(offre.id)));
+      const selectedIds = promoFormData.offre_ids.filter((id) => activeIds.has(String(id)));
+      if (selectedIds.length === 0) {
+        toast({ variant: "destructive", title: "Offres obligatoires", description: "Sélectionnez au moins une offre active." });
+        return;
+      }
+      savePromoMutation.mutate({ ...promoFormData, offre_ids: selectedIds });
+      return;
+    }
     savePromoMutation.mutate(promoFormData);
   };
 
@@ -411,8 +436,27 @@ const Offres = () => {
   };
 
   const calculateReducedAmount = (offreMontant: number, percentage: number, fixed = 0) => {
-    return Math.max(offreMontant - (offreMontant * percentage / 100) - fixed, 0);
+    const base = Math.max(0, Number(offreMontant) || 0);
+    const pct = Math.min(100, Math.max(0, Number(percentage) || 0));
+    const fixedAmount = Math.max(0, Number(fixed) || 0);
+    return Math.max(base - (base * pct / 100) - fixedAmount, 0);
   };
+
+  const previewOffer = (offres || []).find((offre: any) =>
+    offre.actif && (
+      promoFormData.applique_toutes_offres ||
+      promoFormData.offre_ids.includes(offre.id) ||
+      promoFormData.offre_ids.includes(offre.code)
+    )
+  );
+  const previewBaseAmount = previewOffer
+    ? Math.max(0, Number(promoFormData.cible === "cout_global" ? previewOffer.montant_total_par_ha : previewOffer.montant_pi_par_ha) || 0)
+    : 0;
+  const previewReducedAmount = calculateReducedAmount(
+    previewBaseAmount,
+    Number(promoFormData.pourcentage_reduction || 0),
+    Number(promoFormData.montant_fixe_reduction || 0)
+  );
 
   // Récupérer la promo active
   const activePromo = promotions?.find(p => {
@@ -748,27 +792,46 @@ const Offres = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="pourcentage">Pourcentage de réduction (%)</Label>
+                      <Label htmlFor="pourcentage">Réduction en pourcentage (%)</Label>
                       <div className="relative">
                         <Input
                           id="pourcentage"
                           type="number"
                           value={promoFormData.pourcentage_reduction}
                           onChange={(e) => setPromoFormData({...promoFormData, pourcentage_reduction: e.target.value})}
-                          min="1"
-                          max="99"
-
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          required
                         />
                         <Percent className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Aperçu indicatif</Label>
-                      <div className="p-2 bg-green-50 rounded border border-green-200">
-                        <p className="text-sm text-green-700">
-                          20 000F → {formatMontant(calculateReducedAmount(promoFormData.cible === "paiement_initial" ? 20000 : 100000, Number(promoFormData.pourcentage_reduction || "0"), Number((promoFormData as any).montant_fixe_reduction || 0)))}F
-                        </p>
+                      <Label htmlFor="montant-fixe-reduction">Réduction fixe (F CFA)</Label>
+                      <Input
+                        id="montant-fixe-reduction"
+                        type="number"
+                        value={promoFormData.montant_fixe_reduction}
+                        onChange={(e) => setPromoFormData({...promoFormData, montant_fixe_reduction: e.target.value})}
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Aperçu indicatif calculé depuis le tarif réel</Label>
+                      <div className="p-3 rounded border bg-muted/30">
+                        {previewOffer ? (
+                          <p className="text-sm">
+                            {previewOffer.nom} — {promoFormData.cible === "cout_global" ? "Coût global" : "Paiement initial"} :
+                            {" "}{formatMontant(previewBaseAmount)} F → <strong>{formatMontant(previewReducedAmount)} F</strong>
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Sélectionnez une offre active concernée pour afficher un aperçu fiable.</p>
+                        )}
                       </div>
                     </div>
                   </div>
