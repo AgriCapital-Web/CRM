@@ -43,7 +43,7 @@ const renderLeadTemplate = (template: string, lead: any) => {
   const fullName = [lead?.prenoms, lead?.nom].filter(Boolean).join(" ").trim();
   const vars: Record<string, string> = {
     nom: fullName, nom_complet: fullName, prenom: String(lead?.prenoms || fullName.split(/\s+/)[0] || ""),
-    telephone: String(lead?.telephone || ""), telephone_secondaire: String(lead?.telephone_secondaire || ""), telephone_secondaire_indicatif: String(lead?.telephone_secondaire_indicatif || ""), telephone_secondaire_local: String(lead?.telephone_secondaire_local || ""), telephone_principal_whatsapp: !!lead?.telephone_principal_whatsapp, telephone_secondaire_whatsapp: !!lead?.telephone_secondaire_whatsapp, whatsapp: String(lead?.whatsapp || lead?.telephone || ""),
+    telephone: String(lead?.telephone || ""), telephone_secondaire: String(lead?.telephone_secondaire || ""), telephone_secondaire_indicatif: String(lead?.telephone_secondaire_indicatif || ""), telephone_secondaire_local: String(lead?.telephone_secondaire_local || ""), telephone_principal_whatsapp: String(!!lead?.telephone_principal_whatsapp), telephone_secondaire_whatsapp: String(!!lead?.telephone_secondaire_whatsapp), whatsapp: String(lead?.whatsapp || lead?.telephone || ""),
     email: String(lead?.email || ""), numero_contrat: "", offre: "", montant: "", date: new Date().toLocaleDateString("fr-FR"),
   };
   return template.replace(/\{\{\s*([a-zA-Z0-9_ ]+)\s*\}\}|\{\s*([a-zA-Z0-9_ ]+)\s*\}/g, (_match, doubleKey, singleKey) => vars[String(doubleKey || singleKey || "").trim().replace(/\s+/g, "_")] ?? "");
@@ -112,7 +112,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
     statut: "nouveau", source: "commercial_terrain", assigned_to: "", commentaire: "",
   };
-  const [leadForm, setLeadForm] = useState<Record<string, string>>({ ...emptyLead, assigned_to: "" });
+  const [leadForm, setLeadForm] = useState<Record<string, any>>({ ...emptyLead, assigned_to: "" });
 
   const openOfficialLeadForm = (lead: any, mode: "view" | "edit") => {
     setSelected(null);
