@@ -228,10 +228,22 @@ const NouvelleAcquisition = () => {
         const acquisitionResult=await (supabase as any).from("acquisitions").select("*").eq("id",recordId).maybeSingle();
         if(acquisitionResult.error) throw acquisitionResult.error;
         acquisition=acquisitionResult.data;
-        const clientId=acquisition?.client_id||recordId;
-        const clientResult=await (supabase as any).from("clients").select("*").eq("id",clientId).maybeSingle();
-        if(clientResult.error) throw clientResult.error;
-        const client=clientResult.data;
+        let client:any = null;
+        if (acquisition?.client_id) {
+          const clientResult=await (supabase as any).from("clients").select("*").eq("id",acquisition.client_id).maybeSingle();
+          if(clientResult.error) throw clientResult.error;
+          client=clientResult.data;
+        } else {
+          const byId=await (supabase as any).from("clients").select("*").eq("id",recordId).maybeSingle();
+          if(byId.error) throw byId.error;
+          client=byId.data;
+          if(!client) {
+            const byBusinessId=await (supabase as any).from("clients").select("*").eq("id_unique",recordId).maybeSingle();
+            if(byBusinessId.error) throw byBusinessId.error;
+            client=byBusinessId.data;
+          }
+        }
+        const clientId=client?.id||acquisition?.client_id||recordId;
         if(!client) throw new Error("Dossier client introuvable.");
         if(!acquisition){
           const result=await (supabase as any).from("acquisitions").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
@@ -857,7 +869,7 @@ const NouvelleAcquisition = () => {
   return <ProtectedRoute requiredPermission={recordId ? "clients.view" as any : PERMISSIONS.CREATE_ACQUISITION}><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl sm:text-3xl font-bold">{recordId?(existingRecord?.client?.nom_complet||"Fiche client"):"Nouveau Client"}</h1><p className="text-sm text-muted-foreground">{recordId?(editExisting?"Mode modification":"Consultation du dossier complet, étape par étape"):"Formulaire officiel de souscription"}</p>{!recordId&&<SyncStatusBadge state={syncState} className="mt-2"/>}</div>{recordId&&!editExisting&&canEditExisting&&<Button type="button" onClick={()=>setEditExisting(true)}>Modifier</Button>}</div>
     <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} type="button" size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>{if(recordId||i<=current)setCurrent(i);}}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
-    <StoredAttachmentLinks formData={formData}/><Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:<fieldset disabled={Boolean(recordId&&!editExisting)} className="min-w-0">{renderStep()}</fieldset>}</Card>
+    <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:<fieldset disabled={Boolean(recordId&&!editExisting)} className="min-w-0">{renderStep()}</fieldset>}</Card>
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between"><Button variant="outline" onClick={()=>recordId&&editExisting?setEditExisting(false):navigate(-1)} disabled={saving||draftLoading||loadingSteps}>{recordId&&editExisting?"Annuler les modifications":"Retour"}</Button>
       <div className="flex flex-wrap justify-end gap-2">{!recordId&&<Button variant="outline" onClick={()=>setCurrent(v=>Math.max(0,v-1))} disabled={current===0||saving||draftLoading||loadingSteps}><ChevronLeft className="mr-2 h-4 w-4"/>Précédent</Button>}
       {!last?<Button onClick={next} disabled={saving||draftLoading||loadingSteps}>{recordId?"Étape suivante":saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:recordId?(editExisting?<Button size="lg" onClick={()=>void saveExistingRecord()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"Enregistrer les modifications"}</Button>:<Button size="lg" variant="outline" onClick={()=>navigate(-1)}>Fermer le dossier</Button>):<Button size="lg" onClick={()=>void submit()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}</div>
