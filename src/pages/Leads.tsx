@@ -384,7 +384,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       const record = {
         ...(formStage === "prospect" && conversionLeadId ? { lead_id: conversionLeadId } : {}),
         nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
-        telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+        telephone: leadForm.telephone, telephone_secondaire: leadForm.telephone_secondaire || null, telephone_secondaire_indicatif: leadForm.telephone_secondaire_indicatif || null, telephone_secondaire_local: leadForm.telephone_secondaire_local || null, telephone_principal_whatsapp: !!leadForm.telephone_principal_whatsapp, telephone_secondaire_whatsapp: !!leadForm.telephone_secondaire_whatsapp, whatsapp: leadForm.telephone_principal_whatsapp ? leadForm.telephone : leadForm.telephone_secondaire_whatsapp ? (leadForm.telephone_secondaire || null) : null, email: leadForm.email || null,
         district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
         departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
         village_id: leadForm.village_id || null, localite: leadForm.localite || null, region_residence: leadForm.region_residence || null,
