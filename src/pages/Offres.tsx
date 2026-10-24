@@ -83,6 +83,7 @@ const Offres = () => {
     date_fin: "",
     description: "",
     applique_toutes_offres: true,
+    offre_ids: [] as string[],
     cible: "paiement_initial",
     type_promotion: "paiement_initial",
   });
@@ -194,6 +195,7 @@ const Offres = () => {
         description: data.description,
         active: true,
         applique_toutes_offres: data.applique_toutes_offres,
+        offre_ids: data.applique_toutes_offres ? [] : data.offre_ids,
         cible: data.cible,
         type_promotion: data.cible,
       };
@@ -357,6 +359,7 @@ const Offres = () => {
       date_fin: "",
       description: "",
       applique_toutes_offres: true,
+      offre_ids: [],
       cible: "paiement_initial",
       type_promotion: "paiement_initial",
     });
@@ -373,6 +376,7 @@ const Offres = () => {
       date_fin: format(new Date(promo.date_fin), 'yyyy-MM-dd'),
       description: promo.description || "",
       applique_toutes_offres: promo.applique_toutes_offres ?? true,
+      offre_ids: Array.isArray((promo as any).offre_ids) ? (promo as any).offre_ids.map(String) : [],
       cible: promo.cible || (promo.type_promotion === "cout_global" ? "cout_global" : "paiement_initial"),
       type_promotion: promo.cible || (promo.type_promotion === "cout_global" ? "cout_global" : "paiement_initial"),
     });
@@ -685,6 +689,49 @@ const Offres = () => {
                     
                   </div>
 
+                  <div className="space-y-3 rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <Label>Offres concernées</Label>
+                        <p className="text-xs text-muted-foreground">Une promotion ciblée doit être liée aux identifiants réels des offres.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={promoFormData.applique_toutes_offres}
+                          onCheckedChange={(checked) => setPromoFormData({ ...promoFormData, applique_toutes_offres: checked, offre_ids: checked ? [] : promoFormData.offre_ids })}
+                          aria-label="Appliquer à toutes les offres"
+                        />
+                        <span className="text-sm">Toutes les offres</span>
+                      </div>
+                    </div>
+                    {!promoFormData.applique_toutes_offres && (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {(offres || []).filter((offre: any) => offre.actif).map((offre: any) => {
+                          const selected = promoFormData.offre_ids.includes(offre.id) || promoFormData.offre_ids.includes(offre.code);
+                          return (
+                            <label key={offre.id} className="flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(event) => setPromoFormData({
+                                  ...promoFormData,
+                                  offre_ids: event.target.checked
+                                    ? Array.from(new Set([...promoFormData.offre_ids, offre.id]))
+                                    : promoFormData.offre_ids.filter((value) => value !== offre.id && value !== offre.code),
+                                })}
+                                className="mt-1"
+                              />
+                              <span><span className="block font-medium">{offre.nom}</span><span className="text-xs text-muted-foreground">{offre.code}</span></span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!promoFormData.applique_toutes_offres && promoFormData.offre_ids.length === 0 && (
+                      <p className="text-xs text-destructive">Sélectionnez au moins une offre.</p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="pourcentage">Pourcentage de réduction (%)</Label>
@@ -751,7 +798,7 @@ const Offres = () => {
                     <Button type="button" variant="outline" onClick={() => setIsPromoDialogOpen(false)}>
                       Annuler
                     </Button>
-                    <Button type="submit" disabled={savePromoMutation.isPending}>
+                    <Button type="submit" disabled={savePromoMutation.isPending || (!promoFormData.applique_toutes_offres && promoFormData.offre_ids.length === 0)}>
                       {savePromoMutation.isPending ? "Enregistrement..." : "Enregistrer"}
                     </Button>
                   </div>
