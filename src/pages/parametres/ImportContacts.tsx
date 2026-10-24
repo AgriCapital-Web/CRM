@@ -110,8 +110,8 @@ export default function ImportContacts() {
     try {
       const phones = [...new Set(selected.map((contact) => normalizePhone(contact.telephone)).filter(Boolean))];
       const [leadLookup,prospectLookup] = await Promise.all([
-        (supabase as any).from("leads").select("telephone").in("telephone", phones),
-        (supabase as any).from("prospects").select("telephone").in("telephone", phones)
+        (supabase as any).from("leads").select("telephone").not("telephone","is",null).limit(10000),
+        (supabase as any).from("prospects").select("telephone").not("telephone","is",null).limit(10000)
       ]);
       if (leadLookup.error) throw leadLookup.error;
       if (prospectLookup.error) throw prospectLookup.error;
