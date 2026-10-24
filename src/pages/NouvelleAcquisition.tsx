@@ -702,7 +702,7 @@ const NouvelleAcquisition = () => {
       const effective=(key:string)=>formula[key]??(shared?offer[key]:null);
       const pricingOffer:any={...offer,formule_code:formula.code,formule_nom:formula.nom,montant_pi_par_ha:effective("montant_pi_par_ha"),
         montant_cash_par_ha:effective("montant_cash_par_ha"),mensualite_par_ha:effective("mensualite_par_ha"),
-        montant_total_par_ha:effective("montant_total_par_ha"),duree_paiement_mois:effective("duree_paiement_mois")};
+        montant_total_par_ha:effective("montant_total_par_ha"),duree_paiement_mois:effective("duree_paiement_mois"),tranches_paiement:effective("tranches_paiement")};
       const price=calculPrixEffectif(pricingOffer,promotionActive?[promotionActive as any]:[],{modePaiement:"echeancier"});
       const total=Number(price.montant_total_effectif||price.montant_total_base||0)*hectares;
       const pi=Number(price.pi_effectif||0)*hectares;
