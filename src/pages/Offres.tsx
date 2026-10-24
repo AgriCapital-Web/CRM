@@ -551,7 +551,7 @@ const Offres = () => {
                               <div className="mt-3 space-y-1">
                                 {tranches.filter((t: any) => Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0) > 0).map((t: any, i: number) => (
                                   <div key={i} className="flex min-w-0 justify-between gap-3 rounded-md bg-background p-2 text-xs">
-                                    <span>An {t.annee ?? i + 1} · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
+                                    <span>{t.type === "mensualite_unique" ? "Mensualité unique" : "Mensualité"} · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
                                     <span className="shrink-0 font-semibold">{formatMontant(Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0))} F/ha</span>
                                   </div>
                                 ))}
