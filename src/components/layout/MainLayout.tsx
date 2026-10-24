@@ -36,7 +36,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: LayoutDashboard, label: "Tableau de bord", path: "/dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: Users, label: "Leads et prospects", path: "/leads", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Acquisition", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
-    { icon: LandPlot, label: "Propriétaires fonciers", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
+    { icon: LandPlot, label: "Convention foncière", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
     { icon: Sprout, label: "Opérations techniques", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
