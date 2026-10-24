@@ -73,14 +73,14 @@ export const promotionActiveMaintenant = (p: PromotionBase, at: Date = new Date(
   return true;
 };
 
-const cibleOffre = (p: PromotionBase, offreId: string) => {
+const cibleOffre = (p: PromotionBase, offre: OffreBase) => {
   if (p.applique_toutes_offres) return true;
   const ids = Array.isArray(p.offre_ids) ? p.offre_ids.map(String) : [];
-  return ids.includes(String(offreId)) || ids.includes(String((offre as any).code || ""));
+  return ids.includes(String(offre.id)) || ids.includes(String(offre.code || ""));
 };
 
 export const promotionsEligibles = (offre: OffreBase, promotions: PromotionBase[], at: Date = new Date()) =>
-  promotions.filter(p => promotionActiveMaintenant(p, at) && cibleOffre(p, offre.id))
+  promotions.filter(p => promotionActiveMaintenant(p, at) && cibleOffre(p, offre))
     .sort((a,b) =>
       num(b.pourcentage_reduction)-num(a.pourcentage_reduction) ||
       num(b.montant_fixe_reduction)-num(a.montant_fixe_reduction) ||
