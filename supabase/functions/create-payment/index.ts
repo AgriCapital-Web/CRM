@@ -14,6 +14,15 @@ const phoneMatches = (a: unknown, b: unknown) => {
   const na = normalizePhone(a), nb = normalizePhone(b);
   return !!na && na === nb;
 };
+const normalizeIdentityName = (value: unknown) =>
+  String(value ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+const isOwnerPortalAccount = async (supabase: any, client: any): Promise<boolean> => {
+  if (client?.type_client === "proprietaire_foncier") return true;
+  if (!client?.proprietaire_id || !client?.nom_complet) return false;
+  const { data: owner } = await supabase.from("proprietaires_terres")
+    .select("nom_complet").eq("id", client.proprietaire_id).maybeSingle();
+  return Boolean(owner?.nom_complet && normalizeIdentityName(client.nom_complet) === normalizeIdentityName(owner.nom_complet));
+};
 const sha256 = async (value: string) => {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -33,10 +42,10 @@ const verifyPortalSession = async (supabase: any, token: unknown): Promise<strin
 
   const { data: client } = await supabase
     .from("clients")
-    .select("telephone,whatsapp,telephone_local,whatsapp_local,compte_actif,validation_statut,is_internal,type_client,proprietaire_id")
+    .select("telephone,whatsapp,telephone_local,whatsapp_local,compte_actif,validation_statut,is_internal,type_client,proprietaire_id,nom_complet")
     .eq("id", session.client_id)
     .maybeSingle();
-  if (!client || client.type_client === "proprietaire_foncier" || (!client.compte_actif && client.type_client !== "beneficiaire_particulier" && !(client.validation_statut === "valide" && !client.is_internal))) return null;
+  if (!client || await isOwnerPortalAccount(supabase, client) || (!client.compte_actif && client.type_client !== "beneficiaire_particulier" && !(client.validation_statut === "valide" && !client.is_internal))) return null;
 
   await supabase.from("client_portal_sessions")
     .update({
@@ -149,11 +158,11 @@ serve(async (req) => {
 
     const assertFinancialEligibility = async (clientId: string) => {
       const { data: client, error } = await supabase.from("clients")
-        .select("id,type_client,proprietaire_id,is_internal,contrat_solde_at,montant_total_contrat,compte_actif,validation_statut")
+        .select("id,type_client,proprietaire_id,nom_complet,is_internal,contrat_solde_at,montant_total_contrat,compte_actif,validation_statut")
         .eq("id", clientId).maybeSingle();
       if (error) throw error;
       if (!client) throw new Error("Client introuvable");
-      if (client.type_client === "proprietaire_foncier") throw new Error("Les propriétaires fonciers disposent d’un espace de suivi non financier.");
+      if (await isOwnerPortalAccount(supabase, client)) throw new Error("Les propriétaires fonciers disposent d’un espace de suivi non financier.");
       if (client.type_client === "beneficiaire_particulier") throw new Error("Les bénéficiaires particuliers ne disposent pas d’actions financières.");
       if (client.is_internal) throw new Error("Cet actif AgriCapital n’est pas encore transféré à un client.");
       const { data: summary, error: summaryError } = await supabase.from("v_client_synthese")
