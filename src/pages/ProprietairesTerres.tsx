@@ -538,6 +538,7 @@ const ProprietairesTerres = () => {
               <h1 className="text-2xl sm:text-3xl font-bold">Conventions foncières</h1>
               <p className="text-muted-foreground mt-1">{filtered.length} affiché(s) · {proprietaires.length} propriétaire(s)</p>
             </div>
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) { resetForm(); setEditingOwner(null); setOwnerReadOnly(false); } }}>
               {canCreateProprietaire && <DialogTrigger asChild>
                 <Button onClick={() => { resetForm(); setEditingOwner(null); setOwnerReadOnly(false); setActiveFormTab("identite"); }}><Plus className="mr-2 h-4 w-4" />Nouvelle convention</Button>
@@ -900,8 +901,6 @@ const ProprietairesTerres = () => {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
-
             {canValidateOwners && <Card>
               <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div>
@@ -913,6 +912,9 @@ const ProprietairesTerres = () => {
                 </Button>
               </CardContent>
             </Card>}
+            </div>
+          </div>
+
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <Card>
               <CardContent className="p-2 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0">
