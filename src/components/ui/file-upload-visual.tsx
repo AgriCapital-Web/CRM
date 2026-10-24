@@ -64,10 +64,23 @@ export const FileUploadVisual = ({
       setPreview(source);
       return () => { active = false; };
     }
-    const bucket = field === "photo" ? "photos-profils" : "pieces-identite";
-    void resolveStorageUrl(bucket, source).then((url) => {
-      if (active && url) setPreview(url);
-    }).catch(() => { if (active) setPreview(""); });
+    const fieldName = String(field || "").toLowerCase();
+    const buckets = fieldName.includes("photo") || fieldName.includes("profil")
+      ? ["photos-profils", "documents", "documents-fonciers", "pieces-identite"]
+      : fieldName.includes("foncier") || fieldName.includes("croquis") || fieldName.includes("convention") || fieldName.includes("parcelle")
+        ? ["documents-fonciers", "documents", "pieces-identite", "photos-profils"]
+        : fieldName.includes("contrat") || fieldName.startsWith("doc_") || fieldName.includes("document") || fieldName.includes("rapport")
+          ? ["documents", "documents-fonciers", "pieces-identite", "photos-profils"]
+          : ["pieces-identite", "documents", "documents-fonciers", "photos-profils"];
+    void (async () => {
+      for (const bucket of buckets) {
+        try {
+          const url = await resolveStorageUrl(bucket, source);
+          if (active && url) { setPreview(url); return; }
+        } catch { /* essayer le compartiment correspondant au type de fichier */ }
+      }
+      if (active) setPreview("");
+    })();
     return () => { active = false; };
   }, [currentPreview, existingPreview, existingCleared, field]);
 
