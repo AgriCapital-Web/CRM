@@ -394,7 +394,7 @@ const Clients = () => {
             <Card>
               <CardHeader><CardTitle className="text-base">Performance par équipe</CardTitle></CardHeader>
               <CardContent><div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {teamPerformance.map((team:any)=>{ const tech=String(team.type_equipe||"").toLowerCase().includes("technique"); return <div key={team.id} className="rounded-xl border p-3 flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{tech?"Équipe technique":"Équipe commerciale"}</p></div><div className="text-right"><p className="font-bold">{tech?team.interventions:team.clients}</p><p className="text-xs text-muted-foreground">{tech?"interventions":Math.round(Number(team.hectares||0)).toLocaleString("fr-FR")+" ha"}</p></div></div>; })}
+                {teamPerformance.map((team:any)=>{ const tech=String(team.type_equipe||"").toLowerCase().includes("technique"); return <div key={team.id} className="rounded-xl border p-3 flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{tech?"Équipe technique":"Équipe commerciale"}</p></div><div className="text-right"><p className="font-bold">{tech?team.interventions:team.clients}</p><p className="text-xs text-muted-foreground">{tech?"interventions":Number(team.hectares||0).toLocaleString("fr-FR",{maximumFractionDigits:2,minimumFractionDigits:0})+" ha"}</p></div></div>; })}
               </div></CardContent>
             </Card>
           )}
