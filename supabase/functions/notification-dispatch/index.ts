@@ -201,7 +201,13 @@ async function sendSms(contact: Contact, content: string, dedupeKey: string) {
     } catch (error) {
       lastError = error;
       if (index === candidates.length - 1) throw error;
-      console.warn("[Senndo SMS] Numéro principal en échec; essai du secondaire", { sourceId: contact.source_id });
+      const status = Number((error as any)?.status || (error as any)?.statusCode || 0);
+      const message = String((error as any)?.message || "");
+      const recipientRejected = [400,404,422].includes(status) || /invalid.{0,20}(phone|number|recipient)|(phone|number|recipient).{0,20}invalid/i.test(message);
+      // En cas de timeout ou d'erreur réseau, la livraison du premier SMS est incertaine :
+      // ne jamais envoyer sur le second numéro et risquer un doublon.
+      if (!recipientRejected) throw error;
+      console.warn("[Senndo SMS] Numéro principal explicitement refusé; essai du secondaire", { sourceId: contact.source_id, status });
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Échec de l’envoi SMS sur les numéros disponibles");
