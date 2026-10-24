@@ -334,12 +334,6 @@ async function deliver(args: {
   const needsSenndoMedia = args.canal === "whatsapp" || (args.canal === "auto" && args.contacts.some((contact) => Boolean(contact.whatsapp)));
   const preparedMedia = args.mediaAttachments?.length && needsSenndoMedia ? await prepareMedia(args.mediaAttachments) : [];
   for (const contact of args.contacts) {
-    const primaryAutoChannel = (() => {
-      if (args.canal !== "auto") return null;
-      const phone = (contact.telephone || contact.whatsapp || "").replace(/\s+/g, "");
-      const digits = phone.replace(/[^0-9]/g, "");
-      return contact.whatsapp ? "whatsapp" : (contact.telephone ? "sms" : "email");
-    })();
     const channels = args.canal === "email_sms"
       ? ["email", "sms"]
       : args.canal === "auto"
