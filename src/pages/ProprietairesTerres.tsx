@@ -679,7 +679,7 @@ const ProprietairesTerres = () => {
                       <div className="border-t pt-4">
                         <h4 className="font-semibold mb-3">Contact & Pièce d'identité</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <CountryPhoneInput label="Téléphone" required countryCode={formData.telephone_indicatif||undefined} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>updateFormPhone(v,"telephone")}/>
+                          <div className="space-y-2"><CountryPhoneInput label="Téléphone principal" required countryCode={formData.telephone_indicatif||undefined} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>updateFormPhone(v,"telephone")}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!formData.telephone_principal_whatsapp} onCheckedChange={v=>{update("telephone_principal_whatsapp",v===true);if(v===true)update("telephone_secondaire_whatsapp",false);}}/>Ce numéro utilise WhatsApp</label></div>
                           <CountryPhoneInput label="Téléphone secondaire" countryCode={formData.telephone_secondaire_indicatif||undefined} localValue={formData.telephone_secondaire_local||formData.telephone_secondaire||""} onChange={v=>updateFormPhone(v,"telephone_secondaire")}/>
                           
                           <div className="space-y-2">
