@@ -58,11 +58,11 @@ const queryClient = new QueryClient({
   },
 });
 
-const LegacyAcquisitionRedirect = () => {
+const LegacyAcquisitionFallback = () => {
   const location = useLocation();
-  const id = location.pathname.slice("/acquisition-".length).replace(/\\/$/, "");
-  if (!id || id.includes("/")) return <NotFound />;
-  return <Navigate to={`/acquisitions/${id}${location.search}`} replace />;
+  const match = location.pathname.match(/^\/acquisition-([^/]+)\/?$/);
+  if (match?.[1]) return <Navigate to={`/acquisitions/${match[1]}${location.search}`} replace />;
+  return <NotFound />;
 };
 
 const DomainRouter = () => {
@@ -103,7 +103,7 @@ const DomainRouter = () => {
       <Route path="/acquisitions/nouveau" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/validation" element={<ProtectedRoute><ValidationDossiers /></ProtectedRoute>} />
       <Route path="/nouvelle-acquisition" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
-      <Route path="/acquisition-*" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><LegacyAcquisitionRedirect /></ProtectedRoute>} />
+      
       <Route path="/acquisition/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
@@ -135,7 +135,7 @@ const DomainRouter = () => {
       <Route path="/parametres" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PARAMETRES}><Parametres /></ProtectedRoute>} />
 
       {/* 404 */}
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<LegacyAcquisitionFallback />} />
     </Routes>
   );
 };
