@@ -177,7 +177,7 @@ const Dashboard = () => {
           ? (supabase as any).from("acquisitions").select("id,client_id,statut,statut_technique,superficie_ha,parcelle_id,created_at")
           : Promise.resolve({ data: [] }),
         canPlantations || globalAdmin
-          ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
+          ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,acquisition_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
           : Promise.resolve({ data: [] }),
         canPayments || globalAdmin
           ? (supabase as any).from("paiements").select("id,client_id,plantation_id,montant,montant_paye,statut,date_paiement,date_echeance,type_paiement,mode_paiement,reference,est_paiement_initial,created_at").order("date_paiement", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
@@ -268,7 +268,7 @@ const Dashboard = () => {
       let plantedHa = scopedPlantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       let remainingHa = Math.max(0, engagedHa - plantedHa);
-      const productionRows = scopedPlantations.filter((p: any) => p.statut_global === "en_production");
+      const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
       const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       const pipelineLeads = leads.filter((l: any) => (l.etape_pipeline || "lead") === "lead");
       const pipelineProspects = leads.filter((l: any) => l.etape_pipeline === "prospect");
@@ -494,18 +494,16 @@ const Dashboard = () => {
         setTeamPerformance([...teamMap.values()].sort((a,b)=>(b.clients+b.interventions)-(a.clients+a.interventions)).slice(0,10));
       }
 
-      // Le pilotage technique est un parcours CLIENT, pas un simple comptage de lignes d'intervention.
-      // Dès que le paiement initial est validé, le dossier entre dans le périmètre technique.
-      // Les bénéficiaires restent visibles dans les tableaux, mais sont exclus des indicateurs clients.
-      const technicalClients = commercialClients.filter((c: any) =>
+      // Le pilotage technique couvre toutes les plantations et tous les parcours visibles,
+      // y compris les bénéficiaires particuliers ayant une intervention enregistrée.
+      const technicalClients = allExternalClients.filter((c: any) =>
         c.compte_actif === true &&
         !["archive", "supprime", "supprimé"].includes(String(c.statut_global || "").toLowerCase()) &&
         Boolean(c.paiement_initial_paye_at || c.pi_paye_at)
       );
-      const commercialClientIdsForTechnical = new Set(commercialClients.map((c: any) => c.id));
       const technicalClientIds = new Set([
         ...technicalClients.map((c: any) => c.id).filter(Boolean),
-        ...interventions.filter((i: any) => commercialClientIdsForTechnical.has(i.client_id)).map((i: any) => i.client_id).filter(Boolean),
+        ...interventions.map((i: any) => i.client_id).filter(Boolean),
       ]);
 
       const cycleTypes = [
