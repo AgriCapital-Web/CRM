@@ -186,10 +186,25 @@ async function sendEmail(contact: Contact, subject: string, content: string, ded
   return { provider: "senndo", messageId: result.id || null };
 }
 async function sendSms(contact: Contact, content: string, dedupeKey: string) {
-  if (!contact.telephone) throw new Error("Téléphone absent");
+  const candidates = [...new Set([contact.telephone, contact.telephone_secondaire].map((value) => String(value || "").trim()).filter(Boolean))];
+  if (!candidates.length) throw new Error("Aucun numéro de téléphone disponible");
   const client = await getSenndoClient();
-  const result = await client.sendMessage({ channel: "sms", to: contact.telephone, text: normalizeSms(content), senderId: "AgriCapital", idempotencyKey: dedupeKey });
-  return { provider: "senndo", messageId: result.id || null, content: normalizeSms(content) };
+  let lastError: unknown = null;
+  for (let index = 0; index < candidates.length; index++) {
+    const to = candidates[index];
+    try {
+      const result = await client.sendMessage({
+        channel: "sms", to, text: normalizeSms(content), senderId: "AgriCapital",
+        idempotencyKey: index === 0 ? dedupeKey : dedupeKey + ":telephone-secondaire",
+      });
+      return { provider: "senndo", messageId: result.id || null, content: normalizeSms(content), to };
+    } catch (error) {
+      lastError = error;
+      if (index === candidates.length - 1) throw error;
+      console.warn("[Senndo SMS] Numéro principal en échec; essai du secondaire", { sourceId: contact.source_id });
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Échec de l’envoi SMS sur les numéros disponibles");
 }
 async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderSessionId: string; senderPhone: string }> {
   const [{ data: apiKey, error: apiError }, { data: configuredPhone, error: phoneError }] = await Promise.all([
@@ -446,7 +461,7 @@ async function deliver(args: {
           const result = await sendSms(contact, assertSmsLength(normalizeSms(rendered)), dedupeKey);
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: String(result.messageId || ""),
-            contenu: result.content, sent_at: new Date().toISOString(),
+            contenu: result.content, recipient_phone: result.to, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         }
         sent++;
