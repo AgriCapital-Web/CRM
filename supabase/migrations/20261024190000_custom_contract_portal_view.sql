@@ -12,8 +12,18 @@ BEGIN
   );
   view_definition := replace(
     view_definition,
+    E'c_1.mensualite_montant,\n            c_1.prochaine_echeance',
+    E'c_1.mensualite_montant,\n            c_1.duree_paiement_mois,\n            c_1.prochaine_echeance'
+  );
+  view_definition := replace(
+    view_definition,
     'COALESCE(o.duree_paiement_mois, 34) AS duree_paiement_mois',
     'COALESCE(c.duree_paiement_mois, o.duree_paiement_mois, 34) AS duree_paiement_mois'
+  );
+  view_definition := replace(
+    view_definition,
+    'GREATEST(COALESCE(o.duree_paiement_mois, 34) -',
+    'GREATEST(COALESCE(c.duree_paiement_mois, o.duree_paiement_mois, 34) -'
   );
   EXECUTE 'CREATE OR REPLACE VIEW public.v_client_synthese AS ' || view_definition;
 END
