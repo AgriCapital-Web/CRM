@@ -388,15 +388,7 @@ const Clients = () => {
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Clients non plantés</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{clientsNotYetPlanted}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Aucune plantation enregistrée</p></CardContent></Card>
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-sm font-semibold">Clients par superficie</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-5 gap-2">
-              {surfaceCounts.map((band) => (
-                <Card key={band.key} className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground">{band.label}</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold">{band.count}</div><p className="mt-1 text-[10px] text-muted-foreground">Clients</p></CardContent></Card>
-              ))}
-              <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground">Autres superficies</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold">{otherSurfaceCount}</div><p className="mt-1 text-[10px] text-muted-foreground">À classer</p></CardContent></Card>
-            </div>
-          </div>
+
 
           {teamPerformance.length > 0 && (
             <Card>
