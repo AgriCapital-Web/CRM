@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -90,7 +91,7 @@ const Profil = () => {
     setSaving(true);
     try {
       const fields = [
-        "nom_complet", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
+        "nom_complet", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
         "type_piece_identite", "numero_piece_identite", "photo_url", "piece_identite_recto_url", "piece_identite_verso_url",
         "contact_urgence_nom", "contact_urgence_telephone1", "contact_urgence_telephone1_indicatif", "contact_urgence_telephone1_local", "contact_urgence_telephone2", "contact_urgence_telephone2_indicatif", "contact_urgence_telephone2_local", "contact_urgence_email", "contact_urgence_photo_url",
       ];
@@ -101,9 +102,11 @@ const Profil = () => {
         payload.telephone = profile.telephone || null;
         payload.telephone_indicatif = profile.telephone_indicatif || null;
         payload.telephone_local = profile.telephone_local || null;
-        payload.whatsapp = profile.whatsapp || null;
-        payload.whatsapp_indicatif = profile.whatsapp_indicatif || null;
-        payload.whatsapp_local = profile.whatsapp_local || null;
+        payload.whatsapp = profile.telephone_principal_whatsapp ? profile.telephone : profile.telephone_secondaire_whatsapp ? (profile.telephone_secondaire || null) : null;
+        payload.telephone_principal_whatsapp = !!profile.telephone_principal_whatsapp;
+        payload.telephone_secondaire_whatsapp = !!profile.telephone_secondaire_whatsapp;
+        payload.whatsapp_indicatif = null;
+        payload.whatsapp_local = null;
         payload.username = profile.username || null;
         payload.poste = profile.poste || null;
       }
@@ -186,15 +189,9 @@ const Profil = () => {
               <div><Label>Nom complet</Label><Input className="h-9 text-sm" value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-9 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
-              <div className="min-w-0 w-full">
-                <CountryPhoneInput
-                  label="Téléphone principal"
-                  compact
-                  countryCode={profile.telephone_indicatif || undefined}
-                  localValue={profile.telephone_local || profile.telephone || ""}
-                  disabled={!isAdmin}
-                  onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }}
-                />
+              <div className="min-w-0 w-full space-y-2">
+                <CountryPhoneInput label="Téléphone principal" compact countryCode={profile.telephone_indicatif || undefined} localValue={profile.telephone_local || profile.telephone || ""} disabled={!isAdmin} onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }} />
+                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_principal_whatsapp} disabled={!isAdmin} onCheckedChange={(v) => { set("telephone_principal_whatsapp",v===true); if(v===true)set("telephone_secondaire_whatsapp",false); }} />Ce numéro utilise WhatsApp</label>
               </div>
               <div><Label>Email secondaire</Label><Input className="h-9 text-sm" type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
               <div className="min-w-0 w-full">
@@ -206,14 +203,8 @@ const Profil = () => {
                 onChange={(v) => { set("telephone_secondaire_indicatif", v.callingCode); set("telephone_secondaire_local", v.localValue); set("telephone_secondaire", v.internationalValue); }}
               />
               </div>
-              <div className="min-w-0 w-full">
-              <CountryPhoneInput
-                label="WhatsApp"
-                compact
-                countryCode={profile.whatsapp_indicatif || undefined}
-                localValue={profile.whatsapp_local || profile.whatsapp || ""}
-                onChange={(v) => { set("whatsapp_indicatif", v.callingCode); set("whatsapp_local", v.localValue); set("whatsapp", v.internationalValue); }}
-              />
+              <div className="min-w-0 w-full space-y-2">
+                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_secondaire_whatsapp} onCheckedChange={(v) => { set("telephone_secondaire_whatsapp",v===true); if(v===true)set("telephone_principal_whatsapp",false); }} />Le téléphone secondaire utilise WhatsApp</label>
               </div>
               <div><Label>Ville</Label><Input className="h-9 text-sm" value={profile.ville || ""} onChange={(e) => set("ville", e.target.value)} /></div>
               <div><Label>Quartier</Label><Input className="h-9 text-sm" value={profile.quartier || ""} onChange={(e) => set("quartier", e.target.value)} /></div>
