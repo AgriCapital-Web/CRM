@@ -1398,7 +1398,7 @@ table td :is(span, p, a, div) { min-width: 0; }
   .user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
     padding-top: 0.45rem;
   }
-  .user-edit-compact .grid.grid-cols-1.sm\\:grid-cols-2 {
+  .user-edit-compact .grid.grid-cols-1.sm\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1412,10 +1412,10 @@ table td :is(span, p, a, div) { min-width: 0; }
   .user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
     padding: 0.4rem 0.6rem 0.6rem;
   }
-  .user-edit-compact .grid.grid-cols-1.sm\\:grid-cols-2 {
+  .user-edit-compact .grid.grid-cols-1.sm\:grid-cols-2 {
     grid-template-columns: minmax(0, 1fr);
   }
-  .user-edit-compact .grid.grid-cols-1.sm\\:grid-cols-2 > * {
+  .user-edit-compact .grid.grid-cols-1.sm\:grid-cols-2 > * {
     min-width: 0;
   }
 }

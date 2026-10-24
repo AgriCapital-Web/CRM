@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { RefreshCw, Save, Users, Wrench, MapPinned } from "lucide-react";
+import { RefreshCw, Save, Users, Wrench } from "lucide-react";
 
 type Rule = {
   id: string;
@@ -29,7 +29,6 @@ const RULES = {
   essentialRecovery: "COMMERCIAL_REC_ESSENTIEL",
   flexibleSale: "COMMERCIAL_ACQUISITION_FLEXIBLE",
   flexibleRecovery: "COMMERCIAL_REC_FLEXIBLE",
-  land: "MOBILISATEUR_FONCIER_PAR_HA",
   technical: "TECHNIQUE_MISE_EN_TERRE",
 } as const;
 
@@ -43,8 +42,8 @@ export default function GestionRemuneration() {
   const load = async () => {
     setLoading(true);
     const { data, error } = await (supabase as any).from("grille_remuneration").select("*")
-      .in("role_cible", ["commercial", "mobilisateur_foncier", "equipe_technique"])
-      .in("type_remuneration", ["acquisition", "recouvrement_mensuel", "mobilisation_fonciere", "commission_technique"]);
+      .in("role_cible", ["commercial", "equipe_technique"])
+      .in("type_remuneration", ["acquisition", "recouvrement_mensuel", "commission_technique"]);
     if (error) toast({ variant: "destructive", title: "Rémunération indisponible", description: error.message });
     else setRows((data || []) as Rule[]);
     setLoading(false);
@@ -83,9 +82,11 @@ export default function GestionRemuneration() {
           }
         }
       }
+      const { error: recalculationError } = await (supabase as any).rpc("recalculer_commissions_depuis_grille");
+      if (recalculationError) throw recalculationError;
       // Les règles de rémunération sont consommées par plusieurs modules (paiements, finance, commissions et tableaux de bord).
       await queryClient.invalidateQueries();
-      toast({ title: "Rémunération enregistrée", description: "Les nouveaux paiements utiliseront les règles mises à jour. Les commissions déjà calculées et les paiements historiques sont conservés." });
+      toast({ title: "Enregistré" });
       await load();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Enregistrement impossible", description: error?.message || "Une erreur est survenue." });
@@ -111,33 +112,22 @@ export default function GestionRemuneration() {
   };
 
   return <div className="space-y-4">
-    <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0"><h2 className="text-lg font-semibold">Rémunération et commissions</h2><p className="text-sm text-muted-foreground">Configurez une seule règle de vente et une seule règle de recouvrement par famille d’offres. Les modifications s’appliquent aux nouveaux paiements sans réécrire les commissions déjà calculées.</p></div>
-      <div className="flex shrink-0 gap-2">
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
-        <Button size="sm" onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />Enregistrer</Button>
-      </div>
+    <div className="flex justify-end gap-2">
+      <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
+      <Button size="sm" onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />Enregistrer</Button>
     </div>
     {loading ? <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Chargement…</div> : <Tabs defaultValue="commercial" className="space-y-4">
-      <TabsList className="grid h-auto w-full grid-cols-3">
+      <TabsList className="grid h-auto w-full grid-cols-2">
         <TabsTrigger value="commercial" className="gap-2 py-2"><Users className="h-4 w-4" /><span>Commercial</span></TabsTrigger>
         <TabsTrigger value="technique" className="gap-2 py-2"><Wrench className="h-4 w-4" /><span>Technique</span></TabsTrigger>
-        <TabsTrigger value="foncier" className="gap-2 py-2"><MapPinned className="h-4 w-4" /><span>Mobilisateur foncier</span></TabsTrigger>
-      </TabsList>
+        </TabsList>
 
       <TabsContent value="commercial" className="space-y-4">
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">PalmInvest</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-base">PalmInvest / TerraPalm</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             <RuleEditor code={RULES.partnerSale} label="Commission de vente — paiement unique" unit="money" />
-            <RuleEditor code={RULES.partnerRecovery} label="Pourcentage de commission sur chaque mensualité encaissée" unit="percent" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">TerraPalm</CardTitle></CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <RuleEditor code={RULES.partnerSale} label="Commission de vente — paiement unique (règle commune PalmInvest/TerraPalm)" unit="money" />
-            <RuleEditor code={RULES.partnerRecovery} label="Pourcentage de commission sur chaque mensualité encaissée (règle commune PalmInvest/TerraPalm)" unit="percent" />
+            <RuleEditor code={RULES.partnerRecovery} label="Commission sur chaque mensualité encaissée" unit="percent" />
           </CardContent>
         </Card>
         <Card>
@@ -167,10 +157,7 @@ export default function GestionRemuneration() {
         </CardContent></Card>
       </TabsContent>
 
-      <TabsContent value="foncier">
-        <Card><CardHeader className="pb-3"><CardTitle className="text-base">Mobilisation foncière</CardTitle></CardHeader><CardContent><RuleEditor code={RULES.land} label="Prime par hectare — propriétaire validé" unit="money" /></CardContent></Card>
-      </TabsContent>
     </Tabs>}
-    <p className="text-xs text-muted-foreground">Règles de référence : vente 10 000 F CFA par offre ; recouvrement 2,5 % par mensualité pour PalmInvest, TerraPalm et les formules PalmTerroir ; commission technique 5 000 F CFA par intervention ; recouvrement mensuel 2,5 % selon les formules éligibles. Les modifications enregistrées doivent recalculer les commissions non payées.</p>
+
   </div>;
 }

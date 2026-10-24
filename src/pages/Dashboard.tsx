@@ -347,7 +347,9 @@ const Dashboard = () => {
         return { client: c, total, paid, remaining: settled ? 0 : Math.max(0, total - paid), pct: settled ? 100 : total > 0 ? Math.min(100, Math.round((paid * 100) / total)) : 0 };
       });
       const avgProgress = contractProgress.length ? Math.round(contractProgress.reduce((s: number, r: any) => s + r.pct, 0) / contractProgress.length) : 0;
-      const forecastRevenue = contractRows.reduce((s: number, c: any) => s + Number(c.montant_total_contrat || 0), 0);
+      // Un contrat soldé ne conserve que son encaissement réel dans le prévisionnel.
+      // Cela évite de compter une seconde fois un solde annulé/abandonné à la clôture.
+      const forecastRevenue = contractProgress.reduce((sum: number, row: any) => sum + (row.client.contrat_solde_at ? row.paid : row.total), 0);
       const dueAmount = contractProgress.reduce((s: number, r: any) => s + r.remaining, 0);
       const settledClients = contractProgress.filter((r: any) => r.total > 0 && r.remaining <= 0).length;
 
@@ -615,9 +617,13 @@ const Dashboard = () => {
       ] : []),
     ]},
     { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
-      ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"},{label:"Surface déclarée",value:num(stats.ownerAreaHa)+" ha",href:"/proprietaires-terres"}] : []),
-
-      ...(canParcelles || canPlantations ? [{label:"Parcelles",value:stats.proprietaireParcelles,href:"/parcelles"},{label:"Surface partenaire",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},{label:"Plantée partenaire",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},{label:"Restante partenaire",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},{label:"Part propriétaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/proprietaires-terres"},{label:"Plantée propriétaire",value:num(stats.partnerOwnerPlantedHa)+" ha",href:"/plantations"},{label:"Restante propriétaire",value:num(stats.partnerOwnerRemainingHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},{label:"Part AgriCapital cédée",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},{label:"Part AgriCapital disponible",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},{label:"Parcelles clients",value:stats.clientParcelCount,href:"/parcelles"},{label:"Surface parcelles clients",value:num(stats.clientParcelAreaHa)+" ha",href:"/parcelles"}] : []),
+      ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
+      ...(canParcelles || canPlantations ? [
+        {label:"Parcelles partenaires",value:stats.proprietaireParcelles,href:"/parcelles"},
+        {label:"Surface partenaire",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
+        {label:"Surface plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
+        {label:"Surface restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},
+      ] : []),
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations",value:stats.plantations,href:"/plantations"},
@@ -625,10 +631,6 @@ const Dashboard = () => {
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
       {label:"Taux de plantation",value:progress+"%",href:"/plantations"},
-      {label:"Nb plantations int.",value:stats.internalPlantations,href:"/plantations"},
-      {label:"S. interne",value:num(stats.internalAreaHa)+" ha",href:"/plantations"},
-      {label:"S. plantée interne",value:num(stats.internalPlantedHa)+" ha",href:"/plantations"},
-      {label:"S. restante interne",value:num(stats.internalRemainingHa)+" ha",href:"/plantations"},
       {label:"En production",value:stats.production,href:"/plantations?statut=en_production"},
       {label:"Surface en production",value:num(stats.productionHa)+" ha",href:"/plantations?statut=en_production"},
     ]},
@@ -671,15 +673,15 @@ const Dashboard = () => {
           </div>
 
           {!isClientOnly && (
-            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <div className="grid min-w-0 grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2 lg:col-span-1">
-                {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="flex min-w-0 w-full flex-wrap items-center justify-center whitespace-normal break-words px-2 text-xs sm:text-sm" to="/nouvelle-acquisition"><Plus className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />Nouveau client</Link></Button>}
-                <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-2 text-xs sm:text-sm" to="/leads?new=1&type=prospect"><Plus className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />Nouveau prospect</Link></Button>
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2 lg:col-span-2 xl:col-span-2">
+                {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="flex min-w-0 w-full items-center justify-center whitespace-nowrap px-2 text-[11px] sm:text-sm" to="/nouvelle-acquisition"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau client</Link></Button>}
+                <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full min-w-0 items-center justify-center whitespace-nowrap px-2 text-[11px] sm:text-sm" to="/leads?new=1&type=prospect"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau prospect</Link></Button>
               </div>
-              {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full min-w-0 flex-wrap items-center justify-center whitespace-normal break-words" to="/leads?new=1"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
-              {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/paiements"><CreditCard className="mr-2 h-4 w-4 shrink-0" />Paiement</Link></Button>}
-              {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/plantations"><Sprout className="mr-2 h-4 w-4 shrink-0" />Plantations</Link></Button>}
-              {canValidateDocuments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/acquisitions/validation"><FileCheck className="mr-2 h-4 w-4 shrink-0" />Dossiers à valider</Link></Button>}
+              {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/leads?new=1"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
+              {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/paiements"><CreditCard className="mr-1 h-4 w-4 shrink-0" />Paiement</Link></Button>}
+              {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/plantations"><Sprout className="mr-1 h-4 w-4 shrink-0" />Plantations</Link></Button>}
+              {canValidateDocuments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/acquisitions/validation"><FileCheck className="mr-1 h-4 w-4 shrink-0" />Dossiers à valider</Link></Button>}
             </div>
           )}
 
@@ -874,19 +876,7 @@ const Dashboard = () => {
                   </Card>
                 )}
 
-                {canClients && stats.clients > 0 && topClients.some((g: any) => g.count > 0) && (
-                  <Card className="lg:col-span-1">
-                    <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Award className="h-5 w-5 text-primary" />Nombre de clients par superficie</CardTitle></CardHeader>
-                    <CardContent className="space-y-2">
-                      {topClients.filter((group: any) => group.count > 0).map((group: any) => (
-                        <div key={group.label} className="flex items-center justify-between rounded-lg border p-2.5">
-                          <span className="text-sm font-medium">{group.label}</span>
-                          <span className="shrink-0 text-sm font-semibold">{group.count} client{group.count > 1 ? "s" : ""}</span>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
+
               </div>
 
               {canTechnical && cycle.some((c: any) => c.total > 0) && (
