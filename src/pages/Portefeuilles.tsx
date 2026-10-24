@@ -86,8 +86,9 @@ export default function Portefeuilles(){
       versementRows.filter((v:any)=>["paye","partiellement_paye"].includes(v.statut)).forEach((v:any)=>paidPayoutsByProfile.set(v.profile_id,(paidPayoutsByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
       const partialPaidByProfile=new Map<string,number>();
       versementRows.filter((v:any)=>v.statut==="partiellement_paye").forEach((v:any)=>partialPaidByProfile.set(v.profile_id,(partialPaidByProfile.get(v.profile_id)||0)+Number(v.montant_paye||0)));
+      const activeCommissions = commissionsData.filter((row:any) => row.statut !== "annule");
       const commissionTotals=new Map<string,{gagne:number,solde:number,verse:number}>();
-      commissionsData.forEach((row:any)=>{const totals=commissionTotals.get(row.profile_id)||{gagne:0,solde:0,verse:0};const amount=Number(row.montant_commission||0);if(["calculee","validee","payee"].includes(row.statut))totals.gagne+=amount;if(["calculee","validee"].includes(row.statut))totals.solde+=amount;commissionTotals.set(row.profile_id,totals);});
+      activeCommissions.forEach((row:any)=>{const totals=commissionTotals.get(row.profile_id)||{gagne:0,solde:0,verse:0};const amount=Number(row.montant_commission||0);if(["calculee","validee","payee"].includes(row.statut))totals.gagne+=amount;if(["calculee","validee"].includes(row.statut))totals.solde+=amount;commissionTotals.set(row.profile_id,totals);});
       const visibleWalletRows=profilesData.map((profile:any)=>{
         const wallet=walletRows.find((x:any)=>x.user_id===profile.user_id);
         const totals=commissionTotals.get(profile.id)||{gagne:0,solde:0,verse:0};
@@ -97,7 +98,7 @@ export default function Portefeuilles(){
       }).filter(Boolean);
       setProfiles(profilesData);
       setPortefeuilles(visibleWalletRows as any[]);
-      setCommissions(commissionsData);
+      setCommissions(activeCommissions);
       setVersements(versementRows.map((v:any)=>({...v,lines:versementLines.filter((l:any)=>l.versement_id===v.id)})));
     }catch(e:any){toast({variant:"destructive",title:"Portefeuilles indisponibles",description:e?.message||"Erreur de chargement."});}
     finally{setLoading(false);}
