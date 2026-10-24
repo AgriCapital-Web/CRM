@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import Index from "./pages/Index";
@@ -58,6 +58,13 @@ const queryClient = new QueryClient({
   },
 });
 
+const LegacyAcquisitionRedirect = () => {
+  const location = useLocation();
+  const id = location.pathname.slice("/acquisition-".length).replace(/\\/$/, "");
+  if (!id || id.includes("/")) return <NotFound />;
+  return <Navigate to={`/acquisitions/${id}${location.search}`} replace />;
+};
+
 const DomainRouter = () => {
   return (
     <Routes>
@@ -96,7 +103,7 @@ const DomainRouter = () => {
       <Route path="/acquisitions/nouveau" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/validation" element={<ProtectedRoute><ValidationDossiers /></ProtectedRoute>} />
       <Route path="/nouvelle-acquisition" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
-      <Route path="/acquisition-:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
+      <Route path="/acquisition-*" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><LegacyAcquisitionRedirect /></ProtectedRoute>} />
       <Route path="/acquisition/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
