@@ -109,9 +109,13 @@ export default function ImportContacts() {
     setLoading(true);
     try {
       const phones = [...new Set(selected.map((contact) => normalizePhone(contact.telephone)).filter(Boolean))];
-      const { data: existing, error: lookupError } = await (supabase as any).from("leads").select("telephone").in("telephone", phones);
-      if (lookupError) throw lookupError;
-      const existingPhones = new Set((existing || []).map((row: any) => normalizePhone(String(row.telephone || ""))));
+      const [leadLookup,prospectLookup] = await Promise.all([
+        (supabase as any).from("leads").select("telephone").in("telephone", phones),
+        (supabase as any).from("prospects").select("telephone").in("telephone", phones)
+      ]);
+      if (leadLookup.error) throw leadLookup.error;
+      if (prospectLookup.error) throw prospectLookup.error;
+      const existingPhones = new Set([...(leadLookup.data||[]),...(prospectLookup.data||[])].map((row: any) => normalizePhone(String(row.telephone || ""))));
       const rows = selected.filter((contact) => !existingPhones.has(normalizePhone(contact.telephone))).map((contact) => ({
         nom: contact.nom || contact.prenoms || "Contact importé",
         prenoms: contact.prenoms || null,
