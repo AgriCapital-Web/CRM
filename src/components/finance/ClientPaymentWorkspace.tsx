@@ -32,6 +32,10 @@ type ClientFinanceRow = {
   formule_nom?: string | null;
   montant_total_contrat?: number | null;
   total_hectares?: number | null;
+  mensualite_montant?: number | null;
+  paiement_initial_montant?: number | null;
+  montant_pi_total?: number | null;
+  duree_paiement_mois?: number | null;
   acquisitionTotal?: number;
   baseContractTotal?: number;
   hasAcquisitions?: boolean;
@@ -44,6 +48,8 @@ type ContractState = {
   acquisitionId: string | null;
   plantationId: string | null;
   surface: number;
+  mensualiteMontant: number;
+  paiementInitialMontant: number;
   state: any;
 };
 
@@ -76,14 +82,14 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: acquisitions, error: acquisitionsError }] = await Promise.all([
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares")
+          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares,mensualite_montant,paiement_initial_montant,montant_pi_total,duree_paiement_mois")
           .eq("compte_actif", true)
           .order("created_at", { ascending: false }),
         (supabase as any).from("v_client_synthese")
           .select("client_id,compte_actif,montant_total_contrat,total_paye,reste_a_payer")
           .eq("compte_actif", true),
         (supabase as any).from("acquisitions")
-          .select("client_id,formule_nom,offre_nom,superficie_ha,montant_total_contrat")
+          .select("client_id,formule_nom,offre_nom,superficie_ha,montant_total_contrat,mensualite_montant,montant_pi_total,duree_paiement_mois")
           .order("created_at", { ascending: false }),
       ]);
       if (clientsError) throw clientsError;
@@ -116,7 +122,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           const isPartner = Boolean(c.proprietaire_id) ||
             ["proprietaire_foncier", "propriétaire_foncier", "partenaire_foncier"].includes(landRole) ||
             ["proprietaire_foncier", "propriétaire_foncier", "partenaire"].includes(clientRole);
-          return c.type_client !== "beneficiaire_particulier" && !isPartner && !c.is_internal && total > 0;
+          return (c.type_client !== "beneficiaire_particulier" || c.hasAcquisitions) && !isPartner && !c.is_internal && total > 0;
         });
     },
     staleTime: 15_000,
@@ -135,6 +141,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const pi = activeState?.paiement_initial || {};
   const monthly = activeState?.mensualite || {};
   const monthlyAmount = Number(monthly.montant || 0);
+  const configuredMonthlyAmount = Number(activeContract?.mensualiteMontant || activeClient?.mensualite_montant || 0);
+  const displayedMonthlyAmount = configuredMonthlyAmount > 0 ? configuredMonthlyAmount : monthlyAmount;
   const arrearsAmount = Number(monthly.montant_arriere ?? Math.max(0, Number(monthly.montant_a_payer || 0) - monthlyAmount));
   const arrearsMonths = monthlyAmount > 0 ? Math.ceil(arrearsAmount / monthlyAmount) : Number(monthly.mensualites_arrivees || 0);
   const daysLate = Number(monthly.jours_retard ?? (arrearsMonths * 30));
@@ -217,6 +225,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         acquisitionId: null,
         plantationId: allClientPlantations.find((p: any) => !p.acquisition_id)?.id || null,
         surface: Number(client.total_hectares || 0),
+        mensualiteMontant: Number(client.mensualite_montant || 0),
+        paiementInitialMontant: Number(client.montant_pi_total ?? client.paiement_initial_montant ?? 0),
         state: normalizedBaseState,
       }] : [];
       for (const sub of (subsRes.data || [])) {
@@ -230,6 +240,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           acquisitionId: sub.id,
           plantationId: allClientPlantations.find((p: any) => p.acquisition_id === sub.id)?.id || null,
           surface: Number(sub.superficie_ha || 0),
+          mensualiteMontant: Number(sub.mensualite_montant || 0),
+          paiementInitialMontant: Number(sub.montant_pi_total || 0),
           state: subStateRes.data || {},
         });
       }
@@ -448,7 +460,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
                 <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Solde initial</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(piBalance)}</p></CardContent></Card>
-                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Mensualité</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(monthlyAmount)}</p></CardContent></Card>
+                <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Mensualité</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(displayedMonthlyAmount)}</p></CardContent></Card>
                 <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Arriéré</p><p className={`mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm ${arrearsMonths > 0 ? "text-destructive" : ""}`}>{arrearsMonths} Mois</p></CardContent></Card>
                 <Card><CardContent className="min-w-0 p-2.5"><p className="text-[11px] leading-snug text-muted-foreground">Échéance</p><p className="mt-1 whitespace-nowrap text-xs font-bold leading-snug sm:text-sm">{money(Number(monthly.montant_a_payer || 0))}</p></CardContent></Card>
               </div>
