@@ -839,9 +839,9 @@ const ProprietairesTerres = () => {
                     <TabsContent value="documents" className="space-y-4">
                       <h4 className="font-semibold">Documents d'identité</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FileUploadVisual label="Photo de profil" field="photo_profil" accept="image/*" currentFile={files.photo_profil||null} onFileChange={(_,f)=>setFiles(x=>({...x,photo_profil:f}))}/>
-                        <FileUploadVisual label="CNI / Pièce (Recto)" field="cni_recto" accept="image/*,.pdf" currentFile={files.cni_recto||null} onFileChange={(_,f)=>setFiles(x=>({...x,cni_recto:f}))} onIdentityNumberDetected={n=>update("numero_piece",n)} identityDocumentType={formData.type_piece}/>
-                        <FileUploadVisual label="CNI / Pièce (Verso)" field="cni_verso" accept="image/*,.pdf" currentFile={files.cni_verso||null} onFileChange={(_,f)=>setFiles(x=>({...x,cni_verso:f}))}/>
+                        <FileUploadVisual label="Photo de profil" field="photo_profil" accept="image/*" currentFile={files.photo_profil||null} existingPreview={formData.photo_profil_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,photo_profil:f}))}/>
+                        <FileUploadVisual label="CNI / Pièce (Recto)" field="cni_recto" accept="image/*,.pdf" currentFile={files.cni_recto||null} existingPreview={formData.fichier_piece_recto_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,cni_recto:f}))} onIdentityNumberDetected={n=>update("numero_piece",n)} identityDocumentType={formData.type_piece}/>
+                        <FileUploadVisual label="CNI / Pièce (Verso)" field="cni_verso" accept="image/*,.pdf" currentFile={files.cni_verso||null} existingPreview={formData.fichier_piece_verso_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,cni_verso:f}))}/>
                       </div>
 
                       <h4 className="font-semibold mt-4 flex items-center gap-2"><FileText className="h-4 w-4" /> Annexes de la Convention</h4>
