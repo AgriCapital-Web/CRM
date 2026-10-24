@@ -308,7 +308,7 @@ const ClientDetail = () => {
 
       const { data: acquisitionLotRows } = await (supabase as any)
         .from("acquisition_lots")
-        .select("id,lot_id,date_attribution,surface_ha,notes")
+        .select("id,lot_id,acquisition_id,date_attribution,surface_ha,notes")
         .eq("client_id", id)
         .order("created_at", { ascending: false });
       const acquiredLotIds = (acquisitionLotRows || []).map((row: any) => row.lot_id).filter(Boolean);
@@ -321,13 +321,31 @@ const ClientDetail = () => {
         ? await (supabase as any).from("parcelles").select("id,id_unique,nom,village").in("id", parcelIds)
         : { data: [] };
       const parcelMeta = parcelMetaResult.data || [];
-      const pending = (acquisitionLotRows || [])
+      const pendingRows = (acquisitionLotRows || [])
         .filter((row: any) => !allPlantations.some((plantation: any) => plantation.lot_id === row.lot_id))
         .map((row: any) => {
           const lot = lotMeta.find((item: any) => item.id === row.lot_id);
           const parcel = parcelMeta.find((item: any) => item.id === lot?.parcelle_id);
           return { ...row, lot, parcel };
         });
+      const pendingGroups = new Map<string, any>();
+      pendingRows.forEach((row: any) => {
+        const key = row.acquisition_id || row.id;
+        const current = pendingGroups.get(key);
+        if (!current) {
+          pendingGroups.set(key, { ...row, surface_ha: Number(row.surface_ha || 0), lots: row.lot ? [row.lot] : [], lotReferenceGroup: row.lot?.reference || "", parcel: row.parcel });
+        } else {
+          current.surface_ha += Number(row.surface_ha || 0);
+          if (row.lot) current.lots.push(row.lot);
+        }
+      });
+      const pending = Array.from(pendingGroups.values()).map((group: any) => {
+        const sortedLots = [...(group.lots || [])].sort((a: any, b: any) => Number(a.numero_h || 0) - Number(b.numero_h || 0));
+        if (sortedLots.length > 1 && group.parcel?.id_unique) {
+          group.lotReferenceGroup = `${group.parcel.id_unique}-L${String(sortedLots[0].numero_h).padStart(2,"0")}-${String(sortedLots[sortedLots.length-1].numero_h).padStart(2,"0")}`;
+        }
+        return group;
+      });
       setPendingPlantationAcquisitions(pending);
 
       // Paiements liés au client ou à l'une de ses acquisitions, même avant la création physique d'une plantation.
@@ -390,7 +408,8 @@ const ClientDetail = () => {
             .select("id,id_unique,nom,village,proprietaire_id,mode_surface,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
             .order("id_unique", { ascending: true }),
           (supabase as any).from("lots_hectares")
-            .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id")
+            .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id,part_type")
+            .eq("part_type", "agricapital")
             .is("client_id", null)
             .is("acquisition_id", null)
             .in("statut", ["disponible", "libre"])
@@ -969,7 +988,7 @@ const ClientDetail = () => {
                               <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="font-semibold">{formatMontant(Number(acquisition.montant_pi_total || 0))} F</p></div>
                             </div>
                             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs text-muted-foreground">
-                              <span>{`Échéancier · ${Number(acquisition.duree_paiement_mois || 0)} mois`}</span>
+                              <span>{acquisition.metadata?.lot_reference_group ? `Lot(s) · ${acquisition.metadata.lot_reference_group}` : acquisition.lot_reference_group ? `Lot(s) · ${acquisition.lot_reference_group}` : `Échéancier · ${Number(acquisition.duree_paiement_mois || 0)} mois`}</span>
                               <span>{acquisition.necessite_foncier_client ? "Terrain du client" : "Parcelle partenaire"}</span>
                             </div>
                           </div>
@@ -986,7 +1005,7 @@ const ClientDetail = () => {
                       {pendingPlantationAcquisitions.map((acquisition: any) => (
                         <div key={acquisition.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/40 p-3 text-sm">
                           <div className="min-w-0">
-                            <p className="font-medium">{acquisition.lot?.reference || (acquisition.lot?.numero_h != null ? "Lot H" + String(acquisition.lot.numero_h).padStart(2, "0") : "Lot attribué")}</p>
+                            <p className="font-medium">{acquisition.lotReferenceGroup || acquisition.lot?.reference || (acquisition.lot?.numero_h != null ? "Lot H" + String(acquisition.lot.numero_h).padStart(2, "0") : "Lot attribué")}</p>
                             <p className="text-xs text-muted-foreground">{acquisition.parcel?.nom || acquisition.parcel?.village || "Parcelle"}{acquisition.parcel?.village ? " · " + acquisition.parcel.village : ""}</p>
                           </div>
                           <div className="flex items-center gap-3">
@@ -1001,6 +1020,7 @@ const ClientDetail = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nom</TableHead>
+                        <TableHead>Lot(s)</TableHead>
                         <TableHead>Région</TableHead>
                         <TableHead>Superficie</TableHead>
                         <TableHead>Statut</TableHead>
@@ -1009,7 +1029,7 @@ const ClientDetail = () => {
                     <TableBody>
                       {filteredPlantations.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8">
+                          <TableCell colSpan={5} className="text-center py-8">
                             Aucune plantation
                           </TableCell>
                         </TableRow>
@@ -1017,6 +1037,7 @@ const ClientDetail = () => {
                         paginatedPlantations.map((plantation) => (
                           <TableRow key={plantation.id}>
                             <TableCell>{plantation.nom_plantation}</TableCell>
+                            <TableCell>{plantation.lot_reference_group || "—"}</TableCell>
                             <TableCell>{plantation.regions?.nom}</TableCell>
                             <TableCell>{plantation.superficie_ha} ha</TableCell>
                             <TableCell>
