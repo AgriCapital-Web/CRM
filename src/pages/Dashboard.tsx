@@ -151,6 +151,7 @@ const Dashboard = () => {
       const [
         clientsRes,
         acquisitionsValidationRes,
+        acquisitionsRes,
         plantationsRes,
         paymentsRes,
         leadsRes,
@@ -171,6 +172,9 @@ const Dashboard = () => {
           : Promise.resolve({ data: [], count: 0 }),
         canClients || globalAdmin
           ? (supabase as any).from("clients").select("id,validation_statut")
+          : Promise.resolve({ data: [] }),
+        canClients || canPlantations || globalAdmin
+          ? (supabase as any).from("acquisitions").select("id,client_id,statut,statut_technique,superficie_ha,parcelle_id,created_at")
           : Promise.resolve({ data: [] }),
         canPlantations || globalAdmin
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
@@ -217,10 +221,21 @@ const Dashboard = () => {
       ]);
 
       const clients = clientsRes.data || [];
-      // Les indicateurs commerciaux excluent les comptes internes et les bénéficiaires particuliers.
-      // Ces derniers restent disponibles dans les tableaux et dans le suivi technique.
-      const commercialClients = clients.filter((c: any) => !c.is_internal && !isAgriCapitalInternal(c) && !["beneficiaire_particulier", "proprietaire_foncier"].includes(String(c.type_client || "").toLowerCase()));
       const acquisitionsForValidation = acquisitionsValidationRes.data || [];
+      const acquisitions = acquisitionsRes.data || [];
+      const activeAcquisitionStatuses = new Set(["active", "en_attente_activation", "en_attente_intervention", "en_attente_paiement", "en_cours", "valide"]);
+      const clientsWithAcquisitions = new Set(acquisitions
+        .filter((a: any) => activeAcquisitionStatuses.has(String(a.statut || "").toLowerCase()) || activeAcquisitionStatuses.has(String(a.statut_technique || "").toLowerCase()))
+        .map((a: any) => a.client_id)
+        .filter(Boolean));
+      const allExternalClients = clients.filter((c: any) =>
+        !c.is_internal && !isAgriCapitalInternal(c) &&
+        String(c.type_client || "").toLowerCase() !== "proprietaire_foncier"
+      );
+      // Un bénéficiaire devient aussi client commercial dès qu'il possède une souscription réelle.
+      const commercialClients = allExternalClients.filter((c: any) =>
+        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier" || clientsWithAcquisitions.has(c.id)
+      );
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
       const leads = leadsRes.data || [];
@@ -248,13 +263,13 @@ const Dashboard = () => {
       const overdueAmount = overdue.reduce((s: number, p: any) => s + Math.max(0, Number(p.montant || 0) - Number(p.montant_paye || 0)), 0);
 
       const dashboardClientIds = new Set(commercialClients.map((c: any) => c.id));
-      const engagedHa = commercialClients.reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
+      let engagedHa = commercialClients.reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const scopedPlantations = plantations.filter((p: any) => p.client_id && dashboardClientIds.has(p.client_id));
-      const plantedHa = scopedPlantations.reduce((s: number, p: any) =>
+      let plantedHa = scopedPlantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+      let remainingHa = Math.max(0, engagedHa - plantedHa);
       const productionRows = scopedPlantations.filter((p: any) => p.statut_global === "en_production");
       const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
-      const remainingHa = Math.max(0, engagedHa - plantedHa);
       const pipelineLeads = leads.filter((l: any) => (l.etape_pipeline || "lead") === "lead");
       const pipelineProspects = leads.filter((l: any) => l.etape_pipeline === "prospect");
       const convertedRows = leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti" || Boolean(l.converti_at));
@@ -325,14 +340,25 @@ const Dashboard = () => {
       const agriCapitalSoldToClientsHa = partnershipMetrics.agriTransferred;
       const foncierPlantedHa = partnershipMetrics.agriPlanted;
       const foncierRemainingHa = partnershipMetrics.agriRemaining;
-      const clientParcelIds = new Set(commercialClients.filter((c: any) => c.parcelle_id).map((c: any) => c.parcelle_id).filter((id: string) => !validatedPartnershipParcelIds.has(id)));
+      const clientParcelIds = new Set(allExternalClients.filter((c: any) => c.parcelle_id).map((c: any) => c.parcelle_id).filter((id: string) => !validatedPartnershipParcelIds.has(id)));
       const clientParcelRows = parcelles.filter((p: any) => clientParcelIds.has(p.id));
       const clientParcelCount = clientParcelRows.length;
       const clientParcelAreaHa = clientParcelRows.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
-      const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id));
+      const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id) && (!p.parcelle_id || !validatedPartnershipParcelIds.has(p.parcelle_id)));
       const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       const internalAreaHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
+      const plantationAcquisitionIds = new Set(plantations.map((p: any) => p.acquisition_id).filter(Boolean));
+      const unplantedAcquisitionArea = acquisitions
+        .filter((a: any) => activeAcquisitionStatuses.has(String(a.statut || "").toLowerCase()) &&
+          !plantationAcquisitionIds.has(a.id) && !a.parcelle_id)
+        .reduce((sum: number, a: any) => sum + Number(a.superficie_ha || 0), 0);
+      const plantationsWithoutParcelArea = plantations
+        .filter((p: any) => !p.parcelle_id && !internalClientIds.has(p.client_id))
+        .reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
+      engagedHa = partnershipTotalHa + clientParcelAreaHa + internalAreaHa + unplantedAcquisitionArea + plantationsWithoutParcelArea;
+      plantedHa = plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+      remainingHa = Math.max(0, engagedHa - plantedHa);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
       // Prévision fondée uniquement sur les contrats validés et les comptes effectivement activés.
