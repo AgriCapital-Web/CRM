@@ -32,7 +32,7 @@ const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File
       <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" title={current ? "Remplacer : " + label : "Ajouter : " + label} aria-label={current ? "Remplacer : " + label : "Ajouter : " + label} onClick={() => fileRef.current?.click()}>
         <Upload className="h-4 w-4" />
       </button>
-      {current && <Check className="h-3.5 w-3.5 shrink-0 text-green-600" aria-label="Fichier enregistré" />}
+      {current && <span className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-green-700"><Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/><span className="truncate">Fichier joint</span></span>}
     </div>
   );
 };
