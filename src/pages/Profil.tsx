@@ -18,9 +18,10 @@ import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 
-const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File) => Promise<void> | void; current?: string | null; bucket: string }) => {
+const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: (f: File) => Promise<void> | void; current?: string | null; bucket: string }) => {
   const fileRef = useRef<HTMLInputElement>(null);
-  const isPhoto = label.toLocaleLowerCase("fr-FR").includes("photo");
+  const currentUrl = useSignedUrl(bucket, current || null);
+  const isPhoto = label.toLocaleLowerCase("fr-FR").includes("photo") || /recto|verso/i.test(label);
   const handleFile = (file?: File) => {
     if (!file) return;
     void Promise.resolve(onPick(file)).catch(() => undefined);
@@ -32,7 +33,10 @@ const FileField = ({ label, onPick, current }: { label: string; onPick: (f: File
       <button type="button" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" title={current ? "Remplacer : " + label : "Ajouter : " + label} aria-label={current ? "Remplacer : " + label : "Ajouter : " + label} onClick={() => fileRef.current?.click()}>
         <Upload className="h-4 w-4" />
       </button>
-      {current && <span className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-green-700"><Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/><span className="truncate">Fichier joint</span></span>}
+      {current && <div className="flex min-w-0 flex-col items-start gap-1">
+        {currentUrl && (isPhoto ? <a href={currentUrl} target="_blank" rel="noreferrer" className="block"><img src={currentUrl} alt={label + " enregistré"} className="h-16 w-24 rounded border object-contain" /></a> : <a href={currentUrl} target="_blank" rel="noreferrer" className="text-[11px] text-primary underline">Voir le document enregistré</a>)}
+        <span className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-green-700"><Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/><span className="truncate">Fichier joint</span></span>
+      </div>}
     </div>
   );
 };
