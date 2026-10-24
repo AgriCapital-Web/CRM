@@ -276,7 +276,7 @@ const Offres = () => {
   };
 
   const buildFormulaTranches = (duration: number, monthly: number) => [{
-    mois_debut: 1, mois_fin: duration, mois: duration, type: "mensualite_unique",
+    mois_debut: 1, mois_fin: duration, mois: duration, type: "mensualite",
     mensualite_par_ha: monthly, total_periode_par_ha: monthly * duration,
   }];
 
@@ -591,7 +591,7 @@ const Offres = () => {
                                   <div className="mt-2 space-y-1">
                                     {(Array.isArray(formula.tranches_paiement) ? formula.tranches_paiement : []).map((tranche: any, index: number) => (
                                       <div key={`${tranche.mois_debut || index}-${tranche.mois_fin || tranche.mois || index}`} className="flex justify-between gap-2 rounded bg-background p-2 text-xs">
-                                        <span>{tranche.type === "mensualite_unique" ? `Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois` : `Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois`}</span>
+                                        <span>{`Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois`}</span>
                                         <b>{formatMontant(Number(tranche.mensualite_par_ha || 0))} F/ha</b>
                                       </div>
                                     ))}
@@ -610,7 +610,7 @@ const Offres = () => {
                               <div className="mt-3 space-y-1">
                                 {tranches.filter((t: any) => Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0) > 0).map((t: any, i: number) => (
                                   <div key={i} className="flex min-w-0 justify-between gap-3 rounded-md bg-background p-2 text-xs">
-                                    <span>{t.type === "mensualite_unique" ? "Mensualité" : "Mensualité"} · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
+                                    <span>Mensualité · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
                                     <span className="shrink-0 font-semibold">{formatMontant(Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0))} F/ha</span>
                                   </div>
                                 ))}
