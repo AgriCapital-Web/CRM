@@ -163,7 +163,19 @@ serve(async (req) => {
       if (error) throw error;
       if (!client) throw new Error("Client introuvable");
       if (await isOwnerPortalAccount(supabase, client)) throw new Error("Les propriétaires fonciers disposent d’un espace de suivi non financier.");
-      if (client.type_client === "beneficiaire_particulier") throw new Error("Les bénéficiaires particuliers ne disposent pas d’actions financières.");
+      if (client.type_client === "beneficiaire_particulier") {
+        const { data: paidContracts, error: paidContractsError } = await supabase
+          .from("acquisitions")
+          .select("id,montant_total_contrat,statut")
+          .eq("client_id", clientId)
+          .gt("montant_total_contrat", 0)
+          .limit(20);
+        if (paidContractsError) throw paidContractsError;
+        const hasActivePaidContract = (paidContracts || []).some((a:any) =>
+          !["annule","annulee","annulée","cancelled","supprime","supprimee","supprimé","refuse","refusee","refusé"].includes(String(a.statut || "").toLowerCase())
+        );
+        if (!hasActivePaidContract) throw new Error("Les bénéficiaires particuliers sans contrat payant actif ne disposent pas d’actions financières.");
+      }
       if (client.is_internal) throw new Error("Cet actif AgriCapital n’est pas encore transféré à un client.");
       const { data: summary, error: summaryError } = await supabase.from("v_client_synthese")
         .select("montant_total_contrat,reste_a_payer").eq("client_id", clientId).maybeSingle();
