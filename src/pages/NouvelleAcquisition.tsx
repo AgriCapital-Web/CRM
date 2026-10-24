@@ -140,7 +140,7 @@ const NouvelleAcquisition = () => {
   const navigate=useNavigate();
   const { user, userRoles=[] } = useAuth();
   const { can } = usePermissions();
-  const canEditExisting = can("clients.update") && (userRoles || []).some((role:string)=>["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
+  const canEditExisting = can("clients.update") && (userRoles || []).some((role:string)=>["pdg","service_client","support","relation_client"].includes(role));
   const [searchParams]=useSearchParams();
   const {data:promotionActive}=usePromotionActive(formData.offre_id);
 
