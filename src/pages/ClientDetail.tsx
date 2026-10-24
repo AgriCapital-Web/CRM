@@ -99,11 +99,30 @@ const ClientDetail = () => {
   const paginatedPaiements=filteredPaiements.slice((paymentPage-1)*pageSize,paymentPage*pageSize);
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
+  const selectedOfferFamily = String(newAcquisitionFormData.offre?.famille_offre || newAcquisitionFormData.offre?.code || newAcquisitionFormData.famille_offre || newAcquisitionFormData.offre_code || "").toUpperCase();
+  const isPalmInvestOffer = selectedOfferFamily === "PALMINVEST";
+  const requestedPalmInvestLots = Math.round(Number(newAcquisitionFormData.superficie_prevue || 0));
   const lotsForSelectedParcel = availableLots.filter((lot: any) =>
     lot.parcelle_id === newPlantationParcelId &&
-    (!Number(newAcquisitionFormData.superficie_prevue) || Math.abs(Number(lot.surface_ha || 0) - Number(newAcquisitionFormData.superficie_prevue)) < 0.0001)
-  );
+    (isPalmInvestOffer
+      ? Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001
+      : (!Number(newAcquisitionFormData.superficie_prevue) || Math.abs(Number(lot.surface_ha || 0) - Number(newAcquisitionFormData.superficie_prevue)) < 0.0001))
+  ).sort((a: any, b: any) => Number(a.numero_h || 0) - Number(b.numero_h || 0));
   const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
+  const selectedLotSeries = selectedNewLot && isPalmInvestOffer
+    ? lotsForSelectedParcel.filter((lot: any) => Number(lot.numero_h) >= Number(selectedNewLot.numero_h)).slice(0, Math.max(1, requestedPalmInvestLots))
+    : selectedNewLot ? [selectedNewLot] : [];
+  const selectedLotSeriesReady = !isPalmInvestOffer || (
+    requestedPalmInvestLots >= 1 &&
+    selectedLotSeries.length === requestedPalmInvestLots &&
+    selectedLotSeries[0]?.id === selectedNewLot?.id &&
+    selectedLotSeries.every((lot: any, index: number) => index === 0 || Number(lot.numero_h) === Number(selectedLotSeries[index - 1].numero_h) + 1)
+  );
+  const selectedLotGroupReference = selectedNewLot
+    ? isPalmInvestOffer && selectedLotSeries.length > 1
+      ? `${availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.id_unique || "PARCELLE"}-L${String(selectedLotSeries[0]?.numero_h || "").padStart(2, "0")}-${String(selectedLotSeries[selectedLotSeries.length - 1]?.numero_h || "").padStart(2, "0")}`
+      : selectedNewLot.reference || `${availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.id_unique || "PARCELLE"}-L${String(selectedNewLot.numero_h || "").padStart(2, "0")}`
+    : "";
   const selectedOfferNeedsClientLand = newAcquisitionFormData.offre
     ? !!newAcquisitionFormData.offre.necessite_foncier_client
     : false;
@@ -448,7 +467,7 @@ const ClientDetail = () => {
       toast({ variant: "destructive", title: "Acquisition incomplète", description: "Choisissez une offre, une formule et une superficie valide." });
       return;
     }
-    if (!selectedOfferNeedsClientLand && !newPlantationLotId) {
+    if (!selectedOfferNeedsClientLand && (!newPlantationLotId || !selectedLotSeriesReady)) {
       toast({ variant: "destructive", title: "Lot partenaire requis", description: "Choisissez un lot disponible correspondant à la superficie." });
       return;
     }
@@ -788,7 +807,10 @@ const ClientDetail = () => {
                     <CardHeader className="pb-2"><CardTitle className="text-base">Parcelle partenaire et lot disponible</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm text-muted-foreground">
-                        Cette offre utilise une parcelle partenaire. Choisissez une parcelle, puis un lot dont la superficie correspond exactement à celle de la acquisition. Le lot ne sera réservé qu’après confirmation par la base.
+                        {isPalmInvestOffer
+                          ? "PalmInvest : 1 lot = 1 ha. Choisissez le lot de départ; le CRM réservera automatiquement autant de lots contigus que d’hectares souscrits."
+                          : "Cette offre utilise une parcelle partenaire. Choisissez une parcelle puis un lot dont la superficie correspond exactement à celle de la souscription."}
+                        {" "}Les lots ne sont réservés qu’après confirmation par la base.
                       </p>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div className="space-y-2">
@@ -805,11 +827,11 @@ const ClientDetail = () => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Lot disponible correspondant à la superficie *</Label>
+                          <Label>{isPalmInvestOffer ? "Lot de départ (1 ha) *" : "Lot disponible correspondant à la superficie *"}</Label>
                           <Select value={newPlantationLotId} onValueChange={(value) => {
                             const lot = availableLots.find((item: any) => item.id === value);
                             setNewPlantationLotId(value);
-                            if (lot) setNewAcquisitionFormData((current: any) => ({ ...current, superficie_prevue: String(lot.surface_ha || "") }));
+                            if (lot && !isPalmInvestOffer) setNewAcquisitionFormData((current: any) => ({ ...current, superficie_prevue: String(lot.surface_ha || "") }));
                           }} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
                             <SelectTrigger><SelectValue placeholder={!newPlantationParcelId ? "Choisir d’abord une parcelle" : "Choisir un lot"} /></SelectTrigger>
                             <SelectContent>
@@ -824,9 +846,10 @@ const ClientDetail = () => {
                       </div>
                       {selectedNewLot && (
                         <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-3">
-                          <div><p className="text-xs text-muted-foreground">Superficie réservée</p><p className="font-semibold">{Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                          <div><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? "Lots qui seront réservés" : "Superficie réservée"}</p><p className="font-semibold">{isPalmInvestOffer ? selectedLotGroupReference : `${Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR")} ha`}</p><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? `${selectedLotSeries.length} / ${requestedPalmInvestLots} lot(s) contigus` : ""}</p></div>
                           <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "À confirmer"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Propriétaire partenaire</p><p className="font-semibold">Enregistré sur la parcelle</p></div>
+                          {isPalmInvestOffer && !selectedLotSeriesReady && <p className="text-sm text-destructive sm:col-span-3">Cette série ne contient pas tous les lots contigus requis. Choisissez un autre lot de départ ou une autre parcelle.</p>}
                         </div>
                       )}
                       {!loadingPlantationOptions && availableParcelles.length === 0 && (
