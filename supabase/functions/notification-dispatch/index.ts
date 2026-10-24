@@ -477,6 +477,12 @@ async function deliver(args: {
         await admin.from("notification_deliveries").update({
           statut: "echoue", erreur: error instanceof Error ? error.message : String(error),
         }).eq("id", delivery.id);
+        const status = Number((error as any)?.status || (error as any)?.statusCode || 0);
+        const message = String((error as any)?.message || "");
+        const outcomeUncertain = status >= 500 || /timeout|timed out|network|failed to fetch|connection reset|socket|econn|abort/i.test(message);
+        // En mode automatique, un résultat de livraison incertain interdit le repli vers un autre canal :
+        // le premier message a peut-être été délivré malgré le timeout.
+        if (args.canal === "auto" && outcomeUncertain) break;
       }
     }
   }
