@@ -61,6 +61,7 @@ const Utilisateurs = () => {
         .order("created_at", { ascending: false })
         // Les fiches clients ne sont pas des comptes utilisateurs : seuls les profils avec email de connexion sont listés.
         .not("email", "is", null)
+        .neq("type_compte", "client_portail")
         .range((page - 1) * pageSize, page * pageSize - 1);
 
       if (term) {
