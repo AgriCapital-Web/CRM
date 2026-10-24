@@ -124,6 +124,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       dispose_terrain: lead.dispose_terrain ? "oui" : "non",
       assigned_to: lead.assigned_to || "",
       telephone_indicatif: "", telephone_local: lead.telephone || "",
+      telephone_secondaire_indicatif: lead.telephone_secondaire_indicatif || "", telephone_secondaire_local: lead.telephone_secondaire_local || lead.telephone_secondaire || "",
+      telephone_principal_whatsapp: lead.telephone_principal_whatsapp === true || String(lead.telephone_principal_whatsapp).toLowerCase() === "true",
+      telephone_secondaire_whatsapp: lead.telephone_secondaire_whatsapp === true || String(lead.telephone_secondaire_whatsapp).toLowerCase() === "true",
       whatsapp_indicatif: "", whatsapp_local: lead.whatsapp || "",
     });
     setFormReadOnly(mode === "view");
