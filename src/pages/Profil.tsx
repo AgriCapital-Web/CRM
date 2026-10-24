@@ -191,7 +191,7 @@ const Profil = () => {
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div className="min-w-0 w-full space-y-2">
                 <CountryPhoneInput label="Téléphone principal" compact countryCode={profile.telephone_indicatif || undefined} localValue={profile.telephone_local || profile.telephone || ""} disabled={!isAdmin} onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }} />
-                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_principal_whatsapp} disabled={!isAdmin} onCheckedChange={(v) => { set("telephone_principal_whatsapp",v===true); if(v===true)set("telephone_secondaire_whatsapp",false); }} />Ce numéro utilise WhatsApp</label>
+                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_principal_whatsapp} onCheckedChange={(v) => { set("telephone_principal_whatsapp",v===true); if(v===true)set("telephone_secondaire_whatsapp",false); }} />Ce numéro utilise WhatsApp</label>
               </div>
               <div><Label>Email secondaire</Label><Input className="h-9 text-sm" type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
               <div className="min-w-0 w-full">
