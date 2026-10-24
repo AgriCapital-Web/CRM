@@ -49,7 +49,7 @@ serve(async(req)=>{
       .maybeSingle();
 
     if(clientError) throw clientError;
-    const isPreActivation = Boolean(client && !client.compte_actif && client.validation_statut === "valide" && client.type_client !== "beneficiaire_particulier" && !client.is_internal);
+    const isPreActivation = Boolean(client && !client.compte_actif && client.validation_statut === "valide" && !["beneficiaire_particulier","proprietaire_foncier"].includes(String(client.type_client||"")) && !client.is_internal);
     if(!client || (!client.compte_actif && client.type_client!=="beneficiaire_particulier" && !isPreActivation)) return json({success:false,error:"Compte portail inactif ou dossier client non validé."},403);
 
     if (isPreActivation) {
@@ -90,7 +90,7 @@ serve(async(req)=>{
       return json({success:true,pre_activation:true,client:preActivationClient,portal_roles:["client"],parcelles:[],attributions:[],plantations:[],paiements:initialPayments||[],notifications:[]});
     }
 
-    const isOwner=Boolean(client.proprietaire_id);
+    const isOwner=Boolean(client.proprietaire_id) || client.type_client==="proprietaire_foncier";
     const isBeneficiary=client.type_client==="beneficiaire_particulier";
 
     const [ownerRes, attributionRes, directPlantationRes, payRes, commercialRes, notificationRes, interventionRes, documentRes, configRes, referenceRes, acquisitionRes] = await Promise.all([
@@ -305,7 +305,7 @@ serve(async(req)=>{
       latitude:client.latitude ?? parcel?.localisation_gps_lat ?? null,
       longitude:client.longitude ?? parcel?.localisation_gps_lng ?? null,
       source:client.latitude != null && client.longitude != null ? "client" : (parcel?.localisation_gps_lat != null && parcel?.localisation_gps_lng != null ? "parcelle" : null)
-    },portal_roles:portalRoles,portal_primary_role:hasFinancialSubscriptions?"client":(portalRoles[0]||"client"),
+    },portal_roles:portalRoles,portal_primary_role:isOwner?"proprietaire_foncier":(hasFinancialSubscriptions?"client":(portalRoles[0]||"client")),
       is_proprietaire_foncier:isOwner,is_beneficiaire_particulier:isBeneficiary,
       promotion_active:client.promotions||null,
       has_financial_subscriptions:isStakeholder ? false : hasFinancialSubscriptions,
