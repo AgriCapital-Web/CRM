@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Loader2, BriefcaseBusiness, UserRound, UserCog, FileText, CheckCircle2 } from "lucide-react";
 import { Etape0Offre } from "@/components/forms/acquisition/Etape0Offre";
 import { EtapeClientDynamique } from "@/components/forms/acquisition/EtapeClientDynamique";
