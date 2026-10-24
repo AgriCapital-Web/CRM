@@ -7,9 +7,7 @@ DECLARE
   v_marker text;
 BEGIN
   v_def := pg_get_functiondef('public.sync_palminvest_lot_activation()'::regprocedure);
-  v_marker := $marker$       AND NOT EXISTS (
-         SELECT 1 FROM public.acquisition_lots al WHERE al.lot_id = lh.id
-       )$marker$;
+  v_marker := $marker$           AND NOT EXISTS (SELECT 1 FROM public.acquisition_lots al WHERE al.lot_id = lh.id)$marker$;
   IF strpos(v_def, v_marker) = 0 THEN
     RAISE EXCEPTION 'Le filtre legacy d’acquisition_lots est introuvable dans sync_palminvest_lot_activation';
   END IF;
