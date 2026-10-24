@@ -21,10 +21,14 @@ export const useOffresPrixEffectif = () => {
           .select("id, nom, cible, type_promotion, pourcentage_reduction, montant_fixe_reduction, active, date_debut, date_fin, applique_toutes_offres, offre_ids")
           .eq("active", true),
       ]);
+      if (o.error) throw o.error;
+      if (p.error) throw p.error;
       const offres = (o.data || []) as OffreBase[];
       const promotions = (p.data || []) as PromotionBase[];
-      return offres.map((offre) => calculPrixEffectif(offre, promotions, { modePaiement: "echeancier" }));
+      const now = new Date();
+      return offres.map((offre) => calculPrixEffectif(offre, promotions, { modePaiement: "echeancier", at: now }));
     },
+    staleTime: 30_000,
   });
 
   const parOffre = (id?: string | null): PrixEffectif | undefined =>
