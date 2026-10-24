@@ -15,7 +15,7 @@ const phoneMatches = (a: unknown, b: unknown) => {
   return !!na && na === nb;
 };
 const normalizeIdentityName = (value: unknown) =>
-  String(value ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+  String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 const isOwnerPortalAccount = async (supabase: any, client: any): Promise<boolean> => {
   if (client?.type_client === "proprietaire_foncier") return true;
   if (!client?.proprietaire_id || !client?.nom_complet) return false;
