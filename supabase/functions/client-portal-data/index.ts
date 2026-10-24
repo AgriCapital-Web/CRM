@@ -308,7 +308,7 @@ serve(async(req)=>{
       ownerActivationRows=rows||[];
     }
     const portalAttributions=isOwner
-      ? ownerActivationRows.map((a:any)=>({id:a.id,client_id:client.id,parcelle_id:a.parcelle_id,plantation_id:a.id,surface_attribuee_ha:a.surface_proprietaire_ha,role_attribution:"part_proprietaire",statut:a.statut,reference_acte:null,notes:"Part du propriétaire enregistrée par l’activation foncière.",created_at:a.created_at}))
+      ? ownerActivationRows.map((a:any)=>({id:a.id,client_id:client.id,parcelle_id:a.parcelle_id,plantation_id:(plantationsWithPaymentState.find((p:any)=>p.lot_id===a.lot_id && p.parcelle_id===a.parcelle_id)?.id || a.id),surface_attribuee_ha:a.surface_proprietaire_ha,role_attribution:"part_proprietaire",statut:a.statut,reference_acte:null,notes:"Part du propriétaire enregistrée par l’activation foncière.",created_at:a.created_at}))
       : attributions;
 
     const progressionKeys=(referenceRes.data||[]).map((x:any)=>[x.code,x.libelle]);
