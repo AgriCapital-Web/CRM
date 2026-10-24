@@ -92,15 +92,8 @@ serve(async(req)=>{
 
     const isOwner=Boolean(client.proprietaire_id);
     const isBeneficiary=client.type_client==="beneficiaire_particulier";
-    const isStakeholder=isOwner||isBeneficiary;
 
-    const portalRoles=[
-      ...(isOwner?["proprietaire_foncier"]:[]),
-      ...(isBeneficiary?["beneficiaire_particulier"]:[]),
-      ...(!isOwner&&!isBeneficiary?["client"]:[])
-    ];
-
-    const [ownerRes, attributionRes, directPlantationRes, payRes, commercialRes, notificationRes, interventionRes, documentRes, configRes, referenceRes] = await Promise.all([
+    const [ownerRes, attributionRes, directPlantationRes, payRes, commercialRes, notificationRes, interventionRes, documentRes, configRes, referenceRes, acquisitionRes] = await Promise.all([
       client.proprietaire_id
         ? supabase.from("proprietaires_terres").select("*").eq("id",client.proprietaire_id).maybeSingle()
         : Promise.resolve({data:null}),
@@ -123,7 +116,8 @@ serve(async(req)=>{
         .select("id,client_id,type_document,fichier_url,statut,observations,code_document,categorie,obligatoire,source_contractuelle,created_at,updated_at")
         .eq("client_id",client.id).order("created_at",{ascending:false}),
       supabase.from("configurations_systeme").select("cle,valeur").in("cle",["contact_telephone","contact_whatsapp","contact_email","paiement_kkiapay_mobile_money_fee_rate","plantation_densite_defaut"]),
-      supabase.from("referentiels_systeme").select("code,libelle,ordre").eq("categorie","etape_plantation").eq("actif",true).order("ordre").order("libelle")
+      supabase.from("referentiels_systeme").select("code,libelle,ordre").eq("categorie","etape_plantation").eq("actif",true).order("ordre").order("libelle"),
+      supabase.from("acquisitions").select("id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,superficie_ha,montant_pi_total,montant_total_contrat,mensualite_montant,duree_paiement_mois,parcelle_id,lot_id,statut,metadata,created_at").eq("client_id",client.id).order("created_at",{ascending:true})
     ]);
 
     // La photo du commercial peut être stockée comme chemin privé dans le bucket
@@ -155,6 +149,15 @@ serve(async(req)=>{
     const notificationRows=notificationRes.data||[];
     const interventions=interventionRes.data||[];
     const documents=documentRes.data||[];
+    const acquisitionRows=acquisitionRes.data||[];
+    const financialSubscriptions=acquisitionRows.filter((a:any)=>!["annule","annulee","annulée","cancelled","supprime","supprimee","supprimé","refuse","refusee","refusé"].includes(String(a.statut||"").toLowerCase()));
+    const hasFinancialSubscriptions=financialSubscriptions.length>0;
+    const isStakeholder=(isOwner||isBeneficiary)&&!hasFinancialSubscriptions;
+    const portalRoles=[
+      ...(isOwner?["proprietaire_foncier"]:[]),
+      ...(isBeneficiary?["beneficiaire_particulier"]:[]),
+      ...(hasFinancialSubscriptions||(!isOwner&&!isBeneficiary)?["client"]:[])
+    ];
     if(configRes.error) throw configRes.error;
     if(referenceRes.error) throw referenceRes.error;
     const configMap=new Map((configRes.data||[]).map((x:any)=>[x.cle,x.valeur]));
@@ -219,12 +222,21 @@ serve(async(req)=>{
       mensualite:{montant:0,montant_a_payer:0,disponible:false,jours_retard:0,montant_arriere:0,hectares_actifs:0},
       total_paye:0
     };
+    const plantationsWithPaymentState=await Promise.all(plantations.map(async (p:any)=>{
+      if(p.client_id!==client.id) return {...p,paiement_etat:null};
+      const {data:plantationPaymentState,error:plantationPaymentStateError}=await supabase.rpc("portal_plantation_payment_state",{_client_id:client.id,_plantation_id:p.id});
+      if(plantationPaymentStateError){
+        console.warn("[client-portal-data] État financier de plantation indisponible",{plantationId:p.id});
+        return {...p,paiement_etat:null};
+      }
+      return {...p,paiement_etat:plantationPaymentState||null};
+    }));
 
-    for(const p of plantations){
+    for(const p of plantationsWithPaymentState){
       p.attributions=attributions.filter((a:any)=>a.plantation_id===p.id || (!a.plantation_id && a.parcelle_id===p.parcelle_id));
     }
 
-    const ids=plantations.map((p:any)=>p.id);
+    const ids=plantationsWithPaymentState.map((p:any)=>p.id);
     let tickets:any[]=[]; let reports:any[]=[]; let media:any[]=[]; let plantationPhotos:any[]=[];
     if(ids.length){
       const [tRes,rRes,photoRes]=await Promise.all([
@@ -289,9 +301,11 @@ serve(async(req)=>{
       latitude:client.latitude ?? parcel?.localisation_gps_lat ?? null,
       longitude:client.longitude ?? parcel?.localisation_gps_lng ?? null,
       source:client.latitude != null && client.longitude != null ? "client" : (parcel?.localisation_gps_lat != null && parcel?.localisation_gps_lng != null ? "parcelle" : null)
-    },portal_roles:portalRoles,portal_primary_role:portalRoles[0]||"client",
+    },portal_roles:portalRoles,portal_primary_role:hasFinancialSubscriptions?"client":(portalRoles[0]||"client"),
       is_proprietaire_foncier:isOwner,is_beneficiaire_particulier:isBeneficiary,
       promotion_active:client.promotions||null,
+      has_financial_subscriptions:hasFinancialSubscriptions,
+      financial_subscriptions:financialSubscriptions,
       proprietaire:owner,
       parcelle:parcel,
       parcelles,
@@ -327,7 +341,7 @@ serve(async(req)=>{
 
     return json({
       success:true,client:safe,
-      portal_roles:portalRoles,parcelles,attributions,plantations,paiements,
+      portal_roles:portalRoles,parcelles,attributions,plantations:plantationsWithPaymentState,paiements,
       notifications:notificationRows
     });
   }catch(e:any){
