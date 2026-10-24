@@ -315,6 +315,44 @@ async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderS
   return { apiKey, senderSessionId, senderPhone: String(configuredPhone).trim() };
 }
 
+function normalizeWhatsAppRecipient(value: string): string {
+  const raw = value.trim();
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) throw new Error("Numéro WhatsApp destinataire invalide.");
+  let normalized = "";
+  if (raw.startsWith("+")) normalized = "+" + digits;
+  else if (raw.startsWith("00")) normalized = "+" + digits.slice(2);
+  else if (digits.startsWith("225")) normalized = "+" + digits;
+  else if (digits.length === 10 && /^0[157]\d{8}$/.test(digits)) normalized = "+225" + digits;
+  else if (digits.length === 8) normalized = "+225" + digits;
+  else throw new Error("Le numéro WhatsApp destinataire doit être au format international, par exemple +2250700000000.");
+  if (!/^\+[1-9]\d{7,14}$/.test(normalized)) throw new Error("Numéro WhatsApp destinataire invalide.");
+  return normalized;
+}
+
+async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string, mediaRef?: string) {
+  const rawRecipient = contact.whatsapp || contact.telephone;
+  if (!rawRecipient) throw new Error("Numéro WhatsApp absent");
+  const recipient = normalizeWhatsAppRecipient(rawRecipient);
+  const session = await resolveWhatsAppSenderSession();
+  const response = await fetch("https://api.senndo.com/v1/messages", {
+    method: "POST",
+    headers: { authorization: "Bearer " + session.apiKey, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      channel: "whatsapp_baileys", to: recipient, text: content,
+      senderSessionId: session.senderSessionId, idempotencyKey: dedupeKey,
+      ...(mediaRef ? { media: { ref: mediaRef } } : {}),
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = typeof payload?.message === "string" ? payload.message.slice(0, 250) : "";
+    throw new Error("Senndo a refusé l’envoi WhatsApp appairé (HTTP " + response.status + ")." + (detail ? " " + detail : ""));
+  }
+  return { provider: "senndo_whatsapp_baileys", messageId: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null };
+}
+
 async function sendVoice(contact: Contact, content: string, dedupeKey: string) {
   if (!contact.telephone) throw new Error("Téléphone absent pour l'appel vocal");
   const client = await getSenndoClient();
