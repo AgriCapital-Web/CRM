@@ -41,7 +41,7 @@ function baseFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Respon
   else sourceSignal?.addEventListener("abort", abortFromSource, { once: true });
 
   const timeoutId = typeof window !== "undefined"
-    ? window.setTimeout(() => controller.abort(new DOMException("Délai réseau dépassé", "TimeoutError")), 8000)
+    ? window.setTimeout(() => controller.abort(new DOMException("Délai réseau dépassé", "TimeoutError")), 20000)
     : undefined;
   return fn(input, { ...init, signal: controller.signal }).finally(() => {
     if (timeoutId !== undefined && typeof window !== "undefined") window.clearTimeout(timeoutId);
