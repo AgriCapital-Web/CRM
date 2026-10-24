@@ -29,7 +29,7 @@ const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 
 const CLIENT_COLUMNS = new Set([
   "civilite","nom_famille","prenoms","nom_complet","nom","date_naissance","lieu_naissance","statut_marital",
-  "type_piece","numero_piece","date_delivrance_piece","telephone","telephone_secondaire","telephone_principal_whatsapp","telephone_secondaire_whatsapp","whatsapp","email","domicile","domicile_residence",
+  "type_piece","numero_piece","date_delivrance_piece","telephone","telephone_secondaire","telephone_secondaire_indicatif","telephone_secondaire_local","telephone_principal_whatsapp","telephone_secondaire_whatsapp","whatsapp","email","domicile","domicile_residence",
   "district_id","region_id","departement_id","sous_prefecture_id","village_id","offre_id","famille_offre","formule_code","formule_nom","parcours_code","commercial_id","type_compte","banque_operateur",
   "numero_compte","nom_titulaire_compte","photo_profil_url","fichier_piece_url","fichier_piece_recto_url",
   "fichier_piece_verso_url","localite","nationalite","type_client","telephone_indicatif","telephone_local",
