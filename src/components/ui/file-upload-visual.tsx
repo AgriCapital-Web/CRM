@@ -145,8 +145,9 @@ export const FileUploadVisual = ({
   // A single native picker supports gallery/file selection and, on mobile,
   // the camera option offered by the operating system. No competing inputs.
   const openPicker = () => inputRef.current?.click();
-  const isImage = currentFile?.type?.startsWith("image/") || preview.startsWith("data:image");
-  const isVideo = currentFile?.type?.startsWith("video/") || preview.startsWith("data:video");
+  const isImage = currentFile?.type?.startsWith("image/") || preview.startsWith("data:image") || /\\.(?:jpe?g|png|webp|gif|bmp|avif)(?:[?#]|$)/i.test(preview);
+  const isVideo = currentFile?.type?.startsWith("video/") || preview.startsWith("data:video") || /\\.(?:mp4|webm|mov|m4v)(?:[?#]|$)/i.test(preview);
+  const isPdf = currentFile?.type === "application/pdf" || preview.startsWith("data:application/pdf") || /\\.pdf(?:[?#]|$)/i.test(preview);
 
   return (
     <div className={compact ? "space-y-1" : "space-y-2"}>
@@ -172,6 +173,8 @@ export const FileUploadVisual = ({
             <img src={preview} alt={`Aperçu : ${label}`} className={`w-full ${compact ? "h-20" : "h-48"} object-contain rounded`} />
           ) : isVideo ? (
             <video src={preview} controls className={`w-full ${compact ? "h-20" : "h-48"} object-contain rounded`} />
+          ) : isPdf ? (
+            <iframe src={preview} title={`Aperçu : ${label}`} className={`w-full ${compact ? "h-40" : "h-72"} rounded bg-background`} />
           ) : (
             <div className={`flex items-center justify-center ${compact ? "h-16" : "h-48"} bg-muted rounded`}>
               <div className="text-center">
