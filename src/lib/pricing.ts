@@ -76,7 +76,7 @@ export const promotionActiveMaintenant = (p: PromotionBase, at: Date = new Date(
 const cibleOffre = (p: PromotionBase, offreId: string) => {
   if (p.applique_toutes_offres) return true;
   const ids = Array.isArray(p.offre_ids) ? p.offre_ids.map(String) : [];
-  return ids.includes(String(offreId));
+  return ids.includes(String(offreId)) || ids.includes(String((offre as any).code || ""));
 };
 
 export const promotionsEligibles = (offre: OffreBase, promotions: PromotionBase[], at: Date = new Date()) =>
