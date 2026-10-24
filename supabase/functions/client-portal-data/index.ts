@@ -90,7 +90,7 @@ serve(async(req)=>{
       return json({success:true,pre_activation:true,client:preActivationClient,portal_roles:["client"],parcelles:[],attributions:[],plantations:[],paiements:initialPayments||[],notifications:[]});
     }
 
-    const isOwner=Boolean(client.proprietaire_id) || client.type_client==="proprietaire_foncier";
+    const isOwner=client.type_client==="proprietaire_foncier";
     const isBeneficiary=client.type_client==="beneficiaire_particulier";
 
     const [ownerRes, attributionRes, directPlantationRes, payRes, commercialRes, notificationRes, interventionRes, documentRes, configRes, referenceRes, acquisitionRes] = await Promise.all([
