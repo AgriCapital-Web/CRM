@@ -41,7 +41,7 @@ const TABLE_TO_STORE: Record<string, string> = {
   portefeuille_versements: STORES.PORTEFEUILLE_VERSEMENTS,
   portefeuille_versement_lignes: STORES.PORTEFEUILLE_VERSEMENT_LIGNES,
   beneficiaire_attributions: STORES.BENEFICIAIRE_ATTRIBUTIONS,
-  acquisitions_brouillon: STORES.ACQUISITIONS_BROUILLON,
+
   offre_formulaire_etapes: STORES.OFFRE_FORM_ETAPES,
   offre_formulaire_documents: STORES.OFFRE_FORM_DOCUMENTS,
   offre_formulaire_contrats: STORES.OFFRE_FORM_CONTRATS,
