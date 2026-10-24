@@ -108,14 +108,20 @@ export default function ImportContacts() {
     if (!selected.length) { toast({ variant: "destructive", title: "Aucun contact sélectionné", description: "Cochez au moins un contact avec un téléphone principal." }); return; }
     setLoading(true);
     try {
-      const phones = [...new Set(selected.map((contact) => normalizePhone(contact.telephone)).filter(Boolean))];
-      const [leadLookup,prospectLookup] = await Promise.all([
-        (supabase as any).from("leads").select("telephone").not("telephone","is",null).limit(10000),
-        (supabase as any).from("prospects").select("telephone").not("telephone","is",null).limit(10000)
-      ]);
-      if (leadLookup.error) throw leadLookup.error;
-      if (prospectLookup.error) throw prospectLookup.error;
-      const existingPhones = new Set([...(leadLookup.data||[]),...(prospectLookup.data||[])].map((row: any) => normalizePhone(String(row.telephone || ""))));
+      const readPhonePages = async (table: "leads" | "prospects") => {
+        const all: any[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          const result = await (supabase as any).from(table).select("telephone,telephone_secondaire").range(offset, offset + 999);
+          if (result.error) throw result.error;
+          all.push(...(result.data || []));
+          if (!result.data || result.data.length < 1000) break;
+        }
+        return all;
+      };
+      const [leadRows, prospectRows] = await Promise.all([readPhonePages("leads"), readPhonePages("prospects")]);
+      const existingPhones = new Set([...leadRows, ...prospectRows].flatMap((row: any) =>
+        [row.telephone, row.telephone_secondaire].map((value) => normalizePhone(String(value || ""))).filter(Boolean)
+      ));
       const rows = selected.filter((contact) => !existingPhones.has(normalizePhone(contact.telephone))).map((contact) => ({
         nom: contact.nom || contact.prenoms || "Contact importé",
         prenoms: contact.prenoms || null,
