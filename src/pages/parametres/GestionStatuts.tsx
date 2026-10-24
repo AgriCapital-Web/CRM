@@ -4,18 +4,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const STATUTS_PLANTATION = [
-  { valeur: "en_attente_da", label: "En attente PI", color: "secondary", description: "Dossier en attente de versement du Paiement Initial" },
-  { valeur: "da_valide", label: "PI validé", color: "default", description: "Paiement Initial versé et validé" },
-  { valeur: "en_delimitation_gps", label: "En délimitation GPS", color: "default", description: "Délimitation géographique en cours" },
-  { valeur: "en_piquetage", label: "En piquetage", color: "default", description: "Piquetage du terrain en cours" },
-  { valeur: "en_plantation", label: "En plantation", color: "default", description: "Mise en terre des plants en cours" },
-  { valeur: "en_croissance", label: "En croissance", color: "default", description: "Phase de croissance des plants" },
-  { valeur: "en_production", label: "En production", color: "default", description: "Plantation en phase de production" },
-  { valeur: "autonomie", label: "Autonomie", color: "default", description: "Plantation autonome" },
-  { valeur: "suspendue", label: "Suspendue", color: "destructive", description: "Plantation temporairement suspendue" },
-  { valeur: "hypothequee", label: "Hypothéquée", color: "destructive", description: "Plantation mise en garantie" },
-  { valeur: "resiliee", label: "Résiliée", color: "destructive", description: "Contrat résilié" },
-  { valeur: "abandonnee", label: "Abandonnée", color: "destructive", description: "Plantation abandonnée" },
+  { valeur: "actif", label: "Active", color: "default", description: "Plantation activée après validation technique" },
+  { valeur: "suspendue", label: "Suspendue", color: "destructive", description: "Plantation temporairement suspendue par une décision autorisée" },
+  { valeur: "resiliee", label: "Résiliée", color: "destructive", description: "Contrat de plantation résilié" },
+  { valeur: "abandonnee", label: "Abandonnée", color: "destructive", description: "Plantation déclarée abandonnée" },
 ];
 
 const STATUTS_CLIENT = [
@@ -52,7 +44,7 @@ const GestionStatuts = () => (
     <Card>
       <CardHeader>
         <CardTitle>Gestion des statuts</CardTitle>
-        <p className="text-sm text-muted-foreground">Référentiel des statuts métier actuellement utilisés par les processus AgriCapital.</p>
+        <p className="text-sm text-muted-foreground">Référentiel des statuts métier actuels. Les étapes de terrain sont suivies dans les interventions techniques, pas comme des statuts de paiement ou de plantation.</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div role="note" className="rounded-md border bg-muted/30 p-3 text-sm">
