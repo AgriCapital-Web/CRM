@@ -212,6 +212,7 @@ export default function ConfigurationSenndo() {
             <div className="space-y-2">
               <Label htmlFor="senndo-test-destination">{testChannel === "email" ? "Adresse e-mail de destination" : "Numéro de destination"}</Label>
               <Input id="senndo-test-destination" type={testChannel === "email" ? "email" : "tel"} value={testDestination} onChange={(e) => setTestDestination(e.target.value)} placeholder={testChannel === "email" ? "votre.adresse@exemple.ci" : "+2250700000000"} autoComplete="off" />
+              {testChannel !== "email" && <p className="text-xs text-muted-foreground">Ce champ est le destinataire du test (to), pas le numéro expéditeur. L’envoi part du WhatsApp appairé AgriCapital ; le CRM récupère automatiquement son senderSessionId.</p>}
 
             </div>
           </div>
