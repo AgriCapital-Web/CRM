@@ -91,28 +91,32 @@ BEGIN
 
   FOR v_lot IN
     SELECT lh.*
-      FROM public.acquisition_lots al
-      JOIN public.lots_hectares lh ON lh.id = al.lot_id
-     WHERE NEW.acquisition_id IS NOT NULL
-       AND al.acquisition_id = NEW.acquisition_id
-       AND al.client_id = NEW.client_id
-       AND lh.parcelle_id = NEW.parcelle_id
-       AND coalesce(lh.part_type, 'agricapital') = 'agricapital'
-       AND abs(coalesce(al.surface_ha, lh.surface_ha, 0) - 1) < 0.0001
-    UNION ALL
-    SELECT lh.*
       FROM public.lots_hectares lh
-     WHERE NEW.acquisition_id IS NULL
-       AND lh.parcelle_id = NEW.parcelle_id
+     WHERE lh.parcelle_id = NEW.parcelle_id
        AND coalesce(lh.part_type, 'agricapital') = 'agricapital'
-       AND lh.client_id = NEW.client_id
-       AND lh.surface_ha = 1
-       AND NOT EXISTS (
-         SELECT 1 FROM public.acquisition_lots al WHERE al.lot_id = lh.id
+       AND (
+         (
+           NEW.acquisition_id IS NOT NULL
+           AND EXISTS (
+             SELECT 1
+               FROM public.acquisition_lots al
+              WHERE al.lot_id = lh.id
+                AND al.acquisition_id = NEW.acquisition_id
+                AND al.client_id = NEW.client_id
+                AND abs(coalesce(al.surface_ha, lh.surface_ha, 0) - 1) < 0.0001
+           )
+         )
+         OR
+         (
+           NEW.acquisition_id IS NULL
+           AND lh.client_id = NEW.client_id
+           AND lh.surface_ha = 1
+           AND NOT EXISTS (SELECT 1 FROM public.acquisition_lots al WHERE al.lot_id = lh.id)
+         )
        )
-    ORDER BY numero_h
-    LIMIT v_units
-    FOR UPDATE
+     ORDER BY lh.numero_h
+     LIMIT v_units
+     FOR UPDATE OF lh
   LOOP
     v_activation := NULL;
     SELECT * INTO v_existing
