@@ -43,7 +43,7 @@ const renderLeadTemplate = (template: string, lead: any) => {
   const fullName = [lead?.prenoms, lead?.nom].filter(Boolean).join(" ").trim();
   const vars: Record<string, string> = {
     nom: fullName, nom_complet: fullName, prenom: String(lead?.prenoms || fullName.split(/\s+/)[0] || ""),
-    telephone: String(lead?.telephone || ""), whatsapp: String(lead?.whatsapp || lead?.telephone || ""),
+    telephone: String(lead?.telephone || ""), telephone_secondaire: String(lead?.telephone_secondaire || ""), telephone_secondaire_indicatif: String(lead?.telephone_secondaire_indicatif || ""), telephone_secondaire_local: String(lead?.telephone_secondaire_local || ""), telephone_principal_whatsapp: !!lead?.telephone_principal_whatsapp, telephone_secondaire_whatsapp: !!lead?.telephone_secondaire_whatsapp, whatsapp: String(lead?.whatsapp || lead?.telephone || ""),
     email: String(lead?.email || ""), numero_contrat: "", offre: "", montant: "", date: new Date().toLocaleDateString("fr-FR"),
   };
   return template.replace(/\{\{\s*([a-zA-Z0-9_ ]+)\s*\}\}|\{\s*([a-zA-Z0-9_ ]+)\s*\}/g, (_match, doubleKey, singleKey) => vars[String(doubleKey || singleKey || "").trim().replace(/\s+/g, "_")] ?? "");
@@ -106,7 +106,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [editingLead, setEditingLead] = useState<any>(null);
   const [conversionLeadId, setConversionLeadId] = useState<string | null>(null);
   const emptyLead = {
-    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", telephone_secondaire: "", telephone_principal_whatsapp: false, telephone_secondaire_whatsapp: false, whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", region_residence: "", lieu_residence: "",
+    nom: "", prenoms: "", telephone: "", telephone_indicatif: "", telephone_local: "", telephone_secondaire: "", telephone_secondaire_indicatif: "", telephone_secondaire_local: "", telephone_principal_whatsapp: false, telephone_secondaire_whatsapp: false, whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", localite: "", village_id: "", district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", region_residence: "", lieu_residence: "",
     type_lead: "client", civilite: "", etape_pipeline: "lead", offre_code: "", formule_code: "",
     dispose_terrain: "non", superficie_disponible_ha: "", superficie_a_valoriser_ha: "", superficie_souhaitee_ha: "",
     delai_demarrage: "", date_contact_souhaitee: "", creneau_prefere: "", mode_contact_prefere: "appel",
@@ -331,8 +331,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           return;
         }
         const { error } = await offlineUpdate("leads", editingLead.id, {
-          nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null, telephone: leadForm.telephone,
-          whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+          nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null, telephone: leadForm.telephone, telephone_secondaire: leadForm.telephone_secondaire || null, telephone_secondaire_indicatif: leadForm.telephone_secondaire_indicatif || null, telephone_secondaire_local: leadForm.telephone_secondaire_local || null, telephone_principal_whatsapp: !!leadForm.telephone_principal_whatsapp, telephone_secondaire_whatsapp: !!leadForm.telephone_secondaire_whatsapp, whatsapp: leadForm.telephone_principal_whatsapp ? leadForm.telephone : leadForm.telephone_secondaire_whatsapp ? (leadForm.telephone_secondaire || null) : null, email: leadForm.email || null,
           district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
           departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
           village_id: leadForm.village_id || null, localite: leadForm.localite || null, region_residence: leadForm.region_residence,
@@ -357,7 +356,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           const num = (v: string) => (v === "" || v == null ? null : Number(v));
           const { error: prospectError } = await offlineUpdate("prospects", editingLead.prospect_id, {
             nom: leadForm.nom, prenoms: leadForm.prenoms, civilite: leadForm.civilite || null,
-            telephone: leadForm.telephone, whatsapp: leadForm.whatsapp || null, email: leadForm.email || null,
+            telephone: leadForm.telephone, telephone_secondaire: leadForm.telephone_secondaire || null, telephone_secondaire_indicatif: leadForm.telephone_secondaire_indicatif || null, telephone_secondaire_local: leadForm.telephone_secondaire_local || null, telephone_principal_whatsapp: !!leadForm.telephone_principal_whatsapp, telephone_secondaire_whatsapp: !!leadForm.telephone_secondaire_whatsapp, whatsapp: leadForm.telephone_principal_whatsapp ? leadForm.telephone : leadForm.telephone_secondaire_whatsapp ? (leadForm.telephone_secondaire || null) : null, email: leadForm.email || null,
             district_id: leadForm.district_id || null, region_id: leadForm.region_id || null,
             departement_id: leadForm.departement_id || null, sous_prefecture_id: leadForm.sous_prefecture_id || null,
             village_id: leadForm.village_id || null, region_residence: leadForm.region_residence || null,
@@ -967,8 +966,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 <div><Label>Civilité (facultatif)</Label><Select value={leadForm.civilite || "non_precisee"} onValueChange={v => setLeadForm(x => ({ ...x, civilite: v === "non_precisee" ? "" : v }))}><SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger><SelectContent><SelectItem value="non_precisee">Non précisée</SelectItem><SelectItem value="monsieur">Monsieur</SelectItem><SelectItem value="madame">Madame</SelectItem></SelectContent></Select></div>
                 <div><Label>Nom *</Label><Input value={leadForm.nom} onChange={e => setLeadForm(x => ({ ...x, nom: e.target.value.toLocaleUpperCase("fr-FR") }))} placeholder="Nom de famille" /></div>
                 <div><Label>Prénom(s) *</Label><Input value={leadForm.prenoms} onChange={e => setLeadForm(x => ({ ...x, prenoms: e.target.value.toLocaleUpperCase("fr-FR") }))} placeholder="Prénom(s)" /></div>
-                <div className="sm:col-span-2"><CountryPhoneInput label="Téléphone" required countryCode={leadForm.telephone_indicatif || undefined} localValue={leadForm.telephone_local || leadForm.telephone || ""} onChange={v => setLeadForm(x => ({ ...x, telephone_indicatif: v.callingCode, telephone_local: v.localValue, telephone: v.internationalValue }))} /></div>
-                <div className="sm:col-span-2"><Label>Téléphone WhatsApp ou email complémentaire (facultatif)</Label><Input value={leadForm.email} onChange={e => setLeadForm(x => ({ ...x, email: e.target.value }))} placeholder="Email (facultatif)" type="email" /></div>
+                <div className="space-y-1"><CountryPhoneInput label="Téléphone principal" required countryCode={leadForm.telephone_indicatif || undefined} localValue={leadForm.telephone_local || leadForm.telephone || ""} onChange={v => setLeadForm(x => ({ ...x, telephone_indicatif: v.callingCode, telephone_local: v.localValue, telephone: v.internationalValue }))}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!leadForm.telephone_principal_whatsapp} onCheckedChange={v=>setLeadForm(x=>({...x,telephone_principal_whatsapp:v===true,telephone_secondaire_whatsapp:v===true?false:x.telephone_secondaire_whatsapp}))}/>Ce numéro utilise WhatsApp</label></div>
+                <div className="space-y-1"><CountryPhoneInput label="Téléphone secondaire" countryCode={leadForm.telephone_secondaire_indicatif || undefined} localValue={leadForm.telephone_secondaire_local || leadForm.telephone_secondaire || ""} onChange={v=>setLeadForm(x=>({...x,telephone_secondaire_indicatif:v.callingCode,telephone_secondaire_local:v.localValue,telephone_secondaire:v.internationalValue}))}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!leadForm.telephone_secondaire_whatsapp} onCheckedChange={v=>setLeadForm(x=>({...x,telephone_secondaire_whatsapp:v===true,telephone_principal_whatsapp:v===true?false:x.telephone_principal_whatsapp}))}/>Ce numéro utilise WhatsApp</label></div>
+                <div className="sm:col-span-2"><Label>Email (facultatif)</Label><Input value={leadForm.email} onChange={e => setLeadForm(x => ({ ...x, email: e.target.value }))} placeholder="Adresse e-mail" type="email" /></div>
                 <div className="sm:col-span-2"><Label>Lieu de résidence (facultatif)</Label><Input value={leadForm.lieu_residence} onChange={e => setLeadForm(x => ({ ...x, lieu_residence: e.target.value }))} placeholder="Village, ville ou quartier de résidence" /></div>
                 {leadForm.type_lead === "client" && <div className="sm:col-span-2"><Label>Dispose d’un terrain ?</Label><Select value={leadForm.dispose_terrain} onValueChange={v => setLeadForm(x => ({ ...x, dispose_terrain: v }))}><SelectTrigger><SelectValue placeholder="Choisir Oui ou Non" /></SelectTrigger><SelectContent>{refs("oui_non").map((r:any) => <SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>}
                 <div className="sm:col-span-2"><Label>Note rapide (facultatif)</Label><Textarea value={leadForm.commentaire} onChange={e => setLeadForm(x => ({ ...x, commentaire: e.target.value }))} placeholder="Besoin exprimé ou information utile…" rows={2} /></div>
