@@ -54,7 +54,7 @@ const REF_TABLES = [
   { store: STORES.FINANCE_SALARY_PROFILES, table: 'finance_salary_profiles' },
   { store: STORES.FINANCE_PAYROLL_RUNS, table: 'finance_payroll_runs' },
   { store: STORES.FINANCE_PAYROLL_ITEMS, table: 'finance_payroll_items' },
-  { store: STORES.ACQUISITIONS_BROUILLON, table: 'acquisitions_brouillon' },
+
 ] as const;
 
 export function useOfflineSync() {
