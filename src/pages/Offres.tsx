@@ -22,7 +22,6 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { useOffresPrixEffectif } from "@/hooks/useOffresPrixEffectif";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
-import { promotionCible } from "@/lib/pricing";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 
 type Offre = Tables<'offres'>;
