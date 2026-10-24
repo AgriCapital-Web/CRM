@@ -11,7 +11,7 @@ import { EtapeRepresentantDynamique } from "@/components/forms/acquisition/Etape
 import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition/EtapeDocumentsContratsDynamiques";
 import { EtapeConfirmationDossier } from "@/components/forms/acquisition/EtapeConfirmationDossier";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile } from "@/utils/storage";
+import { uploadFile, resolveStorageUrl } from "@/utils/storage";
 import { offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
 import { useToast } from "@/hooks/use-toast";
 import { SyncStatusBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
@@ -97,6 +97,29 @@ function hasDocumentFile(formData: any, code: string): boolean {
   return Boolean(recoverFile(formData["doc_" + code + "_file"], formData["doc_" + code + "_preview"], code));
 }
 const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, documents: FileText, confirmation: CheckCircle2 };
+const StoredAttachmentLinks=({formData}:{formData:any})=>{
+  const [items,setItems]=useState<Array<{label:string;url:string;image:boolean}>>([]);
+  const signature=Object.entries(formData||{}).filter(([key,value])=>key.endsWith("_preview")&&typeof value==="string"&&Boolean(value)).map(([key,value])=>key+":"+String(value)).join("|");
+  useEffect(()=>{
+    let active=true;
+    void (async()=>{
+      const entries=Object.entries(formData||{}).filter(([key,value])=>key.endsWith("_preview")&&typeof value==="string"&&Boolean(value));
+      const resolved=await Promise.all(entries.map(async([key,value])=>{
+        const source=String(value);
+        if(/^(https?:|data:|blob:)/i.test(source)) return {label:key.replace(/_preview$/,"").replace(/^(doc_|contrat_)/,"").replace(/_/g," "),url:source,image:/^data:image\//i.test(source)||/\.(png|jpe?g|webp|gif)(\?|$)/i.test(source)};
+        const name=key.toLowerCase();
+        const buckets=name.includes("photo")||name.includes("profil")?["photos-profils","documents","documents-fonciers","pieces-identite"]:name.includes("foncier")||name.includes("croquis")?["documents-fonciers","documents","pieces-identite"]:name.includes("contrat")||name.startsWith("doc_")?["documents","documents-fonciers","pieces-identite"]:["pieces-identite","documents","documents-fonciers"];
+        for(const bucket of buckets){try{const url=await resolveStorageUrl(bucket,source);if(url)return {label:key.replace(/_preview$/,"").replace(/^(doc_|contrat_)/,"").replace(/_/g," "),url,image:/\.(png|jpe?g|webp|gif)(\?|$)/i.test(url)};}catch{}}
+        return null;
+      }));
+      if(active)setItems(resolved.filter(Boolean) as any[]);
+    })();
+    return()=>{active=false;};
+  },[signature]);
+  if(!items.length)return null;
+  return <Card className="border-primary/20"><CardHeader className="pb-2"><CardTitle className="text-sm">Aperçu des photos et documents enregistrés</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{items.map((item,index)=><div key={item.label+index} className="min-w-0 rounded-lg border p-3"><p className="mb-2 truncate text-xs font-medium capitalize">{item.label}</p>{item.image?<a href={item.url} target="_blank" rel="noreferrer"><img src={item.url} alt={item.label} className="h-36 w-full rounded object-contain bg-muted/30"/></a>:<a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary underline"><FileText className="h-4 w-4"/>Ouvrir le document</a>}</div>)}</CardContent></Card>;
+};
+
 
 const NouvelleAcquisition = () => {
   const [formData,setFormData]=useState<any>({});
@@ -812,7 +835,7 @@ const NouvelleAcquisition = () => {
   return <ProtectedRoute requiredPermission={recordId ? "clients.view" as any : PERMISSIONS.CREATE_ACQUISITION}><MainLayout><div className="max-w-7xl mx-auto page-section space-y-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl sm:text-3xl font-bold">{recordId?(existingRecord?.client?.nom_complet||"Fiche client"):"Nouveau Client"}</h1><p className="text-sm text-muted-foreground">{recordId?(editExisting?"Mode modification":"Consultation du dossier complet, étape par étape"):"Formulaire officiel de souscription"}</p>{!recordId&&<SyncStatusBadge state={syncState} className="mt-2"/>}</div>{recordId&&!editExisting&&canEditExisting&&<Button type="button" onClick={()=>setEditExisting(true)}>Modifier</Button>}</div>
     <div className="flex min-w-0 gap-2 overflow-x-auto pb-2 scrollbar-thin">{activeSteps.map((s,i)=>{const Icon=STEP_ICONS[s.code]||FileText;return <Button key={s.code} type="button" size="sm" variant={i===current?"default":"outline"} className="shrink-0 gap-1.5 px-2.5 sm:px-3" title={s.titre} aria-label={`Étape ${i+1}: ${s.titre}`} onClick={()=>{if(recordId||i<=current)setCurrent(i);}}><Icon className="h-4 w-4"/><span className="hidden sm:inline">{i+1}. {s.titre}</span><span className="sm:hidden text-xs">{i+1}</span></Button>})}</div>
-    <Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:<fieldset disabled={Boolean(recordId&&!editExisting)} className="min-w-0">{renderStep()}</fieldset>}</Card>
+    <StoredAttachmentLinks formData={formData}/><Card className="min-w-0 overflow-hidden p-3 sm:p-6 rounded-2xl shadow-sm">{draftLoading||loadingSteps?<div className="p-8 text-center"><Loader2 className="mx-auto animate-spin"/></div>:<fieldset disabled={Boolean(recordId&&!editExisting)} className="min-w-0">{renderStep()}</fieldset>}</Card>
     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between"><Button variant="outline" onClick={()=>recordId&&editExisting?setEditExisting(false):navigate(-1)} disabled={saving||draftLoading||loadingSteps}>{recordId&&editExisting?"Annuler les modifications":"Retour"}</Button>
       <div className="flex flex-wrap justify-end gap-2">{!recordId&&<Button variant="outline" onClick={()=>setCurrent(v=>Math.max(0,v-1))} disabled={current===0||saving||draftLoading||loadingSteps}><ChevronLeft className="mr-2 h-4 w-4"/>Précédent</Button>}
       {!last?<Button onClick={next} disabled={saving||draftLoading||loadingSteps}>{recordId?"Étape suivante":saving?"Sauvegarde…":"Suivant"}<ChevronRight className="ml-2 h-4 w-4"/></Button>:recordId?(editExisting?<Button size="lg" onClick={()=>void saveExistingRecord()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"Enregistrer les modifications"}</Button>:<Button size="lg" variant="outline" onClick={()=>navigate(-1)}>Fermer le dossier</Button>):<Button size="lg" onClick={()=>void submit()} disabled={saving||draftLoading}>{saving?"Enregistrement…":"✓ Enregistrer le Client"}</Button>}</div>
