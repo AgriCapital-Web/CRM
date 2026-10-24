@@ -1,7 +1,4 @@
 import { useMemo, useRef, useState } from "react";
-import MainLayout from "@/components/layout/MainLayout";
-import { PERMISSIONS } from "@/lib/roles";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
