@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
+import { PERMISSIONS } from "@/lib/roles";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -142,7 +143,7 @@ export default function ImportContacts() {
       toast({ variant: "destructive", title: "Création interrompue", description: error?.message || "Impossible de créer les leads. Aucun succès ne sera annoncé sans confirmation de la base." });
     } finally { setLoading(false); }
   };
-  return <ProtectedRoute requiredPermission="parametres.view"><MainLayout><div className="mx-auto max-w-7xl space-y-5">
+  return <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PARAMETRES}><MainLayout><div className="mx-auto max-w-7xl space-y-5">
     <div><h1 className="text-2xl font-bold">Importer les contacts</h1><p className="text-sm text-muted-foreground">Sélectionnez des contacts depuis le téléphone ou importez un fichier. Aucun message n'est envoyé pendant l'import.</p></div>
     <div className="grid gap-4 md:grid-cols-2">
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><Contact className="h-5 w-5"/>Répertoire du téléphone</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Selon le navigateur et l'appareil, vous pourrez sélectionner plusieurs contacts. L'accès automatique à tout le répertoire n'est pas autorisé par les navigateurs.</p><Button onClick={() => void pickPhoneContacts()} className="w-full"><Users className="mr-2 h-4 w-4"/>Choisir des contacts</Button></CardContent></Card>
