@@ -560,7 +560,6 @@ const ProprietairesTerres = () => {
                       <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((activeStepIndex + 1) / formSteps.length) * 100}%` }} />
                     </div>
                   </div>
-                  <fieldset disabled={ownerReadOnly} className="contents">
                   <Tabs value={activeFormTab} onValueChange={setActiveFormTab} className="space-y-4">
                     <TabsList className="flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl bg-muted/70 p-1">
                       {formSteps.map((step, index) => (
@@ -570,7 +569,7 @@ const ProprietairesTerres = () => {
                         </TabsTrigger>
                       ))}
                     </TabsList>
-
+                    <fieldset disabled={ownerReadOnly} className="contents">
                     {/* TAB 1: IDENTITÉ */}
                     <TabsContent value="identite" className="space-y-4">
                       <div className="space-y-2">
@@ -875,8 +874,8 @@ const ProprietairesTerres = () => {
                         })}
                       </div>
                     </TabsContent>
+                    </fieldset>
                   </Tabs>
-                  </fieldset>
 
                   <div className="flex flex-col-reverse gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
                     {ownerReadOnly ? (
