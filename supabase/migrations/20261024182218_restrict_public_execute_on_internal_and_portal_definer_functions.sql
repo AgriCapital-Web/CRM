@@ -1,0 +1,14 @@
+revoke execute on function public.internal_create_conversation(text,text,uuid[]) from public, anon;
+grant execute on function public.internal_create_conversation(text,text,uuid[]) to authenticated;
+revoke execute on function public.internal_is_conversation_creator(uuid) from public, anon;
+grant execute on function public.internal_is_conversation_creator(uuid) to authenticated;
+revoke execute on function public.workspace_list_finance_users() from public, anon;
+grant execute on function public.workspace_list_finance_users() to authenticated;
+revoke execute on function public.workspace_list_roles() from public, anon;
+grant execute on function public.workspace_list_roles() to authenticated;
+revoke execute on function public.internal_set_conversation_creator_profile() from public, anon, authenticated;
+revoke execute on function public.normalize_prospects_phone_fields() from public, anon, authenticated;
+revoke execute on function public.sync_parcelle_coordinates_to_plantations() from public, anon, authenticated;
+revoke execute on function public.sync_technical_ticket_treatment_from_report() from public, anon, authenticated;
+revoke execute on function public.portal_plantation_payment_state(uuid,uuid) from public, anon;
+grant execute on function public.portal_plantation_payment_state(uuid,uuid) to authenticated;
