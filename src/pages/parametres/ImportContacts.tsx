@@ -119,7 +119,6 @@ export default function ImportContacts() {
       const rows = selected.filter((contact) => !existingPhones.has(normalizePhone(contact.telephone))).map((contact) => ({
         nom: contact.nom || contact.prenoms || "Contact importé",
         prenoms: contact.prenoms || null,
-        nom_complet: [contact.prenoms, contact.nom].filter(Boolean).join(" ").trim() || contact.telephone,
         telephone: normalizePhone(contact.telephone),
         telephone_secondaire: normalizePhone(contact.telephone_secondaire) || null,
         whatsapp: contact.whatsapp_principal ? normalizePhone(contact.telephone) : contact.whatsapp_secondaire ? normalizePhone(contact.telephone_secondaire) : null,
