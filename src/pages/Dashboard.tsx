@@ -202,7 +202,7 @@ const Dashboard = () => {
           ? (supabase as any).from("beneficiaire_attributions").select("id,client_id,statut,surface_attribuee_ha")
           : Promise.resolve({ data: [] }),
         canTechnical || canPlantations || globalAdmin
-          ? (supabase as any).from("interventions_techniques").select("id,type_intervention,statut,date_intervention,plantation_id,client_id")
+          ? (supabase as any).from("interventions_techniques").select("id,type_intervention,statut,date_intervention,plantation_id,client_id,agent_technique_id")
           : Promise.resolve({ data: [] }),
         canCommissions || canFinance || globalAdmin
           ? (supabase as any).from("commissions").select("montant_commission,statut")
