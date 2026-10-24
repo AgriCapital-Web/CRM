@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUploadVisual } from "@/components/ui/file-upload-visual";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 
@@ -68,7 +71,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
           
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground rounded-md bg-muted/40 p-3">La photo du Client et les deux faces de sa pièce d’identité sont recueillies une seule fois à l’étape « Informations du client ». Elles sont jointes automatiquement au dossier : inutile de les téléverser une seconde fois.</p>
+<div className="space-y-4 rounded-xl border p-4"><h3 className="font-semibold">Identité et photos du client</h3><div className="grid gap-4 md:grid-cols-3"><div><Label>Type de pièce *</Label><PieceTypeSelect value={formData.type_piece||""} onChange={v=>updateFormData({type_piece:v})}/></div><div><Label>Numéro de pièce *</Label><Input value={formData.numero_piece||""} onChange={e=>updateFormData({numero_piece:e.target.value})}/></div><div><Label>Date de délivrance</Label><Input type="date" value={formData.date_delivrance_piece||""} onChange={e=>updateFormData({date_delivrance_piece:e.target.value})}/></div></div><div className="grid gap-4 md:grid-cols-2"><FileUploadVisual label="Pièce d’identité — recto *" field="photo_piece_recto" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_recto_file||null} currentPreview={formData.photo_piece_recto_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_recto_file:file,photo_piece_recto_preview:preview})} onIdentityNumberDetected={n=>updateFormData({numero_piece:n})} identityDocumentType={formData.type_piece}/><FileUploadVisual label="Pièce d’identité — verso *" field="photo_piece_verso" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_verso_file||null} currentPreview={formData.photo_piece_verso_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_verso_file:file,photo_piece_verso_preview:preview})} identityDocumentType={formData.type_piece}/></div><FileUploadVisual label="Photo du client *" field="photo_profil" accept="image/*" required currentFile={formData.photo_profil_file||null} currentPreview={formData.photo_profil_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_profil_file:file,photo_profil_preview:preview})}/></div>
           {visibleDocuments.length === 0 && (
             <p className="text-sm text-muted-foreground">Aucune pièce supplémentaire à téléverser à cette étape.</p>
           )}
