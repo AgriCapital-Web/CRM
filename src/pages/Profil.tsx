@@ -97,6 +97,11 @@ const Profil = () => {
       ];
       const payload: any = {};
       fields.forEach((k) => (payload[k] = profile[k] ?? null));
+      payload.telephone_principal_whatsapp = !!profile.telephone_principal_whatsapp;
+      payload.telephone_secondaire_whatsapp = !!profile.telephone_secondaire_whatsapp;
+      payload.whatsapp = profile.telephone_principal_whatsapp ? (profile.telephone || null) : profile.telephone_secondaire_whatsapp ? (profile.telephone_secondaire || null) : null;
+      payload.whatsapp_indicatif = null;
+      payload.whatsapp_local = null;
       if (isAdmin) {
         payload.email = profile.email || null;
         payload.telephone = profile.telephone || null;
