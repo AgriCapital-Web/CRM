@@ -272,7 +272,7 @@ const Offres = () => {
     if (mensualites.length) return mensualites;
     const duree = Number(offre?.duree_paiement_mois) || 0;
     const mensuel = Number(offre?.mensualite_par_ha) || 0;
-    return mensuel > 0 && duree > 0 ? [{ mois_debut: 1, mois_fin: duree, mois: duree, type: "mensualite_unique", mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * duree }] : [];
+    return mensuel > 0 && duree > 0 ? [{ mois_debut: 1, mois_fin: duree, mois: duree, type: "mensualite", mensualite_par_ha: mensuel, total_periode_par_ha: mensuel * duree }] : [];
   };
 
   const buildFormulaTranches = (duration: number, monthly: number) => [{
@@ -542,7 +542,7 @@ const Offres = () => {
                                   <div className="mt-2 space-y-1">
                                     {(Array.isArray(formula.tranches_paiement) ? formula.tranches_paiement : []).map((tranche: any, index: number) => (
                                       <div key={`${tranche.mois_debut || index}-${tranche.mois_fin || tranche.mois || index}`} className="flex justify-between gap-2 rounded bg-background p-2 text-xs">
-                                        <span>{tranche.type === "mensualite_unique" ? `Mensualité unique · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois` : `Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois`}</span>
+                                        <span>{tranche.type === "mensualite_unique" ? `Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois` : `Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois`}</span>
                                         <b>{formatMontant(Number(tranche.mensualite_par_ha || 0))} F/ha</b>
                                       </div>
                                     ))}
@@ -561,7 +561,7 @@ const Offres = () => {
                               <div className="mt-3 space-y-1">
                                 {tranches.filter((t: any) => Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0) > 0).map((t: any, i: number) => (
                                   <div key={i} className="flex min-w-0 justify-between gap-3 rounded-md bg-background p-2 text-xs">
-                                    <span>{t.type === "mensualite_unique" ? "Mensualité unique" : "Mensualité"} · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
+                                    <span>{t.type === "mensualite_unique" ? "Mensualité" : "Mensualité"} · {t.mois ?? ((t.mois_fin ?? 0) - (t.mois_debut ?? 0) + 1)} mois</span>
                                     <span className="shrink-0 font-semibold">{formatMontant(Number(t.mensualite_par_ha_effective ?? t.mensualite_par_ha ?? 0))} F/ha</span>
                                   </div>
                                 ))}
@@ -627,7 +627,7 @@ const Offres = () => {
                         <p className="mb-2 text-sm font-semibold">Échéancier mensuel</p>
                         {getTranches(editOffre).map((t:any,i:number) => (
                           <div key={i} className="grid grid-cols-1 gap-2 border-t py-2 first:border-t-0 sm:grid-cols-3">
-                            <Label className="text-xs">Mensualité unique · {Number(editOffre.duree_paiement_mois || 42)} mois</Label>
+                            <Label className="text-xs">Mensualité · {Number(editOffre.duree_paiement_mois || 42)} mois</Label>
                             <Input type="number" min="1" placeholder="Mois" value={t.mois ?? ""} onChange={e => {
                               const next=getTranches(editOffre).map((x:any,j:number)=>j===i?{...x,mois:Number(e.target.value)}:x);
                               setEditOffre({...editOffre,tranches_paiement:next} as any);
