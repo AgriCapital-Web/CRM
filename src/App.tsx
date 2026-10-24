@@ -38,6 +38,7 @@ import BeneficiaireParticulier from "./pages/BeneficiaireParticulier";
 import TechnicienTerrain from "./pages/TechnicienTerrain";
 import Messagerie from "./pages/Messagerie";
 import EspaceTravail from "./pages/EspaceTravail";
+import Workspace360 from "./pages/Workspace360";
 import AgriCapitalConnect from "./pages/AgriCapitalConnect";
 
 import NotFound from "./pages/NotFound";
@@ -110,6 +111,7 @@ const DomainRouter = () => {
       <Route path="/messagerie" element={<ProtectedRoute requiredPermission={"messagerie.view" as any}><Messagerie /></ProtectedRoute>} />
       <Route path="/connect" element={<ProtectedRoute requiredPermission={"messagerie.view" as any}><AgriCapitalConnect /></ProtectedRoute>} />
       <Route path="/espace-travail" element={<ProtectedRoute><EspaceTravail /></ProtectedRoute>} />
+      <Route path="/espace-travail-360" element={<ProtectedRoute><Workspace360 /></ProtectedRoute>} />
       <Route path="/profil" element={<ProtectedRoute><Profil /></ProtectedRoute>} />
       
       {/* Paiements */}
