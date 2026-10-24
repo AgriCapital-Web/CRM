@@ -73,7 +73,7 @@ const ProprietairesTerres = () => {
   const { toast } = useToast();
   const { fetchFilteredDistricts, fetchFilteredRegions, fetchFilteredDepartements, fetchFilteredSousPrefectures } = useUserZones();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<string, any>>({
     type_proprietaire: "personne_physique",
     civilite: "", nom: "", prenoms: "", date_naissance: "", lieu_naissance: "",
     nom_pere: "", nom_mere: "",
