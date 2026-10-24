@@ -535,7 +535,7 @@ const ProprietairesTerres = () => {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold">Propriétaires de Terres</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">Conventions foncières</h1>
               <p className="text-muted-foreground mt-1">{filtered.length} affiché(s) · {proprietaires.length} propriétaire(s)</p>
             </div>
             <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) { resetForm(); setEditingOwner(null); setOwnerReadOnly(false); } }}>
@@ -905,7 +905,7 @@ const ProprietairesTerres = () => {
             {canValidateOwners && <Card>
               <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div>
-                  <p className="font-semibold">Foncier à valider</p>
+                  <p className="font-semibold">Conventions foncières à valider</p>
                   <p className="text-sm text-muted-foreground">{pendingOwnerCount} dossier(s) soumis par les équipes terrain</p>
                 </div>
                 <Button type="button" variant={pendingOnly ? "default" : "outline"} onClick={() => setPendingOnly(value => !value)}>
