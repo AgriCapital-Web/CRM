@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,11 +31,12 @@ const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2)
 
 export default function AgriCapitalConnect() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState("messages");
+  const [tab, setTab] = useState(searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : "messages");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
@@ -266,19 +267,22 @@ export default function AgriCapitalConnect() {
         <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 overflow-x-hidden p-3 pb-8 pt-16 md:p-6 md:pt-6">
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">Espace de travail & communication</h1></div>
-              <p className="mt-1 text-sm text-muted-foreground">Documents partagés, outils de travail, messagerie interne et réunions d’équipe regroupés ici.</p>
+              <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">AgriCapital 360</h1></div>
+              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Un espace unique pour la communication interne, les documents, l’organisation des équipes et le suivi RH.</p>
             </div>
             <Badge variant="outline" className="w-fit gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Espace interne sécurisé</Badge>
           </header>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => navigate("/espace-travail")}><Files className="mr-2 h-4 w-4 shrink-0" />Documents, tableurs et présentations</Button>
+            
             <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>
           </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:w-fit">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
               <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
+              <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents</TabsTrigger>
+              <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
+              <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
             </TabsList>
             <TabsContent value="messages" className="mt-3 min-w-0">
               <div className="grid min-w-0 gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -306,6 +310,15 @@ export default function AgriCapitalConnect() {
 })}</div><Button className="w-full" onClick={() => void createMeeting()}>Enregistrer la réunion</Button></div></DialogContent></Dialog></div>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{meetings.map(m => <Card key={m.id} className="min-w-0 overflow-hidden"><CardHeader className="pb-2"><div className="flex items-start justify-between gap-2"><CardTitle className="min-w-0 break-words text-base">{m.title}</CardTitle><Badge variant={m.status === "cancelled" ? "destructive" : "outline"}>{m.status === "scheduled" ? "Planifiée" : m.status === "in_progress" ? "En cours" : m.status === "completed" ? "Terminée" : "Annulée"}</Badge></div></CardHeader><CardContent className="space-y-3"><p className="flex items-start gap-2 text-sm"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span>{dateLabel(m.starts_at)} – {dateLabel(m.ends_at)}</span></p>{m.agenda && <div><p className="text-xs font-semibold text-muted-foreground">ORDRE DU JOUR</p><p className="mt-1 whitespace-pre-wrap break-words text-sm">{m.agenda}</p></div>}{(meetingAttachments[m.id] || []).map(file => file.url ? <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 break-all text-xs text-primary underline"><Paperclip className="h-3.5 w-3.5 shrink-0" />{file.file_name}</a> : <p key={file.id} className="text-xs">{file.file_name}</p>)}<div className="flex flex-wrap items-center gap-2"><Badge variant="secondary"><Users className="mr-1 h-3 w-3" />Participants sur invitation</Badge>{m.provider_room_id && <Button type="button" size="sm" onClick={() => { setCallRoomId(m.provider_room_id!); setCallOpen(true); }}>Rejoindre dans le CRM</Button>}</div></CardContent></Card>)}</div>
               {meetings.length === 0 && <Card><CardContent className="p-8 text-center text-sm text-muted-foreground"><Clock3 className="mx-auto mb-2 h-6 w-6" />Aucune réunion planifiée.</CardContent></Card>}
+            </TabsContent>
+            <TabsContent value="documents" className="mt-3 min-w-0 space-y-3">
+              <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Documents, tableurs et présentations</h2><p className="mt-1 text-sm text-muted-foreground">Accédez aux outils documentaires existants sans conserver un deuxième espace dans le menu.</p><Button className="mt-4" onClick={() => navigate("/espace-travail")}>Ouvrir les documents</Button></div>
+            </TabsContent>
+            <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3">
+              <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Agenda opérationnel, tâches, projets et organisation</h2><p className="mt-1 text-sm text-muted-foreground">Retrouvez l’agenda opérationnel, les tâches, les projets, les fiches de poste et l’organigramme.</p><Button className="mt-4" onClick={() => navigate("/espace-travail-360")}>Ouvrir l’organisation 360</Button></div>
+            </TabsContent>
+            <TabsContent value="rh" className="mt-3 min-w-0 space-y-3">
+              <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Ressources humaines</h2><p className="mt-1 text-sm text-muted-foreground">Demandes d’absence, objectifs, évaluations et journal des décisions.</p><Button className="mt-4" onClick={() => navigate("/espace-rh-360")}>Ouvrir le suivi RH</Button></div>
             </TabsContent>
           </Tabs>
         </main>
