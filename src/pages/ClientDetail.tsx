@@ -99,7 +99,7 @@ const ClientDetail = () => {
   const paginatedPaiements=filteredPaiements.slice((paymentPage-1)*pageSize,paymentPage*pageSize);
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
-  const selectedOfferFamily = String(newAcquisitionFormData.offre?.famille_offre || newAcquisitionFormData.offre?.code || newAcquisitionFormData.famille_offre || newAcquisitionFormData.offre_code || "").toUpperCase().replace(/[-_\\s]/g, "");
+  const selectedOfferFamily = String(newAcquisitionFormData.offre?.famille_offre || newAcquisitionFormData.offre?.code || newAcquisitionFormData.famille_offre || newAcquisitionFormData.offre_code || "").toUpperCase().replace(/[-_\s]/g, "");
   const isPalmInvestOffer = selectedOfferFamily === "PALMINVEST";
   const requestedPalmInvestLots = Math.round(Number(newAcquisitionFormData.superficie_prevue || 0));
   const lotsForSelectedParcel = availableLots.filter((lot: any) =>
