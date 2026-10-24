@@ -6,9 +6,9 @@ import { meilleurePromotion, PromotionBase, OffreBase } from "@/lib/pricing";
  * Retourne la meilleure promotion active applicable à l'offre demandée.
  * Sans offreId, retourne la meilleure promotion active globale.
  */
-export const usePromotionActive = (offreId?: string | null) => {
+export const usePromotionActive = (offreId?: string | null, formuleCode?: string | null) => {
   return useQuery({
-    queryKey: ["promotion-active", offreId || "global"],
+    queryKey: ["promotion-active", offreId || "global", formuleCode || "default"],
     queryFn: async () => {
       const now = new Date().toISOString();
       const { data, error } = await supabase
@@ -25,12 +25,25 @@ export const usePromotionActive = (offreId?: string | null) => {
 
       const { data: offreData, error: offreError } = await supabase
         .from("offres")
-        .select("id,code,nom,montant_total_par_ha,montant_pi_par_ha,mensualite_par_ha,montant_cash_par_ha,duree_paiement_mois,tranches_paiement,actif")
+        .select("id,code,nom,montant_total_par_ha,montant_pi_par_ha,mensualite_par_ha,montant_cash_par_ha,duree_paiement_mois,tranches_paiement,formules_configuration,actif")
         .eq("id", offreId)
         .maybeSingle();
       if (offreError) throw offreError;
       if (!offreData) return null;
-      return meilleurePromotion(offreData as OffreBase, active, nowDate);
+
+      const formulas = Array.isArray((offreData as any).formules_configuration)
+        ? (offreData as any).formules_configuration
+        : [];
+      const formula = formuleCode ? formulas.find((item: any) => item.code === formuleCode) : null;
+      const pricingOffer: any = { ...offreData };
+      if (formula) {
+        const sharedTariff = formula.utilise_tarif_commun === true;
+        for (const key of ["montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha", "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement"]) {
+          if (formula[key] !== undefined && formula[key] !== null) pricingOffer[key] = formula[key];
+          else if (!sharedTariff) pricingOffer[key] = null;
+        }
+      }
+      return meilleurePromotion(pricingOffer as OffreBase, active, nowDate);
     },
     staleTime: 30_000,
   });
