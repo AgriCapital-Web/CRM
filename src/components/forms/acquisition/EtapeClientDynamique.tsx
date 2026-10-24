@@ -26,10 +26,6 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
    <div><Label>Situation matrimoniale</Label><Select value={formData.statut_marital||""} onValueChange={v=>updateFormData({statut_marital:v})}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("statut_marital").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
   </CardContent></Card>
 
-  <Card><CardHeader><CardTitle>Pièce d’identité et photos</CardTitle></CardHeader><CardContent className="space-y-4">
-   <div className="grid md:grid-cols-3 gap-4"><div><Label>Type de pièce *</Label><PieceTypeSelect value={formData.type_piece||""} onChange={v=>updateFormData({type_piece:v})}/></div><div><Label>Numéro de pièce *</Label><Input value={formData.numero_piece||""} onChange={e=>updateFormData({numero_piece:e.target.value})}/></div><div><Label>Date de délivrance</Label><Input type="date" value={formData.date_delivrance_piece||""} onChange={e=>updateFormData({date_delivrance_piece:e.target.value})}/></div></div>
-   <div className="grid md:grid-cols-2 gap-4">{file("photo_piece_recto","Pièce d’identité — recto *",".pdf,image/jpeg,image/png",true)}{file("photo_piece_verso","Pièce d’identité — verso *")}</div>{file("photo_profil","Photo du Client *","image/*")}
-  </CardContent></Card>
 
   <Card><CardHeader><CardTitle>Coordonnées et résidence</CardTitle></CardHeader><CardContent className="space-y-4">
    <div className="grid md:grid-cols-2 gap-4">
