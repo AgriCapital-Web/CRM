@@ -308,7 +308,7 @@ serve(async(req)=>{
       ownerActivationRows=rows||[];
     }
     const portalAttributions=isOwner
-      ? ownerActivationRows.map((a:any)=>({id:a.id,client_id:client.id,parcelle_id:a.parcelle_id,plantation_id:(plantationsWithPaymentState.find((p:any)=>p.lot_id===a.lot_id && p.parcelle_id===a.parcelle_id)?.id || a.id),surface_attribuee_ha:a.surface_proprietaire_ha,role_attribution:"part_proprietaire",statut:a.statut,reference_acte:null,notes:"Part du propriétaire enregistrée par l’activation foncière.",created_at:a.created_at}))
+      ? ownerActivationRows.map((a:any)=>({id:a.id,client_id:client.id,parcelle_id:a.parcelle_id,plantation_id:(plantationsWithPaymentState.find((p:any)=>p.parcelle_id===a.parcelle_id && p.role_attribution==="proprietaire" && p.client_id===null)?.id || a.id),surface_attribuee_ha:a.surface_proprietaire_ha,role_attribution:"part_proprietaire",statut:a.statut,reference_acte:null,notes:"Part du propriétaire enregistrée par l’activation foncière.",created_at:a.created_at}))
       : attributions;
 
     const progressionKeys=(referenceRes.data||[]).map((x:any)=>[x.code,x.libelle]);
@@ -368,27 +368,31 @@ serve(async(req)=>{
       };
     }
 
-    const ownerPortalPlantations=isOwner ? ownerActivationRows.map((a:any)=>{
-      const source=plantationsWithPaymentState.find((p:any)=>p.lot_id===a.lot_id && p.parcelle_id===a.parcelle_id);
-      const ownerArea=Math.max(0,Number(a.surface_proprietaire_ha||0));
-      const sourceArea=Math.max(0,Number(source?.superficie_ha||0));
-      const plantRatio=source && sourceArea>0 ? ownerArea/sourceArea : 0;
+    const ownerActivationsByParcel=new Map<string,any[]>();
+    for(const activation of ownerActivationRows){
+      const key=String(activation.parcelle_id);
+      ownerActivationsByParcel.set(key,[...(ownerActivationsByParcel.get(key)||[]),activation]);
+    }
+    const ownerPortalPlantations=isOwner ? Array.from(ownerActivationsByParcel.entries()).map(([parcelleId,activations])=>{
+      const source=plantationsWithPaymentState.find((p:any)=>p.parcelle_id===parcelleId && p.role_attribution==="proprietaire" && p.client_id===null && p.statut==="active");
+      const ownerArea=activations.reduce((sum:number,a:any)=>sum+Math.max(0,Number(a.surface_proprietaire_ha||0)),0);
+      const density=Number(source?.densite_plants||0);
       const ownerPlantation:any={...(source||{}),
-        id:source?.id||a.id,
-        id_unique:source?.id_unique||("PART-"+String(a.lot_id||a.id).slice(0,8)),
+        id:source?.id||activations[0]?.id,
+        id_unique:source?.id_unique||("PART-"+String(parcelleId).slice(0,8)),
         nom_plantation:"Plantation de la part du propriétaire",
         nom:"Plantation de la part du propriétaire",
         superficie_ha:ownerArea,
         superficie_activee:ownerArea,
         surface_reellement_plantee:ownerArea,
-        nombre_plants:source && sourceArea>0 ? Math.round(Number(source.nombre_plants||0)*plantRatio) : null,
-        nombre_plants_prevus:source && sourceArea>0 ? Math.round(Number(source.nombre_plants_prevus||source.nombre_plants||0)*plantRatio) : null,
-        parcelle_id:a.parcelle_id,
+        nombre_plants:source?.nombre_plants ?? (density>0 ? Math.round(ownerArea*density) : null),
+        nombre_plants_prevus:source?.nombre_plants_prevus ?? (density>0 ? Math.round(ownerArea*density) : null),
+        parcelle_id:parcelleId,
         role_attribution:"part_proprietaire",
-        statut:a.statut,
-        statut_global:a.statut,
-        date_activation:a.date_activation,
-        owner_activation_id:a.id,
+        statut:"active",
+        statut_global:"active",
+        date_activation:activations.map((a:any)=>a.date_activation).filter(Boolean).sort().at(-1)||null,
+        owner_activation_ids:activations.map((a:any)=>a.id),
         portal_has_source_plantation:Boolean(source),
         paiement_etat:null,
         taux_journalier_ha:null,
