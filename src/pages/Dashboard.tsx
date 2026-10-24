@@ -501,28 +501,40 @@ const Dashboard = () => {
         const profileById = new Map(directory.map((p: any) => [p.id, p]));
         const memberRows = (teamMembersRes.data || []) as any[];
         const teamsByMember = new Map<string, Set<string>>();
-        const membersByTeam = new Map<string, number>();
+        const memberIdsByTeam = new Map<string, Set<string>>();
+        const teamTypeById = new Map<string, string>(teamRows.map((team: any) => [String(team.id), String(team.type_equipe || "").toLowerCase()]));
         memberRows.forEach((member: any) => {
           if (!member.equipe_id || !member.profile_id) return;
-          membersByTeam.set(member.equipe_id, (membersByTeam.get(member.equipe_id) || 0) + 1);
           const profile = (profileById.get(member.profile_id) || profileByUser.get(member.profile_id)) as any;
           const keys = new Set([String(member.profile_id), String(profile?.id || ""), String(profile?.user_id || "")].filter(Boolean));
+          const memberSet = memberIdsByTeam.get(String(member.equipe_id)) || new Set<string>();
+          memberSet.add(String(member.profile_id));
+          memberIdsByTeam.set(String(member.equipe_id), memberSet);
           keys.forEach((id) => {
             if (!teamsByMember.has(id)) teamsByMember.set(id, new Set<string>());
-            teamsByMember.get(id)!.add(member.equipe_id);
+            teamsByMember.get(id)!.add(String(member.equipe_id));
           });
         });
+        const membersByTeam = new Map<string, number>([...memberIdsByTeam.entries()].map(([teamId, ids]) => [teamId, ids.size]));
         const teamMap = new Map<string, any>();
+        const assignedClientIdsByTeam = new Map<string, Set<string>>();
         if (canCommercialTeamPerformance) commercialClients.forEach((cl: any) => {
-          // Commercial affecté en priorité ; à défaut, créateur historique du dossier.
+          // Un dossier commercial n'est attribué qu'aux équipes commerciales, jamais aux équipes techniques.
           const responsibleId = cl.commercial_id || cl.created_by;
           const profile = (profileByUser.get(responsibleId) || profileById.get(responsibleId)) as any;
           const teamIds = teamsByMember.get(String(responsibleId || "")) || teamsByMember.get(String(profile?.id || "")) || teamsByMember.get(String(profile?.user_id || "")) || new Set<string>();
           teamIds.forEach((teamId) => {
+            if (teamTypeById.get(teamId) !== "commercial") return;
             const key="commercial:"+teamId;
             const row=teamMap.get(key)||{key,teamId,type:"commercial",nom:teamNameById.get(teamId)||"Équipe commerciale",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0};
-            row.clients+=1;
-            row.hectares+=activeAcquisitionAreaByClient.get(cl.id)||0;
+            const assigned = assignedClientIdsByTeam.get(teamId) || new Set<string>();
+            if (!assigned.has(String(cl.id))) {
+              assigned.add(String(cl.id));
+              row.clients += 1;
+              // Priorité aux hectares des acquisitions actives; repli sur la superficie client enregistrée.
+              row.hectares += activeAcquisitionAreaByClient.get(cl.id) || Math.max(0, Number(cl.total_hectares || 0));
+            }
+            assignedClientIdsByTeam.set(teamId, assigned);
             teamMap.set(key,row);
           });
         });
@@ -530,6 +542,7 @@ const Dashboard = () => {
           const profile = (profileById.get(i.agent_technique_id) || profileByUser.get(i.agent_technique_id)) as any;
           const teamIds = teamsByMember.get(String(i.agent_technique_id)) || teamsByMember.get(String(profile?.id || "")) || teamsByMember.get(String(profile?.user_id || "")) || new Set<string>();
           teamIds.forEach((teamId) => {
+            if (teamTypeById.get(teamId) !== "technique") return;
             const key="technique:"+teamId;
             const row=teamMap.get(key)||{key,teamId,type:"technique",nom:teamNameById.get(teamId)||"Équipe technique",clients:0,hectares:0,interventions:0,members:membersByTeam.get(teamId)||0};
             row.interventions+=1;
@@ -678,8 +691,8 @@ const Dashboard = () => {
     ]},
     { label:"Développement commercial", icon:Target, href:canLeads ? "/leads" : "/acquisitions", show:canClients || canLeads, metrics:[
       ...(canClients ? [
-        {group:"Clients",label:"Dossiers",shortLabel:"Dossiers",value:stats.clients,href:"/acquisitions"},
-        {group:"Clients",label:"Clients actifs (sur "+stats.clients+" dossiers)",shortLabel:"Actifs / "+stats.clients,value:stats.clientsActive,href:"/clients"},
+        {group:"Clients",label:"Clients",shortLabel:"Clients",value:stats.clients,href:"/acquisitions"},
+        {group:"Clients",label:"Clients actifs (sur "+stats.clients+" clients)",shortLabel:"Actifs / "+stats.clients,value:stats.clientsActive,href:"/clients"},
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:canPayments ? "/paiements" : "/clients"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"}
@@ -739,14 +752,13 @@ const Dashboard = () => {
           </div>
 
           {!isClientOnly && (
-            <div className="grid min-w-0 grid-cols-2 gap-2 md:grid-cols-6">
-
-                {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="flex min-w-0 w-full items-center justify-center whitespace-nowrap px-2 text-[11px] sm:text-sm" to="/nouvelle-acquisition"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau client</Link></Button>}
-                <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full min-w-0 items-center justify-center whitespace-nowrap px-2 text-[11px] sm:text-sm" to="/leads?new=1&type=prospect"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau prospect</Link></Button>
-              {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/leads?new=1"><Plus className="mr-1 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
-              {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/paiements"><CreditCard className="mr-1 h-4 w-4 shrink-0" />Paiement</Link></Button>}
-              {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/plantations"><Sprout className="mr-1 h-4 w-4 shrink-0" />Plantations</Link></Button>}
-              {canValidateDocuments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-1 text-xs sm:text-sm" to="/acquisitions/validation"><FileCheck className="mr-1 h-4 w-4 shrink-0" />Dossiers à valider</Link></Button>}
+            <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2 md:grid-cols-6">
+              {canCreateAcquisition && <Button asChild className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/nouvelle-acquisition"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau client</span></Link></Button>}
+              <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/leads?new=1&type=prospect"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau prospect</span></Link></Button>
+              {canLeads && <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/leads?new=1"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau lead</span></Link></Button>}
+              {canPayments && <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/paiements"><CreditCard className="h-4 w-4 shrink-0" /><span>Paiement</span></Link></Button>}
+              {canPlantations && <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/plantations"><Sprout className="h-4 w-4 shrink-0" /><span>Plantations</span></Link></Button>}
+              {canValidateDocuments && <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/acquisitions/validation"><FileCheck className="h-4 w-4 shrink-0" /><span>Dossiers à valider</span></Link></Button>}
             </div>
           )}
 
