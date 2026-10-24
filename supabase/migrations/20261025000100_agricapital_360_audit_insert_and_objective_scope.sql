@@ -1,0 +1,7 @@
+drop policy if exists workspace_objectives_manage on public.workspace_objectives;
+create policy workspace_objectives_manage on public.workspace_objectives for all to authenticated
+using ((profile_id=public.internal_current_profile_id() and created_by_profile_id=public.internal_current_profile_id()) or exists(select 1 from public.user_roles ur join public.profiles p on p.user_id=ur.user_id where p.id=public.internal_current_profile_id() and lower(ur.role) in ('rh','responsable_rh','ressources_humaines','admin','administrateur','pdg','dg','directeur_general','directeur général')))
+with check ((profile_id=public.internal_current_profile_id() and created_by_profile_id=public.internal_current_profile_id()) or exists(select 1 from public.user_roles ur join public.profiles p on p.user_id=ur.user_id where p.id=public.internal_current_profile_id() and lower(ur.role) in ('rh','responsable_rh','ressources_humaines','admin','administrateur','pdg','dg','directeur_general','directeur général')));
+grant insert on public.workspace_decision_audit to authenticated;
+drop policy if exists workspace_audit_insert_own on public.workspace_decision_audit;
+create policy workspace_audit_insert_own on public.workspace_decision_audit for insert to authenticated with check(actor_profile_id=public.internal_current_profile_id());
