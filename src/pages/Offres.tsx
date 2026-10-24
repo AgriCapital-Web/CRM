@@ -380,7 +380,7 @@ const Offres = () => {
     setEditingPromo(promo);
     setPromoFormData({
       nom: promo.nom,
-      pourcentage_reduction: promo.pourcentage_reduction.toString(),
+      pourcentage_reduction: String(promo.pourcentage_reduction ?? 0),
       montant_fixe_reduction: String(promo.montant_fixe_reduction || 0),
       date_debut: format(new Date(promo.date_debut), 'yyyy-MM-dd'),
       date_fin: format(new Date(promo.date_fin), 'yyyy-MM-dd'),
@@ -461,7 +461,13 @@ const Offres = () => {
   const activePromo = promotions?.find(p => {
     if (!p.active) return false;
     const now = new Date();
-    return new Date(p.date_debut) <= now && new Date(p.date_fin) >= now;
+    const inWindow = (!p.date_debut || new Date(p.date_debut) <= now) && (!p.date_fin || new Date(p.date_fin) >= now);
+    if (!inWindow) return false;
+    if (p.applique_toutes_offres) return true;
+    const targetIds = Array.isArray((p as any).offre_ids) ? (p as any).offre_ids.map(String) : [];
+    return (offres || []).some((offre: any) =>
+      offre.actif && (targetIds.includes(String(offre.id)) || targetIds.includes(String(offre.code)))
+    );
   });
 
   if (loadingOffres) {
