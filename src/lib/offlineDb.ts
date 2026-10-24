@@ -528,7 +528,7 @@ export const TABLE_TO_OFFLINE_STORE: Record<string, string> = {
   tickets: STORES.TICKETS,
   tickets_techniques: STORES.TICKETS_TECHNIQUES,
   beneficiaire_attributions: STORES.BENEFICIAIRE_ATTRIBUTIONS,
-  acquisitions_brouillon: STORES.ACQUISITIONS_BROUILLON,
+
 };
 
 export interface HttpCacheEntry {
