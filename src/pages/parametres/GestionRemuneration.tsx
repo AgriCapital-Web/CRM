@@ -124,7 +124,7 @@ export default function GestionRemuneration() {
         </TabsList>
 
       <TabsContent value="commercial" className="space-y-4">
-        <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-3">
           <Card className="min-w-0">
             <CardHeader className="pb-3"><CardTitle className="text-base">PalmInvest</CardTitle></CardHeader>
             <CardContent className="grid min-w-0 gap-3">
