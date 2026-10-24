@@ -99,7 +99,7 @@ const ClientDetail = () => {
   const paginatedPaiements=filteredPaiements.slice((paymentPage-1)*pageSize,paymentPage*pageSize);
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
-  const selectedOfferFamily = String(newAcquisitionFormData.offre?.famille_offre || newAcquisitionFormData.offre?.code || newAcquisitionFormData.famille_offre || newAcquisitionFormData.offre_code || "").toUpperCase();
+  const selectedOfferFamily = String(newAcquisitionFormData.offre?.famille_offre || newAcquisitionFormData.offre?.code || newAcquisitionFormData.famille_offre || newAcquisitionFormData.offre_code || "").toUpperCase().replace(/[-_\\s]/g, "");
   const isPalmInvestOffer = selectedOfferFamily === "PALMINVEST";
   const requestedPalmInvestLots = Math.round(Number(newAcquisitionFormData.superficie_prevue || 0));
   const lotsForSelectedParcel = availableLots.filter((lot: any) =>
@@ -988,7 +988,7 @@ const ClientDetail = () => {
                               <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="font-semibold">{formatMontant(Number(acquisition.montant_pi_total || 0))} F</p></div>
                             </div>
                             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs text-muted-foreground">
-                              <span>{acquisition.metadata?.lot_reference_group ? `Lot(s) · ${acquisition.metadata.lot_reference_group}` : acquisition.lot_reference_group ? `Lot(s) · ${acquisition.lot_reference_group}` : `Échéancier · ${Number(acquisition.duree_paiement_mois || 0)} mois`}</span>
+                              <span>{`Échéancier · ${Number(acquisition.duree_paiement_mois || 0)} mois`}</span>{(acquisition.metadata?.lot_reference_group || acquisition.lot_reference_group) && <span>{`Lot(s) · ${acquisition.metadata?.lot_reference_group || acquisition.lot_reference_group}`}</span>}
                               <span>{acquisition.necessite_foncier_client ? "Terrain du client" : "Parcelle partenaire"}</span>
                             </div>
                           </div>
