@@ -343,7 +343,8 @@ const Dashboard = () => {
       const contractProgress = contractRows.map((c: any) => {
         const total = Number(c.montant_total_contrat || 0);
         const paid = paidByClient.get(c.id) || 0;
-        return { client: c, total, paid, remaining: Math.max(0, total - paid), pct: total > 0 ? Math.min(100, Math.round((paid * 100) / total)) : 0 };
+        const settled = Boolean(c.contrat_solde_at);
+        return { client: c, total, paid, remaining: settled ? 0 : Math.max(0, total - paid), pct: settled ? 100 : total > 0 ? Math.min(100, Math.round((paid * 100) / total)) : 0 };
       });
       const avgProgress = contractProgress.length ? Math.round(contractProgress.reduce((s: number, r: any) => s + r.pct, 0) / contractProgress.length) : 0;
       const forecastRevenue = contractRows.reduce((s: number, c: any) => s + Number(c.montant_total_contrat || 0), 0);
