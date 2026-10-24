@@ -19,7 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Search, FileText, Eye, CheckCircle, Clock, MoreVertical, Edit, Archive, Ban, Trash2, RotateCcw, LayoutGrid, List, UserRound, Sprout, UsersRound, LandPlot } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import ClientForm from "@/components/forms/ClientForm";
 import ContactLauncher from "@/components/common/ContactLauncher";
 import KanbanPipeline from "@/components/acquisitions/KanbanPipeline";
@@ -64,6 +64,7 @@ const getOfferDisplayName = (client: any) => {
 
 const Clients = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const acquisitionsView = location.pathname === "/acquisitions";
   const { can } = usePermissions();
   const { profile, userRoles } = useAuth();
@@ -461,7 +462,7 @@ const Clients = () => {
                       </TableRow>
                     ) : (
                       filteredClients.map((client) => (
-                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
+                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => { if (acquisitionsView) navigate("/acquisition/" + encodeURIComponent(client.id)); else { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); } }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (acquisitionsView) navigate("/acquisition/" + encodeURIComponent(client.id)); else { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); } } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
