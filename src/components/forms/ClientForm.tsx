@@ -397,7 +397,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
                   <p className="text-xs font-semibold">Échéancier configuré</p>
                   {paymentTranches.map((tranche: any, index: number) => (
                     <div key={`${tranche.annee || index}-${tranche.mois_debut || 0}`} className="flex flex-wrap justify-between gap-2 border-t pt-1 text-xs">
-                      <span>{tranche.type === "mensualite_unique" ? `Mensualité unique · ${tranche.mois ?? (Number(tranche.mois_fin || 0) - Number(tranche.mois_debut || 1) + 1)} mois` : `An ${tranche.annee || index + 1} · mois ${tranche.mois_debut ?? "—"} à ${tranche.mois_fin ?? "—"} (${tranche.mois ?? (Number(tranche.mois_fin || 0) - Number(tranche.mois_debut || 1) + 1)} mois)`}</span>
+                      <span>{["mensualite","mensualite_unique"].includes(String(tranche.type || "").toLowerCase()) ? `Mensualité · ${tranche.mois ?? (Number(tranche.mois_fin || 0) - Number(tranche.mois_debut || 1) + 1)} mois` : `An ${tranche.annee || index + 1} · mois ${tranche.mois_debut ?? "—"} à ${tranche.mois_fin ?? "—"} (${tranche.mois ?? (Number(tranche.mois_fin || 0) - Number(tranche.mois_debut || 1) + 1)} mois)`}</span>
                       <span className="font-medium tabular-nums">{formatOfferAmount(tranche.mensualite_par_ha)}</span>
                     </div>
                   ))}
