@@ -273,7 +273,7 @@ const NouvelleAcquisition = () => {
         }
         if(!active)return;
         setExistingClientId(client.id);setExistingAcquisitionId(acquisition?.id||null);
-        setExistingRecord({client,acquisition,offer});setEditExisting(false);setCurrent(0);setFormData(values);
+        setExistingRecord({client,acquisition,offer,representative:repResult.data||null});setEditExisting(false);setCurrent(0);setFormData(values);
       }catch(error:any){if(active)toast({variant:"destructive",title:"Dossier impossible à ouvrir",description:getSafeErrorMessage(error)});}
       finally{if(active)setDraftLoading(false);}
     })();
@@ -747,10 +747,32 @@ const NouvelleAcquisition = () => {
         parcours_code:offer.parcours_code||offer.code,commercial_id:formData.commercial_id||null,total_hectares:hectares,superficie_ha:hectares,
         montant_total_contrat:total,paiement_initial_montant:pi,montant_pi_total:pi,mensualite_montant:monthly,
         duree_paiement_mois:Number(pricingOffer.duree_paiement_mois||offer.duree_paiement_mois||0),
-        montant_promo_applique:Number(price.reduction_montant||0)*hectares,promotion_id:price.promotion_id||null,updated_by:user.id,updated_at:new Date().toISOString()};
+        montant_promo_applique:Number(price.reduction_montant||0)*hectares,promotion_id:price.promotion_id||null,contrat_acquisition_statut:formData.contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",contrat_accompagnement_statut:formData.contrat_accompagnement_client_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",updated_by:user.id,updated_at:new Date().toISOString()};
       for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
         const file=recoverFile(formData[field+"_file"],formData[field+"_preview"],field);
         if(file){const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+existingClientId,"identity-"+field);if(!uploaded)throw new Error("Téléversement impossible : "+field);payload[column]=uploaded.path;}
+      }
+      if(formData.has_representant){
+        const representativePayload:any={
+          client_id:existingClientId,type_relation:formData.representant_type||"cotitulaire",lien_client:formData.representant_lien||null,
+          civilite:formData.representant_civilite||null,nom:String(formData.representant_nom||"").trim(),
+          prenoms:formData.representant_prenoms||null,date_naissance:formData.representant_date_naissance||null,
+          lieu_naissance:formData.representant_lieu_naissance||null,type_piece:formData.representant_type_piece||null,
+          numero_piece:formData.representant_numero_piece||null,telephone:formData.representant_telephone||null,
+          whatsapp:formData.representant_telephone_principal_whatsapp?formData.representant_telephone||null:null,
+          actif:true,updated_by:user.id,updated_at:new Date().toISOString()
+        };
+        if(!representativePayload.nom) throw new Error("Le nom du cotitulaire ou mandataire est obligatoire.");
+        if(existingRecord.representative?.id){
+          const {error:representativeError}=await offlineUpdate("client_cotitulaires_mandataires",existingRecord.representative.id,representativePayload);
+          if(representativeError) throw representativeError;
+        }else{
+          const {error:representativeError}=await offlineUpsert("client_cotitulaires_mandataires",{...representativePayload,id:stableUuid(existingClientId,"representative") ,created_by:user.id,created_at:new Date().toISOString()});
+          if(representativeError) throw representativeError;
+        }
+      }else if(existingRecord.representative?.id){
+        const {error:representativeError}=await offlineUpdate("client_cotitulaires_mandataires",existingRecord.representative.id,{actif:false,updated_by:user.id,updated_at:new Date().toISOString()});
+        if(representativeError) throw representativeError;
       }
       for(const key of Object.keys(formData).filter((item)=>item.endsWith("_file"))){
         const base=key.slice(0,-5);
