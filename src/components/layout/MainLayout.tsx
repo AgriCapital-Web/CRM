@@ -48,6 +48,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
     { icon: MessageSquare, label: "Espaces de travail & communication", path: "/connect", permission: "messagerie.view" as any },
     { icon: CalendarDays, label: "Espace de travail 360°", path: "/espace-travail-360", permission: "messagerie.view" as any },
+    { icon: Target, label: "Suivi RH & objectifs", path: "/espace-rh-360", permission: "messagerie.view" as any },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
   ];
 
