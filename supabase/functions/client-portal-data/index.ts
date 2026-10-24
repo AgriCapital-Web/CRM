@@ -143,7 +143,7 @@ serve(async(req)=>{
     }
 
     const owner=ownerRes.data||null;
-    const normalizeIdentityName=(value:any)=>String(value||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]/gi,"").toLowerCase();
+    const normalizeIdentityName=(value:any)=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/gi,"").toLowerCase();
     // Un compte lié à sa propre fiche foncière est un compte propriétaire; un bénéficiaire lié à un tiers ne l'est pas.
     const isOwner=isOwnerType || Boolean(client.proprietaire_id && owner && normalizeIdentityName(client.nom_complet)===normalizeIdentityName(owner.nom_complet));
     const attributions=attributionRes.data||[];
