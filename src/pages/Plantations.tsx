@@ -265,7 +265,7 @@ const Plantations = () => {
                         ? (plantation.lots_hectares?.reference || (plantation.lots_hectares?.numero_h != null ? `Lot ${plantation.lots_hectares.numero_h}` : "—"))
                         : "—"}
                     </TableCell>
-                    <TableCell className="font-semibold tabular-nums">{Math.round(Number(plantation.surface_reellement_plantee ?? plantation.superficie_activee ?? plantation.superficie_ha ?? 0)).toLocaleString("fr-FR")} ha</TableCell>
+                    <TableCell className="font-semibold tabular-nums">{Number(plantation.surface_reellement_plantee ?? plantation.superficie_activee ?? plantation.superficie_ha ?? 0).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})} ha</TableCell>
                     <TableCell><div className="flex items-center gap-1 whitespace-nowrap"><MapPin className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="text-xs">{plantation.regions?.nom || "—"}</span></div></TableCell>
                     <TableCell><Badge className={"whitespace-nowrap text-[10px] px-1.5 py-0 " + getStatutBadge(plantation.statut_global || plantation.statut)}>{formatStatut(plantation.statut_global || plantation.statut || "actif")}</Badge></TableCell>
                     <TableCell>
