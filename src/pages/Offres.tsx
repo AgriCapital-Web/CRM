@@ -827,7 +827,7 @@ const Offres = () => {
                     </div>
 
                     <div className="space-y-2 sm:col-span-2">
-                      <Label>Aperçu indicatif calculé depuis le tarif réel</Label>
+                      <Label>Aperçu indicatif sur le tarif de référence (par hectare)</Label>
                       <div className="p-3 rounded border bg-muted/30">
                         {previewOffer ? (
                           <p className="text-sm">
