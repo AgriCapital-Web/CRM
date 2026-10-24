@@ -30,7 +30,7 @@ function parseVCard(text: string): ImportedContact[] {
       const value = colon >= 0 ? line.slice(colon + 1).trim() : "";
       // Some address books export an explicit WhatsApp label in vCard TYPE/X-ABLABEL.
       // This is source metadata only, not a live verification of a WhatsApp account.
-      const whatsappTagged = /WHATSAPP|X-ABLABEL[^:]*\\bWhatsApp\\b/i.test(metadata) || /WHATSAPP/i.test(value);
+      const whatsappTagged = /WHATSAPP|X-ABLABEL[^:]*\bWhatsApp\b/i.test(metadata) || /WHATSAPP/i.test(value);
       return { phone: normalizePhone(value), whatsappTagged };
     }).filter((entry) => entry.phone);
     const phones = phoneEntries.map((entry) => entry.phone);
@@ -53,12 +53,14 @@ function parseCsv(text: string): ImportedContact[] {
   const phoneIndex = col(["telephone principal", "telephone", "phone", "mobile", "tel"]);
   const secondIndex = col(["telephone secondaire", "second phone", "phone2"]);
   const emailIndex = col(["email", "e-mail", "courriel"]);
+  const whatsappIndex = col(["whatsapp principal", "whatsapp", "wa.me", "numero whatsapp"]);
+  const whatsappSecondIndex = col(["whatsapp secondaire", "second whatsapp"]);
   return lines.slice(1).map((line, index) => {
     const cells = split(line);
     const full = nameIndex >= 0 ? cells[nameIndex] || "" : "";
     const words = full.trim().split(/\s+/).filter(Boolean);
     const phone = normalizePhone(phoneIndex >= 0 ? cells[phoneIndex] || "" : "");
-    return { key: contactKey(full, phone) || String(index), nom: words.length > 1 ? words.slice(1).join(" ") : full, prenoms: firstIndex >= 0 ? cells[firstIndex] || (words.length > 1 ? words[0] : "") : words.length > 1 ? words[0] : "", telephone: phone, telephone_secondaire: normalizePhone(secondIndex >= 0 ? cells[secondIndex] || "" : ""), email: emailIndex >= 0 ? cells[emailIndex] || "" : "", whatsapp_principal: false, whatsapp_secondaire: false, selected: Boolean(phone), source: "CSV" };
+    return { key: contactKey(full, phone) || String(index), nom: words.length > 1 ? words.slice(1).join(" ") : full, prenoms: firstIndex >= 0 ? cells[firstIndex] || (words.length > 1 ? words[0] : "") : words.length > 1 ? words[0] : "", telephone: phone, telephone_secondaire: normalizePhone(secondIndex >= 0 ? cells[secondIndex] || "" : ""), email: emailIndex >= 0 ? cells[emailIndex] || "" : "", whatsapp_principal: whatsappIndex >= 0 && /^(oui|yes|true|1|whatsapp|wa)$/i.test(cells[whatsappIndex] || ""), whatsapp_secondaire: whatsappSecondIndex >= 0 && /^(oui|yes|true|1|whatsapp|wa)$/i.test(cells[whatsappSecondIndex] || ""), selected: Boolean(phone), source: "CSV" };
   }).filter((item) => item.nom || item.prenoms || item.telephone || item.email);
 }
 export default function ImportContacts() {
