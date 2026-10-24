@@ -1,0 +1,18 @@
+alter table public.leads add column if not exists telephone_secondaire text;
+alter table public.leads add column if not exists telephone_principal_whatsapp boolean not null default false;
+alter table public.leads add column if not exists telephone_secondaire_whatsapp boolean not null default false;
+alter table public.leads add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.prospects add column if not exists telephone_secondaire text;
+alter table public.prospects add column if not exists telephone_principal_whatsapp boolean not null default false;
+alter table public.prospects add column if not exists telephone_secondaire_whatsapp boolean not null default false;
+alter table public.prospects add column if not exists metadata jsonb not null default '{}'::jsonb;
+alter table public.clients add column if not exists telephone_secondaire text;
+alter table public.clients add column if not exists telephone_principal_whatsapp boolean not null default false;
+alter table public.clients add column if not exists telephone_secondaire_whatsapp boolean not null default false;
+alter table public.proprietaires_terres add column if not exists telephone_secondaire text;
+alter table public.proprietaires_terres add column if not exists telephone_principal_whatsapp boolean not null default false;
+alter table public.proprietaires_terres add column if not exists telephone_secondaire_whatsapp boolean not null default false;
+alter table public.profiles add column if not exists telephone_principal_whatsapp boolean not null default false;
+alter table public.profiles add column if not exists telephone_secondaire_whatsapp boolean not null default false;
+create index if not exists idx_leads_telephone_normalized on public.leads (regexp_replace(coalesce(telephone,''),'[^0-9]','','g'));
+create index if not exists idx_prospects_telephone_normalized on public.prospects (regexp_replace(coalesce(telephone,''),'[^0-9]','','g'));
