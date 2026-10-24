@@ -33,6 +33,7 @@ export default function AgriCapitalConnect() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { can } = usePermissions();
+  const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
   const [tab, setTab] = useState("messages");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -143,7 +144,7 @@ export default function AgriCapitalConnect() {
   }, []);
 
   useEffect(() => {
-    if (!can("messagerie.view") || !profileId) { setLoading(false); return; }
+    if (!canViewMessaging || !profileId) { setLoading(false); return; }
     let alive = true;
     void Promise.all([loadConversations(), loadStaff(), loadMeetings()]).finally(() => { if (alive) setLoading(false); });
     const channel = supabase.channel("agricapital-connect-realtime")
@@ -155,7 +156,7 @@ export default function AgriCapitalConnect() {
       .on("postgres_changes", { event: "*", schema: "public", table: "internal_meetings" }, () => void loadMeetings())
       .subscribe();
     return () => { alive = false; void supabase.removeChannel(channel); };
-  }, [can, profileId, selected, loadConversations, loadStaff, loadMeetings, loadMessages]);
+  }, [canViewMessaging, profileId, selected, loadConversations, loadStaff, loadMeetings, loadMessages]);
 
   useEffect(() => { if (selected) void loadMessages(selected); else setMessages([]); }, [selected, loadMessages]);
 
@@ -255,7 +256,7 @@ export default function AgriCapitalConnect() {
 
   };
 
-  if (!can("messagerie.view")) {
+  if (!canViewMessaging) {
     return <ProtectedRoute requiredPermission={"messagerie.view" as any}><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
   }
 
