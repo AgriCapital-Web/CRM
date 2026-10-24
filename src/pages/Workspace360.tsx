@@ -53,7 +53,7 @@ export default function Workspace360() {
  const [managerId,setManagerId]=useState("");
  const [reportProfile,setReportProfile]=useState("");
  const roleSet=useMemo(()=>userRoles.map(r=>r.toLowerCase()),[userRoles]);
- const canManageHR=roleSet.some(r=>["rh","responsable_rh","admin","administrateur","pdg","dg","directeur_general","directeur général"].includes(r));
+ const canManageHR=roleSet.some(r=>["rh","responsable_rh","ressources_humaines","admin","administrateur","pdg","dg","directeur_general","directeur général"].includes(r));
  const canManageTasks=canManageHR||roleSet.some(r=>r.includes("manager")||r.includes("responsable")||r.includes("chef"));
  const load=useCallback(async()=>{
    if(!user?.id)return;
