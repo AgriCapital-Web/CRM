@@ -247,9 +247,10 @@ const Dashboard = () => {
         !c.is_internal && !isAgriCapitalInternal(c) &&
         String(c.type_client || "").toLowerCase() !== "proprietaire_foncier"
       );
-      // Un bénéficiaire devient aussi client commercial dès qu'il possède une souscription réelle.
+      // Les bénéficiaires particuliers restent hors du périmètre des clients officiels,
+      // même s'ils possèdent une attribution ou une acquisition pour une plantation distincte.
       const commercialClients = allExternalClients.filter((c: any) =>
-        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier" || clientsWithAcquisitions.has(c.id)
+        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier"
       );
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
