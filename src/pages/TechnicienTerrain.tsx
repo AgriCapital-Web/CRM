@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import InteractiveMap from "@/components/maps/InteractiveMap";
 import CompteRenduIA from "@/components/technique/CompteRenduIA";
-import { ArrowRightLeft, Pencil, Send, X, Plus } from "lucide-react";
+import { Pencil, Send, X, Plus } from "lucide-react";
 
 const TechnicienTerrain=()=>{
   const {user}=useAuth();
@@ -61,13 +61,9 @@ const TechnicienTerrain=()=>{
   const [activeTab,setActiveTab]=useState("rapport");
   const [showReportForm,setShowReportForm]=useState(false);
   const [showInterventionForm,setShowInterventionForm]=useState(false);
-  const [showTransferForm,setShowTransferForm]=useState(false);
   const [saving,setSaving]=useState(false);
   const [capturingReportPosition,setCapturingReportPosition]=useState(false);
   const [capturingInterventionPosition,setCapturingInterventionPosition]=useState(false);
-  const [transferPlantationId,setTransferPlantationId]=useState("");
-  const [transferClientId,setTransferClientId]=useState("");
-  const [transferSaving,setTransferSaving]=useState(false);
   const [report,setReport]=useState<any>({
     plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",
     constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",
@@ -358,21 +354,6 @@ const TechnicienTerrain=()=>{
     }
   };
 
-  const transferAgriCapitalPlantation=async()=>{
-    if(!transferPlantationId||!transferClientId){toast({variant:"destructive",title:"Sélection requise",description:"Sélectionnez une plantation interne et un client PalmInvest."});return;}
-    setTransferSaving(true);
-    try{
-      const {data,error}=await (supabase as any).rpc("transfer_agricapital_plantation",{p_plantation_id:transferPlantationId,p_client_id:transferClientId});
-      if(error)throw error;
-      if(data?.ok===false)throw new Error("Le transfert n'a pas été confirmé.");
-      toast({title:"Plantation transférée",description:"La plantation et son lien de parcelle restent conservés."});
-      setTransferPlantationId("");setTransferClientId("");
-      await load();
-    }catch(error:any){
-      toast({variant:"destructive",title:"Transfert impossible",description:error?.message||"Vérifiez les droits et l'éligibilité PalmInvest."});
-    }finally{setTransferSaving(false);}
-  };
-
   const resetInterventionForm=()=>{
     setEditingInterventionId("");
     setInterventionEditEnabled(false);
@@ -602,15 +583,9 @@ const TechnicienTerrain=()=>{
       </TabsContent>
 
       <TabsContent value="intervention" className="space-y-3">
-        {(!editingInterventionId&&!showInterventionForm&&!showTransferForm)&&<Card><CardHeader className="px-3 py-2"><CardTitle className="text-base">Interventions techniques</CardTitle></CardHeader><CardContent className="p-0"><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="p-2 text-left">Date</th><th className="p-2 text-left">Plantation</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Technicien</th><th className="p-2 text-right">Action</th></tr></thead><tbody>{interventions.length===0?<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucune intervention.</td></tr>:interventions.map((i:any)=><tr key={i.id} role="button" tabIndex={0} onClick={()=>editIntervention(i)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();editIntervention(i);}}} className="cursor-pointer border-b last:border-0 hover:bg-muted/50"><td className="whitespace-nowrap p-2">{i.date_intervention?new Date(i.date_intervention).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{i.plantation?.nom_plantation||i.plantation?.id_unique||"—"}</td><td className="p-2">{i.type_intervention||"—"}</td><td className="p-2">{i.agent?.nom_complet||"—"}</td><td className="p-2 text-right"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();editIntervention(i);}}>Ouvrir</Button></td></tr>)}</tbody></table></div></CardContent></Card>}
-<div className="flex flex-wrap justify-end gap-2">{allowed&&<Button onClick={()=>setShowInterventionForm(true)}><Plus className="mr-2 h-4 w-4"/>Nouvelle intervention</Button>}{allowed&&<Button variant="outline" onClick={()=>setShowTransferForm(true)}><ArrowRightLeft className="mr-2 h-4 w-4"/>Transférer une plantation</Button>}</div>
-        {allowed && showTransferForm && <Card><CardHeader><div className="flex items-center justify-between gap-2"><CardTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5"/>Transférer une plantation AgriCapital</CardTitle><Button type="button" variant="outline" size="sm" onClick={()=>setShowTransferForm(false)}>Fermer</Button></div></CardHeader><CardContent className="space-y-4">
-          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-            <div><Label className="mb-0 block text-xs leading-4">Plantation interne *</Label><Select value={transferPlantationId} onValueChange={setTransferPlantationId}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Choisir une plantation AgriCapital"/></SelectTrigger><SelectContent>{plantations.filter(p=>clients.some(c=>c.id===p.client_id&&c.is_internal===true)).map(p=><SelectItem key={p.id} value={p.id}>{p.nom_plantation||p.nom||p.id_unique} · {Number(p.superficie_ha||0)} ha</SelectItem>)}</SelectContent></Select></div>
-            <div><Label className="mb-0 block text-xs leading-4">Client PalmInvest destinataire *</Label><Select value={transferClientId} onValueChange={setTransferClientId}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Choisir un client PalmInvest"/></SelectTrigger><SelectContent>{clients.filter(c=>!c.is_internal&&(String(c.famille_offre||"").toUpperCase()==="PALMINVEST"||String(c.formule_code||"").toUpperCase().includes("PALMINVEST")||String(c.formule_nom||"").toUpperCase().includes("PALMINVEST"))).map(c=><SelectItem key={c.id} value={c.id}>{c.nom_complet||c.id_unique} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
-          </div>
-          <div className="flex justify-end"><Button onClick={transferAgriCapitalPlantation} disabled={transferSaving||!transferPlantationId||!transferClientId}>{transferSaving?"Transfert…":"Transférer la plantation"}</Button></div>
-        </CardContent></Card>}
+        <div className="flex flex-wrap justify-end gap-2">{allowed&&<Button onClick={()=>setShowInterventionForm(true)}><Plus className="mr-2 h-4 w-4"/>Nouvelle intervention</Button>}</div>
+        {(!editingInterventionId&&!showInterventionForm)&&<Card><CardHeader className="px-3 py-2"><CardTitle className="text-base">Interventions techniques</CardTitle></CardHeader><CardContent className="p-0"><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="p-2 text-left">Date</th><th className="p-2 text-left">Plantation</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Technicien</th><th className="p-2 text-right">Action</th></tr></thead><tbody>{interventions.length===0?<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucune intervention.</td></tr>:interventions.map((i:any)=><tr key={i.id} role="button" tabIndex={0} onClick={()=>editIntervention(i)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();editIntervention(i);}}} className="cursor-pointer border-b last:border-0 hover:bg-muted/50"><td className="whitespace-nowrap p-2">{i.date_intervention?new Date(i.date_intervention).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{i.plantation?.nom_plantation||i.plantation?.id_unique||"—"}</td><td className="p-2">{i.type_intervention||"—"}</td><td className="p-2">{i.agent?.nom_complet||"—"}</td><td className="p-2 text-right"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();editIntervention(i);}}>Ouvrir</Button></td></tr>)}</tbody></table></div></CardContent></Card>}
+
         {(Boolean(editingInterventionId)||showInterventionForm)&&<Card><CardHeader><div className="flex items-center justify-between gap-2"><CardTitle>{editingInterventionId?"Consultation de l’intervention":"Intervention technique"}</CardTitle>{!editingInterventionId&&<Button type="button" variant="outline" size="sm" onClick={()=>setShowInterventionForm(false)}>Fermer</Button>}</div></CardHeader><CardContent className="space-y-2 p-3 sm:p-4"><fieldset disabled={Boolean(editingInterventionId)&&!interventionEditEnabled} className="space-y-2">
           <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <div><Label className="mb-0 block text-xs leading-4">Client / dossier *</Label><Select value={intervention.client_id} onValueChange={v=>{const clientPlantations=plantations.filter((p:any)=>p.client_id===v);const selectedPlantation=clientPlantations.length===1?clientPlantations[0]:null;setIntervention((x:any)=>({...x,client_id:v,acquisition_id:"",parcelle_id:selectedPlantation?.parcelle_id||clients.find(c=>c.id===v)?.parcelle_id||"",plantation_id:selectedPlantation?.id||"",convention_id:"",lot_id:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""}));}}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Sélectionner un Client"/></SelectTrigger><SelectContent>{clients.map(c=><SelectItem key={c.id} value={c.id}>{c.nom_complet} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
