@@ -74,7 +74,7 @@ const Equipes = () => {
       const [{ data: equipesData, error }, { data: regionsData }, { data: profilesData }, { data: membershipData, error: membershipError }] = await Promise.all([
         (supabase as any).from("equipes").select(`*, responsable:profiles!equipes_responsable_id_fkey(nom_complet, telephone), region:regions(nom)`).order("created_at", { ascending: false }),
         (supabase as any).from("v_geo_regions").select("id,nom").eq("est_active_effectif",true).order("nom"),
-        (supabase as any).from("profiles").select("id, nom_complet, user_id, actif").eq("actif", true).order("nom_complet"),
+        (supabase as any).from("profiles").select("id, nom_complet, user_id, actif, relation_rh").eq("actif", true).order("nom_complet"),
         (supabase as any).from("equipe_membres").select("equipe_id, profile_id, profile:profiles!equipe_membres_profile_id_fkey(actif)"),
       ]);
       if (error) throw error;
@@ -88,7 +88,7 @@ const Equipes = () => {
       });
       setEquipes((equipesData || []).map((team: any) => ({ ...team, effectif: memberCounts.get(team.id)?.size || 0 })));
       setRegions(regionsData || []);
-      const baseProfiles = (profilesData || []) as any[];
+      const baseProfiles = ((profilesData || []) as any[]).filter((profile) => profile.relation_rh !== "Client portail");
       const userIds = baseProfiles.map((p: any) => p.user_id).filter(Boolean);
       let rolesRows: any[] = [];
       if (userIds.length) {
