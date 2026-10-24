@@ -51,6 +51,7 @@ export default function Finance(){
   const [expenseSearch,setExpenseSearch]=useState("");
   const [associateForm,setAssociateForm]=useState({associateId:"",amount:"",type:"apport",reference:"",notes:""});
   const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+  const [entryProof,setEntryProof]=useState<File|null>(null);
   const [entryFormOpen,setEntryFormOpen]=useState(false);
   const [salaryFormOpen,setSalaryFormOpen]=useState(false);
   const [payrollGenerateOpen,setPayrollGenerateOpen]=useState(false);
@@ -126,20 +127,31 @@ export default function Finance(){
   const saveEntry=async()=>{
     if(!entryForm.source.trim()||Number(entryForm.amount)<=0){toast({title:"Informations requises",description:"Renseignez la source et un montant positif.",variant:"destructive"});return;}
     setSaving(true);
+    let uploadedProofPath:string|null=null;
     try{
       const labels:Record<string,string>={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",apport_associe:"Apport associé",vente:"Vente",autre:"Autre entrée"};
+      if(entryProof){
+        const uploaded=await uploadFile("documents",entryProof,"finance/entrees");
+        if(!uploaded?.path)throw new Error("Le justificatif de l’entrée n’a pas pu être téléversé.");
+        uploadedProofPath=uploaded.path;
+      }
       const {error}=await (supabase as any).from("finance_transactions").insert({
         direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="apport_associe"?"ASSOCIE":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
         label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:Number(entryForm.amount),
         transaction_date:new Date(entryForm.date+"T12:00:00").toISOString(),payment_method:entryForm.method||null,
-        reference:entryForm.reference.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide"
+        reference:entryForm.reference.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
+        proof_path:uploadedProofPath,proof_name:entryProof?.name||null
       });
       if(error)throw error;
-      toast({title:"Entrée enregistrée",description:"L'opération est intégrée au journal et aux totaux financiers."});
+      toast({title:"Entrée enregistrée"});
       setEntryForm({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+      setEntryProof(null);
       setEntryFormOpen(false);
       await load();
-    }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
+    }catch(error:any){
+      if(uploadedProofPath) await supabase.storage.from("documents").remove([uploadedProofPath]);
+      toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});
+    }
     finally{setSaving(false);}
   };
 
@@ -385,10 +397,11 @@ export default function Finance(){
           <div className="space-y-1"><Label>Date de réception</Label><Input type="date" value={entryForm.date} onChange={e=>setEntryForm({...entryForm,date:e.target.value})}/></div>
           <div className="space-y-1"><Label>Mode de réception</Label><Select value={entryForm.method} onValueChange={v=>setEntryForm({...entryForm,method:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>
           <div className="space-y-1"><Label>Référence</Label><Input value={entryForm.reference} onChange={e=>setEntryForm({...entryForm,reference:e.target.value})} placeholder="N° de pièce ou transaction"/></div>
+          <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label htmlFor="entry-proof" className="flex items-center gap-2"><Paperclip className="h-4 w-4"/>Justificatif / reçu / facture</Label><Input id="entry-proof" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setEntryProof(e.target.files?.[0]||null)} className="text-sm"/>{entryProof&&<p className="text-xs text-muted-foreground">{entryProof.name}</p>}</div>
           <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Notes / affectation</Label><Textarea rows={2} value={entryForm.notes} onChange={e=>setEntryForm({...entryForm,notes:e.target.value})} placeholder="Objet, conditions du prêt, projet financé…"/></div>
           <div className="sm:col-span-2 lg:col-span-3"><Button className="w-full sm:w-auto" onClick={()=>void saveEntry()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>Enregistrer l’entrée</Button></div>
         </div></DialogContent></Dialog>
-        <Card><CardHeader className="pb-2"><CardTitle>Historique des entrées</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Date</th><th className="text-left">Nature / source</th><th className="text-left">Mode</th><th className="text-right">Montant</th></tr></thead><tbody>{transactions.filter(t=>t.direction==="entree").map(t=><tr key={t.id}><td className="whitespace-nowrap">{new Date(t.transaction_date).toLocaleDateString("fr-FR")}</td><td className="min-w-0">{t.label}</td><td>{t.payment_method||"—"}</td><td className="whitespace-nowrap text-right font-semibold tabular-nums">{money(Number(t.amount||0))}</td></tr>)}{!transactions.some(t=>t.direction==="entree")&&<tr><td colSpan={4} className="p-4 text-center text-muted-foreground">Aucune entrée enregistrée</td></tr>}</tbody></table></div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle>Historique des entrées</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Date</th><th className="text-left">Nature / source</th><th className="text-left">Mode</th><th className="text-left">Justificatif</th><th className="text-right">Montant</th></tr></thead><tbody>{transactions.filter(t=>t.direction==="entree").map(t=><tr key={t.id}><td className="whitespace-nowrap">{new Date(t.transaction_date).toLocaleDateString("fr-FR")}</td><td className="min-w-0">{t.label}</td><td>{t.payment_method||"—"}</td><td>{t.proof_path?<Button variant="ghost" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(t.proof_path,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-1 h-3.5 w-3.5"/>{t.proof_name||"Ouvrir"}</Button>:"—"}</td><td className="whitespace-nowrap text-right font-semibold tabular-nums">{money(Number(t.amount||0))}</td></tr>)}{!transactions.some(t=>t.direction==="entree")&&<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucune entrée enregistrée</td></tr>}</tbody></table></div></CardContent></Card>
       </TabsContent>
       <TabsContent value="journal" className="mt-4 min-w-0 space-y-4">
         <div className="rounded-xl border-l-4 border-primary bg-primary/5 p-4"><h2 className="font-semibold">Journal financier</h2></div>

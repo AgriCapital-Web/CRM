@@ -246,8 +246,8 @@ const ClientDetail = () => {
       }
 
       const [{data:benefDocs},{data:acqDocs}] = await Promise.all([
-        (supabase as any).from("beneficiaire_documents").select("*").eq("client_id",id).order("created_at",{ascending:true}),
-        (supabase as any).from("documents_acquisition").select("*").eq("client_id",id).order("created_at",{ascending:true})
+        (supabase as any).from("beneficiaire_documents").select("*").eq("client_id",id).order("created_at",{ascending:false}),
+        (supabase as any).from("documents_acquisition").select("*").eq("client_id",id).order("created_at",{ascending:false})
       ]);
       const normalized=[...(benefDocs||[]).map((x:any)=>({...x,libelle:x.libelle||x.document_type,categorie:x.categorie||"Bénéficiaire"})),...(acqDocs||[]).map((x:any)=>({...x,libelle:x.libelle||x.type_document,categorie:x.categorie||"Acquisition"}))];
       const docsWithUrls=await Promise.all(normalized.map(async(doc:any)=>{const metadata=doc.metadata&&typeof doc.metadata==="object"?doc.metadata:{};const bucket=metadata.storage_bucket||doc.storage_bucket||(doc.categorie==="souscription"?"documents-fonciers":"documents");return {...doc,displayUrl:doc.fichier_url?await resolveStorageUrl(bucket,doc.storage_path||doc.fichier_url):null};}));
@@ -258,7 +258,7 @@ const ClientDetail = () => {
         .select("*, parcelles(id_unique,nom,village), plantations(id_unique,nom_plantation,superficie_ha,statut_global)")
         .eq("client_id", id)
         .eq("statut", "active")
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false });
       setAttributions(attributionsData || []);
 
       // Une plantation appartient toujours à un client/dossier.
@@ -373,7 +373,7 @@ const ClientDetail = () => {
             .is("client_id", null)
             .is("acquisition_id", null)
             .in("statut", ["disponible", "libre"])
-            .order("numero_h", { ascending: true }),
+            .order("numero_h", { ascending: false }),
           (supabase as any).from("conventions_foncieres")
             .select("id,parcelle_id,proprietaire_id,statut")
             .eq("statut", "active"),

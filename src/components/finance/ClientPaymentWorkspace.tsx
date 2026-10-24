@@ -78,7 +78,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         (supabase as any).from("clients")
           .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares")
           .eq("compte_actif", true)
-          .order("nom_complet", { ascending: true }),
+          .order("created_at", { ascending: false }),
         (supabase as any).from("v_client_synthese")
           .select("client_id,compte_actif,montant_total_contrat,total_paye,reste_a_payer")
           .eq("compte_actif", true),

@@ -630,9 +630,6 @@ const Dashboard = () => {
       {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
-      {label:"Taux de plantation",value:progress+"%",href:"/plantations"},
-      {label:"En production",value:stats.production,href:"/plantations?statut=en_production"},
-      {label:"Surface en production",value:num(stats.productionHa)+" ha",href:"/plantations?statut=en_production"},
     ]},
   ];
 

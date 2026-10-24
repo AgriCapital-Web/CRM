@@ -44,7 +44,7 @@ export default function Commissions() {
       const { data, error } = await (supabase as any)
         .from("commissions")
         .select("*,profile:profiles!commissions_profile_id_fkey(id,nom_complet,telephone,equipe_id,equipe:equipes!profiles_equipe_id_fkey(id,nom,type_equipe)),plantation:plantations(id_unique,nom_plantation),client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),payment_allocations:commission_payment_allocations(amount)")
-        .order("periode", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
       const allRows = (data || []).filter((row: any) => row.statut !== "annule").map((row: any) => {

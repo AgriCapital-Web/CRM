@@ -23,13 +23,13 @@ const Parcelles = () => {
       const [{ data: p, error: pe }, { data: c, error: ce }, { data: l, error: le }, { data: plant, error: ple }] = await Promise.all([
         (supabase as any).from("parcelles")
           .select("*, proprietaires_terres(id,id_unique,nom_complet), districts(nom), regions(nom), departements(nom), sous_prefectures(nom)")
-          .order("id_unique", { ascending: true }),
+          .order("id_unique", { ascending: false }),
         (supabase as any).from("clients")
           .select("id,id_unique,nom_complet,parcelle_id,formule_code,formule_nom,total_hectares,statut,validation_statut")
           .not("parcelle_id", "is", null),
         (supabase as any).from("lots_hectares")
           .select("id,reference,parcelle_id,client_id,surface_ha,statut,numero_h")
-          .order("reference", { ascending: true }),
+          .order("reference", { ascending: false }),
         (supabase as any).from("plantations").select("id,parcelle_id,client_id,statut,surface_reellement_plantee,superficie_ha"),
       ]);
       if (pe) throw pe;
@@ -95,8 +95,15 @@ const Parcelles = () => {
   });
 
   const totalSurface = parcelles.reduce((s, p) => s + Number(p.surface_totale_ha || 0), 0);
-  const totalAgri = parcelles.reduce((s, p) => s + Number(p.surface_agricapital_ha || 0), 0);
-  const totalLots = lots.length;
+  // Part AgriCapital réellement non cédée : part contractuelle moins les hectares déjà attribués.
+  // Les parcelles appartenant directement aux clients et les dossiers fonciers non validés sont exclues.
+  const totalAgri = parcelles.reduce((sum, p) => {
+    const clientOwned = String(p.nom || "").toLowerCase().startsWith("parcelle client") || ["propriete_client","propriete","client"].includes(String(p.mode_surface || "").toLowerCase());
+    const unvalidated = ["a_valider", "brouillon", "en_attente"].includes(String(p.statut || "").toLowerCase());
+    if (clientOwned || unvalidated) return sum;
+    return sum + Math.max(0, Number(p.surface_agricapital_ha || 0) - Number(p.surface_attribuee_ha || 0));
+  }, 0);
+  const totalLots = lots.filter((lot: any) => !lot.client_id && !["attribue","attribuée","cede","cédé","cedee","cédée"].includes(String(lot.statut || "").toLowerCase())).length;
 
   const statusLabel = (p: any, parcelClients: any[], parcelPlantations: any[]) => {
     const activePlantation = parcelPlantations.some((planting) => ["actif", "active", "plantee", "plantée", "en_cours"].includes(String(planting.statut || "").toLowerCase()));
@@ -117,8 +124,8 @@ const Parcelles = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{parcelles.length}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">Parcelles</div></div></CardContent></Card>
             <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><MapPin className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalSurface).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha référencés</div></div></CardContent></Card>
-            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Sprout className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalAgri).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha part AgriCapital</div></div></CardContent></Card>
-            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{totalLots}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">lots AgriCapital</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Sprout className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalAgri).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha AgriCapital non cédés</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{totalLots}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">lots AgriCapital disponibles</div></div></CardContent></Card>
           </div>
 
           <div className="relative">

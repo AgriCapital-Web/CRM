@@ -19,6 +19,7 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import { OFFICIAL_ROLES, roleLabel } from "@/lib/roles";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const ROLE_SHORT: Record<string, string> = {
   commercial: "Commercial",
@@ -42,6 +43,7 @@ const Equipes = () => {
   const [savingForm, setSavingForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [readOnlyForm, setReadOnlyForm] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [selectedEquipe, setSelectedEquipe] = useState<any>(null);
   const [membersEquipe, setMembersEquipe] = useState<any>(null);
@@ -54,6 +56,8 @@ const Equipes = () => {
   const [tablePage, setTablePage] = useState(1);
   const pageSize = useResponsivePageSize();
   const { toast } = useToast();
+  const { can, roles } = usePermissions();
+  const canManageTeams = roles.some((role: string) => ["pdg", "dg"].includes(role)) || can("parametres.manage_teams");
 
   const [formData, setFormData] = useState({
     nom: "",
@@ -254,7 +258,7 @@ const Equipes = () => {
         const extension = logoFile.name.split(".").pop()?.toLowerCase() || "png";
         const objectPath = `${equipeId}/${Date.now()}.${extension}`;
         const { error: uploadError } = await supabase.storage.from("photos-equipes").upload(objectPath, logoFile, {
-          upsert: true,
+          upsert: false,
           contentType: logoFile.type,
         });
         if (uploadError) throw uploadError;
@@ -277,7 +281,8 @@ const Equipes = () => {
     }
   };
 
-  const handleEdit = (equipe: any) => {
+  const handleEdit = (equipe: any, readOnly = false) => {
+    setReadOnlyForm(readOnly);
     setSelectedEquipe(equipe);
     setFormData({
       nom: equipe.nom,
@@ -345,7 +350,7 @@ const Equipes = () => {
             <TableRow><TableCell colSpan={8} className="text-center py-4">Aucune équipe {activeTab === "technique" ? "technique" : "commerciale"}</TableCell></TableRow>
           ) : (
             paginatedEquipes.map((equipe) => (
-              <TableRow key={equipe.id} role="button" tabIndex={0} aria-label={`Ouvrir le formulaire de l’équipe ${equipe.nom}`} onClick={() => handleEdit(equipe)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleEdit(equipe); } }} className="h-11 cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <TableRow key={equipe.id} role="button" tabIndex={0} aria-label={canManageTeams ? `Modifier l’équipe ${equipe.nom}` : `Consulter l’équipe ${equipe.nom}`} onClick={() => handleEdit(equipe, !canManageTeams)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleEdit(equipe, !canManageTeams); } }} className="h-11 cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <TableCell className="w-14 px-2 py-1">
                   {equipe.photo_url ? <img src={equipe.photo_url} alt={`Logo ${equipe.nom}`} className="h-8 w-8 rounded-md border object-cover" loading="lazy" /> : <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">{equipe.type_equipe === "technique" ? <Wrench className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}</div>}
                 </TableCell>
@@ -360,7 +365,7 @@ const Equipes = () => {
                   </Badge>
                 </TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
-                  <DropdownMenu>
+                  {canManageTeams && <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
                     </DropdownMenuTrigger>
@@ -381,7 +386,7 @@ const Equipes = () => {
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
-                  </DropdownMenu>
+                  </DropdownMenu>}
                 </TableCell>
               </TableRow>
             ))
@@ -397,9 +402,10 @@ const Equipes = () => {
       <div className="flex w-full min-w-0 flex-row items-center justify-between gap-2">
         <h1 className="min-w-0 whitespace-nowrap text-base font-bold sm:text-3xl">Gestion des Équipes</h1>
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogTrigger asChild>
+          {canManageTeams && <DialogTrigger asChild>
             <Button size="sm" className="shrink-0 whitespace-nowrap px-2 text-xs sm:px-3 sm:text-sm" aria-label="Nouvelle Équipe" title="Nouvelle Équipe" onClick={() => {
               setSelectedEquipe(null);
+              setReadOnlyForm(false);
               setFormData({ nom: "", responsable_id: "", region_id: "", type_equipe: activeTab as any, actif: true, zone_couverture: "", photo_url: "" });
               setLogoFile(null);
               setLogoPreview("");
@@ -407,12 +413,13 @@ const Equipes = () => {
               <Plus className="mr-1 h-4 w-4 sm:mr-2" />
               Nouvelle Équipe
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90dvh] overflow-y-auto">
+          </DialogTrigger>}
+          <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-xl">
             <DialogHeader>
-              <DialogTitle>{selectedEquipe ? "Modifier l'équipe" : "Nouvelle équipe"}</DialogTitle>
+              <DialogTitle>{readOnlyForm ? "Consulter l’équipe" : selectedEquipe ? "Modifier l'équipe" : "Nouvelle équipe"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <fieldset disabled={readOnlyForm} className="space-y-4">
               <div>
                 <Label>Type d'équipe</Label>
                 <Select value={formData.type_equipe} onValueChange={(v: any) => setFormData({ ...formData, type_equipe: v })}>
@@ -475,9 +482,10 @@ const Equipes = () => {
                   {logoPreview && <Button type="button" variant="ghost" size="icon" onClick={(event) => { event.preventDefault(); setLogoFile(null); setLogoPreview(""); setFormData({ ...formData, photo_url: "" }); }} aria-label="Retirer le logo"><X className="h-4 w-4" /></Button>}
                 </label>
               </div>
+              </fieldset>
               <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} disabled={savingForm}>Annuler</Button>
-                <Button type="submit" disabled={savingForm}>{savingForm ? "Enregistrement…" : selectedEquipe ? "Modifier" : "Créer"}</Button>
+                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)} disabled={savingForm}>{readOnlyForm ? "Fermer" : "Annuler"}</Button>
+                {!readOnlyForm && <Button type="submit" disabled={savingForm}>{savingForm ? "Enregistrement…" : selectedEquipe ? "Modifier" : "Créer"}</Button>}
               </div>
             </form>
           </DialogContent>
@@ -485,7 +493,7 @@ const Equipes = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         <Card>
           <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
             <div className="p-2 sm:p-3 bg-primary/10 rounded-lg shrink-0"><Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary" /></div>

@@ -17,6 +17,8 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [status, setStatus] = useState("Connexion à la salle…");
+  const [remoteConnected, setRemoteConnected] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -33,6 +35,7 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
           if (current) e.streams[0]?.getTracks().forEach(t => { if (!current.getTracks().some(x => x.id === t.id)) current.addTrack(t); });
           else remoteVideo.current.srcObject = e.streams[0];
         }
+        setRemoteConnected(true);
         setStatus("Appel connecté");
       };
       pc.onconnectionstatechange = () => {
@@ -76,8 +79,18 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
       } catch (e) { console.error("Internal call signaling failed", e); setStatus("Connexion interrompue. Réessayez l’appel."); }
     };
     const start = async () => {
+      setReady(false);
+      setRemoteConnected(false);
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        } catch {
+          // Si la caméra est bloquée mais que le micro est autorisé, poursuivre en audio seul.
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          setCameraOff(true);
+          setStatus("Appel audio actif — caméra indisponible.");
+        }
         if (!alive) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
         if (localVideo.current) localVideo.current.srcObject = stream;
@@ -92,8 +105,14 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
         });
       } catch (e) {
         console.error(e);
-        setStatus("Micro ou caméra inaccessible. Autorisez leur utilisation puis relancez l’appel.");
-        toast.error("Impossible d’accéder au micro ou à la caméra.");
+        const err = e as any;
+        const message = err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError"
+          ? "Autorisation refusée par le navigateur. Vérifiez les autorisations du site puis réessayez."
+          : err?.name === "NotFoundError"
+            ? "Aucun micro compatible n’a été détecté sur cet appareil."
+            : "Les périphériques audio/vidéo sont indisponibles. Réessayez l’appel.";
+        setStatus(message);
+        toast.error(message);
       }
     };
     void start();
@@ -106,7 +125,7 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
       if (channelRef.current) void supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     };
-  }, [roomId, profileId]);
+  }, [roomId, profileId, retryKey]);
 
   const toggleAudio = () => {
     const next = !muted; setMuted(next);
@@ -117,16 +136,20 @@ export default function InternalCallRoom({ roomId, profileId, onClose }: { roomI
     streamRef.current?.getVideoTracks().forEach(t => { t.enabled = !next; });
   };
   return <div className="space-y-3">
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <div className="overflow-hidden rounded-lg bg-black"><video ref={localVideo} autoPlay playsInline muted className="aspect-video w-full object-cover" /><p className="px-2 py-1 text-xs text-white">Vous</p></div>
-      <div className="overflow-hidden rounded-lg bg-black"><video ref={remoteVideo} autoPlay playsInline className="aspect-video w-full object-cover" /><p className="px-2 py-1 text-xs text-white">Participant</p></div>
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-950">
+      <video ref={remoteVideo} autoPlay playsInline className="h-full w-full object-contain" />
+      {!remoteConnected && <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center text-white"><div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10"><Video className="h-7 w-7"/></div><p className="text-sm font-medium">En attente du participant</p><p className="text-xs text-white/70">{status}</p></div>}
+      <div className="absolute right-3 top-3 w-[clamp(5rem,22%,12rem)] overflow-hidden rounded-lg border border-white/30 bg-black shadow-lg">
+        <video ref={localVideo} autoPlay playsInline muted className="aspect-video w-full object-cover" />
+        <p className="px-2 py-1 text-[10px] text-white">Vous{cameraOff ? " · caméra désactivée" : ""}</p>
+      </div>
     </div>
     <p className="text-sm text-muted-foreground" role="status">{status}</p>
     <div className="flex flex-wrap justify-center gap-2">
       <Button type="button" variant="outline" onClick={toggleAudio}>{muted ? <MicOff className="mr-2 h-4 w-4"/> : <Mic className="mr-2 h-4 w-4"/>}{muted ? "Activer le micro" : "Couper le micro"}</Button>
       <Button type="button" variant="outline" onClick={toggleVideo}>{cameraOff ? <VideoOff className="mr-2 h-4 w-4"/> : <Video className="mr-2 h-4 w-4"/>}{cameraOff ? "Activer la caméra" : "Couper la caméra"}</Button>
+      {!ready && <Button type="button" variant="outline" onClick={() => setRetryKey(v => v + 1)}>Réessayer</Button>}
       <Button type="button" variant="destructive" onClick={onClose}><PhoneOff className="mr-2 h-4 w-4"/>Quitter l’appel</Button>
     </div>
-    {!ready && <p className="text-xs text-muted-foreground">L’appel utilise le micro, la caméra et la connexion réseau de votre navigateur.</p>}
   </div>;
 }
