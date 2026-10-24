@@ -81,11 +81,15 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     setPieceRectoFile(null);
     setPieceVersoFile(null);
     setPhotoPreview("");
+    setStoredPhotoPreview("");
     setPieceRectoPreview("");
+    setStoredRectoPreview("");
     setPieceVersoPreview("");
+    setStoredVersoPreview("");
     setContractFile(null);
     setContractPreview("");
-  }, [client?.id, readOnly]);
+    setStoredContractPreview("");
+    setContractDocument(null);  }, [client?.id, readOnly]);
 
   useEffect(() => {
     let active = true;
