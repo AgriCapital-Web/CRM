@@ -90,7 +90,7 @@ serve(async(req)=>{
       return json({success:true,pre_activation:true,client:preActivationClient,portal_roles:["client"],parcelles:[],attributions:[],plantations:[],paiements:initialPayments||[],notifications:[]});
     }
 
-    const isOwner=client.type_client==="proprietaire_foncier";
+    const isOwnerType=client.type_client==="proprietaire_foncier";
     const isBeneficiary=client.type_client==="beneficiaire_particulier";
 
     const [ownerRes, attributionRes, directPlantationRes, payRes, commercialRes, notificationRes, interventionRes, documentRes, configRes, referenceRes, acquisitionRes] = await Promise.all([
@@ -143,6 +143,9 @@ serve(async(req)=>{
     }
 
     const owner=ownerRes.data||null;
+    const normalizeIdentityName=(value:any)=>String(value||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]/gi,"").toLowerCase();
+    // Un compte lié à sa propre fiche foncière est un compte propriétaire; un bénéficiaire lié à un tiers ne l'est pas.
+    const isOwner=isOwnerType || Boolean(client.proprietaire_id && owner && normalizeIdentityName(client.nom_complet)===normalizeIdentityName(owner.nom_complet));
     const attributions=attributionRes.data||[];
     const directPlantations=directPlantationRes.data||[];
     const paiements=payRes.data||[];
@@ -293,6 +296,21 @@ serve(async(req)=>{
       p.taux_journalier_ha=isStakeholder ? null : dailyRate;
     }
 
+    let ownerActivationRows:any[]=[];
+    if(isOwner && owner?.id){
+      let ownerActivationQuery=supabase.from("plantation_activations")
+        .select("id,lot_id,parcelle_id,proprietaire_id,client_id,surface_proprietaire_ha,statut,date_activation,created_at,notes")
+        .eq("proprietaire_id",owner.id).eq("statut","active")
+        .order("date_activation",{ascending:false});
+      if(parcelleIds.length) ownerActivationQuery=ownerActivationQuery.in("parcelle_id",parcelleIds);
+      const {data:rows,error:ownerActivationError}=await ownerActivationQuery;
+      if(ownerActivationError) throw ownerActivationError;
+      ownerActivationRows=rows||[];
+    }
+    const portalAttributions=isOwner
+      ? ownerActivationRows.map((a:any)=>({id:a.id,client_id:client.id,parcelle_id:a.parcelle_id,plantation_id:a.id,surface_attribuee_ha:a.surface_proprietaire_ha,role_attribution:"part_proprietaire",statut:a.statut,reference_acte:null,notes:"Part du propriétaire enregistrée par l’activation foncière.",created_at:a.created_at}))
+      : attributions;
+
     const progressionKeys=(referenceRes.data||[]).map((x:any)=>[x.code,x.libelle]);
     const techniqueProgression=progressionKeys.map(([key,label])=>{
       const rows=interventions.filter((i:any)=>String(i.type_intervention||"").toLowerCase()===key);
@@ -313,7 +331,7 @@ serve(async(req)=>{
       proprietaire:owner,
       parcelle:parcel,
       parcelles,
-      attributions,
+      attributions:portalAttributions,
       documents:documents.map((d:any)=>({...d,nom:d.type_document||d.code_document||"Document",url:d.fichier_url})),
       technique_interventions:interventions,
       technique_progression:techniqueProgression,
@@ -350,19 +368,52 @@ serve(async(req)=>{
       };
     }
 
-    const portalPlantations = isStakeholder
-      ? plantationsWithPaymentState.map((p:any) => {
-          const ownerPlantation:any = {...p, nom_plantation:"Plantation de la part du propriétaire", nom:"Plantation de la part du propriétaire", role_attribution:"part_proprietaire", paiement_etat:null, taux_journalier_ha:null};
-          for (const key of Object.keys(ownerPlantation)) {
-            if (/paiement|montant|solde|echeance|offre|promotion|commission|acquisition|client_id|lot_id|taux_journalier|alerte_non_paiement/i.test(key)) delete ownerPlantation[key];
-          }
-          return ownerPlantation;
-        })
-      : plantationsWithPaymentState;
+    const ownerPortalPlantations=isOwner ? ownerActivationRows.map((a:any)=>{
+      const source=plantationsWithPaymentState.find((p:any)=>p.lot_id===a.lot_id && p.parcelle_id===a.parcelle_id);
+      const ownerArea=Math.max(0,Number(a.surface_proprietaire_ha||0));
+      const sourceArea=Math.max(0,Number(source?.superficie_ha||0));
+      const plantRatio=source && sourceArea>0 ? ownerArea/sourceArea : 0;
+      const ownerPlantation:any={...(source||{}),
+        id:source?.id||a.id,
+        id_unique:source?.id_unique||("PART-"+String(a.lot_id||a.id).slice(0,8)),
+        nom_plantation:"Plantation de la part du propriétaire",
+        nom:"Plantation de la part du propriétaire",
+        superficie_ha:ownerArea,
+        superficie_activee:ownerArea,
+        surface_reellement_plantee:ownerArea,
+        nombre_plants:source && sourceArea>0 ? Math.round(Number(source.nombre_plants||0)*plantRatio) : null,
+        nombre_plants_prevus:source && sourceArea>0 ? Math.round(Number(source.nombre_plants_prevus||source.nombre_plants||0)*plantRatio) : null,
+        parcelle_id:a.parcelle_id,
+        role_attribution:"part_proprietaire",
+        statut:a.statut,
+        statut_global:a.statut,
+        date_activation:a.date_activation,
+        owner_activation_id:a.id,
+        portal_has_source_plantation:Boolean(source),
+        paiement_etat:null,
+        taux_journalier_ha:null,
+      };
+      for (const key of Object.keys(ownerPlantation)) {
+        if (/paiement|montant|solde|echeance|offre|promotion|commission|acquisition|client_id|lot_id|taux_journalier|alerte_non_paiement|notes_internes|created_by|updated_by/i.test(key)) delete ownerPlantation[key];
+      }
+      return ownerPlantation;
+    }) : [];
+    const ownPlantations=plantationsWithPaymentState.filter((p:any)=>p.client_id===client.id || attributions.some((a:any)=>a.plantation_id===p.id));
+    const portalPlantations = isOwner
+      ? ownerPortalPlantations
+      : isStakeholder
+        ? ownPlantations.map((p:any)=>{
+            const safePlantation:any={...p,paiement_etat:null,taux_journalier_ha:null};
+            for(const key of Object.keys(safePlantation)){
+              if(/paiement|montant|solde|echeance|offre|promotion|commission|acquisition|taux_journalier|alerte_non_paiement|notes_internes|created_by|updated_by/i.test(key)) delete safePlantation[key];
+            }
+            return safePlantation;
+          })
+        : ownPlantations;
 
     return json({
       success:true,client:safe,
-      portal_roles:portalRoles,parcelles,attributions,plantations:portalPlantations,
+      portal_roles:portalRoles,parcelles,attributions:portalAttributions,plantations:portalPlantations,
       paiements:isStakeholder ? [] : paiements,
       notifications:notificationRows
     });
