@@ -1638,3 +1638,11 @@ button > span, [role="button"] > span {
     .agricapital-360-shell [role="tab"] { flex: 1 1 auto; white-space: normal; }
   }
 }
+
+/* Typographie métier unifiée : lisibilité et hiérarchie cohérente sur mobile/desktop. */
+@layer base {
+  body, button, input, textarea, select { font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  h1, h2, h3, .font-display { font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: -0.025em; }
+  h1 { font-weight: 700; }
+  h2, h3 { font-weight: 650; }
+}
