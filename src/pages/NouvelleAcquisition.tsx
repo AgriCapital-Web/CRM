@@ -109,7 +109,7 @@ const StoredAttachmentLinks=({formData}:{formData:any})=>{
         if(/^(https?:|data:|blob:)/i.test(source)) return {label:key.replace(/_preview$/,"").replace(/^(doc_|contrat_)/,"").replace(/_/g," "),url:source,image:/^data:image\//i.test(source)||/\.(png|jpe?g|webp|gif)(\?|$)/i.test(source)};
         const name=key.toLowerCase();
         const buckets=name.includes("photo")||name.includes("profil")?["photos-profils","documents","documents-fonciers","pieces-identite"]:name.includes("foncier")||name.includes("croquis")?["documents-fonciers","documents","pieces-identite"]:name.includes("contrat")||name.startsWith("doc_")?["documents","documents-fonciers","pieces-identite"]:["pieces-identite","documents","documents-fonciers"];
-        for(const bucket of buckets){try{const url=await resolveStorageUrl(bucket,source);if(url)return {label:key.replace(/_preview$/,"").replace(/^(doc_|contrat_)/,"").replace(/_/g," "),url,image:/\.(png|jpe?g|webp|gif)(\?|$)/i.test(url)};}catch{}}
+        for(const bucket of buckets){try{const url=await resolveStorageUrl(bucket,source);if(url)return {label:key.replace(/_preview$/,"").replace(/^(doc_|contrat_)/,"").replace(/_/g," "),url,image:/\.(png|jpe?g|webp|gif)(\?|$)/i.test(url)};}catch{ continue; }}
         return null;
       }));
       if(active)setItems(resolved.filter(Boolean) as any[]);
