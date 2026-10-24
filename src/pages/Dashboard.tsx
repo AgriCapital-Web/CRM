@@ -170,7 +170,7 @@ const Dashboard = () => {
           ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canClients || globalAdmin
-          ? (supabase as any).from("acquisitions").select("id,validation_statut")
+          ? (supabase as any).from("clients").select("id,validation_statut")
           : Promise.resolve({ data: [] }),
         canPlantations || globalAdmin
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
@@ -670,12 +670,12 @@ const Dashboard = () => {
           </div>
 
           {!isClientOnly && (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              <div className="grid w-full grid-cols-2 gap-2">
-                {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-2 text-xs sm:text-sm" to="/nouvelle-acquisition"><Plus className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />Nouveau client</Link></Button>}
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2 lg:col-span-1">
+                {canCreateAcquisition && <Button asChild className="h-11 w-full min-w-0"><Link className="flex min-w-0 w-full flex-wrap items-center justify-center whitespace-normal break-words px-2 text-xs sm:text-sm" to="/nouvelle-acquisition"><Plus className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />Nouveau client</Link></Button>}
                 <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full items-center justify-center whitespace-nowrap px-2 text-xs sm:text-sm" to="/leads?new=1&type=prospect"><Plus className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />Nouveau prospect</Link></Button>
               </div>
-              {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/leads?new=1"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
+              {canLeads && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="flex w-full min-w-0 flex-wrap items-center justify-center whitespace-normal break-words" to="/leads?new=1"><Plus className="mr-2 h-4 w-4 shrink-0" />Nouveau lead</Link></Button>}
               {canPayments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/paiements"><CreditCard className="mr-2 h-4 w-4 shrink-0" />Paiement</Link></Button>}
               {canPlantations && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/plantations"><Sprout className="mr-2 h-4 w-4 shrink-0" />Plantations</Link></Button>}
               {canValidateDocuments && <Button asChild variant="outline" className="h-11 w-full min-w-0"><Link className="w-full whitespace-nowrap" to="/acquisitions/validation"><FileCheck className="mr-2 h-4 w-4 shrink-0" />Dossiers à valider</Link></Button>}
@@ -696,7 +696,7 @@ const Dashboard = () => {
                         {k.label}
                       </h2>
                       {k.label === "Développement commercial" ? (
-                        <div className="crm-compact-kpi-grid crm-compact-kpi-grid--commercial grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2 lg:grid-cols-6">
+                        <div className="crm-compact-kpi-grid crm-compact-kpi-grid--commercial grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:gap-2 lg:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))]">
                           {k.metrics.map((metric: any) => (
                             <Link key={metric.label} to={metric.href || k.href} className="group flex min-h-[64px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-2">
                               <span title={metric.label} className="block min-w-0 truncate whitespace-nowrap text-[9px] leading-tight text-muted-foreground sm:text-[10px]">{metric.shortLabel || metric.label}</span>
