@@ -36,7 +36,7 @@ const verifyPortalSession = async (supabase: any, token: unknown): Promise<strin
     .select("telephone,whatsapp,telephone_local,whatsapp_local,compte_actif,validation_statut,is_internal,type_client,proprietaire_id")
     .eq("id", session.client_id)
     .maybeSingle();
-  if (!client || client.type_client === "proprietaire_foncier" || client.proprietaire_id || (!client.compte_actif && client.type_client !== "beneficiaire_particulier" && !(client.validation_statut === "valide" && !client.is_internal))) return null;
+  if (!client || client.type_client === "proprietaire_foncier" || (!client.compte_actif && client.type_client !== "beneficiaire_particulier" && !(client.validation_statut === "valide" && !client.is_internal))) return null;
 
   await supabase.from("client_portal_sessions")
     .update({
@@ -153,7 +153,7 @@ serve(async (req) => {
         .eq("id", clientId).maybeSingle();
       if (error) throw error;
       if (!client) throw new Error("Client introuvable");
-      if (client.type_client === "proprietaire_foncier" || client.proprietaire_id) throw new Error("Les propriétaires fonciers disposent d’un espace de suivi non financier.");
+      if (client.type_client === "proprietaire_foncier") throw new Error("Les propriétaires fonciers disposent d’un espace de suivi non financier.");
       if (client.type_client === "beneficiaire_particulier") throw new Error("Les bénéficiaires particuliers ne disposent pas d’actions financières.");
       if (client.is_internal) throw new Error("Cet actif AgriCapital n’est pas encore transféré à un client.");
       const { data: summary, error: summaryError } = await supabase.from("v_client_synthese")
