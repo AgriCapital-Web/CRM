@@ -88,14 +88,14 @@ const GestionRoles = () => {
     setLoading(true);
     try {
       const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }, { data: permissionData, error: permissionError }] = await Promise.all([
-        supabase.from("profiles").select("id, user_id, nom_complet, email, actif, departement").eq("actif", true).order("nom_complet"),
+        supabase.from("profiles").select("id, user_id, nom_complet, email, actif, departement, relation_rh").eq("actif", true).order("nom_complet"),
         supabase.from("user_roles").select("*"),
         (supabase as any).from("app_permissions").select("*").eq("actif", true).order("module").order("code"),
       ]);
       if (profilesError) throw profilesError;
       if (rolesError) throw rolesError;
       if (permissionError) throw permissionError;
-      setProfiles(profilesData || []);
+      setProfiles((profilesData || []).filter((profile: any) => profile.relation_rh !== "Client portail"));
       setUserRoles(rolesData || []);
       setCustomPermissions(permissionData || []);
     } catch (error: any) {
