@@ -712,7 +712,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           </Card>
         )}
 
-        {/* MONTANT PAYE (MENSUALITE uniquement) */}
+        {/* MONTANT PAYÉ (MENSUALITÉ) */}
         {typePaiement === "MENSUALITE" && selectedPlantation && (
           <div>
             <Label htmlFor="montant_paye">Montant Payé (F CFA) *</Label>
