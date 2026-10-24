@@ -12,7 +12,7 @@ import { useRealtime } from "@/hooks/useRealtime";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, MoreVertical, Archive, Ban, Trash2, RotateCcw, Eye, ArrowLeft } from "lucide-react";
+import { Search, MapPin, MoreVertical, Archive, Ban, Trash2, RotateCcw, Eye, ArrowLeft, ArrowRightLeft } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -20,6 +20,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Plantations = () => {
   const navigate = useNavigate();
@@ -33,7 +35,13 @@ const Plantations = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [plantationToDelete, setPlantationToDelete] = useState<any>(null);
   const { toast } = useToast();
-  const { can } = usePermissions();
+  const { can, roles } = usePermissions();
+  const canTransferPlantation = roles.includes("pdg") || roles.includes("service_client") || roles.includes("chef_equipe_service_client");
+  const [clients, setClients] = useState<any[]>([]);
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [transferPlantationId, setTransferPlantationId] = useState("");
+  const [transferClientId, setTransferClientId] = useState("");
+  const [transferSaving, setTransferSaving] = useState(false);
 
   const fetchPlantations = async () => {
     try {
@@ -64,7 +72,51 @@ const Plantations = () => {
     }
   };
 
+  const fetchTransferClients = async () => {
+    if (!canTransferPlantation) return;
+    const { data, error } = await (supabase as any)
+      .from("clients")
+      .select("id,id_unique,nom_complet,famille_offre,formule_code,formule_nom,is_internal")
+      .eq("is_internal", false)
+      .order("nom_complet");
+    if (error) {
+      toast({ variant: "destructive", title: "Chargement des destinataires impossible", description: getSafeErrorMessage(error) });
+      return;
+    }
+    setClients(data || []);
+  };
+
+  const handleTransferPlantation = async () => {
+    if (!canTransferPlantation) {
+      toast({ variant: "destructive", title: "Accès refusé", description: "Seuls le PDG et Relation client peuvent transférer une plantation." });
+      return;
+    }
+    if (!transferPlantationId || !transferClientId) {
+      toast({ variant: "destructive", title: "Sélection requise", description: "Choisissez une plantation AgriCapital et un client PalmInvest." });
+      return;
+    }
+    setTransferSaving(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("transfer_agricapital_plantation", {
+        p_plantation_id: transferPlantationId,
+        p_client_id: transferClientId,
+      });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error("Le transfert n’a pas été confirmé.");
+      toast({ title: "Plantation transférée", description: "Le lien de parcelle et l’historique technique sont conservés." });
+      setShowTransferForm(false);
+      setTransferPlantationId("");
+      setTransferClientId("");
+      await fetchPlantations();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Transfert impossible", description: getSafeErrorMessage(error) });
+    } finally {
+      setTransferSaving(false);
+    }
+  };
+
   useEffect(() => { fetchPlantations(); }, []);
+  useEffect(() => { if (canTransferPlantation) fetchTransferClients(); }, [canTransferPlantation]);
   useRealtime({ table: "plantations", onChange: fetchPlantations });
 
   const statusMatches = (p: any) => !statutFilter || (p.statut_global || p.statut) === statutFilter;
@@ -147,19 +199,31 @@ const Plantations = () => {
     <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PLANTATIONS}>
       <MainLayout>
         <div className="space-y-4 sm:space-y-6">
-          <div className="flex items-center gap-3">
-            {productionOnly && (
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/dashboard"><ArrowLeft className="h-4 w-4 mr-2" />Tableau de bord</Link>
-              </Button>
-            )}
-            <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
-                {productionOnly ? "Plantations en production" : "Registre des Plantations"}
-              </h1>
-              
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              {productionOnly && (
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/dashboard"><ArrowLeft className="h-4 w-4 mr-2" />Tableau de bord</Link>
+                </Button>
+              )}
+              <div>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+                  {productionOnly ? "Plantations en production" : "Registre des Plantations"}
+                </h1>
+              </div>
             </div>
+            {canTransferPlantation && <Button variant="outline" onClick={() => setShowTransferForm((value) => !value)}><ArrowRightLeft className="mr-2 h-4 w-4" />Transférer une plantation</Button>}
           </div>
+          {canTransferPlantation && showTransferForm && <Card>
+            <CardHeader className="px-3 py-3"><div className="flex items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base"><ArrowRightLeft className="h-5 w-5" />Transférer une plantation AgriCapital</CardTitle><Button type="button" size="sm" variant="outline" onClick={() => setShowTransferForm(false)}>Fermer</Button></div></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1"><Label>Plantation AgriCapital *</Label><Select value={transferPlantationId} onValueChange={setTransferPlantationId}><SelectTrigger><SelectValue placeholder="Choisir une plantation interne" /></SelectTrigger><SelectContent>{plantations.filter((p: any) => p.clients?.is_internal === true).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nom_plantation || p.nom || p.id_unique} · {Number(p.superficie_ha || 0)} ha</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1"><Label>Client PalmInvest destinataire *</Label><Select value={transferClientId} onValueChange={setTransferClientId}><SelectTrigger><SelectValue placeholder="Choisir un client PalmInvest" /></SelectTrigger><SelectContent>{clients.filter((c: any) => !c.is_internal && (String(c.famille_offre || "").toUpperCase() === "PALMINVEST" || String(c.formule_code || "").toUpperCase().includes("PALMINVEST") || String(c.formule_nom || "").toUpperCase().includes("PALMINVEST"))).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nom_complet || c.id_unique} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
+              </div>
+              <div className="flex justify-end"><Button onClick={handleTransferPlantation} disabled={transferSaving || !transferPlantationId || !transferClientId}>{transferSaving ? "Transfert…" : "Confirmer le transfert"}</Button></div>
+            </CardContent>
+          </Card>}
 
           <div className="grid min-w-0 grid-cols-4 gap-1 sm:gap-2">
             <Card className="min-w-0"><CardHeader className="p-2 sm:p-3 pb-1"><CardTitle className="text-[9px] leading-tight sm:text-xs font-medium text-muted-foreground">Nombre</CardTitle></CardHeader><CardContent className="p-2 sm:p-3 pt-0"><div className="text-[clamp(0.8rem,3vw,1.5rem)] font-bold leading-tight">{nombreTotal}</div><p className="mt-1 text-[9px] leading-tight text-muted-foreground sm:text-xs">plantation(s)</p></CardContent></Card>
