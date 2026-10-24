@@ -183,7 +183,7 @@ BEGIN
 
   v_marker := $ownerblock$  -- Internal owner share: create once per parcel and aggregate every activated lot.$ownerblock$;
   v_start := strpos(v_def, v_marker);
-  v_end := strpos(v_def, '  return jsonb_build_object(', v_start);
+  v_end := CASE WHEN v_start > 0 THEN strpos(substring(v_def from v_start), '  return jsonb_build_object(') + v_start - 1 ELSE 0 END;
   IF v_start = 0 OR v_end = 0 THEN
     RAISE EXCEPTION 'Impossible de localiser le bloc de plantation propriétaire dans activate_client_lot_from_lot';
   END IF;
