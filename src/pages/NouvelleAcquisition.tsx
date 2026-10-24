@@ -729,6 +729,28 @@ const NouvelleAcquisition = () => {
         const file=recoverFile(formData[field+"_file"],formData[field+"_preview"],field);
         if(file){const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+existingClientId,"identity-"+field);if(!uploaded)throw new Error("Téléversement impossible : "+field);payload[column]=uploaded.path;}
       }
+      for(const key of Object.keys(formData).filter((item)=>item.endsWith("_file"))){
+        const base=key.slice(0,-5);
+        if(["photo_profil","photo_piece_recto","photo_piece_verso"].includes(base)) continue;
+        const file=recoverFile(formData[key],formData[base+"_preview"],base);
+        if(!file) continue;
+        const isContract=base.startsWith("contrat_");
+        const code=isContract?base.slice("contrat_".length):base.startsWith("doc_")?base.slice("doc_".length):base;
+        const bucket="documents";
+        const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+existingClientId+"/documents",base);
+        if(!uploaded) throw new Error("Téléversement impossible : "+base);
+        const existingDocument=await (supabase as any).from("documents_acquisition").select("id").eq("client_id",existingClientId).eq("code_document",code).order("created_at",{ascending:false}).limit(1).maybeSingle();
+        if(existingDocument.error) throw existingDocument.error;
+        const documentId=existingDocument.data?.id||stableUuid(existingClientId,"document:"+code);
+        const {error:documentSaveError}=await offlineUpsert("documents_acquisition",{
+          id:documentId,client_id:existingClientId,type_document:code,code_document:code,
+          categorie:isContract?"contrat":"document",obligatoire:false,source_contractuelle:isContract?code:null,
+          fichier_url:uploaded.path,statut:"en_attente",uploaded_by:user.id,
+          metadata:{source_formulaire:"acquisition_multi_etapes",storage_bucket:bucket,offre_id:offer.id}
+        });
+        if(documentSaveError) throw documentSaveError;
+        updateFormData({[base+"_file"]:null,[base+"_preview"]:uploaded.path});
+      }
       const {error:clientError}=await offlineUpdate("clients",existingClientId,payload);
       if(clientError)throw clientError;
       if(existingAcquisitionId){
