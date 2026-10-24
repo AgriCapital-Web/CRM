@@ -1,6 +1,6 @@
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile } from "@/utils/storage";
 import { useToast } from "@/hooks/use-toast";
@@ -23,23 +23,21 @@ type UploadState = { file: File | null; preview: string };
 
 const BeneficiaireParticulier = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const initialFullName = searchParams.get("nom_complet") || "";
+  const initialNameParts = initialFullName.trim().split(/\\s+/);
   const [beneficiaire, setBeneficiaire] = useState({
     civilite: "M",
-    nom_famille: "",
-    prenoms: "",
-    nom_complet: "",
-    date_naissance: "",
-    lieu_naissance: "",
-    nationalite: "",
-    type_piece: "cni",
-    numero_piece: "",
-    date_delivrance_piece: "",
-    telephone: "", telephone_indicatif: "", telephone_local: "",
-    whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "",
-    email: "",
-    domicile: "",
+    nom_famille: initialNameParts[0] || "",
+    prenoms: initialNameParts.slice(1).join(" "),
+    nom_complet: initialFullName,
+    date_naissance: "", lieu_naissance: "", nationalite: "",
+    type_piece: "cni", numero_piece: "", date_delivrance_piece: "",
+    telephone: searchParams.get("telephone") || "", telephone_indicatif: "", telephone_local: "",
+    whatsapp: searchParams.get("whatsapp") || "", whatsapp_indicatif: "", whatsapp_local: "",
+    email: searchParams.get("email") || "", domicile: "",
   });
   const [proprietaire, setProprietaire] = useState({
     nom: "",
