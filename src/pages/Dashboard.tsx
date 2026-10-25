@@ -698,7 +698,7 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"}
       ] : []),
     ]},
-    { label:"Patrimoine foncier et partenariats", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
+    { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
       ...(canParcelles || canPlantations ? [
         {label:"Parcelles partenaires",value:stats.proprietaireParcelles,href:"/parcelles"},
@@ -768,7 +768,7 @@ const Dashboard = () => {
                 {kpis.filter((k) => k.show && k.metrics.length > 0).map((k) => {
                   const Icon = k.icon;
                   return (
-                    <div key={k.label} className={`min-w-0 rounded-2xl border-2 p-2.5 sm:p-3 ${k.label === "Pilotage financier" ? "border-amber-500/70 bg-amber-50/20 dark:bg-amber-950/10" : k.label === "Développement commercial" ? "border-orange-500/70 bg-orange-50/20 dark:bg-orange-950/10" : k.label === "Patrimoine foncier et partenariats" ? "border-emerald-600/70 bg-emerald-50/20 dark:bg-emerald-950/10" : "border-violet-500/70 bg-violet-50/20 dark:bg-violet-950/10"}`}>
+                    <div key={k.label} className={`min-w-0 rounded-2xl border-2 p-2.5 sm:p-3 ${k.label === "Pilotage financier" ? "border-amber-500/70 bg-amber-50/20 dark:bg-amber-950/10" : k.label === "Développement commercial" ? "border-orange-500/70 bg-orange-50/20 dark:bg-orange-950/10" : k.label === "Domaine foncier et partenariat" ? "border-emerald-600/70 bg-emerald-50/20 dark:bg-emerald-950/10" : "border-violet-500/70 bg-violet-50/20 dark:bg-violet-950/10"}`}>
                       <h2 className="mb-3 flex items-center gap-2.5 text-base font-extrabold uppercase tracking-wide text-foreground sm:text-lg">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background/80 text-primary shadow-sm">
                           <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
