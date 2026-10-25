@@ -40,14 +40,14 @@ export default function PlanificationBudgetaire() {
   const [budgetForm, setBudgetForm] = useState({ department: "", category: "", description: "", budget_initial: "", budget_revised: "", committed_amount: "0", actual_amount: "0", revenue_forecast: "0", actual_revenue: "0", justification: "" });
   const [actionForm, setActionForm] = useState({ department: "", title: "", description: "", starts_on: "", due_on: "", indicator: "", target_value: "", current_value: "0", unit: "", status: "planned" });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (preferredId?: string) => {
     if (!canView) { setLoading(false); return; }
     setLoading(true); setError("");
     const p = await (supabase as any).from("strategic_plans").select("*").order("fiscal_year", { ascending: false }).order("created_at", { ascending: false });
     if (p.error) { setError("Impossible de charger les plans. Vérifie la migration Supabase et les permissions finance."); setLoading(false); return; }
     const planRows = (p.data || []) as Plan[];
     setPlans(planRows);
-    const active = planRows.some(x => x.id === selected) ? selected : planRows[0]?.id || "";
+    const active = preferredId && planRows.some(x => x.id === preferredId) ? preferredId : planRows.some(x => x.id === selected) ? selected : planRows[0]?.id || "";
     setSelected(active);
     if (active) {
       const [b, a] = await Promise.all([
@@ -75,7 +75,7 @@ export default function PlanificationBudgetaire() {
     setSaving(true);
     const { data, error: err } = await (supabase as any).from("strategic_plans").insert({ fiscal_year: Number(planForm.fiscal_year), title: planForm.title.trim(), strategic_objective: planForm.strategic_objective || null, assumptions: planForm.assumptions || null }).select("*").single();
     if (err) toast.error("Création impossible : " + err.message);
-    else { toast.success("Plan créé."); setShowPlan(false); setPlanForm({ fiscal_year: String(new Date().getFullYear()), title: "Plan d'action annuel", strategic_objective: "", assumptions: "" }); setSelected(data.id); await load(); }
+    else { toast.success("Plan créé."); setShowPlan(false); setPlanForm({ fiscal_year: String(new Date().getFullYear()), title: "Plan d'action annuel", strategic_objective: "", assumptions: "" }); setSelected(data.id); await load(data.id); }
     setSaving(false);
   }
   async function createBudget(e: React.FormEvent) {
