@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -78,6 +79,7 @@ export default function ImportContacts() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [contactsLoaded, setContactsLoaded] = useState(false);
   useEffect(() => {
     if (!user?.id) return;
@@ -253,7 +255,8 @@ export default function ImportContacts() {
         await Promise.all([queryClient.invalidateQueries({ queryKey: ["leads"] }), queryClient.invalidateQueries({ queryKey: ["prospects"] }), queryClient.invalidateQueries({ queryKey: ["lead_historique"] })]);
         setContacts((all) => all.filter((item) => !createdKeys.has(item.key)));
       }
-      toast({ title: "Génération terminée", description: created + " lead(s) créé(s) dans le CRM, " + duplicates + " doublon(s), " + invalid + " numéro(s) invalide(s), " + failed + " échec(s). Les leads sont actualisés dans le tableau Leads et prospects." });
+      toast({ title: "Génération terminée", description: created + " lead(s) créé(s), " + duplicates + " doublon(s), " + invalid + " numéro(s) invalide(s), " + failed + " échec(s)." });
+      if (created > 0) navigate("/leads");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Traitement interrompu", description: error?.message || "Erreur de lecture. Les contacts sauvegardés restent disponibles." });
     } finally { setLoading(false); }
