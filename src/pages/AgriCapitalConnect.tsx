@@ -20,6 +20,7 @@ import InternalCallRoom from "@/components/workspace/InternalCallRoom";
 import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
 import WorkspaceOperations from "@/components/workspace/WorkspaceOperations";
 import AgriCapitalIntelligence from "@/pages/AgriCapitalIntelligence";
+import WorkspaceOffice from "@/pages/WorkspaceOffice";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
@@ -34,12 +35,14 @@ const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2)
 
 export default function AgriCapitalConnect() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile } = useAuth();
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") === "budgets" && can("finance.view") ? "budgets" : canViewMessaging ? (["activities","meetings","documents","organisation","rh"].includes(searchParams.get("module") || "") ? (searchParams.get("module") === "activities" ? "activities" : searchParams.get("module")) : "messages") : "budgets");
+  const [tab, setTab] = useState(searchParams.get("module") === "budgets" && can("finance.view") ? "budgets" : canViewMessaging ? (["activities","meetings","office","organisation","rh"].includes(searchParams.get("module") || "") ? (searchParams.get("module") === "activities" ? "activities" : searchParams.get("module")) : "messages") : "budgets");
+  useEffect(() => { const module = searchParams.get("module"); setTab(module || (canViewMessaging ? "messages" : "budgets")); }, [searchParams, canViewMessaging]);
+  const changeTab = (value: string) => { setTab(value); setSearchParams({ module: value }); };
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
@@ -61,7 +64,6 @@ export default function AgriCapitalConnect() {
   const [newTitle, setNewTitle] = useState("");
   const [newKind, setNewKind] = useState<"direct" | "group" | "channel">("direct");
   const [newMembers, setNewMembers] = useState<string[]>([]);
-  const [existingDirectConversationId, setExistingDirectConversationId] = useState<string | null>(null);
   const [newRoles, setNewRoles] = useState<string[]>([]);
   const [meetingRoles, setMeetingRoles] = useState<string[]>([]);
   const [meetingAttachments, setMeetingAttachments] = useState<Record<string, any[]>>({});
@@ -201,13 +203,6 @@ export default function AgriCapitalConnect() {
     const teamMembers = staffTeams.filter(team => newTeams.includes(team.id)).flatMap(team => team.member_profile_ids || []);
     const targets = Array.from(new Set([profileId, ...newMembers, ...roleMembers, ...teamMembers]));
     if (newKind === "direct" && targets.length !== 2) { toast.error("Sélectionnez un autre utilisateur."); return; }
-    if (newKind === "direct" && newMembers.length === 1 && existingDirectConversationId) {
-      setSelected(existingDirectConversationId);
-      setCreateOpen(false);
-      setNewMembers([]);
-      toast.success("Conversation existante ouverte.");
-      return;
-    }
     if (newKind !== "direct" && targets.length < 2) { toast.error("Ajoutez au moins un autre utilisateur."); return; }
     const { data, error } = await (supabase as any).rpc("internal_create_conversation", {
       p_conversation_type: newKind,
@@ -218,7 +213,7 @@ export default function AgriCapitalConnect() {
     if (error || !conv) { console.error(error); toast.error(error?.message || "Création impossible. Vérifiez les participants sélectionnés."); return; }
     setConversations(current => [conv, ...current.filter(c => c.id !== conv.id)]);
     setSelected(conv.id); setNewTitle(""); setNewMembers([]); setNewRoles([]);  setCreateOpen(false);
-    toast.success("Conversation créée.");
+    toast.success(newKind === "direct" ? "Conversation privée ouverte." : "Conversation créée.");
   };
 
   const sendMessage = async () => {
@@ -334,13 +329,13 @@ export default function AgriCapitalConnect() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             
           </div>
-          <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-            <TabsList className={`grid h-auto w-full gap-1 ${canViewMessaging && can("finance.view") ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-8" : canViewMessaging ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-7" : can("decision_center.view") ? "grid-cols-1" : "grid-cols-1"}`}>
+          <Tabs value={tab} onValueChange={changeTab} className="min-w-0">
+            <TabsList className={`flex h-auto w-full flex-wrap justify-start gap-1`}>
               {canViewMessaging && <>
                 <TabsTrigger value="activities" className="gap-2"><Clock3 className="h-4 w-4" />Pilotage & agenda</TabsTrigger>
                 <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
                 <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
-                <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents</TabsTrigger>
+                <TabsTrigger value="office" className="gap-2"><Files className="h-4 w-4" />Éditeur intégré</TabsTrigger>
                 <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
                 <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
               </>}
@@ -354,7 +349,7 @@ export default function AgriCapitalConnect() {
                   <CardHeader className="space-y-3 p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><CardTitle className="text-base">Conversations</CardTitle><Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogTrigger asChild><Button size="icon" variant="outline" aria-label="Nouvelle conversation"><Plus className="h-4 w-4" /></Button></DialogTrigger><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Nouvelle conversation</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Type</Label><Select value={newKind} onValueChange={(v: any) => setNewKind(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="direct">Privée</SelectItem><SelectItem value="group">Groupe</SelectItem><SelectItem value="channel">Canal d'équipe</SelectItem></SelectContent></Select></div>{newKind !== "direct" && <div className="space-y-1"><Label>Nom du groupe / canal</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Ex. Direction, Terrain, Finance" /> </div>}{newKind !== "direct" && <div className="space-y-1"><Label>Sélectionner plusieurs rôles</Label><div className="grid min-w-0 grid-cols-2 gap-1.5 rounded-lg border p-2 sm:grid-cols-3">{staffRoles.map(role => <label key={role.code} className="flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5 text-xs leading-tight"><input type="checkbox" checked={newRoles.includes(role.code)} onChange={e => setNewRoles(current => e.target.checked ? [...current, role.code] : current.filter(code => code !== role.code))} />{role.nom}</label>)}</div><Button type="button" size="sm" variant="outline" onClick={() => setNewMembers(staff.filter(person => person.id !== profileId).map(person => person.id))}>Ajouter tous les utilisateurs actifs</Button><p className="text-xs text-muted-foreground">Tous les membres des rôles cochés seront inclus automatiquement.</p></div>}{newKind !== "direct" && <div className="space-y-1"><Label>Ajouter une équipe</Label><div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border p-2">{staffTeams.map(team => <label key={team.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"><input type="checkbox" checked={newTeams.includes(team.id)} onChange={e => setNewTeams(current => e.target.checked ? [...current, team.id] : current.filter(id => id !== team.id))} />{team.nom}<span className="ml-auto text-xs text-muted-foreground">{(team.member_profile_ids || []).length} membre(s)</span></label>)}</div></div>}<Label>Participants individuels</Label><div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border p-1.5">{staff.filter(s => s.id !== profileId).map(s => {
   const active = newMembers.includes(s.id);
   return <button key={s.id} type="button" aria-pressed={active} onClick={() => setNewMembers(current => newKind === "direct" ? (active ? [] : [s.id]) : (active ? current.filter(id => id !== s.id) : [...current, s.id]))} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${active ? "bg-primary/10 text-foreground" : "hover:bg-muted/70"}`}><span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">{s.nom_complet.split(/\\s+/).map((part: string) => part[0]).slice(0,2).join("").toUpperCase()}{active && <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background"><Check className="h-3 w-3" /></span>}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{s.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{s.poste || "Collaborateur"}</span></span></button>;
-})}</div><Button className="w-full" onClick={() => existingDirectConversationId && newKind === "direct" ? (setSelected(existingDirectConversationId), setCreateOpen(false), setNewMembers([])) : void createConversation()}>{newKind === "direct" && existingDirectConversationId ? "Accéder à la conversation" : "Créer la conversation"}</Button></div></DialogContent></Dialog></div><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une conversation…" /></CardHeader>
+})}</div><Button className="w-full" onClick={() => void createConversation()}>{newKind === "direct" ? "Ouvrir ou créer la conversation" : "Créer la conversation"}</Button></div></DialogContent></Dialog></div><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une conversation…" /></CardHeader>
                   <CardContent className="space-y-1 p-2">{loading ? <div className="flex justify-center p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : visibleConversations.length ? visibleConversations.map(c => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full min-w-0 items-center gap-3 rounded-lg p-3 text-left transition-colors ${selected === c.id ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted"}`}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials(c.title || (c.conversation_type === "direct" ? "Privé" : c.conversation_type === "group" ? "Groupe" : "Canal"))}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe d'équipe" : "Canal")}</span><span className="block text-xs text-muted-foreground">{dateLabel(c.last_message_at)}</span></span></button>) : <p className="p-5 text-center text-sm text-muted-foreground">Aucune conversation. Créez votre première discussion interne.</p>}</CardContent>
                   <div className="border-t p-3"><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Collaborateurs — démarrer une discussion</p><div className="max-h-56 space-y-1 overflow-y-auto">{staff.filter(person => person.id !== profileId).map(person => <button key={person.id} type="button" onClick={() => { setNewKind("direct"); setNewMembers([person.id]); setNewRoles([]); setCreateOpen(true); }} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{initials(person.nom_complet)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm">{person.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{(person.role_names || []).join(", ") || person.poste || "Collaborateur"}</span></span><MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" /></button>)}</div></div>
                 </Card>
@@ -377,9 +372,7 @@ export default function AgriCapitalConnect() {
             </TabsContent>
             <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
             {can("decision_center.view") && <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>}
-            <TabsContent value="documents" className="mt-3 min-w-0 space-y-3">
-              <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Documents, tableurs et présentations</h2><p className="mt-1 text-sm text-muted-foreground">Accédez aux outils documentaires existants sans conserver un deuxième espace dans le menu.</p><Button className="mt-4" onClick={() => navigate("/espace-travail")}>Ouvrir les documents</Button></div>
-            </TabsContent>
+            <TabsContent value="office" className="mt-3 min-w-0 space-y-3"><WorkspaceOffice embedded /></TabsContent>
             <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3">
               <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Agenda opérationnel, tâches, projets et organisation</h2><p className="mt-1 text-sm text-muted-foreground">Retrouvez l’agenda opérationnel, les tâches, les projets, les fiches de poste et l’organigramme.</p><Button className="mt-4" onClick={() => navigate("/espace-travail-360")}>Ouvrir l’organisation 360</Button></div>
             </TabsContent>
