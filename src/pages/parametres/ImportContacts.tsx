@@ -247,11 +247,20 @@ export default function ImportContacts() {
         const batch = candidates.slice(offset, offset + 100);
         const { data, error } = await (supabase as any).from("leads").insert(batch.map((item) => item.row)).select("id,telephone,metadata");
         if (!error && data) {
+          const returnedKeys = new Set<string>();
           for (const lead of data as any[]) {
             const key = String(lead.metadata?.source_contact_key || "");
             const contact = contactByKey.get(key) || batch.find((item) => normalizePhone(item.contact.telephone) === normalizePhone(lead.telephone))?.contact;
             if (!contact) continue;
+            returnedKeys.add(contact.key);
             created++; createdKeys.add(contact.key); statuses.push({ key: contact.key, status: "created", leadId: lead.id });
+          }
+          // A database trigger may silently reject a concurrent duplicate; mark it skipped too.
+          for (const item of batch) {
+            if (!returnedKeys.has(item.key)) {
+              duplicates++;
+              statuses.push({ key: item.key, status: "duplicate" });
+            }
           }
           continue;
         }
