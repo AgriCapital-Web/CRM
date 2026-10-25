@@ -53,9 +53,6 @@ serve(async (req) => {
     if (!username || !password || !email || !nom_complet || !telephone || !role_souhaite) {
       return json({ error: "Champs obligatoires manquants (identifiant, mot de passe, email, nom, téléphone, rôle).", step: "validate_body" }, 400);
     }
-    if (String(password).length < 8) {
-      return json({ error: "Le mot de passe doit contenir au moins 8 caractères.", step: "validate_password" }, 400);
-    }
     if (!String(username).trim()) {
       return json({ error: "Veuillez saisir un nom d'utilisateur.", step: "validate_username" }, 400);
     }
