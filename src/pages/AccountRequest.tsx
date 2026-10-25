@@ -153,11 +153,6 @@ const AccountRequest = () => {
       toast({ variant: "destructive", title: "Erreur", description: "Les mots de passe ne correspondent pas." });
       return;
     }
-    if (formData.password.length < 8) {
-      toast({ variant: "destructive", title: "Erreur", description: "Le mot de passe doit contenir au moins 8 caractères." });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const [regionLookup, departmentLookup] = await Promise.all([
@@ -271,7 +266,7 @@ const AccountRequest = () => {
               <Label className="text-sm font-semibold flex items-center gap-2"><KeyRound className="h-4 w-4" /> Identifiants de connexion *</Label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Field label="Nom d'utilisateur *" icon={<AtSign />}><Input required autoComplete="username" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="ex: kouassi.jean" /></Field>
-                <Field label="Mot de passe *"><Input required minLength={8} type="password" autoComplete="new-password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="8 caractères minimum" /></Field>
+                <Field label="Mot de passe *"><Input required type="password" autoComplete="new-password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="Saisir librement votre mot de passe" /></Field>
                 <Field label="Confirmer *"><Input required type="password" autoComplete="new-password" value={formData.password_confirm} onChange={(e) => setFormData({ ...formData, password_confirm: e.target.value })} placeholder="Répéter le mot de passe" /></Field>
               </div>
             </div>
