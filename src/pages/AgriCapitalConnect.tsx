@@ -67,6 +67,7 @@ export default function AgriCapitalConnect() {
   const [newTitle, setNewTitle] = useState("");
   const [newKind, setNewKind] = useState<"direct" | "group" | "channel">("direct");
   const [newMembers, setNewMembers] = useState<string[]>([]);
+  const [existingDirectConversationId, setExistingDirectConversationId] = useState<string | null>(null);
   const [newRoles, setNewRoles] = useState<string[]>([]);
   const [meetingRoles, setMeetingRoles] = useState<string[]>([]);
   const [meetingAttachments, setMeetingAttachments] = useState<Record<string, any[]>>({});
