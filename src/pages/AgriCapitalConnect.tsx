@@ -20,7 +20,7 @@ import InternalCallRoom from "@/components/workspace/InternalCallRoom";
 import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
 import WorkspaceOperations from "@/components/workspace/WorkspaceOperations";
 import AgriCapitalIntelligence from "@/pages/AgriCapitalIntelligence";
-import WorkspaceOffice from "@/pages/WorkspaceOffice";
+import EspaceTravail from "@/pages/EspaceTravail";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
@@ -40,8 +40,8 @@ export default function AgriCapitalConnect() {
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : "office"));
-  useEffect(() => { const module = searchParams.get("module"); setTab(module || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : "office")); }, [searchParams, canViewMessaging]);
+  const [tab, setTab] = useState(searchParams.get("module") || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation"));
+  useEffect(() => { const module = searchParams.get("module"); setTab(module || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation")); }, [searchParams, canViewMessaging]);
   const changeTab = (value: string) => { setTab(value); setSearchParams({ module: value }); };
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -318,7 +318,7 @@ export default function AgriCapitalConnect() {
   return (
     <ProtectedRoute>
       <MainLayout>
-        <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 overflow-x-hidden p-3 pb-8 pt-16 md:p-6 md:pt-6">
+        <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 overflow-x-clip p-3 pb-8 pt-16 sm:p-4 md:p-6 md:pt-6">
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">AgriCapital 360</h1></div>
@@ -330,7 +330,7 @@ export default function AgriCapitalConnect() {
             
           </div>
           <Tabs value={tab} onValueChange={changeTab} className="min-w-0">
-            <TabsList className={`flex h-auto w-full flex-wrap justify-start gap-1`}>
+            <TabsList aria-label="Modules AgriCapital 360" className="flex h-auto w-full max-w-full justify-start gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap p-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
               {canViewMessaging && <>
                 <TabsTrigger value="activities" className="gap-2"><Clock3 className="h-4 w-4" />Pilotage & agenda</TabsTrigger>
                 <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
@@ -339,7 +339,7 @@ export default function AgriCapitalConnect() {
                 <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
                 <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
               </>}
-              {can("documents.view") && <TabsTrigger value="office" className="gap-2"><Files className="h-4 w-4" />Éditeur intégré</TabsTrigger>}
+              {can("documents.view") && <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents & édition</TabsTrigger>}
               {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
               {can("decision_center.view") && <TabsTrigger value="intelligence" className="gap-2"><ShieldCheck className="h-4 w-4" />Centre de décision</TabsTrigger>}
             </TabsList>
@@ -373,7 +373,7 @@ export default function AgriCapitalConnect() {
             </TabsContent>
             <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
             {can("decision_center.view") && <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>}
-            {can("documents.view") && <TabsContent value="office" className="mt-3 min-w-0 space-y-3"><WorkspaceOffice embedded /></TabsContent>}
+            {can("documents.view") && <TabsContent value="documents" className="mt-3 min-w-0 space-y-3"><EspaceTravail embedded /></TabsContent>}
             <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3">
               <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Agenda opérationnel, tâches, projets et organisation</h2><p className="mt-1 text-sm text-muted-foreground">Retrouvez l’agenda opérationnel, les tâches, les projets, les fiches de poste et l’organigramme.</p><Button className="mt-4" onClick={() => navigate("/espace-travail-360")}>Ouvrir l’organisation 360</Button></div>
             </TabsContent>
