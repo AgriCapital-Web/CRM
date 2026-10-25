@@ -41,6 +41,7 @@ import EspaceTravail from "./pages/EspaceTravail";
 import Workspace360 from "./pages/Workspace360";
 import WorkspacePeople360 from "./pages/WorkspacePeople360";
 import AgriCapitalConnect from "./pages/AgriCapitalConnect";
+import ExternalMeetingGuest from "./pages/ExternalMeetingGuest";
 
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -80,6 +81,7 @@ const DomainRouter = () => {
 
       {/* Formulaire public prospects */}
       <Route path="/leads/public" element={<PublicLead />} />
+      <Route path="/rejoindre-reunion" element={<ExternalMeetingGuest />} />
 
       {/* Vérification publique d'une carte du personnel (QR code) */}
       {/* Unique parcours public de scan/vérification : app.agricapital.ci/verify */}
