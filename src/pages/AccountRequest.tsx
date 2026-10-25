@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,20 +14,14 @@ import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import RoleGeographyFields from "@/components/common/RoleGeographyFields";
 
-const ROLES = [
-  { value: "commercial", label: "Commercial (Comm)" },
-  { value: "technicien", label: "Technicien (Tech)" },
-  { value: "mobilisateur_foncier", label: "Mobilisateur foncier (MF)" },
-  { value: "superviseur_mobilisation_fonciere", label: "Superviseur de zone foncière (SZF)" },
-  { value: "chef_equipe_commercial", label: "Chef d'Équipe Commercial (CEC)" },
-  { value: "chef_equipe_technique", label: "Chef d'Équipe Technique (CET)" },
-  { value: "responsable_commercial", label: "Responsable Commercial (RCom)" },
-  { value: "responsable_technique_agronomique", label: "Responsable Technique & Agronomique (RTA)" },
-  { value: "responsable_district", label: "Responsable de district (RD)" },
-  { value: "comptable", label: "Comptable" },
-  { value: "service_client", label: "Service client / Support" },
-  { value: "operations", label: "Opérations" },
-];
+type AccountRole = { code: string; nom: string; niveau_couverture: string | null; actif: boolean };
+const PUBLIC_SIGNUP_ROLE_CODES = new Set([
+  "commercial", "technicien", "mobilisateur_foncier", "superviseur_mobilisation_fonciere",
+  "chef_equipe_commercial", "chef_equipe_technique", "responsable_commercial",
+  "responsable_technique_agronomique", "responsable_district", "comptable", "service_client", "operations",
+]);
+
+
 
 const compressPhoto = async (file: File): Promise<{ data: string; mime: string }> => {
   if (!file.type.startsWith("image/")) throw new Error("Sélectionnez une image.");
@@ -77,6 +71,8 @@ const compressPhoto = async (file: File): Promise<{ data: string; mime: string }
 };
 
 const AccountRequest = () => {
+  const [roles, setRoles] = useState<AccountRole[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
   const [formData, setFormData] = useState({
     nom_complet: "", email: "", telephone: "", telephone_indicatif: "", telephone_local: "", poste: "",
     region: "", departement: "", district: "", sous_prefecture: "", message: "",
@@ -90,6 +86,29 @@ const AccountRequest = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      setRolesLoading(true);
+      try {
+        const { data, error } = await (supabase as any)
+          .from("app_roles")
+          .select("code,nom,niveau_couverture,actif")
+          .eq("actif", true)
+          .order("niveau", { ascending: true })
+          .order("nom", { ascending: true });
+        if (error) throw error;
+        if (active) setRoles((data || []).filter((role: AccountRole) => PUBLIC_SIGNUP_ROLE_CODES.has(role.code)));
+      } catch (error) {
+        console.error("Impossible de charger les rôles actifs depuis la base", error);
+        if (active) setRoles([]);
+      } finally {
+        if (active) setRolesLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const deletePendingPhoto = async (pathToDelete: string) => {
     if (!pathToDelete) return;
@@ -157,7 +176,7 @@ const AccountRequest = () => {
           telephone_local: formData.telephone_local,
           username: formData.username,
           password: formData.password,
-          poste_souhaite: ROLES.find((role) => role.value === formData.poste)?.label || formData.poste,
+          poste_souhaite: roles.find((role) => role.code === formData.poste)?.nom || formData.poste,
           role_souhaite: formData.poste,
           region_id: formData.region || null,
           departement_geo_id: formData.departement || null,
@@ -217,7 +236,7 @@ const AccountRequest = () => {
               <Field label="Nom complet *" icon={<User />}><Input required value={formData.nom_complet} onChange={(e) => setFormData({ ...formData, nom_complet: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Ex: KOUASSI Jean" /></Field>
               <Field label="Email *" icon={<Mail />}><Input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="votre@email.com" /></Field>
               <Field label="Téléphone *" icon={<Phone />}><CountryPhoneInput label="" required countryCode={formData.telephone_indicatif||undefined} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>setFormData(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/></Field>
-              <Field label="Poste souhaité *" icon={<Briefcase />}><Select value={formData.poste} onValueChange={(value) => setFormData((prev) => ({ ...prev, poste: value, district: "", region: "", departement: "", sous_prefecture: "" }))}><SelectTrigger><SelectValue placeholder="Sélectionner un poste" /></SelectTrigger><SelectContent>{ROLES.map((role) => <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>)}</SelectContent></Select></Field>
+              <Field label="Poste souhaité *" icon={<Briefcase />}><Select value={formData.poste} disabled={rolesLoading || roles.length === 0} onValueChange={(value) => setFormData((prev) => ({ ...prev, poste: value, district: "", region: "", departement: "", sous_prefecture: "" }))}><SelectTrigger><SelectValue placeholder={rolesLoading ? "Chargement des postes…" : "Sélectionner un poste"} /></SelectTrigger><SelectContent>{roles.map((role) => <SelectItem key={role.code} value={role.code}>{role.nom}</SelectItem>)}</SelectContent></Select></Field>
             </div>
 
             <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
