@@ -33,3 +33,7 @@ left join public.finance_transaction_budget_allocations a on a.budget_id=b.id
 left join public.finance_transactions t on t.id=a.transaction_id
 group by b.id,b.plan_id,b.department,b.category,b.project_name,b.activity_name,
   b.period_start,b.period_end,b.actual_amount,b.actual_revenue;
+
+-- Explicit SQL privileges are required in addition to row-level security policies.
+grant select, insert, update, delete on public.finance_transaction_budget_allocations to authenticated;
+grant select on public.v_planning_budget_reconciliation to authenticated;
