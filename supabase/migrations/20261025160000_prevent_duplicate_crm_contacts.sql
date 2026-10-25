@@ -148,7 +148,7 @@ BEGIN
   END LOOP;
   RETURN NEW;
 END;
-$;
+$$;
 REVOKE ALL ON FUNCTION private.reject_duplicate_within_entity_table() FROM PUBLIC, anon, authenticated;
 
 CREATE INDEX IF NOT EXISTS clients_phone_normalized_idx ON public.clients (private.normalize_crm_phone(telephone));
