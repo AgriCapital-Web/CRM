@@ -18,9 +18,7 @@ const ROLE_LEVELS: Record<string, string[]> = {
   mobilisateur_foncier: ["district", "region", "departement"],
   chef_equipe_technique: ["district", "region"],
   superviseur_mobilisation_fonciere: ["district", "region"],
-  responsable_technique_agronomique: ["district", "region"],
   responsable_operations: ["district", "region"],
-  operations: ["district", "region"],
 };
 const normalizeRole = (role?: string | null) => role === "responsable_zone" ? "responsable_district" : String(role || "");
 const normalizeName = (value?: string | null) =>
