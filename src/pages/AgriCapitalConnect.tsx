@@ -18,6 +18,7 @@ import { CalendarDays, Check, Clock3, Files, Loader2, MessageCircle, Paperclip, 
 import { toast } from "sonner";
 import InternalCallRoom from "@/components/workspace/InternalCallRoom";
 import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
+import WorkspaceOperations from "@/components/workspace/WorkspaceOperations";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
@@ -37,7 +38,7 @@ export default function AgriCapitalConnect() {
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") === "budgets" && can("finance.view") ? "budgets" : canViewMessaging ? (searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : "messages") : "budgets");
+  const [tab, setTab] = useState(searchParams.get("module") === "budgets" && can("finance.view") ? "budgets" : canViewMessaging ? (["activities","meetings","documents","organisation","rh"].includes(searchParams.get("module") || "") ? (searchParams.get("module") === "activities" ? "activities" : searchParams.get("module")) : "messages") : "budgets");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
@@ -278,8 +279,9 @@ export default function AgriCapitalConnect() {
             {canViewMessaging && <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>}
           </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-            <TabsList className={`grid h-auto w-full gap-1 ${canViewMessaging && can("finance.view") ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : canViewMessaging ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : "grid-cols-1"}`}>
+            <TabsList className={`grid h-auto w-full gap-1 ${canViewMessaging && can("finance.view") ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-7" : canViewMessaging ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : "grid-cols-1"}`}>
               {canViewMessaging && <>
+                <TabsTrigger value="activities" className="gap-2"><Clock3 className="h-4 w-4" />Pilotage & agenda</TabsTrigger>
                 <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
                 <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
                 <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents</TabsTrigger>
@@ -288,6 +290,7 @@ export default function AgriCapitalConnect() {
               </>}
               {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
             </TabsList>
+            <TabsContent value="activities" className="mt-3 min-w-0"><WorkspaceOperations /></TabsContent>
             <TabsContent value="messages" className="mt-3 min-w-0">
               <div className="grid min-w-0 gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
                 <Card className={selected ? "hidden min-w-0 lg:block" : "min-w-0"}>
