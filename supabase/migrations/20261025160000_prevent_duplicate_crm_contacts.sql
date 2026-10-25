@@ -84,10 +84,16 @@ BEGIN
           OR private.normalize_crm_phone(t.whatsapp) = ANY($1)
           OR ($2 IS NOT NULL AND lower(trim(t.email)) = $2))
        AND ($3 IS NULL OR t.id::text <> $3)
-       AND ($6 IS NULL OR NOT ((($4 = ''prospects'' AND $5 = ''leads'') OR ($4 = ''leads'' AND $5 = ''prospects'')) AND t.id::text = $6))',
+       AND NOT (
+         ($4 = ''prospects'' AND $5 = ''leads'' AND t.id::text = $6)
+         OR ($4 = ''leads'' AND $5 = ''prospects'' AND t.id::text = $6)
+         OR ($4 IN (''leads'', ''prospects'') AND $5 = ''clients'' AND t.id::text = $7)
+         OR ($4 IN (''leads'', ''prospects'') AND $5 = ''proprietaires_terres'' AND t.id::text = $8)
+       )',
       table_name
     ) USING candidate_phones, candidate_email, NULLIF(candidate->>'id',''),
-      TG_TABLE_NAME, table_name, related_counterpart_id
+      TG_TABLE_NAME, table_name, related_counterpart_id,
+      NULLIF(candidate->>'client_id',''), NULLIF(candidate->>'proprietaire_id','')
     LOOP
       IF private.crm_contact_is_duplicate(candidate, existing) THEN
         RETURN NULL;
