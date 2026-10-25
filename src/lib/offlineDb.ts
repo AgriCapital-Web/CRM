@@ -61,6 +61,24 @@ export const STORES = {
   HTTP_MUTATIONS: 'http_mutations',
 } as const;
 
+/**
+ * Business records are authoritative in Supabase only.
+ * IndexedDB may retain technical metadata and the authentication session, but never
+ * serve as a fallback database for clients, finance, staff, projects, or other CRM records.
+ */
+const NON_BUSINESS_STORES = new Set<string>([
+  STORES.SYNC_QUEUE,
+  STORES.AUTH_CACHE,
+  STORES.META,
+  STORES.HTTP_CACHE,
+  STORES.HTTP_MUTATIONS,
+]);
+
+function isBusinessDataStore(storeName: string): boolean {
+  return Object.values(STORES).includes(storeName as (typeof STORES)[keyof typeof STORES])
+    && !NON_BUSINESS_STORES.has(storeName);
+}
+
 let dbInstance: IDBDatabase | null = null;
 
 function openDB(): Promise<IDBDatabase> {
@@ -168,6 +186,7 @@ function normalizeStoreItem(storeName: string, item: any): any {
 }
 
 export async function putItem(storeName: string, item: any): Promise<void> {
+  if (isBusinessDataStore(storeName)) return;
   const store = await getStore(storeName, 'readwrite');
   const normalized = normalizeStoreItem(storeName, item);
   return new Promise((resolve, reject) => {
@@ -178,7 +197,7 @@ export async function putItem(storeName: string, item: any): Promise<void> {
 }
 
 export async function putItems(storeName: string, items: any[]): Promise<void> {
-  if (!items.length) return;
+  if (isBusinessDataStore(storeName) || !items.length) return;
   const db = await openDB();
   const tx = db.transaction(storeName, 'readwrite');
   const store = tx.objectStore(storeName);
@@ -190,6 +209,7 @@ export async function putItems(storeName: string, items: any[]): Promise<void> {
 }
 
 export async function getItem(storeName: string, key: IDBValidKey): Promise<any> {
+  if (isBusinessDataStore(storeName)) return undefined;
   const store = await getStore(storeName);
   return new Promise((resolve, reject) => {
     const req = store.get(key);
@@ -199,6 +219,7 @@ export async function getItem(storeName: string, key: IDBValidKey): Promise<any>
 }
 
 export async function getAllItems(storeName: string): Promise<any[]> {
+  if (isBusinessDataStore(storeName)) return [];
   const store = await getStore(storeName);
   return new Promise((resolve, reject) => {
     const req = store.getAll();
@@ -208,6 +229,7 @@ export async function getAllItems(storeName: string): Promise<any[]> {
 }
 
 export async function deleteItem(storeName: string, key: IDBValidKey): Promise<void> {
+  if (isBusinessDataStore(storeName)) return;
   const store = await getStore(storeName, 'readwrite');
   return new Promise((resolve, reject) => {
     const req = store.delete(key);
@@ -226,6 +248,7 @@ export async function clearStore(storeName: string): Promise<void> {
 }
 
 export async function countItems(storeName: string): Promise<number> {
+  if (isBusinessDataStore(storeName)) return 0;
   const store = await getStore(storeName);
   return new Promise((resolve, reject) => {
     const req = store.count();
@@ -268,8 +291,11 @@ export async function persistQueuedMutation(input: {
   record?: any;
   queueId?: number;
 }): Promise<number> {
+  if (input.storeName && isBusinessDataStore(input.storeName)) {
+    throw new Error("Les données métier ne peuvent pas être enregistrées localement. Connectez-vous au serveur et enregistrez directement dans la base de données.");
+  }
   const db = await openDB();
-  const storeNames = [STORES.SYNC_QUEUE, ...(input.storeName ? [input.storeName] : [])];
+  const storeNames = [STORES.SYNC_QUEUE];
   const tx = db.transaction(storeNames, "readwrite");
   const queueStore = tx.objectStore(STORES.SYNC_QUEUE);
   const queueItem: SyncOperation = {
@@ -304,6 +330,9 @@ export async function persistQueuedMutation(input: {
 
 export async function getPendingSyncOps(): Promise<SyncOperation[]> {
   const now = Date.now();
+  // Désactivation du rejeu des mutations métier locales : Supabase est la source de vérité.
+  // Les anciennes opérations sont ignorées afin de ne pas injecter de brouillons obsolètes.
+  return [];
   const all = await getAllItems(STORES.SYNC_QUEUE) as SyncOperation[];
   // Reprendre les opérations interrompues par fermeture, crash ou arrêt du worker.
   // Les anciennes entrées "syncing" sans horodatage sont récupérées immédiatement.
