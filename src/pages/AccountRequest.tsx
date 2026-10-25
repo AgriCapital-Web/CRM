@@ -18,7 +18,7 @@ type AccountRole = { code: string; nom: string; niveau_couverture: string | null
 const PUBLIC_SIGNUP_ROLE_CODES = new Set([
   "commercial", "technicien", "mobilisateur_foncier", "superviseur_mobilisation_fonciere",
   "chef_equipe_commercial", "chef_equipe_technique", "responsable_commercial",
-  "responsable_technique_agronomique", "responsable_district", "comptable", "service_client", "operations",
+  "responsable_operations", "responsable_district", "comptable", "service_client",
 ]);
 
 
