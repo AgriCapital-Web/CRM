@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,41 @@ const types: { value: OfficeDocumentType; label: string }[] = [
 ];
 const typeIcon = (type: string) => type === "spreadsheet" ? FileSpreadsheet : type === "presentation" ? Presentation : type === "file" ? Files : FileText;
 const safeName = (name: string) => name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "document";
+
+
+function RichTextEditor({ value, onChange, disabled }: { value: string; onChange: (html: string) => void; disabled?: boolean }) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (editor && document.activeElement !== editor && editor.innerHTML !== value) editor.innerHTML = value || "";
+  }, [value]);
+  const command = (name: string, argument?: string) => {
+    if (!editorRef.current || disabled) return;
+    editorRef.current.focus();
+    document.execCommand(name, false, argument);
+    onChange(editorRef.current.innerHTML);
+  };
+  const tools = [
+    { label: "Gras", command: "bold", text: "B", style: "font-bold" },
+    { label: "Italique", command: "italic", text: "I", style: "italic" },
+    { label: "Souligné", command: "underline", text: "U", style: "underline" },
+    { label: "Liste à puces", command: "insertUnorderedList", text: "• Liste", style: "" },
+    { label: "Liste numérotée", command: "insertOrderedList", text: "1. Liste", style: "" },
+    { label: "Citation", command: "formatBlock", argument: "blockquote", text: "Citation", style: "" },
+  ];
+  return <div className="overflow-hidden rounded-lg border bg-background">
+    <div className="flex flex-wrap gap-1 border-b bg-muted/40 p-2">
+      {tools.map((tool) => <Button key={tool.command + tool.label} type="button" size="sm" variant="outline" className={tool.style} disabled={disabled} title={tool.label} onMouseDown={(event) => event.preventDefault()} onClick={() => command(tool.command, tool.argument)}>{tool.text}</Button>)}
+      <select aria-label="Style de paragraphe" disabled={disabled} className="h-9 rounded-md border bg-background px-2 text-sm" defaultValue="p" onChange={(event) => command("formatBlock", event.target.value)}>
+        <option value="p">Paragraphe</option><option value="h1">Titre 1</option><option value="h2">Titre 2</option><option value="h3">Titre 3</option>
+      </select>
+    </div>
+    <div ref={editorRef} contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-label="Éditeur de document" aria-multiline="true"
+      onInput={(event) => onChange(event.currentTarget.innerHTML)}
+      className="min-h-[420px] max-w-none overflow-y-auto px-5 py-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:pl-4 [&_blockquote]:italic"
+      data-placeholder="Commencez à rédiger votre document…"/>
+  </div>;
+}
 
 export default function WorkspaceOffice({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, profile } = useAuth();
@@ -164,7 +199,7 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
                     <div className="space-y-1"><label className="text-sm font-medium" htmlFor="office-title">Titre</label><Input id="office-title" value={title} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} placeholder="Titre du document"/></div>
                     <div className="space-y-1"><label className="text-sm font-medium" htmlFor="office-type">Type</label><select id="office-type" value={documentType} onChange={(event) => { setDocumentType(event.target.value as OfficeDocumentType); setDirty(true); }} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{types.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></div>
                   </div>
-                  <div className="space-y-1"><label className="text-sm font-medium" htmlFor="office-content">Contenu</label><Textarea id="office-content" value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} rows={16} className="min-h-[320px] resize-y font-mono text-sm" placeholder="Rédigez le contenu du document ici…"/></div>
+                  <div className="space-y-1"><label className="text-sm font-medium">Zone d’édition</label>{documentType === "document" ? <RichTextEditor value={content} disabled={saving} onChange={(html) => { setContent(html); setDirty(true); }} /> : <Textarea aria-label={documentType === "spreadsheet" ? "Données du tableur" : documentType === "presentation" ? "Contenu des diapositives" : "Contenu du fichier"} value={content} onChange={(event) => { setContent(event.target.value); setDirty(true); }} rows={16} className="min-h-[320px] resize-y font-mono text-sm" placeholder={documentType === "spreadsheet" ? "Modifiez les données du tableur (CSV)…" : "Modifiez le contenu…"} />}</div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="h-4 w-4"/>{dirty ? "Modifications non enregistrées" : "État enregistré"}</div>
                     <div className="flex flex-wrap gap-2">
