@@ -18,7 +18,6 @@ import Plantations from "./pages/Plantations";
 import PlantationDetail from "./pages/PlantationDetail";
 import GestionPaiements from "./pages/GestionPaiements";
 import Finance from "./pages/Finance";
-import PlanificationBudgetaire from "./pages/PlanificationBudgetaire";
 import Commissions from "./pages/Commissions";
 import Portefeuilles from "./pages/Portefeuilles";
 import NouvelleAcquisition from "./pages/NouvelleAcquisition";
