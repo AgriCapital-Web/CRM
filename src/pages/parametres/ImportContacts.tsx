@@ -51,7 +51,7 @@ function parseVCard(text: string): ImportedContact[] {
   }).filter((item) => item.nom || item.prenoms || item.telephone || item.email);
 }
 function parseCsv(text: string): ImportedContact[] {
-  const lines = text.replace(/^\\uFEFF/, "").split(/\\r?\\n/).filter((line) => line.trim());
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
   if (lines.length < 2) return [];
   const delimiter = (lines[0].match(/;/g)?.length || 0) > (lines[0].match(/,/g)?.length || 0) ? ";" : ",";
   const split = (line: string) => {
@@ -59,13 +59,13 @@ function parseCsv(text: string): ImportedContact[] {
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
       if (char === '"' && quoted && line[i + 1] === '"') { cell += '"'; i++; continue; }
-      if (char === '"' ) { quoted = !quoted; continue; }
+      if (char === '"') { quoted = !quoted; continue; }
       if (char === delimiter && !quoted) { cells.push(cell.trim()); cell = ""; continue; }
       cell += char;
     }
     cells.push(cell.trim()); return cells;
   };
-  const headers = split(lines[0]).map((v) => v.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, ""));
+  const headers = split(lines[0]).map((v) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
   const col = (names: string[]) => headers.findIndex((h) => names.some((name) => h.includes(name)));
   const nameIndex = col(["nom complet", "fullname", "name", "nom"]);
   const firstIndex = col(["prenom", "first name", "given"]);
@@ -77,7 +77,7 @@ function parseCsv(text: string): ImportedContact[] {
   return lines.slice(1).map((line, index) => {
     const cells = split(line);
     const full = nameIndex >= 0 ? cells[nameIndex] || "" : "";
-    const words = full.trim().split(/\\s+/).filter(Boolean);
+    const words = full.trim().split(/\s+/).filter(Boolean);
     const phone = normalizePhone(phoneIndex >= 0 ? cells[phoneIndex] || "" : "");
     return { key: contactKey(full, phone) || String(index), nom: words.length > 1 ? words.slice(1).join(" ") : full, prenoms: firstIndex >= 0 ? cells[firstIndex] || (words.length > 1 ? words[0] : "") : words.length > 1 ? words[0] : "", telephone: phone, telephone_secondaire: normalizePhone(secondIndex >= 0 ? cells[secondIndex] || "" : ""), email: emailIndex >= 0 ? cells[emailIndex] || "" : "", whatsapp_principal: whatsappIndex >= 0 && /^(oui|yes|true|1|whatsapp|wa)$/i.test(cells[whatsappIndex] || ""), whatsapp_secondaire: whatsappSecondIndex >= 0 && /^(oui|yes|true|1|whatsapp|wa)$/i.test(cells[whatsappSecondIndex] || ""), selected: Boolean(phone), source: "CSV" };
   }).filter((item) => item.nom || item.prenoms || item.telephone || item.email);
