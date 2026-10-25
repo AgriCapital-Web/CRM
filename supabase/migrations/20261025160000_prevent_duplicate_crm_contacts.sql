@@ -117,7 +117,7 @@ FOR EACH ROW EXECUTE FUNCTION private.reject_duplicate_crm_contact_insert();
 -- Cross-stage records remain possible for explicit lead/prospect-to-client conversion workflows.
 CREATE OR REPLACE FUNCTION private.reject_duplicate_within_entity_table()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = pg_catalog, public, private AS $
+SET search_path = pg_catalog, public, private AS $$
 DECLARE
   candidate jsonb := to_jsonb(NEW);
   existing jsonb;
