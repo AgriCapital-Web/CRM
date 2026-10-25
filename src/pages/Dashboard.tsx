@@ -276,7 +276,7 @@ const Dashboard = () => {
           if (row.parcelle_id) byParcel.set(row.parcelle_id, (byParcel.get(row.parcelle_id) || 0) + amount);
           else withoutParcel += amount;
         });
-        const parcelAreaById = new Map(parcelles.map((parcel: any) => [parcel.id, Math.max(0, Number(parcel.surface_totale_ha || 0))]));
+        const parcelAreaById = new Map<string, number>(parcelles.map((parcel: any) => [String(parcel.id), Math.max(0, Number(parcel.surface_totale_ha || 0))] as [string, number]));
         return withoutParcel + Array.from(byParcel.entries()).reduce((sum, [id, area]) => {
           const parcelArea = parcelAreaById.get(id);
           return sum + (parcelArea == null || parcelArea <= 0 ? area : Math.min(area, parcelArea));
