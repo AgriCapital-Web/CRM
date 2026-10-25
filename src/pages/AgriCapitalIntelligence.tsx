@@ -99,7 +99,18 @@ function IntelligenceContent() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {\n    let active = true;\n    const checkAccess = async () => {\n      if (!user?.id) return;\n      if (executive) { if (active) { setAccessAllowed(true); setAccessChecked(true); void load(); } return; }\n      const { data, error: accessError } = await db.from("decision_access_grants").select("permissions").eq("user_id", user.id).is("revoked_at", null).maybeSingle();\n      const allowed = !accessError && Array.isArray(data?.permissions) && (data.permissions.includes("view") || data.permissions.includes("admin"));\n      if (active) { setAccessAllowed(allowed); setAccessChecked(true); if (allowed) void load(); else { setLoading(false); navigate("/dashboard", { replace: true }); toast.error("Accès au centre de décision non autorisé. Demande une délégation au PDG/DG."); } }\n    };\n    void checkAccess();\n    return () => { active = false; };\n  }, [user?.id, executive, load, navigate]);
+  useEffect(() => {
+    let active = true;
+    const checkAccess = async () => {
+      if (!user?.id) return;
+      if (executive) { if (active) { setAccessAllowed(true); setAccessChecked(true); void load(); } return; }
+      const { data, error: accessError } = await db.from("decision_access_grants").select("permissions").eq("user_id", user.id).is("revoked_at", null).maybeSingle();
+      const allowed = !accessError && Array.isArray(data?.permissions) && (data.permissions.includes("view") || data.permissions.includes("admin"));
+      if (active) { setAccessAllowed(allowed); setAccessChecked(true); if (allowed) void load(); else { setLoading(false); navigate("/dashboard", { replace: true }); toast.error("Accès au centre de décision non autorisé. Demande une délégation au PDG/DG."); } }
+    };
+    void checkAccess();
+    return () => { active = false; };
+  }, [user?.id, executive, load, navigate]);
 
   const metrics = useMemo(() => {
     const valid = transactions.filter((r: Row) => !r.status || /valid|confirm|paid|payé|approuv/i.test(String(r.status)));
@@ -131,7 +142,8 @@ function IntelligenceContent() {
     if (saveError) { toast.error("Enregistrement refusé : " + saveError.message); setSaving(false); return; }
     await db.from("decision_approvals").insert({ proposal_id: data.id, action: "submitted", actor_user_id: user.id, reason: "Création de la proposition", new_status: "proposed" });
     await db.from("decision_center_audit").insert({ actor_user_id: user.id, entity_type: "proposal", entity_id: data.id, action: "created", after_state: data, reason: "Création de proposition" });
-    await db.from("decision_proposal_versions").insert({ proposal_id: data.id, version_number: 1, snapshot: data, changed_by: user.id, change_reason: "Version initiale" });\n    toast.success("Proposition enregistrée dans le registre.");
+    await db.from("decision_proposal_versions").insert({ proposal_id: data.id, version_number: 1, snapshot: data, changed_by: user.id, change_reason: "Version initiale" });
+    toast.success("Proposition enregistrée dans le registre.");
     setTitle(""); setSummary(""); setRationale(""); setAction(""); setAmount(""); setProposalOpen(false); setSaving(false); void load();
   };
 
@@ -146,7 +158,9 @@ function IntelligenceContent() {
     const { error: updateError } = await db.from("decision_proposals").update(patch).eq("id", proposal.id);
     if (updateError) { toast.error("Décision non enregistrée : " + updateError.message); setSaving(false); return; }
     const actionName = status === "approved" ? "approved" : status === "rejected" ? "rejected" : status === "modified" ? "modified" : status === "executed" ? "executed" : status === "closed" ? "closed" : "cancelled";
-    await db.from("decision_approvals").insert({ proposal_id: proposal.id, action: actionName, actor_user_id: user.id, reason: why, previous_status: proposal.status, new_status: status });\n    const { data: versionRows } = await db.from("decision_proposal_versions").select("version_number").eq("proposal_id", proposal.id).order("version_number", { ascending: false }).limit(1);\n    await db.from("decision_proposal_versions").insert({ proposal_id: proposal.id, version_number: Number(versionRows?.[0]?.version_number || 0) + 1, snapshot: { ...proposal, ...patch }, changed_by: user.id, change_reason: why });
+    await db.from("decision_approvals").insert({ proposal_id: proposal.id, action: actionName, actor_user_id: user.id, reason: why, previous_status: proposal.status, new_status: status });
+    const { data: versionRows } = await db.from("decision_proposal_versions").select("version_number").eq("proposal_id", proposal.id).order("version_number", { ascending: false }).limit(1);
+    await db.from("decision_proposal_versions").insert({ proposal_id: proposal.id, version_number: Number(versionRows?.[0]?.version_number || 0) + 1, snapshot: { ...proposal, ...patch }, changed_by: user.id, change_reason: why });
     await db.from("decision_center_audit").insert({ actor_user_id: user.id, entity_type: "proposal", entity_id: proposal.id, action: actionName, before_state: before, after_state: patch, reason: why });
     setReason(""); toast.success("Décision et historique enregistrés."); setSaving(false); void load();
   };
@@ -177,7 +191,9 @@ function IntelligenceContent() {
 
   const Metric = ({ title: metricTitle, value, icon: Icon, detail }: { title: string; value: string; icon: any; detail: string }) => <Card><CardContent className="p-4"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">{metricTitle}</p><p className="mt-1 text-xl font-semibold break-words">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div><Icon className="h-5 w-5 shrink-0 text-primary" /></div></CardContent></Card>;
 
-  if (!accessChecked || !accessAllowed) return <MainLayout><div className="p-6 text-sm text-muted-foreground">Vérification des autorisations…</div></MainLayout>;\n\n  return <MainLayout><div className="mx-auto w-full max-w-[1500px] space-y-5 p-3 md:p-6">
+  if (!accessChecked || !accessAllowed) return <MainLayout><div className="p-6 text-sm text-muted-foreground">Vérification des autorisations…</div></MainLayout>;
+
+  return <MainLayout><div className="mx-auto w-full max-w-[1500px] space-y-5 p-3 md:p-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><Activity className="h-6 w-6 text-primary"/><h1 className="text-2xl font-bold">AgriCapital Intelligence</h1></div><p className="mt-1 text-sm text-muted-foreground">Centre de décision stratégique et opérationnelle — données CRM et décisions traçables.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}/>Actualiser</Button></div>
     {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Une source n’a pas pu être lue</AlertTitle><AlertDescription>{error}. Les indicateurs concernés peuvent être incomplets.</AlertDescription></Alert>}
     <Alert><ShieldCheck className="h-4 w-4"/><AlertTitle>Décision assistée, jamais automatique</AlertTitle><AlertDescription>Les propositions sont des aides à l’analyse. Aucun emprunt, recrutement, paiement ou engagement n’est exécuté automatiquement. Les taux bancaires sont utilisables seulement s’ils sont saisis avec une source vérifiable et une date de validité.</AlertDescription></Alert>
