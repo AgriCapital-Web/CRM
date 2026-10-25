@@ -204,6 +204,16 @@ WHERE NOT (
     AND a.record->>'client_id' = b.record_id)
   OR (a.table_name = 'prospects' AND b.table_name = 'proprietaires_terres'
     AND a.record->>'proprietaire_id' = b.record_id)
+  OR (a.table_name = 'clients' AND b.table_name = 'leads'
+    AND b.record->>'client_id' = a.record_id)
+  OR (a.table_name = 'clients' AND b.table_name = 'prospects'
+    AND b.record->>'client_id' = a.record_id)
+  OR (a.table_name = 'proprietaires_terres' AND b.table_name = 'clients'
+    AND b.record->>'proprietaire_id' = a.record_id)
+  OR (a.table_name = 'proprietaires_terres' AND b.table_name = 'leads'
+    AND b.record->>'proprietaire_id' = a.record_id)
+  OR (a.table_name = 'proprietaires_terres' AND b.table_name = 'prospects'
+    AND b.record->>'proprietaire_id' = a.record_id)
 );
 
 GRANT SELECT ON public.crm_duplicate_contact_candidates TO authenticated;
