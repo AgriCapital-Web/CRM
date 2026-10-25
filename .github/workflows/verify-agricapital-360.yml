@@ -35,7 +35,7 @@ jobs:
           npm install --global npm@12.2.0
           node --version
           npm --version
-          npm --version | grep -E '^12\\.'
+          npm --version | grep -E '^12[.]'
 
       - name: Synchroniser le verrouillage npm
         run: npm install --package-lock-only --ignore-scripts
