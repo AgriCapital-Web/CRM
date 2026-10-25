@@ -21,7 +21,8 @@ import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: (f: File) => Promise<void> | void; current?: string | null; bucket: string }) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const currentUrl = useSignedUrl(bucket, current || null);
-  const isPhoto = label.toLocaleLowerCase("fr-FR").includes("photo") || /recto|verso/i.test(label);
+  const currentIsPdf = /\\.pdf(?:[?#]|$)/i.test(current || "");
+  const isPhoto = label.toLocaleLowerCase("fr-FR").includes("photo") || (/recto|verso/i.test(label) && !currentIsPdf);
   const handleFile = (file?: File) => {
     if (!file) return;
     void Promise.resolve(onPick(file)).catch(() => undefined);
