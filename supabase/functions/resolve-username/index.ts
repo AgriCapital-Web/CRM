@@ -72,7 +72,7 @@ serve(async (req) => {
     await anon.auth.signOut().catch(() => {});
     return json({ email: String(email) });
   } catch (error) {
-    console.error("resolve-username request failed:", error);
+    console.error("resolve-username request failed:", error instanceof Error ? error.message : String(error));
     return json({ error: "Requête invalide" }, 400);
   }
 });
