@@ -21,6 +21,8 @@ import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
 import WorkspaceOperations from "@/components/workspace/WorkspaceOperations";
 import AgriCapitalIntelligence from "@/pages/AgriCapitalIntelligence";
 import EspaceTravail from "@/pages/EspaceTravail";
+import Workspace360 from "@/pages/Workspace360";
+import WorkspacePeople360 from "@/pages/WorkspacePeople360";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
@@ -374,12 +376,8 @@ export default function AgriCapitalConnect() {
             <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
             {can("decision_center.view") && <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>}
             {can("documents.view") && <TabsContent value="documents" className="mt-3 min-w-0 space-y-3"><EspaceTravail embedded /></TabsContent>}
-            <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3">
-              <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Agenda opérationnel, tâches, projets et organisation</h2><p className="mt-1 text-sm text-muted-foreground">Retrouvez l’agenda opérationnel, les tâches, les projets, les fiches de poste et l’organigramme.</p><Button className="mt-4" onClick={() => navigate("/espace-travail-360")}>Ouvrir l’organisation 360</Button></div>
-            </TabsContent>
-            <TabsContent value="rh" className="mt-3 min-w-0 space-y-3">
-              <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Ressources humaines</h2><p className="mt-1 text-sm text-muted-foreground">Demandes d’absence, objectifs, évaluations et journal des décisions.</p><Button className="mt-4" onClick={() => navigate("/espace-rh-360")}>Ouvrir le suivi RH</Button></div>
-            </TabsContent>
+            <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3"><Workspace360 embedded /></TabsContent>
+            <TabsContent value="rh" className="mt-3 min-w-0 space-y-3"><WorkspacePeople360 embedded /></TabsContent>
           </Tabs>
         </main>
         <Dialog open={callOpen} onOpenChange={open => { setCallOpen(open); if (!open) setCallRoomId(""); }}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto overscroll-contain"><DialogHeader><DialogTitle>Appel audio/vidéo AgriCapital</DialogTitle></DialogHeader>{callOpen && callRoomId && profileId && <InternalCallRoom roomId={callRoomId} profileId={profileId} onClose={() => { setCallOpen(false); setCallRoomId(""); }} />}</DialogContent></Dialog>
