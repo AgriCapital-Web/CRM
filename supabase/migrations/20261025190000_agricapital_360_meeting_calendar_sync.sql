@@ -24,7 +24,7 @@ begin
           when new.status in ('completed','finished') then 'completed'
           else 'scheduled' end,
      new.created_by_profile_id, new.id, now(), now())
-  on conflict (linked_meeting_id) do update set
+  on conflict (linked_meeting_id) where linked_meeting_id is not null do update set
     title = excluded.title,
     description = excluded.description,
     starts_at = excluded.starts_at,
