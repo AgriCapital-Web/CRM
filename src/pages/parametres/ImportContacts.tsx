@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,7 +12,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Contact, FileUp, Users, UserPlus, Loader2, Search } from "lucide-react";
 
 type ImportedContact = { key: string; nom: string; prenoms: string; telephone: string; telephone_secondaire: string; email: string; whatsapp_principal: boolean; whatsapp_secondaire: boolean; selected: boolean; source: string };
-const normalizePhone = (value: string) => value.replace(/[^0-9+]/g, "").replace(/^00/, "+");
+const normalizePhone = (value: string) => {
+  let digits = value.trim().replace(/[^0-9]/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("225") && digits.length === 13) digits = digits.slice(3);
+  return digits;
+};
+const isValidIvoryCoastPhone = (value: string) => /^0\\d{9}$/.test(normalizePhone(value));
 const contactKey = (name: string, phone: string) => (normalizePhone(phone) || name.trim().toLowerCase());
 function parseVCard(text: string): ImportedContact[] {
   const cards = text.replace(/\r/g, "").split(/BEGIN:VCARD/i).slice(1);
@@ -70,20 +76,72 @@ export default function ImportContacts() {
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const [contactsLoaded, setContactsLoaded] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await (supabase as any).from("imported_phone_contacts").select("*")
+        .eq("user_id", user.id).neq("status", "created").order("imported_at", { ascending: true });
+      if (cancelled) return;
+      if (!error && data) setContacts(data.map((row: any) => ({
+        key: row.contact_key, nom: row.last_name || "", prenoms: row.first_name || "",
+        telephone: row.phone || "", telephone_secondaire: row.secondary_phone || "", email: row.email || "",
+        whatsapp_principal: !!row.whatsapp_primary, whatsapp_secondaire: !!row.whatsapp_secondary,
+        selected: !!row.selected, source: row.source || "import"
+      })));
+      setContactsLoaded(true);
+      if (error) toast({ variant: "destructive", title: "Chargement impossible", description: error.message });
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
   const selected = contacts.filter((contact) => contact.selected && contact.telephone);
   const filtered = useMemo(() => contacts.filter((contact) => [contact.nom, contact.prenoms, contact.telephone, contact.email].join(" ").toLowerCase().includes(search.toLowerCase())), [contacts, search]);
   const selectableFiltered = filtered.filter((contact) => Boolean(contact.telephone));
   const allFilteredSelected = selectableFiltered.length > 0 && selectableFiltered.every((contact) => contact.selected);
   const selectableAll = contacts.filter((contact) => Boolean(contact.telephone));
   const allContactsSelected = selectableAll.length > 0 && selectableAll.every((contact) => contact.selected);
-  const setContact = (key: string, patch: Partial<ImportedContact>) => setContacts((all) => all.map((contact) => contact.key === key ? { ...contact, ...patch } : contact));
+  const persistContact = async (contact: ImportedContact) => {
+    if (!user?.id) throw new Error("Session expirée.");
+    const { error } = await (supabase as any).from("imported_phone_contacts").upsert({
+      user_id: user.id, contact_key: contact.key, first_name: contact.prenoms, last_name: contact.nom,
+      phone: normalizePhone(contact.telephone), secondary_phone: normalizePhone(contact.telephone_secondaire) || null,
+      email: contact.email || null, whatsapp_primary: contact.whatsapp_principal,
+      whatsapp_secondary: contact.whatsapp_secondaire, selected: contact.selected, source: contact.source,
+      status: "pending", updated_at: new Date().toISOString()
+    }, { onConflict: "user_id,contact_key" });
+    if (error) throw error;
+  };
+  const setContact = (key: string, patch: Partial<ImportedContact>) => {
+    setContacts((all) => all.map((contact) => {
+      if (contact.key !== key) return contact;
+      const updated = { ...contact, ...patch };
+      void persistContact(updated).catch((error) => toast({ variant: "destructive", title: "Sauvegarde impossible", description: error.message }));
+      return updated;
+    }));
+  };
   const mergeContacts = (incoming: ImportedContact[]) => {
     setContacts((previous) => {
       const map = new Map(previous.map((contact) => [contact.key, contact]));
       incoming.forEach((contact) => { const old = map.get(contact.key); map.set(contact.key, old ? { ...old, ...contact, selected: old.selected || contact.selected } : contact); });
-      return [...map.values()];
+      const merged = [...map.values()];
+      void (async () => {
+        if (!user?.id) throw new Error("Reconnectez-vous pour sauvegarder les contacts.");
+        const payload = merged.map((contact) => ({
+          user_id: user.id, contact_key: contact.key, first_name: contact.prenoms, last_name: contact.nom,
+          phone: normalizePhone(contact.telephone), secondary_phone: normalizePhone(contact.telephone_secondaire) || null,
+          email: contact.email || null, whatsapp_primary: contact.whatsapp_principal,
+          whatsapp_secondary: contact.whatsapp_secondaire, selected: contact.selected, source: contact.source,
+          status: "pending", updated_at: new Date().toISOString()
+        }));
+        for (let i = 0; i < payload.length; i += 100) {
+          const { error } = await (supabase as any).from("imported_phone_contacts").upsert(payload.slice(i, i + 100), { onConflict: "user_id,contact_key" });
+          if (error) throw error;
+        }
+      })().catch((error) => toast({ variant: "destructive", title: "Contacts non sauvegardés", description: error.message }));
+      return merged;
     });
-    toast({ title: "Contacts importés", description: incoming.length + " contact(s) lus. Vérifiez les numéros et cochez ceux à convertir en leads." });
+    toast({ title: "Import en cours", description: incoming.length + " contact(s) lus. Sauvegarde dans la base de données." });
   };
   const pickPhoneContacts = async () => {
     const picker = (navigator as any).contacts;
@@ -120,11 +178,12 @@ export default function ImportContacts() {
     if (!user?.id) { toast({ variant: "destructive", title: "Session expirée", description: "Reconnectez-vous avant de créer des leads." }); return; }
     if (!selected.length) { toast({ variant: "destructive", title: "Aucun contact sélectionné", description: "Cochez au moins un contact avec un téléphone principal." }); return; }
     setLoading(true);
+    let created = 0, duplicates = 0, invalid = 0, failed = 0;
     try {
       const readPhonePages = async (table: "leads" | "prospects") => {
         const all: any[] = [];
         for (let offset = 0; ; offset += 1000) {
-          const result = await (supabase as any).from(table).select("telephone,telephone_secondaire").range(offset, offset + 999);
+          const result = await (supabase as any).from(table).select("id,telephone,telephone_secondaire").range(offset, offset + 999);
           if (result.error) throw result.error;
           all.push(...(result.data || []));
           if (!result.data || result.data.length < 1000) break;
@@ -135,34 +194,42 @@ export default function ImportContacts() {
       const existingPhones = new Set([...leadRows, ...prospectRows].flatMap((row: any) =>
         [row.telephone, row.telephone_secondaire].map((value) => normalizePhone(String(value || ""))).filter(Boolean)
       ));
-      const rows = selected.filter((contact) => !existingPhones.has(normalizePhone(contact.telephone))).map((contact) => ({
-        nom: contact.nom || contact.prenoms || "Contact importé",
-        prenoms: contact.prenoms || null,
-        telephone: normalizePhone(contact.telephone),
-        telephone_secondaire: normalizePhone(contact.telephone_secondaire) || null,
-        whatsapp: contact.whatsapp_principal ? normalizePhone(contact.telephone) : contact.whatsapp_secondaire ? normalizePhone(contact.telephone_secondaire) : null,
-        telephone_principal_whatsapp: contact.whatsapp_principal,
-        telephone_secondaire_whatsapp: contact.whatsapp_secondaire,
-        email: contact.email || null,
-        statut: "nouveau",
-        etape_pipeline: "lead",
-        type_lead: "client",
-        mode_contact_prefere: contact.whatsapp_principal || contact.whatsapp_secondaire ? "whatsapp" : "appel",
-        assigned_to: user.id,
-        created_by: user.id,
-        metadata: { source_import: "repertoire_telephone", source_contact: contact.source, imported_at: new Date().toISOString() }
-      }));
-      if (!rows.length) {
-        toast({ title: "Aucun doublon créé", description: "Tous les numéros sélectionnés existent déjà dans les leads." });
-        return;
+      for (const contact of selected) {
+        const phone = normalizePhone(contact.telephone);
+        if (!isValidIvoryCoastPhone(phone)) {
+          invalid++;
+          await (supabase as any).from("imported_phone_contacts").update({ status: "invalid", last_error: "Numéro invalide : 10 chiffres commençant par 0 attendus.", updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
+          continue;
+        }
+        if (existingPhones.has(phone)) {
+          duplicates++;
+          await (supabase as any).from("imported_phone_contacts").update({ status: "duplicate", last_error: "Numéro déjà présent dans les leads ou prospects.", updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
+          continue;
+        }
+        const row = {
+          nom: contact.nom || contact.prenoms || "Contact importé", prenoms: contact.prenoms || null,
+          telephone: phone, telephone_secondaire: normalizePhone(contact.telephone_secondaire) || null,
+          whatsapp: contact.whatsapp_principal ? phone : contact.whatsapp_secondaire ? normalizePhone(contact.telephone_secondaire) : null,
+          telephone_principal_whatsapp: contact.whatsapp_principal, telephone_secondaire_whatsapp: contact.whatsapp_secondaire,
+          email: contact.email || null, statut: "nouveau", etape_pipeline: "lead", type_lead: "client",
+          mode_contact_prefere: contact.whatsapp_principal || contact.whatsapp_secondaire ? "whatsapp" : "appel",
+          assigned_to: user.id, created_by: user.id,
+          metadata: { source_import: "repertoire_telephone", source_contact: contact.source, imported_at: new Date().toISOString() }
+        };
+        const { data, error } = await (supabase as any).from("leads").insert(row).select("id").single();
+        if (error) {
+          failed++;
+          await (supabase as any).from("imported_phone_contacts").update({ status: "pending", last_error: error.message, updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
+          continue;
+        }
+        created++;
+        existingPhones.add(phone);
+        await (supabase as any).from("imported_phone_contacts").update({ status: "created", lead_id: data.id, selected: false, last_error: null, updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
+        setContacts((all) => all.filter((item) => item.key !== contact.key));
       }
-      const { error } = await (supabase as any).from("leads").insert(rows);
-      if (error) throw error;
-      const added = new Set(rows.map((row: any) => normalizePhone(row.telephone)));
-      setContacts((all) => all.map((contact) => added.has(normalizePhone(contact.telephone)) ? { ...contact, selected: false } : contact));
-      toast({ title: "Leads créés", description: rows.length + " lead(s) ajouté(s). Les numéros déjà présents ont été ignorés." });
+      toast({ title: "Traitement terminé", description: `${created} lead(s) créé(s), ${duplicates} doublon(s), ${invalid} numéro(s) invalide(s), ${failed} échec(s). Les contacts non convertis restent sauvegardés.` });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Création interrompue", description: error?.message || "Impossible de créer les leads. Aucun succès ne sera annoncé sans confirmation de la base." });
+      toast({ variant: "destructive", title: "Traitement partiel", description: error?.message || "Erreur de lecture. Les contacts sauvegardés restent disponibles." });
     } finally { setLoading(false); }
   };
   return <div className="mx-auto w-full max-w-7xl min-w-0 space-y-4 overflow-x-hidden px-0 sm:space-y-5">
@@ -173,6 +240,6 @@ export default function ImportContacts() {
     </div>
     <Card className="min-w-0"><CardHeader><div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Prévisualisation des contacts</CardTitle><p className="mt-1 text-sm text-muted-foreground">{contacts.length} contact(s) · {selected.length} sélectionné(s) avec numéro principal</p></div><div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
 <Button variant="outline" className="w-full whitespace-normal sm:w-auto" onClick={() => setContacts((all) => all.map((contact) => contact.telephone ? { ...contact, selected: !allContactsSelected } : contact))} disabled={!selectableAll.length}>{allContactsSelected ? "Désélectionner tous les contacts" : "Sélectionner tous les contacts"}</Button>
-<Button variant="outline" className="w-full whitespace-normal sm:w-auto" onClick={() => { const keys = new Set(selectableFiltered.map((contact) => contact.key)); setContacts((all) => all.map((contact) => keys.has(contact.key) ? { ...contact, selected: !allFilteredSelected } : contact)); }} disabled={!selectableFiltered.length}>{allFilteredSelected ? "Désélectionner la sélection filtrée" : "Tout sélectionner (filtre)"}</Button><Button variant="outline" onClick={() => setContacts((all) => all.map((contact) => ({ ...contact, selected: false })))} disabled={!contacts.length}>Tout désélectionner</Button><Button className="w-full whitespace-normal sm:w-auto" onClick={() => void generateLeads()} disabled={loading || !selected.length}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserPlus className="mr-2 h-4 w-4"/>}Générer les leads</Button></div></div><div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Rechercher un nom ou un numéro"/></div></CardHeader><CardContent className="min-w-0 px-3 sm:px-6"><div className="space-y-3 sm:hidden">{filtered.map((contact) => <div key={contact.key} className="min-w-0 space-y-3 rounded-lg border p-3"><div className="flex min-w-0 items-start gap-3"><Checkbox className="mt-1 shrink-0" checked={contact.selected} onCheckedChange={(value) => setContact(contact.key,{selected:value===true})}/><div className="min-w-0 flex-1"><p className="break-words font-medium">{contact.prenoms} {contact.nom}</p><p className="break-all text-xs text-muted-foreground">{contact.email || "Aucun email"}</p></div><Badge className="shrink-0" variant={contact.whatsapp_principal||contact.whatsapp_secondaire?"default":"outline"}>{contact.whatsapp_principal||contact.whatsapp_secondaire?"WhatsApp":"À vérifier"}</Badge></div><div className="grid min-w-0 grid-cols-1 gap-3"><div className="min-w-0 space-y-1"><Label>Téléphone principal</Label><Input className="w-full min-w-0" value={contact.telephone} onChange={(event) => setContact(contact.key,{telephone:normalizePhone(event.target.value)})}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_principal} onCheckedChange={(value) => setContact(contact.key,{whatsapp_principal:value===true,whatsapp_secondaire:value===true?false:contact.whatsapp_secondaire})}/>Numéro principal WhatsApp</label></div><div className="min-w-0 space-y-1"><Label>Téléphone secondaire</Label><Input className="w-full min-w-0" value={contact.telephone_secondaire} onChange={(event) => setContact(contact.key,{telephone_secondaire:normalizePhone(event.target.value)})}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_secondaire} onCheckedChange={(value) => setContact(contact.key,{whatsapp_secondaire:value===true,whatsapp_principal:value===true?false:contact.whatsapp_principal})}/>Numéro secondaire WhatsApp</label></div><div className="min-w-0 space-y-1"><Label>Email</Label><Input className="w-full min-w-0" value={contact.email} onChange={(event) => setContact(contact.key,{email:event.target.value})}/></div></div></div>)}</div><div className="hidden w-full overflow-x-auto sm:block"><Table><TableHeader><TableRow><TableHead>Sélection</TableHead><TableHead>Nom complet</TableHead><TableHead>Téléphone principal</TableHead><TableHead>Téléphone secondaire</TableHead><TableHead>WhatsApp</TableHead><TableHead>Email</TableHead></TableRow></TableHeader><TableBody>{filtered.map((contact) => <TableRow key={contact.key}><TableCell><Checkbox checked={contact.selected} onCheckedChange={(value) => setContact(contact.key,{selected:value===true})}/></TableCell><TableCell className="min-w-[180px]">{contact.prenoms} {contact.nom}</TableCell><TableCell><Input className="min-w-[135px]" value={contact.telephone} onChange={(event) => setContact(contact.key,{telephone:normalizePhone(event.target.value)})}/><label className="mt-1 flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_principal} onCheckedChange={(value) => setContact(contact.key,{whatsapp_principal:value===true,whatsapp_secondaire:value===true?false:contact.whatsapp_secondaire})}/>WhatsApp</label></TableCell><TableCell><Input className="min-w-[135px]" value={contact.telephone_secondaire} onChange={(event) => setContact(contact.key,{telephone_secondaire:normalizePhone(event.target.value)})}/><label className="mt-1 flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_secondaire} onCheckedChange={(value) => setContact(contact.key,{whatsapp_secondaire:value===true,whatsapp_principal:value===true?false:contact.whatsapp_principal})}/>WhatsApp</label></TableCell><TableCell><Badge variant={contact.whatsapp_principal||contact.whatsapp_secondaire?"default":"outline"}>{contact.whatsapp_principal||contact.whatsapp_secondaire?"Numéro marqué":"À vérifier"}</Badge></TableCell><TableCell><Input className="min-w-[180px]" value={contact.email} onChange={(event) => setContact(contact.key,{email:event.target.value})}/></TableCell></TableRow>)}</TableBody></Table></div><p className="mt-3 text-xs text-muted-foreground">Le navigateur ne permet pas de vérifier seul si un numéro est inscrit à WhatsApp. Cochez le numéro WhatsApp connu ; cette information sera enregistrée avec le lead.</p></CardContent></Card>
+<Button variant="outline" className="w-full whitespace-normal sm:w-auto" onClick={() => { const keys = new Set(selectableFiltered.map((contact) => contact.key)); setContacts((all) => all.map((contact) => keys.has(contact.key) ? { ...contact, selected: !allFilteredSelected } : contact)); }} disabled={!selectableFiltered.length}>{allFilteredSelected ? "Désélectionner la sélection filtrée" : "Tout sélectionner (filtre)"}</Button><Button variant="outline" onClick={() => setContacts((all) => all.map((contact) => ({ ...contact, selected: false })))} disabled={!contacts.length}>Tout désélectionner</Button><Button className="w-full whitespace-normal sm:w-auto" onClick={() => void generateLeads()} disabled={loading || !selected.length || !contactsLoaded}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserPlus className="mr-2 h-4 w-4"/>}Générer les leads</Button></div></div><div className="relative mt-3"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="Rechercher un nom ou un numéro"/></div></CardHeader><CardContent className="min-w-0 px-3 sm:px-6"><div className="space-y-3 sm:hidden">{filtered.map((contact) => <div key={contact.key} className="min-w-0 space-y-3 rounded-lg border p-3"><div className="flex min-w-0 items-start gap-3"><Checkbox className="mt-1 shrink-0" checked={contact.selected} onCheckedChange={(value) => setContact(contact.key,{selected:value===true})}/><div className="min-w-0 flex-1"><p className="break-words font-medium">{contact.prenoms} {contact.nom}</p><p className="break-all text-xs text-muted-foreground">{contact.email || "Aucun email"}</p></div><Badge className="shrink-0" variant={contact.whatsapp_principal||contact.whatsapp_secondaire?"default":"outline"}>{contact.whatsapp_principal||contact.whatsapp_secondaire?"WhatsApp":"À vérifier"}</Badge></div><div className="grid min-w-0 grid-cols-1 gap-3"><div className="min-w-0 space-y-1"><Label>Téléphone principal</Label><Input className="w-full min-w-0" value={contact.telephone} onChange={(event) => setContact(contact.key,{telephone:normalizePhone(event.target.value)})}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_principal} onCheckedChange={(value) => setContact(contact.key,{whatsapp_principal:value===true,whatsapp_secondaire:value===true?false:contact.whatsapp_secondaire})}/>Numéro principal WhatsApp</label></div><div className="min-w-0 space-y-1"><Label>Téléphone secondaire</Label><Input className="w-full min-w-0" value={contact.telephone_secondaire} onChange={(event) => setContact(contact.key,{telephone_secondaire:normalizePhone(event.target.value)})}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_secondaire} onCheckedChange={(value) => setContact(contact.key,{whatsapp_secondaire:value===true,whatsapp_principal:value===true?false:contact.whatsapp_principal})}/>Numéro secondaire WhatsApp</label></div><div className="min-w-0 space-y-1"><Label>Email</Label><Input className="w-full min-w-0" value={contact.email} onChange={(event) => setContact(contact.key,{email:event.target.value})}/></div></div></div>)}</div><div className="hidden w-full overflow-x-auto sm:block"><Table><TableHeader><TableRow><TableHead>Sélection</TableHead><TableHead>Nom complet</TableHead><TableHead>Téléphone principal</TableHead><TableHead>Téléphone secondaire</TableHead><TableHead>WhatsApp</TableHead><TableHead>Email</TableHead></TableRow></TableHeader><TableBody>{filtered.map((contact) => <TableRow key={contact.key}><TableCell><Checkbox checked={contact.selected} onCheckedChange={(value) => setContact(contact.key,{selected:value===true})}/></TableCell><TableCell className="min-w-[180px]">{contact.prenoms} {contact.nom}</TableCell><TableCell><Input className="min-w-[135px]" value={contact.telephone} onChange={(event) => setContact(contact.key,{telephone:normalizePhone(event.target.value)})}/><label className="mt-1 flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_principal} onCheckedChange={(value) => setContact(contact.key,{whatsapp_principal:value===true,whatsapp_secondaire:value===true?false:contact.whatsapp_secondaire})}/>WhatsApp</label></TableCell><TableCell><Input className="min-w-[135px]" value={contact.telephone_secondaire} onChange={(event) => setContact(contact.key,{telephone_secondaire:normalizePhone(event.target.value)})}/><label className="mt-1 flex items-center gap-2 text-xs"><Checkbox checked={contact.whatsapp_secondaire} onCheckedChange={(value) => setContact(contact.key,{whatsapp_secondaire:value===true,whatsapp_principal:value===true?false:contact.whatsapp_principal})}/>WhatsApp</label></TableCell><TableCell><Badge variant={contact.whatsapp_principal||contact.whatsapp_secondaire?"default":"outline"}>{contact.whatsapp_principal||contact.whatsapp_secondaire?"Numéro marqué":"À vérifier"}</Badge></TableCell><TableCell><Input className="min-w-[180px]" value={contact.email} onChange={(event) => setContact(contact.key,{email:event.target.value})}/></TableCell></TableRow>)}</TableBody></Table></div><p className="mt-3 text-xs text-muted-foreground">Le navigateur ne permet pas de vérifier seul si un numéro est inscrit à WhatsApp. Cochez le numéro WhatsApp connu ; cette information sera enregistrée avec le lead.</p></CardContent></Card>
   </div>;
 }
