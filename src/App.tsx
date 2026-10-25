@@ -37,9 +37,6 @@ import VerificationCarte from "./pages/VerificationCarte";
 import BeneficiaireParticulier from "./pages/BeneficiaireParticulier";
 import TechnicienTerrain from "./pages/TechnicienTerrain";
 import Messagerie from "./pages/Messagerie";
-import EspaceTravail from "./pages/EspaceTravail";
-import Workspace360 from "./pages/Workspace360";
-import WorkspacePeople360 from "./pages/WorkspacePeople360";
 import AgriCapitalConnect from "./pages/AgriCapitalConnect";
 import AgriCapitalIntelligence from "./pages/AgriCapitalIntelligence";
 import ExternalMeetingGuest from "./pages/ExternalMeetingGuest";
@@ -115,9 +112,9 @@ const DomainRouter = () => {
       <Route path="/messagerie" element={<Navigate to="/connect" replace />} />
       <Route path="/connect" element={<ProtectedRoute><AgriCapitalConnect /></ProtectedRoute>} />
       <Route path="/intelligence" element={<AgriCapitalIntelligence />} />
-      <Route path="/espace-travail" element={<ProtectedRoute><EspaceTravail /></ProtectedRoute>} />
-      <Route path="/espace-travail-360" element={<ProtectedRoute><Workspace360 /></ProtectedRoute>} />
-      <Route path="/espace-rh-360" element={<ProtectedRoute><WorkspacePeople360 /></ProtectedRoute>} />
+      <Route path="/espace-travail" element={<ProtectedRoute><Navigate to="/connect?module=documents" replace /></ProtectedRoute>} />
+      <Route path="/espace-travail-360" element={<ProtectedRoute><Navigate to="/connect?module=organisation" replace /></ProtectedRoute>} />
+      <Route path="/espace-rh-360" element={<ProtectedRoute><Navigate to="/connect?module=rh" replace /></ProtectedRoute>} />
       <Route path="/profil" element={<ProtectedRoute><Profil /></ProtectedRoute>} />
       
       {/* Paiements */}
