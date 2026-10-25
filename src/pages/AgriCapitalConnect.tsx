@@ -302,7 +302,7 @@ export default function AgriCapitalConnect() {
             {canViewMessaging && <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>}
           </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-            <TabsList className={`grid h-auto w-full gap-1 ${canViewMessaging && can("finance.view") ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-7" : canViewMessaging ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : "grid-cols-1"}`}>
+            <TabsList className={`grid h-auto w-full gap-1 ${canViewMessaging && can("finance.view") ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-8" : canViewMessaging ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-7" : can("decision_center.view") ? "grid-cols-1" : "grid-cols-1"}`}>
               {canViewMessaging && <>
                 <TabsTrigger value="activities" className="gap-2"><Clock3 className="h-4 w-4" />Pilotage & agenda</TabsTrigger>
                 <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
@@ -312,7 +312,7 @@ export default function AgriCapitalConnect() {
                 <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
               </>}
               {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
-              <TabsTrigger value="intelligence" className="gap-2"><ShieldCheck className="h-4 w-4" />Centre de décision</TabsTrigger>
+              {can("decision_center.view") && <TabsTrigger value="intelligence" className="gap-2"><ShieldCheck className="h-4 w-4" />Centre de décision</TabsTrigger>}
             </TabsList>
             <TabsContent value="activities" className="mt-3 min-w-0"><WorkspaceOperations /></TabsContent>
             <TabsContent value="messages" className="mt-3 min-w-0">
@@ -343,7 +343,7 @@ export default function AgriCapitalConnect() {
               {meetings.length === 0 && <Card><CardContent className="p-8 text-center text-sm text-muted-foreground"><Clock3 className="mx-auto mb-2 h-6 w-6" />Aucune réunion planifiée.</CardContent></Card>}
             </TabsContent>
             <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
-            <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>
+            {can("decision_center.view") && <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>}
             <TabsContent value="documents" className="mt-3 min-w-0 space-y-3">
               <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Documents, tableurs et présentations</h2><p className="mt-1 text-sm text-muted-foreground">Accédez aux outils documentaires existants sans conserver un deuxième espace dans le menu.</p><Button className="mt-4" onClick={() => navigate("/espace-travail")}>Ouvrir les documents</Button></div>
             </TabsContent>
