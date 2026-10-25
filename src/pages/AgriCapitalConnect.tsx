@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import InternalCallRoom from "@/components/workspace/InternalCallRoom";
 import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
 import WorkspaceOperations from "@/components/workspace/WorkspaceOperations";
+import AgriCapitalIntelligence from "@/pages/AgriCapitalIntelligence";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
@@ -311,6 +312,7 @@ export default function AgriCapitalConnect() {
                 <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
               </>}
               {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
+              <TabsTrigger value="intelligence" className="gap-2"><ShieldCheck className="h-4 w-4" />Centre de décision</TabsTrigger>
             </TabsList>
             <TabsContent value="activities" className="mt-3 min-w-0"><WorkspaceOperations /></TabsContent>
             <TabsContent value="messages" className="mt-3 min-w-0">
@@ -341,6 +343,7 @@ export default function AgriCapitalConnect() {
               {meetings.length === 0 && <Card><CardContent className="p-8 text-center text-sm text-muted-foreground"><Clock3 className="mx-auto mb-2 h-6 w-6" />Aucune réunion planifiée.</CardContent></Card>}
             </TabsContent>
             <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
+            <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>
             <TabsContent value="documents" className="mt-3 min-w-0 space-y-3">
               <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Documents, tableurs et présentations</h2><p className="mt-1 text-sm text-muted-foreground">Accédez aux outils documentaires existants sans conserver un deuxième espace dans le menu.</p><Button className="mt-4" onClick={() => navigate("/espace-travail")}>Ouvrir les documents</Button></div>
             </TabsContent>
