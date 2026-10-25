@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Download, X } from "lucide-react";
+import { Download, HardDrive, WifiOff, X, Zap } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event { prompt(): Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }>; }
 const DISMISS_KEY="pwa-install-last-dismissed-ac-teams";
