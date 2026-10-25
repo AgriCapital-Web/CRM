@@ -106,6 +106,8 @@ $$;
 REVOKE ALL ON FUNCTION private.reject_duplicate_crm_contact_insert() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.crm_contact_is_duplicate(jsonb,jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.normalize_crm_phone(text) FROM PUBLIC, anon, authenticated;
+GRANT USAGE ON SCHEMA private TO authenticated;
+GRANT EXECUTE ON FUNCTION private.normalize_crm_phone(text), private.crm_contact_is_duplicate(jsonb,jsonb) TO authenticated;
 
 DROP TRIGGER IF EXISTS leads_reject_duplicate_contact_insert ON public.leads;
 CREATE TRIGGER leads_reject_duplicate_contact_insert
