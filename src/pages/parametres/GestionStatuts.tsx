@@ -44,7 +44,7 @@ const GestionStatuts = () => (
     <Card>
       <CardHeader>
         <CardTitle>Gestion des statuts</CardTitle>
-        <p className="text-sm text-muted-foreground">Référentiel des statuts métier actuels. Les étapes de terrain sont suivies dans les interventions techniques, pas comme des statuts de paiement ou de plantation.</p>
+        
       </CardHeader>
       <CardContent className="space-y-4">
         <div role="note" className="rounded-md border bg-muted/30 p-3 text-sm">
