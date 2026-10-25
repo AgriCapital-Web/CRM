@@ -98,7 +98,7 @@ export default function ImportContacts() {
     let cancelled = false;
     (async () => {
       const { data, error } = await (supabase as any).from("imported_phone_contacts").select("*")
-        .eq("user_id", user.id).neq("status", "created").order("imported_at", { ascending: true });
+        .eq("user_id", user.id).neq("status", "created").neq("status", "duplicate").order("imported_at", { ascending: true });
       if (cancelled) return;
       if (!error && data) setContacts(data.map((row: any) => ({
         key: row.contact_key, nom: row.last_name || "", prenoms: row.first_name || "",
@@ -194,7 +194,7 @@ export default function ImportContacts() {
     if (!user?.id) { toast({ variant: "destructive", title: "Session expirée", description: "Reconnectez-vous avant de créer des leads." }); return; }
     if (!selected.length) { toast({ variant: "destructive", title: "Aucun contact sélectionné", description: "Cochez au moins un contact avec un téléphone principal." }); return; }
     setLoading(true);
-    let created = 0, duplicates = 0, invalid = 0, failed = 0;
+    let created = 0, invalid = 0, failed = 0;
     const createdKeys = new Set<string>();
     const contactByKey = new Map(selected.map((contact) => [contact.key, contact]));
     const now = new Date().toISOString();
@@ -240,7 +240,7 @@ export default function ImportContacts() {
         const row = { nom: contact.nom || contact.prenoms || "Contact importé", prenoms: contact.prenoms || null, telephone: phone, telephone_secondaire: normalizePhone(contact.telephone_secondaire) || null, whatsapp: contact.whatsapp_principal ? phone : contact.whatsapp_secondaire ? normalizePhone(contact.telephone_secondaire) : null, telephone_principal_whatsapp: contact.whatsapp_principal, telephone_secondaire_whatsapp: contact.whatsapp_secondaire, email: contact.email || null, statut: "nouveau", etape_pipeline: "lead", type_lead: "client", mode_contact_prefere: contact.whatsapp_principal || contact.whatsapp_secondaire ? "whatsapp" : "appel", source: "commercial_terrain", assigned_to: user.id, created_by: user.id, metadata: { source_import: "repertoire_telephone", source_contact: contact.source, source_contact_key: contact.key, imported_at: now } };
         const duplicateInDatabase = existingRecords.some((existing: any) => hasSameCrmContact(row, existing));
         const duplicateInBatch = candidates.some((existing) => hasSameCrmContact(row, existing.row));
-        if (duplicateInDatabase || duplicateInBatch) { duplicates++; statuses.push({ key: contact.key, status: "duplicate" }); continue; }
+        if (duplicateInDatabase || duplicateInBatch) { statuses.push({ key: contact.key, status: "duplicate" }); continue; }
         candidates.push({ key: contact.key, contact, row });
       }
       for (let offset = 0; offset < candidates.length; offset += 100) {
@@ -258,7 +258,6 @@ export default function ImportContacts() {
           // A database trigger may silently reject a concurrent duplicate; mark it skipped too.
           for (const item of batch) {
             if (!returnedKeys.has(item.key)) {
-              duplicates++;
               statuses.push({ key: item.key, status: "duplicate" });
             }
           }
@@ -273,11 +272,14 @@ export default function ImportContacts() {
         }
       }
       await updateContactStatuses(statuses);
+      const skippedDuplicateKeys = new Set(statuses.filter((item) => item.status === "duplicate").map((item) => item.key));
       if (created > 0) {
         await Promise.all([queryClient.invalidateQueries({ queryKey: ["leads"] }), queryClient.invalidateQueries({ queryKey: ["prospects"] }), queryClient.invalidateQueries({ queryKey: ["lead_historique"] })]);
-        setContacts((all) => all.filter((item) => !createdKeys.has(item.key)));
       }
-      toast({ title: "Génération terminée", description: created + " lead(s) créé(s), " + duplicates + " doublon(s), " + invalid + " numéro(s) invalide(s), " + failed + " échec(s)." });
+      if (created > 0 || skippedDuplicateKeys.size > 0) {
+        setContacts((all) => all.filter((item) => !createdKeys.has(item.key) && !skippedDuplicateKeys.has(item.key)));
+      }
+      toast({ title: "Génération terminée", description: created + " lead(s) créé(s), " + invalid + " numéro(s) invalide(s), " + failed + " échec(s)." });
       if (created > 0) navigate("/leads");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Traitement interrompu", description: error?.message || "Erreur de lecture. Les contacts sauvegardés restent disponibles." });
