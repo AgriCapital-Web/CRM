@@ -142,6 +142,102 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
     const { error: err } = await (supabase as any).from("strategic_plans").update(update).eq("id", plan.id);
     if (err) toast.error("Changement de statut impossible : " + err.message); else { toast.success("Statut mis à jour."); await load(); }
   }
+  async function importExcel(file: File) {
+    if (!canManage || !selected) { toast.error("Sélectionne un plan et vérifie les droits de gestion."); return; }
+    setSaving(true);
+    try {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const normalize = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      const cellText = (value: any) => value && typeof value === "object" && "text" in value ? String(value.text ?? "") : value && typeof value === "object" && "result" in value ? String(value.result ?? "") : String(value ?? "");
+      const readSheet = (sheet: ExcelJS.Worksheet) => {
+        const headerRow = sheet.getRow(1);
+        const headers = new Map<number, string>();
+        headerRow.eachCell((cell, col) => headers.set(col, normalize(cellText(cell.value))));
+        const rows: Record<string, any>[] = [];
+        sheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const item: Record<string, any> = {};
+          headers.forEach((key, col) => { if (key) item[key] = cellText(row.getCell(col).value).trim(); });
+          if (Object.values(item).some(v => String(v ?? "").trim() !== "")) rows.push(item);
+        });
+        return rows;
+      };
+      const get = (row: Record<string, any>, ...keys: string[]) => {
+        for (const key of keys) { const k = normalize(key); if (row[k] !== undefined && row[k] !== "") return row[k]; }
+        return "";
+      };
+      const numeric = (value: any) => { const n = Number(String(value ?? "0").replace(/\\s/g, "").replace(",", ".")); return Number.isFinite(n) ? n : 0; };
+      const budgetSheet = workbook.worksheets.find(w => /budget/i.test(w.name) || /departement/.test(normalize(w.name)));
+      const actionSheet = workbook.worksheets.find(w => /action/i.test(w.name));
+      let budgetsImported = 0;
+      let actionsImported = 0;
+      if (budgetSheet) {
+        const rows = readSheet(budgetSheet);
+        const payloads = rows.map(row => ({
+          plan_id: selected,
+          department: String(get(row, "Département", "department")).trim(),
+          category: String(get(row, "Catégorie", "category", "poste budgétaire")).trim(),
+          description: String(get(row, "Description", "Libellé", "label") || "") || null,
+          budget_initial: numeric(get(row, "Budget initial", "budget_initial")),
+          budget_revised: numeric(get(row, "Budget révisé", "budget_revised", "Budget previsionnel")),
+          committed_amount: numeric(get(row, "Engagé", "committed_amount")),
+          actual_amount: numeric(get(row, "Réalisé", "actual_amount", "Dépenses réalisées")),
+          revenue_forecast: numeric(get(row, "Prévision recettes", "revenue_forecast")),
+          actual_revenue: numeric(get(row, "Recettes réalisées", "actual_revenue")),
+          project_name: String(get(row, "Projet", "project_name") || "") || null,
+          activity_name: String(get(row, "Activité", "activity_name") || "") || null,
+          justification: String(get(row, "Justification", "Hypothèses", "justification") || "") || null,
+          scenario_name: String(get(row, "Scénario", "scenario_name") || "Base"),
+          status: "draft",
+        })).filter(row => row.department && row.category);
+        if (payloads.length) {
+          const { error } = await (supabase as any).from("department_budgets").upsert(payloads, { onConflict: "plan_id,department,category" });
+          if (error) throw error;
+          budgetsImported = payloads.length;
+        }
+      }
+      if (actionSheet) {
+        const rows = readSheet(actionSheet);
+        const payloads = rows.map(row => {
+          const ownerLabel = String(get(row, "Responsable", "Collaborateur", "owner_profile_id", "owner") || "").trim().toLowerCase();
+          const owner = collaborators.find(p => p.id.toLowerCase() === ownerLabel || p.nom_complet.toLowerCase() === ownerLabel || (p.email || "").toLowerCase() === ownerLabel);
+          const statusValue = normalize(get(row, "Statut", "status"));
+          const status = ({ planifie: "planned", planned: "planned", en_cours: "in_progress", in_progress: "in_progress", a_risque: "at_risk", at_risk: "at_risk", termine: "completed", completed: "completed", annule: "cancelled", cancelled: "cancelled" } as Record<string,string>)[statusValue] || "planned";
+          const targetValue = get(row, "Cible", "Valeur cible", "target_value");
+          return {
+            plan_id: selected,
+            department: String(get(row, "Département", "department")).trim(),
+            title: String(get(row, "Action", "Objectif", "title")).trim(),
+            description: String(get(row, "Description", "description") || "") || null,
+            owner_profile_id: owner?.id || null,
+            indicator: String(get(row, "Indicateur", "indicator") || "") || null,
+            target_value: targetValue === "" ? null : numeric(targetValue),
+            current_value: numeric(get(row, "Réalisé", "Valeur actuelle", "current_value")),
+            starts_on: String(get(row, "Début", "Date de début", "starts_on") || "") || null,
+            due_on: String(get(row, "Échéance", "Date d'échéance", "due_on") || "") || null,
+            progress_percent: numeric(get(row, "Avancement %", "progress_percent")),
+            status,
+            project_name: String(get(row, "Projet", "project_name") || "") || null,
+            priority: normalize(get(row, "Priorité", "priority")) || "normal",
+          };
+        }).filter(row => row.department && row.title);
+        if (payloads.length) {
+          const { error } = await (supabase as any).from("strategic_actions").insert(payloads);
+          if (error) throw error;
+          actionsImported = payloads.length;
+        }
+      }
+      if (!budgetSheet && !actionSheet) throw new Error("Aucun onglet Budgets ou Plan d'action reconnu. Utilise les en-têtes du modèle AgriCapital 360.");
+      if (!budgetsImported && !actionsImported) throw new Error("Aucune ligne exploitable : vérifie les colonnes Département, Catégorie et Action.");
+      toast.success("Import Excel terminé : " + budgetsImported + " ligne(s) budgétaire(s), " + actionsImported + " action(s).");
+      await load(selected);
+    } catch (err: any) {
+      console.error("[AgriCapital 360] Import Excel", err);
+      toast.error("Import Excel impossible : " + (err?.message || "fichier invalide ou colonnes non reconnues."));
+    } finally { setSaving(false); }
+  }
+
   async function exportExcel() {
     const wb = new ExcelJS.Workbook(); wb.creator = "AgriCapital 360"; wb.created = new Date();
     const summary = wb.addWorksheet("Synthèse"); summary.addRows([
@@ -171,7 +267,7 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
 
   if (!canView) return embedded ? <Card><CardContent className="p-6">Accès non autorisé.</CardContent></Card> : <ProtectedRoute requiredPermission="finance.view"><MainLayout><Card><CardContent className="p-6">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
   const content = <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-5 overflow-x-hidden p-3 pt-16 sm:p-4 md:p-6 md:pt-6">
-    <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-2 flex flex-wrap items-center gap-2"><Badge variant="outline">AgriCapital 360</Badge><Badge variant="secondary">Contrôle de gestion</Badge></div><h1 className="text-2xl font-bold sm:text-3xl">Planification stratégique & budgets</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Plans annuels, actions par département, budgets prévisionnels, suivi des engagements et comparaison avec les réalisations. Les données proviennent de Supabase.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button><Button variant="outline" onClick={()=>void exportExcel()} disabled={!selectedPlan}><FileSpreadsheet className="mr-2 h-4 w-4"/>Excel</Button><Button variant="outline" onClick={exportPdf} disabled={!selectedPlan}><FileText className="mr-2 h-4 w-4"/>PDF</Button></div></header>
+    <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-2 flex flex-wrap items-center gap-2"><Badge variant="outline">AgriCapital 360</Badge><Badge variant="secondary">Contrôle de gestion</Badge></div><h1 className="text-2xl font-bold sm:text-3xl">Planification stratégique & budgets</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Plans annuels, actions par département, budgets prévisionnels, suivi des engagements et comparaison avec les réalisations. Les données proviennent de Supabase.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button><Button variant="outline" onClick={()=>void exportExcel()} disabled={!selectedPlan}><FileSpreadsheet className="mr-2 h-4 w-4"/>Exporter Excel</Button>{canManage&&<label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent"><FileSpreadsheet className="mr-2 h-4 w-4"/>Importer Excel<Input type="file" accept=".xlsx,.xls" className="hidden" disabled={!selectedPlan||saving} onChange={e=>{const file=e.target.files?.[0];if(file)void importExcel(file);e.currentTarget.value="";}}/></label>}<Button variant="outline" onClick={exportPdf} disabled={!selectedPlan}><FileText className="mr-2 h-4 w-4"/>PDF</Button></div></header>
     {error&&<Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card>}
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end"><div className="w-full min-w-0 sm:max-w-xl"><Label>Plan de référence</Label><Select value={selected} onValueChange={setSelected}><SelectTrigger className="mt-1 w-full"><SelectValue placeholder="Sélectionner un plan annuel"/></SelectTrigger><SelectContent>{plans.map(p=><SelectItem key={p.id} value={p.id}>{p.fiscal_year} · {p.title} · {statusLabel[p.status]||p.status}</SelectItem>)}</SelectContent></Select></div>{canManage&&<Button className="w-full sm:w-auto" onClick={()=>setShowPlan(v=>!v)}><Plus className="mr-2 h-4 w-4"/>Nouveau plan</Button>}</div>
     {showPlan&&canManage&&<Card><CardHeader><CardTitle>Créer un plan annuel</CardTitle></CardHeader><CardContent><form onSubmit={createPlan} className="grid grid-cols-1 gap-3 md:grid-cols-2"><div><Label>Exercice</Label><Input className="mt-1" type="number" min="2000" max="2200" required value={planForm.fiscal_year} onChange={e=>setPlanForm({...planForm,fiscal_year:e.target.value})}/></div><div><Label>Nom du plan</Label><Input className="mt-1" required minLength={3} value={planForm.title} onChange={e=>setPlanForm({...planForm,title:e.target.value})}/></div><div className="md:col-span-2"><Label>Objectif stratégique</Label><Textarea className="mt-1" value={planForm.strategic_objective} onChange={e=>setPlanForm({...planForm,strategic_objective:e.target.value})}/></div><div><Label>Horizon</Label><Select value={planForm.planning_horizon} onValueChange={v=>setPlanForm({...planForm,planning_horizon:v})}><SelectTrigger className="mt-1"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="annual">Annuel</SelectItem><SelectItem value="quarterly">Trimestriel</SelectItem><SelectItem value="monthly">Mensuel</SelectItem><SelectItem value="multi_year">Pluriannuel</SelectItem></SelectContent></Select></div><div><Label>Scénario</Label><Input className="mt-1" required value={planForm.scenario_name} onChange={e=>setPlanForm({...planForm,scenario_name:e.target.value})}/></div><div><Label>Début de période</Label><Input className="mt-1" type="date" value={planForm.period_start} onChange={e=>setPlanForm({...planForm,period_start:e.target.value})}/></div><div><Label>Fin de période</Label><Input className="mt-1" type="date" min={planForm.period_start||undefined} value={planForm.period_end} onChange={e=>setPlanForm({...planForm,period_end:e.target.value})}/></div><div className="md:col-span-2"><Label>Hypothèses et risques</Label><Textarea className="mt-1" value={planForm.assumptions} onChange={e=>setPlanForm({...planForm,assumptions:e.target.value})}/></div><div className="md:col-span-2"><Label>Notes de revue</Label><Textarea className="mt-1" value={planForm.review_notes} onChange={e=>setPlanForm({...planForm,review_notes:e.target.value})}/></div><div className="flex flex-wrap gap-2 md:col-span-2"><Button disabled={saving}>{saving?"Enregistrement…":"Créer le plan"}</Button><Button type="button" variant="ghost" onClick={()=>setShowPlan(false)}>Annuler</Button></div></form></CardContent></Card>}
