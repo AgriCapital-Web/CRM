@@ -4,9 +4,9 @@
 
 AgriCapital 360 est la plateforme métier intégrée d’AgriCapital SARL. Elle réunit les opérations commerciales, les clients, le foncier et les plantations, les paiements, la finance, les équipes, les documents et les outils de pilotage dans un environnement sécurisé.
 
-Le nom de produit remplace l’ancienne appellation d’interface « AC_Teams ». Les routes, schémas de base de données, identifiants de stockage, permissions et intégrations restent inchangés.
+**Fondateur et Président-Directeur Général (PDG) :** Inocent KOFFI.
 
-**Développeur / responsable technique :** Inocent KOFFI
+**Version PWA :** 1.7.0
 
 ## Stack
 
