@@ -21,7 +21,7 @@ type ImportedContact = { key: string; nom: string; prenoms: string; telephone: s
 const normalizePhone = (value: string) => {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
-  let digits = raw.replace(/\\D/g, "");
+  let digits = raw.replace(/\D/g, "");
   const explicitInternational = raw.startsWith("+") || /^00/.test(raw) || digits.startsWith("225");
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.startsWith("225") && digits.length === 13) return `+${digits}`;
@@ -29,7 +29,7 @@ const normalizePhone = (value: string) => {
   if (digits.length >= 8 && digits.length <= 15 && digits[0] !== "0") return `+${digits}`;
   return digits ? `+${digits}` : "";
 };
-const isValidIvoryCoastPhone = (value: string) => /^\\+[1-9]\\d{7,14}$/.test(normalizePhone(value));
+const isValidIvoryCoastPhone = (value: string) => /^\+[1-9]\d{7,14}$/.test(normalizePhone(value));
 const contactKey = (name: string, phone: string) => (normalizePhone(phone) || name.trim().toLowerCase());
 function parseVCard(text: string): ImportedContact[] {
   const cards = text.replace(/\r/g, "").split(/BEGIN:VCARD/i).slice(1);
