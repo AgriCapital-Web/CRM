@@ -19,7 +19,7 @@ const normalizePhone = (value: string) => {
   if (digits.startsWith("225") && digits.length === 13) digits = digits.slice(3);
   return digits;
 };
-const isValidIvoryCoastPhone = (value: string) => /^0\\d{9}$/.test(normalizePhone(value));
+const isValidIvoryCoastPhone = (value: string) => /^0\d{9}$/.test(normalizePhone(value));
 const contactKey = (name: string, phone: string) => (normalizePhone(phone) || name.trim().toLowerCase());
 function parseVCard(text: string): ImportedContact[] {
   const cards = text.replace(/\r/g, "").split(/BEGIN:VCARD/i).slice(1);
