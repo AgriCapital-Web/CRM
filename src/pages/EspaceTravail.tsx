@@ -539,7 +539,7 @@ function WorkspaceSlidesEditor({ value, onChange, disabled }: { value: string; o
   </div>;
 }
 
-export default function EspaceTravail() {
+export default function EspaceTravail({ embedded = false }: { embedded?: boolean } = {}) {
   const { profile, user } = useAuth();
   const [documents, setDocuments] = useState<WorkspaceDoc[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -861,8 +861,7 @@ export default function EspaceTravail() {
     finally { setSaving(false); }
   };
 
-  return <ProtectedRoute><MainLayout>
-    <div className="workspace-root min-w-0 w-full max-w-full space-y-4 overflow-x-clip sm:space-y-5">
+  const workspaceContent = <div className="workspace-root min-w-0 w-full max-w-full space-y-4 overflow-x-clip sm:space-y-5">
       <style>{`
         .workspace-root, .workspace-root * { box-sizing: border-box; }
         .workspace-root { min-width: 0; max-width: 100%; }
@@ -964,6 +963,6 @@ export default function EspaceTravail() {
           </> : <Card><CardContent className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center"><History className="h-10 w-10 text-muted-foreground" /><h2 className="font-semibold">Votre espace de travail</h2><Button onClick={() => void createDocument()} disabled={saving}><Plus className="mr-2 h-4 w-4" />Créer le premier document</Button></CardContent></Card>}
         </div>
       </div>
-    </div>
-  </MainLayout></ProtectedRoute>;
+    </div>;
+  return embedded ? workspaceContent : <ProtectedRoute><MainLayout>{workspaceContent}</MainLayout></ProtectedRoute>;
 }
