@@ -110,7 +110,7 @@ const DomainRouter = () => {
       <Route path="/acquisitions/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
       <Route path="/messagerie" element={<Navigate to="/connect" replace />} />
-      <Route path="/connect" element={<ProtectedRoute requiredPermission={"messagerie.view" as any}><AgriCapitalConnect /></ProtectedRoute>} />
+      <Route path="/connect" element={<ProtectedRoute><AgriCapitalConnect /></ProtectedRoute>} />
       <Route path="/espace-travail" element={<ProtectedRoute><EspaceTravail /></ProtectedRoute>} />
       <Route path="/espace-travail-360" element={<ProtectedRoute><Workspace360 /></ProtectedRoute>} />
       <Route path="/espace-rh-360" element={<ProtectedRoute><WorkspacePeople360 /></ProtectedRoute>} />
