@@ -37,7 +37,7 @@ export default function AgriCapitalConnect() {
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : searchParams.get("module") === "budgets" ? "budgets" : (canViewMessaging ? "messages" : "budgets"));
+  const [tab, setTab] = useState(searchParams.get("module") === "budgets" && can("finance.view") ? "budgets" : canViewMessaging ? (searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : "messages") : "budgets");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
