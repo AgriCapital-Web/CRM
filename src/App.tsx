@@ -41,6 +41,7 @@ import EspaceTravail from "./pages/EspaceTravail";
 import Workspace360 from "./pages/Workspace360";
 import WorkspacePeople360 from "./pages/WorkspacePeople360";
 import AgriCapitalConnect from "./pages/AgriCapitalConnect";
+import AgriCapitalIntelligence from "./pages/AgriCapitalIntelligence";
 import ExternalMeetingGuest from "./pages/ExternalMeetingGuest";
 
 import NotFound from "./pages/NotFound";
@@ -113,6 +114,7 @@ const DomainRouter = () => {
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
       <Route path="/messagerie" element={<Navigate to="/connect" replace />} />
       <Route path="/connect" element={<ProtectedRoute><AgriCapitalConnect /></ProtectedRoute>} />
+      <Route path="/intelligence" element={<AgriCapitalIntelligence />} />
       <Route path="/espace-travail" element={<ProtectedRoute><EspaceTravail /></ProtectedRoute>} />
       <Route path="/espace-travail-360" element={<ProtectedRoute><Workspace360 /></ProtectedRoute>} />
       <Route path="/espace-rh-360" element={<ProtectedRoute><WorkspacePeople360 /></ProtectedRoute>} />
