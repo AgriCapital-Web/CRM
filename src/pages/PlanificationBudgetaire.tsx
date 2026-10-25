@@ -22,7 +22,7 @@ const money = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency",
 const num = (n: unknown) => Number(n || 0);
 const statusLabel: Record<string,string> = { draft: "Brouillon", submitted: "Soumis", approved: "Approuvé", active: "Actif", closed: "Clôturé", rejected: "Rejeté", planned: "Planifié", in_progress: "En cours", at_risk: "À risque", completed: "Terminé", cancelled: "Annulé", locked: "Verrouillé" };
 
-export default function PlanificationBudgetaire() {
+export default function PlanificationBudgetaire({ embedded = false }: { embedded?: boolean } = {}) {
   const { can } = usePermissions();
   const canView = can("finance.view");
   const canManage = can("finance.manage");
@@ -128,8 +128,8 @@ export default function PlanificationBudgetaire() {
     pdf.save(`AgriCapital-Plan-Budget-${selectedPlan?.fiscal_year || "exercice"}.pdf`);
   }
 
-  if (!canView) return <ProtectedRoute requiredPermission="finance.view"><MainLayout><Card><CardContent className="p-6">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
-  return <MainLayout><main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-5 overflow-x-hidden p-3 pt-16 sm:p-4 md:p-6 md:pt-6">
+  if (!canView) return embedded ? <Card><CardContent className="p-6">Accès non autorisé.</CardContent></Card> : <ProtectedRoute requiredPermission="finance.view"><MainLayout><Card><CardContent className="p-6">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
+  const content = <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-5 overflow-x-hidden p-3 pt-16 sm:p-4 md:p-6 md:pt-6">
     <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-2 flex flex-wrap items-center gap-2"><Badge variant="outline">AgriCapital 360</Badge><Badge variant="secondary">Contrôle de gestion</Badge></div><h1 className="text-2xl font-bold sm:text-3xl">Planification stratégique & budgets</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Plans annuels, actions par département, budgets prévisionnels, suivi des engagements et comparaison avec les réalisations. Les données proviennent de Supabase.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button><Button variant="outline" onClick={()=>void exportExcel()} disabled={!selectedPlan}><FileSpreadsheet className="mr-2 h-4 w-4"/>Excel</Button><Button variant="outline" onClick={exportPdf} disabled={!selectedPlan}><FileText className="mr-2 h-4 w-4"/>PDF</Button></div></header>
     {error&&<Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card>}
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end"><div className="w-full min-w-0 sm:max-w-xl"><Label>Plan de référence</Label><Select value={selected} onValueChange={setSelected}><SelectTrigger className="mt-1 w-full"><SelectValue placeholder="Sélectionner un plan annuel"/></SelectTrigger><SelectContent>{plans.map(p=><SelectItem key={p.id} value={p.id}>{p.fiscal_year} · {p.title} · {statusLabel[p.status]||p.status}</SelectItem>)}</SelectContent></Select></div>{canManage&&<Button className="w-full sm:w-auto" onClick={()=>setShowPlan(v=>!v)}><Plus className="mr-2 h-4 w-4"/>Nouveau plan</Button>}</div>
@@ -144,5 +144,6 @@ export default function PlanificationBudgetaire() {
     <p className="text-xs text-muted-foreground">Important : les budgets « engagé », « réalisé » et les recettes sont des valeurs saisies/validées dans ce module pour le moment. Ils ne sont pas encore automatiquement rapprochés des écritures du journal financier. Ne les présente pas comme des soldes comptables certifiés avant la mise en place du rapprochement automatique.</p>
     </>}
     {loading&&<p className="text-sm text-muted-foreground">Chargement des données depuis Supabase…</p>}
-  </main></MainLayout>;
+  </main>;
+  return embedded ? content : <MainLayout>{content}</MainLayout>;
 }
