@@ -105,6 +105,13 @@ export const usePushNotifications = () => {
     finally { setIsEnabling(false); }
   }, [isSupported, isEnabling, permission, requestPermission, toast, pushConfig]);
 
+  // If the OS permission was already granted, restore the server subscription automatically
+  // after install/relaunch. Browsers still require explicit consent for a first-time permission.
+  useEffect(() => {
+    if (!isSupported || permission !== "granted" || !pushConfig?.supported || pushEnabled || isEnabling) return;
+    void enablePush();
+  }, [isSupported, permission, pushConfig, pushEnabled, isEnabling, enablePush]);
+
   const disablePush = useCallback(async () => {
     try { const registration = await navigator.serviceWorker.ready; const subscription = await registration.pushManager.getSubscription(); if (subscription) { await supabase.functions.invoke("push-subscriptions", { body: { action: "unsubscribe", endpoint: subscription.endpoint } }); await subscription.unsubscribe(); } setPushEnabled(false); toast({ title: "Notifications désactivées" }); return true; }
     catch (error: any) { toast({ variant: "destructive", title: "Désactivation impossible", description: error?.message || "Réessayez." }); return false; }
