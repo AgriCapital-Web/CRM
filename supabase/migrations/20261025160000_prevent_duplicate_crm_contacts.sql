@@ -6,14 +6,14 @@ CREATE SCHEMA IF NOT EXISTS private;
 REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION private.normalize_crm_phone(value text)
-RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = pg_catalog, private, public AS $
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = pg_catalog, private, public AS $$
   SELECT CASE WHEN length(digits) = 13 AND left(digits, 3) = '225'
     THEN right(digits, 10) ELSE digits END
   FROM (SELECT regexp_replace(COALESCE(value, ''), '[^0-9]', '', 'g') AS digits) normalized;
 $$;
 
 CREATE OR REPLACE FUNCTION private.crm_contact_is_duplicate(a jsonb, b jsonb)
-RETURNS boolean LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = pg_catalog, private, public AS $
+RETURNS boolean LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = pg_catalog, private, public AS $$
   WITH a_values AS (
     SELECT ARRAY_REMOVE(ARRAY[
       NULLIF(private.normalize_crm_phone(a->>'telephone'), ''),
