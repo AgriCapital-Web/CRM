@@ -16,7 +16,7 @@ import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
 import {
   LayoutDashboard, Users, Sprout, CreditCard, LogOut, Menu, Receipt, History, CalendarDays,
   BarChart3, Ticket, Wallet, FileText, Settings, UserCircle, Wifi, WifiOff, RefreshCw, Signal,
-  LandPlot, Layers, Target, CloudUpload, MessageSquare, Files
+  LandPlot, Layers, Target, CloudUpload, MessageSquare, Files, BrainCircuit
 } from "lucide-react";
 
 interface MainLayoutProps { children: ReactNode; }
@@ -47,10 +47,11 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_PARAMETRES },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
     { icon: Layers, label: "AgriCapital 360", path: "/connect", permission: "messagerie.view" as any },
+    { icon: BrainCircuit, label: "AgriCapital Intelligence", path: "/intelligence", permission: "decision_center.view" as any },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
   ];
 
-  const visibleMenuItems = menuItems.filter(item => can(item.permission));
+  const visibleMenuItems = menuItems.filter(item => can(item.permission) || (item.path === "/intelligence" && userRoles.some(role => /pdg|président|president|directeur général|directeur general|(^|\\W)dg($|\\W)|admin/i.test(role))));
   const handleLogout = async () => { await signOut(); navigate("/"); };
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'AG';
 
