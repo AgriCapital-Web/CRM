@@ -10,15 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import OfficeFormatTools, { type OfficeDocumentType } from "@/components/workspace/OfficeFormatTools";
 import { toast } from "sonner";
-import { FileText, FileSpreadsheet, Presentation, Files, ExternalLink, Calculator, Cloud, Plus, Save, Trash2, RefreshCw, Search, ShieldCheck, LoaderCircle, Download } from "lucide-react";
-import { Link } from "react-router-dom";
+import { FileText, FileSpreadsheet, Presentation, Files, Plus, Save, Trash2, RefreshCw, Search, ShieldCheck, LoaderCircle, Download } from "lucide-react";
 
 type WorkspaceDocument = {
   id: string; title: string; document_type: OfficeDocumentType; content_text: string;
   owner_profile_id: string; storage_path: string | null; file_name: string | null;
   mime_type: string | null; created_at: string; updated_at: string;
 };
-const officeUrl = (import.meta.env.VITE_OFFICE_SUITE_URL || "").trim().replace(/\/$/, "");
 const types: { value: OfficeDocumentType; label: string }[] = [
   { value: "document", label: "Document" }, { value: "spreadsheet", label: "Tableur" },
   { value: "presentation", label: "Présentation" }, { value: "file", label: "Fichier" },
@@ -26,7 +24,7 @@ const types: { value: OfficeDocumentType; label: string }[] = [
 const typeIcon = (type: string) => type === "spreadsheet" ? FileSpreadsheet : type === "presentation" ? Presentation : type === "file" ? Files : FileText;
 const safeName = (name: string) => name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "document";
 
-export default function WorkspaceOffice() {
+export default function WorkspaceOffice({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, profile } = useAuth();
   const [profileId, setProfileId] = useState<string | null>(profile?.id || null);
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([]);
@@ -38,7 +36,6 @@ export default function WorkspaceOffice() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const configured = /^https:\/\//i.test(officeUrl);
   const selected = documents.find((doc) => doc.id === selectedId) || null;
 
   const loadDocuments = useCallback(async (preferredId?: string | null) => {
@@ -139,16 +136,13 @@ export default function WorkspaceOffice() {
     if (error || !data?.signedUrl) { toast.error("Fichier indisponible ou accès refusé."); return; }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
-  const openOffice = () => { if (configured) window.open(officeUrl, "_blank", "noopener,noreferrer"); };
 
-  return (
-    <ProtectedRoute requiredPermission={"documents.view" as any}>
-      <MainLayout>
-        <div className="mx-auto w-full max-w-7xl min-w-0 space-y-5 p-3 pt-16 sm:p-4 md:p-6 md:pt-6">
+  const editorContent = (
+        <div className={(embedded ? "w-full min-w-0 space-y-4" : "mx-auto w-full max-w-7xl min-w-0 space-y-5 p-3 pt-16 sm:p-4 md:p-6 md:pt-6")}>
           <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-bold tracking-tight md:text-3xl">AgriCapital 360 · Suite bureautique</h1><Badge variant="outline">Stockage CRM</Badge></div>
-              <p className="max-w-3xl text-sm text-muted-foreground">Créez, modifiez, importez, téléchargez et enregistrez les documents dans la base AgriCapital 360. Les droits de lecture et de modification sont contrôlés par les règles de sécurité de la base.</p>
+              <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-bold tracking-tight md:text-3xl">AgriCapital 360 · Éditeur de documents</h1><Badge variant="outline">Stockage CRM</Badge></div>
+              <p className="max-w-3xl text-sm text-muted-foreground">Créez, modifiez, importez et enregistrez vos documents directement dans AgriCapital 360.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => void loadDocuments(selectedId)} disabled={loading || saving}><RefreshCw className={"mr-2 h-4 w-4 " + (loading ? "animate-spin" : "")}/>Actualiser</Button>
@@ -184,22 +178,7 @@ export default function WorkspaceOffice() {
               <OfficeFormatTools title={title || "Document AgriCapital"} content={content} documentType={documentType} disabled={saving} onImport={importFile}/>
             </div>
           </div>
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Modules connectés</h2>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Card><CardHeader><Calculator className="h-5 w-5 text-primary"/><CardTitle className="text-base">Planification budgétaire</CardTitle><CardDescription>Prévisions, scénarios, exécution et rapprochement financier.</CardDescription></CardHeader><CardContent><Button asChild variant="outline" className="w-full"><Link to="/planification-budgetaire">Ouvrir la planification</Link></Button></CardContent></Card>
-              <Card><CardHeader><Files className="h-5 w-5 text-primary"/><CardTitle className="text-base">Documents administratifs CRM</CardTitle><CardDescription>Contrôle et validation des pièces associées aux dossiers.</CardDescription></CardHeader><CardContent><Button asChild variant="outline" className="w-full"><Link to="/documents">Ouvrir les documents</Link></Button></CardContent></Card>
-              <Card><CardHeader><Cloud className="h-5 w-5 text-primary"/><CardTitle className="text-base">Espace de travail</CardTitle><CardDescription>Agenda, tâches, projets et collaboration interne.</CardDescription></CardHeader><CardContent><Button asChild variant="outline" className="w-full"><Link to="/espace-travail-360">Ouvrir l’espace de travail</Link></Button></CardContent></Card>
-            </div>
-          </section>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Suite collaborative externe (Nextcloud + ONLYOFFICE)</CardTitle><CardDescription>Édition collaborative des fichiers DOCX, XLSX et PPTX.</CardDescription></CardHeader>
-            <CardContent className="space-y-3">
-              {configured ? <><p className="text-sm text-muted-foreground">L’URL du portail est renseignée. Les comptes et permissions de Nextcloud sont administrés sur le serveur documentaire.</p><Button onClick={openOffice} className="gap-2">Ouvrir la suite collaborative <ExternalLink className="h-4 w-4"/></Button></> : <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4"><p className="font-medium">Serveur bureautique non configuré</p><p className="mt-1 text-sm text-muted-foreground">Le gestionnaire CRM ci-dessus est connecté à la base et au stockage. Pour activer l’édition collaborative ONLYOFFICE et la synchronisation du même fichier, il faut déployer Nextcloud/Document Server, configurer les secrets côté serveur et ajouter une passerelle sécurisée API/WebDAV. Une URL publique seule ne suffit pas.</p></div>}
-            </CardContent>
-          </Card>
         </div>
-      </MainLayout>
-    </ProtectedRoute>
   );
+  return embedded ? editorContent : <ProtectedRoute requiredPermission={"documents.view" as any}><MainLayout>{editorContent}</MainLayout></ProtectedRoute>;
 }
