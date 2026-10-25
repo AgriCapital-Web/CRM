@@ -31,6 +31,8 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
   const [plans, setPlans] = useState<Plan[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [actions, setActions] = useState<Action[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; nom: string }>>([]);
+  const [collaborators, setCollaborators] = useState<Array<{ id: string; nom_complet: string; email: string | null; departement: string | null; poste: string | null }>>([]);
   const [financeTransactions, setFinanceTransactions] = useState<FinanceTransaction[]>([]);
   const [reconciliations, setReconciliations] = useState<Reconciliation[]>([]);
   const [allocationDrafts, setAllocationDrafts] = useState<Record<string, { transaction_id: string; allocated_amount: string }>>({});
@@ -43,11 +45,17 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
   const [showAction, setShowAction] = useState(false);
   const [planForm, setPlanForm] = useState({ fiscal_year: String(new Date().getFullYear()), title: "Plan d'action annuel", strategic_objective: "", assumptions: "", planning_horizon: "annual", period_start: `${new Date().getFullYear()}-01-01`, period_end: `${new Date().getFullYear()}-12-31`, scenario_name: "Base", review_notes: "" });
   const [budgetForm, setBudgetForm] = useState({ department: "", category: "", description: "", budget_initial: "", budget_revised: "", committed_amount: "0", actual_amount: "0", revenue_forecast: "0", actual_revenue: "0", justification: "", project_name: "", activity_name: "", period_start: "", period_end: "", scenario_name: "Base", forecast_amount: "0", variance_reason: "", risk_level: "normal" });
-  const [actionForm, setActionForm] = useState({ department: "", title: "", description: "", starts_on: "", due_on: "", indicator: "", target_value: "", current_value: "0", unit: "", status: "planned", project_name: "", priority: "normal", risk_description: "", milestone_name: "", dependency_notes: "", corrective_action: "" });
+  const [actionForm, setActionForm] = useState({ department: "", owner_profile_id: "", title: "", description: "", starts_on: "", due_on: "", indicator: "", target_value: "", current_value: "0", unit: "", status: "planned", project_name: "", priority: "normal", risk_description: "", milestone_name: "", dependency_notes: "", corrective_action: "" });
 
   const load = useCallback(async (preferredId?: string) => {
     if (!canView) { setLoading(false); return; }
     setLoading(true); setError("");
+    const [departmentResult, collaboratorResult] = await Promise.all([
+      (supabase as any).from("departements_entreprise").select("id,nom").eq("actif", true).order("ordre", { ascending: true }),
+      (supabase as any).from("profiles").select("id,nom_complet,email,departement,poste").eq("actif", true).order("nom_complet", { ascending: true }),
+    ]);
+    setDepartments((departmentResult.data || []).filter((d: any) => d.nom).map((d: any) => ({ id: String(d.id), nom: String(d.nom) })));
+    setCollaborators((collaboratorResult.data || []).filter((p: any) => p.id && p.nom_complet));
     const p = await (supabase as any).from("strategic_plans").select("*").order("fiscal_year", { ascending: false }).order("created_at", { ascending: false });
     if (p.error) { setError("Impossible de charger les plans. Vérifie la migration Supabase et les permissions finance."); setLoading(false); return; }
     const planRows = (p.data || []) as Plan[];
@@ -125,7 +133,7 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
     setSaving(true);
     const target = actionForm.target_value === "" ? null : num(actionForm.target_value); const progress = target && target > 0 ? Math.min(100, Math.max(0, num(actionForm.current_value) / target * 100)) : (actionForm.status === "completed" ? 100 : 0); const { error: err } = await (supabase as any).from("strategic_actions").insert({ plan_id: selected, department: actionForm.department.trim(), title: actionForm.title.trim(), description: actionForm.description || null, starts_on: actionForm.starts_on || null, due_on: actionForm.due_on || null, indicator: actionForm.indicator || null, target_value: target, current_value: num(actionForm.current_value), unit: actionForm.unit || null, status: actionForm.status, progress_percent: progress, project_name: actionForm.project_name || null, priority: actionForm.priority, risk_description: actionForm.risk_description || null, milestone_name: actionForm.milestone_name || null, dependency_notes: actionForm.dependency_notes || null, corrective_action: actionForm.corrective_action || null, last_reviewed_at: new Date().toISOString() });
     if (err) toast.error("Création de l'action impossible : " + err.message);
-    else { toast.success("Action ajoutée."); setShowAction(false); setActionForm({ department: "", title: "", description: "", starts_on: "", due_on: "", indicator: "", target_value: "", current_value: "0", unit: "", status: "planned", project_name: "", priority: "normal", risk_description: "", milestone_name: "", dependency_notes: "", corrective_action: "" }); await load(); }
+    else { toast.success("Action ajoutée."); setShowAction(false); setActionForm({ department: "", owner_profile_id: "", title: "", description: "", starts_on: "", due_on: "", indicator: "", target_value: "", current_value: "0", unit: "", status: "planned", project_name: "", priority: "normal", risk_description: "", milestone_name: "", dependency_notes: "", corrective_action: "" }); await load(); }
     setSaving(false);
   }
   async function changePlanStatus(plan: Plan, status: string) {
