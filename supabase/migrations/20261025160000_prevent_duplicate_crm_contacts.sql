@@ -113,6 +113,63 @@ CREATE TRIGGER prospects_reject_duplicate_contact_insert
 BEFORE INSERT OR UPDATE OF telephone, telephone_secondaire, whatsapp, email, nom, prenoms ON public.prospects
 FOR EACH ROW EXECUTE FUNCTION private.reject_duplicate_crm_contact_insert();
 
+-- Client and landowner registries also reject duplicates within their own entity table.
+-- Cross-stage records remain possible for explicit lead/prospect-to-client conversion workflows.
+CREATE OR REPLACE FUNCTION private.reject_duplicate_within_entity_table()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public, private AS $
+DECLARE
+  candidate jsonb := to_jsonb(NEW);
+  existing jsonb;
+  phone_values text[];
+  email_value text;
+BEGIN
+  phone_values := ARRAY_REMOVE(ARRAY[
+    NULLIF(private.normalize_crm_phone(candidate->>'telephone'), ''),
+    NULLIF(private.normalize_crm_phone(candidate->>'telephone_secondaire'), ''),
+    NULLIF(private.normalize_crm_phone(candidate->>'whatsapp'), '')
+  ], NULL);
+  email_value := CASE WHEN lower(trim(COALESCE(candidate->>'email',''))) LIKE '%@%'
+    THEN lower(trim(candidate->>'email')) END;
+
+  FOR existing IN EXECUTE format(
+    'SELECT to_jsonb(t) FROM public.%I t
+     WHERE t.id::text <> COALESCE($1, '''')
+       AND (private.normalize_crm_phone(t.telephone) = ANY($2)
+         OR private.normalize_crm_phone(t.telephone_secondaire) = ANY($2)
+         OR private.normalize_crm_phone(t.whatsapp) = ANY($2)
+         OR ($3 IS NOT NULL AND lower(trim(t.email)) = $3))',
+    TG_TABLE_NAME
+  ) USING NULLIF(candidate->>'id',''), phone_values, email_value
+  LOOP
+    IF private.crm_contact_is_duplicate(candidate, existing) THEN
+      RETURN NULL;
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$;
+REVOKE ALL ON FUNCTION private.reject_duplicate_within_entity_table() FROM PUBLIC, anon, authenticated;
+
+CREATE INDEX IF NOT EXISTS clients_phone_normalized_idx ON public.clients (private.normalize_crm_phone(telephone));
+CREATE INDEX IF NOT EXISTS clients_phone2_normalized_idx ON public.clients (private.normalize_crm_phone(telephone_secondaire));
+CREATE INDEX IF NOT EXISTS clients_whatsapp_normalized_idx ON public.clients (private.normalize_crm_phone(whatsapp));
+CREATE INDEX IF NOT EXISTS clients_email_normalized_idx ON public.clients (lower(trim(email))) WHERE email LIKE '%@%';
+CREATE INDEX IF NOT EXISTS proprietaires_phone_normalized_idx ON public.proprietaires_terres (private.normalize_crm_phone(telephone));
+CREATE INDEX IF NOT EXISTS proprietaires_phone2_normalized_idx ON public.proprietaires_terres (private.normalize_crm_phone(telephone_secondaire));
+CREATE INDEX IF NOT EXISTS proprietaires_whatsapp_normalized_idx ON public.proprietaires_terres (private.normalize_crm_phone(whatsapp));
+CREATE INDEX IF NOT EXISTS proprietaires_email_normalized_idx ON public.proprietaires_terres (lower(trim(email))) WHERE email LIKE '%@%';
+
+DROP TRIGGER IF EXISTS clients_reject_duplicate_contact ON public.clients;
+CREATE TRIGGER clients_reject_duplicate_contact
+BEFORE INSERT OR UPDATE OF telephone, telephone_secondaire, whatsapp, email, nom, prenoms, nom_complet, nom_famille
+ON public.clients FOR EACH ROW EXECUTE FUNCTION private.reject_duplicate_within_entity_table();
+
+DROP TRIGGER IF EXISTS proprietaires_reject_duplicate_contact ON public.proprietaires_terres;
+CREATE TRIGGER proprietaires_reject_duplicate_contact
+BEFORE INSERT OR UPDATE OF telephone, telephone_secondaire, whatsapp, email, nom, prenoms, nom_complet
+ON public.proprietaires_terres FOR EACH ROW EXECUTE FUNCTION private.reject_duplicate_within_entity_table();
+
 CREATE OR REPLACE VIEW public.crm_duplicate_contact_candidates WITH (security_invoker = true) AS
 WITH records AS (
   SELECT 'leads'::text AS table_name, id::text AS record_id, to_jsonb(l) AS record
