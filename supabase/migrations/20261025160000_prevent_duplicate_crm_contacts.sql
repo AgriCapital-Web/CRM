@@ -76,7 +76,7 @@ BEGIN
   candidate_email := CASE WHEN lower(trim(COALESCE(candidate->>'email',''))) LIKE '%@%'
     THEN lower(trim(candidate->>'email')) END;
 
-  FOREACH table_name IN ARRAY ARRAY['leads', 'prospects'] LOOP
+  FOREACH table_name IN ARRAY ARRAY['leads', 'prospects', 'clients', 'proprietaires_terres'] LOOP
     FOR existing IN EXECUTE format(
       'SELECT to_jsonb(t) FROM public.%I t
        WHERE (private.normalize_crm_phone(t.telephone) = ANY($1)
@@ -172,11 +172,13 @@ ON public.proprietaires_terres FOR EACH ROW EXECUTE FUNCTION private.reject_dupl
 
 CREATE OR REPLACE VIEW public.crm_duplicate_contact_candidates WITH (security_invoker = true) AS
 WITH records AS (
-  SELECT 'leads'::text AS table_name, id::text AS record_id, to_jsonb(l) AS record
-  FROM public.leads l
+  SELECT 'leads'::text AS table_name, id::text AS record_id, to_jsonb(l) AS record FROM public.leads l
   UNION ALL
-  SELECT 'prospects'::text AS table_name, id::text AS record_id, to_jsonb(p) AS record
-  FROM public.prospects p
+  SELECT 'prospects'::text AS table_name, id::text AS record_id, to_jsonb(p) AS record FROM public.prospects p
+  UNION ALL
+  SELECT 'clients'::text AS table_name, id::text AS record_id, to_jsonb(c) AS record FROM public.clients c
+  UNION ALL
+  SELECT 'proprietaires_terres'::text AS table_name, id::text AS record_id, to_jsonb(o) AS record FROM public.proprietaires_terres o
 )
 SELECT a.table_name AS first_table, a.record_id AS first_id,
        b.table_name AS duplicate_table, b.record_id AS duplicate_id,
@@ -190,8 +192,18 @@ JOIN records b ON
   (a.table_name < b.table_name OR (a.table_name = b.table_name AND a.record_id < b.record_id))
  AND private.crm_contact_is_duplicate(a.record, b.record)
 WHERE NOT (
-  a.table_name = 'leads' AND b.table_name = 'prospects'
-  AND (b.record->>'lead_id' = a.record_id OR a.record->>'prospect_id' = b.record_id)
+  (a.table_name = 'leads' AND b.table_name = 'prospects'
+    AND (b.record->>'lead_id' = a.record_id OR a.record->>'prospect_id' = b.record_id))
+  OR (a.table_name = 'clients' AND b.table_name = 'proprietaires_terres'
+    AND a.record->>'proprietaire_id' = b.record_id)
+  OR (a.table_name = 'leads' AND b.table_name = 'clients'
+    AND a.record->>'client_id' = b.record_id)
+  OR (a.table_name = 'leads' AND b.table_name = 'proprietaires_terres'
+    AND a.record->>'proprietaire_id' = b.record_id)
+  OR (a.table_name = 'prospects' AND b.table_name = 'clients'
+    AND a.record->>'client_id' = b.record_id)
+  OR (a.table_name = 'prospects' AND b.table_name = 'proprietaires_terres'
+    AND a.record->>'proprietaire_id' = b.record_id)
 );
 
 GRANT SELECT ON public.crm_duplicate_contact_candidates TO authenticated;
