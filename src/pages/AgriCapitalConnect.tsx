@@ -225,6 +225,7 @@ export default function AgriCapitalConnect() {
     if (!profileId || !meetingTitle.trim() || !meetingStart || !meetingEnd || new Date(meetingEnd) <= new Date(meetingStart)) {
       toast.error("Renseignez un titre et des horaires valides."); return;
     }
+    if (externalGuestEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(externalGuestEmail.trim())) { toast.error("Renseignez une adresse e-mail valide pour l’invité externe."); return; }
     const roomToken = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2) + Date.now().toString(36);
