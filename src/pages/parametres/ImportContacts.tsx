@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { hasSameCrmContact } from "@/lib/leadDeduplication";
 import { Contact, FileUp, Users, UserPlus, Loader2, Search } from "lucide-react";
 
 type ImportedContact = { key: string; nom: string; prenoms: string; telephone: string; telephone_secondaire: string; email: string; whatsapp_principal: boolean; whatsapp_secondaire: boolean; selected: boolean; source: string };
@@ -222,7 +223,7 @@ export default function ImportContacts() {
       const readPhonePages = async (table: "leads" | "prospects") => {
         const all: any[] = [];
         for (let offset = 0; ; offset += 1000) {
-          const result = await (supabase as any).from(table).select("id,telephone,telephone_secondaire").range(offset, offset + 999);
+          const result = await (supabase as any).from(table).select("id,nom,prenoms,telephone,telephone_secondaire,whatsapp,email,lead_id").range(offset, offset + 999);
           if (result.error) throw result.error;
           all.push(...(result.data || []));
           if (!result.data || result.data.length < 1000) break;
@@ -230,15 +231,16 @@ export default function ImportContacts() {
         return all;
       };
       const [leadRows, prospectRows] = await Promise.all([readPhonePages("leads"), readPhonePages("prospects")]);
-      const existingPhones = new Set([...leadRows, ...prospectRows].flatMap((row: any) => [row.telephone, row.telephone_secondaire].map((value) => normalizePhone(String(value || ""))).filter(Boolean)));
+      const existingRecords = [...leadRows, ...prospectRows];
       const statuses: Array<{ key: string; status: string; message?: string; leadId?: string }> = [];
       const candidates: Array<{ key: string; contact: ImportedContact; row: Record<string, any> }> = [];
       for (const contact of selected) {
         const phone = normalizePhone(contact.telephone);
         if (!isValidIvoryCoastPhone(phone)) { invalid++; statuses.push({ key: contact.key, status: "invalid", message: "Numéro invalide : 10 chiffres commençant par 0 attendus." }); continue; }
-        if (existingPhones.has(phone)) { duplicates++; statuses.push({ key: contact.key, status: "duplicate", message: "Numéro déjà présent dans les leads ou prospects." }); continue; }
-        existingPhones.add(phone);
         const row = { nom: contact.nom || contact.prenoms || "Contact importé", prenoms: contact.prenoms || null, telephone: phone, telephone_secondaire: normalizePhone(contact.telephone_secondaire) || null, whatsapp: contact.whatsapp_principal ? phone : contact.whatsapp_secondaire ? normalizePhone(contact.telephone_secondaire) : null, telephone_principal_whatsapp: contact.whatsapp_principal, telephone_secondaire_whatsapp: contact.whatsapp_secondaire, email: contact.email || null, statut: "nouveau", etape_pipeline: "lead", type_lead: "client", mode_contact_prefere: contact.whatsapp_principal || contact.whatsapp_secondaire ? "whatsapp" : "appel", source: "commercial_terrain", assigned_to: user.id, created_by: user.id, metadata: { source_import: "repertoire_telephone", source_contact: contact.source, source_contact_key: contact.key, imported_at: now } };
+        const duplicateInDatabase = existingRecords.some((existing: any) => hasSameCrmContact(row, existing));
+        const duplicateInBatch = candidates.some((existing) => hasSameCrmContact(row, existing.row));
+        if (duplicateInDatabase || duplicateInBatch) { duplicates++; statuses.push({ key: contact.key, status: "duplicate" }); continue; }
         candidates.push({ key: contact.key, contact, row });
       }
       for (let offset = 0; offset < candidates.length; offset += 100) {
