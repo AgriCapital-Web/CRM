@@ -31,6 +31,14 @@ export const useNotifications = () => {
   const navigate = useNavigate();
   const seenIds = useRef<Set<string>>(new Set());
 
+  // Keep the installed PWA icon badge synchronized with the unread notification count.
+  useEffect(() => {
+    const badgeNavigator = navigator as Navigator & { setAppBadge?: (count?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    if (typeof badgeNavigator.setAppBadge !== "function") return;
+    if (unreadCount > 0) void badgeNavigator.setAppBadge(unreadCount).catch(() => undefined);
+    else if (typeof badgeNavigator.clearAppBadge === "function") void badgeNavigator.clearAppBadge().catch(() => undefined);
+  }, [unreadCount]);
+
   const fetchNotifications = async () => {
     if (!user) return;
 
