@@ -9,18 +9,16 @@ type Props = { role?: string | null; value: Values; onChange: (value: Values) =>
 // Ces niveaux suivent le périmètre opérationnel des rôles disponibles dans le formulaire
 // de demande de compte. Les champs parents restent visibles pour pouvoir choisir une
 // région, un département ou une sous-préfecture dans la hiérarchie officielle.
-const ROLE_LEVELS: Record<string, string[]> = {
-  responsable_district: ["district"],
-  responsable_commercial: ["district", "region"],
-  chef_equipe_commercial: ["district", "region", "departement"],
-  commercial: ["district", "region", "departement", "sous_prefecture"],
-  technicien: ["district", "region", "departement"],
-  mobilisateur_foncier: ["district", "region", "departement"],
-  chef_equipe_technique: ["district", "region"],
-  superviseur_mobilisation_fonciere: ["district", "region"],
-  responsable_operations: ["district", "region"],
-};
 const normalizeRole = (role?: string | null) => role === "responsable_zone" ? "responsable_district" : String(role || "");
+const levelsForCoverage = (coverage?: string | null): string[] => {
+  switch (String(coverage || "").toLowerCase()) {
+    case "district": return ["district"];
+    case "region": return ["district", "region"];
+    case "departement": return ["district", "region", "departement"];
+    case "sous_prefecture": return ["district", "region", "departement", "sous_prefecture"];
+    default: return [];
+  }
+};
 const normalizeName = (value?: string | null) =>
   String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("fr-FR");
 
@@ -30,7 +28,30 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
   const [departements, setDepartements] = useState<Row[]>([]);
   const [sousPrefectures, setSousPrefectures] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const levels = ROLE_LEVELS[normalizeRole(role)] || [];
+  const [coverage, setCoverage] = useState<string | null>(null);
+  const levels = levelsForCoverage(coverage);
+
+  useEffect(() => {
+    let active = true;
+    const code = normalizeRole(role);
+    setCoverage(null);
+    if (!code) return () => { active = false; };
+    void (async () => {
+      const { data, error } = await (supabase as any).from("app_roles")
+        .select("code,niveau_couverture,actif")
+        .eq("code", code)
+        .eq("actif", true)
+        .maybeSingle();
+      if (!active) return;
+      if (error) {
+        console.error("Impossible de charger le périmètre du rôle", error);
+        setCoverage(null);
+        return;
+      }
+      setCoverage(data?.niveau_couverture || null);
+    })();
+    return () => { active = false; };
+  }, [role]);
 
   useEffect(() => {
     let active = true;
