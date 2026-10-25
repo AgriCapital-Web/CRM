@@ -329,25 +329,8 @@ export async function persistQueuedMutation(input: {
 }
 
 export async function getPendingSyncOps(): Promise<SyncOperation[]> {
-  const now = Date.now();
-  // Désactivation du rejeu des mutations métier locales : Supabase est la source de vérité.
-  // Les anciennes opérations sont ignorées afin de ne pas injecter de brouillons obsolètes.
+  // Server-authoritative policy: never replay business mutations from device storage.
   return [];
-  const all = await getAllItems(STORES.SYNC_QUEUE) as SyncOperation[];
-  // Reprendre les opérations interrompues par fermeture, crash ou arrêt du worker.
-  // Les anciennes entrées "syncing" sans horodatage sont récupérées immédiatement.
-  for (const op of all) {
-    if (op.status === 'syncing' && (!op.sync_started_at || now - op.sync_started_at > 120_000)) {
-      op.status = 'pending';
-      op.sync_started_at = undefined;
-      op.next_retry_at = 0;
-      await putItem(STORES.SYNC_QUEUE, op);
-    }
-  }
-  return all
-    .filter(op => op.status === 'pending' || op.status === 'error')
-    .filter(op => !op.next_retry_at || op.next_retry_at <= now)
-    .sort((a, b) => a.timestamp - b.timestamp);
 }
 
 export async function markOpStatus(id: number, status: SyncOperation['status'], errorMsg?: string): Promise<void> {
