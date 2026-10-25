@@ -41,8 +41,10 @@ export default function AgriCapitalConnect() {
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation"));
-  useEffect(() => { const module = searchParams.get("module"); setTab(module || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation")); }, [searchParams, canViewMessaging]);
+  const initialModule = searchParams.get("module");
+  const normalizedInitialModule = initialModule === "office" ? "documents" : initialModule;
+  const [tab, setTab] = useState(normalizedInitialModule || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation"));
+  useEffect(() => { const requested = searchParams.get("module"); const module = requested === "office" ? "documents" : requested; setTab(module || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation")); }, [searchParams, canViewMessaging]);
   const changeTab = (value: string) => { setTab(value); setSearchParams({ module: value }); };
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -312,7 +314,7 @@ export default function AgriCapitalConnect() {
 
   };
 
-  if (!canViewMessaging && !can("finance.view")) {
+  if (!canViewMessaging && !can("finance.view") && !can("documents.view") && !can("decision_center.view")) {
     return <ProtectedRoute><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
   }
 
