@@ -37,7 +37,7 @@ export default function AgriCapitalConnect() {
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : searchParams.get("module") === "budgets" ? "budgets" : "messages");
+  const [tab, setTab] = useState(searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : searchParams.get("module") === "budgets" ? "budgets" : (canViewMessaging ? "messages" : "budgets"));
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
@@ -258,12 +258,12 @@ export default function AgriCapitalConnect() {
 
   };
 
-  if (!canViewMessaging) {
-    return <ProtectedRoute requiredPermission={"messagerie.view" as any}><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
+  if (!canViewMessaging && !can("finance.view")) {
+    return <ProtectedRoute><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
   }
 
   return (
-    <ProtectedRoute requiredPermission={"messagerie.view" as any}>
+    <ProtectedRoute>
       <MainLayout>
         <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 overflow-x-hidden p-3 pb-8 pt-16 md:p-6 md:pt-6">
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -275,15 +275,17 @@ export default function AgriCapitalConnect() {
           </header>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             
-            <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>
+            {canViewMessaging && <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>}
           </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-            <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 ${can("finance.view") ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
-              <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
-              <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
-              <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents</TabsTrigger>
-              <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
-              <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
+            <TabsList className={`grid h-auto w-full gap-1 ${canViewMessaging && can("finance.view") ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" : canViewMessaging ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" : "grid-cols-1"}`}>
+              {canViewMessaging && <>
+                <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
+                <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
+                <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents</TabsTrigger>
+                <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
+                <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
+              </>}
               {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
             </TabsList>
             <TabsContent value="messages" className="mt-3 min-w-0">
