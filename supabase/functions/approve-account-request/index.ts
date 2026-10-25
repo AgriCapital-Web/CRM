@@ -76,10 +76,7 @@ serve(async (req) => {
       superviseur_tc: "responsable_commercial",
       responsable_zone: "responsable_commercial",
       responsable_technique_agronomique: "responsable_operations",
-      operations: "responsable_operations",
       chef_equipe: "chef_equipe_commercial",
-      technicien: "chef_equipe_technique",
-      agent_service_client: "service_client",
       assistant: "assistant_administratif",
       assistante: "assistant_administratif",
       secretaire: "assistant_administratif",
@@ -88,7 +85,9 @@ serve(async (req) => {
     const ASSIGNABLE_ROLES = new Set([
       "responsable_operations", "directeur_tc", "responsable_commercial", "comptable",
       "chef_equipe_commercial", "chef_equipe_technique", "chef_equipe_service_client",
-      "commercial", "service_client", "assistant_administratif",
+      "commercial", "technicien", "mobilisateur_foncier", "superviseur_mobilisation_fonciere",
+      "responsable_district", "responsable_technique_agronomique", "operations",
+      "service_client", "assistant_administratif",
     ]);
     const requested = role || reqRow.role_souhaite;
     const finalRole = LEGACY_ROLE_MAP[requested] ?? requested;
