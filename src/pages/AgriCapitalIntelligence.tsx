@@ -28,7 +28,7 @@ const categories: Record<string, string> = { financing: "Financement", investmen
 const statusColor = (status: string) => status === "approved" || status === "executed" ? "default" : status === "rejected" || status === "cancelled" ? "destructive" : "secondary";
 
 function IntelligenceContent() {
-  const { user, profile, userRoles } = useAuth();
+  const { user, userRoles } = useAuth();
   const navigate = useNavigate();
   const [accessChecked, setAccessChecked] = useState(false);
   const [accessAllowed, setAccessAllowed] = useState(false);
@@ -187,7 +187,7 @@ function IntelligenceContent() {
       <Metric title="Flux net calculé" value={money(metrics.net)} icon={Wallet} detail="Entrées moins sorties reconnues"/>
       <Metric title="Décisions à traiter" value={String(metrics.proposalsOpen)} icon={ClipboardList} detail={`${metrics.tasksOpen} tâches ouvertes · ${metrics.projectsOpen} projets actifs`}/>
       <Metric title="Clients chargés" value={count(metrics.activeClients)} icon={Users} detail={`${count(metrics.hectaresClients)} ha déclarés sur les clients chargés`}/>
-      <Metric title="Superficies foncières" value={`${count(metrics.hectaresLand)} ha`} icon={Sprout} detail="Surface disponible déclarée dans les parcelles"/>
+      <Metric title="Superficies disponibles" value={`${count(metrics.hectaresLand)} ha`} icon={Sprout} detail="Surface disponible déclarée dans les parcelles"/><Metric title="Propriétaires fonciers" value={count(landOwners.length)} icon={Users} detail="Fiches propriétaires fonciers chargées"/>
       <Metric title="Budgets chargés" value={count(budgets.length)} icon={Banknote} detail="Lignes lues depuis le module budgétaire"/>
       <Metric title="Revues de performance" value={count(reviews.length)} icon={Activity} detail="Revues RH disponibles dans la base"/>
     </div>
