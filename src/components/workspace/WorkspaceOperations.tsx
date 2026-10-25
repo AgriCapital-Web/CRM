@@ -35,7 +35,8 @@ export default function WorkspaceOperations(){
    (supabase as any).from("workspace_events").select("id,title,description,event_type,visibility,starts_at,ends_at,location,status,created_by_profile_id").order("starts_at",{ascending:true}).gte("ends_at",new Date(Date.now()-7*86400000).toISOString()).limit(150),
    (supabase as any).from("workspace_tasks").select("id,title,description,status,priority,due_at,created_by_profile_id,assigned_to_profile_id").order("due_at",{ascending:true,nullsFirst:false}).limit(200),
    (supabase as any).from("workspace_projects").select("id,name,description,status,owner_profile_id,starts_on,due_on").order("updated_at",{ascending:false}).limit(100),
-   (supabase as any).from("workspace_notifications").select("id,title,body,notification_type,target_path,read_at,created_at").eq("recipient_profile_id",profileId).order("created_at",{ascending:false}).limit(100)
+   (supabase as any).from("workspace_notifications").select("id,title,body,notification_type,target_path,read_at,created_at").eq("recipient_profile_id",profileId).order("created_at",{ascending:false}).limit(100),
+   (supabase as any).from("profiles").select("id,nom_complet,email").eq("actif",true).order("nom_complet",{ascending:true}).limit(500)
   ]);
   if(e.error)console.warn("Agenda:",e.error); if(t.error)console.warn("Tâches:",t.error); if(p.error)console.warn("Projets:",p.error); if(n.error)console.warn("Notifications:",n.error);
   setEvents((e.data||[]) as EventRow[]);setTasks((t.data||[]) as TaskRow[]);setProjects((p.data||[]) as ProjectRow[]);setNotices((n.data||[]) as Notice[]);setCollaborators((c.data||[]) as Collaborator[]);setLoading(false);
