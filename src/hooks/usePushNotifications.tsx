@@ -21,6 +21,7 @@ export const usePushNotifications = () => {
   const [isEnabling, setIsEnabling] = useState(false);
   const [pushConfig, setPushConfig] = useState<{ supported: boolean; public_key: string } | null>(null);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const autoEnableAttempted = useRef(false);
 
   useEffect(() => {
     // Vérifier si les notifications sont supportées
@@ -108,7 +109,8 @@ export const usePushNotifications = () => {
   // If the OS permission was already granted, restore the server subscription automatically
   // after install/relaunch. Browsers still require explicit consent for a first-time permission.
   useEffect(() => {
-    if (!isSupported || permission !== "granted" || !pushConfig?.supported || pushEnabled || isEnabling) return;
+    if (!isSupported || permission !== "granted" || !pushConfig?.supported || pushEnabled || isEnabling || autoEnableAttempted.current) return;
+    autoEnableAttempted.current = true;
     void enablePush();
   }, [isSupported, permission, pushConfig, pushEnabled, isEnabling, enablePush]);
 
