@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
+import { findExistingCrmContact } from "@/lib/leadDeduplication";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -406,6 +407,10 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         assigned_to: (leadForm.source === "commercial_terrain" && (canSupervise || isServiceClient))
           ? (leadForm.assigned_to || null) : user.id,
       };
+      // Contrôle silencieux des doublons dans les deux tables avant toute création.
+      const duplicate = await findExistingCrmContact(record, conversionLeadId || undefined);
+      if (duplicate) return { duplicate: true };
+
       if (formStage === "prospect") {
         // Le prospect n'est créé qu'après validation manuelle du formulaire.
         const { error } = await offlineInsert("prospects", record);
@@ -424,8 +429,16 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
+      if (result?.duplicate) {
+        setCreateOpen(false);
+        setEditingLead(null);
+        setConversionLeadId(null);
+        setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["prospects"] });
       setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
       setCreateOpen(false);
       setEditingLead(null);
