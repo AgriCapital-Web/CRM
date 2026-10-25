@@ -105,8 +105,9 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     const checkAccess = async () => {
       if (!user?.id) return;
       if (executive) { if (active) { setAccessAllowed(true); setAccessChecked(true); void load(); } return; }
+      const { data: roleAccess, error: roleAccessError } = await db.rpc("can_access_decision_center", { required_permission: "view" });
       const { data, error: accessError } = await db.from("decision_access_grants").select("permissions").eq("user_id", user.id).is("revoked_at", null).maybeSingle();
-      const allowed = !accessError && Array.isArray(data?.permissions) && (data.permissions.includes("view") || data.permissions.includes("admin"));
+      const allowed = (!roleAccessError && roleAccess === true) || (!accessError && Array.isArray(data?.permissions) && (data.permissions.includes("view") || data.permissions.includes("admin")));
       if (active) { setAccessAllowed(allowed); setAccessChecked(true); if (allowed) void load(); else { setLoading(false); navigate("/dashboard", { replace: true }); toast.error("Accès au centre de décision non autorisé. Demande une délégation au PDG/DG."); } }
     };
     void checkAccess();
