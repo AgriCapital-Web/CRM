@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleDefinition } from "@/lib/roles";
 
@@ -17,20 +18,37 @@ export function useDepartementsEntreprise() {
 }
 
 export function useAppRoles() {
-  const [roles,setRoles]=useState<RoleDefinition[]>([]);
-  const [loading,setLoading]=useState(true);
-  const [fromDatabase,setFromDatabase]=useState(false);
-  const load=async()=>{
-    setLoading(true);
-    const {data,error}=await (supabase as any).from("app_roles").select("*").eq("actif",true).order("niveau",{ascending:true});
-    if(error){setRoles([]);setFromDatabase(false);} else {
-      setRoles((data||[]).map((r:any)=>({code:r.code,nom:r.nom,court:r.court||r.nom,description:r.description||"",niveau:r.niveau??5,niveauLabel:r.niveau_label||"",couleur:r.couleur||""})));
-      setFromDatabase(true);
-    }
-    setLoading(false);
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: ["app-roles"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("app_roles")
+        .select("code,nom,court,description,niveau,niveau_label,actif")
+        .eq("actif", true).order("niveau", { ascending: true }).order("nom");
+      if (error) throw error;
+      return (data || []).map((r: any) => ({
+        code: r.code, nom: r.nom, court: r.court || r.nom, description: r.description || "",
+        niveau: r.niveau ?? 5, niveauLabel: r.niveau_label || "", couleur: "",
+      })) as RoleDefinition[];
+    },
+    staleTime: 60_000,
+    gcTime: 30 * 60_000,
+    retry: 1,
+  });
+  useEffect(() => {
+    const channel = supabase.channel("app-roles-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_roles" }, () => {
+        void queryClient.invalidateQueries({ queryKey: ["app-roles"] });
+      }).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [queryClient]);
+  const reload = async () => { await query.refetch(); };
+  return {
+    roles: query.data || [],
+    loading: query.isPending,
+    fromDatabase: !query.isError && query.data !== undefined,
+    reload,
   };
-  useEffect(()=>{void load();},[]);
-  return {roles,loading,fromDatabase,reload:load};
 }
 
 export function useGeoHierarchy(initial?:{districtId?:string|null;regionId?:string|null;departementId?:string|null;sousPrefectureId?:string|null}) {
