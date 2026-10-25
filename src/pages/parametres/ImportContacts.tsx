@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -76,6 +77,7 @@ export default function ImportContacts() {
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [contactsLoaded, setContactsLoaded] = useState(false);
   useEffect(() => {
     if (!user?.id) return;
@@ -179,6 +181,30 @@ export default function ImportContacts() {
     if (!selected.length) { toast({ variant: "destructive", title: "Aucun contact sélectionné", description: "Cochez au moins un contact avec un téléphone principal." }); return; }
     setLoading(true);
     let created = 0, duplicates = 0, invalid = 0, failed = 0;
+    const createdKeys = new Set<string>();
+    const contactByKey = new Map(selected.map((contact) => [contact.key, contact]));
+    const now = new Date().toISOString();
+    const updateContactStatuses = async (items: Array<{ key: string; status: string; message?: string; leadId?: string }>) => {
+      for (let offset = 0; offset < items.length; offset += 50) {
+        const chunk = items.slice(offset, offset + 50);
+        const groups = new Map<string, typeof chunk>();
+        chunk.forEach((item) => groups.set(item.status, [...(groups.get(item.status) || []), item]));
+        for (const [status, group] of groups) {
+          const keys = group.map((item) => item.key);
+          const messages = new Set(group.map((item) => item.message || ""));
+          const commonError = messages.size === 1 ? (group[0]?.message || null) : null;
+          const { error } = await (supabase as any).from("imported_phone_contacts").update({ status, selected: status !== "created", last_error: commonError, updated_at: new Date().toISOString() }).eq("user_id", user.id).in("contact_key", keys);
+          if (error) console.error("Mise à jour des contacts importés impossible", error);
+        }
+      }
+      const linked = items.filter((item) => item.status === "created" && item.leadId);
+      for (let offset = 0; offset < linked.length; offset += 25) {
+        await Promise.all(linked.slice(offset, offset + 25).map(async (item) => {
+          const { error } = await (supabase as any).from("imported_phone_contacts").update({ lead_id: item.leadId, last_error: null, updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", item.key);
+          if (error) console.error("Lien du lead importé non enregistré", item.key, error);
+        }));
+      }
+    };
     try {
       const readPhonePages = async (table: "leads" | "prospects") => {
         const all: any[] = [];
@@ -191,45 +217,45 @@ export default function ImportContacts() {
         return all;
       };
       const [leadRows, prospectRows] = await Promise.all([readPhonePages("leads"), readPhonePages("prospects")]);
-      const existingPhones = new Set([...leadRows, ...prospectRows].flatMap((row: any) =>
-        [row.telephone, row.telephone_secondaire].map((value) => normalizePhone(String(value || ""))).filter(Boolean)
-      ));
+      const existingPhones = new Set([...leadRows, ...prospectRows].flatMap((row: any) => [row.telephone, row.telephone_secondaire].map((value) => normalizePhone(String(value || ""))).filter(Boolean)));
+      const statuses: Array<{ key: string; status: string; message?: string; leadId?: string }> = [];
+      const candidates: Array<{ key: string; contact: ImportedContact; row: Record<string, any> }> = [];
       for (const contact of selected) {
         const phone = normalizePhone(contact.telephone);
-        if (!isValidIvoryCoastPhone(phone)) {
-          invalid++;
-          await (supabase as any).from("imported_phone_contacts").update({ status: "invalid", last_error: "Numéro invalide : 10 chiffres commençant par 0 attendus.", updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
-          continue;
-        }
-        if (existingPhones.has(phone)) {
-          duplicates++;
-          await (supabase as any).from("imported_phone_contacts").update({ status: "duplicate", last_error: "Numéro déjà présent dans les leads ou prospects.", updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
-          continue;
-        }
-        const row = {
-          nom: contact.nom || contact.prenoms || "Contact importé", prenoms: contact.prenoms || null,
-          telephone: phone, telephone_secondaire: normalizePhone(contact.telephone_secondaire) || null,
-          whatsapp: contact.whatsapp_principal ? phone : contact.whatsapp_secondaire ? normalizePhone(contact.telephone_secondaire) : null,
-          telephone_principal_whatsapp: contact.whatsapp_principal, telephone_secondaire_whatsapp: contact.whatsapp_secondaire,
-          email: contact.email || null, statut: "nouveau", etape_pipeline: "lead", type_lead: "client",
-          mode_contact_prefere: contact.whatsapp_principal || contact.whatsapp_secondaire ? "whatsapp" : "appel",
-          assigned_to: user.id, created_by: user.id,
-          metadata: { source_import: "repertoire_telephone", source_contact: contact.source, imported_at: new Date().toISOString() }
-        };
-        const { data, error } = await (supabase as any).from("leads").insert(row).select("id").single();
-        if (error) {
-          failed++;
-          await (supabase as any).from("imported_phone_contacts").update({ status: "pending", last_error: error.message, updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
-          continue;
-        }
-        created++;
+        if (!isValidIvoryCoastPhone(phone)) { invalid++; statuses.push({ key: contact.key, status: "invalid", message: "Numéro invalide : 10 chiffres commençant par 0 attendus." }); continue; }
+        if (existingPhones.has(phone)) { duplicates++; statuses.push({ key: contact.key, status: "duplicate", message: "Numéro déjà présent dans les leads ou prospects." }); continue; }
         existingPhones.add(phone);
-        await (supabase as any).from("imported_phone_contacts").update({ status: "created", lead_id: data.id, selected: false, last_error: null, updated_at: new Date().toISOString() }).eq("user_id", user.id).eq("contact_key", contact.key);
-        setContacts((all) => all.filter((item) => item.key !== contact.key));
+        const row = { nom: contact.nom || contact.prenoms || "Contact importé", prenoms: contact.prenoms || null, telephone: phone, telephone_secondaire: normalizePhone(contact.telephone_secondaire) || null, whatsapp: contact.whatsapp_principal ? phone : contact.whatsapp_secondaire ? normalizePhone(contact.telephone_secondaire) : null, telephone_principal_whatsapp: contact.whatsapp_principal, telephone_secondaire_whatsapp: contact.whatsapp_secondaire, email: contact.email || null, statut: "nouveau", etape_pipeline: "lead", type_lead: "client", mode_contact_prefere: contact.whatsapp_principal || contact.whatsapp_secondaire ? "whatsapp" : "appel", source: "import_contacts", assigned_to: user.id, created_by: user.id, metadata: { source_import: "repertoire_telephone", source_contact: contact.source, source_contact_key: contact.key, imported_at: now } };
+        candidates.push({ key: contact.key, contact, row });
       }
-      toast({ title: "Traitement terminé", description: `${created} lead(s) créé(s), ${duplicates} doublon(s), ${invalid} numéro(s) invalide(s), ${failed} échec(s). Les contacts non convertis restent sauvegardés.` });
+      for (let offset = 0; offset < candidates.length; offset += 100) {
+        const batch = candidates.slice(offset, offset + 100);
+        const { data, error } = await (supabase as any).from("leads").insert(batch.map((item) => item.row)).select("id,telephone,metadata");
+        if (!error && data) {
+          for (const lead of data as any[]) {
+            const key = String(lead.metadata?.source_contact_key || "");
+            const contact = contactByKey.get(key) || batch.find((item) => normalizePhone(item.contact.telephone) === normalizePhone(lead.telephone))?.contact;
+            if (!contact) continue;
+            created++; createdKeys.add(contact.key); statuses.push({ key: contact.key, status: "created", leadId: lead.id });
+          }
+          continue;
+        }
+        for (let retryOffset = 0; retryOffset < batch.length; retryOffset += 10) {
+          await Promise.all(batch.slice(retryOffset, retryOffset + 10).map(async (item) => {
+            const { data: lead, error: insertError } = await (supabase as any).from("leads").insert(item.row).select("id").single();
+            if (insertError) { failed++; statuses.push({ key: item.key, status: "pending", message: insertError.message }); return; }
+            created++; createdKeys.add(item.key); statuses.push({ key: item.key, status: "created", leadId: lead?.id });
+          }));
+        }
+      }
+      await updateContactStatuses(statuses);
+      if (created > 0) {
+        await Promise.all([queryClient.invalidateQueries({ queryKey: ["leads"] }), queryClient.invalidateQueries({ queryKey: ["prospects"] }), queryClient.invalidateQueries({ queryKey: ["lead_historique"] })]);
+        setContacts((all) => all.filter((item) => !createdKeys.has(item.key)));
+      }
+      toast({ title: "Génération terminée", description: created + " lead(s) créé(s) dans le CRM, " + duplicates + " doublon(s), " + invalid + " numéro(s) invalide(s), " + failed + " échec(s). Les leads sont actualisés dans le tableau Leads et prospects." });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Traitement partiel", description: error?.message || "Erreur de lecture. Les contacts sauvegardés restent disponibles." });
+      toast({ variant: "destructive", title: "Traitement interrompu", description: error?.message || "Erreur de lecture. Les contacts sauvegardés restent disponibles." });
     } finally { setLoading(false); }
   };
   return <div className="mx-auto w-full max-w-7xl min-w-0 space-y-4 overflow-x-hidden px-0 sm:space-y-5">
