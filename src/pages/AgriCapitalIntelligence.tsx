@@ -48,7 +48,8 @@ function IntelligenceContent() {
   const [grants, setGrants] = useState<Row[]>([]);
   const [audit, setAudit] = useState<Row[]>([]);
   const [error, setError] = useState("");
-  const [proposalOpen, setProposalOpen] = useState(false);\n  const [editingId, setEditingId] = useState<string | null>(null);
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [rateOpen, setRateOpen] = useState(false);
   const [grantUser, setGrantUser] = useState("");
   const [grantPermissions, setGrantPermissions] = useState("view,create");
