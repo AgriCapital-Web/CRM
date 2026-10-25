@@ -64,7 +64,7 @@ DECLARE
   candidate jsonb := to_jsonb(NEW);
   candidate_phones text[];
   candidate_email text;
-  related_lead_id text := NULLIF(to_jsonb(NEW)->>'lead_id', '');
+  related_counterpart_id text := CASE WHEN TG_TABLE_NAME = 'prospects' THEN NULLIF(to_jsonb(NEW)->>'lead_id', '') ELSE NULLIF(to_jsonb(NEW)->>'prospect_id', '') END;
   table_name text;
   existing jsonb;
 BEGIN
@@ -84,17 +84,11 @@ BEGIN
           OR private.normalize_crm_phone(t.whatsapp) = ANY($1)
           OR ($2 IS NOT NULL AND lower(trim(t.email)) = $2))
        AND ($3 IS NULL OR t.id::text <> $3)
-       AND NOT ($4 = ''prospects'' AND $5 = ''leads'' AND t.id::text = $6)',
+       AND NOT ((($4 = ''prospects'' AND $5 = ''leads'') OR ($4 = ''leads'' AND $5 = ''prospects'')) AND t.id::text = $6)',
       table_name
     ) USING candidate_phones, candidate_email, NULLIF(candidate->>'id',''),
-      TG_TABLE_NAME, table_name, related_lead_id
+      TG_TABLE_NAME, table_name, related_counterpart_id
     LOOP
-      -- Permit only the linked lead referenced by a prospect being converted.
-      IF TG_TABLE_NAME = 'prospects' AND table_name = 'leads'
-         AND related_lead_id IS NOT NULL
-         AND existing->>'id' = related_lead_id THEN
-        CONTINUE;
-      END IF;
       IF private.crm_contact_is_duplicate(candidate, existing) THEN
         RETURN NULL;
       END IF;
@@ -111,12 +105,12 @@ GRANT EXECUTE ON FUNCTION private.normalize_crm_phone(text), private.crm_contact
 
 DROP TRIGGER IF EXISTS leads_reject_duplicate_contact_insert ON public.leads;
 CREATE TRIGGER leads_reject_duplicate_contact_insert
-BEFORE INSERT ON public.leads
+BEFORE INSERT OR UPDATE OF telephone, telephone_secondaire, whatsapp, email, nom, prenoms ON public.leads
 FOR EACH ROW EXECUTE FUNCTION private.reject_duplicate_crm_contact_insert();
 
 DROP TRIGGER IF EXISTS prospects_reject_duplicate_contact_insert ON public.prospects;
 CREATE TRIGGER prospects_reject_duplicate_contact_insert
-BEFORE INSERT ON public.prospects
+BEFORE INSERT OR UPDATE OF telephone, telephone_secondaire, whatsapp, email, nom, prenoms ON public.prospects
 FOR EACH ROW EXECUTE FUNCTION private.reject_duplicate_crm_contact_insert();
 
 CREATE OR REPLACE VIEW public.crm_duplicate_contact_candidates WITH (security_invoker = true) AS
