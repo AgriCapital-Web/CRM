@@ -91,7 +91,6 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
     try {
       const { data: existingRows, error: existingError } = await (supabase as any).from("finance_transaction_budget_allocations").select("budget_id,allocated_amount").eq("transaction_id", transaction.id);
       if (existingError) throw existingError;
-      const currentForBudget = (existingRows || []).filter((row: any) => row.budget_id === budget.id).reduce((sum: number, row: any) => sum + num(row.allocated_amount), 0);
       const totalOtherBudgets = (existingRows || []).filter((row: any) => row.budget_id !== budget.id).reduce((sum: number, row: any) => sum + num(row.allocated_amount), 0);
       if (totalOtherBudgets + amount > num(transaction.amount)) throw new Error("Le total affecté à cette écriture dépasserait son montant.");
       const { error: saveError } = await (supabase as any).from("finance_transaction_budget_allocations").upsert({ transaction_id: transaction.id, budget_id: budget.id, allocated_amount: amount, created_by: (await supabase.auth.getUser()).data.user?.id }, { onConflict: "transaction_id,budget_id" });
