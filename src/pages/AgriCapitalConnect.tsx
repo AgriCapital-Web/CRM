@@ -40,8 +40,8 @@ export default function AgriCapitalConnect() {
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") === "budgets" && can("finance.view") ? "budgets" : canViewMessaging ? (["activities","meetings","office","organisation","rh"].includes(searchParams.get("module") || "") ? (searchParams.get("module") === "activities" ? "activities" : searchParams.get("module")) : "messages") : "budgets");
-  useEffect(() => { const module = searchParams.get("module"); setTab(module || (canViewMessaging ? "messages" : "budgets")); }, [searchParams, canViewMessaging]);
+  const [tab, setTab] = useState(searchParams.get("module") || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : "office"));
+  useEffect(() => { const module = searchParams.get("module"); setTab(module || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : "office")); }, [searchParams, canViewMessaging]);
   const changeTab = (value: string) => { setTab(value); setSearchParams({ module: value }); };
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -335,10 +335,11 @@ export default function AgriCapitalConnect() {
                 <TabsTrigger value="activities" className="gap-2"><Clock3 className="h-4 w-4" />Pilotage & agenda</TabsTrigger>
                 <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
                 <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
-                <TabsTrigger value="office" className="gap-2"><Files className="h-4 w-4" />Éditeur intégré</TabsTrigger>
+                
                 <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
                 <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
               </>}
+              {can("documents.view") && <TabsTrigger value="office" className="gap-2"><Files className="h-4 w-4" />Éditeur intégré</TabsTrigger>}
               {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
               {can("decision_center.view") && <TabsTrigger value="intelligence" className="gap-2"><ShieldCheck className="h-4 w-4" />Centre de décision</TabsTrigger>}
             </TabsList>
@@ -372,7 +373,7 @@ export default function AgriCapitalConnect() {
             </TabsContent>
             <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
             {can("decision_center.view") && <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>}
-            <TabsContent value="office" className="mt-3 min-w-0 space-y-3"><WorkspaceOffice embedded /></TabsContent>
+            {can("documents.view") && <TabsContent value="office" className="mt-3 min-w-0 space-y-3"><WorkspaceOffice embedded /></TabsContent>}
             <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3">
               <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Agenda opérationnel, tâches, projets et organisation</h2><p className="mt-1 text-sm text-muted-foreground">Retrouvez l’agenda opérationnel, les tâches, les projets, les fiches de poste et l’organigramme.</p><Button className="mt-4" onClick={() => navigate("/espace-travail-360")}>Ouvrir l’organisation 360</Button></div>
             </TabsContent>
