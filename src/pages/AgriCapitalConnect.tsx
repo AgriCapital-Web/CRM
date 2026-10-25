@@ -325,13 +325,10 @@ export default function AgriCapitalConnect() {
           <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">AgriCapital 360</h1></div>
-              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">Un espace unique pour la communication interne, les documents, l’organisation des équipes et le suivi RH.</p>
+              
             </div>
             <Badge variant="outline" className="w-fit gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Espace interne sécurisé</Badge>
           </header>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            
-          </div>
           <Tabs value={tab} onValueChange={changeTab} className="min-w-0">
             <TabsList aria-label="Modules AgriCapital 360" className="flex h-auto w-full max-w-full justify-start gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap p-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
               {canViewMessaging && <>
