@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'agricapital_offline';
-const DB_VERSION = 16;
+const DB_VERSION = 17;
 
 export const STORES = {
   CLIENTS: 'clients',
@@ -85,7 +85,10 @@ function openDB(): Promise<IDBDatabase> {
   if (dbInstance) return Promise.resolve(dbInstance);
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let clearLegacyDeviceData = false;
     request.onupgradeneeded = (event) => {
+      const oldVersion = (event as IDBVersionChangeEvent).oldVersion;
+      clearLegacyDeviceData = oldVersion < 17;
       const db = (event.target as IDBOpenDBRequest).result;
       // Les brouillons de formulaires sont conservés uniquement dans localStorage.
       // Supprimer l'ancien magasin IndexedDB lors de la mise à niveau.
@@ -148,7 +151,27 @@ function openDB(): Promise<IDBDatabase> {
         }
       }
     };
-    request.onsuccess = () => { dbInstance = request.result; resolve(dbInstance); };
+    request.onsuccess = () => {
+      const db = request.result;
+      if (!clearLegacyDeviceData) {
+        dbInstance = db;
+        resolve(db);
+        return;
+      }
+      // One-time cleanup on every device after the server-authoritative rollout:
+      // discard stale local business snapshots, local drafts, and queued offline writes.
+      const names = Array.from(db.objectStoreNames);
+      if (!names.length) {
+        dbInstance = db;
+        resolve(db);
+        return;
+      }
+      const tx = db.transaction(names, 'readwrite');
+      for (const name of names) tx.objectStore(name).clear();
+      tx.oncomplete = () => { dbInstance = db; resolve(db); };
+      tx.onerror = () => reject(tx.error || new Error('Impossible de nettoyer les anciennes données locales.'));
+      tx.onabort = () => reject(tx.error || new Error('Nettoyage local annulé.'));
+    };
     request.onerror = () => reject(request.error);
   });
 }
