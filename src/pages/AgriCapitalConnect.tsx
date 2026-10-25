@@ -333,7 +333,6 @@ export default function AgriCapitalConnect() {
           </header>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             
-            {canViewMessaging && <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>}
           </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
             <TabsList className={`grid h-auto w-full gap-1 ${canViewMessaging && can("finance.view") ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-8" : canViewMessaging ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-7" : can("decision_center.view") ? "grid-cols-1" : "grid-cols-1"}`}>
