@@ -34,7 +34,7 @@ const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: 
         <Upload className="h-4 w-4" />
       </button>
       {current && <div className="flex min-w-0 flex-col items-start gap-1">
-        {currentUrl && (isPhoto ? <a href={currentUrl} target="_blank" rel="noreferrer" className="block"><img src={currentUrl} alt={label + " enregistré"} className="h-16 w-24 rounded border object-contain" /></a> : <a href={currentUrl} target="_blank" rel="noreferrer" className="text-[11px] text-primary underline">Voir le document enregistré</a>)}
+        {currentUrl && (isPhoto ? <img src={currentUrl} alt={label + " enregistré"} className="h-24 w-32 rounded border object-contain" /> : <iframe src={currentUrl} title={"Aperçu : " + label} className="h-48 w-64 max-w-full rounded border bg-background" />)}
         <span className="flex min-w-0 items-center gap-1 text-[11px] font-medium text-green-700"><Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true"/><span className="truncate">Fichier joint</span></span>
       </div>}
     </div>
