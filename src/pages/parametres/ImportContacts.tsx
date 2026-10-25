@@ -223,7 +223,7 @@ export default function ImportContacts() {
       const readPhonePages = async (table: "leads" | "prospects") => {
         const all: any[] = [];
         for (let offset = 0; ; offset += 1000) {
-          const result = await (supabase as any).from(table).select("id,nom,prenoms,telephone,telephone_secondaire,whatsapp,email,lead_id").range(offset, offset + 999);
+          const result = await (supabase as any).from(table).select("id,nom,prenoms,telephone,telephone_secondaire,whatsapp,email").range(offset, offset + 999);
           if (result.error) throw result.error;
           all.push(...(result.data || []));
           if (!result.data || result.data.length < 1000) break;
