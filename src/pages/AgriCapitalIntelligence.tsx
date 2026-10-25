@@ -27,7 +27,7 @@ const labels: Record<string, string> = { draft: "Brouillon", proposed: "Proposé
 const categories: Record<string, string> = { financing: "Financement", investment: "Investissement", staffing: "Effectifs", training: "Formation", organization: "Organisation", operations: "Opérations", land: "Foncier", commercial: "Commercial", technical: "Technique", other: "Autre" };
 const statusColor = (status: string) => status === "approved" || status === "executed" ? "default" : status === "rejected" || status === "cancelled" ? "destructive" : "secondary";
 
-function IntelligenceContent() {
+function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
   const { user, userRoles } = useAuth();
   const navigate = useNavigate();
   const [accessChecked, setAccessChecked] = useState(false);
@@ -235,9 +235,9 @@ function IntelligenceContent() {
 
   const Metric = ({ title: metricTitle, value, icon: Icon, detail }: { title: string; value: string; icon: any; detail: string }) => <Card><CardContent className="p-4"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">{metricTitle}</p><p className="mt-1 text-xl font-semibold break-words">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div><Icon className="h-5 w-5 shrink-0 text-primary" /></div></CardContent></Card>;
 
-  if (!accessChecked || !accessAllowed) return <MainLayout><div className="p-6 text-sm text-muted-foreground">Vérification des autorisations…</div></MainLayout>;
+  if (!accessChecked || !accessAllowed) return embedded ? <div className="p-6 text-sm text-muted-foreground">Vérification des autorisations…</div> : <MainLayout><div className="p-6 text-sm text-muted-foreground">Vérification des autorisations…</div></MainLayout>;
 
-  return <MainLayout><div className="mx-auto w-full max-w-[1500px] space-y-5 p-3 md:p-6">
+  const content = <div className="mx-auto w-full max-w-[1500px] space-y-5 p-3 md:p-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><Activity className="h-6 w-6 text-primary"/><h1 className="text-2xl font-bold">AgriCapital Intelligence</h1></div><p className="mt-1 text-sm text-muted-foreground">Centre de décision stratégique et opérationnelle — données CRM et décisions traçables.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}/>Actualiser</Button></div>
     {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Une source n’a pas pu être lue</AlertTitle><AlertDescription>{error}. Les indicateurs concernés peuvent être incomplets.</AlertDescription></Alert>}
     <Alert><ShieldCheck className="h-4 w-4"/><AlertTitle>Décision assistée, jamais automatique</AlertTitle><AlertDescription>Les propositions sont des aides à l’analyse. Aucun emprunt, recrutement, paiement ou engagement n’est exécuté automatiquement. Les taux bancaires sont utilisables seulement s’ils sont saisis avec une source vérifiable et une date de validité.</AlertDescription></Alert>
@@ -274,9 +274,10 @@ function IntelligenceContent() {
       {executive && <TabsContent value="governance" className="space-y-4"><h2 className="text-lg font-semibold">Délégation et gouvernance</h2><Alert><ShieldCheck className="h-4 w-4"/><AlertTitle>Accès délégués révocables</AlertTitle><AlertDescription>Le PDG/DG conserve les droits de gouvernance. Les autres collaborateurs ne reçoivent que les permissions explicitement accordées ; les contrôles sont appliqués côté base de données via RLS.</AlertDescription></Alert><Card><CardHeader><CardTitle className="text-base">Accorder un accès</CardTitle></CardHeader><CardContent className="space-y-3"><div className="grid gap-3 md:grid-cols-2"><div className="space-y-1"><Label>Collaborateur interne</Label><Select value={grantUser} onValueChange={setGrantUser}><SelectTrigger><SelectValue placeholder="Sélectionner un profil"/></SelectTrigger><SelectContent>{people.filter(p=>p.user_id).map(p=><SelectItem key={p.user_id} value={p.user_id}>{p.nom_complet} {p.email ? `— ${p.email}` : ""}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Permissions séparées par virgule</Label><Input value={grantPermissions} onChange={e=>setGrantPermissions(e.target.value)} placeholder="view,create"/></div></div><p className="text-xs text-muted-foreground">Valeurs autorisées : view, create, approve, manage, admin. La permission admin donne les droits de gestion de module, mais pas le statut exécutif ni le droit de déléguer.</p><Button onClick={()=>void saveGrant()}>Enregistrer la délégation</Button></CardContent></Card><div className="space-y-2"><h3 className="font-semibold">Accès actifs</h3>{grants.map(g=><Card key={g.id}><CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{people.find(p=>p.user_id===g.user_id)?.nom_complet || g.user_id}</p><p className="text-sm text-muted-foreground">{(g.permissions || []).join(", ")}</p></div><Button variant="destructive" size="sm" onClick={()=>void revokeGrant(g.id)}>Révoquer</Button></CardContent></Card>)}{!grants.length && <p className="text-sm text-muted-foreground">Aucune délégation active enregistrée.</p>}</div></TabsContent>}
     </Tabs>
     <p className="text-xs text-muted-foreground">Connectivité : finance, budgets, clients, propriétaires fonciers, parcelles, tâches, projets, revues RH, profils, taux sourcés et journal de décisions. Les sources indisponibles par permission ou schéma doivent être corrigées avant de traiter les indicateurs comme exhaustifs.</p>
-  </div></MainLayout>;
+  </div>;
+  return embedded ? content : <MainLayout>{content}</MainLayout>;
 }
 
-export default function AgriCapitalIntelligence() {
-  return <ProtectedRoute><IntelligenceContent /></ProtectedRoute>;
+export default function AgriCapitalIntelligence({ embedded = false }: { embedded?: boolean }) {
+  return <ProtectedRoute><IntelligenceContent embedded={embedded} /></ProtectedRoute>;
 }
