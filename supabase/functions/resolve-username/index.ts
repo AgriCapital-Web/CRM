@@ -35,7 +35,7 @@ serve(async (req) => {
     const password = typeof body?.password === "string" ? body.password : "";
     const mode = body?.mode === "recovery" ? "recovery" : "login";
 
-    if (!username || username.length < 2 || username.length > 64 || /[\\u0000-\\u001F\\u007F]/.test(username)) {
+    if (!username || username.length < 2 || username.length > 64 || /[\x00-\x1F\x7F]/.test(username)) {
       return json({ error: "Identifiant invalide" }, 400);
     }
 
