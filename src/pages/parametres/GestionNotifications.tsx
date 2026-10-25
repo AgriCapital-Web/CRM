@@ -57,6 +57,7 @@ const EVENTS = [
 const AUDIENCES = [
   ["tous", "Tout le monde"],
   ["clients", "Tous les clients"],
+  ["leads", "Tous les leads"],
   ["prospects", "Tous les prospects"],
   ["equipe", "Equipe interne"],
   ["commerciaux", "Commerciaux"],
