@@ -266,6 +266,22 @@ const Dashboard = () => {
       const regions = regionsRes.data || [];
       const monnaieRows = monnaieRes.data || [];
       const directory = directoryRes.data || [];
+      // Une parcelle ne peut pas compter plus de surface plantée que sa surface totale,
+      // même si des lignes d'attribution (bénéficiaire/propriétaire) se chevauchent.
+      const sumPlantedArea = (rows: any[]) => {
+        const byParcel = new Map<string, number>();
+        let withoutParcel = 0;
+        rows.forEach((row: any) => {
+          const amount = Math.max(0, Number(row.surface_reellement_plantee ?? row.superficie_activee ?? 0));
+          if (row.parcelle_id) byParcel.set(row.parcelle_id, (byParcel.get(row.parcelle_id) || 0) + amount);
+          else withoutParcel += amount;
+        });
+        const parcelAreaById = new Map(parcelles.map((parcel: any) => [parcel.id, Math.max(0, Number(parcel.surface_totale_ha || 0))]));
+        return withoutParcel + Array.from(byParcel.entries()).reduce((sum, [id, area]) => {
+          const parcelArea = parcelAreaById.get(id);
+          return sum + (parcelArea == null || parcelArea <= 0 ? area : Math.min(area, parcelArea));
+        }, 0);
+      };
 
       const validPayments = payments.filter((p: any) => p.statut === "valide" && Number(p.montant_paye ?? p.montant ?? 0) > 0);
       const commercialValidPayments = validPayments.filter((p: any) => commercialClients.some((client: any) => client.id === p.client_id));
@@ -285,7 +301,7 @@ const Dashboard = () => {
         s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       let remainingHa = Math.max(0, engagedHa - plantedHa);
       const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
-      const productionHa = productionRows.reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+      const productionHa = sumPlantedArea(productionRows);
       const pipelineLeads = leads.filter((l: any) => (l.etape_pipeline || "lead") === "lead");
       const pipelineProspects = leads.filter((l: any) => l.etape_pipeline === "prospect");
       const convertedRows = leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti" || Boolean(l.converti_at));
@@ -362,7 +378,7 @@ const Dashboard = () => {
       const clientParcelAreaHa = clientParcelRows.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
       const internalClientIds = new Set(clients.filter((c: any) => c.is_internal === true).map((c: any) => c.id));
       const internalPlantationRows = plantations.filter((p: any) => internalClientIds.has(p.client_id) && (!p.parcelle_id || !validatedPartnershipParcelIds.has(p.parcelle_id)));
-      const internalPlantedHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+      const internalPlantedHa = sumPlantedArea(internalPlantationRows);
       const internalAreaHa = internalPlantationRows.reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       const plantationAcquisitionIds = new Set(plantations.map((p: any) => p.acquisition_id).filter(Boolean));
       const unplantedAcquisitionArea = acquisitions
@@ -373,7 +389,7 @@ const Dashboard = () => {
         .filter((p: any) => !p.parcelle_id && !internalClientIds.has(p.client_id))
         .reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       engagedHa = partnershipTotalHa + clientParcelAreaHa + internalAreaHa + unplantedAcquisitionArea + plantationsWithoutParcelArea;
-      plantedHa = plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+      plantedHa = sumPlantedArea(plantations);
       remainingHa = Math.max(0, engagedHa - plantedHa);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
