@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarDays, Check, Clock3, Files, Loader2, MessageCircle, Paperclip, Plus, Send, ShieldCheck, Users, Video } from "lucide-react";
 import { toast } from "sonner";
 import InternalCallRoom from "@/components/workspace/InternalCallRoom";
+import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
 
 type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
@@ -36,7 +37,7 @@ export default function AgriCapitalConnect() {
   const { can } = usePermissions();
   const canViewMessaging = can("messagerie.view");
   const profileId = profile?.id as string | undefined;
-  const [tab, setTab] = useState(searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : "messages");
+  const [tab, setTab] = useState(searchParams.get("module") === "documents" ? "documents" : searchParams.get("module") === "organisation" ? "organisation" : searchParams.get("module") === "rh" ? "rh" : searchParams.get("module") === "budgets" ? "budgets" : "messages");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
@@ -277,12 +278,13 @@ export default function AgriCapitalConnect() {
             <Button variant="outline" className="h-auto min-h-12 justify-start whitespace-normal text-left" onClick={() => setTab("meetings")}><CalendarDays className="mr-2 h-4 w-4 shrink-0" />Agenda et réunions internes</Button>
           </div>
           <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
+            <TabsList className={`grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 ${can("finance.view") ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
               <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
               <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
               <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents</TabsTrigger>
               <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
               <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
+              {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
             </TabsList>
             <TabsContent value="messages" className="mt-3 min-w-0">
               <div className="grid min-w-0 gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -311,6 +313,7 @@ export default function AgriCapitalConnect() {
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{meetings.map(m => <Card key={m.id} className="min-w-0 overflow-hidden"><CardHeader className="pb-2"><div className="flex items-start justify-between gap-2"><CardTitle className="min-w-0 break-words text-base">{m.title}</CardTitle><Badge variant={m.status === "cancelled" ? "destructive" : "outline"}>{m.status === "scheduled" ? "Planifiée" : m.status === "in_progress" ? "En cours" : m.status === "completed" ? "Terminée" : "Annulée"}</Badge></div></CardHeader><CardContent className="space-y-3"><p className="flex items-start gap-2 text-sm"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span>{dateLabel(m.starts_at)} – {dateLabel(m.ends_at)}</span></p>{m.agenda && <div><p className="text-xs font-semibold text-muted-foreground">ORDRE DU JOUR</p><p className="mt-1 whitespace-pre-wrap break-words text-sm">{m.agenda}</p></div>}{(meetingAttachments[m.id] || []).map(file => file.url ? <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 break-all text-xs text-primary underline"><Paperclip className="h-3.5 w-3.5 shrink-0" />{file.file_name}</a> : <p key={file.id} className="text-xs">{file.file_name}</p>)}<div className="flex flex-wrap items-center gap-2"><Badge variant="secondary"><Users className="mr-1 h-3 w-3" />Participants sur invitation</Badge>{m.provider_room_id && <Button type="button" size="sm" onClick={() => { setCallRoomId(m.provider_room_id!); setCallOpen(true); }}>Rejoindre dans le CRM</Button>}</div></CardContent></Card>)}</div>
               {meetings.length === 0 && <Card><CardContent className="p-8 text-center text-sm text-muted-foreground"><Clock3 className="mx-auto mb-2 h-6 w-6" />Aucune réunion planifiée.</CardContent></Card>}
             </TabsContent>
+            <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
             <TabsContent value="documents" className="mt-3 min-w-0 space-y-3">
               <div className="rounded-xl border bg-card p-4 sm:p-6"><h2 className="font-semibold">Documents, tableurs et présentations</h2><p className="mt-1 text-sm text-muted-foreground">Accédez aux outils documentaires existants sans conserver un deuxième espace dans le menu.</p><Button className="mt-4" onClick={() => navigate("/espace-travail")}>Ouvrir les documents</Button></div>
             </TabsContent>
