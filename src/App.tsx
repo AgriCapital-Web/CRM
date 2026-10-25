@@ -18,6 +18,8 @@ import Plantations from "./pages/Plantations";
 import PlantationDetail from "./pages/PlantationDetail";
 import GestionPaiements from "./pages/GestionPaiements";
 import Finance from "./pages/Finance";
+import PlanificationBudgetaire from "./pages/PlanificationBudgetaire";
+import WorkspaceOffice from "./pages/WorkspaceOffice";
 import Commissions from "./pages/Commissions";
 import Portefeuilles from "./pages/Portefeuilles";
 import NouvelleAcquisition from "./pages/NouvelleAcquisition";
@@ -117,6 +119,7 @@ const DomainRouter = () => {
       <Route path="/intelligence" element={<AgriCapitalIntelligence />} />
       <Route path="/espace-travail" element={<ProtectedRoute><EspaceTravail /></ProtectedRoute>} />
       <Route path="/espace-travail-360" element={<ProtectedRoute><Workspace360 /></ProtectedRoute>} />
+      <Route path="/espace-bureautique" element={<ProtectedRoute requiredPermission="documents.view"><WorkspaceOffice /></ProtectedRoute>} />
       <Route path="/espace-rh-360" element={<ProtectedRoute><WorkspacePeople360 /></ProtectedRoute>} />
       <Route path="/profil" element={<ProtectedRoute><Profil /></ProtectedRoute>} />
       
@@ -128,7 +131,7 @@ const DomainRouter = () => {
             
       {/* Rapports */}
       <Route path="/finance" element={<ProtectedRoute requiredPermission="finance.view"><Finance /></ProtectedRoute>} />
-      <Route path="/planification-budgetaire" element={<Navigate to="/connect?module=budgets" replace />} />
+      <Route path="/planification-budgetaire" element={<ProtectedRoute requiredPermission="finance.view"><PlanificationBudgetaire /></ProtectedRoute>} />
       <Route path="/finance/historique" element={<ProtectedRoute requiredPermission="finance.manage"><Navigate to="/finance?tab=historique" replace /></ProtectedRoute>} />
       <Route path="/finance/analytique" element={<ProtectedRoute requiredPermission="finance.view"><Navigate to="/finance?tab=analytique" replace /></ProtectedRoute>} />
       <Route path="/terrain" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES}><TechnicienTerrain /></ProtectedRoute>} />
