@@ -18,7 +18,6 @@ import Plantations from "./pages/Plantations";
 import PlantationDetail from "./pages/PlantationDetail";
 import GestionPaiements from "./pages/GestionPaiements";
 import Finance from "./pages/Finance";
-import PlanificationBudgetaire from "./pages/PlanificationBudgetaire";
 import Commissions from "./pages/Commissions";
 import Portefeuilles from "./pages/Portefeuilles";
 import NouvelleAcquisition from "./pages/NouvelleAcquisition";
@@ -125,7 +124,7 @@ const DomainRouter = () => {
             
       {/* Rapports */}
       <Route path="/finance" element={<ProtectedRoute requiredPermission="finance.view"><Finance /></ProtectedRoute>} />
-      <Route path="/planification-budgetaire" element={<ProtectedRoute requiredPermission="finance.view"><PlanificationBudgetaire /></ProtectedRoute>} />
+      <Route path="/planification-budgetaire" element={<Navigate to="/connect?module=budgets" replace />} />
       <Route path="/finance/historique" element={<ProtectedRoute requiredPermission="finance.manage"><Navigate to="/finance?tab=historique" replace /></ProtectedRoute>} />
       <Route path="/finance/analytique" element={<ProtectedRoute requiredPermission="finance.view"><Navigate to="/finance?tab=analytique" replace /></ProtectedRoute>} />
       <Route path="/terrain" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES}><TechnicienTerrain /></ProtectedRoute>} />
