@@ -594,7 +594,7 @@ const Equipes = () => {
                     <div className="mt-1">
                       {highestVisibleRole(m.roles || [], appRoles) && (
                         <Badge variant="secondary" className="whitespace-nowrap text-xs">
-                          {ROLE_SHORT[highestVisibleRole(m.roles || [])!] || roleLabel(highestVisibleRole(m.roles || [])!)}
+                          {ROLE_SHORT[highestVisibleRole(m.roles || [], appRoles)!] || appRoles.find((item) => item.code === highestVisibleRole(m.roles || [], appRoles))?.nom || roleLabel(highestVisibleRole(m.roles || [], appRoles)!)}
                         </Badge>
                       )}
                     </div>
