@@ -74,19 +74,29 @@ const Utilisateurs = () => {
 
       const userIds = (profiles || []).map((profile: any) => profile.user_id).filter(Boolean);
       let roles: any[] = [];
+      let accountRequests: any[] = [];
       if (userIds.length) {
-        const { data: roleData, error: rolesError } = await (supabase as any)
-          .from("user_roles")
-          .select("*")
-          .in("user_id", userIds);
+        const [{ data: roleData, error: rolesError }, { data: requestData, error: requestError }] = await Promise.all([
+          (supabase as any).from("user_roles").select("*").in("user_id", userIds),
+          (supabase as any).from("account_requests").select("auth_user_id,role_souhaite,poste_souhaite,statut").in("auth_user_id", userIds),
+        ]);
         if (rolesError) throw rolesError;
+        if (requestError) throw requestError;
         roles = roleData || [];
+        accountRequests = requestData || [];
       }
 
-      const profilesWithRoles = (profiles || []).map((profile: any) => ({
-        ...profile,
-        user_roles: roles.filter((role: any) => role.user_id === profile.user_id),
-      }));
+      const profilesWithRoles = (profiles || []).map((profile: any) => {
+        const profileRoles = roles.filter((role: any) => role.user_id === profile.user_id);
+        const request = accountRequests.find((item: any) => item.auth_user_id === profile.user_id && item.statut === "en_attente");
+        return {
+          ...profile,
+          user_roles: profileRoles,
+          requested_role: request?.role_souhaite || null,
+          requested_poste: request?.poste_souhaite || null,
+          account_request_pending: Boolean(request && profileRoles.length === 0),
+        };
+      });
 
       setUtilisateurs(profilesWithRoles);
       setFilteredUsers(profilesWithRoles);
@@ -346,6 +356,13 @@ const Utilisateurs = () => {
                       <Badge variant="outline" className="whitespace-nowrap text-xs">
                         {appRoles.find((item) => item.code === getHighestRole(user))?.nom || String(getHighestRole(user) ?? "").replace(/_/g, " ")}
                       </Badge>
+                    ) : user.account_request_pending && user.requested_role ? (
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant="outline" className="whitespace-nowrap text-xs">
+                          Demandé : {appRoles.find((item) => item.code === user.requested_role)?.nom || String(user.requested_role).replace(/_/g, " ")}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">En attente de validation</span>
+                      </div>
                     ) : (
                       <Badge variant="destructive" className="text-xs">Aucun rôle</Badge>
                     )}
