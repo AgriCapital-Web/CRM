@@ -37,7 +37,7 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
     setCoverage(null);
     if (!code) return () => { active = false; };
     void (async () => {
-      const { data, error } = await (supabase as any).from("app_roles")
+      const { data, error } = await (supabase as any).from("v_public_signup_roles")
         .select("code,niveau_couverture,actif")
         .eq("code", code)
         .eq("actif", true)
