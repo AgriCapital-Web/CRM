@@ -93,7 +93,7 @@ const AccountRequest = () => {
       setRolesLoading(true);
       try {
         const { data, error } = await (supabase as any)
-          .from("app_roles")
+          .from("v_public_signup_roles")
           .select("code,nom,niveau_couverture,actif")
           .eq("actif", true)
           .order("niveau", { ascending: true })
