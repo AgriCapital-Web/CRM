@@ -17,7 +17,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Search, Users, Plus, Edit, MoreHorizontal, CheckCircle, XCircle, UserPlus, UserMinus, Briefcase, Wrench, ImagePlus, X } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
-import { OFFICIAL_ROLES, roleLabel } from "@/lib/roles";
+import { roleLabel } from "@/lib/roles";
+import { useAppRoles } from "@/hooks/useReferentiels";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -28,8 +29,8 @@ const ROLE_SHORT: Record<string, string> = {
   superviseur_tc: "STC",
 };
 
-const highestVisibleRole = (roles: string[] = []) => {
-  const levels = new Map(OFFICIAL_ROLES.map((r) => [r.code, r.niveau]));
+const highestVisibleRole = (roles: string[] = [], roleCatalog: { code: string; niveau: number }[] = []) => {
+  const levels = new Map(roleCatalog.map((r) => [r.code, r.niveau]));
   return [...new Set(roles)].sort((a, b) =>
     (levels.get(a) ?? 999) - (levels.get(b) ?? 999) || a.localeCompare(b)
   )[0] || null;
@@ -57,6 +58,7 @@ const Equipes = () => {
   const pageSize = useResponsivePageSize();
   const { toast } = useToast();
   const { can, roles } = usePermissions();
+  const { roles: appRoles } = useAppRoles();
   const canManageTeams = roles.some((role: string) => ["pdg", "dg"].includes(role)) || can("parametres.manage_teams");
 
   const [formData, setFormData] = useState({
@@ -571,7 +573,7 @@ const Equipes = () => {
               <SelectContent>
                 {availableMembers.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {formatUserShortName(p.nom_complet)} ({(() => { const role = highestVisibleRole(p.roles || []); return role ? (ROLE_SHORT[role] || roleLabel(role)) : "Aucun rôle"; })()})
+                    {formatUserShortName(p.nom_complet)} ({(() => { const role = highestVisibleRole(p.roles || [], appRoles); return role ? (ROLE_SHORT[role] || appRoles.find((item) => item.code === role)?.nom || roleLabel(role)) : "Aucun rôle"; })()})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -590,7 +592,7 @@ const Equipes = () => {
                   <div>
                     <p className="font-medium text-sm">{formatUserShortName(m.nom_complet)}</p>
                     <div className="mt-1">
-                      {highestVisibleRole(m.roles || []) && (
+                      {highestVisibleRole(m.roles || [], appRoles) && (
                         <Badge variant="secondary" className="whitespace-nowrap text-xs">
                           {ROLE_SHORT[highestVisibleRole(m.roles || [])!] || roleLabel(highestVisibleRole(m.roles || [])!)}
                         </Badge>
