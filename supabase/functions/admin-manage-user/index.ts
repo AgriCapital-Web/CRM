@@ -87,12 +87,24 @@ serve(async (req) => {
       if (!/^[a-zA-Z0-9._-]{3,30}$/.test(clean)) {
         return json({ error: "Identifiant invalide (3 à 30 caractères : lettres, chiffres, . _ -)", step }, 400);
       }
-      const { data: taken } = await admin
-        .from("profiles").select("id").eq("username", clean).neq("id", user_id).maybeSingle();
-      if (taken) return json({ error: "Cet identifiant est déjà utilisé", step }, 409);
-      const { error } = await admin.from("profiles").update({ username: clean }).eq("id", user_id);
-      if (error) return json({ error: error.message, step }, 400);
-      return json({ success: true, action, username: clean });
+      const { data: authTarget, error: authError } = await admin.auth.admin.getUserById(user_id);
+      if (authError || !authTarget?.user) return json({ error: "Compte utilisateur introuvable.", step }, 404);
+      const authId = authTarget.user.id;
+      const { data: targetProfile, error: profileError } = await admin.from("profiles").select("id,user_id,username").or("id.eq." + authId + ",user_id.eq." + authId).limit(1).maybeSingle();
+      if (profileError) return json({ error: profileError.message, step }, 400);
+      if (!targetProfile) return json({ error: "Profil associé au compte introuvable.", step }, 404);
+      const { data: matches, error: duplicateError } = await admin.from("profiles").select("id,user_id,username").ilike("username", clean);
+      if (duplicateError) return json({ error: duplicateError.message, step }, 400);
+      if ((matches || []).some((p: any) => p.id !== targetProfile.id && p.user_id !== authId)) return json({ error: "Cet identifiant est déjà utilisé", step }, 409);
+      const { error: profileUpdateError } = await admin.from("profiles").update({ username: clean }).eq("id", targetProfile.id);
+      if (profileUpdateError) return json({ error: profileUpdateError.message, step }, 400);
+      const { error: requestUpdateError } = await admin.from("account_requests").update({ username: clean }).eq("auth_user_id", authId);
+      if (requestUpdateError) return json({ error: "Identifiant modifié dans le profil, mais synchronisation de la demande impossible: " + requestUpdateError.message, step }, 400);
+      const { data: authUpdated, error: metadataError } = await admin.auth.admin.updateUserById(authId, { user_metadata: { ...(authTarget.user.user_metadata || {}), username: clean } });
+      if (metadataError) return json({ error: "Identifiant modifié dans le profil, mais synchronisation Auth impossible: " + metadataError.message, step }, 400);
+      const { data: verifyProfile, error: verifyError } = await admin.from("profiles").select("username").eq("id", targetProfile.id).maybeSingle();
+      if (verifyError || verifyProfile?.username !== clean || authUpdated.user?.user_metadata?.username !== clean) return json({ error: "La synchronisation de l’identifiant n’a pas été confirmée.", step: "verify_username" }, 500);
+      return json({ success: true, action, username: clean, user_id: authId });
     }
 
     if (action === "set_roles") {
