@@ -1,4 +1,4 @@
-const CACHE_NAME = "agricapital-crm-v30";
+const CACHE_NAME = "agricapital-crm-v31";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 15;
@@ -96,6 +96,10 @@ self.addEventListener("push", (event) => {
     // The in-app realtime channel handles visible tabs; push is for background/closed app delivery.
     if (openClients.some((client) => client.visibilityState === "visible")) return;
     const id = payload.notificationId || payload.id || payload.tag || "general";
+    const unreadCount = Number(payload.unreadCount ?? payload.badgeCount ?? payload.badge_count);
+    if (Number.isFinite(unreadCount) && unreadCount > 0 && self.navigator && typeof self.navigator.setAppBadge === "function") {
+      await self.navigator.setAppBadge(unreadCount).catch(() => undefined);
+    }
     await self.registration.showNotification(payload.title || "AgriCapital 360", {
       body: payload.body || payload.message || "",
       icon: payload.icon || "/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official",
