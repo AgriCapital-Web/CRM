@@ -35,6 +35,8 @@ serve(async (req) => {
     const password = typeof body?.password === "string" ? body.password : "";
     const mode = body?.mode === "recovery" ? "recovery" : "login";
 
+    // Reject ASCII control characters in user-supplied identifiers; this range is intentional.
+    // eslint-disable-next-line no-control-regex
     if (!username || username.length < 2 || username.length > 64 || /[\x00-\x1F\x7F]/.test(username)) {
       return json({ error: "Identifiant invalide" }, 400);
     }
