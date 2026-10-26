@@ -506,10 +506,10 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
 
       )}      <Card>
         <CardHeader>
-          <CardTitle>Relation RH et Département</CardTitle>
+          <CardTitle>{utilisateur ? "Relation RH et Département" : "Couverture géographique"}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
+          {utilisateur && <div className="space-y-2">
             <Label>Relation RH *</Label>
             <Select
               defaultValue={utilisateur?.relation_rh}
@@ -519,92 +519,50 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
                 else if (value === "Associé / Actionnaire") setSelectedRoles((current) => current.includes(APP_ROLES.ASSOCIE_ACTIONNAIRE) ? current : [...current, APP_ROLES.ASSOCIE_ACTIONNAIRE]);
               }}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner" />
-              </SelectTrigger>
-              <SelectContent>
-                {refs("relation_rh").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {!governanceOnly && <div className="space-y-2">
-            <Label>Département *</Label>
-            <Select
-              defaultValue={utilisateur?.departement}
-              onValueChange={(value) => {
-                setValue("departement", value);
-                if (value !== "Commercial" && value !== "Technique") {
-                  setValue("equipe_id", null);
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner" />
-              </SelectTrigger>
-              <SelectContent>
-                {departementsEntreprise.map((d) => (
-                  <SelectItem key={d.id} value={d.nom}>
-                    {d.nom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+              <SelectContent>{refs("relation_rh").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
             </Select>
           </div>}
-
-          <div className="space-y-2">
+          {utilisateur && !governanceOnly && <div className="space-y-2">
+            <Label>Département *</Label>
+            <Select defaultValue={utilisateur?.departement} onValueChange={(value) => {
+              setValue("departement", value);
+              if (value !== "Commercial" && value !== "Technique") setValue("equipe_id", null);
+            }}>
+              <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+              <SelectContent>{departementsEntreprise.map((d) => <SelectItem key={d.id} value={d.nom}>{d.nom}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>}
+          {utilisateur && <div className="space-y-2">
             <Label>Salaire de base mensuel (FCFA)</Label>
             <Input type="number" min="0" step="1" {...register("salaire_base")} defaultValue={utilisateur?.salaire_base ?? ""} placeholder="Laisser vide si non salarié" />
-          </div>
-
-          {!governanceOnly && showEquipe && <div className="space-y-2">
+          </div>}
+          {utilisateur && !governanceOnly && showEquipe && <div className="space-y-2">
             <Label>Équipe</Label>
-            <Select
-              defaultValue={utilisateur?.equipe_id}
-              onValueChange={(value) => setValue("equipe_id", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une équipe" />
-              </SelectTrigger>
-              <SelectContent>
-                {equipesFiltrees.map((eq) => (
-                  <SelectItem key={eq.id} value={eq.id}>
-                    {eq.nom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+            <Select defaultValue={utilisateur?.equipe_id} onValueChange={(value) => setValue("equipe_id", value)}>
+              <SelectTrigger><SelectValue placeholder="Sélectionner une équipe" /></SelectTrigger>
+              <SelectContent>{equipesFiltrees.map((eq) => <SelectItem key={eq.id} value={eq.id}>{eq.nom}</SelectItem>)}</SelectContent>
             </Select>
           </div>}
-
-          {relationRH === "Prestataire" && !governanceOnly && (
-            <div className="space-y-2">
-              <Label>Taux Commission (FCFA par ha)</Label>
-              <Input 
-                type="number" 
-                step="1" 
-                {...register("taux_commission")}
-                placeholder="Ex: 2500"
-              />
-            </div>
-          )}
-
-          {needsCoverage && (
-            <div className="sm:col-span-2 space-y-2">
-              <Label>Couverture géographique *</Label>
-              <RoleGeographyFields
-                role={effectivePrimaryRole}
-                required
-                value={{ districtId: watch("district_id") || utilisateur?.district_id, regionId: watch("region_id") || utilisateur?.region_id, departementId: watch("departement_geo_id") || utilisateur?.departement_geo_id, sousPrefectureId: watch("sous_prefecture_id") || utilisateur?.sous_prefecture_id }}
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-                onChange={(g) => {
-                  setValue("district_id", g.districtId || "");
-                  setValue("region_id", g.regionId || "");
-                  setValue("departement_geo_id", g.departementId || "");
-                  setValue("sous_prefecture_id", g.sousPrefectureId || "");
-                }}
-              />
-            </div>
-          )}
+          {utilisateur && relationRH === "Prestataire" && !governanceOnly && <div className="space-y-2">
+            <Label>Taux Commission (FCFA par ha)</Label>
+            <Input type="number" step="1" {...register("taux_commission")} placeholder="Ex: 2500" />
+          </div>}
+          {needsCoverage && <div className="sm:col-span-2 space-y-2">
+            <Label>Couverture géographique *</Label>
+            <RoleGeographyFields
+              role={effectivePrimaryRole}
+              required
+              value={{ districtId: watch("district_id") || utilisateur?.district_id, regionId: watch("region_id") || utilisateur?.region_id, departementId: watch("departement_geo_id") || utilisateur?.departement_geo_id, sousPrefectureId: watch("sous_prefecture_id") || utilisateur?.sous_prefecture_id }}
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              onChange={(g) => {
+                setValue("district_id", g.districtId || "");
+                setValue("region_id", g.regionId || "");
+                setValue("departement_geo_id", g.departementId || "");
+                setValue("sous_prefecture_id", g.sousPrefectureId || "");
+              }}
+            />
+          </div>}
         </CardContent>
       </Card>
 
