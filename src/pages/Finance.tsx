@@ -49,7 +49,8 @@ export default function Finance(){
   const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|null>(null);
   const [selectedExpense,setSelectedExpense]=useState<any|null>(null);
   const [expenseSearch,setExpenseSearch]=useState("");
-  const [associateForm,setAssociateForm]=useState({associateId:"",amount:"",type:"apport",reference:"",notes:""});
+  const [associateForm,setAssociateForm]=useState({associateId:"",amount:"",type:"apport",reference:"",date:today(),notes:"",otherLabel:"",useProofFile:false});
+  const [associateProof,setAssociateProof]=useState<File|null>(null);
   const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
   const [entryProof,setEntryProof]=useState<File|null>(null);
   const [entryFormOpen,setEntryFormOpen]=useState(false);
@@ -195,18 +196,27 @@ export default function Finance(){
   };
 
   const saveAssociateMovement=async()=>{
-    if(!associateForm.associateId||!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0){
-      toast({title:"Informations requises",description:"Sélectionnez un associé et renseignez un montant positif.",variant:"destructive"});
+    if(!associateForm.associateId||!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0||!associateForm.date||(associateForm.type==="autre"&&!associateForm.otherLabel.trim())||(associateForm.useProofFile&&!associateProof)||(!associateForm.useProofFile&&!associateForm.reference.trim())){
+      toast({title:"Informations requises",description:"Choisissez un associé, un montant positif, une date et une référence ou un justificatif. Précisez la nature si le type est Autre.",variant:"destructive"});
       return;
     }
     if(saving)return;
     setSaving(true);
     let transactionId: string | null = null;
     try {
+      let proofPath: string | null = null;
+      let proofName: string | null = null;
+      if (associateForm.useProofFile && associateProof) {
+        const uploaded = await uploadFile("documents", associateProof, "finance/associate-movements");
+        if (!uploaded?.path) throw new Error("Le justificatif n’a pas pu être téléversé dans le stockage sécurisé.");
+        proofPath = uploaded.path;
+        proofName = associateProof.name;
+      }
       const direction=associateForm.type==="apport"?"entree":"sortie";
+      const label=associateForm.type==="apport"?"APPORT ASSOCIÉ":associateForm.type==="remboursement"?"REMBOURSEMENT ASSOCIÉ":associateForm.otherLabel.trim();
       const {data,error}=await (supabase as any).from("finance_transactions").insert({
-        direction,category:"ASSOCIE",label:associateForm.type==="apport"?"APPORT ASSOCIÉ":"REMBOURSEMENT ASSOCIÉ",
-        amount:Number(associateForm.amount),reference:associateForm.reference.trim()||null,status:"valide",notes:associateForm.notes.trim()||null
+        direction,category:"ASSOCIE",label,transaction_date:associateForm.date,
+        amount:Number(associateForm.amount),reference:associateForm.useProofFile?null:associateForm.reference.trim(),proof_path:proofPath,proof_name:proofName,status:"valide",notes:associateForm.notes.trim()||null
       }).select("id").single();
       if(error)throw error;
       if(!data?.id)throw new Error("La transaction financière n’a pas été confirmée par la base de données.");
@@ -216,12 +226,13 @@ export default function Finance(){
       });
       if(movementError){
         const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",transactionId);
-        if(rollbackError)throw new Error(`Le mouvement associé n’a pas été enregistré (${movementError.message}). La transaction financière ${transactionId} n’a pas pu être annulée automatiquement (${rollbackError.message}).`);
+        if(rollbackError)throw new Error("Le mouvement associé n’a pas été enregistré ("+movementError.message+"). La transaction financière "+transactionId+" n’a pas pu être annulée automatiquement ("+rollbackError.message+").");
         transactionId=null;
         throw movementError;
       }
       toast({title:"Mouvement associé enregistré"});
-      setAssociateForm({associateId:"",amount:"",type:"apport",reference:"",notes:""});
+      setAssociateForm({associateId:"",amount:"",type:"apport",reference:"",date:today(),notes:"",otherLabel:"",useProofFile:false});
+      setAssociateProof(null);
       setAssociateFormOpen(false);
       await load();
     } catch(error:any) {
@@ -491,14 +502,23 @@ export default function Finance(){
           {!associates.length&&<p className="text-sm text-muted-foreground">Aucun associé enregistré.</p>}
         </CardContent></Card>
         <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
-        {can("finance.associates")&&<><Button variant="outline" onClick={()=>setAssociateFormOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouveau mouvement</Button><Dialog open={associateFormOpen} onOpenChange={setAssociateFormOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Nouveau mouvement associé</DialogTitle></DialogHeader><div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Select value={associateForm.associateId} onValueChange={v=>setAssociateForm({...associateForm,associateId:v})}><SelectTrigger><SelectValue placeholder="CHOISIR L'ASSOCIÉ"/></SelectTrigger><SelectContent>{associates.map(a=><SelectItem key={a.id} value={a.id}>{a.full_name} — {a.role_label}</SelectItem>)}</SelectContent></Select>
-          <Select value={associateForm.type} onValueChange={v=>setAssociateForm({...associateForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">APPORT</SelectItem><SelectItem value="remboursement">REMBOURSEMENT</SelectItem><SelectItem value="autre">AUTRE</SelectItem></SelectContent></Select>
-          <Input type="number" placeholder="MONTANT" value={associateForm.amount} onChange={e=>setAssociateForm({...associateForm,amount:e.target.value})}/>
-          <Input placeholder="RÉFÉRENCE" value={associateForm.reference} onChange={e=>setAssociateForm({...associateForm,reference:e.target.value})}/>
-          <Textarea className="sm:col-span-2" rows={2} placeholder="NOTE" value={associateForm.notes} onChange={e=>setAssociateForm({...associateForm,notes:e.target.value})}/>
-          <Button className="w-full sm:col-span-2" onClick={()=>void saveAssociateMovement()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>ENREGISTRER</Button>
-        </div></DialogContent></Dialog></>}
+        {can("finance.associates")&&<Dialog open={associateFormOpen} onOpenChange={open=>{setAssociateFormOpen(open);if(!open)setAssociateProof(null);}}><DialogContent className="w-[calc(100vw-1rem)] max-h-[90dvh] overflow-y-auto sm:max-w-xl"><DialogHeader><DialogTitle>Nouveau mouvement associé</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1"><Label>Associé *</Label><Select value={associateForm.associateId} onValueChange={v=>setAssociateForm({...associateForm,associateId:v})}><SelectTrigger><SelectValue placeholder="Choisir un associé"/></SelectTrigger><SelectContent>{associates.map(a=><SelectItem key={a.id} value={a.id}>{a.full_name} — {a.role_label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1"><Label>Nature du mouvement *</Label><Select value={associateForm.type} onValueChange={v=>setAssociateForm({...associateForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">Apport</SelectItem><SelectItem value="remboursement">Remboursement</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>
+            <div className="space-y-1"><Label>Date du mouvement *</Label><Input type="date" value={associateForm.date} onChange={e=>setAssociateForm({...associateForm,date:e.target.value})} required/></div>
+            <div className="space-y-1"><Label>Montant (FCFA) *</Label><Input type="number" min="1" step="1" value={associateForm.amount} onChange={e=>setAssociateForm({...associateForm,amount:e.target.value})} placeholder="Montant positif" required/></div>
+            {associateForm.type==="autre"&&<div className="space-y-1 sm:col-span-2"><Label>Préciser la nature *</Label><Input value={associateForm.otherLabel} onChange={e=>setAssociateForm({...associateForm,otherLabel:e.target.value})} placeholder="Ex. frais, régularisation, ajustement" required/></div>}
+            <div className="space-y-2 sm:col-span-2 rounded-lg border p-3">
+              <Label>Justificatif du mouvement</Label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={associateForm.useProofFile} onChange={e=>{setAssociateForm({...associateForm,useProofFile:e.target.checked,reference:""});setAssociateProof(null);}}/><span>Joindre un fichier au lieu de saisir une référence</span></label>
+              {associateForm.useProofFile?<Input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={e=>setAssociateProof(e.target.files?.[0]||null)}/>:<Input value={associateForm.reference} onChange={e=>setAssociateForm({...associateForm,reference:e.target.value})} placeholder="Référence de transaction, reçu ou pièce" required/>}
+              <p className="text-xs text-muted-foreground">{associateForm.useProofFile?"Le fichier sera téléversé dans le stockage sécurisé.":"Saisissez la référence réelle du justificatif ou de la transaction."}</p>
+            </div>
+            <div className="space-y-1 sm:col-span-2"><Label>Note complémentaire</Label><Textarea rows={2} value={associateForm.notes} onChange={e=>setAssociateForm({...associateForm,notes:e.target.value})} placeholder="Commentaire facultatif"/></div>
+            <div className="flex justify-end gap-2 sm:col-span-2"><Button variant="outline" onClick={()=>setAssociateFormOpen(false)} disabled={saving}>Annuler</Button><Button onClick={()=>void saveAssociateMovement()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>{saving?"Enregistrement…":"Enregistrer le mouvement"}</Button></div>
+          </div>
+        </DialogContent></Dialog>}
         <Card><CardHeader><CardTitle>Associés enregistrés</CardTitle></CardHeader><CardContent className="space-y-2">{associates.map(a=><div key={a.id} className="flex items-center gap-2 rounded-lg border p-2"><Badge variant={a.active?"default":"secondary"}>{a.active?"ACTIF":"INACTIF"}</Badge><Badge variant="outline">{a.role_label}</Badge><b className="min-w-0 flex-1 truncate">{a.full_name}</b></div>)}</CardContent></Card>
       </div><Card><CardHeader className="pb-2"><CardTitle>Historique des mouvements associés</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Date</th><th className="text-left">Associé</th><th className="text-left">Mouvement</th><th className="text-left">Référence</th><th className="text-right">Montant</th></tr></thead><tbody>{associateMovements.map(m=><tr key={m.id}><td className="whitespace-nowrap">{new Date(m.finance_transactions?.transaction_date||m.created_at).toLocaleDateString("fr-FR")}</td><td>{associates.find(a=>a.id===m.associate_id)?.full_name||"—"}</td><td>{m.movement_type==="apport"?"Apport":m.movement_type==="remboursement"?"Remboursement":"Autre"}</td><td>{m.finance_transactions?.reference||"—"}</td><td className="whitespace-nowrap text-right tabular-nums">{money(Number(m.finance_transactions?.amount||0))}</td></tr>)}{!associateMovements.length&&<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucun mouvement associé enregistré</td></tr>}</tbody></table></div></CardContent></Card>
       </TabsContent>
