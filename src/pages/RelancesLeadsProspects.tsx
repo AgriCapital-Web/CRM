@@ -38,13 +38,12 @@ const RelancesLeadsProspects = () => {
       const normalizedLeads = (leads || []).filter((l: any) => !prospectLeadIds.has(l.id)).map((l: any) => ({ ...l, _type: l.etape_pipeline === "prospect" ? "Prospect" : "Lead", _key: "lead:"+l.id, _leadId: l.id, prochaine_relance: l.prochaine_relance_at || null }));
       const normalizedProspects = (prospects || []).map((p: any) => ({ ...p, _type: "Prospect", _key: "prospect:"+p.id, _leadId: p.lead_id || null, prochaine_relance: p.prochaine_relance_at || null }));
       const all = [...normalizedLeads, ...normalizedProspects];
-      const dueToday = startOfDay(new Date()).getTime();
-      return all.filter((r: any) => r.prochaine_relance && new Date(r.prochaine_relance).getTime() <= dueToday)
+      return all.filter((r: any) => Boolean(r.prochaine_relance))
         .sort((a: any,b: any) => new Date(a.prochaine_relance).getTime() - new Date(b.prochaine_relance).getTime());
     },
   });
   const visible = useMemo(() => rows.filter((r: any) => {
-    if (scope === "a_faire" && r.prochaine_relance && new Date(r.prochaine_relance).getTime() > startOfDay(new Date()).getTime()) return false;
+    if (scope === "a_faire" && (!r.prochaine_relance || new Date(r.prochaine_relance).getTime() > startOfDay(new Date()).getTime())) return false;
     const needle = search.trim().toLocaleLowerCase("fr-FR");
     return !needle || [nameOf(r), r.telephone, r.whatsapp, r.email, r.region_residence, r._type, r.statut].some(v => String(v || "").toLocaleLowerCase("fr-FR").includes(needle));
   }), [rows, search, scope]);
