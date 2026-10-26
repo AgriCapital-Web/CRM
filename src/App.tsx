@@ -31,6 +31,7 @@ import ProprietaireTerreDetail from "./pages/ProprietaireTerreDetail";
 import Parcelles from "./pages/Parcelles";
 import Documents from "./pages/Documents";
 import Leads from "./pages/Leads";
+import RelancesLeadsProspects from "./pages/RelancesLeadsProspects";
 import SyncQueue from "./pages/SyncQueue";
 import PublicLead from "./pages/PublicLead";
 import VerificationCarte from "./pages/VerificationCarte";
