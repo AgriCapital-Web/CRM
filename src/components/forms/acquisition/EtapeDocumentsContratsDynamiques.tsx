@@ -71,7 +71,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
           
         </CardHeader>
         <CardContent className="space-y-4">
-<div className="space-y-4 rounded-xl border p-4"><h3 className="font-semibold">Identité et photos du client</h3><div className="grid gap-4 md:grid-cols-3"><div><Label>Type de pièce *</Label><PieceTypeSelect value={formData.type_piece||""} onChange={v=>updateFormData({type_piece:v})}/></div><div><Label>Numéro de pièce *</Label><Input value={formData.numero_piece||""} onChange={e=>updateFormData({numero_piece:e.target.value})}/></div><div><Label>Date de délivrance</Label><Input type="date" value={formData.date_delivrance_piece||""} onChange={e=>updateFormData({date_delivrance_piece:e.target.value})}/></div></div><div className="grid gap-4 md:grid-cols-2"><FileUploadVisual label="Pièce d’identité — recto *" field="photo_piece_recto" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_recto_file||null} currentPreview={formData.photo_piece_recto_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_recto_file:file,photo_piece_recto_preview:preview})} onIdentityNumberDetected={n=>updateFormData({numero_piece:n})} identityDocumentType={formData.type_piece}/><FileUploadVisual label="Pièce d’identité — verso *" field="photo_piece_verso" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_verso_file||null} currentPreview={formData.photo_piece_verso_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_verso_file:file,photo_piece_verso_preview:preview})} identityDocumentType={formData.type_piece}/></div><FileUploadVisual label="Photo du client *" field="photo_profil" accept="image/*" required currentFile={formData.photo_profil_file||null} currentPreview={formData.photo_profil_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_profil_file:file,photo_profil_preview:preview})}/></div>
+<div className="space-y-4 rounded-xl border p-4"><h3 className="font-semibold">Identité et photos du client</h3><div className="grid gap-4 md:grid-cols-3"><div><Label>Type de pièce *</Label><PieceTypeSelect value={formData.type_piece||""} onChange={v=>updateFormData({type_piece:v})}/></div><div><Label>Numéro de pièce *</Label><Input value={formData.numero_piece||""} onChange={e=>updateFormData({numero_piece:e.target.value})}/></div><div><Label>Date de délivrance</Label><Input type="date" value={formData.date_delivrance_piece||""} onChange={e=>updateFormData({date_delivrance_piece:e.target.value})}/></div></div><div className="grid gap-3 sm:grid-cols-3"><FileUploadVisual label="Pièce d’identité — recto *" field="photo_piece_recto" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_recto_file||null} currentPreview={formData.photo_piece_recto_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_recto_file:file,photo_piece_recto_preview:preview})} onIdentityNumberDetected={n=>updateFormData({numero_piece:n})} identityDocumentType={formData.type_piece}/><FileUploadVisual label="Pièce d’identité — verso *" field="photo_piece_verso" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_verso_file||null} currentPreview={formData.photo_piece_verso_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_verso_file:file,photo_piece_verso_preview:preview})} identityDocumentType={formData.type_piece}/></div><FileUploadVisual label="Photo de profil client *" field="photo_profil" accept="image/*" required currentFile={formData.photo_profil_file||null} currentPreview={formData.photo_profil_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_profil_file:file,photo_profil_preview:preview})}/></div>
           {visibleDocuments.length === 0 && (
             <p className="text-sm text-muted-foreground">Aucune pièce supplémentaire à téléverser à cette étape.</p>
           )}
@@ -110,7 +110,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
       {contracts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Contrats et annexes</CardTitle>
+            <CardTitle>Contrat</CardTitle>
             
           </CardHeader>
           <CardContent className="space-y-3">
@@ -122,18 +122,8 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
                     : "Contrat d’accompagnement agricole"}
                 </p>
                 <p className="text-xs text-muted-foreground">{contract.source_document}</p>
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm">Statut du contrat</label>
-                    <select className="w-full border rounded-md h-10 px-3" value={formData["contrat_"+contract.type_contrat+"_statut"]||"a_preparer"} onChange={e=>updateFormData({["contrat_"+contract.type_contrat+"_statut"]: e.target.value})}>
-                      <option value="a_preparer">À préparer</option>
-                      <option value="a_signer">À signer</option>
-                      <option value="signe">Signé</option>
-                    </select>
-                  </div>
-                </div>
                 <FileUploadVisual
-                  label="Contrat signé (si disponible)"
+                  label="Contrat signé *"
                   field={"contrat_"+contract.type_contrat}
                   accept=".pdf,image/*"
                   required={false}
