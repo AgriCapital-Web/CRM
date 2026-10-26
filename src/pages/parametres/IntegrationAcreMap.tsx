@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Save, RefreshCw, Cable, ShieldCheck, Copy } from "lucide-react";
 
 type Settings = { id: string; api_base_url: string; enabled: boolean; updated_at?: string; has_api_key: boolean; has_webhook_secret: boolean };
@@ -16,6 +17,7 @@ const DEFAULTS: Settings = { id: "default", api_base_url: "", enabled: false, ha
 export default function IntegrationAcreMap() {
  const { toast } = useToast(); const qc = useQueryClient();
  const [draft, setDraft] = useState<Settings>(DEFAULTS);
+ const [settingsOpen, setSettingsOpen] = useState(false);
  const [settingsOpen, setSettingsOpen] = useState(false);
  const [apiKey, setApiKey] = useState("");
  const [webhookSecret, setWebhookSecret] = useState("");
@@ -37,7 +39,7 @@ export default function IntegrationAcreMap() {
  const webhookUrl=(import.meta.env.VITE_SUPABASE_URL||"").replace(/\/$/,"")+"/functions/v1/acremap-webhook";
  const set=(key:keyof Settings,value:string|boolean)=>setDraft(prev=>({...prev,[key]:value}));
  return <div className="space-y-4">
-  <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogTrigger asChild><Button variant="outline" className="mb-2"><Cable className="mr-2 h-4 w-4"/>Modifier la connexion AcreMap</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card><CardHeader><div className="flex items-center gap-2"><Cable className="h-5 w-5"/><CardTitle>Connexion AcreMap</CardTitle></div><CardDescription>Le CRM est la référence des propriétaires fonciers. AcreMap fournit les levés GPS, géométries, lots et superficies calculées.</CardDescription></CardHeader>
+  <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogTrigger asChild><Button variant="outline" className="mb-2"><Cable className="mr-2 h-4 w-4"/>Modifier la connexion AcreMap</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogTrigger asChild><Button variant="outline" className="mb-2"><Cable className="mr-2 h-4 w-4"/>Modifier la connexion AcreMap</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card><CardHeader><div className="flex items-center gap-2"><Cable className="h-5 w-5"/><CardTitle>Connexion AcreMap</CardTitle></div><CardDescription>Le CRM est la référence des propriétaires fonciers. AcreMap fournit les levés GPS, géométries, lots et superficies calculées.</CardDescription></CardHeader>
    <CardContent className="space-y-4">
     {isLoading&&<p className="text-sm text-muted-foreground">Chargement de la configuration…</p>}
     {error&&<p className="text-sm text-destructive">Impossible de lire la configuration. Vérifiez vos droits et appliquez la migration CRM.</p>}
@@ -47,7 +49,7 @@ export default function IntegrationAcreMap() {
     <div className="flex items-center justify-between rounded-lg border p-3 gap-3"><div><p className="font-medium text-sm">Activer l’intégration</p><p className="text-xs text-muted-foreground">Autorise les échanges entre les deux applications.</p></div><input aria-label="Activer l’intégration" type="checkbox" checked={draft.enabled} onChange={e=>set("enabled",e.target.checked)} className="h-4 w-4"/></div>
     <div className="flex flex-wrap gap-2"><Button onClick={()=>save.mutate()} disabled={save.isPending||!draft.api_base_url.trim()}><Save className="h-4 w-4 mr-2"/>{save.isPending?"Enregistrement…":"Enregistrer"}</Button><Button variant="outline" onClick={()=>sync.mutate()} disabled={sync.isPending||!draft.enabled||!draft.api_base_url||!data?.has_api_key && !apiKey}><RefreshCw className={"h-4 w-4 mr-2 "+(sync.isPending?"animate-spin":"")}/>{sync.isPending?"Synchronisation…":"Synchroniser les propriétaires"}</Button><Badge variant={data?.enabled?"default":"secondary"}>{data?.enabled?"Intégration activée":"À configurer"}</Badge></div>
    </CardContent>
-  </Card></DialogContent></Dialog>
+  </Card></DialogContent></Dialog></DialogContent></Dialog>
   <Card><CardHeader><div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5"/><CardTitle>Webhook entrant AcreMap → CRM</CardTitle></div><CardDescription>URL à renseigner dans AcreMap côté serveur. Le secret HMAC doit être identique dans les deux applications.</CardDescription></CardHeader>
    <CardContent className="space-y-3"><div className="space-y-1"><Label>URL du webhook CRM</Label><div className="flex gap-2"><Input readOnly value={webhookUrl}/><Button variant="outline" size="icon" aria-label="Copier URL webhook" onClick={()=>{void navigator.clipboard.writeText(webhookUrl);toast({title:"URL copiée"});}}><Copy className="h-4 w-4"/></Button></div></div><p className="text-xs text-muted-foreground">Événement attendu : morcellement.published. Les événements doivent porter un event_id stable pour empêcher les doublons.</p></CardContent>
   </Card>
