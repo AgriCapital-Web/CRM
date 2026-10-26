@@ -899,12 +899,10 @@ serve(async (req) => {
         for (let i = 1; i < prepared.length; i++) {
           await sendWhatsApp(contact, "", `${dedupeKey}:media:${i}`, prepared[i].ref);
         }
-      } else if (channel === "sms") {
-        result = await sendSms(contact, assertSmsLength(normalizeSms(normalizedContent)), dedupeKey);
       } else {
-        result = await sendEmail(contact, subject, normalizedContent, dedupeKey, mediaAttachments);
+        return json(req, { error: "Canal désactivé : utilisez WhatsApp pour les notifications externes." }, 400);
       }
-      return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: Array.from(channel === "sms" ? normalizeSms(normalizedContent) : normalizedContent).length, attachmentsSent: mediaAttachments.length });
+      return json(req, { ok: true, channel: "whatsapp", messageId: result.messageId || null, characterCount: Array.from(normalizedContent).length, attachmentsSent: mediaAttachments.length });
     }
     if (mode === "preview") {
       const contacts = await resolveContacts(body.criteria || {});
