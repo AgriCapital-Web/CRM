@@ -218,7 +218,7 @@ const Dashboard = () => {
           ? (supabase as any).from("v_monnaie_clients").select("client_id,monnaie_client")
           : Promise.resolve({ data: [] }),
         canCommercialTeamPerformance || canTechnicalTeamPerformance
-          ? (supabase as any).from("profils_annuaire").select("id,user_id,nom_complet,equipe_id")
+          ? (supabase as any).from("profiles").select("id,user_id,nom_complet,username")
           : Promise.resolve({ data: [] }),
         canCommercialTeamPerformance || canTechnicalTeamPerformance
           ? (supabase as any).from("equipes").select("id,nom,type_equipe")
@@ -250,8 +250,7 @@ const Dashboard = () => {
       // Les bénéficiaires particuliers restent hors du périmètre des clients officiels,
       // même s'ils possèdent une attribution ou une acquisition pour une plantation distincte.
       const commercialClients = allExternalClients.filter((c: any) =>
-        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier" &&
-        /^AC-C/i.test(String(c.id_unique || "").trim())
+        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier"
       );
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
