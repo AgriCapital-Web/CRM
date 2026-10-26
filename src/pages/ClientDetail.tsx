@@ -47,8 +47,13 @@ const ClientDetail = () => {
   const [client, setClient] = useState<any>(null);
   const canCorrectReturnedClient = Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
   const [validationComment,setValidationComment]=useState("");
+  const [annexType,setAnnexType]=useState("convention_fonciere");
+  const [annexFile,setAnnexFile]=useState<File|null>(null);
+  const [pendingAnnexes,setPendingAnnexes]=useState<Array<{type:string;file:File}>>([]);
   const [isClientFormOpen,setIsClientFormOpen]=useState(false);
   const [savingValidation,setSavingValidation]=useState(false);
+  const isPalmInvestClient = /PALMINVEST/i.test(String(client?.famille_offre || client?.offre_code || client?.offres?.code || client?.offre_nom || ""));
+  const annexLabels: Record<string,string> = { convention_fonciere: "Convention foncière", fiche_identification_parcelle: "Fiche d’identification de la parcelle", pv_consentement_familial: "PV de consentement familial" };
   const [saleCorrectionSurface,setSaleCorrectionSurface]=useState("");
   const [saleCorrectionNotes,setSaleCorrectionNotes]=useState("");
   const [savingSaleCorrection,setSavingSaleCorrection]=useState(false);
@@ -165,6 +170,19 @@ const ClientDetail = () => {
     }
     setSavingValidation(true);
     try {
+      // Les annexes facultatives ne sont proposées qu’à la validation d’un client PalmInvest.
+      if (action === "valider" && isPalmInvestClient && pendingAnnexes.length) {
+        for (const annex of pendingAnnexes) {
+          const uploaded = await uploadFile("documents", annex.file, `${user!.id}/clients/${id}/annexes`);
+          if (!uploaded?.path) throw new Error(`Téléversement impossible : ${annexLabels[annex.type]}`);
+          const { error: annexError } = await (supabase as any).from("documents_acquisition").insert({
+            client_id: id, type_document: annex.type, code_document: annex.type, categorie: "annexe", obligatoire: false,
+            source_contractuelle: "validation_palmInvest", fichier_url: uploaded.path, statut: "en_attente", uploaded_by: user!.id,
+            metadata: { libelle: annexLabels[annex.type], source: "validation_compte_client", storage_bucket: "documents", offre_famille: "PalmInvest" }
+          });
+          if (annexError) throw annexError;
+        }
+      }
       const { error } = await (supabase as any).rpc("review_client_validation", {
         p_client_id: id, p_action: action, p_comment: validationComment.trim() || null
       });
@@ -172,6 +190,7 @@ const ClientDetail = () => {
       toast({ title: action === "valider" ? "Client validé" : "Demande de modification envoyée",
         description: action === "valider" ? "La décision est enregistrée dans Supabase." : "Une notification a été créée pour le créateur du dossier." });
       setValidationComment("");
+      setPendingAnnexes([]); setAnnexFile(null);
       setIsValidationDialogOpen(false);
       await fetchData();
     } catch (error: any) {
@@ -650,7 +669,7 @@ const ClientDetail = () => {
             </div>
             <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Fiche officielle du client</DialogTitle><DialogDescription>Consultez ou modifiez les données, la photo et les pièces d’identité dans le formulaire officiel.</DialogDescription></DialogHeader>{client && <ClientForm client={client} readOnly lockCommercialAssignment onCancel={()=>setIsClientFormOpen(false)} onSuccess={()=>{setIsClientFormOpen(false);void fetchData();}} />}</DialogContent></Dialog>
       <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Ajouter un document au dossier</DialogTitle><DialogDescription>Le fichier est téléversé dans le stockage privé puis rattaché au dossier du client.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Libellé du document</Label><Input placeholder="Contrat, annexe…" value={documentLabel} onChange={e=>setDocumentLabel(e.target.value)} /></div><div className="space-y-1"><Label>Fichier</Label><Input type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>setDocumentFile(e.target.files?.[0]||null)} /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>{setIsDocumentDialogOpen(false);setDocumentFile(null);setDocumentLabel("");}}>Annuler</Button><Button type="button" onClick={()=>void uploadClientDocument()} disabled={!documentFile}>Enregistrer le document</Button></DialogFooter></DialogContent></Dialog>
-      <Dialog open={isValidationDialogOpen} onOpenChange={setIsValidationDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Contrôle du dossier client</DialogTitle><DialogDescription>La décision et le commentaire sont enregistrés dans Supabase.</DialogDescription></DialogHeader><div className="space-y-2"><Label>Commentaire de contrôle</Label><Textarea rows={3} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction" /></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsValidationDialogOpen(false)}>Annuler</Button>{client?.validation_statut === "modification_demandee" && <Button type="button" variant="outline" onClick={()=>{setIsValidationDialogOpen(false);setIsClientFormOpen(true);}}>Modifier le dossier</Button>}<Button type="button" variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button type="button" onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isValidationDialogOpen} onOpenChange={setIsValidationDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Contrôle du dossier client</DialogTitle><DialogDescription>La décision et le commentaire sont enregistrés dans Supabase.</DialogDescription></DialogHeader>{isPalmInvestClient && <div className="space-y-3 rounded-lg border p-3"><div><h3 className="font-semibold">Annexes PalmInvest (facultatif)</h3><p className="text-xs text-muted-foreground">Ajoutez une ou plusieurs pièces pendant la validation du compte.</p></div><div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><Select value={annexType} onValueChange={setAnnexType}><SelectTrigger><SelectValue placeholder="Type d’annexe"/></SelectTrigger><SelectContent><SelectItem value="convention_fonciere">Convention foncière</SelectItem><SelectItem value="fiche_identification_parcelle">Fiche d’identification de la parcelle</SelectItem><SelectItem value="pv_consentement_familial">PV de consentement familial</SelectItem></SelectContent></Select><Input type="file" accept=".pdf,image/*" onChange={e=>setAnnexFile(e.target.files?.[0]||null)}/><Button type="button" variant="outline" disabled={!annexFile||savingValidation} onClick={()=>{if(annexFile){setPendingAnnexes(current=>[...current,{type:annexType,file:annexFile}]);setAnnexFile(null);}}}><Plus className="mr-1 h-4 w-4"/>Ajouter</Button></div>{pendingAnnexes.length>0 && <ul className="space-y-1 text-sm">{pendingAnnexes.map((a,i)=><li key={i} className="flex items-center justify-between gap-2"><span>{annexLabels[a.type]} — {a.file.name}</span><Button type="button" variant="ghost" size="sm" onClick={()=>setPendingAnnexes(current=>current.filter((_,j)=>j!==i))}>Retirer</Button></li>)}</ul>}</div>}<div className="space-y-2"><Label>Commentaire de contrôle</Label><Textarea rows={3} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction" /></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsValidationDialogOpen(false)}>Annuler</Button>{client?.validation_statut === "modification_demandee" && <Button type="button" variant="outline" onClick={()=>{setIsValidationDialogOpen(false);setIsClientFormOpen(true);}}>Modifier le dossier</Button>}<Button type="button" variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button type="button" onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isSaleCorrectionDialogOpen} onOpenChange={setIsSaleCorrectionDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Correction de la vente</DialogTitle><DialogDescription>Les montants seront recalculés proportionnellement au contrat existant, sans créer d’échéancier futur.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Superficie corrigée (ha)</Label><Input type="number" min="0.01" step="0.01" value={saleCorrectionSurface} onChange={e=>setSaleCorrectionSurface(e.target.value)} /></div><div className="space-y-1"><Label>Note de correction (facultatif)</Label><Textarea rows={3} value={saleCorrectionNotes} onChange={e=>setSaleCorrectionNotes(e.target.value)} placeholder="Précision transmise au validateur" /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsSaleCorrectionDialogOpen(false)}>Annuler</Button><Button type="button" onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer"}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
         <DialogContent className="max-w-sm">
