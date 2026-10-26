@@ -75,7 +75,7 @@ export default function ReinitialiserCodesAcces() {
             <p className="mt-1 text-sm text-muted-foreground">Remettez le portail d'un client à zéro sans modifier son dossier, ses plantations ou ses paiements.</p>
           </div>
 
-          <div className="flex justify-end"><Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}><DialogTrigger asChild><Button><RotateCcw className="mr-2 h-4 w-4"/>Ouvrir la réinitialisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><div className="flex justify-end"><Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}><DialogTrigger asChild><Button><RotateCcw className="mr-2 h-4 w-4"/>Ouvrir la réinitialisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
+          <div className="flex justify-end"><Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}><DialogTrigger asChild><Button><RotateCcw className="mr-2 h-4 w-4"/>Ouvrir la réinitialisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><RotateCcw className="h-5 w-5" /> Réinitialisation d'un code d'accès client</CardTitle>
             </CardHeader>
