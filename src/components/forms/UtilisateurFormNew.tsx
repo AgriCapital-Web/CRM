@@ -89,7 +89,13 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   useEffect(() => {
     if (!rolesDisponibles.length) return;
     const officialCodes = new Set<string>(rolesDisponibles.map((r) => String(r.code)));
-    setSelectedRoles((current) => current.filter((role) => officialCodes.has(role)));
+    setSelectedRoles((current) => {
+      const next = current.filter((role) => officialCodes.has(role));
+      // Évite une boucle si le hook recrée le tableau des rôles à chaque rendu.
+      if (next.length === current.length && next.every((role, index) => role === current[index])) return current;
+      return next;
+    });
+    setPrimaryRole((current) => current && officialCodes.has(current) ? current : "");
   }, [rolesDisponibles]);
 
   // La couverture territoriale dépend du rôle principal, pas seulement du département RH.
