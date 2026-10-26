@@ -197,7 +197,7 @@ export default function ConfigurationSenndo() {
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiValid ? "default" : "secondary"}>{status.apiValid ? "API accessible" : status.apiKey ? "Accès à vérifier" : "Clé API requise"}</Badge></CardContent></Card>
       </div>
 
-      <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}><DialogTrigger asChild><Button variant="outline" className="my-2"><Send className="mr-2 h-4 w-4"/>Tester un envoi</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}><DialogTrigger asChild><Button variant="outline" className="my-2"><Send className="mr-2 h-4 w-4"/>Tester un envoi</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
+      <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}><DialogTrigger asChild><Button variant="outline" className="my-2"><Send className="mr-2 h-4 w-4"/>Tester un envoi</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
         <CardHeader>
           <CardTitle>Tester les envois en conditions réelles</CardTitle>
           
@@ -234,7 +234,7 @@ export default function ConfigurationSenndo() {
           </Button>
           
         </CardContent>
-      </Card></DialogContent></Dialog></DialogContent></Dialog>
+      </Card></DialogContent></Dialog>
 
       <Card>
         <CardHeader>
