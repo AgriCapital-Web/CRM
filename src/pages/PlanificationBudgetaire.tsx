@@ -106,7 +106,12 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
       if (existingError) throw existingError;
       const totalOtherBudgets = (existingRows || []).filter((row: any) => row.budget_id !== budget.id).reduce((sum: number, row: any) => sum + num(row.allocated_amount), 0);
       if (totalOtherBudgets + amount > num(transaction.amount)) throw new Error("Le total affecté à cette écriture dépasserait son montant.");
-      const { error: saveError } = await (supabase as any).from("finance_transaction_budget_allocations").upsert({ transaction_id: transaction.id, budget_id: budget.id, allocated_amount: amount, created_by: (await supabase.auth.getUser()).data.user?.id }, { onConflict: "transaction_id,budget_id" });
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user?.id) {
+        toast.error("Session expirée : reconnecte-toi avant d'affecter une écriture.");
+        return;
+      }
+      const { error: saveError } = await (supabase as any).from("finance_transaction_budget_allocations").upsert({ transaction_id: transaction.id, budget_id: budget.id, allocated_amount: amount, created_by: authData.user.id }, { onConflict: "transaction_id,budget_id" });
       if (saveError) throw saveError;
       toast.success("Écriture affectée au budget.");
       await load(selected);
