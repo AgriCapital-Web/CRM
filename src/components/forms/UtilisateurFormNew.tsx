@@ -30,10 +30,6 @@ const userFormSchema = z.object({
   email: z.string()
     .email("Email invalide")
     .max(255, "L'email ne peut pas dépasser 255 caractères"),
-  password: z.string()
-    .min(8, "Le mot de passe doit contenir au moins 8 caractères")
-    .max(128, "Le mot de passe ne peut pas dépasser 128 caractères")
-    .optional(),
   nom_complet: z.string()
     .min(2, "Le nom complet doit contenir au moins 2 caractères")
     .max(100, "Le nom complet ne peut pas dépasser 100 caractères"),
@@ -421,17 +417,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             {errors.username?.message && <p className="text-sm text-destructive">{String(errors.username.message)}</p>}
           </div>
 
-          {!utilisateur && (
-            <div className="space-y-2">
-              <Label>Mot de passe *</Label>
-              <Input 
-                type="password" 
-                {...register("password", { required: !utilisateur })} 
-                placeholder="@AgriCapital2025"
-              />
-              {errors.password?.message && <p className="text-sm text-destructive">{String(errors.password.message)}</p>}
-            </div>
-          )}
+          {!utilisateur && <div className="sm:col-span-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm"><span className="font-medium">Mot de passe initial automatique : Ac0000.</span> Le changement sera obligatoire à la première connexion.</div>}
 
           <div className="space-y-2">
             <Label>Email *</Label>
