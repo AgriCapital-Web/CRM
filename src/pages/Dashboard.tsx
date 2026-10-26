@@ -250,7 +250,8 @@ const Dashboard = () => {
       // Les bénéficiaires particuliers restent hors du périmètre des clients officiels,
       // même s'ils possèdent une attribution ou une acquisition pour une plantation distincte.
       const commercialClients = allExternalClients.filter((c: any) =>
-        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier"
+        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier" &&
+        /^AC-C/i.test(String(c.id_unique || "").trim())
       );
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
@@ -857,7 +858,7 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader className="px-3 pb-1 pt-3"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Équipes</CardTitle></CardHeader>
                   <CardContent className="p-3 pt-1"><div className="responsive-auto-grid">{teamPerformance.map((team) => (
-                    <div key={team.key} className="rounded-lg border p-2"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" dossier(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-1 text-xs text-muted-foreground">{num(team.hectares)} ha</p>}<div className="my-2 border-t border-border" role="separator" /><div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">Membres de l’équipe</span><span className="font-semibold tabular-nums">{team.members}</span></div></div>
+                    <div key={team.key} className="rounded-lg border p-2"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" client(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-1 text-xs text-muted-foreground">{num(team.hectares)} ha</p>}<div className="my-2 border-t border-border" role="separator" /><div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">Membres de l’équipe</span><span className="font-semibold tabular-nums">{team.members}</span></div></div>
                   ))}</div></CardContent>
                 </Card>
               )}
