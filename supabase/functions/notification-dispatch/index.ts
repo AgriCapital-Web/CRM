@@ -162,9 +162,9 @@ async function providerStatus() {
   let whatsapp: { senderPhone: string } | null = null;
   try { whatsapp = await resolveWhatsAppSenderSession(); } catch { whatsapp = null; }
   return {
-    senndo: Boolean(apiKey), webhook: Boolean(webhookSecret), sms: Boolean(apiKey),
-    email: Boolean(apiKey && emailSenderId), whatsapp_paired: Boolean(whatsapp),
-    voice: Boolean(apiKey), sender_id: "AgriCapital",
+    senndo: Boolean(apiKey), webhook: Boolean(webhookSecret), sms: false,
+    email: false, whatsapp_paired: Boolean(whatsapp),
+    voice: false, sender_id: "AgriCapital",
     whatsapp_business_number: whatsapp?.senderPhone || null,
     email_sender_id: emailSenderId || null, email_provider: apiKey ? "senndo" : null,
   };
@@ -405,18 +405,11 @@ async function deliver(args: {
   context?: Record<string, unknown>; eventKey?: string; mediaAttachments?: MediaAttachment[];
 }) {
   let sent = 0, failed = 0;
-  const needsSenndoMedia = args.canal === "whatsapp" || (args.canal === "auto" && args.contacts.some((contact) => Boolean(contact.whatsapp)));
+  const effectiveChannel = args.canal === "app" ? "app" : "whatsapp";
+  const needsSenndoMedia = effectiveChannel === "whatsapp";
   const preparedMedia = args.mediaAttachments?.length && needsSenndoMedia ? await prepareMedia(args.mediaAttachments) : [];
   for (const contact of args.contacts) {
-    const channels = args.canal === "email_sms"
-      ? ["email", "sms"]
-      : args.canal === "auto"
-        ? (contact.whatsapp
-            ? ["whatsapp", "sms", "email"]
-            : contact.telephone
-              ? ["sms", "email"]
-              : ["email"])
-        : [args.canal];
+    const channels = args.canal === "app" ? ["app"] : ["whatsapp"];
     for (const channel of [...new Set(channels)]) {
       if (channel === "app" && !contact.user_id && contact.source_type === "equipe") continue;
       const dedupeKey = (args.campaignId || args.automationId || "manual") + ":" +
@@ -424,7 +417,7 @@ async function deliver(args: {
       const { data: existing } = await admin.from("notification_deliveries")
         .select("id,statut,created_at").eq("dedupe_key", dedupeKey).maybeSingle();
 
-      if (existing?.statut === "envoye" || existing?.statut === "livre" || existing?.statut === "en_cours") { if (args.canal === "auto") break; else continue; }
+      if (existing?.statut === "envoye" || existing?.statut === "livre" || existing?.statut === "en_cours") { if (effectiveChannel === "auto") break; else continue; }
 
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
@@ -496,11 +489,6 @@ async function deliver(args: {
             throw new Error("Aucun abonnement Push actif pour ce destinataire. Il doit activer les notifications depuis son PWA.");
           }
           await admin.from("notification_deliveries").update({ statut: "envoye", sent_at: new Date().toISOString() }).eq("id", delivery.id);
-        } else if (channel === "email") {
-          const result = await sendEmail(contact, renderedSubject, rendered, dedupeKey, attachments);
-          await admin.from("notification_deliveries").update({
-            statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
-          }).eq("id", delivery.id);
         } else if (channel === "whatsapp") {
           assertWhatsAppLength(rendered);
           const result = await sendWhatsApp(contact, rendered, dedupeKey, mediaForChannel[0]?.ref);
@@ -510,21 +498,9 @@ async function deliver(args: {
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
-        } else if (channel === "voice") {
-          const result = await sendVoice(contact, rendered, dedupeKey);
-          await admin.from("notification_deliveries").update({
-            statut: "envoye", fournisseur: result.provider, provider_message_id: String(result.messageId || ""),
-            sent_at: new Date().toISOString(),
-          }).eq("id", delivery.id);
-        } else {
-          const result = await sendSms(contact, assertSmsLength(normalizeSms(rendered)), dedupeKey);
-          await admin.from("notification_deliveries").update({
-            statut: "envoye", fournisseur: result.provider, provider_message_id: String(result.messageId || ""),
-            contenu: result.content, recipient_phone: result.to, sent_at: new Date().toISOString(),
-          }).eq("id", delivery.id);
         }
         sent++;
-        if (args.canal === "auto") break;
+        if (effectiveChannel === "auto") break;
       } catch (error) {
         failed++;
         await admin.from("notification_deliveries").update({
@@ -916,7 +892,7 @@ serve(async (req) => {
       if (channel === "email" && !contact.email) return json(req, { error: "Adresse email absente" }, 400);
       const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || crypto.randomUUID()}`;
       let result: { provider: string; messageId: string | null };
-      if (channel === "whatsapp") {
+      if (channel === "whatsapp" || channel === "auto" || channel === "email_sms") {
         assertWhatsAppLength(normalizedContent);
         const prepared = mediaAttachments.length ? await prepareMedia(mediaAttachments) : [];
         result = await sendWhatsApp(contact, normalizedContent, dedupeKey, prepared[0]?.ref);
