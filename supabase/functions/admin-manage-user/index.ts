@@ -24,8 +24,8 @@ serve(async (req) => {
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step }, 401);
     step = "parse_body";
-    const { action, user_id, password, username, roles, actif, primary_role } = await req.json();
-    if (!action || !user_id) return json({ error: "action et user_id requis", step }, 400);
+    const { action, user_id, password, username, email, nom_complet, telephone, telephone_indicatif, telephone_local, whatsapp, whatsapp_indicatif, whatsapp_local, departement, relation_rh, taux_commission, salaire_base, district_id, region_id, equipe_id, photo_url, type_piece_identite, numero_piece_identite, piece_identite_url, piece_identite_recto_url, piece_identite_verso_url, piece_identite_page_principale_url, roles, actif, primary_role } = await req.json();
+    if (!action || (action !== "create_user" && !user_id)) return json({ error: "action requis et user_id obligatoire sauf pour create_user", step }, 400);
 
     if (action === "complete_forced_password_change") {
       if (caller.user.id !== user_id) return json({ error: "Action non autorisée", step }, 403);
@@ -48,6 +48,100 @@ serve(async (req) => {
     ]);
     if (!isAdmin && !isPdg && !isSuperAdmin) {
       return json({ error: "Accès réservé au PDG ou à un administrateur autorisé", step }, 403);
+    }
+
+    if (action === "create_user") {
+      step = "validate_create_user";
+      const cleanEmail = String(email ?? "").trim().toLowerCase();
+      const cleanUsername = String(username ?? "").trim().toLowerCase();
+      const cleanName = String(nom_complet ?? "").trim();
+      const roleList: string[] = Array.isArray(roles)
+        ? Array.from(new Set(roles.filter((r: unknown): r is string => typeof r === "string" && r.trim().length > 0)))
+        : [];
+      const primaryRole = typeof primary_role === "string" && roleList.includes(primary_role) ? primary_role : roleList[0];
+      if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return json({ error: "Adresse e-mail valide obligatoire.", step }, 400);
+      if (!/^[a-z0-9._-]{2,64}$/.test(cleanUsername)) return json({ error: "Identifiant invalide (2 à 64 caractères : lettres, chiffres, point, tiret et soulignement).", step }, 400);
+      if (cleanName.length < 2) return json({ error: "Le nom complet est obligatoire.", step }, 400);
+      if (!roleList.length || !primaryRole) return json({ error: "Sélectionnez au moins un rôle et un rôle principal.", step }, 400);
+      const forbiddenRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
+      if (roleList.some((r) => forbiddenRoles.has(r.toLowerCase()))) return json({ error: "Un rôle de gouvernance privilégiée ne peut pas être attribué par cette opération.", step }, 403);
+      const { data: available, error: usernameError } = await admin.rpc("username_available", { _username: cleanUsername });
+      if (usernameError) return json({ error: `Vérification de l'identifiant impossible : ${usernameError.message}`, step }, 400);
+      if (available === false) return json({ error: "Cet identifiant est déjà utilisé.", step }, 409);
+      const { data: rolesFound, error: rolesLookupError } = await admin.from("app_roles").select("code,actif").in("code", roleList);
+      if (rolesLookupError) return json({ error: `Vérification des rôles impossible : ${rolesLookupError.message}`, step }, 400);
+      const validRoles = new Set((rolesFound || []).filter((r: any) => r.actif === true).map((r: any) => String(r.code)));
+      if (roleList.some((r) => !validRoles.has(r))) return json({ error: "Un ou plusieurs rôles sont inconnus ou inactifs.", step }, 400);
+      const tempPassword = "Ac0000";
+      step = "create_auth_user";
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email: cleanEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { nom_complet: cleanName, username: cleanUsername },
+      });
+      if (createError || !created?.user?.id) return json({ error: createError?.message || "Création du compte Auth non confirmée.", step }, 400);
+      const authId = created.user.id;
+      try {
+        step = "create_profile";
+        const profilePayload: Record<string, unknown> = {
+          id: authId,
+          user_id: authId,
+          email: cleanEmail,
+          nom_complet: cleanName,
+          username: cleanUsername,
+          telephone: telephone ?? null,
+          telephone_indicatif: telephone_indicatif ?? null,
+          telephone_local: telephone_local ?? telephone ?? null,
+          whatsapp: whatsapp ?? null,
+          whatsapp_indicatif: whatsapp_indicatif ?? null,
+          whatsapp_local: whatsapp_local ?? null,
+          departement: departement ?? null,
+          relation_rh: relation_rh ?? "Employé",
+          taux_commission: taux_commission == null || taux_commission === "" ? null : Number(taux_commission),
+          salaire_base: salaire_base == null || salaire_base === "" ? null : Number(salaire_base),
+          district_id: district_id ?? null,
+          region_id: region_id ?? null,
+          equipe_id: equipe_id ?? null,
+          photo_url: photo_url ?? null,
+          type_piece_identite: type_piece_identite ?? null,
+          numero_piece_identite: numero_piece_identite ?? null,
+          piece_identite_url: piece_identite_url ?? piece_identite_recto_url ?? null,
+          piece_identite_recto_url: piece_identite_recto_url ?? piece_identite_url ?? null,
+          piece_identite_verso_url: piece_identite_verso_url ?? null,
+          piece_identite_page_principale_url: piece_identite_page_principale_url ?? null,
+          poste: primaryRole,
+          actif: true,
+          type_compte: "interne",
+          password_change_required: true,
+        };
+        const { error: profileError } = await admin.from("profiles").upsert(profilePayload, { onConflict: "id" });
+        if (profileError) throw new Error("Profil : " + profileError.message);
+        step = "assign_roles";
+        const { error: roleError } = await admin.rpc("admin_set_user_roles_with_primary", {
+          p_user_id: authId,
+          p_roles: roleList,
+          p_primary_role: primaryRole,
+        });
+        if (roleError) throw new Error("Attribution des rôles : " + roleError.message);
+        step = "verify_created_account";
+        const [{ data: profileCheck, error: profileCheckError }, { data: roleCheck, error: roleCheckError }] = await Promise.all([
+          admin.from("profiles").select("id,user_id,actif,password_change_required").eq("user_id", authId).maybeSingle(),
+          admin.from("user_roles").select("role,is_primary").eq("user_id", authId),
+        ]);
+        if (profileCheckError) throw new Error("Vérification du profil : " + profileCheckError.message);
+        if (roleCheckError) throw new Error("Vérification des rôles : " + roleCheckError.message);
+        const primaryRows = (roleCheck || []).filter((r: any) => r.is_primary === true);
+        if (!profileCheck || profileCheck.actif !== true || profileCheck.password_change_required !== true || primaryRows.length !== 1 || primaryRows[0].role !== primaryRole) {
+          throw new Error("Le compte, son activation, son obligation de changement de mot de passe ou son rôle principal n'a pas été confirmé.");
+        }
+        return json({ success: true, action, user_id: authId, roles: (roleCheck || []).map((r: any) => r.role), primary_role: primaryRole, actif: true, password_change_required: true, temp_password: tempPassword });
+      } catch (error) {
+        await admin.from("user_roles").delete().eq("user_id", authId).catch(() => {});
+        await admin.from("profiles").delete().eq("user_id", authId).catch(() => {});
+        await admin.auth.admin.deleteUser(authId).catch(() => {});
+        throw error;
+      }
     }
 
     if (action === "set_active") {
