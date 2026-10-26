@@ -331,18 +331,18 @@ export default function AgriCapitalConnect() {
             <Badge variant="outline" className="w-fit gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Espace interne sécurisé</Badge>
           </header>
           <Tabs value={tab} onValueChange={changeTab} className="min-w-0">
-            <TabsList aria-label="Modules AgriCapital 360" className="flex h-auto w-full max-w-full justify-start gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap p-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
+            <TabsList aria-label="Modules AgriCapital 360" className="flex h-auto w-full min-w-0 max-w-full flex-nowrap justify-start gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap p-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
               {canViewMessaging && <>
-                <TabsTrigger value="activities" className="gap-2"><Clock3 className="h-4 w-4" />Pilotage & agenda</TabsTrigger>
-                <TabsTrigger value="messages" className="gap-2"><MessageCircle className="h-4 w-4" />Messages internes</TabsTrigger>
-                <TabsTrigger value="meetings" className="gap-2"><CalendarDays className="h-4 w-4" />Agenda & réunions</TabsTrigger>
+                <TabsTrigger value="activities" aria-label="Pilotage et agenda" title="Pilotage et agenda" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Clock3 className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Pilotage & agenda</span></TabsTrigger>
+                <TabsTrigger value="messages" aria-label="Messages internes" title="Messages internes" className="h-10 min-w-10 shrink-0 gap-2 px-3"><MessageCircle className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Messages internes</span></TabsTrigger>
+                <TabsTrigger value="meetings" aria-label="Agenda et réunions" title="Agenda et réunions" className="h-10 min-w-10 shrink-0 gap-2 px-3"><CalendarDays className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Agenda & réunions</span></TabsTrigger>
                 
-                <TabsTrigger value="organisation" className="gap-2"><Users className="h-4 w-4" />Organisation</TabsTrigger>
-                <TabsTrigger value="rh" className="gap-2"><ShieldCheck className="h-4 w-4" />Suivi RH</TabsTrigger>
+                <TabsTrigger value="organisation" aria-label="Organisation" title="Organisation" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Users className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Organisation</span></TabsTrigger>
+                <TabsTrigger value="rh" aria-label="Suivi RH" title="Suivi RH" className="h-10 min-w-10 shrink-0 gap-2 px-3"><ShieldCheck className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Suivi RH</span></TabsTrigger>
               </>}
-              {can("documents.view") && <TabsTrigger value="documents" className="gap-2"><Files className="h-4 w-4" />Documents & édition</TabsTrigger>}
-              {can("finance.view") && <TabsTrigger value="budgets" className="gap-2"><Files className="h-4 w-4" />Planification & budgets</TabsTrigger>}
-              {can("decision_center.view") && <TabsTrigger value="intelligence" className="gap-2"><ShieldCheck className="h-4 w-4" />Centre de décision</TabsTrigger>}
+              {can("documents.view") && <TabsTrigger value="documents" aria-label="Documents et édition" title="Documents et édition" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Files className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Documents & édition</span></TabsTrigger>}
+              {can("finance.view") && <TabsTrigger value="budgets" aria-label="Planification et budgets" title="Planification et budgets" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Files className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Planification & budgets</span></TabsTrigger>}
+              {can("decision_center.view") && <TabsTrigger value="intelligence" aria-label="Centre de décision" title="Centre de décision" className="h-10 min-w-10 shrink-0 gap-2 px-3"><ShieldCheck className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Centre de décision</span></TabsTrigger>}
             </TabsList>
             <TabsContent value="activities" className="mt-3 min-w-0"><WorkspaceOperations /></TabsContent>
             <TabsContent value="messages" className="mt-3 min-w-0">
