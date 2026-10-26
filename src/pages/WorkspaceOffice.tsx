@@ -112,7 +112,7 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
     setSelectedId(null); setTitle("Nouveau document"); setDocumentType("document"); setContent(""); setDirty(true);
   }, [editorMode, isNewDocument, loading]);
 
-  const filteredDocuments = useMemo(() => documents.filter((doc) => (doc.title + " " + doc.document_type + " " + (doc.file_name || "")).toLowerCase().includes(search.trim().toLowerCase())), [documents, search]);
+  const filteredDocuments = useMemo(() => documents.filter((doc) => (!searchParams.get("type") || searchParams.get("type") === "all" || doc.document_type === searchParams.get("type")) && (doc.title + " " + doc.document_type + " " + (doc.file_name || "")).toLowerCase().includes(search.trim().toLowerCase())), [documents, search, searchParams]);
   const openDocument = (doc: WorkspaceDocument) => {
     const url = new URL("/connect", window.location.origin);
     url.searchParams.set("module", "documents");
@@ -202,22 +202,25 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
         <div className={(embedded ? "w-full min-w-0 space-y-4" : "mx-auto w-full max-w-7xl min-w-0 space-y-5 p-3 pt-16 sm:p-4 md:p-6 md:pt-6")}>
           <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
             <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-bold tracking-tight md:text-3xl">AgriCapital 360 · Éditeur de documents</h1><Badge variant="outline">Stockage CRM</Badge></div>
-              <p className="max-w-3xl text-sm text-muted-foreground">Créez, modifiez, importez et enregistrez vos documents directement dans AgriCapital 360.</p>
+              <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-bold tracking-tight md:text-3xl">{editorMode ? (selected ? "Modifier le document" : "Nouveau document") : "AgriCapital 360 · Documents"}</h1><Badge variant="outline">Stockage CRM</Badge></div>
+              <p className="max-w-3xl text-sm text-muted-foreground">{editorMode ? "Éditeur indépendant · les modifications sont enregistrées dans votre espace de travail." : "Bibliothèque de documents par type, avec recherche et filtres. Ouvrez chaque document dans sa propre fenêtre de travail."}</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {editorMode && <Button variant="outline" onClick={() => window.close()}>Fermer l’éditeur</Button>}
               <Button variant="outline" onClick={() => void loadDocuments(selectedId)} disabled={loading || saving}><RefreshCw className={"mr-2 h-4 w-4 " + (loading ? "animate-spin" : "")}/>Actualiser</Button>
               <Button onClick={newDocument}><Plus className="mr-2 h-4 w-4"/>Nouveau document</Button>
             </div>
           </header>
-          <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(250px,0.8fr)_minmax(0,1.7fr)]">
+          {!editorMode && <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-muted-foreground">{filteredDocuments.length} résultat(s) · {documents.length} document(s) au total</p><div className="flex flex-wrap gap-2"><select aria-label="Filtrer par type" className="h-10 rounded-md border bg-background px-3 text-sm" value={searchParams.get("type") || "all"} onChange={(event) => { const url = new URL(window.location.href); if (event.target.value === "all") url.searchParams.delete("type"); else url.searchParams.set("type", event.target.value); window.history.replaceState({}, "", url.toString()); window.dispatchEvent(new PopStateEvent("popstate")); }}><option value="all">Tous les types</option>{types.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></div></div>
             <Card className="min-w-0">
               <CardHeader><CardTitle className="text-base">Documents et partages</CardTitle><CardDescription>{documents.length} document(s) accessible(s) depuis la base de données</CardDescription><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un document…"/></div></CardHeader>
               <CardContent className="space-y-2">
                 {loading ? <p className="py-6 text-center text-sm text-muted-foreground">Chargement des documents…</p> : filteredDocuments.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Aucun document. Créez-en un ou importez un fichier.</p> : filteredDocuments.map((doc) => { const Icon = typeIcon(doc.document_type); return <button key={doc.id} type="button" onClick={() => chooseDocument(doc)} className={"flex w-full min-w-0 items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 " + (selectedId === doc.id ? "border-primary bg-primary/5" : "")}><Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary"/><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{doc.title}</span><span className="mt-1 block text-xs text-muted-foreground">{types.find((t) => t.value === doc.document_type)?.label || "Fichier"} · {new Date(doc.updated_at).toLocaleDateString("fr-FR")}</span>{doc.file_name && <span className="mt-1 block truncate text-xs text-muted-foreground">{doc.file_name}</span>}</span></button>; })}
               </CardContent>
             </Card>
-            <div className="min-w-0 space-y-4">
+          </div>}
+          {editorMode && <div className="min-w-0 space-y-4">
               <Card>
                 <CardHeader><CardTitle className="text-base">{selected ? "Modifier le document" : "Créer un document"}</CardTitle><CardDescription>Les modifications sont enregistrées dans Supabase lorsque vous cliquez sur Enregistrer.</CardDescription></CardHeader>
                 <CardContent className="space-y-4">
@@ -237,8 +240,7 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
                 </CardContent>
               </Card>
               <OfficeFormatTools title={title || "Document AgriCapital"} content={content} documentType={documentType} disabled={saving} onImport={importFile}/>
-            </div>
-          </div>
+            </div>}
         </div>
   );
   return embedded ? editorContent : <ProtectedRoute requiredPermission={"documents.view" as any}><MainLayout>{editorContent}</MainLayout></ProtectedRoute>;
