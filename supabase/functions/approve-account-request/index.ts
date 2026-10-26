@@ -135,7 +135,7 @@ serve(async (req) => {
         log(`compte auth existant réutilisé: ${userId}`);
       } else {
         step = "create_auth_user";
-        tempPassword = crypto.randomUUID().replace(/-/g, "").slice(0, 14) + "A1!";
+        tempPassword = "Ac0000";
         const { data: created, error: cErr } = await admin.auth.admin.createUser({
           email: reqRow.email,
           password: tempPassword,
