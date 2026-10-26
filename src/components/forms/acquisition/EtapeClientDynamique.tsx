@@ -9,6 +9,7 @@ import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import CountryNationalitySelect from "@/components/common/CountryNationalitySelect";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
+import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition/EtapeDocumentsContratsDynamiques";
 
 interface Props{formData:any;updateFormData:(data:any)=>void;}
 
