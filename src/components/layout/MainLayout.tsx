@@ -27,6 +27,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  useEffect(() => { document.body.classList.add("agricapital-has-sidebar"); return () => document.body.classList.remove("agricapital-has-sidebar"); }, []);
   useEffect(() => {
     document.body.classList.add("agricapital-has-sidebar");
     return () => document.body.classList.remove("agricapital-has-sidebar");
