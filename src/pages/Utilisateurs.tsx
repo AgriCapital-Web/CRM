@@ -158,12 +158,11 @@ const Utilisateurs = () => {
     setBusy(true);
     try {
       if (adminAction === "roles" && !adminTarget.user_id) {
-        const tempPassword = crypto.randomUUID().replace(/-/g, "").slice(0, 16) + "Aa!";
-        const { data: created, error: createError } = await supabase.functions.invoke("create-user", {
+        const { data: created, error: createError } = await supabase.functions.invoke("admin-manage-user", {
           body: {
+            action: "create_user",
             username: adminTarget.username || String(adminTarget.email || "").split("@")[0],
             email: adminTarget.email,
-            password: tempPassword,
             nom_complet: adminTarget.nom_complet,
             telephone: adminTarget.telephone || null,
             telephone_indicatif: adminTarget.telephone_indicatif || null,
@@ -182,12 +181,18 @@ const Utilisateurs = () => {
             primary_role: primaryRole || selectedRoles[0],
           },
         });
-        if (createError || !created?.success) throw new Error(created?.error || createError?.message || "Création du compte impossible");
-        if (created.user_id && selectedRoles.length) {
-          const roleSave = await supabase.functions.invoke("admin-manage-user", { body: { action: "set_roles", user_id: created.user_id, roles: selectedRoles, primary_role: primaryRole || selectedRoles[0] } });
-          if (roleSave.error || roleSave.data?.error) throw new Error(roleSave.data?.error || roleSave.error?.message || "Enregistrement du rôle principal impossible");
+        let payload: any = created;
+        if (createError && typeof (createError as any).context?.json === "function") {
+          try { payload = await (createError as any).context.json(); } catch { /* réponse non JSON */ }
         }
-        toast({ title: "Compte créé et rôle attribué", description: `Mot de passe temporaire : ${tempPassword}`, duration: 20000 });
+        if (createError || !payload?.success || !payload?.user_id) {
+          throw new Error(payload?.error || createError?.message || "Création du compte impossible.");
+        }
+        toast({
+          title: "Compte créé et rôle attribué",
+          description: `Mot de passe initial : ${payload.temp_password || "Ac0000"}. Changement obligatoire à la première connexion.`,
+          duration: 20000,
+        });
         setAdminAction(null);
         setAdminTarget(null);
         fetchUtilisateurs();
