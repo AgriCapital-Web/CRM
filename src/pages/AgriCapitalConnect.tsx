@@ -21,6 +21,7 @@ import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
 import WorkspaceOperations from "@/components/workspace/WorkspaceOperations";
 import AgriCapitalIntelligence from "@/pages/AgriCapitalIntelligence";
 import EspaceTravail from "@/pages/EspaceTravail";
+import WorkspaceOffice from "@/pages/WorkspaceOffice";
 import Workspace360 from "@/pages/Workspace360";
 import WorkspacePeople360 from "@/pages/WorkspacePeople360";
 
@@ -391,7 +392,7 @@ export default function AgriCapitalConnect() {
             </TabsContent>
             <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
             {can("decision_center.view") && <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>}
-            {can("documents.view") && <TabsContent value="documents" className="mt-3 min-w-0 space-y-3"><EspaceTravail embedded /></TabsContent>}
+            {can("documents.view") && <TabsContent value="documents" className="mt-3 min-w-0 space-y-3"><WorkspaceOffice embedded /></TabsContent>}
             <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3"><Workspace360 embedded /></TabsContent>
             <TabsContent value="rh" className="mt-3 min-w-0 space-y-3"><WorkspacePeople360 embedded /></TabsContent>
           </Tabs>
