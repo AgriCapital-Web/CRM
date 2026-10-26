@@ -106,7 +106,12 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
       if (existingError) throw existingError;
       const totalOtherBudgets = (existingRows || []).filter((row: any) => row.budget_id !== budget.id).reduce((sum: number, row: any) => sum + num(row.allocated_amount), 0);
       if (totalOtherBudgets + amount > num(transaction.amount)) throw new Error("Le total affecté à cette écriture dépasserait son montant.");
-      const { error: saveError } = await (supabase as any).from("finance_transaction_budget_allocations").upsert({ transaction_id: transaction.id, budget_id: budget.id, allocated_amount: amount, created_by: (await supabase.auth.getUser()).data.user?.id }, { onConflict: "transaction_id,budget_id" });
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user?.id) {
+        toast.error("Session expirée : reconnecte-toi avant d'affecter une écriture.");
+        return;
+      }
+      const { error: saveError } = await (supabase as any).from("finance_transaction_budget_allocations").upsert({ transaction_id: transaction.id, budget_id: budget.id, allocated_amount: amount, created_by: authData.user.id }, { onConflict: "transaction_id,budget_id" });
       if (saveError) throw saveError;
       toast.success("Écriture affectée au budget.");
       await load(selected);
@@ -117,7 +122,9 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
   async function createPlan(e: React.FormEvent) {
     e.preventDefault(); if (!canManage) return;
     setSaving(true);
-    const { data, error: err } = await (supabase as any).from("strategic_plans").insert({ fiscal_year: Number(planForm.fiscal_year), title: planForm.title.trim(), strategic_objective: planForm.strategic_objective || null, assumptions: planForm.assumptions || null, planning_horizon: planForm.planning_horizon, period_start: planForm.period_start || null, period_end: planForm.period_end || null, scenario_name: planForm.scenario_name.trim() || "Base", review_notes: planForm.review_notes || null }).select("*").single();
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user?.id) { toast.error("Session expirée : reconnecte-toi."); setSaving(false); return; }
+    const { data, error: err } = await (supabase as any).from("strategic_plans").insert({ created_by: authData.user.id, fiscal_year: Number(planForm.fiscal_year), title: planForm.title.trim(), strategic_objective: planForm.strategic_objective || null, assumptions: planForm.assumptions || null, planning_horizon: planForm.planning_horizon, period_start: planForm.period_start || null, period_end: planForm.period_end || null, scenario_name: planForm.scenario_name.trim() || "Base", review_notes: planForm.review_notes || null }).select("*").single();
     if (err) toast.error("Création impossible : " + err.message);
     else { toast.success("Plan créé."); setShowPlan(false); setPlanForm({ fiscal_year: String(new Date().getFullYear()), title: "Plan d'action annuel", strategic_objective: "", assumptions: "", planning_horizon: "annual", period_start: `${new Date().getFullYear()}-01-01`, period_end: `${new Date().getFullYear()}-12-31`, scenario_name: "Base", review_notes: "" }); setSelected(data.id); await load(data.id); }
     setSaving(false);
@@ -125,7 +132,9 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
   async function createBudget(e: React.FormEvent) {
     e.preventDefault(); if (!canManage || !selected) return;
     setSaving(true);
-    const payload = { plan_id: selected, department: budgetForm.department.trim(), category: budgetForm.category.trim(), description: budgetForm.description || null, budget_initial: num(budgetForm.budget_initial), budget_revised: num(budgetForm.budget_revised || budgetForm.budget_initial), committed_amount: num(budgetForm.committed_amount), actual_amount: num(budgetForm.actual_amount), revenue_forecast: num(budgetForm.revenue_forecast), actual_revenue: num(budgetForm.actual_revenue), justification: budgetForm.justification || null, project_name: budgetForm.project_name || null, activity_name: budgetForm.activity_name || null, period_start: budgetForm.period_start || null, period_end: budgetForm.period_end || null, scenario_name: budgetForm.scenario_name.trim() || "Base", forecast_amount: num(budgetForm.forecast_amount), variance_reason: budgetForm.variance_reason || null, risk_level: budgetForm.risk_level, last_reviewed_at: new Date().toISOString() };
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user?.id) { toast.error("Session expirée : reconnecte-toi."); setSaving(false); return; }
+    const payload = { created_by: authData.user.id, plan_id: selected, department: budgetForm.department.trim(), category: budgetForm.category.trim(), description: budgetForm.description || null, budget_initial: num(budgetForm.budget_initial), budget_revised: num(budgetForm.budget_revised || budgetForm.budget_initial), committed_amount: num(budgetForm.committed_amount), actual_amount: num(budgetForm.actual_amount), revenue_forecast: num(budgetForm.revenue_forecast), actual_revenue: num(budgetForm.actual_revenue), justification: budgetForm.justification || null, project_name: budgetForm.project_name || null, activity_name: budgetForm.activity_name || null, period_start: budgetForm.period_start || null, period_end: budgetForm.period_end || null, scenario_name: budgetForm.scenario_name.trim() || "Base", forecast_amount: num(budgetForm.forecast_amount), variance_reason: budgetForm.variance_reason || null, risk_level: budgetForm.risk_level, last_reviewed_at: new Date().toISOString() };
     const { error: err } = await (supabase as any).from("department_budgets").upsert(payload, { onConflict: "plan_id,department,category" });
     if (err) toast.error("Enregistrement du budget impossible : " + err.message);
     else { toast.success("Ligne budgétaire enregistrée."); setShowBudget(false); setEditingBudget(false); setBudgetForm({ department: "", category: "", description: "", budget_initial: "", budget_revised: "", committed_amount: "0", actual_amount: "0", revenue_forecast: "0", actual_revenue: "0", justification: "", project_name: "", activity_name: "", period_start: "", period_end: "", scenario_name: "Base", forecast_amount: "0", variance_reason: "", risk_level: "normal" }); await load(); }
@@ -134,7 +143,9 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
   async function createAction(e: React.FormEvent) {
     e.preventDefault(); if (!canManage || !selected) return;
     setSaving(true);
-    const target = actionForm.target_value === "" ? null : num(actionForm.target_value); const progress = target && target > 0 ? Math.min(100, Math.max(0, num(actionForm.current_value) / target * 100)) : (actionForm.status === "completed" ? 100 : 0); const { error: err } = await (supabase as any).from("strategic_actions").insert({ plan_id: selected, department: actionForm.department.trim(), title: actionForm.title.trim(), description: actionForm.description || null, owner_profile_id: actionForm.owner_profile_id || null, starts_on: actionForm.starts_on || null, due_on: actionForm.due_on || null, indicator: actionForm.indicator || null, target_value: target, current_value: num(actionForm.current_value), unit: actionForm.unit || null, status: actionForm.status, progress_percent: progress, project_name: actionForm.project_name || null, priority: actionForm.priority, risk_description: actionForm.risk_description || null, milestone_name: actionForm.milestone_name || null, dependency_notes: actionForm.dependency_notes || null, corrective_action: actionForm.corrective_action || null, last_reviewed_at: new Date().toISOString() });
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user?.id) { toast.error("Session expirée : reconnecte-toi."); setSaving(false); return; }
+    const target = actionForm.target_value === "" ? null : num(actionForm.target_value); const progress = target && target > 0 ? Math.min(100, Math.max(0, num(actionForm.current_value) / target * 100)) : (actionForm.status === "completed" ? 100 : 0); const { error: err } = await (supabase as any).from("strategic_actions").insert({ created_by: authData.user.id, plan_id: selected, department: actionForm.department.trim(), title: actionForm.title.trim(), description: actionForm.description || null, owner_profile_id: actionForm.owner_profile_id || null, starts_on: actionForm.starts_on || null, due_on: actionForm.due_on || null, indicator: actionForm.indicator || null, target_value: target, current_value: num(actionForm.current_value), unit: actionForm.unit || null, status: actionForm.status, progress_percent: progress, project_name: actionForm.project_name || null, priority: actionForm.priority, risk_description: actionForm.risk_description || null, milestone_name: actionForm.milestone_name || null, dependency_notes: actionForm.dependency_notes || null, corrective_action: actionForm.corrective_action || null, last_reviewed_at: new Date().toISOString() });
     if (err) toast.error("Création de l'action impossible : " + err.message);
     else { toast.success("Action ajoutée."); setShowAction(false); setActionForm({ department: "", owner_profile_id: "", title: "", description: "", starts_on: "", due_on: "", indicator: "", target_value: "", current_value: "0", unit: "", status: "planned", project_name: "", priority: "normal", risk_description: "", milestone_name: "", dependency_notes: "", corrective_action: "" }); await load(); }
     setSaving(false);
@@ -171,6 +182,9 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
         return "";
       };
       const numeric = (value: any) => { const n = Number(String(value ?? "0").replace(/\\s/g, "").replace(",", ".")); return Number.isFinite(n) ? n : 0; };
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user?.id) throw new Error("Session expirée : reconnecte-toi avant l’import.");
+      const creatorId = authData.user.id;
       const budgetSheet = workbook.worksheets.find(w => /budget/i.test(w.name) || /departement/.test(normalize(w.name)));
       const actionSheet = workbook.worksheets.find(w => /action/i.test(w.name));
       let budgetsImported = 0;
@@ -178,6 +192,7 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
       if (budgetSheet) {
         const rows = readSheet(budgetSheet);
         const payloads = rows.map(row => ({
+          created_by: creatorId,
           plan_id: selected,
           department: String(get(row, "Département", "department")).trim(),
           category: String(get(row, "Catégorie", "category", "poste budgétaire")).trim(),
@@ -209,6 +224,7 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
           const status = ({ planifie: "planned", planned: "planned", en_cours: "in_progress", in_progress: "in_progress", a_risque: "at_risk", at_risk: "at_risk", termine: "completed", completed: "completed", annule: "cancelled", cancelled: "cancelled" } as Record<string,string>)[statusValue] || "planned";
           const targetValue = get(row, "Cible", "Valeur cible", "target_value");
           return {
+            created_by: creatorId,
             plan_id: selected,
             department: String(get(row, "Département", "department")).trim(),
             title: String(get(row, "Action", "Objectif", "title")).trim(),
