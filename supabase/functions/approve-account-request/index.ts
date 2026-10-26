@@ -161,6 +161,7 @@ serve(async (req) => {
       district_id: reqRow.district_id,
       region_id: reqRow.region_id,
       actif: true,
+      password_change_required: Boolean(tempPassword),
     };
     const { data: linkedProfile, error: linkedProfileError } = await admin
       .from("profiles").select("id,user_id").eq("user_id", userId).maybeSingle();
@@ -176,6 +177,7 @@ serve(async (req) => {
         poste: profilePayload.poste,
         district_id: profilePayload.district_id,
         region_id: profilePayload.region_id,
+        password_change_required: Boolean(tempPassword),
       }).eq("user_id", userId);
       if (profileUpdateError) return json({ error: `Profil: ${profileUpdateError.message}`, step, logs }, 400);
     } else {
