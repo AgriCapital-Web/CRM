@@ -73,6 +73,7 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
   const [documentType, setDocumentType] = useState<OfficeDocumentType>("document");
   const [content, setContent] = useState("");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -212,7 +213,7 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
             </div>
           </header>
           {!editorMode && <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-muted-foreground">{filteredDocuments.length} résultat(s) · {documents.length} document(s) au total</p><div className="flex flex-wrap gap-2"><select aria-label="Filtrer par type" className="h-10 rounded-md border bg-background px-3 text-sm" value={searchParams.get("type") || "all"} onChange={(event) => { const url = new URL(window.location.href); if (event.target.value === "all") url.searchParams.delete("type"); else url.searchParams.set("type", event.target.value); window.history.replaceState({}, "", url.toString()); window.dispatchEvent(new PopStateEvent("popstate")); }}><option value="all">Tous les types</option>{types.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></div></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-muted-foreground">{filteredDocuments.length} résultat(s) · {documents.length} document(s) au total</p><div className="flex flex-wrap gap-2"><select aria-label="Filtrer par type" className="h-10 rounded-md border bg-background px-3 text-sm" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="all">Tous les types</option>{types.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></div></div>
             <Card className="min-w-0">
               <CardHeader><CardTitle className="text-base">Documents et partages</CardTitle><CardDescription>{documents.length} document(s) accessible(s) depuis la base de données</CardDescription><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un document…"/></div></CardHeader>
               <CardContent className="space-y-2">
