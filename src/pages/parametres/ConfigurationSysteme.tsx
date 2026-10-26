@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { logActivity } from "@/utils/traceability";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ const getMeta = (category: string) => CATEGORY_META[normalizeCategory(category)]
 
 const ConfigurationSysteme = () => {
   const { toast } = useToast();
+  const [editorOpen, setEditorOpen] = useState(false);
   const queryClient = useQueryClient();
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -257,6 +259,8 @@ const ConfigurationSysteme = () => {
       </Card>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogTrigger asChild><Button className="w-fit"><SlidersHorizontal className="mr-2 h-4 w-4"/>Modifier les réglages</Button></DialogTrigger><DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-5xl">
+      <div className="flex justify-end"><Button onClick={() => setEditorOpen(true)}>Modifier les reglages systeme</Button></div>
+      <Dialog open={editorOpen} onOpenChange={setEditorOpen}><DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-6xl">
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher par nom, clé ou valeur…" aria-label="Rechercher un réglage" /></div>
         <Button variant="outline" onClick={() => { setSearch(""); setActiveCategory(""); void refetch(); }}><RefreshCw className="mr-2 h-4 w-4" />Réinitialiser</Button>
@@ -295,7 +299,7 @@ const ConfigurationSysteme = () => {
 
       {pendingCount > 0 && <div className="sticky bottom-3 z-10 flex flex-col gap-2 rounded-lg border bg-background/95 p-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between"><p className="text-sm"><CheckCircle2 className="mr-2 inline h-4 w-4 text-amber-600" />{pendingCount} modification(s) non enregistrée(s)</p><Button onClick={() => saveAllMutation.mutate()} disabled={saveAllMutation.isPending || saveOneMutation.isPending}>{saveAllMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Enregistrer les modifications</Button></div>}
       </DialogContent></Dialog>
-    </div>
+      </DialogContent></Dialog>    </div>
   );
 };
 
