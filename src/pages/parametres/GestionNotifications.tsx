@@ -300,7 +300,7 @@ const GestionNotifications = () => {
         </div>
 
         <TabsContent value="campaigns" className="space-y-5">
-          <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Plus className="mr-2 h-4 w-4"/>Créer une campagne</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Plus className="mr-2 h-4 w-4"/>Créer une campagne</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
+          <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Plus className="mr-2 h-4 w-4"/>Créer une campagne</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
             <CardHeader><CardTitle>Nouvelle campagne</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -315,7 +315,7 @@ const GestionNotifications = () => {
               {preview && <Preview count={preview.count} sample={preview.sample} />}
               <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />Enregistrer la campagne</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>
-          </Card></DialogContent></Dialog></DialogContent></Dialog>
+          </Card></DialogContent></Dialog>
 
           <Card>
             <CardHeader><CardTitle>Campagnes recentes</CardTitle></CardHeader>
@@ -324,7 +324,7 @@ const GestionNotifications = () => {
         </TabsContent>
 
         <TabsContent value="automations" className="space-y-5">
-          <Dialog open={automationDialogOpen} onOpenChange={setAutomationDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Zap className="mr-2 h-4 w-4"/>Créer une automatisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Dialog open={automationDialogOpen} onOpenChange={setAutomationDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Zap className="mr-2 h-4 w-4"/>Créer une automatisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
+          <Dialog open={automationDialogOpen} onOpenChange={setAutomationDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Zap className="mr-2 h-4 w-4"/>Créer une automatisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
             <CardHeader><CardTitle>Automatisation conditionnelle</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -340,7 +340,7 @@ const GestionNotifications = () => {
               <div className="flex items-center gap-2"><Switch checked={automation.actif} onCheckedChange={(v) => setAutomation({ ...automation, actif: v })} /><Label>Activer automatiquement</Label></div>
               <Button onClick={saveAutomation}><Zap className="mr-2 h-4 w-4" />Enregistrer l'automatisation</Button>
             </CardContent>
-          </Card></DialogContent></Dialog></DialogContent></Dialog>
+          </Card></DialogContent></Dialog>
 
           <Card>
             <CardHeader><CardTitle>Automatisations actives</CardTitle></CardHeader>
