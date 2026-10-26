@@ -437,14 +437,15 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             {errors.whatsapp?.message && <p className="text-sm text-destructive">{String(errors.whatsapp.message)}</p>}
           </div>
 
-          <div className="col-span-2 min-w-0 flex items-center gap-3">
+          {utilisateur && (<div className="col-span-2 min-w-0 flex items-center gap-3">
             <div className="shrink-0">
               <FileUploadVisual label="Photo de profil" field="photo" accept="image/*" compact currentPreview={photoPreview} onFileChange={(_,f,p)=>{setPhotoPreview(p);setPhotoFile(f)}} />
             </div>
-          </div>
+          </div>)}
         </CardContent>
       </Card>
 
+      {utilisateur && (
       <Card>
         <CardHeader><CardTitle>Pièce d'identité</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -502,7 +503,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         </CardContent>
       </Card>
 
-      <Card>
+
+      )}      <Card>
         <CardHeader>
           <CardTitle>Relation RH et Département</CardTitle>
         </CardHeader>
