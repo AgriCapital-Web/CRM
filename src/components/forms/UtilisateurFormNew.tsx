@@ -122,9 +122,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const requiredGeoLevel = (role: string): "district_id" | "region_id" | "departement_geo_id" | "sous_prefecture_id" | null => {
     const code = role === "responsable_zone" ? "responsable_district" : role;
     if (code === "responsable_district") return "district_id";
-    if (code === "responsable_commercial" || code === "chef_equipe_technique" || code === "superviseur_mobilisation_fonciere" || code === "responsable_technique_agronomique") return "region_id";
-    if (code === "chef_equipe_commercial" || code === "technicien" || code === "mobilisateur_foncier") return "departement_geo_id";
-    if (code === "commercial") return "sous_prefecture_id";
+    if (code === "responsable_commercial" || code === "superviseur_mobilisation_fonciere" || code === "responsable_technique_agronomique") return "region_id";
+    if (code === "chef_equipe_commercial" || code === "chef_equipe_technique" || code === "technicien" || code === "commercial" || code === "mobilisateur_foncier") return "departement_geo_id";
     return null;
   };
 
