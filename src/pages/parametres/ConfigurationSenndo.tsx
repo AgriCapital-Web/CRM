@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ export default function ConfigurationSenndo() {
   const [testSubject, setTestSubject] = useState("Test AgriCapital");
   const [testMessage, setTestMessage] = useState("Ceci est un message de test de la passerelle de notifications AgriCapital.");
   const [sendingTest, setSendingTest] = useState(false);
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
 
   const refreshStatus = useCallback(async () => {
@@ -130,6 +132,7 @@ export default function ConfigurationSenndo() {
       }
       if (!data?.ok) throw new Error(data?.error || "Envoi de test refusé");
       setTestDialogOpen(false);
+      setTestDialogOpen(false);
       toast.success(`Test accepté par Senndo · ${testChannel.toUpperCase()} · Référence : ${data.messageId || "non communiquée"}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Échec de l'envoi de test.");
@@ -196,7 +199,7 @@ export default function ConfigurationSenndo() {
         <Card><CardHeader className="pb-2"><CardDescription>Appels vocaux</CardDescription><CardTitle className="flex items-center gap-2 text-base"><PhoneCall className="h-4 w-4" />Senndo Voice</CardTitle></CardHeader><CardContent><Badge variant={status.apiValid ? "default" : "secondary"}>{status.apiValid ? "API accessible" : status.apiKey ? "Accès à vérifier" : "Clé API requise"}</Badge></CardContent></Card>
       </div>
 
-      <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}><DialogTrigger asChild><Button variant="outline" className="my-2"><Send className="mr-2 h-4 w-4"/>Tester un envoi</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
+      <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}><DialogTrigger asChild><Button variant="outline" className="my-2"><Send className="mr-2 h-4 w-4"/>Tester un envoi</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}><DialogTrigger asChild><Button variant="outline" className="my-2"><Send className="mr-2 h-4 w-4"/>Tester un envoi</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
         <CardHeader>
           <CardTitle>Tester les envois en conditions réelles</CardTitle>
           
@@ -233,7 +236,7 @@ export default function ConfigurationSenndo() {
           </Button>
           
         </CardContent>
-      </Card></DialogContent></Dialog>
+      </Card></DialogContent></Dialog></DialogContent></Dialog>
 
       <Card>
         <CardHeader>
