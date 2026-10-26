@@ -250,7 +250,8 @@ const Dashboard = () => {
       // Les bénéficiaires particuliers restent hors du périmètre des clients officiels,
       // même s'ils possèdent une attribution ou une acquisition pour une plantation distincte.
       const commercialClients = allExternalClients.filter((c: any) =>
-        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier"
+        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier" &&
+        /^AC_C/i.test(String(c.id_unique || "").trim())
       );
       const plantations = plantationsRes.data || [];
       const payments = paymentsRes.data || [];
@@ -571,6 +572,7 @@ const Dashboard = () => {
       // Le pilotage technique couvre toutes les plantations et tous les parcours visibles,
       // y compris les bénéficiaires particuliers ayant une intervention enregistrée.
       const technicalClients = allExternalClients.filter((c: any) =>
+        /^(AC_C|AC_B)/i.test(String(c.id_unique || "").trim()) &&
         c.compte_actif === true &&
         !["archive", "supprime", "supprimé"].includes(String(c.statut_global || "").toLowerCase()) &&
         Boolean(c.paiement_initial_paye_at || c.pi_paye_at)
