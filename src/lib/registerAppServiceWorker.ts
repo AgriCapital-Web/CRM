@@ -57,7 +57,7 @@ export async function registerAppServiceWorker() {
 
     const checkForUpdate = () =>
       registration.update().catch(() => {
-        // A temporary network failure must never break the CRM.
+        // A temporary network failure must never break the application.
       });
     const onOnline = () => void checkForUpdate();
     const onPageShow = () => void checkForUpdate();
