@@ -687,7 +687,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             {l:"Taux de conversion prospects",short:"Conv. prospects",v:tauxConversionProspects+"%",i:TrendingUp},
             {l:"À relancer",short:"À relancer",v:stats.aRelancer,i:PhoneCall}
           ].map(item=>(
-            <Card key={item.l} className={`min-w-0 overflow-hidden ${view === "prospects" ? "crm-prospects-stat-card" : ""}`}>
+            <Card key={item.l} role={item.l === "À relancer" ? "button" : undefined} tabIndex={item.l === "À relancer" ? 0 : undefined} onClick={item.l === "À relancer" ? () => navigate("/leads-relances") : undefined} onKeyDown={item.l === "À relancer" ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate("/leads-relances"); } } : undefined} className={`min-w-0 overflow-hidden ${view === "prospects" ? "crm-prospects-stat-card" : ""} ${item.l === "À relancer" ? "cursor-pointer transition-colors hover:border-primary hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""}`}>
               <CardContent className="flex min-h-[62px] min-w-0 items-center justify-between gap-1 p-2 sm:p-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="hidden text-[10px] leading-tight text-muted-foreground 2xl:block">{item.l}</p>
