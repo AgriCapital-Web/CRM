@@ -55,7 +55,9 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
       (supabase as any).from("departements_entreprise").select("id,nom").eq("actif", true).order("ordre", { ascending: true }),
       (supabase as any).from("profiles").select("id,nom_complet,email,departement,poste").eq("actif", true).order("nom_complet", { ascending: true }),
     ]);
+    if (departmentResult.error) setError((current) => [current, "Chargement des départements impossible : " + departmentResult.error.message].filter(Boolean).join(" "));
     setDepartments((departmentResult.data || []).filter((d: any) => d.nom).map((d: any) => ({ id: String(d.id), nom: String(d.nom) })));
+    if (collaboratorResult.error) setError((current) => [current, "Chargement des collaborateurs impossible : " + collaboratorResult.error.message].filter(Boolean).join(" "));
     setCollaborators((collaboratorResult.data || []).filter((p: any) => p.id && p.nom_complet));
     const p = await (supabase as any).from("strategic_plans").select("*").order("fiscal_year", { ascending: false }).order("created_at", { ascending: false });
     if (p.error) { setError("Impossible de charger les plans. Vérifie la migration Supabase et les permissions finance."); setLoading(false); return; }
@@ -71,8 +73,8 @@ export default function PlanificationBudgetaire({ embedded = false }: { embedded
         (supabase as any).from("finance_transactions").select("id,transaction_date,label,amount,direction,status,reference").eq("status", "valide").order("transaction_date", { ascending: false }).limit(300),
       ]);
       if (b.error || a.error) setError("Le plan est chargé, mais les budgets ou actions ne sont pas accessibles.");
-      if (reconciliation.error) console.error("Rapprochement budgétaire indisponible", reconciliation.error);
-      if (transactions.error) console.error("Journal financier indisponible pour le rapprochement", transactions.error);
+      if (reconciliation.error) setError((current) => [current, "Le rapprochement budgétaire est indisponible : " + reconciliation.error.message].filter(Boolean).join(" "));
+      if (transactions.error) setError((current) => [current, "Le journal financier ne peut pas être chargé pour le rapprochement : " + transactions.error.message].filter(Boolean).join(" "));
       setBudgets((b.data || []) as Budget[]); setActions((a.data || []) as Action[]);
       setReconciliations((reconciliation.data || []) as Reconciliation[]);
       setFinanceTransactions((transactions.data || []) as FinanceTransaction[]);
