@@ -113,7 +113,7 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
     setSelectedId(null); setTitle("Nouveau document"); setDocumentType("document"); setContent(""); setDirty(true);
   }, [editorMode, isNewDocument, loading]);
 
-  const filteredDocuments = useMemo(() => documents.filter((doc) => (!searchParams.get("type") || searchParams.get("type") === "all" || doc.document_type === searchParams.get("type")) && (doc.title + " " + doc.document_type + " " + (doc.file_name || "")).toLowerCase().includes(search.trim().toLowerCase())), [documents, search, searchParams]);
+  const filteredDocuments = useMemo(() => documents.filter((doc) => (typeFilter === "all" || doc.document_type === typeFilter) && (doc.title + " " + doc.document_type + " " + (doc.file_name || "")).toLowerCase().includes(search.trim().toLowerCase())), [documents, search, typeFilter]);
   const openDocument = (doc: WorkspaceDocument) => {
     const url = new URL("/connect", window.location.origin);
     url.searchParams.set("module", "documents");
