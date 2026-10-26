@@ -11,7 +11,7 @@ revoke execute on function public.is_decision_executive() from public, anon;
 grant execute on function public.can_access_decision_center(text) to authenticated;
 grant execute on function public.can_view_decision_proposal(uuid) to authenticated;
 grant execute on function public.current_user_has_app_permission(text) to authenticated;
-grant execute on function public.decision_center_can_read_proposal(uuid, text, text, uuid, uuid, uuid) to authenticated;
+grant execute on function public.decision_center_can_read_proposal(uuid, text, text, text, uuid, uuid) to authenticated;
 grant execute on function public.decision_center_is_executive() to authenticated;
 grant execute on function public.decision_center_is_pdg() to authenticated;
 grant execute on function public.decision_center_normalize_target() to authenticated;
