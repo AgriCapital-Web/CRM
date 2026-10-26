@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -96,6 +97,7 @@ export default function ImportContacts() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -312,7 +314,7 @@ export default function ImportContacts() {
     <div><h1 className="text-2xl font-bold">Importer les contacts</h1></div>
     <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><Contact className="h-5 w-5"/>Répertoire du téléphone</CardTitle></CardHeader><CardContent className="space-y-3"><Button onClick={() => void pickPhoneContacts()} className="w-full"><Users className="mr-2 h-4 w-4"/>Choisir des contacts</Button></CardContent></Card>
-      <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileUp className="h-5 w-5"/>Importer un fichier</CardTitle></CardHeader><CardContent className="space-y-3"><input ref={fileRef} type="file" accept=".vcf,.csv,text/vcard,text/csv" className="block w-full text-sm" onChange={(event) => void importFile(event.target.files?.[0])}/><a className="text-xs underline" href="data:text/csv;charset=utf-8,nom%2Cprenom%2Ctelephone%2Ctelephone_secondaire%2Cemail%0AKONAN%2CJean%2BMarie%2C0700000000%2C0500000000%2Cjean%40exemple.ci" download="modele-contacts.csv">Télécharger le modèle CSV</a></CardContent></Card>
+      <Dialog open={fileDialogOpen} onOpenChange={setFileDialogOpen}><DialogTrigger asChild><Button variant="outline" className="w-full"><FileUp className="mr-2 h-4 w-4"/>Importer un fichier</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl"><Card><CardHeader><CardTitle className="flex items-center gap-2"><FileUp className="h-5 w-5"/>Importer un fichier</CardTitle></CardHeader><CardContent className="space-y-3"><input ref={fileRef} type="file" accept=".vcf,.csv,text/vcard,text/csv" className="block w-full text-sm" onChange={(event) => void importFile(event.target.files?.[0])}/><a className="text-xs underline" href="data:text/csv;charset=utf-8,nom%2Cprenom%2Ctelephone%2Ctelephone_secondaire%2Cemail%0AKONAN%2CJean%2BMarie%2C0700000000%2C0500000000%2Cjean%40exemple.ci" download="modele-contacts.csv">Télécharger le modèle CSV</a></CardContent></Card></DialogContent></Dialog>
     </div>
     <Card className="min-w-0"><CardHeader><div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle>Prévisualisation des contacts</CardTitle><p className="mt-1 text-sm text-muted-foreground">{contacts.length} contact(s) · {selected.length} sélectionné(s) avec numéro principal</p></div><div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
 <Button variant="outline" className="w-full whitespace-normal sm:w-auto" onClick={() => setContacts((all) => all.map((contact) => contact.telephone ? { ...contact, selected: !allContactsSelected } : contact))} disabled={!selectableAll.length}>{allContactsSelected ? "Désélectionner tous les contacts" : "Sélectionner tous les contacts"}</Button>
