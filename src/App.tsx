@@ -90,6 +90,7 @@ const DomainRouter = () => {
       {/* Routes privées : chaque route porte explicitement sa permission métier. */}
       <Route path="/dashboard" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_DASHBOARD}><Dashboard /></ProtectedRoute>} />
       <Route path="/leads" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEADS}><Leads view="all" /></ProtectedRoute>} />
+      <Route path="/leads-relances" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEADS}><RelancesLeadsProspects /></ProtectedRoute>} />
       <Route path="/prospects" element={<Navigate to="/leads" replace />} />
       <Route path="/synchronisation" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_DASHBOARD}><SyncQueue /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><Clients /></ProtectedRoute>} />
