@@ -75,8 +75,6 @@ const Login = () => {
             onError={(event) => { const image = event.currentTarget; if (!image.dataset.fallback) { image.dataset.fallback = "1"; image.src = "/images/Logo%20%20AgriCapital%20-360%C2%B0.jpg?v=20261024-fallback"; } }}
             className="mx-auto mb-[clamp(1rem,3vh,2rem)] block h-auto w-[min(88vw,34rem)] max-w-full max-h-[55svh] rounded-lg bg-white p-2 object-contain shadow-2xl"
           />
-          <p className="text-white text-xl xl:text-2xl font-semibold mb-2">AgriCapital 360</p>
-          <p className="max-w-xl text-sm text-white/85 xl:text-base">La plateforme métier intelligente d’AgriCapital.</p>
           
         </div>
 
