@@ -30,7 +30,7 @@ function OrganizationAvatar({photoUrl,name}:{photoUrl?:string|null;name:string})
 
 export default function Workspace360({ embedded = false }: { embedded?: boolean } = {}) {
  const {user,profile,userRoles}=useAuth();
- const [tab,setTab]=useState<Tab>("agenda");
+ const [tab,setTab]=useState<Tab>("org");
  const [eventOpen,setEventOpen]=useState(false);
  const [taskOpen,setTaskOpen]=useState(false);
  const [jobOpen,setJobOpen]=useState(false);
