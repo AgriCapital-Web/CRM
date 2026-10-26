@@ -73,6 +73,6 @@ export async function registerAppServiceWorker() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.setInterval(() => void checkForUpdate(), 15 * 60 * 1000);
   } catch {
-    // Service worker support must remain non-blocking for the CRM.
+    // Service worker support must remain non-blocking for the application.
   }
 }
