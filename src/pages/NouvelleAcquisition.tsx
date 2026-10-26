@@ -738,7 +738,8 @@ const NouvelleAcquisition = () => {
       const pricingOffer:any={...offer,formule_code:formula.code,formule_nom:formula.nom,montant_pi_par_ha:effective("montant_pi_par_ha"),
         montant_cash_par_ha:effective("montant_cash_par_ha"),mensualite_par_ha:effective("mensualite_par_ha"),
         montant_total_par_ha:effective("montant_total_par_ha"),duree_paiement_mois:effective("duree_paiement_mois"),tranches_paiement:effective("tranches_paiement")};
-      const price=calculPrixEffectif(pricingOffer,promotionActive?[promotionActive as any]:[],{modePaiement:"echeancier"});
+      // Une modification de fiche ne doit jamais réappliquer une promotion courante à une vente déjà enregistrée.
+      const price=calculPrixEffectif(pricingOffer,[],{modePaiement:"echeancier"});
       const total=Number(price.montant_total_effectif||price.montant_total_base||0)*hectares;
       const pi=Number(price.pi_effectif||0)*hectares;
       const monthly=Number(price.mensualite_effective||0)*hectares;
@@ -759,7 +760,7 @@ const NouvelleAcquisition = () => {
         parcours_code:offer.parcours_code||offer.code,commercial_id:formData.commercial_id||null,total_hectares:hectares,superficie_ha:hectares,
         montant_total_contrat:total,paiement_initial_montant:pi,montant_pi_total:pi,mensualite_montant:monthly,
         duree_paiement_mois:Number(pricingOffer.duree_paiement_mois||offer.duree_paiement_mois||0),
-        montant_promo_applique:Number(price.reduction_montant||0)*hectares,promotion_id:price.promotion_id||null,contrat_acquisition_statut:formData.contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",contrat_accompagnement_statut:formData.contrat_accompagnement_client_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",updated_by:user.id,updated_at:new Date().toISOString()};
+        montant_promo_applique:Number(existingRecord.client.montant_promo_applique||0),promotion_id:existingRecord.client.promotion_id||null,contrat_acquisition_statut:formData.contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",contrat_accompagnement_statut:formData.contrat_accompagnement_client_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",updated_by:user.id,updated_at:new Date().toISOString()};
       for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
         const file=recoverFile(formData[field+"_file"],formData[field+"_preview"],field);
         if(file){const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+existingClientId,"identity-"+field);if(!uploaded)throw new Error("Téléversement impossible : "+field);payload[column]=uploaded.path;}
@@ -814,7 +815,7 @@ const NouvelleAcquisition = () => {
         const {error:acquisitionError}=await offlineUpdate("acquisitions",existingAcquisitionId,{offre_id:offer.id,offre_nom:offer.nom,offre_code:offer.code,
           famille_offre:offer.famille_offre||null,formule_code:formula.code,formule_nom:formula.nom,superficie_ha:hectares,
           montant_total_contrat:total,montant_pi_total:pi,mensualite_montant:monthly,duree_paiement_mois:Number(pricingOffer.duree_paiement_mois||offer.duree_paiement_mois||0),
-          montant_promo_applique:Number(price.reduction_montant||0)*hectares,promotion_id:price.promotion_id||null,updated_at:new Date().toISOString()});
+          montant_promo_applique:Number(existingRecord.client.montant_promo_applique||0),promotion_id:existingRecord.client.promotion_id||null,updated_at:new Date().toISOString()});
         if(acquisitionError)throw acquisitionError;
       }
       toast({title:"Dossier mis à jour",description:"Les informations du client et de sa souscription ont été enregistrées sans créer de doublon."});
