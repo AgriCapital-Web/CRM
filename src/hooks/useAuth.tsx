@@ -281,7 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('Failed to cache auth:', cacheErr);
       }
 
-      toast({ title: "Connexion réussie", description: "Bienvenue sur AgriCapital CRM" });
+      toast({ title: "Connexion réussie", description: "Bienvenue sur AgriCapital 360" });
       return { error: null };
     } catch (error: any) {
       console.error('Sign in error:', error);
