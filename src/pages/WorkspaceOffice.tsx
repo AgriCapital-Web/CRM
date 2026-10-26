@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,6 +62,10 @@ function RichTextEditor({ value, onChange, disabled }: { value: string; onChange
 
 export default function WorkspaceOffice({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const editorMode = searchParams.get("documentEditor") === "1";
+  const requestedDocumentId = searchParams.get("documentId");
+  const isNewDocument = searchParams.get("newDocument") === "1";
   const [profileId, setProfileId] = useState<string | null>(profile?.id || null);
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -101,14 +106,35 @@ export default function WorkspaceOffice({ embedded = false }: { embedded?: boole
     } finally { setLoading(false); }
   }, [user?.id, profile?.id]);
 
-  useEffect(() => { void loadDocuments(); }, [loadDocuments]);
+  useEffect(() => { void loadDocuments(requestedDocumentId); }, [loadDocuments, requestedDocumentId]);
+  useEffect(() => {
+    if (!editorMode || !isNewDocument || loading) return;
+    setSelectedId(null); setTitle("Nouveau document"); setDocumentType("document"); setContent(""); setDirty(true);
+  }, [editorMode, isNewDocument, loading]);
 
   const filteredDocuments = useMemo(() => documents.filter((doc) => (doc.title + " " + doc.document_type + " " + (doc.file_name || "")).toLowerCase().includes(search.trim().toLowerCase())), [documents, search]);
+  const openDocument = (doc: WorkspaceDocument) => {
+    const url = new URL("/connect", window.location.origin);
+    url.searchParams.set("module", "documents");
+    url.searchParams.set("documentEditor", "1");
+    url.searchParams.set("documentId", doc.id);
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  };
   const chooseDocument = (doc: WorkspaceDocument) => {
-    if (dirty && !window.confirm("Les modifications non enregistrées seront perdues. Continuer ?")) return;
-    setSelectedId(doc.id); setTitle(doc.title); setDocumentType(doc.document_type); setContent(doc.content_text || ""); setDirty(false);
+    if (editorMode) {
+      if (dirty && !window.confirm("Les modifications non enregistrées seront perdues. Continuer ?")) return;
+      setSelectedId(doc.id); setTitle(doc.title); setDocumentType(doc.document_type); setContent(doc.content_text || ""); setDirty(false);
+      return;
+    }
+    openDocument(doc);
   };
   const newDocument = () => {
+    if (!editorMode) {
+      const url = new URL("/connect", window.location.origin);
+      url.searchParams.set("module", "documents"); url.searchParams.set("documentEditor", "1"); url.searchParams.set("newDocument", "1");
+      window.open(url.toString(), "_blank", "noopener,noreferrer");
+      return;
+    }
     if (dirty && !window.confirm("Les modifications non enregistrées seront perdues. Continuer ?")) return;
     setSelectedId(null); setTitle("Nouveau document"); setDocumentType("document"); setContent(""); setDirty(true);
   };
