@@ -276,19 +276,17 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         }
 
       } else {
-        const tempPassword = createdAccount?.tempPassword || data.password || (
-          crypto.randomUUID().replace(/-/g, '').slice(0, 16) + 'A1!'
-        );
+        const tempPassword = createdAccount?.tempPassword || "Ac0000";
         let result: any;
         if (createdAccount) {
           // Reprendre les opérations secondaires sans recréer un compte déjà créé.
           result = { success: true, user_id: createdAccount.user_id };
         } else {
-          const { data: createdResult, error } = await supabase.functions.invoke('create-user', {
+          const { data: createdResult, error } = await supabase.functions.invoke("admin-manage-user", {
             body: {
+            action: "create_user",
             username: data.username,
             email: data.email,
-            password: tempPassword,
             nom_complet: data.nom_complet,
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
@@ -314,15 +312,18 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           result = createdResult;
           // Mémoriser le compte dès sa création : une erreur de salaire ou de média
           // ne doit pas obliger à recréer le même compte à la prochaine tentative.
-          setCreatedAccount({ user_id: result.user_id, tempPassword });
+          setCreatedAccount({ user_id: result.user_id, tempPassword: createdResult.temp_password || tempPassword });
         }
 
-        // Appliquer et vérifier le rôle principal via la procédure d'administration.
-        const { data: savedRoles, error: savedRolesError } = await supabase.functions.invoke("admin-manage-user", {
-          body: { action: "set_roles", user_id: result.user_id, roles: selectedRoles, primary_role: primaryRole },
-        });
-        if (savedRolesError || savedRoles?.error || savedRoles?.success !== true) {
-          throw new Error(savedRoles?.error || savedRolesError?.message || "L'enregistrement du rôle principal n'a pas été confirmé.");
+        // La création initiale attribue déjà les rôles de manière transactionnelle.
+        // En cas de reprise après une étape secondaire échouée, resynchroniser les rôles du compte existant.
+        if (createdAccount) {
+          const { data: savedRoles, error: savedRolesError } = await supabase.functions.invoke("admin-manage-user", {
+            body: { action: "set_roles", user_id: result.user_id, roles: selectedRoles, primary_role: primaryRole },
+          });
+          if (savedRolesError || savedRoles?.error || savedRoles?.success !== true) {
+            throw new Error(savedRoles?.error || savedRolesError?.message || "L'enregistrement du rôle principal n'a pas été confirmé.");
+          }
         }
 
         const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
