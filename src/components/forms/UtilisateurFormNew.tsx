@@ -506,6 +506,50 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
 
       )}      <Card>
         <CardHeader>
+          <CardTitle>Rôles officiels</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 border rounded-lg">
+            {rolesDisponibles.map((role) => (
+              <div key={role.code} className="flex items-start space-x-2">
+                <Checkbox
+                  id={role.code}
+                  checked={selectedRoles.includes(role.code)}
+                  onCheckedChange={() => !governanceOnly && toggleRole(role.code)}
+                  disabled={governanceOnly}
+                />
+                <label htmlFor={role.code} className="text-sm cursor-pointer leading-tight">
+                  <span className="font-medium">{role.nom}</span>
+                  <Badge variant="outline" className="ml-2 text-[10px]">
+                    Niveau {role.niveau}
+                  </Badge>
+                  <span className="block text-xs text-muted-foreground">{role.description}</span>
+                </label>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Label>Rôle principal *</Label>
+            <Select value={primaryRole} onValueChange={setPrimaryRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir le rôle principal" />
+              </SelectTrigger>
+              <SelectContent>
+                {rolesDisponibles.filter((role) => selectedRoles.includes(role.code)).map((role) => (
+                  <SelectItem key={role.code} value={role.code}>{role.nom}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Le rôle principal détermine le périmètre hiérarchique principal. Les autres rôles peuvent ajouter des permissions complémentaires.</p>
+          </div>
+          {selectedRoles.length === 0 && (
+            <p className="text-sm text-destructive">Au moins un rôle officiel doit être attribué.</p>
+          )}
+        </CardContent>
+      </Card>
+
+<Card>
+        <CardHeader>
           <CardTitle>{utilisateur ? "Relation RH et Département" : "Couverture géographique"}</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -566,52 +610,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Rôles officiels</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 border rounded-lg">
-            {rolesDisponibles.map((role) => (
-              <div key={role.code} className="flex items-start space-x-2">
-                <Checkbox
-                  id={role.code}
-                  checked={selectedRoles.includes(role.code)}
-                  onCheckedChange={() => !governanceOnly && toggleRole(role.code)}
-                  disabled={governanceOnly}
-                />
-                <label htmlFor={role.code} className="text-sm cursor-pointer leading-tight">
-                  <span className="font-medium">{role.nom}</span>
-                  <Badge variant="outline" className="ml-2 text-[10px]">
-                    Niveau {role.niveau}
-                  </Badge>
-                  <span className="block text-xs text-muted-foreground">{role.description}</span>
-                </label>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-2">
-            <Label>Rôle principal *</Label>
-            <Select value={primaryRole} onValueChange={setPrimaryRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choisir le rôle principal" />
-              </SelectTrigger>
-              <SelectContent>
-                {rolesDisponibles.filter((role) => selectedRoles.includes(role.code)).map((role) => (
-                  <SelectItem key={role.code} value={role.code}>{role.nom}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Le rôle principal détermine le périmètre hiérarchique principal. Les autres rôles peuvent ajouter des permissions complémentaires.</p>
-          </div>
-          {selectedRoles.length === 0 && (
-            <p className="text-sm text-destructive">Au moins un rôle officiel doit être attribué.</p>
-          )}
-        </CardContent>
-      </Card>
-
-
-      {createdAccount && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+{createdAccount && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
         Le compte de connexion est déjà créé. Une étape secondaire a échoué ; cliquez de nouveau sur « Finaliser » pour reprendre sans créer un second compte.
       </div>}
       <div className="flex justify-end gap-4">
