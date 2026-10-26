@@ -3,6 +3,7 @@ import { KeyRound, Loader2, RotateCcw, Search, ShieldCheck } from "lucide-react"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ export default function ReinitialiserCodesAcces() {
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -60,6 +62,7 @@ export default function ReinitialiserCodesAcces() {
       setSelectedId("");
       setSearch("");
       setResetDialogOpen(false);
+      setResetDialogOpen(false);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Réinitialisation impossible", description: e?.message || "Une erreur est survenue." });
     } finally {
@@ -74,7 +77,7 @@ export default function ReinitialiserCodesAcces() {
             <p className="mt-1 text-sm text-muted-foreground">Remettez le portail d'un client à zéro sans modifier son dossier, ses plantations ou ses paiements.</p>
           </div>
 
-          <div className="flex justify-end"><Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}><DialogTrigger asChild><Button><RotateCcw className="mr-2 h-4 w-4"/>Ouvrir la réinitialisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
+          <div className="flex justify-end"><Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}><DialogTrigger asChild><Button><RotateCcw className="mr-2 h-4 w-4"/>Ouvrir la réinitialisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><div className="flex justify-end"><Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}><DialogTrigger asChild><Button><RotateCcw className="mr-2 h-4 w-4"/>Ouvrir la réinitialisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><RotateCcw className="h-5 w-5" /> Réinitialisation d'un code d'accès client</CardTitle>
             </CardHeader>
@@ -125,7 +128,7 @@ export default function ReinitialiserCodesAcces() {
                 Réinitialiser le code d'accès
               </Button>
             </CardContent>
-          </Card></DialogContent></Dialog></div>
+          </Card></DialogContent></Dialog></div></DialogContent></Dialog></div>
       </div>
   );
 }
