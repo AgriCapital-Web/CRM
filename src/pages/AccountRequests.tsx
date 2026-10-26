@@ -75,7 +75,7 @@ const AccountRequests = () => {
         toast({
           title: "Demande approuvée",
           description: payload?.temp_password
-            ? `Compte créé. Mot de passe temporaire : ${payload.temp_password}`
+            ? `Compte créé. Mot de passe initial : ${payload.temp_password}`
             : `Accès activé (rôle : ${payload?.role}). L'utilisateur peut se connecter avec son identifiant.`,
           duration: 15000,
         });
