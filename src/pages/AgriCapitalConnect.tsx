@@ -24,7 +24,7 @@ import EspaceTravail from "@/pages/EspaceTravail";
 import Workspace360 from "@/pages/Workspace360";
 import WorkspacePeople360 from "@/pages/WorkspacePeople360";
 
-type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string };
+type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string; participant_profile_ids?: string[] };
 type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
 type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null; role_codes?: string[]; role_names?: string[] };
 type StaffRole = { code: string; nom: string; court: string | null };
@@ -89,7 +89,17 @@ export default function AgriCapitalConnect() {
       .eq("internal_conversation_members.profile_id", profileId)
       .order("last_message_at", { ascending: false });
     if (error) { console.error(error); toast.error("Impossible de charger les conversations."); return; }
-    const rows = (data || []).map((row: any) => ({ ...row, internal_conversation_members: undefined })) as Conversation[];
+    const rawRows = (data || []) as any[];
+    const ids = rawRows.map((row) => row.id);
+    let memberRows: { conversation_id: string; profile_id: string }[] = [];
+    if (ids.length) {
+      const { data: members, error: membersError } = await (supabase as any).from("internal_conversation_members").select("conversation_id,profile_id").in("conversation_id", ids);
+      if (membersError) { console.error("Impossible de charger les participants des conversations", membersError); }
+      else memberRows = (members || []) as typeof memberRows;
+    }
+    const membersByConversation = new Map<string, string[]>();
+    for (const member of memberRows) membersByConversation.set(member.conversation_id, [...(membersByConversation.get(member.conversation_id) || []), member.profile_id]);
+    const rows = rawRows.map((row: any) => ({ ...row, internal_conversation_members: undefined, participant_profile_ids: membersByConversation.get(row.id) || [] })) as Conversation[];
     setConversations(rows);
   }, [profileId, selected]);
 
@@ -171,7 +181,15 @@ export default function AgriCapitalConnect() {
 
   useEffect(() => { if (selected) void loadMessages(selected); else setMessages([]); }, [selected, loadMessages]);
 
-  const visibleConversations = useMemo(() => conversations.filter(c => (c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe" : "Canal")).toLocaleLowerCase("fr").includes(search.toLocaleLowerCase("fr"))), [conversations, search]);
+  const conversationLabel = useCallback((conversation: Conversation | undefined) => {
+    if (!conversation) return "Conversation";
+    if (conversation.conversation_type === "direct") {
+      const otherId = (conversation.participant_profile_ids || []).find((id) => id !== profileId);
+      return staff.find((person) => person.id === otherId)?.nom_complet || conversation.title || "Conversation privée";
+    }
+    return conversation.title || (conversation.conversation_type === "group" ? "Groupe d'équipe" : "Canal interne");
+  }, [profileId, staff]);
+  const visibleConversations = useMemo(() => conversations.filter(c => conversationLabel(c).toLocaleLowerCase("fr").includes(search.toLocaleLowerCase("fr"))), [conversations, search, conversationLabel]);
   const selectedConversation = conversations.find(c => c.id === selected);
 
   useEffect(() => {
@@ -351,7 +369,7 @@ export default function AgriCapitalConnect() {
   const active = newMembers.includes(s.id);
   return <button key={s.id} type="button" aria-pressed={active} onClick={() => setNewMembers(current => newKind === "direct" ? (active ? [] : [s.id]) : (active ? current.filter(id => id !== s.id) : [...current, s.id]))} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${active ? "bg-primary/10 text-foreground" : "hover:bg-muted/70"}`}><span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">{s.nom_complet.split(/\\s+/).map((part: string) => part[0]).slice(0,2).join("").toUpperCase()}{active && <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background"><Check className="h-3 w-3" /></span>}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{s.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{s.poste || "Collaborateur"}</span></span></button>;
 })}</div><Button className="w-full" onClick={() => void createConversation()}>{newKind === "direct" ? "Ouvrir ou créer la conversation" : "Créer la conversation"}</Button></div></DialogContent></Dialog></div><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une conversation…" /></CardHeader>
-                  <CardContent className="space-y-1 p-2">{loading ? <div className="flex justify-center p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : visibleConversations.length ? visibleConversations.map(c => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full min-w-0 items-center gap-3 rounded-lg p-3 text-left transition-colors ${selected === c.id ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted"}`}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials(c.title || (c.conversation_type === "direct" ? "Privé" : c.conversation_type === "group" ? "Groupe" : "Canal"))}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe d'équipe" : "Canal")}</span><span className="block text-xs text-muted-foreground">{dateLabel(c.last_message_at)}</span></span></button>) : <p className="p-5 text-center text-sm text-muted-foreground">Aucune conversation. Créez votre première discussion interne.</p>}</CardContent>
+                  <CardContent className="space-y-1 p-2">{loading ? <div className="flex justify-center p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : visibleConversations.length ? visibleConversations.map(c => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full min-w-0 items-center gap-3 rounded-lg p-3 text-left transition-colors ${selected === c.id ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted"}`}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials(conversationLabel(c))}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe d'équipe" : "Canal")}</span><span className="block text-xs text-muted-foreground">{dateLabel(c.last_message_at)}</span></span></button>) : <p className="p-5 text-center text-sm text-muted-foreground">Aucune conversation. Créez votre première discussion interne.</p>}</CardContent>
                   <div className="border-t p-3"><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Collaborateurs — démarrer une discussion</p><div className="max-h-56 space-y-1 overflow-y-auto">{staff.filter(person => person.id !== profileId).map(person => <button key={person.id} type="button" onClick={() => { setNewKind("direct"); setNewMembers([person.id]); setNewRoles([]); setCreateOpen(true); }} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{initials(person.nom_complet)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm">{person.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{(person.role_names || []).join(", ") || person.poste || "Collaborateur"}</span></span><MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" /></button>)}</div></div>
                 </Card>
                 <Dialog open={!!selected} onOpenChange={open => { if (!open) setSelected(""); }}><DialogContent className="flex h-[92dvh] w-[calc(100vw-1rem)] max-w-5xl flex-col overflow-hidden p-0 sm:h-[86dvh]"><Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-0 shadow-none">
