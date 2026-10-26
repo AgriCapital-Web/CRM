@@ -50,4 +50,1607 @@ All colors MUST be HSL.
     
     /* Gradients avec les couleurs de la marque */
     --gradient-primary: linear-gradient(135deg, hsl(124 55% 24%), hsl(124 55% 30%));
-    --gradient-accent: linear-gradient(135deg, hsl(3���q�^
+    --gradient-accent: linear-gradient(135deg, hsl(37 56% 61%), hsl(37 56% 70%));
+    --gradient-hero: linear-gradient(135deg, hsl(124 55% 24%) 0%, hsl(124 55% 28%) 50%, hsl(37 56% 61%) 100%);
+    
+    /* Ombres avec le vert agricole */
+    --shadow-soft: 0 4px 20px -4px hsl(124 55% 24% / 0.15);
+    --shadow-medium: 0 8px 30px -6px hsl(124 55% 24% / 0.25);
+    --shadow-strong: 0 12px 40px -8px hsl(124 55% 24% / 0.35);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Mode sombre - Fond gris très foncé */
+    --background: 210 10% 10%;
+    --foreground: 0 0% 95%;
+
+    --card: 210 10% 15%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 210 10% 15%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Vert plus clair pour le mode sombre */
+    --primary: 158 100% 30%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 158 100% 35%;
+
+    --secondary: 210 3% 25%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 210 3% 25%;
+    --muted-foreground: 210 3% 70%;
+
+    /* Or/Doré en mode sombre */
+    --accent: 38 77% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 95%;
+
+    --border: 210 3% 25%;
+    --input: 210 3% 25%;
+    --ring: 37 56% 61%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    width: 100%;
+    min-width: 320px;
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    width: 100%;
+    min-width: 320px;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0;
+  }
+
+  #root {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  img,
+  svg,
+  video,
+  canvas {
+    max-width: 100%;
+  }
+
+  img {
+    height: auto;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    max-width: 100%;
+  }
+
+  pre,
+  code {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  [data-radix-scroll-area-viewport] {
+    max-width: 100%;
+  }
+
+  .responsive-container {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .responsive-grid > *,
+  .grid > *,
+  .flex > * {
+    min-width: 0;
+  }
+
+  .responsive-flex {
+    min-width: 0;
+  }
+
+  .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .responsive-table {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .responsive-table table {
+    min-width: 720px;
+  }
+
+  /* Le composant Table gère la pagination responsive : 5 lignes sur mobile, 8 sur tablette, 10 sur ordinateur. */
+
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Playfair Display', 'DM Sans', Georgia, serif;
+    letter-spacing: -0.015em;
+  }
+
+  h1 { @apply text-3xl md:text-4xl font-semibold; }
+  h2 { @apply text-2xl md:text-3xl font-semibold; }
+  h3 { @apply text-xl md:text-2xl font-semibold; }
+
+  /* Tableaux plus lisibles */
+  table { font-variant-numeric: tabular-nums; }
+
+  /* Focus ring cohérent */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+  
+  /* Better touch targets on mobile */
+  @media (max-width: 640px) {
+    button, 
+    a, 
+    [role="button"],
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    input, 
+    select, 
+    textarea {
+      font-size: 16px !important; /* Prevent iOS zoom on focus */
+    }
+  }
+  
+  /* Connexion mobile : logo plus grand, sans cadre, contenu toujours contenu dans l'écran. */
+  @media (max-width: 640px) {
+    .login-brand-mobile {
+      width: 100%;
+      max-width: 100%;
+      padding-inline: 0.5rem;
+      overflow: hidden;
+    }
+
+    .login-brand-mobile__logo {
+      width: min(100%, 640px);
+      max-width: 100%;
+      height: clamp(250px, 44svh, 420px);
+      max-height: 44svh;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+  }
+
+  @media (min-width: 641px) and (max-width: 1023px) {
+    .login-brand-mobile__logo { width: min(100%, 760px); height: clamp(260px, 42svh, 400px); max-height: 42svh; object-fit: contain; }
+  }
+
+  @media (min-width: 1024px) {
+    .login-brand-mobile__logo { width: min(100%, 1040px); }
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* AgriCapital UI polish — shared across every page */
+  ::selection {
+    background: hsl(var(--primary) / 0.16);
+    color: hsl(var(--foreground));
+  }
+
+  .page-section {
+    @apply space-y-5 sm:space-y-6;
+  }
+
+  .page-header {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between;
+  }
+
+  .page-header > div:first-child {
+    @apply min-w-0;
+  }
+
+  .surface {
+    @apply rounded-2xl border bg-card shadow-sm;
+  }
+
+  .surface-interactive {
+    @apply rounded-2xl border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+  }
+
+  .data-toolbar {
+    @apply flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  @media (max-width: 767px) {
+    .page-section {
+      @apply space-y-4;
+    }
+
+    .responsive-table table {
+      min-width: 760px;
+    }
+
+    .surface {
+      @apply rounded-xl;
+    }
+  }
+
+  /* Gradient & accent utilities */
+  .gradient-primary { background: var(--gradient-primary); }
+  .gradient-accent { background: var(--gradient-accent); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-medium { box-shadow: var(--shadow-medium); }
+
+  /* Card hover refinement */
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+  .card-hover:hover {
+    @apply -translate-y-0.5;
+    box-shadow: var(--shadow-medium);
+  }
+}
+
+
+/* Personnel card preview: each face fits the viewport without scrollbars. */
+.id-card-preview { flex: 0 0 auto; width: 540px; max-width: 540px; zoom: .48; }
+@media (min-width: 360px) and (min-height: 700px) { .id-card-preview { zoom: .56; } }
+@media (min-width: 400px) and (min-height: 700px) { .id-card-preview { zoom: .61; } }
+@media (min-width: 480px) and (min-height: 700px) { .id-card-preview { zoom: .78; } }
+@media (min-width: 640px) and (min-height: 700px) { .id-card-preview { zoom: .86; } }
+@media (min-width: 768px) and (min-height: 700px) { .id-card-preview { zoom: .95; } }
+@media (min-width: 1200px) and (min-height: 700px) { .id-card-preview { zoom: 1; } }
+@media (max-height: 699px) { .id-card-preview { zoom: .38; } }
+@media (max-height: 540px) { .id-card-preview { zoom: .3; } }
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse { animation: none !important; }
+}
+@layer base{[data-radix-dialog-content]{width:calc(100vw - 1rem);max-width:calc(100vw - 1rem);max-height:calc(100dvh - 1rem);overflow-y:auto}.break-anywhere{overflow-wrap:anywhere;word-break:break-word}}
+
+/* Global responsive safeguards: compact spacing, shrinkable layouts and contained form controls. */
+@layer base {
+  #root, main, main > div, section, article, form, fieldset,
+  [data-radix-dialog-content], [data-radix-popover-content] {
+    min-width: 0;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    min-width: 0;
+  }
+
+  textarea {
+    resize: vertical;
+    max-width: 100%;
+  }
+
+  table {
+    max-width: 100%;
+  }
+
+  @media (max-width: 767px) {
+    h1 { font-size: clamp(1.35rem, 5vw, 1.75rem); line-height: 1.2; }
+    h2 { font-size: clamp(1.2rem, 4.4vw, 1.5rem); line-height: 1.25; }
+    h3 { font-size: clamp(1.05rem, 4vw, 1.25rem); line-height: 1.3; }
+    .page-section { gap: 0.875rem; }
+    .page-section > *, .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.875rem; }
+    [data-radix-dialog-content] { padding: 1rem; }
+    .responsive-grid { grid-template-columns: minmax(0, 1fr) !important; }
+    .responsive-flex { flex-wrap: wrap; }
+    .data-toolbar { gap: 0.625rem; padding: 0.75rem; }
+  }
+
+  @media (min-width: 768px) and (max-width: 1100px) {
+    .responsive-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+}
+
+
+/* Final responsive pass: prevent intrinsic content from forcing page overflow. */
+@layer base {
+  .page-header,
+  .data-toolbar,
+  [role="tabpanel"],
+  [data-radix-accordion-content] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .page-header > *,
+  .data-toolbar > *,
+  .card,
+  [data-radix-card] {
+    min-width: 0;
+  }
+
+  .page-header h1,
+  .page-header h2,
+  .page-header p,
+  label,
+  th,
+  td {
+    overflow-wrap: anywhere;
+  }
+
+  form .grid,
+  [role="tabpanel"] .grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  }
+
+  form button,
+  form [role="button"] {
+    max-width: 100%;
+  }
+
+  [data-radix-dialog-content] form,
+  [data-radix-sheet-content] form {
+    width: 100%;
+    min-width: 0;
+  }
+
+  @media (max-width: 767px) {
+    main > div {
+      padding-inline: 0.75rem;
+    }
+
+    .page-header {
+      gap: 0.625rem;
+    }
+
+    .page-section,
+    .messaging-page {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .messaging-conversation,
+    .messaging-contacts {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .messaging-conversation [data-radix-card-content] {
+      padding-inline: 0.625rem;
+    }
+
+    .data-toolbar > * {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .responsive-table {
+      max-width: calc(100vw - 1.5rem);
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1100px) {
+    main > div {
+      padding: 1rem;
+    }
+  }
+}
+
+
+/* Responsive consistency pass: compact typography and resilient data views. */
+@layer base {
+  html, body, #root, main, [role="main"] {
+    min-width: 320px;
+    max-width: 100%;
+  }
+
+  h1 { font-size: clamp(1.35rem, 2.2vw, 1.9rem); line-height: 1.2; }
+  h2 { font-size: clamp(1.2rem, 1.8vw, 1.55rem); line-height: 1.25; }
+  h3 { font-size: clamp(1.05rem, 1.5vw, 1.3rem); line-height: 1.3; }
+
+  p, label, th, td, button, input, select, textarea {
+    overflow-wrap: anywhere;
+  }
+
+  main, main > div, section, article, form, fieldset,
+  [role="tabpanel"], [data-radix-card-content],
+  [data-radix-dialog-content], [data-radix-sheet-content] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .responsive-table {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .responsive-table table {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  th, td {
+    font-size: 0.875rem;
+    line-height: 1.4;
+    padding: 0.625rem 0.75rem;
+    vertical-align: middle;
+  }
+
+  .page-header, .data-toolbar, .responsive-flex {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .page-header > *, .data-toolbar > *, .responsive-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  form .grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  }
+
+  input, select, textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  [data-radix-dialog-content], [data-radix-sheet-content] {
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  @media (max-width: 767px) {
+    main > div { padding-inline: 0.75rem; }
+    h1 { font-size: clamp(1.3rem, 5vw, 1.6rem); }
+    h2 { font-size: clamp(1.15rem, 4.5vw, 1.4rem); }
+    h3 { font-size: clamp(1.02rem, 4vw, 1.2rem); }
+    .page-section { gap: 0.75rem; }
+    .data-toolbar { gap: 0.5rem; padding: 0.625rem; }
+    .responsive-table table { min-width: 680px; }
+    th, td { padding: 0.5rem 0.625rem; font-size: 0.8125rem; }
+    .page-header { align-items: stretch; }
+    .page-header > * { width: 100%; }
+    form .grid, .responsive-grid { grid-template-columns: minmax(0, 1fr) !important; }
+    [data-radix-dialog-content], [data-radix-sheet-content] {
+      width: calc(100vw - 1rem);
+      max-width: calc(100vw - 1rem);
+      padding: 0.875rem;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1100px) {
+    main > div { padding-inline: 1rem; }
+    .responsive-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+}
+
+/* CRM tables: prevent narrow columns from breaking words vertically on small screens. */
+@layer components {
+  table[class*="min-w-"] { min-width: 0 !important; }
+  .responsive-data-table { width: 100%; min-width: 0; table-layout: auto; }
+  .responsive-data-table th, .responsive-data-table td { white-space: nowrap; word-break: normal; overflow-wrap: normal; vertical-align: middle; padding: .22rem .38rem; line-height: 1.15; }
+  .responsive-data-table td:nth-child(2), .responsive-data-table th:nth-child(2) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  .responsive-data-table td:last-child, .responsive-data-table th:last-child { min-width: 0; }
+  .responsive-data-table th { font-size: .72rem; font-weight: 600; }
+  .responsive-data-table td { font-size: .78rem; }
+  @media (max-width: 640px) {
+    .responsive-data-table { min-width: 0; }
+    .responsive-data-table th, .responsive-data-table td { padding: .2rem .3rem; font-size: .72rem; }
+  }
+}
+
+/* Layout safety net shared by forms and dialogs across desktop and mobile. */
+@layer components {
+  form, [role="dialog"], [data-radix-dialog-content] { min-width: 0; }
+  form .grid, [role="dialog"] .grid, [data-radix-dialog-content] .grid { min-width: 0; }
+  form .grid > *, [role="dialog"] .grid > *, [data-radix-dialog-content] .grid > * { min-width: 0; max-width: 100%; }
+  form input, form select, form textarea, form button, [role="dialog"] input, [role="dialog"] select, [role="dialog"] textarea, [role="dialog"] button { max-width: 100%; }
+  form label, [role="dialog"] label { overflow-wrap: anywhere; }
+  @media (max-width: 640px) {
+    form .flex, [role="dialog"] .flex { min-width: 0; }
+    form [type="submit"], [role="dialog"] button { white-space: normal; }
+  }
+}
+
+
+/* AgriCapital: black form borders, green focus, compact table rows. */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"], [data-radix-select-trigger] { border-color: #111111 !important; }
+  input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:focus, [role="combobox"]:focus, [data-radix-select-trigger]:focus,
+  input:not([type="checkbox"]):not([type="radio"]):focus-visible, textarea:focus-visible, select:focus-visible, [role="combobox"]:focus-visible, [data-radix-select-trigger]:focus-visible { border-color: hsl(var(--primary)) !important; outline-color: hsl(var(--primary)) !important; box-shadow: 0 0 0 1px hsl(var(--primary) / 0.22); }
+  table th, table td { padding-block: 0.22rem; padding-inline: 0.38rem; line-height: 1.15; vertical-align: middle; }
+  @media (max-width: 767px) { table th, table td { padding-block: 0.2rem; padding-inline: 0.3rem; } }
+}
+
+
+/* Connexion compacte : tout le formulaire reste visible dans la hauteur disponible. */
+.login-page {
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+.login-brand-panel,
+.login-form-panel {
+  min-height: 0;
+  height: 100%;
+}
+.login-form-panel {
+  overflow: hidden;
+}
+.login-form-card {
+  min-width: 0;
+  max-width: min(100%, 42rem);
+}
+@media (max-width: 640px) {
+  .login-form-panel {
+    justify-content: center;
+    overflow-y: auto;
+    padding: 0.75rem 0.75rem !important;
+  }
+  .login-brand-mobile {
+    flex: 0 0 auto;
+    margin-bottom: 0.25rem !important;
+    padding: 0 !important;
+  }
+  .login-brand-mobile__logo {
+    width: min(100%, 460px) !important;
+    height: clamp(76px, 15svh, 122px) !important;
+    max-height: 15svh !important;
+  }
+  .login-form-card {
+    flex: 0 1 auto;
+    padding: 0.75rem !important;
+    border-radius: 1rem !important;
+    overflow: hidden;
+  }
+  .login-form-title {
+    margin-bottom: 0.55rem !important;
+  }
+  .login-form-title h2 {
+    font-size: clamp(1.35rem, 5.8vw, 1.7rem) !important;
+    line-height: 1.1;
+  }
+  .login-form-card form {
+    gap: 0.55rem !important;
+  }
+  .login-form-card form > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.55rem !important;
+  }
+  .login-form-card form > div {
+    gap: 0.3rem !important;
+  }
+  .login-form-card label {
+    font-size: 0.875rem !important;
+    line-height: 1.2;
+  }
+  .login-input,
+  .login-input input {
+    height: 2.7rem !important;
+    min-height: 2.7rem !important;
+    font-size: 1rem !important;
+  }
+  .login-submit {
+    height: 2.75rem !important;
+    min-height: 2.75rem !important;
+    font-size: 1rem !important;
+  }
+  .login-account-request {
+    margin-top: 0.35rem !important;
+  }
+  .login-account-request button {
+    min-height: 2.2rem !important;
+    height: auto !important;
+    padding-block: 0.25rem !important;
+    font-size: 0.85rem !important;
+    white-space: normal;
+  }
+  .login-support {
+    margin-top: 0.35rem !important;
+    padding-top: 0.35rem !important;
+  }
+  .login-support p {
+    font-size: 0.75rem !important;
+    line-height: 1.2;
+  }
+}
+@media (min-width: 641px) {
+  .login-form-panel {
+    padding-block: 1rem !important;
+  }
+  .login-brand-mobile__logo {
+    height: clamp(96px, 18svh, 170px) !important;
+    max-height: 18svh !important;
+  }
+  .login-form-card {
+    padding: clamp(1rem, 2.4vh, 2rem) !important;
+  }
+  .login-form-title {
+    margin-bottom: 1rem !important;
+  }
+  .login-form-title h2 {
+    font-size: clamp(1.5rem, 2.3vw, 2.3rem) !important;
+  }
+  .login-form-card form {
+    gap: 0.8rem !important;
+  }
+  .login-form-card form > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.8rem !important;
+  }
+  .login-input,
+  .login-input input {
+    height: 3rem !important;
+    min-height: 3rem !important;
+  }
+  .login-submit {
+    height: 3.1rem !important;
+    min-height: 3.1rem !important;
+  }
+  .login-account-request {
+    margin-top: 0.75rem !important;
+  }
+  .login-support {
+    margin-top: 0.75rem !important;
+    padding-top: 0.6rem !important;
+  }
+}
+@media (max-height: 600px) {
+  .login-brand-mobile__logo {
+    height: 12svh !important;
+    max-height: 12svh !important;
+  }
+  .login-brand-mobile { margin-bottom: 0.1rem !important; }
+  .login-form-card { padding: 0.55rem !important; }
+  .login-form-title { margin-bottom: 0.35rem !important; }
+  .login-form-card form,
+  .login-form-card form > :not([hidden]) ~ :not([hidden]) { gap: 0.35rem !important; margin-top: 0.35rem !important; }
+  .login-support { margin-top: 0.2rem !important; padding-top: 0.2rem !important; }
+}
+
+
+/* Final viewport audit: common layouts remain fluid from small phones to ultra-wide displays. */
+@layer base {
+  main,
+  main > *,
+  main > * > *,
+  [role="tabpanel"],
+  [data-radix-card-content],
+  [data-radix-card-header],
+  [data-radix-dialog-content],
+  [data-radix-sheet-content] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .grid,
+  .flex,
+  form,
+  section,
+  article {
+    min-width: 0;
+  }
+
+  .grid > *,
+  .flex > *,
+  form > *,
+  section > *,
+  article > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .card,
+  [data-radix-card] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .responsive-table,
+  [data-radix-scroll-area-viewport] {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (max-width: 767px) {
+    [data-radix-card-content] {
+      padding-inline: clamp(0.625rem, 3vw, 1rem);
+    }
+
+    [data-radix-card-header] {
+      padding-inline: clamp(0.625rem, 3vw, 1rem);
+    }
+
+    .page-header > div,
+    .data-toolbar > div {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .page-header button,
+    .data-toolbar button {
+      max-width: 100%;
+      white-space: normal;
+    }
+
+    input,
+    select,
+    textarea,
+    [role="combobox"] {
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .responsive-auto-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+  }
+
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .responsive-auto-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+  }
+
+/* Responsive layout: use all available width without masonry gaps or forced single-column stacking. */
+.responsive-auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: clamp(.5rem, 1vw, .875rem);
+  align-items: stretch;
+}
+.responsive-auto-grid > * { min-width: 0; max-width: 100%; }
+@media (max-width: 767px) {
+  .responsive-auto-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: .5rem; }
+  .responsive-auto-grid > * { min-width: 0; }
+  .login-page { align-items: center; justify-content: center; padding: 1rem; }
+  .login-page > div, .login-page > section { width: 100%; max-width: 26rem; margin-inline: auto; }
+  .login-page .login-brand-mobile, .login-page h1, .login-page .login-logo { margin-inline: auto; text-align: center; }
+  .login-page form { gap: .875rem; }
+  .login-page .login-input { height: 3rem; }
+  .login-page .login-submit { height: 3.25rem; }
+}
+
+}
+
+
+/* Fiche acquisition client : densité maîtrisée sur ordinateur et mobile. */
+.client-detail-compact .rounded-lg.border.bg-card > div.p-6 { padding: .65rem .8rem; }
+.client-detail-compact h3 { font-size: .9rem; line-height: 1.25rem; }
+.client-detail-compact table { width: 100%; table-layout: auto; }
+.client-detail-compact table th,
+.client-detail-compact table td { padding: .38rem .55rem; line-height: 1.25; font-size: .8125rem; }
+.client-detail-compact table tbody tr { height: auto; }
+.client-detail-compact table td { overflow-wrap: anywhere; }
+.client-detail-compact [role="tablist"] { max-width: 100%; }
+.client-detail-compact [role="tab"] { padding: .4rem .55rem; font-size: .8125rem; gap: .3rem; }
+.client-detail-compact img { max-width: 100%; }
+@media (max-width: 640px) {
+  .client-detail-compact .rounded-lg.border.bg-card > div.p-6 { padding: .55rem .65rem; }
+  .client-detail-compact .text-lg { font-size: .95rem; line-height: 1.35rem; }
+  .client-detail-compact .text-sm { font-size: .8rem; line-height: 1.15rem; }
+  .client-detail-compact table th,
+  .client-detail-compact table td { padding: .32rem .4rem; font-size: .75rem; }
+  .client-detail-compact [role="tab"] { padding: .35rem .45rem; font-size: .75rem; }
+}
+
+
+/* Densité commune CRM : lignes basses, titres lisibles et badges/actions sur une ligne. */
+@layer components {
+  table { border-collapse: separate; border-spacing: 0; }
+  table th { font-size: .75rem; font-weight: 600; line-height: 1.15; white-space: nowrap; }
+  table td { line-height: 1.15; }
+  table td [data-slot="badge"], table td [class*="rounded-full"], table td .badge { white-space: nowrap; flex-shrink: 0; }
+  table td .flex { min-width: 0; }
+  table td button { flex-shrink: 0; }
+  table td .truncate { max-width: 14rem; }
+  @media (max-width: 640px) {
+    table th { font-size: .69rem; white-space: nowrap; }
+    table td { font-size: .72rem; }
+    table th, table td { padding: .18rem .28rem; }
+  }
+}
+
+
+/* Commission : densité renforcée sans toucher aux données ni aux statuts. */
+.commission-page .responsive-data-table th,
+.commission-page .responsive-data-table td { padding: .18rem .32rem !important; line-height: 1.1; white-space: nowrap; }
+.commission-page .responsive-data-table th { font-size: .69rem; }
+.commission-page .responsive-data-table td { font-size: .73rem; }
+.commission-page .responsive-data-table tbody tr { height: 2.15rem; }
+@media (max-width: 640px) {
+  .commission-page .responsive-data-table th,
+  .commission-page .responsive-data-table td { padding: .16rem .25rem !important; font-size: .68rem; }
+}
+
+
+/* Compact financial and wallet tables: keep scrolling inside table containers. */
+.portfolio-page .responsive-data-table th,
+.portfolio-page .responsive-data-table td {
+  padding: .18rem .32rem !important;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.portfolio-page .responsive-data-table th { font-size: .69rem; }
+.portfolio-page .responsive-data-table td { font-size: .73rem; }
+.portfolio-page .responsive-data-table tbody tr { height: 2.1rem; }
+.finance-page table { width: 100%; font-size: .76rem; }
+.finance-page table th,
+.finance-page table td { padding: .22rem .32rem; line-height: 1.15; vertical-align: middle; }
+.finance-page .rounded-lg.border { min-width: 0; }
+@media (max-width: 640px) {
+  .portfolio-page .responsive-data-table th,
+  .portfolio-page .responsive-data-table td { padding: .15rem .24rem !important; font-size: .67rem; }
+  .finance-page table th,
+  .finance-page table td { padding: .18rem .24rem; }
+}
+
+
+/* Technique terrain : forms compactes, map and controls remain usable without excess vertical gaps. */
+.technique-page [data-slot="card-header"] { padding: .7rem .9rem .3rem; }
+.technique-page [data-slot="card-content"] { padding: .65rem .9rem .85rem; }
+.technique-page .grid { row-gap: .55rem; column-gap: .7rem; }
+.technique-page textarea { min-height: 2.4rem; }
+.technique-page .rounded-xl.border.p-4,
+.technique-page .rounded-lg.border.p-4 { padding: .65rem; }
+.technique-page .overflow-x-auto { max-width: 100%; }
+@media (min-width: 1024px) {
+  .technique-page .map-container { min-height: 0; }
+}
+@media (max-width: 640px) {
+  .technique-page [data-slot="card-header"] { padding: .6rem .7rem .25rem; }
+  .technique-page [data-slot="card-content"] { padding: .55rem .7rem .7rem; }
+  .technique-page .grid { row-gap: .45rem; column-gap: .5rem; }
+}
+
+
+/* Densité globale obligatoire : toutes les tables du CRM, y compris Paramètres. */
+@layer components {
+  table th, table td { padding-block: .12rem !important; padding-inline: .28rem !important; line-height: 1.08 !important; vertical-align: middle; }
+  table th { font-size: .70rem !important; font-weight: 600; white-space: nowrap; }
+  table td { font-size: .74rem; }
+  table tbody tr { height: auto !important; min-height: 0 !important; }
+  table td p { margin-block: 0; }
+  @media (max-width: 640px) {
+    table th { font-size: .66rem !important; } table td { font-size: .69rem; }
+    table th, table td { padding-block: .1rem !important; padding-inline: .22rem !important; line-height: 1.06 !important; }
+  }
+}
+.client-summary-grid > [data-slot="card"], .client-summary-grid > [data-radix-card] { min-width: 0; }
+.client-summary-grid [data-slot="card-header"] { padding: .5rem .6rem .2rem; }
+.client-summary-grid [data-slot="card-content"] { padding: .2rem .6rem .55rem; }
+.client-summary-grid [data-slot="card-title"] { font-size: .72rem; line-height: 1.1; }
+.client-summary-grid .text-lg { font-size: clamp(.8rem, 1vw, 1rem); line-height: 1.2; overflow-wrap: anywhere; }
+.client-summary-grid button { height: 1.7rem; padding-inline: .45rem; font-size: .7rem; }
+@media (max-width: 1023px) { .client-summary-grid [data-slot="card-header"] { padding: .45rem .5rem .18rem; } .client-summary-grid [data-slot="card-content"] { padding: .18rem .5rem .45rem; } }
+
+
+/* Champs de rapport terrain : ligne de métadonnées basse et compacte sur ordinateur. */
+.technique-report-meta { align-items: end; gap: .4rem !important; }
+.technique-report-meta label { display: block; margin-bottom: .18rem; font-size: .72rem; line-height: 1.05; }
+.technique-report-meta input,
+.technique-report-meta [role="combobox"],
+.technique-report-meta [data-radix-select-trigger] {
+  height: 2.05rem !important;
+  min-height: 2.05rem !important;
+  padding-block: .2rem !important;
+  font-size: .76rem !important;
+}
+.technique-report-meta [data-radix-select-trigger] > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 1023px) {
+  .technique-report-meta { gap: .5rem !important; }
+}
+
+
+.technical-history-cards { grid-template-columns: minmax(0, 1fr) !important; }
+@media (min-width: 1024px) {
+  .technical-history-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* AgriCapital responsive density rules — shared by CRM and all Settings screens. */
+@layer base {
+  /* Keep text horizontal and readable; allow long values to wrap instead of stretching the page. */
+  body, #root, main, section, article, [role="tabpanel"] {
+    writing-mode: horizontal-tb;
+  }
+
+  h1, h2, h3, h4, th, td, label, p, span, a, button {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  /* Les cartes doivent pouvoir rétrécir et envelopper les mots entiers,
+     sans colonnes étroites ni texte affiché lettre par lettre. */
+  [data-slot="card"], [data-slot="card-content"], [data-slot="card-header"],
+  [data-slot="card"] > *, .grid > .rounded-lg.border.bg-card,
+  .grid > .rounded-xl.border.bg-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+  [data-slot="card"] p, [data-slot="card"] h3, [data-slot="card"] h4 {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  /* Compact table cells on every screen while preserving readable horizontal direction. */
+  table th, table td {
+    padding-block: 0.45rem;
+    padding-inline: 0.55rem;
+    line-height: 1.3;
+    vertical-align: middle;
+    writing-mode: horizontal-tb;
+  }
+
+  /* Dense card grids automatically use as many columns as the available width permits. */
+  .grid:has(> .rounded-lg.border.bg-card),
+  .grid:has(> .rounded-xl.border.bg-card),
+  .grid:has(> [class*="hover-scale"]) {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 0.65rem;
+  }
+
+  @media (min-width: 768px) {
+    .grid:has(> .rounded-lg.border.bg-card),
+    .grid:has(> .rounded-xl.border.bg-card),
+    .grid:has(> [class*="hover-scale"]) {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+      gap: 0.75rem;
+    }
+  }
+
+  /* Cards and panels should not introduce unnecessary blank space on narrow screens. */
+  @media (max-width: 767px) {
+    .rounded-lg.border.bg-card > [class*="p-6"],
+    .rounded-xl.border.bg-card > [class*="p-6"] {
+      padding: 0.75rem;
+    }
+
+    .grid {
+      column-gap: 0.5rem;
+      row-gap: 0.5rem;
+    }
+
+    table {
+      font-size: 0.8125rem;
+    }
+
+    table th, table td {
+      padding: 0.4rem 0.45rem;
+    }
+
+    h1 { font-size: 1.35rem; line-height: 1.25; }
+    h2 { font-size: 1.2rem; line-height: 1.3; }
+    h3 { font-size: 1.05rem; line-height: 1.35; }
+  }
+
+  @media (min-width: 768px) {
+    table th, table td {
+      padding-block: 0.5rem;
+      padding-inline: 0.6rem;
+    }
+  }
+}
+
+
+/* Tables across every CRM page and Settings: compact rows with subtle, visible grid lines. */
+@layer components {
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+  table thead th {
+    background-color: hsl(var(--muted) / 0.55);
+    border-bottom: 1px solid #969da4 !important;
+    border-right: 1px solid #d0d4d8;
+    padding: .16rem .36rem !important;
+    line-height: 1.12 !important;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  table tbody td {
+    border-bottom: 1px solid #c4c9ce !important;
+    border-right: 1px solid #e0e3e6;
+    padding: .14rem .36rem !important;
+    line-height: 1.12 !important;
+    vertical-align: middle;
+  }
+  table tbody tr:last-child td { border-bottom-color: #969da4 !important; }
+  table th:last-child, table td:last-child { border-right: 0; }
+  table tbody tr:hover { background-color: hsl(var(--muted) / 0.35); }
+  table th, table td {
+    writing-mode: horizontal-tb;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  table td p, table td .flex { margin-block: 0; }
+
+  table button, table [role="button"], table a {
+    min-height: 1.45rem !important;
+    min-width: 0 !important;
+    height: auto;
+    padding-block: .08rem !important;
+    padding-inline: .28rem !important;
+    line-height: 1.1 !important;
+  }
+  @media (max-width: 640px) {
+    table thead th { padding: .12rem .24rem !important; font-size: .66rem !important; }
+    table tbody td { padding: .11rem .24rem !important; font-size: .69rem !important; }
+  }
+}
+
+/* Règle globale non négociable : tous les textes restent horizontaux, dans toutes les pages et Paramètres. */
+@layer base {
+  :where(*):not(svg):not(svg *) {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+}
+
+/* Correctifs transversaux CRM — cartes denses, textes horizontaux et contenus jamais tronqués. */
+@layer base {
+  html, body, #root, main, section, article, div, span, p, label, button, a, th, td {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+  }
+
+  /* Les noms restent lisibles horizontalement : la table peut défiler dans son conteneur,
+     mais aucun nom ne doit être découpé caractère par caractère. */
+  table { width: 100%; table-layout: auto; }
+  table th, table td,
+  table th *, table td * {
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+  }
+  table th, table td { vertical-align: middle; }
+  table td :is(span, p, a, div) { max-width: none; }
+  table td .truncate { max-width: 18rem; }
+
+  /* Les tableaux gardent leurs colonnes et défilent horizontalement dans leur propre zone,
+     au lieu d'écraser les noms en colonnes de lettres. */
+  .overflow-x-auto { max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .overflow-x-auto > table { min-width: max-content; }
+}
+
+@media (max-width: 767px) {
+  /* Ne jamais imposer une grille de cartes à tous les modules :
+     chaque groupe de cartes conserve sa grille métier déclarée dans la page. */
+  [data-radix-card-header], [data-slot="card-header"] {
+    padding: .45rem .5rem .2rem !important;
+  }
+  [data-radix-card-content], [data-slot="card-content"] {
+    padding: .35rem .5rem .5rem !important;
+  }
+  .page-header { gap: .45rem !important; }
+}
+
+/* Tableaux responsive : ils utilisent toute la largeur disponible, sans
+   rester bloqués à leur largeur intrinsèque ni laisser une grande zone vide. */
+table {
+  display: table !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: auto;
+}
+thead { display: table-header-group !important; }
+tbody { display: table-row-group !important; }
+tfoot { display: table-footer-group !important; }
+tr { display: table-row !important; }
+th, td { display: table-cell !important; min-width: 0; }
+.overflow-auto:has(> table),
+.overflow-x-auto:has(> table),
+.overflow-y-auto:has(> table) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+main, [role="main"], .container, [data-slot="card"], [data-slot="card-content"],
+[role="tabpanel"], .page-content {
+  min-width: 0;
+  max-width: 100%;
+}
+table td :is(span, p, a, div) { min-width: 0; }
+@media (min-width: 768px) {
+  main, [role="main"], .page-content { width: 100%; }
+  [data-slot="card"], [data-slot="card-content"] { overflow-wrap: anywhere; }
+}
+@media (max-width: 767px) {
+  table { font-size: .75rem; }
+  table th, table td { padding: .25rem .3rem !important; }
+}
+
+/* Carte professionnelle : proportions portrait 54 × 85,6 mm (ratio 0,631),
+   aucun zoom CSS qui rogne les textes, et aperçu complet sans espace vide forcé. */
+.id-card-preview {
+  transform: none !important;
+  transform-origin: top center;
+}
+
+
+
+/* Final CRM typography safeguard: keep complete words and short status labels on one line. */
+@layer base {
+  label, button, th, td, p, span, a, [role="status"], [role="alert"], [data-slot="badge"], .badge {
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: none;
+  }
+  button, [data-slot="badge"], .badge, [role="status"] {
+    white-space: nowrap;
+  }
+  [data-slot="badge"] *, .badge *, [role="status"] * {
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+  @media (max-width: 640px) {
+    label, th, td, button, [data-slot="badge"], .badge {
+      word-break: normal;
+      overflow-wrap: break-word;
+      hyphens: none;
+    }
+  }
+}
+
+/* RÈGLE GLOBALE : les montants et devises ne doivent jamais être coupés sur plusieurs lignes.
+   Ajouter money-value aux affichages monétaires dans tous les modules. */
+.money-value,
+.currency-value,
+.amount-value,
+[data-money="true"],
+.tabular-nums {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+.money-value,
+.currency-value,
+.amount-value,
+[data-money="true"] {
+  max-width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compacité transversale : réduire les espaces verticaux sans imposer une grille unique. */
+@layer components {
+  [data-slot="card-header"] { padding-block: .7rem; }
+  [data-slot="card-content"] { padding-block: .65rem; }
+  [data-slot="card-footer"] { padding-block: .55rem; }
+  .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+  .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: .85rem; }
+  .gap-y-6 { row-gap: .85rem; }
+  .gap-y-8 { row-gap: 1rem; }
+  @media (max-width: 767px) {
+    [data-slot="card-header"] { padding: .55rem .65rem .25rem; }
+    [data-slot="card-content"] { padding: .45rem .65rem .65rem; }
+    [data-slot="card-footer"] { padding: .4rem .65rem .55rem; }
+    .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; }
+  }
+}
+
+/* Priorité responsive finale : neutralise les anciennes règles max-content qui laissaient du vide à droite. */
+.overflow-x-auto > table, .overflow-auto > table, .overflow-y-auto > table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+
+
+/* Final priority, including nested currency units and mobile financial cells. */
+:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums),
+:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums) * {
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount]) {
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 767px) {
+  .overflow-x-auto > table:has(:is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums)) {
+    table-layout: auto !important;
+    min-width: 100% !important;
+  }
+  .overflow-x-auto > table :is(.money-value, .currency-value, .amount-value, [data-money="true"], [data-currency], [data-amount], .tabular-nums) {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+  }
+}
+
+
+/* Formulaire Modifier l'utilisateur : présentation compacte, responsive et sans libellés redondants. */
+.user-edit-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.user-edit-compact > [data-slot="card"] {
+  min-width: 0;
+  border-radius: 0.65rem;
+}
+.user-edit-compact > [data-slot="card"] > [data-slot="card-header"] {
+  padding: 0.55rem 0.75rem 0.25rem;
+}
+.user-edit-compact > [data-slot="card"] > [data-slot="card-header"] [data-slot="card-title"] {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+.user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
+  padding: 0.5rem 0.75rem 0.75rem;
+  gap: 0.55rem;
+}
+.user-edit-compact .space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.3rem;
+}
+.user-edit-compact label {
+  font-size: 0.75rem;
+  line-height: 1.15;
+}
+.user-edit-compact input:not([type="checkbox"]):not([type="file"]),
+.user-edit-compact [data-slot="select-trigger"] {
+  min-height: 2rem;
+  height: 2rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  font-size: 0.8125rem;
+}
+.user-edit-compact [data-slot="checkbox"] {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+.user-edit-compact [data-slot="badge"] {
+  font-size: 0.6rem;
+  padding: 0.05rem 0.3rem;
+}
+.user-edit-compact .grid.gap-4 {
+  gap: 0.55rem;
+}
+.user-edit-compact .grid.gap-3 {
+  gap: 0.4rem;
+}
+.user-edit-compact .border.rounded-lg.p-4 {
+  padding: 0.5rem;
+}
+.user-edit-compact button[type="submit"],
+.user-edit-compact button[type="button"] {
+  min-height: 2rem;
+}
+.user-edit-compact .text-xs.text-muted-foreground {
+  line-height: 1.15;
+}
+@media (min-width: 640px) {
+  .user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
+    padding-top: 0.45rem;
+  }
+  .user-edit-compact .grid.grid-cols-1.sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 639px) {
+  .user-edit-compact {
+    gap: 0.4rem;
+  }
+  .user-edit-compact > [data-slot="card"] > [data-slot="card-header"] {
+    padding: 0.45rem 0.6rem 0.2rem;
+  }
+  .user-edit-compact > [data-slot="card"] > [data-slot="card-content"] {
+    padding: 0.4rem 0.6rem 0.6rem;
+  }
+  .user-edit-compact .grid.grid-cols-1.sm\:grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .user-edit-compact .grid.grid-cols-1.sm\:grid-cols-2 > * {
+    min-width: 0;
+  }
+}
+
+
+/* Tableaux CRM : conserver les mots lisibles. Les colonnes restent sur une ligne
+   et le conteneur défile horizontalement uniquement quand l'écran est trop étroit. */
+@layer base {
+  table {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  table th,
+  table td {
+    min-width: 0;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
+    vertical-align: middle;
+  }
+
+  table th *, table td * {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .overflow-x-auto,
+  .overflow-auto,
+  .overflow-y-auto {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Les boutons et leurs libellés restent dans leur conteneur; les icônes ne rétrécissent pas. */
+button, [role="button"] {
+  min-width: 0;
+  max-width: 100%;
+}
+button > span, [role="button"] > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  table th, table td { padding-inline: .3rem !important; padding-block: .22rem !important; }
+}
+
+
+/* KPI commerciaux compacts : moins de lignes sur mobile, cartes à largeur égale. */
+.crm-compact-kpi-grid {
+  display: grid !important;
+  min-width: 0 !important;
+  grid-auto-flow: row;
+}
+@media (max-width: 767px) {
+  /* Clients : essayer une seule ligne si les 5 indicateurs restent lisibles.
+     Sur les petits écrans, passer sur 2 rangées et étirer les cartes de la dernière. */
+  .crm-compact-kpi-grid--clients {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+    gap: .25rem !important;
+  }
+  .crm-compact-kpi-grid--clients > a {
+    grid-column: auto !important;
+    padding-inline: .25rem !important;
+  }
+}
+@media (max-width: 380px) {
+  .crm-compact-kpi-grid--clients {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+  .crm-compact-kpi-grid--clients > a:nth-child(-n + 3) {
+    grid-column: span 2 / span 2 !important;
+  }
+  .crm-compact-kpi-grid--clients > a:nth-child(n + 4) {
+    grid-column: span 3 / span 3 !important;
+  }
+}
+@media (min-width: 768px) {
+  .crm-compact-kpi-grid--clients > a {
+    grid-column: auto;
+  }
+}
+@media (max-width: 767px) {
+  .crm-compact-kpi-grid--leads {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: .25rem !important;
+  }
+  .crm-compact-kpi-grid--prospects {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: .25rem !important;
+  }
+  .crm-compact-kpi-grid > a {
+    min-width: 0 !important;
+    padding: .35rem .25rem !important;
+    min-height: 2.8rem !important;
+  }
+  .crm-compact-kpi-grid > a > span:first-child {
+    font-size: 8px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .crm-compact-kpi-grid > a > span:last-child {
+    margin-top: .2rem !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+}
+
+
+/* Page Prospects : cartes KPI auto-ajustables, au maximum deux rangées,
+   et chaque rangée remplit toute la largeur disponible même si elle est incomplète. */
+.crm-prospects-stat-grid {
+  align-items: stretch;
+  width: 100%;
+}
+.crm-prospects-stat-card {
+  flex: 1 1 8.5rem;
+  max-width: none;
+}
+@media (min-width: 768px) {
+  .crm-prospects-stat-card {
+    flex-basis: 7.5rem;
+  }
+}
+@media (max-width: 767px) {
+  .crm-prospects-stat-grid {
+    gap: .4rem !important;
+  }
+  .crm-prospects-stat-card {
+    flex: 1 1 calc(25% - .4rem);
+    min-width: 0 !important;
+  }
+  .crm-prospects-stat-card > [data-slot="card-content"] {
+    min-height: 3.2rem !important;
+    padding: .4rem !important;
+  }
+  .crm-prospects-stat-card p {
+    max-width: 100%;
+  }
+}
+
+
+/* Règle CRM : aucun libellé d'action dans un tableau ne doit se casser sur plusieurs lignes. */
+@layer base {
+  table td :is(button, a, [role="button"]) {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+    flex-wrap: nowrap !important;
+    width: max-content;
+    min-width: max-content !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  table td :is(button, a, [role="button"]) > * {
+    flex-shrink: 0;
+    white-space: nowrap !important;
+  }
+}
+
+
+/* Keep action controls inside CRM tables compact even under the mobile 44px touch-target rule. */
+@layer components {
+  table button,
+  table [role="combobox"],
+  table [data-radix-select-trigger] {
+    min-height: 28px !important;
+    height: 28px !important;
+  }
+  table td { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+}
+
+
+/* Compact, consistent checkbox sizing across CRM forms and tables. */
+@layer base {
+  input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    min-width: 1rem;
+    min-height: 1rem;
+    flex: 0 0 1rem;
+    accent-color: hsl(var(--primary));
+    vertical-align: middle;
+  }
+}
+
+
+/* AgriCapital 360 responsive foundation: prevent flex/grid overflow and overlap. */
+@layer base {
+  html, body, #root { max-width: 100%; overflow-x: clip; }
+  #root { min-width: 0; }
+  main, [role="main"], .container, section, article { min-width: 0; }
+  h1, h2, h3, p, label, td, th, button, a { overflow-wrap: anywhere; }
+  [data-radix-dialog-content], [role="dialog"], [data-radix-popover-content] { max-width: calc(100vw - 1rem); max-height: calc(100dvh - 1rem); overflow-y: auto; }
+  .agricapital-360-shell { width: 100%; max-width: 100%; min-width: 0; margin-inline: auto; padding: clamp(.75rem, 2vw, 1.5rem); }
+  .agricapital-360-grid { display: grid; grid-template-columns: repeat( auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; min-width: 0; }
+  .agricapital-360-grid > *, .agricapital-360-shell * { min-width: 0; }
+  .agricapital-360-panel { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+  .agricapital-360-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+  .agricapital-360-actions > * { max-width: 100%; }
+  @media (max-width: 640px) {
+    .agricapital-360-shell { padding: .75rem; }
+    .agricapital-360-shell h1 { font-size: 1.45rem; line-height: 1.25; }
+    .agricapital-360-shell h2 { font-size: 1.2rem; line-height: 1.3; }
+    .agricapital-360-actions > button { flex: 1 1 auto; }
+    .agricapital-360-shell [role="tablist"] { display: flex; flex-wrap: wrap; max-width: 100%; height: auto; }
+    .agricapital-360-shell [role="tab"] { flex: 1 1 auto; white-space: normal; }
+  }
+}
+
+/* Typographie métier unifiée : lisibilité et hiérarchie cohérente sur mobile/desktop. */
+@layer base {
+  body, button, input, textarea, select { font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  h1, h2, h3, .font-display { font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: -0.025em; }
+  h1 { font-weight: 700; }
+  h2, h3 { font-weight: 650; }
+}
+
+/* Center detached dialogs in the usable workspace, excluding the desktop sidebar. */
+@media (min-width: 768px) {
+  body.agricapital-has-sidebar [data-radix-dialog-content] { left: calc(50% + 8rem) !important; max-width: min(calc(100vw - 18rem), 72rem); }
+}
+@media (max-width: 767px) {
+  body.agricapital-has-sidebar [data-radix-dialog-content] { left: 50% !important; max-width: calc(100vw - 1rem); }
+}

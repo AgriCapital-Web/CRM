@@ -20,4 +20,392 @@ import InternalCallRoom from "@/components/workspace/InternalCallRoom";
 import PlanificationBudgetaire from "@/pages/PlanificationBudgetaire";
 import WorkspaceOperations from "@/components/workspace/WorkspaceOperations";
 import AgriCapitalIntelligence from "@/pages/AgriCapitalIntelligence";
-import EspaceTravail f���q�^
+import EspaceTravail from "@/pages/EspaceTravail";
+import WorkspaceOffice from "@/pages/WorkspaceOffice";
+import Workspace360 from "@/pages/Workspace360";
+import WorkspacePeople360 from "@/pages/WorkspacePeople360";
+
+type Conversation = { id: string; conversation_type: "direct" | "group" | "channel"; title: string | null; last_message_at: string; created_by_profile_id: string; participant_profile_ids?: string[] };
+type Message = { id: string; conversation_id: string; sender_profile_id: string; body: string; created_at: string; edited_at: string | null; message_type: string };
+type Staff = { id: string; nom_complet: string; email: string | null; poste: string | null; role_codes?: string[]; role_names?: string[] };
+type StaffRole = { code: string; nom: string; court: string | null };
+type StaffTeam = { id: string; nom: string; member_profile_ids: string[] };
+type Meeting = { id: string; title: string; description: string | null; agenda: string | null; starts_at: string; ends_at: string; status: string; provider: string; provider_room_id?: string | null; join_url: string | null; created_by_profile_id: string };
+type MessageAttachment = { id: string; message_id: string; file_name: string; mime_type: string | null; storage_path: string; url?: string };
+
+const dateLabel = (value: string) => new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join("").toUpperCase();
+
+export default function AgriCapitalConnect() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { profile } = useAuth();
+  const { can } = usePermissions();
+  const canViewMessaging = can("messagerie.view");
+  const profileId = profile?.id as string | undefined;
+  const initialModule = searchParams.get("module");
+  const normalizedInitialModule = initialModule === "office" ? "documents" : initialModule;
+  const [tab, setTab] = useState(normalizedInitialModule || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation"));
+  useEffect(() => { const requested = searchParams.get("module"); const module = requested === "office" ? "documents" : requested; setTab(module || (canViewMessaging ? "messages" : can("finance.view") ? "budgets" : can("documents.view") ? "documents" : "organisation")); }, [searchParams, canViewMessaging]);
+  const changeTab = (value: string) => { setTab(value); setSearchParams({ module: value }); };
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messageAttachments, setMessageAttachments] = useState<Record<string, MessageAttachment[]>>({});
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [staffRoles, setStaffRoles] = useState<StaffRole[]>([]);
+  const [staffTeams, setStaffTeams] = useState<StaffTeam[]>([]);
+  const [newTeams, setNewTeams] = useState<string[]>([]);
+  const [meetingTeams, setMeetingTeams] = useState<string[]>([]);
+  const [messageFile, setMessageFile] = useState<File | null>(null);
+  const [meetingFiles, setMeetingFiles] = useState<File[]>([]);
+  const [meetingAudience, setMeetingAudience] = useState<"selected" | "all">("selected");
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [selected, setSelected] = useState<string>("");
+  const [existingDirectConversationId, setExistingDirectConversationId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newKind, setNewKind] = useState<"direct" | "group" | "channel">("direct");
+  const [newMembers, setNewMembers] = useState<string[]>([]);
+  const [newRoles, setNewRoles] = useState<string[]>([]);
+  const [meetingRoles, setMeetingRoles] = useState<string[]>([]);
+  const [meetingAttachments, setMeetingAttachments] = useState<Record<string, any[]>>({});
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [callRoomId, setCallRoomId] = useState("");
+  const [meetingTitle, setMeetingTitle] = useState("");
+  const [meetingStart, setMeetingStart] = useState("");
+  const [meetingEnd, setMeetingEnd] = useState("");
+  const [meetingAgenda, setMeetingAgenda] = useState("");
+  const [meetingDescription, setMeetingDescription] = useState("");
+  const [externalGuestName, setExternalGuestName] = useState("");
+  const [externalGuestEmail, setExternalGuestEmail] = useState("");
+  const [meetingMembers, setMeetingMembers] = useState<string[]>([]);
+
+  const loadConversations = useCallback(async () => {
+    if (!profileId) return;
+    const { data, error } = await (supabase as any).from("internal_conversations")
+      .select("id,conversation_type,title,last_message_at,created_by_profile_id,internal_conversation_members!inner(profile_id)")
+      .eq("internal_conversation_members.profile_id", profileId)
+      .order("last_message_at", { ascending: false });
+    if (error) { console.error(error); toast.error("Impossible de charger les conversations."); return; }
+    const rawRows = (data || []) as any[];
+    const ids = rawRows.map((row) => row.id);
+    let memberRows: { conversation_id: string; profile_id: string }[] = [];
+    if (ids.length) {
+      const { data: members, error: membersError } = await (supabase as any).from("internal_conversation_members").select("conversation_id,profile_id").in("conversation_id", ids);
+      if (membersError) { console.error("Impossible de charger les participants des conversations", membersError); }
+      else memberRows = (members || []) as typeof memberRows;
+    }
+    const membersByConversation = new Map<string, string[]>();
+    for (const member of memberRows) membersByConversation.set(member.conversation_id, [...(membersByConversation.get(member.conversation_id) || []), member.profile_id]);
+    const rows = rawRows.map((row: any) => ({ ...row, internal_conversation_members: undefined, participant_profile_ids: membersByConversation.get(row.id) || [] })) as Conversation[];
+    setConversations(rows);
+  }, [profileId, selected]);
+
+  const loadStaff = useCallback(async () => {
+    const [{ data, error }, { data: roleData, error: roleError }, { data: teamData, error: teamError }] = await Promise.all([
+      (supabase as any).rpc("workspace_list_finance_users"),
+      (supabase as any).rpc("workspace_list_roles"),
+      (supabase as any).rpc("workspace_list_teams_with_members"),
+    ]);
+    if (error) { console.error(error); setStaff([]); } else setStaff((data || []) as Staff[]);
+    if (roleError) { console.error(roleError); setStaffRoles([]); } else setStaffRoles((roleData || []) as StaffRole[]);
+    if (teamError) { console.error(teamError); setStaffTeams([]); } else setStaffTeams((teamData || []) as StaffTeam[]);
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    if (!conversationId) { setMessages([]); return; }
+    const { data, error } = await (supabase as any).from("internal_messages")
+      .select("id,conversation_id,sender_profile_id,body,created_at,edited_at,message_type")
+      .eq("conversation_id", conversationId).is("deleted_at", null).order("created_at", { ascending: true }).limit(500);
+    if (error) { console.error(error); setMessages([]); return; }
+    const rows = (data || []) as Message[];
+    setMessages(rows);
+    const messageIds = rows.map(m => m.id);
+    if (messageIds.length) {
+      const { data: files, error: filesError } = await (supabase as any).from("internal_message_attachments").select("id,message_id,storage_path,file_name,mime_type,file_size").in("message_id", messageIds);
+      if (filesError) console.warn("Pièces jointes indisponibles", filesError);
+      const grouped: Record<string, any[]> = {};
+      for (const file of files || []) {
+        const { data: signed } = await supabase.storage.from("internal-message-attachments").createSignedUrl(file.storage_path, 3600);
+        (grouped[file.message_id] ||= []).push({ ...file, url: signed?.signedUrl || null });
+      }
+      setMessageAttachments(grouped);
+    } else setMessageAttachments({});
+    if (profileId) {
+      const now = new Date().toISOString();
+      const receipts = rows.filter(m => m.sender_profile_id !== profileId).map(m => ({ message_id: m.id, profile_id: profileId, delivered_at: now, read_at: now }));
+      if (receipts.length) {
+        const { error: receiptError } = await (supabase as any).from("internal_message_receipts").upsert(receipts, { onConflict: "message_id,profile_id" });
+        if (receiptError) console.warn("Receipt de lecture non enregistré", receiptError);
+      }
+      await (supabase as any).from("internal_conversation_members").update({ last_read_at: now }).eq("conversation_id", conversationId).eq("profile_id", profileId);
+    }
+  }, [profileId]);
+
+  const loadMeetings = useCallback(async () => {
+    const { data, error } = await (supabase as any).from("internal_meetings")
+      .select("id,title,description,agenda,starts_at,ends_at,status,provider,provider_room_id,join_url,created_by_profile_id")
+      .order("starts_at", { ascending: true }).limit(100);
+    if (error) { console.error(error); setMeetings([]); return; }
+    const rows = (data || []) as Meeting[];
+    setMeetings(rows);
+    const ids = rows.map(m => m.id);
+    if (ids.length) {
+      const { data: files, error: filesError } = await (supabase as any).from("internal_meeting_attachments").select("id,meeting_id,storage_path,file_name,mime_type,file_size").in("meeting_id", ids);
+      if (filesError) console.warn("Documents de réunion indisponibles", filesError);
+      const grouped: Record<string, any[]> = {};
+      for (const file of files || []) {
+        const { data: signed } = await supabase.storage.from("internal-message-attachments").createSignedUrl(file.storage_path, 3600);
+        (grouped[file.meeting_id] ||= []).push({ ...file, url: signed?.signedUrl || null });
+      }
+      setMeetingAttachments(grouped);
+    } else setMeetingAttachments({});
+  }, []);
+
+  useEffect(() => {
+    if (!canViewMessaging || !profileId) { setLoading(false); return; }
+    let alive = true;
+    void Promise.all([loadConversations(), loadStaff(), loadMeetings()]).finally(() => { if (alive) setLoading(false); });
+    const channel = supabase.channel("agricapital-connect-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "internal_messages" }, (payload: any) => {
+        if (payload.new?.conversation_id && payload.new.conversation_id === selected) void loadMessages(selected);
+        void loadConversations();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "internal_conversations" }, () => void loadConversations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "internal_meetings" }, () => void loadMeetings())
+      .subscribe();
+    return () => { alive = false; void supabase.removeChannel(channel); };
+  }, [canViewMessaging, profileId, selected, loadConversations, loadStaff, loadMeetings, loadMessages]);
+
+  useEffect(() => { if (selected) void loadMessages(selected); else setMessages([]); }, [selected, loadMessages]);
+
+  const conversationLabel = useCallback((conversation: Conversation | undefined) => {
+    if (!conversation) return "Conversation";
+    if (conversation.conversation_type === "direct") {
+      const otherId = (conversation.participant_profile_ids || []).find((id) => id !== profileId);
+      return staff.find((person) => person.id === otherId)?.nom_complet || conversation.title || "Conversation privée";
+    }
+    return conversation.title || (conversation.conversation_type === "group" ? "Groupe d'équipe" : "Canal interne");
+  }, [profileId, staff]);
+  const visibleConversations = useMemo(() => conversations.filter(c => conversationLabel(c).toLocaleLowerCase("fr").includes(search.toLocaleLowerCase("fr"))), [conversations, search, conversationLabel]);
+  const selectedConversation = conversations.find(c => c.id === selected);
+
+  useEffect(() => {
+    let active = true;
+    const findExistingDirect = async () => {
+      setExistingDirectConversationId(null);
+      if (!profileId || newKind !== "direct" || newMembers.length !== 1 || !conversations.length) return;
+      const ids = conversations.map(c => c.id);
+      const { data, error } = await (supabase as any).from("internal_conversation_members")
+        .select("conversation_id,profile_id")
+        .in("conversation_id", ids);
+      if (error || !data) return;
+      const membersByConversation = new Map<string, string[]>();
+      for (const row of data as {conversation_id:string; profile_id:string}[]) {
+        const list = membersByConversation.get(row.conversation_id) || [];
+        list.push(row.profile_id);
+        membersByConversation.set(row.conversation_id, list);
+      }
+      const match = conversations.find(c => c.conversation_type === "direct" && (() => {
+        const members = membersByConversation.get(c.id) || [];
+        return members.length === 2 && members.includes(profileId) && members.includes(newMembers[0]);
+      })());
+      if (active) setExistingDirectConversationId(match?.id || null);
+    };
+    void findExistingDirect();
+    return () => { active = false; };
+  }, [profileId, newKind, newMembers, conversations]);
+
+  const createConversation = async () => {
+    if (!profileId) return;
+    const roleMembers = staff.filter(s => (s.role_codes || []).some(role => newRoles.includes(role))).map(s => s.id);
+    const teamMembers = staffTeams.filter(team => newTeams.includes(team.id)).flatMap(team => team.member_profile_ids || []);
+    const targets = Array.from(new Set([profileId, ...newMembers, ...roleMembers, ...teamMembers]));
+    if (newKind === "direct" && targets.length !== 2) { toast.error("Sélectionnez un autre utilisateur."); return; }
+    if (newKind === "direct" && existingDirectConversationId) {
+      setSelected(existingDirectConversationId);
+      setNewTitle(""); setNewMembers([]); setNewRoles([]); setCreateOpen(false);
+      toast.success("Conversation privée existante ouverte.");
+      return;
+    }
+    if (newKind !== "direct" && targets.length < 2) { toast.error("Ajoutez au moins un autre utilisateur."); return; }
+    const { data, error } = await (supabase as any).rpc("internal_create_conversation", {
+      p_conversation_type: newKind,
+      p_title: newKind === "direct" ? (staff.find(s => s.id === newMembers[0])?.nom_complet || null) : (newTitle.trim() || null),
+      p_member_profile_ids: targets.filter(id => id !== profileId),
+    });
+    const conv = Array.isArray(data) ? data[0] : data;
+    if (error || !conv) { console.error(error); toast.error(error?.message || "Création impossible. Vérifiez les participants sélectionnés."); return; }
+    setConversations(current => [conv, ...current.filter(c => c.id !== conv.id)]);
+    setSelected(conv.id); setNewTitle(""); setNewMembers([]); setNewRoles([]);  setCreateOpen(false);
+    toast.success(newKind === "direct" ? "Conversation privée ouverte." : "Conversation créée.");
+  };
+
+  const sendMessage = async () => {
+    if (!profileId || !selected || (!draft.trim() && !messageFile) || sending) return;
+    setSending(true);
+    let uploadedPath: string | null = null;
+    try {
+      if (messageFile) {
+        const safeName = messageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        uploadedPath = `${profileId}/messages/${crypto.randomUUID()}-${safeName}`;
+        const { error: uploadError } = await (supabase as any).storage.from("internal-message-attachments").upload(uploadedPath, messageFile, { contentType: messageFile.type || "application/octet-stream", upsert: false });
+        if (uploadError) throw uploadError;
+      }
+      const body = draft.trim() || (messageFile ? `Pièce jointe : ${messageFile.name}` : "");
+      const { data: msg, error } = await (supabase as any).from("internal_messages").insert({ conversation_id: selected, sender_profile_id: profileId, body, message_type: messageFile ? "file" : "text" }).select("id").single();
+      if (error || !msg) throw error || new Error("Message non confirmé.");
+      if (messageFile && uploadedPath) {
+        const { error: metadataError } = await (supabase as any).from("internal_message_attachments").insert({ message_id: msg.id, conversation_id: selected, uploaded_by_profile_id: profileId, storage_path: uploadedPath, file_name: messageFile.name, mime_type: messageFile.type || null, file_size: messageFile.size });
+        if (metadataError) throw metadataError;
+      }
+      setDraft(""); setMessageFile(null);
+      await loadMessages(selected);
+    } catch (error) {
+      if (uploadedPath) await (supabase as any).storage.from("internal-message-attachments").remove([uploadedPath]);
+      console.error(error); toast.error("Le message ou le fichier n’a pas pu être envoyé. Vérifiez les droits et le format du fichier.");
+    } finally { setSending(false); }
+  };
+
+  const startVideoCall = async () => {
+    if (!profileId || !selected) { toast.error("Ouvrez une conversation avant de lancer un appel."); return; }
+    const roomToken = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const { error } = await (supabase as any).from("internal_messages").insert({ conversation_id: selected, sender_profile_id: profileId, body: `Appel AgriCapital interne — AGRICAPITAL_CALL_ROOM:${roomToken}` });
+    if (error) { console.error(error); toast.error("L’invitation à l’appel n’a pas pu être envoyée."); return; }
+    setCallRoomId(roomToken); setCallOpen(true); await loadMessages(selected);
+  };
+
+  const createMeeting = async () => {
+    if (!profileId || !meetingTitle.trim() || !meetingStart || !meetingEnd || new Date(meetingEnd) <= new Date(meetingStart)) {
+      toast.error("Renseignez un titre et des horaires valides."); return;
+    }
+    if (externalGuestEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(externalGuestEmail.trim())) { toast.error("Renseignez une adresse e-mail valide pour l’invité externe."); return; }
+    const roomToken = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const joinUrl = null;
+    const roleMembers = staff.filter(s => (s.role_codes || []).some(role => meetingRoles.includes(role))).map(s => s.id);
+    const teamMembers = staffTeams.filter(team => meetingTeams.includes(team.id)).flatMap(team => team.member_profile_ids || []);
+    const participantIds = Array.from(new Set([...meetingMembers, ...roleMembers, ...teamMembers]));
+    const { data: created, error } = await (supabase as any).rpc("internal_create_meeting", {
+      p_title: meetingTitle.trim(),
+      p_description: meetingDescription.trim() || null,
+      p_agenda: meetingAgenda.trim() || null,
+      p_starts_at: new Date(meetingStart).toISOString(),
+      p_ends_at: new Date(meetingEnd).toISOString(),
+      p_provider_room_id: roomToken,
+      p_join_url: joinUrl,
+      p_participant_profile_ids: participantIds,
+    });
+    const meeting = Array.isArray(created) ? created[0] : created;
+    if (error || !meeting?.id) { toast.error(error?.message || "Réunion non créée. Vérifiez les horaires et les participants."); console.error(error); return; }
+    const meetingId = meeting.id;
+    let guestInviteUrl = "";
+    if (externalGuestEmail.trim()) {
+      try {
+        const guestToken = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "");
+        const tokenHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(guestToken)))).map(b => b.toString(16).padStart(2, "0")).join("");
+        const { error: inviteError } = await (supabase as any).rpc("workspace_create_external_meeting_invite", {
+          p_meeting_id: meetingId,
+          p_token_hash: tokenHash,
+          p_invitee_email: externalGuestEmail.trim(),
+          p_invitee_name: externalGuestName.trim() || null,
+          p_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        });
+        if (inviteError) throw inviteError;
+        guestInviteUrl = `${window.location.origin}/rejoindre-reunion?token=${encodeURIComponent(guestToken)}`;
+      } catch (inviteError) {
+        console.error("External guest invite could not be created", inviteError);
+        toast.error("Réunion créée, mais le lien invité externe n’a pas été généré.");
+      }
+    }
+    let attachmentsFailed = false;
+    for (const file of meetingFiles) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${profileId}/meetings/${meetingId}/${crypto.randomUUID()}-${safeName}`;
+      const { error: uploadError } = await (supabase as any).storage.from("internal-message-attachments").upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
+      if (uploadError) { attachmentsFailed = true; console.error(uploadError); continue; }
+      const { error: metadataError } = await (supabase as any).from("internal_meeting_attachments").insert({ meeting_id: meetingId, uploaded_by_profile_id: profileId, storage_path: path, file_name: file.name, mime_type: file.type || null, file_size: file.size });
+      if (metadataError) { attachmentsFailed = true; console.error(metadataError); await (supabase as any).storage.from("internal-message-attachments").remove([path]); }
+    }
+    setMeetingOpen(false); setMeetingTitle(""); setMeetingStart(""); setMeetingEnd(""); setMeetingAgenda(""); setMeetingDescription(""); setExternalGuestName(""); setExternalGuestEmail(""); setMeetingMembers([]); setMeetingRoles([]); setMeetingTeams([]); setMeetingFiles([]);  setMeetingAudience("selected");
+    await loadMeetings();
+    if (guestInviteUrl) { try { await navigator.clipboard.writeText(guestInviteUrl); toast.success("Réunion planifiée. Lien invité externe copié (valable 24 h)."); } catch { toast.success("Réunion planifiée. Lien invité : " + guestInviteUrl); } }
+    else if (!attachmentsFailed) toast.success("Réunion planifiée avec invitations enregistrées.");
+    else if (attachmentsFailed) toast.error("La réunion est planifiée, mais certains fichiers n’ont pas été joints.");
+
+  };
+
+  if (!canViewMessaging && !can("finance.view") && !can("documents.view") && !can("decision_center.view")) {
+    return <ProtectedRoute><MainLayout><Card><CardContent className="p-6 text-center">Accès non autorisé.</CardContent></Card></MainLayout></ProtectedRoute>;
+  }
+
+  return (
+    <ProtectedRoute>
+      <MainLayout>
+        <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-4 overflow-x-clip p-3 pb-8 pt-16 sm:p-4 md:p-6 md:pt-6">
+          <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2"><MessageCircle className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold sm:text-3xl">AgriCapital 360</h1></div>
+              
+            </div>
+            <Badge variant="outline" className="w-fit gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Espace interne sécurisé</Badge>
+          </header>
+          <Tabs value={tab} onValueChange={changeTab} className="min-w-0">
+            <TabsList aria-label="Modules AgriCapital 360" className="flex h-auto w-full min-w-0 max-w-full flex-nowrap justify-start gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap p-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
+              {canViewMessaging && <>
+                <TabsTrigger value="activities" aria-label="Pilotage et agenda" title="Pilotage et agenda" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Clock3 className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Pilotage & agenda</span></TabsTrigger>
+                <TabsTrigger value="messages" aria-label="Messages internes" title="Messages internes" className="h-10 min-w-10 shrink-0 gap-2 px-3"><MessageCircle className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Messages internes</span></TabsTrigger>
+                <TabsTrigger value="meetings" aria-label="Agenda et réunions" title="Agenda et réunions" className="h-10 min-w-10 shrink-0 gap-2 px-3"><CalendarDays className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Agenda & réunions</span></TabsTrigger>
+                
+                <TabsTrigger value="organisation" aria-label="Organisation" title="Organisation" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Users className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Organisation</span></TabsTrigger>
+                <TabsTrigger value="rh" aria-label="Suivi RH" title="Suivi RH" className="h-10 min-w-10 shrink-0 gap-2 px-3"><ShieldCheck className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Suivi RH</span></TabsTrigger>
+              </>}
+              {can("documents.view") && <TabsTrigger value="documents" aria-label="Documents et édition" title="Documents et édition" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Files className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Documents & édition</span></TabsTrigger>}
+              {can("finance.view") && <TabsTrigger value="budgets" aria-label="Planification et budgets" title="Planification et budgets" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Files className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Planification & budgets</span></TabsTrigger>}
+              {can("decision_center.view") && <TabsTrigger value="intelligence" aria-label="Centre de décision" title="Centre de décision" className="h-10 min-w-10 shrink-0 gap-2 px-3"><ShieldCheck className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Centre de décision</span></TabsTrigger>}
+            </TabsList>
+            <TabsContent value="activities" className="mt-3 min-w-0"><WorkspaceOperations /></TabsContent>
+            <TabsContent value="messages" className="mt-3 min-w-0">
+              <div className="grid min-w-0 gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
+                <Card className={selected ? "hidden min-w-0 lg:block" : "min-w-0"}>
+                  <CardHeader className="space-y-3 p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><CardTitle className="text-base">Conversations</CardTitle><Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogTrigger asChild><Button size="icon" variant="outline" aria-label="Nouvelle conversation"><Plus className="h-4 w-4" /></Button></DialogTrigger><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Nouvelle conversation</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Type</Label><Select value={newKind} onValueChange={(v: any) => setNewKind(v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="direct">Privée</SelectItem><SelectItem value="group">Groupe</SelectItem><SelectItem value="channel">Canal d'équipe</SelectItem></SelectContent></Select></div>{newKind !== "direct" && <div className="space-y-1"><Label>Nom du groupe / canal</Label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Ex. Direction, Terrain, Finance" /> </div>}{newKind !== "direct" && <div className="space-y-1"><Label>Sélectionner plusieurs rôles</Label><div className="grid min-w-0 grid-cols-2 gap-1.5 rounded-lg border p-2 sm:grid-cols-3">{staffRoles.map(role => <label key={role.code} className="flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5 text-xs leading-tight"><input type="checkbox" checked={newRoles.includes(role.code)} onChange={e => setNewRoles(current => e.target.checked ? [...current, role.code] : current.filter(code => code !== role.code))} />{role.nom}</label>)}</div><Button type="button" size="sm" variant="outline" onClick={() => setNewMembers(staff.filter(person => person.id !== profileId).map(person => person.id))}>Ajouter tous les utilisateurs actifs</Button><p className="text-xs text-muted-foreground">Tous les membres des rôles cochés seront inclus automatiquement.</p></div>}{newKind !== "direct" && <div className="space-y-1"><Label>Ajouter une équipe</Label><div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border p-2">{staffTeams.map(team => <label key={team.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"><input type="checkbox" checked={newTeams.includes(team.id)} onChange={e => setNewTeams(current => e.target.checked ? [...current, team.id] : current.filter(id => id !== team.id))} />{team.nom}<span className="ml-auto text-xs text-muted-foreground">{(team.member_profile_ids || []).length} membre(s)</span></label>)}</div></div>}<Label>Participants individuels</Label><div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border p-1.5">{staff.filter(s => s.id !== profileId).map(s => {
+  const active = newMembers.includes(s.id);
+  return <button key={s.id} type="button" aria-pressed={active} onClick={() => setNewMembers(current => newKind === "direct" ? (active ? [] : [s.id]) : (active ? current.filter(id => id !== s.id) : [...current, s.id]))} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${active ? "bg-primary/10 text-foreground" : "hover:bg-muted/70"}`}><span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">{s.nom_complet.split(/\\s+/).map((part: string) => part[0]).slice(0,2).join("").toUpperCase()}{active && <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background"><Check className="h-3 w-3" /></span>}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{s.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{s.poste || "Collaborateur"}</span></span></button>;
+})}</div><Button className="w-full" onClick={() => void createConversation()}>{newKind === "direct" ? "Ouvrir ou créer la conversation" : "Créer la conversation"}</Button></div></DialogContent></Dialog></div><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une conversation…" /></CardHeader>
+                  <CardContent className="space-y-1 p-2">{loading ? <div className="flex justify-center p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : visibleConversations.length ? visibleConversations.map(c => <button key={c.id} onClick={() => setSelected(c.id)} className={`flex w-full min-w-0 items-center gap-3 rounded-lg p-3 text-left transition-colors ${selected === c.id ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted"}`}><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials(conversationLabel(c))}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{c.title || (c.conversation_type === "direct" ? "Conversation privée" : c.conversation_type === "group" ? "Groupe d'équipe" : "Canal")}</span><span className="block text-xs text-muted-foreground">{dateLabel(c.last_message_at)}</span></span></button>) : <p className="p-5 text-center text-sm text-muted-foreground">Aucune conversation. Créez votre première discussion interne.</p>}</CardContent>
+                  <div className="border-t p-3"><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Collaborateurs — démarrer une discussion</p><div className="max-h-56 space-y-1 overflow-y-auto">{staff.filter(person => person.id !== profileId).map(person => <button key={person.id} type="button" onClick={() => { setNewKind("direct"); setNewMembers([person.id]); setNewRoles([]); setCreateOpen(true); }} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{initials(person.nom_complet)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm">{person.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{(person.role_names || []).join(", ") || person.poste || "Collaborateur"}</span></span><MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" /></button>)}</div></div>
+                </Card>
+                <Dialog open={!!selected} onOpenChange={open => { if (!open) setSelected(""); }}><DialogContent className="flex h-[92dvh] w-[calc(100vw-1rem)] max-w-5xl flex-col overflow-hidden p-0 sm:h-[86dvh]"><Card className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-0 shadow-none">
+                  <CardHeader className="border-b p-3 sm:p-4"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><CardTitle className="truncate text-base">{selectedConversation?.title || (selectedConversation?.conversation_type === "direct" ? "Conversation privée" : selectedConversation?.conversation_type === "group" ? "Groupe d'équipe" : "Canal interne")}</CardTitle><p className="text-xs text-muted-foreground">Messages en temps réel · accusés de lecture</p></div><div className="flex shrink-0 gap-1"><Button variant="outline" size="sm" className="gap-1" onClick={() => void startVideoCall()} disabled={!selected}><Video className="h-4 w-4" /><span className="hidden sm:inline">Appel audio/vidéo</span><span className="sm:hidden">Appel</span></Button><Button variant="outline" size="sm" className="gap-1" onClick={() => setTab("meetings")}><CalendarDays className="h-4 w-4" /><span className="hidden sm:inline">Réunions</span></Button></div></div></CardHeader>
+                  <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4">
+                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-3">{messages.map(m => <div key={m.id} className={`flex ${m.sender_profile_id === profileId ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] min-w-0 rounded-2xl px-3 py-2 ${m.sender_profile_id === profileId ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{m.sender_profile_id !== profileId && <p className="mb-1 text-[11px] font-semibold opacity-80">{staff.find(person => person.id === m.sender_profile_id)?.nom_complet || "Collaborateur"}</p>}<div className="whitespace-pre-wrap break-words text-sm">{(() => { const room = m.body.match(/AGRICAPITAL_CALL_ROOM:([a-zA-Z0-9-]+)/)?.[1]; return room ? <><span>Appel AgriCapital interne</span><Button type="button" size="sm" variant="secondary" className="mt-2 block" onClick={() => { setCallRoomId(room); setCallOpen(true); }}>Rejoindre l’appel audio/vidéo</Button></> : m.body.replace(/https:\/\/meet\.jit\.si\/[^\s]+/g, "Ancien lien d’appel externe."); })()}</div>{(messageAttachments[m.id] || []).map(a => a.url ? <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-2 break-all text-xs underline"><Paperclip className="h-3 w-3 shrink-0" />{a.file_name}</a> : <p key={a.id} className="mt-2 text-xs">{a.file_name}</p>)}<div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70"><span>{dateLabel(m.created_at)}</span>{m.sender_profile_id === profileId && <Check className="h-3 w-3" />}</div></div></div>)}{selected && !messages.length && <p className="py-12 text-center text-sm text-muted-foreground">Écrivez le premier message de cette conversation.</p>}</div>
+                    <form className="flex min-w-0 items-end gap-2 border-t pt-3" onSubmit={e => { e.preventDefault(); void sendMessage(); }}><label className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md border hover:bg-muted" title="Joindre un fichier"><Paperclip className="h-4 w-4" /><input type="file" className="sr-only" onChange={e => setMessageFile(e.target.files?.[0] || null)} disabled={!selected || sending} /></label><div className="min-w-0 flex-1 space-y-1">{messageFile && <p className="truncate text-xs text-muted-foreground">{messageFile.name}</p>}<Textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Écrire un message…" rows={2} className="min-h-[44px] min-w-0 resize-y" disabled={!selected || sending} /></div><Button type="submit" size="icon" aria-label="Envoyer" disabled={!selected || (!draft.trim() && !messageFile) || sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button></form>
+                  </CardContent>
+                </Card></DialogContent></Dialog>
+              </div>
+            </TabsContent>
+            <TabsContent value="meetings" className="mt-3 min-w-0 space-y-3">
+              <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"><div><h2 className="font-semibold">Agenda et réunions</h2><p className="text-sm text-muted-foreground">Planifiez les réunions, l'ordre du jour et les horaires.</p></div><Dialog open={meetingOpen} onOpenChange={setMeetingOpen}><DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" />Planifier une réunion</Button></DialogTrigger><DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto overscroll-contain"><DialogHeader><DialogTitle>Nouvelle réunion</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Titre</Label><Input value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} placeholder="Réunion de coordination" /><p className="text-xs text-muted-foreground">La réunion et son appel audio/vidéo se rejoignent depuis cet espace de travail.</p></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label>Début</Label><Input type="datetime-local" value={meetingStart} onChange={e => setMeetingStart(e.target.value)} /></div><div className="space-y-1"><Label>Fin</Label><Input type="datetime-local" value={meetingEnd} onChange={e => setMeetingEnd(e.target.value)} /></div></div><div className="space-y-1"><Label>Ordre du jour</Label><Textarea value={meetingAgenda} onChange={e => setMeetingAgenda(e.target.value)} rows={3} /></div><div className="space-y-1"><Label>Description / préparation</Label><Textarea value={meetingDescription} onChange={e => setMeetingDescription(e.target.value)} rows={2} /></div><div className="space-y-2 rounded-lg border p-3"><p className="text-sm font-medium">Invité externe (facultatif)</p><div className="grid gap-2 sm:grid-cols-2"><div className="space-y-1"><Label>Nom</Label><Input value={externalGuestName} onChange={e => setExternalGuestName(e.target.value)} placeholder="Nom de l’invité" /></div><div className="space-y-1"><Label>Adresse e-mail</Label><Input type="email" value={externalGuestEmail} onChange={e => setExternalGuestEmail(e.target.value)} placeholder="invite@exemple.ci" /></div></div><p className="text-xs text-muted-foreground">Un lien sécurisé à durée limitée sera créé et copié après l’enregistrement.</p></div><div className="space-y-1"><Label>Documents à joindre</Label><Input type="file" multiple onChange={e => setMeetingFiles(Array.from(e.target.files || []))} /><p className="text-xs text-muted-foreground">{meetingFiles.length ? `${meetingFiles.length} fichier(s) sélectionné(s)` : "PDF, images, documents Office et fichiers partagés (50 Mo maximum par fichier)."}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => { setMeetingAudience("all"); setMeetingTeams([]); setMeetingRoles([]); setMeetingMembers(staff.filter(s => s.id !== profileId).map(s => s.id)); }}>Toute l’équipe</Button><Button type="button" size="sm" variant="ghost" onClick={() => { setMeetingAudience("selected"); setMeetingMembers([]); setMeetingTeams([]); setMeetingRoles([]); }}>Effacer la sélection</Button></div><div className="space-y-1"><Label>Inviter des équipes</Label><div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border p-2">{staffTeams.map(team => <label key={team.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"><input type="checkbox" checked={meetingTeams.includes(team.id)} onChange={e => setMeetingTeams(current => e.target.checked ? [...current, team.id] : current.filter(id => id !== team.id))} />{team.nom}<span className="ml-auto text-xs text-muted-foreground">{team.member_profile_ids.length} membre(s)</span></label>)}</div></div><div className="space-y-1"><Label>Sélectionner plusieurs rôles</Label><div className="flex flex-wrap gap-2 rounded-lg border p-2">{staffRoles.map(role => <label key={role.code} className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs"><input type="checkbox" checked={meetingRoles.includes(role.code)} onChange={e => setMeetingRoles(current => e.target.checked ? [...current, role.code] : current.filter(code => code !== role.code))} />{role.nom}</label>)}</div><p className="text-xs text-muted-foreground">Tous les membres des rôles cochés seront invités automatiquement.</p></div><Label>Inviter des collaborateurs</Label><div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border p-1.5">{staff.filter(s => s.id !== profileId).map(s => {
+  const active = meetingMembers.includes(s.id);
+  return <button key={s.id} type="button" aria-pressed={active} onClick={() => setMeetingMembers(current => active ? current.filter(id => id !== s.id) : [...current, s.id])} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${active ? "bg-primary/10 text-foreground" : "hover:bg-muted/70"}`}><span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">{s.nom_complet.split(/\\s+/).map((part: string) => part[0]).slice(0,2).join("").toUpperCase()}{active && <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background"><Check className="h-3 w-3" /></span>}</span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{s.nom_complet}</span></button>;
+})}</div><Button className="w-full" onClick={() => void createMeeting()}>Enregistrer la réunion</Button></div></DialogContent></Dialog></div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{meetings.map(m => <Card key={m.id} className="min-w-0 overflow-hidden"><CardHeader className="pb-2"><div className="flex items-start justify-between gap-2"><CardTitle className="min-w-0 break-words text-base">{m.title}</CardTitle><Badge variant={m.status === "cancelled" ? "destructive" : "outline"}>{m.status === "scheduled" ? "Planifiée" : m.status === "in_progress" ? "En cours" : m.status === "completed" ? "Terminée" : "Annulée"}</Badge></div></CardHeader><CardContent className="space-y-3"><p className="flex items-start gap-2 text-sm"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span>{dateLabel(m.starts_at)} – {dateLabel(m.ends_at)}</span></p>{m.agenda && <div><p className="text-xs font-semibold text-muted-foreground">ORDRE DU JOUR</p><p className="mt-1 whitespace-pre-wrap break-words text-sm">{m.agenda}</p></div>}{(meetingAttachments[m.id] || []).map(file => file.url ? <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 break-all text-xs text-primary underline"><Paperclip className="h-3.5 w-3.5 shrink-0" />{file.file_name}</a> : <p key={file.id} className="text-xs">{file.file_name}</p>)}<div className="flex flex-wrap items-center gap-2"><Badge variant="secondary"><Users className="mr-1 h-3 w-3" />Participants sur invitation</Badge>{m.provider_room_id && <Button type="button" size="sm" onClick={() => { setCallRoomId(m.provider_room_id!); setCallOpen(true); }}>Rejoindre dans le CRM</Button>}</div></CardContent></Card>)}</div>
+              {meetings.length === 0 && <Card><CardContent className="p-8 text-center text-sm text-muted-foreground"><Clock3 className="mx-auto mb-2 h-6 w-6" />Aucune réunion planifiée.</CardContent></Card>}
+            </TabsContent>
+            <TabsContent value="budgets" className="mt-3 min-w-0 space-y-3"><PlanificationBudgetaire embedded /></TabsContent>
+            {can("decision_center.view") && <TabsContent value="intelligence" className="mt-3 min-w-0"><AgriCapitalIntelligence embedded /></TabsContent>}
+            {can("documents.view") && <TabsContent value="documents" className="mt-3 min-w-0 space-y-3"><WorkspaceOffice embedded /></TabsContent>}
+            <TabsContent value="organisation" className="mt-3 min-w-0 space-y-3"><Workspace360 embedded /></TabsContent>
+            <TabsContent value="rh" className="mt-3 min-w-0 space-y-3"><WorkspacePeople360 embedded /></TabsContent>
+          </Tabs>
+        </main>
+        <Dialog open={callOpen} onOpenChange={open => { setCallOpen(open); if (!open) setCallRoomId(""); }}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto overscroll-contain"><DialogHeader><DialogTitle>Appel audio/vidéo AgriCapital</DialogTitle></DialogHeader>{callOpen && callRoomId && profileId && <InternalCallRoom roomId={callRoomId} profileId={profileId} onClose={() => { setCallOpen(false); setCallRoomId(""); }} />}</DialogContent></Dialog>
+      </MainLayout>
+    </ProtectedRoute>
+  );
+}
