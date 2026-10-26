@@ -60,6 +60,7 @@ export default function AgriCapitalConnect() {
   const [meetingAudience, setMeetingAudience] = useState<"selected" | "all">("selected");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selected, setSelected] = useState<string>("");
+  const [existingDirectConversationId, setExistingDirectConversationId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -225,6 +226,12 @@ export default function AgriCapitalConnect() {
     const teamMembers = staffTeams.filter(team => newTeams.includes(team.id)).flatMap(team => team.member_profile_ids || []);
     const targets = Array.from(new Set([profileId, ...newMembers, ...roleMembers, ...teamMembers]));
     if (newKind === "direct" && targets.length !== 2) { toast.error("Sélectionnez un autre utilisateur."); return; }
+    if (newKind === "direct" && existingDirectConversationId) {
+      setSelected(existingDirectConversationId);
+      setNewTitle(""); setNewMembers([]); setNewRoles([]); setCreateOpen(false);
+      toast.success("Conversation privée existante ouverte.");
+      return;
+    }
     if (newKind !== "direct" && targets.length < 2) { toast.error("Ajoutez au moins un autre utilisateur."); return; }
     const { data, error } = await (supabase as any).rpc("internal_create_conversation", {
       p_conversation_type: newKind,

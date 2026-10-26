@@ -41,6 +41,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
   const [clients, setClients] = useState<Row[]>([]);
   const [landOwners, setLandOwners] = useState<Row[]>([]);
   const [parcels, setParcels] = useState<Row[]>([]);
+  const [plantations, setPlantations] = useState<Row[]>([]);
   const [tasks, setTasks] = useState<Row[]>([]);
   const [projects, setProjects] = useState<Row[]>([]);
   const [reviews, setReviews] = useState<Row[]>([]);
@@ -98,7 +99,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     const critical = [p, f, t, b, c, l, pa, ta, pr, re, pe, g, au, pl].find(x => x.error && !/permission|row-level security|not exist|schema cache/i.test(String(x.error.message)));
     if (critical) setError(critical.error.message);
     setProposals(p.data || []); setFinancing(f.data || []); setTransactions(t.data || []); setBudgets(b.data || []);
-    setClients(c.data || []); setLandOwners(l.data || []); setParcels(pa.data || []); setTasks(ta.data || []);
+    setClients(c.data || []); setLandOwners(l.data || []); setParcels(pa.data || []); setPlantations(pl.data || []); setTasks(ta.data || []);
     setProjects(pr.data || []); setReviews(re.data || []); setPeople(pe.data || []); setGrants(g.data || []); setAudit(au.data || []);
     setLoading(false);
   }, []);
@@ -124,7 +125,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     const officialClients = clients.filter((r: Row) => /^AC-C/i.test(String(r.id_unique || "").trim()) && r.is_internal !== true && String(r.type_client || "").toLowerCase() !== "beneficiaire_particulier");
     const hectaresClients = clients.reduce((s: number, r: Row) => s + Number(r.total_hectares || 0), 0);
     const plantedByParcel = new Map<string, number>();
-    ((pl?.data || []) as Row[]).forEach((r: Row) => {
+    plantations.forEach((r: Row) => {
       if (!r.parcelle_id) return;
       const planted = Math.max(0, Number(r.surface_reellement_plantee ?? r.superficie_activee ?? 0));
       plantedByParcel.set(String(r.parcelle_id), (plantedByParcel.get(String(r.parcelle_id)) || 0) + planted);
@@ -143,7 +144,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
       return sum + Math.max(0, available);
     }, 0);
     return { inflow, outflow, net: inflow - outflow, hectaresClients, hectaresLand, activeClients: officialClients.length, proposalsOpen: proposals.filter(p => ["draft","proposed","in_review"].includes(p.status)).length, tasksOpen: tasks.filter(t => !/termin|clos|done|cancel/i.test(String(t.status || ""))).length, projectsOpen: projects.filter(p => !/termin|clos|done|cancel/i.test(String(p.status || ""))).length };
-  }, [transactions, clients, landOwners, parcels, proposals, tasks, projects]);
+  }, [transactions, clients, landOwners, parcels, plantations, proposals, tasks, projects]);
 
   const recommendations = useMemo(() => {
     const items: { title: string; level: "high" | "normal"; rationale: string; action: string }[] = [];
