@@ -184,7 +184,7 @@ const GestionNotifications = () => {
     const submittedMedia = [...campaignMedia];
     if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
     if ((submittedCampaign.canal === "sms" || submittedCampaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
-    if (submittedCampaign.canal === "whatsapp" && whatsappCount > 350) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 350.`);
+    if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
     const { error } = await (supabase as any).from("notification_campaigns").insert({
       nom: submittedCampaign.nom.trim(), description: submittedCampaign.description || null, canal: submittedCampaign.canal,
@@ -213,7 +213,7 @@ const GestionNotifications = () => {
     const submittedMedia = [...automationMedia];
     if (!submittedAutomation.nom.trim() || !submittedAutomation.code.trim() || !submittedAutomation.contenu.trim()) return toast.error("Code, nom et contenu obligatoires");
     if ((submittedAutomation.canal === "sms" || submittedAutomation.canal === "email_sms") && automationSmsCount > 155) return toast.error(`Le SMS fait ${automationSmsCount} caractères : limite 155, espaces et signes compris.`);
-    if (submittedAutomation.canal === "whatsapp" && automationWhatsappCount > 350) return toast.error(`Le message WhatsApp fait ${automationWhatsappCount} caractères : limite 350.`);
+    if (submittedAutomation.canal === "whatsapp" && automationWhatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${automationWhatsappCount} caractères : limite 4096.`);
     const { error } = await (supabase as any).from("notification_automations").upsert({
       code: submittedAutomation.code.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_"),
       nom: submittedAutomation.nom.trim(), description: submittedAutomation.description || null,
@@ -306,7 +306,7 @@ const GestionNotifications = () => {
                 <Field label="Planification"><Input type="datetime-local" value={campaign.programme_le} onChange={(e) => setCampaign({ ...campaign, programme_le: e.target.value })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={campaign.sujet} onChange={(e) => setCampaign({ ...campaign, sujet: e.target.value })} placeholder="Information AgriCapital" /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, ..." /><div className="mt-1 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">{campaign.canal.includes("sms") && <span className={smsCount > 155 ? "font-semibold text-destructive" : ""}>{smsCount}/155 caractères SMS</span>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 350 ? "font-semibold text-destructive" : ""}>{whatsappCount}/350 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, ..." /><div className="mt-1 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">{campaign.canal.includes("sms") && <span className={smsCount > 155 ? "font-semibold text-destructive" : ""}>{smsCount}/155 caractères SMS</span>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
               {preview && <Preview count={preview.count} sample={preview.sample} />}
               <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />Enregistrer la campagne</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>
@@ -331,7 +331,7 @@ const GestionNotifications = () => {
                 <Field label="Delai anti-doublon (minutes)"><Input type="number" min={0} value={automation.cooldown_minutes} onChange={(e) => setAutomation({ ...automation, cooldown_minutes: Number(e.target.value) || 0 })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={automation.sujet} onChange={(e) => setAutomation({ ...automation, sujet: e.target.value })} /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 155 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/155 caractères SMS.</p>}{automation.canal === "whatsapp" && <p className={automationWhatsappCount > 350 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationWhatsappCount}/350 caractères WhatsApp.</p>}</Field><MediaPicker target="automation" items={automationMedia}/>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {{prenom}}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 155 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/155 caractères SMS.</p>}{automation.canal === "whatsapp" && <p className={automationWhatsappCount > 4096 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationWhatsappCount}/4096 caractères WhatsApp.</p>}</Field><MediaPicker target="automation" items={automationMedia}/>
               <div className="flex items-center gap-2"><Switch checked={automation.actif} onCheckedChange={(v) => setAutomation({ ...automation, actif: v })} /><Label>Activer automatiquement</Label></div>
               <Button onClick={saveAutomation}><Zap className="mr-2 h-4 w-4" />Enregistrer l'automatisation</Button>
             </CardContent>
