@@ -34,8 +34,12 @@ serve(async (req) => {
     const username = typeof body?.username === "string" ? body.username.trim().toLowerCase() : "";
     const password = typeof body?.password === "string" ? body.password : "";
     const mode = body?.mode === "recovery" ? "recovery" : "login";
+    const containsControlCharacter = Array.from(username).some((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 0x1f || code === 0x7f;
+    });
 
-    if (!username || username.length < 2 || username.length > 64 || /[\x00-\x1F\x7F]/.test(username)) {
+    if (!username || username.length < 2 || username.length > 64 || containsControlCharacter) {
       return json({ error: "Identifiant invalide" }, 400);
     }
 
