@@ -127,14 +127,7 @@ export default function Workspace360({ embedded = false }: { embedded?: boolean 
   const {error}=await (supabase as any).from("workspace_job_assignments").update({acknowledgement:response,acknowledged_at:new Date().toISOString()}).eq("id",a.id).eq("profile_id",profileId);
   if(error){toast.error("Action non enregistrée : "+error.message);return;}toast.success(response==="acknowledged"?"Prise de connaissance enregistrée.":"Demande de clarification enregistrée.");await load();
  };
- const assignManager=async()=>{
-  if(!canManageHR||!reportProfile||!profileId)return;
-  const {error:closeError}=await (supabase as any).from("workspace_reporting_lines").update({valid_to:new Date().toISOString().slice(0,10)}).eq("profile_id",reportProfile).is("valid_to",null);
-  if(closeError){toast.error(closeError.message);return;}
-  const {error}=await (supabase as any).from("workspace_reporting_lines").insert({profile_id:reportProfile,manager_profile_id:managerId||null,assigned_by_profile_id:profileId});
-  if(error){toast.error("Ligne hiérarchique non enregistrée : "+error.message);return;}toast.success("Ligne hiérarchique enregistrée.");await load();
- };
- const markRead=async(n:Row)=>{
+  const markRead=async(n:Row)=>{
   const {error}=await (supabase as any).from("workspace_notifications").update({read_at:new Date().toISOString()}).eq("id",n.id).eq("recipient_profile_id",profileId);
   if(error){toast.error(error.message);return;}await load();
  };
