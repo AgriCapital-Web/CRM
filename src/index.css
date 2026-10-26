@@ -1654,3 +1654,6 @@ button > span, [role="button"] > span {
 @media (max-width: 767px) {
   body.agricapital-has-sidebar [data-radix-dialog-content] { left: 50% !important; max-width: calc(100vw - 1rem); }
 }
+
+@media (min-width: 768px) { body.agricapital-has-sidebar [data-radix-dialog-content] { left: calc(50% + 8rem) !important; max-width: min(calc(100vw - 18rem), 72rem); } }
+@media (max-width: 767px) { body.agricapital-has-sidebar [data-radix-dialog-content] { left: 50% !important; max-width: calc(100vw - 1rem); } }
