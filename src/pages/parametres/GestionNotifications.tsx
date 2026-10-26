@@ -108,6 +108,7 @@ const GestionNotifications = () => {
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [clientPreferences, setClientPreferences] = useState<ClientPreference[]>([]);
   const [preferenceSearch, setPreferenceSearch] = useState("");
+  const [preferencesDialogOpen, setPreferencesDialogOpen] = useState(false);
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [automationDialogOpen, setAutomationDialogOpen] = useState(false);
   const [campaignMedia, setCampaignMedia] = useState<MediaAttachment[]>([]);
@@ -350,13 +351,13 @@ const GestionNotifications = () => {
 
         <TabsContent value="senndo" className="space-y-5"><ConfigurationSenndo /></TabsContent>
 
-        <TabsContent value="preferences"><Card><CardHeader><CardTitle>Canal de notification par client</CardTitle></CardHeader><CardContent className="space-y-3">
+        <TabsContent value="preferences"><Dialog open={preferencesDialogOpen} onOpenChange={setPreferencesDialogOpen}><DialogTrigger asChild><Button variant="outline" className="mb-3">Modifier les canaux par client</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-5xl"><Card><CardHeader><CardTitle>Canal de notification par client</CardTitle></CardHeader><CardContent className="space-y-3">
           <Input value={preferenceSearch} onChange={(e) => setPreferenceSearch(e.target.value)} placeholder="Rechercher un client" />
           <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left"><th className="p-3">Client</th><th className="p-3">Contact</th><th className="p-3">Finalisation du solde</th><th className="p-3">Rappels</th></tr></thead><tbody>
           {clientPreferences.filter((p) => (p.nom_complet || "").toLowerCase().includes(preferenceSearch.toLowerCase()) || (p.telephone || "").includes(preferenceSearch) || (p.email || "").toLowerCase().includes(preferenceSearch.toLowerCase())).map((p) => <tr key={p.id} className="border-b last:border-0"><td className="p-3 font-medium">{p.nom_complet || "Client"}</td><td className="p-3">{p.whatsapp || p.telephone || p.email || "Aucun contact"}</td><td className="p-3"><Select value={p.canal_finalisation} onValueChange={(v) => void saveClientPreference(p.id,"canal_finalisation",v)}><SelectTrigger className="min-w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.filter((x) => ["auto","sms","whatsapp","email","email_sms"].includes(x.value)).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Select value={p.canal_rappel} onValueChange={(v) => void saveClientPreference(p.id,"canal_rappel",v)}><SelectTrigger className="min-w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.filter((x) => ["auto","sms","whatsapp","email","email_sms"].includes(x.value)).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></td></tr>)}
           {!clientPreferences.length && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Aucun client disponible.</td></tr>}
           </tbody></table></div>
-        </CardContent></Card></TabsContent>
+        </CardContent></Card></DialogContent></Dialog></TabsContent>
 
         <TabsContent value="templates"><Card><CardHeader><CardTitle>Modèles de messages</CardTitle></CardHeader><CardContent className="space-y-3">{templates.map(t=><div key={t.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.nom}</span><Badge variant="outline">{t.canal}</Badge><Badge variant={t.actif?"default":"secondary"}>{t.actif?"Actif":"Inactif"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t.evenement} · {t.code}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{t.contenu.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()}</p></div><Button type="button" variant="outline" onClick={()=>applyTemplate(t)}>Utiliser</Button></div>)}{!templates.length&&<p className="py-8 text-center text-muted-foreground">Aucun modèle enregistré en base.</p>}</CardContent></Card></TabsContent>
 
