@@ -139,7 +139,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
       const remainingDomain = Math.max(0, domainShare - Math.min(domainShare, planted) - Math.min(domainShare, attributed));
       // Use the explicit available value when it is greater than zero; otherwise derive the unplanted remainder.
       // For shared parcels, cap the result to AgriCapital's share to avoid counting the owner's share twice.
-      const available = explicitAvailable > 0 ? Math.min(domainShare, explicitAvailable) : remainingDomain;
+      const available = explicitAvailable > 0 ? Math.min(remainingDomain, explicitAvailable) : remainingDomain;
       return sum + Math.max(0, available);
     }, 0);
     return { inflow, outflow, net: inflow - outflow, hectaresClients, hectaresLand, activeClients: officialClients.length, proposalsOpen: proposals.filter(p => ["draft","proposed","in_review"].includes(p.status)).length, tasksOpen: tasks.filter(t => !/termin|clos|done|cancel/i.test(String(t.status || ""))).length, projectsOpen: projects.filter(p => !/termin|clos|done|cancel/i.test(String(p.status || ""))).length };
