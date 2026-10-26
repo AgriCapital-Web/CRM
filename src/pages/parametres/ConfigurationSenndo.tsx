@@ -31,6 +31,7 @@ export default function ConfigurationSenndo() {
   const [testMessage, setTestMessage] = useState("Ceci est un message de test de la passerelle de notifications AgriCapital.");
   const [sendingTest, setSendingTest] = useState(false);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     setLoading(true);
@@ -166,6 +167,7 @@ export default function ConfigurationSenndo() {
       setApiKey("");
       setWebhookSecret("");
       await refreshStatus();
+      setSettingsDialogOpen(false);
       toast.success("Configuration enregistrée dans le coffre-fort serveur.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Échec de l'enregistrement sécurisé.");
@@ -236,7 +238,7 @@ export default function ConfigurationSenndo() {
         </CardContent>
       </Card></DialogContent></Dialog>
 
-      <Card>
+      <Dialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}><DialogTrigger asChild><Button variant="outline" className="mb-3"><Save className="mr-2 h-4 w-4"/>Modifier la configuration Senndo</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card>
         <CardHeader>
           <CardTitle>Identifiants API</CardTitle>
           
@@ -275,7 +277,7 @@ export default function ConfigurationSenndo() {
             
           </div>
         </CardContent>
-      </Card>
+      </Card></DialogContent></Dialog>
     </div>
   );
 }
