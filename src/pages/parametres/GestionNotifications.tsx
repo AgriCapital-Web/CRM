@@ -10,7 +10,6 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import ConfigurationSenndo from "@/pages/parametres/ConfigurationSenndo";
@@ -113,8 +112,6 @@ const GestionNotifications = () => {
   const [automationDialogOpen, setAutomationDialogOpen] = useState(false);
   const [campaignMedia, setCampaignMedia] = useState<MediaAttachment[]>([]);
   const [automationMedia, setAutomationMedia] = useState<MediaAttachment[]>([]);
-  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
-  const [automationDialogOpen, setAutomationDialogOpen] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [automations, setAutomations] = useState<Automation[]>([]);
