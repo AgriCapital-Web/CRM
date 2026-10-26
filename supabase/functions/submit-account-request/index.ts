@@ -67,10 +67,10 @@ serve(async (req) => {
       responsable_district: "district",
       responsable_commercial: "region",
       chef_equipe_commercial: "departement",
-      commercial: "sous_prefecture",
+      commercial: "departement",
       technicien: "departement",
       mobilisateur_foncier: "departement",
-      chef_equipe_technique: "region",
+      chef_equipe_technique: "departement",
       superviseur_mobilisation_fonciere: "region",
       responsable_technique_agronomique: "region",
     };
