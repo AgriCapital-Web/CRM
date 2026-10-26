@@ -126,7 +126,7 @@ export default function ReinitialiserCodesAcces() {
                 Réinitialiser le code d'accès
               </Button>
             </CardContent>
-          </Card></DialogContent></Dialog></div></DialogContent></Dialog></div>
+          </Card></DialogContent></Dialog></div>
       </div>
   );
 }
