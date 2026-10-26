@@ -92,9 +92,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               )}
               title={item.label}
             >
-              <Link to={item.path} onClick={() => { if (open) setOpen(false); }} aria-current={active ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2">
+              <Link to={item.path} onClick={() => { if (open) setOpen(false); }} aria-current={active ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2" aria-label={item.label}>
                 <item.icon className="h-4 w-4 flex-shrink-0" />
-                <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">{item.label}</span>
+                <span className="hidden min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium md:inline">{item.label}</span>
               </Link>
             </Button>
           );
@@ -114,15 +114,15 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         </div>
         <div className="space-y-0">
           <Button variant="ghost" className={cn("!h-8 w-full justify-start gap-2 rounded-md px-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground", location.pathname === "/profil" && "bg-primary-foreground/15 text-primary-foreground")} onClick={() => { navigate("/profil"); setOpen(false); }}>
-            <UserCircle className="h-4 w-4" /><span className="text-sm font-medium">Profil</span>
+            <UserCircle className="h-4 w-4 shrink-0" /><span className="hidden text-sm font-medium md:inline">Profil</span>
           </Button>
           {can("parametres.view") && (
             <Button variant="ghost" className={cn("!h-8 w-full justify-start gap-2 rounded-md px-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground", location.pathname === "/parametres" && "bg-primary-foreground/15 text-primary-foreground")} onClick={() => { navigate("/parametres"); setOpen(false); }}>
-              <Settings className="h-4 w-4" /><span className="text-sm font-medium">Paramètres</span>
+              <Settings className="h-4 w-4 shrink-0" /><span className="hidden text-sm font-medium md:inline">Paramètres</span>
             </Button>
           )}
           <Button variant="ghost" className="!h-8 w-full justify-start gap-2 rounded-md px-2 text-primary-foreground/80 hover:bg-destructive hover:text-destructive-foreground" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" /><span className="text-sm font-medium">Déconnexion</span>
+            <LogOut className="h-4 w-4 shrink-0" /><span className="hidden text-sm font-medium md:inline">Déconnexion</span>
           </Button>
         </div>
       </div>
