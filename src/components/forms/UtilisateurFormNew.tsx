@@ -30,9 +30,8 @@ const userFormSchema = z.object({
   email: z.string()
     .email("Email invalide")
     .max(255, "L'email ne peut pas dépasser 255 caractères"),
-  nom_complet: z.string()
-    .min(2, "Le nom complet doit contenir au moins 2 caractères")
-    .max(100, "Le nom complet ne peut pas dépasser 100 caractères"),
+  nom: z.string().trim().min(1, "Le nom est obligatoire").max(100, "Le nom ne peut pas dépasser 100 caractères"),
+  prenoms: z.string().trim().min(1, "Le prénom est obligatoire").max(100, "Le prénom ne peut pas dépasser 100 caractères"),
   telephone: z.string().nullish(),
   telephone_local: z.string().nullish(),
   telephone_indicatif: z.string().nullish(),
@@ -162,6 +161,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
       toast({ variant: "destructive", title: "Couverture requise", description: "Sélectionnez la zone géographique exigée par le rôle principal." });
       return;
     }
+    const fullName = [String(data.prenoms || "").trim(), String(data.nom || "").trim()].filter(Boolean).join(" ");
     setLoading(true);
     try {
 
@@ -204,7 +204,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         const { error: profileError } = await (supabase as any)
           .from("profiles")
           .update({
-            nom_complet: String(data.nom_complet || "").trim(),
+            nom_complet: fullName,
             username: String(data.username || "").trim(),
             email: String(data.email || "").trim(),
             telephone: data.telephone || null,
@@ -262,7 +262,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             entite: "profiles",
             entite_id: utilisateur.id,
             cible_user_id: uid,
-            cible_libelle: data.nom_complet,
+            cible_libelle: fullName,
             ancienne_valeur: { roles: anciensRoles, departement: utilisateur?.departement },
             nouvelle_valeur: { roles: selectedRoles, departement: data.departement },
           });
@@ -283,7 +283,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             action: "create_user",
             username: data.username,
             email: data.email,
-            nom_complet: data.nom_complet,
+            nom_complet: fullName,
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
@@ -409,9 +409,14 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
           <div className="space-y-2">
-            <Label>Nom Complet *</Label>
-            <Input {...register("nom_complet", { required: true })} />
-            {errors.nom_complet?.message && <p className="text-sm text-destructive">{String(errors.nom_complet.message)}</p>}
+            <Label>Nom *</Label>
+            <Input {...register("nom", { required: true })} defaultValue={utilisateur?.nom || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(-1)[0] || ""} />
+            {errors.nom?.message && <p className="text-sm text-destructive">{String(errors.nom.message)}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label>Prénom(s) *</Label>
+            <Input {...register("prenoms", { required: true })} defaultValue={utilisateur?.prenoms || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || ""} />
+            {errors.prenoms?.message && <p className="text-sm text-destructive">{String(errors.prenoms.message)}</p>}
           </div>
 
           <div className="space-y-2">
