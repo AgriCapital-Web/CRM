@@ -9,7 +9,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
   static getDerivedStateFromError(error: unknown): State {
     return {
       hasError: true,
-      message: error instanceof Error ? error.message : "Une erreur inattendue est survenue.",
+      message: error instanceof Error ? error.message : String(error || "Une erreur inattendue est survenue."),
     };
   }
 
