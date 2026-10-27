@@ -89,6 +89,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
   const saveEvent = async () => {
     if (!profileId) { toast.error("Votre profil interne est introuvable."); return; }
+    if (kind === "meeting") { setDialogOpen(false); onScheduleMeeting(); return; }
     if (!title.trim()) { toast.error("Donnez un titre à l'événement."); return; }
     const starts = new Date(`${date}T${allDay ? "00:00" : startTime}:00`);
     const ends = allDay ? new Date(starts.getTime()+86400000) : new Date(`${date}T${endTime}:00`);
@@ -104,7 +105,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
     };
     const { data, error } = await (supabase as any).from("workspace_events").insert(payload).select("id").single();
     if (error || !data?.id) { console.error(error); toast.error("Événement non enregistré. Vérifiez vos droits d'accès."); setSaving(false); return; }
-    if (reminder !== "none") {
+    if (reminder !== "none" && alarm) {
       const offsets: number[] = [];
       let occurrence = new Date(starts);
       for (let i=0;i<repeatOccurrences(repeat);i++) {
@@ -164,7 +165,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
               <DialogHeader><DialogTitle>Ajouter à l'agenda</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1"><Label>Type</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={kind} onChange={e=>setKind(e.target.value)}><option value="appointment">Rendez-vous</option><option value="meeting">Réunion (sans visioconférence)</option><option value="field_visit">Visite terrain</option><option value="training">Formation</option><option value="travel">Déplacement</option><option value="task">Échéance / tâche</option><option value="other">Autre événement</option></select></div>
+                  <div className="space-y-1"><Label>Type</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={kind} onChange={e=>setKind(e.target.value)}><option value="appointment">Rendez-vous</option><option value="meeting">Réunion (formulaire de réunion)</option><option value="field_visit">Visite terrain</option><option value="training">Formation</option><option value="travel">Déplacement</option><option value="task">Échéance / tâche</option><option value="other">Autre événement</option></select></div>
                   <div className="space-y-1"><Label>Date</Label><Input type="date" value={date} onChange={e=>setDate(e.target.value)}/></div>
                 </div>
                 <div className="space-y-1"><Label>Titre *</Label><Input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Ex. Réunion de coordination"/></div>
