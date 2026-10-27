@@ -786,7 +786,7 @@ const Dashboard = () => {
                 {kpis.filter((k) => k.show && k.metrics.length > 0).map((k) => {
                   const Icon = k.icon;
                   return (
-                    <div key={k.label} className="min-w-0 rounded-xl border bg-card/50 p-3 sm:p-4">
+                    <div key={k.label} className={`min-w-0 rounded-2xl border-2 p-2.5 sm:p-3 ${k.label === "Pilotage financier" ? "border-amber-500/70 bg-amber-50/20 dark:bg-amber-950/10" : k.label === "Développement commercial" ? "border-orange-500/70 bg-orange-50/20 dark:bg-orange-950/10" : k.label === "Domaine foncier et partenariat" ? "border-emerald-600/70 bg-emerald-50/20 dark:bg-emerald-950/10" : "border-violet-500/70 bg-violet-50/20 dark:bg-violet-950/10"}`}>
                       <h2 className="mb-3 flex items-center gap-2.5 text-base font-extrabold uppercase tracking-wide text-foreground sm:text-lg">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background/80 text-primary shadow-sm">
                           <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -818,7 +818,7 @@ const Dashboard = () => {
               </section>
 
               {canPlantations && stats.plantations > 0 && cycle.some((c: any) => c.total > 0) && (
-                <section aria-labelledby="dashboard-operations" className="min-w-0 space-y-3">
+                <section aria-labelledby="dashboard-operations" className="space-y-3 rounded-2xl border-2 border-sky-500/60 bg-sky-50/20 p-3 sm:p-4 dark:bg-sky-950/10">
                   <div><h2 id="dashboard-operations" className="text-lg font-extrabold uppercase tracking-wide">Opérations et suivi technique</h2></div>
                 <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
                   <Card>
@@ -853,7 +853,7 @@ const Dashboard = () => {
                 </section>
               )}
 
-              <section aria-labelledby="dashboard-performance" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <section aria-labelledby="dashboard-performance" className="grid min-w-0 grid-cols-1 gap-3 rounded-2xl border-2 border-violet-500/60 bg-violet-50/20 p-3 md:grid-cols-2 xl:grid-cols-3 sm:p-4 dark:bg-violet-950/10">
                 <div className="md:col-span-2 xl:col-span-3"><h2 id="dashboard-performance" className="text-lg font-extrabold uppercase tracking-wide">Performance et répartition</h2></div>
 {teamPerformance.length > 0 && (
                 <Card>
@@ -891,7 +891,7 @@ const Dashboard = () => {
               </section>
 
               {(canPlantations || canClients || canPayments || canTechnical || canLeads) && (
-              <section aria-labelledby="dashboard-activity" className="min-w-0 space-y-3">
+              <section aria-labelledby="dashboard-activity" className="space-y-3 rounded-2xl border-2 border-amber-500/60 bg-amber-50/20 p-3 sm:p-4 dark:bg-amber-950/10">
                 <div><h2 id="dashboard-activity" className="text-lg font-extrabold uppercase tracking-wide">Activités récentes et carte interactive</h2></div>
               {canPlantations && <PlantationsMap />}
 
