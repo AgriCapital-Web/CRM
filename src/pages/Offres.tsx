@@ -540,6 +540,49 @@ const Offres = () => {
                       </div>
                       <Badge variant={active ? "default" : "secondary"} className="shrink-0">{active ? "Active" : "Inactive"}</Badge>
                     </div>
+                    <div className="mt-4 space-y-3">
+                      {familyOffers.map((offer: any) => {
+                        const effective = parOffre(offer.id) as any;
+                        const installments = effective?.tranches_effectives?.length ? effective.tranches_effectives : getTranches(offer);
+                        const monthly = installments.length
+                          ? Number(installments[installments.length - 1]?.mensualite_par_ha_effective ?? installments[installments.length - 1]?.mensualite_par_ha ?? offer.mensualite_par_ha ?? 0)
+                          : Number(offer.mensualite_par_ha || 0);
+                        const total = Number(effective?.montant_total_effectif ?? effective?.montant_total_base ?? offer.montant_total_par_ha ?? (Number(offer.montant_pi_par_ha || 0) + monthly * Number(offer.duree_paiement_mois || 0)));
+                        const cash = Number(effective?.pi_effectif ?? offer.montant_pi_par_ha ?? 0);
+                        const duration = Number(offer.duree_paiement_mois || 0);
+                        const formulas = Array.isArray(offer.formules_configuration) ? offer.formules_configuration : [];
+                        return <div key={offer.id} className="rounded-lg border bg-muted/20 p-3">
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-semibold text-sm">{offer.formule_nom || offer.nom}</p>
+                            <Badge variant={offer.actif ? "default" : "secondary"}>{offer.actif ? "Active" : "Inactive"}</Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Prix total / ha</span><b className="text-sm tabular-nums">{formatMontant(total)} F CFA</b></div>
+                            <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Comptant / ha</span><b className="text-sm tabular-nums">{formatMontant(cash)} F CFA</b></div>
+                            <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Mensualités</span><b className="text-sm tabular-nums">{duration} mois</b></div>
+                            <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Prix / mensualité / ha</span><b className="text-sm tabular-nums">{formatMontant(monthly)} F CFA</b></div>
+                          </div>
+                          {formulas.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {formulas.map((formula: any) => {
+                              const formulaDuration = Number(formula.duree_paiement_mois || duration || 0);
+                              const formulaMonthly = Number(formula.mensualite_par_ha || 0);
+                              const formulaCash = Number(formula.montant_pi_par_ha || 0);
+                              const formulaTotal = Number(formula.montant_total_par_ha ?? (formulaCash + formulaMonthly * formulaDuration));
+                              return <div key={formula.code || formula.nom} className="rounded-md border bg-background p-2">
+                                <p className="mb-1 text-xs font-semibold">{formula.nom || formula.code}</p>
+                                <div className="grid grid-cols-2 gap-1 text-xs">
+                                  <span className="text-muted-foreground">Total / ha</span><b>{formatMontant(formulaTotal)} F</b>
+                                  <span className="text-muted-foreground">Comptant / ha</span><b>{formatMontant(formulaCash)} F</b>
+                                  <span className="text-muted-foreground">Mensualités</span><b>{formulaDuration} mois</b>
+                                  <span className="text-muted-foreground">Par mensualité / ha</span><b>{formatMontant(formulaMonthly)} F</b>
+                                </div>
+                              </div>;
+                            })}
+                          </div>}
+                          {effective?.promotion_nom && <p className="mt-2 text-xs font-medium text-green-700">Promotion appliquée : {effective.promotion_nom} — prix actualisés automatiquement.</p>}
+                        </div>;
+                      })}
+                    </div>
                     <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
                       <span className="text-xs text-muted-foreground">{familyOffers.reduce((count: number, offer: any) => count + (Array.isArray(offer.formules_configuration) ? offer.formules_configuration.length : 1), 0)} formules</span>
                       <Button size="sm" variant="outline" disabled={!familyOffers.length} onClick={() => { setEditOffre(familyOffers[0] as Offre); setIsOffreDialogOpen(true); }}>
