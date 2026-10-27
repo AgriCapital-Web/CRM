@@ -96,12 +96,13 @@ const Profil = () => {
     setSaving(true);
     try {
       const fields = [
-        "nom_complet", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
+        "nom", "prenoms", "nom_complet", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
         "type_piece_identite", "numero_piece_identite", "photo_url", "piece_identite_recto_url", "piece_identite_verso_url",
         "contact_urgence_nom", "contact_urgence_telephone1", "contact_urgence_telephone1_indicatif", "contact_urgence_telephone1_local", "contact_urgence_telephone2", "contact_urgence_telephone2_indicatif", "contact_urgence_telephone2_local", "contact_urgence_email", "contact_urgence_photo_url",
       ];
       const payload: any = {};
       fields.forEach((k) => (payload[k] = profile[k] ?? null));
+      payload.nom_complet = [String(profile.prenoms || "").trim(), String(profile.nom || "").trim()].filter(Boolean).join(" ") || profile.nom_complet || null;
       payload.telephone_principal_whatsapp = !!profile.telephone_principal_whatsapp;
       payload.telephone_secondaire_whatsapp = !!profile.telephone_secondaire_whatsapp;
       payload.whatsapp = profile.telephone_principal_whatsapp ? (profile.telephone || null) : profile.telephone_secondaire_whatsapp ? (profile.telephone_secondaire || null) : null;
@@ -196,7 +197,8 @@ const Profil = () => {
           <Card>
             <CardHeader><CardTitle>Informations personnelles</CardTitle></CardHeader>
             <CardContent className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 sm:gap-y-5">
-              <div><Label>Nom complet</Label><Input className="h-9 text-sm" value={profile.nom_complet || ""} onChange={(e) => set("nom_complet", e.target.value)} /></div>
+              <div><Label>Nom</Label><Input className="h-9 text-sm" value={profile.nom || String(profile.nom_complet || "").trim().split(/\\s+/).slice(-1)[0] || ""} onChange={(e) => set("nom", e.target.value)} /></div>
+              <div><Label>Prénom(s)</Label><Input className="h-9 text-sm" value={profile.prenoms || String(profile.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || ""} onChange={(e) => set("prenoms", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-9 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div className="min-w-0 w-full space-y-2">
