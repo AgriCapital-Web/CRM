@@ -28,6 +28,7 @@ interface ClientFormProps { client?: any; onSuccess: () => void; onCancel: () =>
 const upperName=(value:string)=>value.toLocaleUpperCase("fr-FR");
 
 const CLIENT_COLUMNS = new Set([
+  "type_personne","nom_famille","denomination_sociale","nature_organisation_code","forme_juridique_code","numero_enregistrement","nombre_membres","responsable_legal_nom","responsable_legal_prenoms","responsable_legal_telephone",
   "civilite","nom","prenoms","date_naissance","lieu_naissance","statut_marital",
   "type_piece","numero_piece","date_delivrance_piece","telephone","telephone_secondaire","telephone_secondaire_indicatif","telephone_secondaire_local","telephone_principal_whatsapp","telephone_secondaire_whatsapp","whatsapp","email","domicile","domicile_residence",
   "district_id","region_id","departement_id","sous_prefecture_id","village_id","offre_id","famille_offre","formule_code","formule_nom","parcours_code","commercial_id","type_compte","banque_operateur",
@@ -68,7 +69,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const [contractPreview, setContractPreview] = useState("");
   const [storedContractPreview, setStoredContractPreview] = useState("");
   const [contractDocument, setContractDocument] = useState<any>(null);
-  const { byCategory: refs } = useSystemReferences(["civilite","statut_marital"]);
+  const { byCategory: refs } = useSystemReferences(["civilite","statut_marital","type_personne","nature_organisation","forme_juridique"]);
 
   const setField = (key: string, value: any) => setForm((x: any) => ({ ...x, [key]: value }));
 
@@ -244,9 +245,11 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       clientPayload.photo_profil_url = photo_profil_url;
       clientPayload.fichier_piece_recto_url = fichier_piece_recto_url;
       clientPayload.fichier_piece_verso_url = fichier_piece_verso_url;
-      clientPayload.nom = String(form.nom || form.nom_famille || "").trim();
-      clientPayload.nom_famille = clientPayload.nom; // compatibilité des dossiers historiques
-      clientPayload.nom_complet = [clientPayload.nom, form.prenoms].filter(Boolean).join(" ").trim();
+      clientPayload.type_personne = form.type_personne || "personne_physique";
+      clientPayload.nom = String(form.type_personne === "personne_morale" || form.type_personne === "famille_informelle" ? (form.responsable_legal_nom || form.nom) : (form.nom || form.nom_famille || "")).trim();
+      clientPayload.prenoms = String(form.type_personne === "personne_physique" ? form.prenoms : (form.responsable_legal_prenoms || form.prenoms || "")).trim();
+      clientPayload.nom_famille = form.type_personne === "famille_informelle" ? String(form.nom_famille || "").trim() : clientPayload.nom; // compatibilité des dossiers historiques
+      clientPayload.nom_complet = form.type_personne === "personne_morale" ? String(form.denomination_sociale || "").trim() : form.type_personne === "famille_informelle" ? String(form.nom_famille || "").trim() : [clientPayload.prenoms, clientPayload.nom].filter(Boolean).join(" ").trim();
       clientPayload.whatsapp = form.telephone_principal_whatsapp ? form.telephone : form.telephone_secondaire_whatsapp ? (form.telephone_secondaire || null) : null;
       clientPayload.updated_by = user.id;
       if (client?.validation_statut === "modification_demandee") {
@@ -328,9 +331,22 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       <Card className="overflow-hidden">
         <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Identité</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-2 px-4 pb-3 pt-0">
-          <div><Label className="text-xs">Civilité</Label><Select value={form.civilite || ""} onValueChange={v=>setField("civilite",v)}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent><SelectItem value="M">M.</SelectItem><SelectItem value="Mme">Mme</SelectItem><SelectItem value="Mlle">Mlle</SelectItem></SelectContent></Select></div>
-          <div><Label className="text-xs">Nom</Label><Input className="h-8" value={form.nom || form.nom_famille || ""} onChange={e=>{setField("nom",e.target.value);setField("nom_famille",e.target.value);setField("nom_complet",[e.target.value,form.prenoms].filter(Boolean).join(" "));}}/></div>
-          <div><Label className="text-xs">Prénom</Label><Input className="h-8" value={form.prenoms || ""} onChange={e=>{setField("prenoms",e.target.value);setField("nom_complet",[form.nom || form.nom_famille,e.target.value].filter(Boolean).join(" "));}}/></div>
+          <div><Label className="text-xs">Type de personne *</Label><Select value={form.type_personne || "personne_physique"} onValueChange={v=>setForm((x:any)=>({...x,type_personne:v,civilite:v==="personne_physique"?x.civilite:null}))}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("type_personne").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
+          {form.type_personne === "personne_physique" && <div><Label className="text-xs">Civilité</Label><Select value={form.civilite || ""} onValueChange={v=>setField("civilite",v)}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("civilite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>}
+          <div><Label className="text-xs">{form.type_personne === "personne_physique" ? "Nom" : "Nom du responsable légal *"}</Label><Input className="h-8" value={form.type_personne === "personne_physique" ? (form.nom || form.nom_famille || "") : (form.responsable_legal_nom || form.nom || "")} onChange={e=>{setField("nom",e.target.value);setField("responsable_legal_nom",form.type_personne==="personne_physique"?null:e.target.value);if(form.type_personne==="personne_physique")setField("nom_famille",e.target.value);}} required/></div>
+          <div><Label className="text-xs">{form.type_personne === "personne_physique" ? "Prénom" : "Prénom(s) du responsable légal *"}</Label><Input className="h-8" value={form.type_personne === "personne_physique" ? (form.prenoms || "") : (form.responsable_legal_prenoms || form.prenoms || "")} onChange={e=>{setField("prenoms",e.target.value);setField("responsable_legal_prenoms",form.type_personne==="personne_physique"?null:e.target.value);}} required/></div>
+          {form.type_personne === "personne_morale" && <>
+            <div><Label className="text-xs">Dénomination sociale *</Label><Input className="h-8" value={form.denomination_sociale || ""} onChange={e=>setField("denomination_sociale",e.target.value)} required/></div>
+            <div><Label className="text-xs">Nature de l’organisation *</Label><Select value={form.nature_organisation_code || ""} onValueChange={v=>setField("nature_organisation_code",v)}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("nature_organisation").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Forme juridique</Label><Select value={form.forme_juridique_code || ""} onValueChange={v=>setField("forme_juridique_code",v)}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("forme_juridique").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">N° d’enregistrement</Label><Input className="h-8" value={form.numero_enregistrement || ""} onChange={e=>setField("numero_enregistrement",e.target.value)}/></div>
+            <div><Label className="text-xs">Téléphone du responsable légal</Label><Input className="h-8" type="tel" value={form.responsable_legal_telephone || ""} onChange={e=>setField("responsable_legal_telephone",e.target.value)}/></div>
+          </>}
+          {form.type_personne === "famille_informelle" && <>
+            <div><Label className="text-xs">Nom de la famille / organisation *</Label><Input className="h-8" value={form.nom_famille || ""} onChange={e=>setField("nom_famille",e.target.value)} required/></div>
+            <div><Label className="text-xs">Nombre de membres</Label><Input className="h-8" type="number" min="1" value={form.nombre_membres || ""} onChange={e=>setField("nombre_membres",e.target.value)}/></div>
+            <div><Label className="text-xs">Téléphone du responsable familial</Label><Input className="h-8" type="tel" value={form.responsable_legal_telephone || ""} onChange={e=>setField("responsable_legal_telephone",e.target.value)}/></div>
+          </>}
           <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <div className="min-w-0"><Label className="text-xs">Naissance</Label><Input className="h-8" type="date" value={form.date_naissance || ""} onChange={e=>setField("date_naissance",e.target.value)}/></div>
             <div className="min-w-0"><Label className="text-xs">Lieu de naissance</Label><Input className="h-8" value={form.lieu_naissance || ""} onChange={e=>setField("lieu_naissance",e.target.value)}/></div>
