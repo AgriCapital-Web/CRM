@@ -232,7 +232,7 @@ const AccountRequests = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>Nom complet</Label>
+                  <Label>Nom et prénom</Label>
                   <p className="text-sm">{selectedRequest.nom_complet}</p>
                 </div>
                 <div>
