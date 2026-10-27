@@ -222,6 +222,32 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     },
   });
 
+  const { data: crmPartyLinks = [] } = useQuery({
+    queryKey: ["crm-party-links-active-status"],
+    enabled: navigator.onLine,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("crm_party_links")
+        .select("party_id,module_code,record_id");
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 30_000,
+  });
+  const effectivePartyIds = new Set(
+    crmPartyLinks.filter((link: any) => ["clients", "proprietaires_terres"].includes(link.module_code))
+      .map((link: any) => link.party_id)
+  );
+  const effectiveContactKeys = new Set(
+    crmPartyLinks.filter((link: any) =>
+      ["leads", "prospects"].includes(link.module_code) && effectivePartyIds.has(link.party_id)
+    ).map((link: any) => `${link.module_code}:${link.record_id}`)
+  );
+  const isAlreadyEffectiveContact = (row: any) =>
+    Boolean(row.client_id || row.proprietaire_id) ||
+    effectiveContactKeys.has(`leads:${row.id}`) ||
+    effectiveContactKeys.has(`prospects:${row.prospect_id || (row._record_type === "prospect" ? row.id : "")}`);
+
+
   const { data: relances = [] } = useQuery({
     queryKey: ["lead_relances", selected?.id],
     enabled: !!selected?.id,
@@ -625,7 +651,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const publicUrl = `${window.location.origin}/leads/public`;
 
   const legacyStage = (l: any) => l.etape_pipeline || (["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut) ? "prospect" : l.statut === "converti" ? "converti" : "lead");
-  const stageLeads = view !== "leads"
+  const stageLeadsRaw = view !== "leads"
     ? [
         ...leads.filter((l: any) => legacyStage(l) === "lead"),
         ...prospects.map((p: any) => {
@@ -647,6 +673,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         ...leads.filter((l: any) => legacyStage(l) === "prospect" && !prospects.some((p: any) => p.lead_id === l.id)),
       ]
     : leads.filter((l: any) => legacyStage(l) === "lead");
+  const stageLeads = stageLeadsRaw.filter((l: any) => !isAlreadyEffectiveContact(l));
   const filteredLeads = stageLeads.filter((l: any) => {
     const isProspect = l._record_type === "prospect" || legacyStage(l) === "prospect";
     const typeMatches = (!showLeads && !showProspects) || (showLeads && !showProspects && !isProspect) || (!showLeads && showProspects && isProspect) || (showLeads && showProspects);
@@ -662,8 +689,8 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     convertis: leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti").length,
     superficie: stageLeads.reduce((s: number, l: any) => s + (Number(l.superficie_disponible_ha || l.superficie_souhaitee_ha) || 0), 0),
   };
-  const totalLeads = leads.filter((l: any) => (l.etape_pipeline || "lead") === "lead").length;
-  const totalProspects = leads.filter((l: any) => l.etape_pipeline === "prospect").length;
+  const totalLeads = leads.filter((l: any) => (l.etape_pipeline || "lead") === "lead" && !isAlreadyEffectiveContact(l)).length;
+  const totalProspects = leads.filter((l: any) => l.etape_pipeline === "prospect" && !isAlreadyEffectiveContact(l)).length;
   const convertedRows = leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti");
   const leadsConverted = convertedRows.filter((l: any) => l.etape_conversion !== "prospect").length;
   const prospectsConverted = convertedRows.filter((l: any) => l.etape_conversion === "prospect").length;
