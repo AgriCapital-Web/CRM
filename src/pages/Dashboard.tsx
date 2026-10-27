@@ -389,7 +389,8 @@ const Dashboard = () => {
       const plantationsWithoutParcelArea = plantations
         .filter((p: any) => !p.parcelle_id && !internalClientIds.has(p.client_id))
         .reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
-      engagedHa = partnershipTotalHa + clientParcelAreaHa + internalAreaHa + unplantedAcquisitionArea + plantationsWithoutParcelArea;
+      const paidInitialClientsWithoutParcel = commercialClients.filter((client: any) => Boolean(client.paiement_initial_paye_at || client.pi_paye_at) && !client.parcelle_id).reduce((sum: number, client: any) => sum + Math.max(0, Number(client.total_hectares || 0)), 0);
+      engagedHa = partnershipTotalHa + clientParcelAreaHa + internalAreaHa + unplantedAcquisitionArea + plantationsWithoutParcelArea + paidInitialClientsWithoutParcel;
       plantedHa = sumPlantedArea(plantations);
       remainingHa = Math.max(0, engagedHa - plantedHa);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
