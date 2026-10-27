@@ -195,9 +195,9 @@ const BeneficiaireParticulier = () => {
 
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><Label>Nom de famille *</Label><Input value={beneficiaire.nom_famille} onChange={e=>setBeneficiaire({...beneficiaire,nom_famille:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
+            <div><Label>Nom *</Label><Input value={beneficiaire.nom_famille} onChange={e=>setBeneficiaire({...beneficiaire,nom_famille:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <div><Label>Prénoms *</Label><Input value={beneficiaire.prenoms} onChange={e=>setBeneficiaire({...beneficiaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
-            <div><Label>Nom complet *</Label><Input value={beneficiaire.nom_complet} onChange={e=>setBeneficiaire({...beneficiaire,nom_complet:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
+            
             <div><Label>Date de naissance</Label><Input type="date" value={beneficiaire.date_naissance} onChange={e=>setBeneficiaire({...beneficiaire,date_naissance:e.target.value})}/></div>
             <div><Label>Lieu de naissance</Label><Input value={beneficiaire.lieu_naissance} onChange={e=>setBeneficiaire({...beneficiaire,lieu_naissance:e.target.value})}/></div>
             <CountryNationalitySelect value={beneficiaire.nationalite} onChange={v=>setBeneficiaire({...beneficiaire,nationalite:v})} />
