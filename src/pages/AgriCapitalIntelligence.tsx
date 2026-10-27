@@ -130,17 +130,25 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
       const planted = Math.max(0, Number(r.surface_reellement_plantee ?? r.superficie_activee ?? 0));
       plantedByParcel.set(String(r.parcelle_id), (plantedByParcel.get(String(r.parcelle_id)) || 0) + planted);
     });
-    const hectaresLand = parcels.reduce((sum: number, r: Row) => {
-      const total = Math.max(0, Number(r.surface_totale_ha || 0));
-      const planted = Math.min(total, Math.max(0, plantedByParcel.get(String(r.id)) || 0));
-      const explicitAvailable = Math.max(0, Number(r.surface_disponible_ha || 0));
-      const attributed = Math.max(0, Number(r.surface_attribuee_ha || 0));
-      // Compter toutes les parcelles du registre, pas seulement la quote-part AgriCapital.
-      const available = explicitAvailable > 0
-        ? Math.min(explicitAvailable, Math.max(0, total - planted))
-        : Math.max(0, total - planted - Math.min(attributed, total - planted));
-      return sum + available;
-    }, 0);
+    const hectaresLand = (() => {
+      // Superficie non plantée de toutes les parcelles, quelle que soit la propriété.
+      // Une parcelle est comptée une seule fois ; une attribution ne signifie pas que le sol est planté.
+      const parcelAvailable = parcels.reduce((sum: number, r: Row) => {
+        const total = Math.max(0, Number(r.surface_totale_ha || 0));
+        const planted = Math.min(total, Math.max(0, plantedByParcel.get(String(r.id)) || 0));
+        return sum + Math.max(0, total - planted);
+      }, 0);
+      const linkedParcelIds = new Set(parcels.map((r: Row) => String(r.id)));
+      const clientOnlyArea = officialClients
+        .filter((r: Row) => !r.parcelle_id && Number(r.total_hectares || 0) > 0)
+        .filter((r: Row) => !plantations.some((p: Row) => p.client_id === r.id && p.parcelle_id && linkedParcelIds.has(String(p.parcelle_id))))
+        .reduce((sum: number, r: Row) => {
+          const planted = plantations.filter((p: Row) => p.client_id === r.id && !p.parcelle_id)
+            .reduce((s: number, p: Row) => s + Math.max(0, Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0)), 0);
+          return sum + Math.max(0, Number(r.total_hectares || 0) - planted);
+        }, 0);
+      return parcelAvailable + clientOnlyArea;
+    })();
     return { inflow, outflow, net: inflow - outflow, hectaresClients, hectaresLand, activeClients: officialClients.length, proposalsOpen: proposals.filter(p => ["draft","proposed","in_review"].includes(p.status)).length, tasksOpen: tasks.filter(t => !/termin|clos|done|cancel/i.test(String(t.status || ""))).length, projectsOpen: projects.filter(p => !/termin|clos|done|cancel/i.test(String(p.status || ""))).length };
   }, [transactions, clients, landOwners, parcels, plantations, proposals, tasks, projects]);
 
@@ -266,14 +274,14 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Une source n’a pas pu être lue</AlertTitle><AlertDescription>{error}. Les indicateurs concernés peuvent être incomplets.</AlertDescription></Alert>}
     <Alert><ShieldCheck className="h-4 w-4"/><AlertTitle>Décision assistée, jamais automatique</AlertTitle><AlertDescription>Les propositions sont des aides à l’analyse. Aucun emprunt, recrutement, paiement ou engagement n’est exécuté automatiquement. Les taux bancaires sont utilisables seulement s’ils sont saisis avec une source vérifiable et une date de validité.</AlertDescription></Alert>
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Metric title="Flux entrants validés" value={money(metrics.inflow)} icon={ArrowDownRight} detail="Écritures reconnues comme entrées"/>
-      <Metric title="Flux sortants validés" value={money(metrics.outflow)} icon={ArrowUpRight} detail="Écritures reconnues comme sorties"/>
-      <Metric title="Flux net calculé" value={money(metrics.net)} icon={Wallet} detail="Entrées moins sorties reconnues"/>
+      <Metric title="Flux entrants validés" value={money(metrics.inflow)} icon={ArrowDownRight} detail=""/>
+      <Metric title="Flux sortants validés" value={money(metrics.outflow)} icon={ArrowUpRight} detail=""/>
+      <Metric title="Flux net calculé" value={money(metrics.net)} icon={Wallet} detail=""/>
       <Metric title="Décisions à traiter" value={String(metrics.proposalsOpen)} icon={ClipboardList} detail=""/>
       <Metric title="Clients chargés" value={count(metrics.activeClients)} icon={Users} detail=""/>
-      <Metric title="Superficies disponibles" value={`${count(metrics.hectaresLand)} ha`} icon={Sprout} detail=""/><Metric title="Propriétaires fonciers" value={count(landOwners.length)} icon={Users} detail="Fiches propriétaires fonciers chargées"/>
-      <Metric title="Budgets chargés" value={count(budgets.length)} icon={Banknote} detail="Lignes lues depuis le module budgétaire"/>
-      <Metric title="Revues de performance" value={count(reviews.length)} icon={Activity} detail="Revues RH disponibles dans la base"/>
+      <Metric title="Superficies disponibles" value={`${count(metrics.hectaresLand)} ha`} icon={Sprout} detail=""/><Metric title="Propriétaires fonciers" value={count(landOwners.length)} icon={Users} detail=""/>
+      <Metric title="Budgets chargés" value={count(budgets.length)} icon={Banknote} detail=""/>
+      <Metric title="Revues de performance" value={count(reviews.length)} icon={Activity} detail=""/>
     </div>
     <Tabs defaultValue="overview" className="space-y-4">
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1"><TabsTrigger value="overview">Vue décisionnelle</TabsTrigger><TabsTrigger value="financing">Financement</TabsTrigger><TabsTrigger value="investment">Investissements</TabsTrigger><TabsTrigger value="people">Équipes & compétences</TabsTrigger><TabsTrigger value="scenarios">Simulateur</TabsTrigger><TabsTrigger value="register">Registre des décisions</TabsTrigger>{executive && <TabsTrigger value="governance">Accès & gouvernance</TabsTrigger>}</TabsList>
