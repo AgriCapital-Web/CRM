@@ -454,8 +454,8 @@ export default function Finance(){
         </Card>
       </TabsContent>
       <TabsContent value="depenses" className="mt-3 min-w-0 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold">Gestion des sorties</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+          <h2 className="font-semibold">Sorties enregistrées</h2>
           {can("finance.expenses")&&<Button onClick={()=>{setSelectedExpense(null);setExpenseFormMode("new");}}><Plus className="mr-2 h-4 w-4"/>Nouvelle sortie</Button>}
         </div>
         {expenseFormMode!==null&&<Dialog open={expenseFormMode!==null} onOpenChange={open=>{if(!open&&!saving){setExpenseFormMode(null);setSelectedExpense(null);setExpenseProof(null);}}}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><Card>
