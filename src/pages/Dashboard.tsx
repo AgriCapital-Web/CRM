@@ -818,7 +818,7 @@ const Dashboard = () => {
               </section>
 
               {canPlantations && stats.plantations > 0 && cycle.some((c: any) => c.total > 0) && (
-                <section aria-labelledby="dashboard-operations" className="space-y-3 rounded-2xl border-2 border-sky-500/60 bg-sky-50/20 p-3 sm:p-4 dark:bg-sky-950/10">
+                <section aria-labelledby="dashboard-operations" className="min-w-0 space-y-3">
                   <div><h2 id="dashboard-operations" className="text-lg font-extrabold uppercase tracking-wide">Opérations et suivi technique</h2></div>
                 <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
                   <Card>
@@ -853,7 +853,7 @@ const Dashboard = () => {
                 </section>
               )}
 
-              <section aria-labelledby="dashboard-performance" className="grid min-w-0 grid-cols-1 gap-3 rounded-2xl border-2 border-violet-500/60 bg-violet-50/20 p-3 md:grid-cols-2 xl:grid-cols-3 sm:p-4 dark:bg-violet-950/10">
+              <section aria-labelledby="dashboard-performance" className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div className="md:col-span-2 xl:col-span-3"><h2 id="dashboard-performance" className="text-lg font-extrabold uppercase tracking-wide">Performance et répartition</h2></div>
 {teamPerformance.length > 0 && (
                 <Card>
@@ -891,7 +891,7 @@ const Dashboard = () => {
               </section>
 
               {(canPlantations || canClients || canPayments || canTechnical || canLeads) && (
-              <section aria-labelledby="dashboard-activity" className="space-y-3 rounded-2xl border-2 border-amber-500/60 bg-amber-50/20 p-3 sm:p-4 dark:bg-amber-950/10">
+              <section aria-labelledby="dashboard-activity" className="min-w-0 space-y-3">
                 <div><h2 id="dashboard-activity" className="text-lg font-extrabold uppercase tracking-wide">Activités récentes et carte interactive</h2></div>
               {canPlantations && <PlantationsMap />}
 
