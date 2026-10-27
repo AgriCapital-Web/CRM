@@ -127,6 +127,11 @@ const GestionNotifications = () => {
   });
   const [preview, setPreview] = useState<{ count: number; sample: any[] } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [recipientDirectory, setRecipientDirectory] = useState<any[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientPickerOpen, setRecipientPickerOpen] = useState(false);
+  const [selectedRecipients, setSelectedRecipients] = useState<Array<{source_type:string;source_id:string}>>([]);
+  const [recipientLoading, setRecipientLoading] = useState(false);
 
   const smsCount = useMemo(() => smsLength(campaign.contenu), [campaign.contenu]);
   const automationSmsCount = useMemo(() => smsLength(automation.contenu), [automation.contenu]);
@@ -173,6 +178,15 @@ const GestionNotifications = () => {
 
   useEffect(() => { void checkProviders(); }, []);
 
+  const openRecipientPicker = async () => {
+    setRecipientPickerOpen(true);
+    if (recipientDirectory.length) return;
+    setRecipientLoading(true);
+    try { const data = await callDispatch({ mode: "recipient_directory" }); setRecipientDirectory(data.contacts || []); }
+    catch (error: any) { toast.error(error.message || "Impossible de charger les destinataires"); }
+    finally { setRecipientLoading(false); }
+  };
+
   const previewAudience = async (audience: string) => {
     setPreviewing(true);
     try {
@@ -187,13 +201,14 @@ const GestionNotifications = () => {
     const submittedCampaign = { ...campaign };
     const submittedMedia = [...campaignMedia];
     if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
+    if (submittedCampaign.audience === "selection" && !selectedRecipients.length) return toast.error("Coche au moins un destinataire.");
     if ((submittedCampaign.canal === "sms" || submittedCampaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
     if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
     const { error } = await (supabase as any).from("notification_campaigns").insert({
       nom: submittedCampaign.nom.trim(), description: submittedCampaign.description || null, canal: submittedCampaign.canal,
       sujet: submittedCampaign.sujet || null, contenu: submittedCampaign.canal.includes("sms") ? normalizeSms(submittedCampaign.contenu) : submittedCampaign.contenu,
-      media_attachments: submittedMedia, segment_id: selected, criteres: { audience: submittedCampaign.audience },
+      media_attachments: submittedMedia, segment_id: submittedCampaign.audience === "selection" ? null : selected, criteres: submittedCampaign.audience === "selection" ? { audience: "tous", selected_recipients: selectedRecipients } : { audience: submittedCampaign.audience },
       statut: submittedCampaign.programme_le ? "programme" : "brouillon",
       programme_le: submittedCampaign.programme_le ? new Date(submittedCampaign.programme_le).toISOString() : null,
     });
@@ -308,7 +323,7 @@ const GestionNotifications = () => {
                 <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value })} placeholder="Campagne rentree agricole" /></Field>
                 <Field label="Modèle enregistré"><Select value="" onValueChange={id=>{const t=templates.find(x=>x.id===id);if(t)applyTemplate(t);}}><SelectTrigger><SelectValue placeholder="Choisir un modèle"/></SelectTrigger><SelectContent>{templates.filter(t=>t.actif).map(t=><SelectItem key={t.id} value={t.id}>{t.nom} · {t.canal}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Canal"><Select value={campaign.canal} onValueChange={(v) => setCampaign({ ...campaign, canal: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
-                <Field label="Destinataires"><Select value={campaign.audience} onValueChange={(v) => { setCampaign({ ...campaign, audience: v }); void previewAudience(v); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{AUDIENCES.map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field>
+                <Field label="Destinataires"><div className="flex gap-2"><Select value={campaign.audience === "selection" ? "selection" : campaign.audience} onValueChange={(v) => { setCampaign({ ...campaign, audience: v }); if (v !== "selection") void previewAudience(v); else void openRecipientPicker(); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{AUDIENCES.map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}<SelectItem value="selection">Sélection manuelle…</SelectItem></SelectContent></Select><Button type="button" variant="outline" onClick={() => void openRecipientPicker()}><Users className="mr-2 h-4 w-4"/>Choisir</Button></div>{campaign.audience === "selection" && <p className="text-xs text-muted-foreground">{selectedRecipients.length} destinataire(s) sélectionné(s)</p>}</Field>
                 <Field label="Planification"><Input type="datetime-local" value={campaign.programme_le} onChange={(e) => setCampaign({ ...campaign, programme_le: e.target.value })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={campaign.sujet} onChange={(e) => setCampaign({ ...campaign, sujet: e.target.value })} placeholder="Information AgriCapital" /></Field>
@@ -322,7 +337,8 @@ const GestionNotifications = () => {
             <CardHeader><CardTitle>Campagnes recentes</CardTitle></CardHeader>
             <CardContent><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left"><th className="p-3">Campagne</th><th className="p-3">Canal</th><th className="p-3">Etat</th><th className="p-3">Dest.</th><th className="p-3">Envoyes</th><th className="p-3">Actions</th></tr></thead><tbody>{campaigns.map((c) => <tr key={c.id} className="border-b last:border-0"><td className="p-3 font-medium">{c.nom}</td><td className="p-3">{CHANNELS.find(x => x.value === c.canal)?.label || c.canal}</td><td className="p-3"><Badge variant={c.statut === "termine" ? "default" : "outline"}>{c.statut}</Badge></td><td className="p-3">{c.total_destinataires}</td><td className="p-3">{c.total_envoyes}</td><td className="p-3"><Button size="sm" variant="outline" onClick={() => void sendCampaign(c.id)} disabled={c.statut === "termine" || c.statut === "annule"}><Send className="mr-2 h-4 w-4" />Envoyer</Button></td></tr>)}{!loading && campaigns.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune campagne</td></tr>}</tbody></table></div></CardContent>
           </Card>
-        </TabsContent>
+        <Dialog open={recipientPickerOpen} onOpenChange={setRecipientPickerOpen}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl"><Card><CardHeader><CardTitle>Choisir les destinataires</CardTitle></CardHeader><CardContent className="space-y-3"><Input value={recipientSearch} onChange={e=>setRecipientSearch(e.target.value)} placeholder="Rechercher un nom, téléphone ou e-mail…"/><div className="flex items-center justify-between text-sm"><span>{selectedRecipients.length} sélectionné(s)</span><Button type="button" variant="outline" size="sm" onClick={()=>setSelectedRecipients([])}>Tout décocher</Button></div><div className="max-h-[48dvh] space-y-1 overflow-y-auto rounded-md border p-2">{recipientLoading ? <p className="p-4 text-sm">Chargement des contacts…</p> : recipientDirectory.filter((r:any)=>[r.nom_complet,r.email,r.telephone].some((v:any)=>String(v||"").toLocaleLowerCase("fr-FR").includes(recipientSearch.toLocaleLowerCase("fr-FR")))).map((r:any)=>{const key={source_type:r.source_type,source_id:r.source_id};const checked=selectedRecipients.some(x=>x.source_type===key.source_type&&x.source_id===key.source_id);return <label key={r.source_type+":"+r.source_id} className="flex cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-muted"><input type="checkbox" checked={checked} onChange={e=>setSelectedRecipients(current=>e.target.checked?[...current.filter(x=>x.source_id!==key.source_id||x.source_type!==key.source_type),key]:current.filter(x=>x.source_id!==key.source_id||x.source_type!==key.source_type))}/><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{r.nom_complet||"Contact sans nom"}</span><span className="block truncate text-xs text-muted-foreground">{r.source_type} · {[r.telephone,r.email].filter(Boolean).join(" · ")}</span></span></label>})}</div><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setRecipientPickerOpen(false)}>Annuler</Button><Button type="button" onClick={()=>{setCampaign(c=>({...c,audience:"selection",segment_id:""}));setRecipientPickerOpen(false);setPreview({count:selectedRecipients.length,sample:recipientDirectory.filter((r:any)=>selectedRecipients.some(x=>x.source_type===r.source_type&&x.source_id===r.source_id)).slice(0,20)});}}>Confirmer la sélection</Button></div></CardContent></Card></DialogContent></Dialog>
+</TabsContent>
 
         <TabsContent value="automations" className="space-y-5">
           <Dialog open={automationDialogOpen} onOpenChange={setAutomationDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Zap className="mr-2 h-4 w-4"/>Créer une automatisation</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
