@@ -74,7 +74,7 @@ const AccountRequest = () => {
   const [roles, setRoles] = useState<AccountRole[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [formData, setFormData] = useState({
-    nom_complet: "", email: "", telephone: "", telephone_indicatif: "", telephone_local: "", poste: "",
+    nom: "", prenoms: "", email: "", telephone: "", telephone_indicatif: "", telephone_local: "", poste: "",
     region: "", departement: "", district: "", sous_prefecture: "", message: "",
     username: "", password: "", password_confirm: "",
   });
@@ -164,7 +164,7 @@ const AccountRequest = () => {
       const deptName = departmentLookup.data?.nom || "";
       const { data, error } = await supabase.functions.invoke("submit-account-request", {
         body: {
-          nom_complet: formData.nom_complet.trim(),
+          nom_complet: [formData.nom, formData.prenoms].map((v) => String(v || "").trim()).filter(Boolean).join(" "),
           email: formData.email.trim(),
           telephone: formData.telephone.trim(),
           telephone_indicatif: formData.telephone_indicatif,
@@ -228,7 +228,8 @@ const AccountRequest = () => {
         <CardContent className="px-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-              <Field label="Nom complet *" icon={<User />}><Input required value={formData.nom_complet} onChange={(e) => setFormData({ ...formData, nom_complet: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Ex: KOUASSI Jean" /></Field>
+              <Field label="Nom *" icon={<User />}><Input required value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Nom" /></Field>
+               <Field label="Prénom *" icon={<User />}><Input required value={formData.prenoms} onChange={(e) => setFormData({ ...formData, prenoms: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Prénom" /></Field>
               <Field label="Email *" icon={<Mail />}><Input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="votre@email.com" /></Field>
               <Field label="Téléphone *" icon={<Phone />}><CountryPhoneInput label="" required countryCode={formData.telephone_indicatif||undefined} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>setFormData(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/></Field>
               <Field label="Poste souhaité *" icon={<Briefcase />}><Select value={formData.poste} disabled={rolesLoading || roles.length === 0} onValueChange={(value) => setFormData((prev) => ({ ...prev, poste: value, district: "", region: "", departement: "", sous_prefecture: "" }))}><SelectTrigger><SelectValue placeholder={rolesLoading ? "Chargement des postes…" : "Sélectionner un poste"} /></SelectTrigger><SelectContent>{roles.map((role) => <SelectItem key={role.code} value={role.code}>{role.nom}</SelectItem>)}</SelectContent></Select></Field>
