@@ -120,7 +120,46 @@ export default function GestionRemuneration() {
       <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
       <Button size="sm" onClick={() => setEditOpen(true)} disabled={loading}>Modifier les paramètres</Button>
     </div>
-    {loading ? <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Chargement…</div> : <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-5xl"><div className="flex justify-end"><Button onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />{saving?"Enregistrement…":"Enregistrer les paramètres"}</Button></div><Tabs defaultValue="commercial" className="space-y-4">
+    {loading ? <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Chargement…</div> : (
+      <>
+        <Tabs defaultValue="commercial-readonly" className="space-y-4">
+          <TabsList className="grid h-auto w-full grid-cols-2">
+            <TabsTrigger value="commercial-readonly" className="gap-2 py-2"><Users className="h-4 w-4" /><span>Commercial</span></TabsTrigger>
+            <TabsTrigger value="technique-readonly" className="gap-2 py-2"><Wrench className="h-4 w-4" /><span>Technique</span></TabsTrigger>
+          </TabsList>
+          <TabsContent value="commercial-readonly" className="space-y-4">
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+              {[
+                { title: "PalmInvest", sale: RULES.partnerSale, recovery: RULES.partnerRecovery },
+                { title: "TerraPalm", sale: RULES.partnerSale, recovery: RULES.partnerRecovery },
+                { title: "PalmTerroir — Essentielle", sale: RULES.essentialSale, recovery: RULES.essentialRecovery },
+                { title: "PalmTerroir — Flexible", sale: RULES.flexibleSale, recovery: RULES.flexibleRecovery },
+              ].map(section => (
+                <Card key={section.title}>
+                  <CardHeader className="pb-3"><CardTitle className="text-base">{section.title}</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3">
+                    {[{ code: section.sale, label: "Commission de vente — paiement unique", unit: "money" as const }, { code: section.recovery, label: "Commission sur chaque mensualité encaissée", unit: "percent" as const }].map(rule => {
+                      const row = byCode.get(rule.code);
+                      return <div key={rule.code} className="rounded-md border p-3">
+                        <div className="font-medium text-sm">{rule.label}</div>
+                        {row ? <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-lg font-semibold tabular-nums">{rule.unit === "money" ? `${money(row.montant)} FCFA` : `${money(row.taux_pourcentage)} %`}</span>
+                          <span className={`rounded-full px-2 py-1 text-xs ${row.actif === false ? "bg-muted text-muted-foreground" : "bg-green-100 text-green-800"}`}>{row.actif === false ? "Inactive" : "Active"}</span>
+                        </div> : <p className="mt-2 text-sm text-muted-foreground">Règle non configurée dans la base de données.</p>}
+                      </div>;
+                    })}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="technique-readonly">
+            <Card><CardHeader className="pb-3"><CardTitle className="text-base">Commissions techniques</CardTitle></CardHeader><CardContent>
+              {(() => { const row = byCode.get(RULES.technical); return row ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"><div><div className="font-medium">Commission technique par intervention réalisée</div><div className="text-xs text-muted-foreground">{row.actif === false ? "Inactive" : "Active"}</div></div><div className="text-lg font-semibold tabular-nums">{money(row.montant)} FCFA</div></div> : <p className="text-sm text-muted-foreground">Règle non configurée dans la base de données.</p>; })()}
+            </CardContent></Card>
+          </TabsContent>
+        </Tabs>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-5xl"><div className="flex justify-end"><Button onClick={() => void save()} disabled={saving || loading}><Save className="mr-2 h-4 w-4" />{saving?"Enregistrement…":"Enregistrer les paramètres"}</Button></div><Tabs defaultValue="commercial" className="space-y-4">
       <TabsList className="grid h-auto w-full grid-cols-2">
         <TabsTrigger value="commercial" className="gap-2 py-2"><Users className="h-4 w-4" /><span>Commercial</span></TabsTrigger>
         <TabsTrigger value="technique" className="gap-2 py-2"><Wrench className="h-4 w-4" /><span>Technique</span></TabsTrigger>
@@ -165,7 +204,9 @@ export default function GestionRemuneration() {
         </CardContent></Card>
       </TabsContent>
 
-    </Tabs></DialogContent></Dialog>}
+    </Tabs></DialogContent></Dialog>
+      </>
+    )}
 
   </div>;
 }
