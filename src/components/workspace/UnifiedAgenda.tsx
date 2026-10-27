@@ -20,7 +20,7 @@ const plusDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.ge
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 const eventColor = (type: string) => type === "meeting" ? "border-violet-400 bg-violet-50 text-violet-900 dark:bg-violet-950/40 dark:text-violet-100" : type === "deadline" || type === "task" ? "border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100" : "border-sky-400 bg-sky-50 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100";
 
-export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }: { profileId?: string; meetings: MeetingItem[]; onScheduleMeeting: () => void }) {
+export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }: { profileId?: string; meetings: MeetingItem[]; onScheduleMeeting: (draft?: { title: string; start: string; end: string; description: string }) => void }) {
   const [view, setView] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState(() => new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -89,7 +89,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
   const saveEvent = async () => {
     if (!profileId) { toast.error("Votre profil interne est introuvable."); return; }
-    if (kind === "meeting") { setDialogOpen(false); onScheduleMeeting(); return; }
+    if (kind === "meeting") { if (!title.trim()) { toast.error("Donnez un titre à la réunion."); return; } if (new Date(`${date}T${endTime}:00`) <= new Date(`${date}T${startTime}:00`)) { toast.error("L’heure de fin doit être après l’heure de début."); return; } onScheduleMeeting({ title: title.trim(), start: `${date}T${startTime}`, end: `${date}T${endTime}`, description: description.trim() }); setDialogOpen(false); return; }
     if (!title.trim()) { toast.error("Donnez un titre à l'événement."); return; }
     const starts = new Date(`${date}T${allDay ? "00:00" : startTime}:00`);
     const ends = allDay ? new Date(starts.getTime()+86400000) : new Date(`${date}T${endTime}:00`);
