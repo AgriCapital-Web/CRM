@@ -38,8 +38,8 @@ export class AppErrorBoundary extends React.Component<Props, State> {
           >
             Réessayer l’affichage
           </button>
-          {import.meta.env.DEV && this.state.message && (
-            <pre className="mt-4 overflow-auto rounded-lg bg-muted p-3 text-left text-xs">{this.state.message}</pre>
+          {this.state.message && (
+            <div className="mt-4 text-left"><p className="text-xs font-semibold text-destructive">Diagnostic technique</p><pre role="alert" className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-3 text-xs">{this.state.message}</pre><button type="button" onClick={() => { void navigator.clipboard?.writeText(this.state.message || ""); }} className="mt-2 rounded border px-3 py-1 text-xs">Copier le diagnostic</button></div>
           )}
         </div>
       </div>
