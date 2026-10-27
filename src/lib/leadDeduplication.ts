@@ -27,8 +27,15 @@ export const hasSameCrmContact = (candidate: Record<string, any>, existing: Reco
 };
 
 /** Checks the authoritative online CRM tables; DB triggers are the final guard against concurrent writes. */
-export async function findExistingCrmContact(candidate: Record<string, any>, excludeId?: string) {
-  for (const table of ["leads", "prospects", "clients", "proprietaires_terres"] as const) {
+export async function findExistingCrmContact(
+  candidate: Record<string, any>,
+  excludeId?: string,
+  targetTable?: "leads" | "prospects" | "clients" | "proprietaires_terres",
+) {
+  // La déduplication interdit un doublon dans le même module, mais autorise
+  // le rattachement transversal (lead direct -> prospect/client/propriétaire).
+  const tables = targetTable ? [targetTable] : ["leads", "prospects", "clients", "proprietaires_terres"] as const;
+  for (const table of tables) {
     let offset = 0;
     const pageSize = 1000;
     while (true) {
