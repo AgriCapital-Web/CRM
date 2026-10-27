@@ -40,6 +40,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const menuItems = [
     { icon: LayoutDashboard, label: "Tableau de bord", path: "/dashboard", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: Users, label: "Leads et prospects", path: "/leads", permission: PERMISSIONS.VIEW_LEADS },
+    { icon: Users, label: "Identités centrales", path: "/identites", permission: PERMISSIONS.VIEW_LEADS },
     { icon: Users, label: "Acquisition", path: "/acquisitions", permission: PERMISSIONS.VIEW_CLIENTS },
     { icon: LandPlot, label: "Convention foncière", path: "/proprietaires-terres", permission: PERMISSIONS.VIEW_PROPRIETAIRES },
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
@@ -57,7 +58,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const visibleMenuItems = menuItems.filter(item => item.label === "AgriCapital 360"
     ? (can("messagerie.view") || can("finance.view") || can("documents.view") || can("decision_center.view"))
-    : can(item.permission));
+    : item.label === "Identités centrales"
+      ? (can("leads.view") || can("prospects.view") || can("clients.view") || can("proprietaires.view"))
+      : can(item.permission));
   const handleLogout = async () => { await signOut(); navigate("/"); };
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'AG';
 
