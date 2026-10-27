@@ -21,7 +21,7 @@ const MODULE_LABELS: Record<string, string> = {
 export default function IdentitesCentrales() {
   const { can } = usePermissions();
   const canView = can("leads.view") || can("prospects.view") || can("clients.view") || can("proprietaires.view");
-  const { byCategory: refs } = useSystemReferences(["type_personne"]);
+  const { byCategory: refs } = useSystemReferences(["type_personne","nature_organisation","forme_juridique"]);
   const [search, setSearch] = useState("");
   const [showDuplicates, setShowDuplicates] = useState(false);
 
@@ -30,7 +30,7 @@ export default function IdentitesCentrales() {
     enabled: canView && navigator.onLine,
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("crm_parties")
-        .select("id,type_personne,civilite,nom,prenoms,nom_complet,denomination_sociale,nom_famille,telephone,email,updated_at")
+        .select("id,type_personne,civilite,nom,prenoms,nom_complet,denomination_sociale,nature_organisation_code,forme_juridique_code,numero_enregistrement,nom_famille,nombre_membres,responsable_legal_nom,responsable_legal_prenoms,responsable_legal_telephone,telephone,email,updated_at")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -73,6 +73,8 @@ export default function IdentitesCentrales() {
       .some((value) => String(value || "").toLocaleLowerCase("fr-FR").includes(term)));
   }, [parties, search]);
   const typeLabel = (code: string) => refs("type_personne").find((r: any) => r.code === code)?.libelle || code;
+  const natureLabel = (code: string) => refs("nature_organisation").find((r: any) => r.code === code)?.libelle || code;
+  const formeLabel = (code: string) => refs("forme_juridique").find((r: any) => r.code === code)?.libelle || code;
   const duplicateRows = (duplicatesQuery.data || []).filter((d: any) => partyIds.has(d.party_id_a) && partyIds.has(d.party_id_b));
 
   return (
@@ -113,6 +115,9 @@ export default function IdentitesCentrales() {
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0"><p className="font-semibold">{p.denomination_sociale || p.nom_famille || p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ") || "Identité sans nom"}</p>
                     {p.type_personne==="personne_physique" && <p className="text-sm text-muted-foreground">{[p.civilite,p.prenoms,p.nom].filter(Boolean).join(" ")}</p>}
+                    {p.type_personne==="personne_morale" && <p className="mt-1 text-sm">Responsable légal : {[p.responsable_legal_prenoms,p.responsable_legal_nom].filter(Boolean).join(" ") || "Non renseigné"}</p>}
+                    {p.type_personne==="famille_informelle" && <p className="mt-1 text-sm">Responsable familial : {[p.responsable_legal_prenoms,p.responsable_legal_nom].filter(Boolean).join(" ") || "Non renseigné"}{p.nombre_membres ? ` · ${p.nombre_membres} membre(s)` : ""}</p>}
+                    {p.type_personne==="personne_morale" && <p className="mt-1 text-xs text-muted-foreground">{[p.nature_organisation_code ? natureLabel(p.nature_organisation_code) : null,p.forme_juridique_code ? formeLabel(p.forme_juridique_code) : null,p.numero_enregistrement ? `N° ${p.numero_enregistrement}` : null].filter(Boolean).join(" · ")}</p>}
                     <p className="mt-1 text-xs text-muted-foreground">{[p.telephone,p.email].filter(Boolean).join(" · ") || "Aucune coordonnée"}</p>
                   </div>
                   <Badge variant="outline">{typeLabel(p.type_personne)}</Badge>
