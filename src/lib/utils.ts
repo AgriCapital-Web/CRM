@@ -29,6 +29,20 @@ export function formatUserShortName(fullName?: string | null): string {
   return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
 }
 
+
+/** Nom de communication pour les répertoires mixtes : les leads/prospects stockent PRENOMS NOM,
+ * les profils internes/clients stockent généralement NOM puis prénoms. */
+export function formatRecipientName(fullName?: string | null, sourceType?: string | null): string {
+  const parts = String(fullName || "").trim().split(/\\s+/).filter(Boolean);
+  if (parts.length < 2) return parts.length ? displayCaseName(parts[0]) : "Contact";
+  if (sourceType === "lead" || sourceType === "prospect") {
+    const surname = parts[parts.length - 1].toLocaleUpperCase("fr-FR");
+    const givenName = displayCaseName(parts[parts.length - 2]);
+    return givenName + " " + surname;
+  }
+  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
+}
+
 /** Bandeau de bienvenue: dernier prénom puis NOM en majuscules (ex: KONAN ADJOUA LARRISSA → Larrissa KONAN). */
 export function formatWelcomeName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
