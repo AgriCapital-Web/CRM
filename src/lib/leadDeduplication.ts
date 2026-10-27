@@ -19,11 +19,20 @@ export const hasSameCrmContact = (candidate: Record<string, any>, existing: Reco
     row.telephone, row.telephone_secondaire, row.whatsapp,
   ].map(normalizeContactPhone).filter((phone) => phone.length >= 8);
   const emails = (row: Record<string, any>) => [normalizeContactEmail(row.email)].filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+  const name = (row: Record<string, any>) => normalizeContactName(
+    row.denomination_sociale || row.nom_complet ||
+    [row.prenoms, row.nom].filter(Boolean).join(" ") || row.nom_famille
+  );
+  const candidateName = name(candidate);
+  const existingName = name(existing);
+  // Une coordonnée partagée (téléphone familial, adresse d’organisation)
+  // ne suffit jamais à déclarer deux dossiers identiques si les noms diffèrent.
+  if (candidateName && existingName && candidateName !== existingName) return false;
   const candidatePhones = new Set(phones(candidate));
   const candidateEmails = new Set(emails(candidate));
-  if (phones(existing).some((phone) => candidatePhones.has(phone))) return true;
-  if (emails(existing).some((email) => candidateEmails.has(email))) return true;
-  return false;
+  const sameContact = phones(existing).some((phone) => candidatePhones.has(phone)) ||
+    emails(existing).some((email) => candidateEmails.has(email));
+  return sameContact && (!candidateName || !existingName || candidateName === existingName);
 };
 
 /** Checks the authoritative online CRM tables; DB triggers are the final guard against concurrent writes. */
