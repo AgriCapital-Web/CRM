@@ -123,7 +123,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     const inflow = valid.filter((r: Row) => /entrée|entree|income|in|recette/i.test(String(r.direction || r.type || ""))).reduce((s: number, r: Row) => s + Number(r.amount || r.montant || 0), 0);
     const outflow = valid.filter((r: Row) => /sortie|expense|out|dépense|depense/i.test(String(r.direction || r.type || ""))).reduce((s: number, r: Row) => s + Number(r.amount || r.montant || 0), 0);
     const officialClients = clients.filter((r: Row) => /^AC-C/i.test(String(r.id_unique || "").trim()) && r.is_internal !== true && String(r.type_client || "").toLowerCase() !== "beneficiaire_particulier");
-    const hectaresClients = clients.reduce((s: number, r: Row) => s + Number(r.total_hectares || 0), 0);
+    const hectaresClients = officialClients.filter((r: Row) => Number(r.total_hectares || 0) > 0).reduce((s: number, r: Row) => s + Number(r.total_hectares || 0), 0);
     const plantedByParcel = new Map<string, number>();
     plantations.forEach((r: Row) => {
       if (!r.parcelle_id) return;
@@ -132,16 +132,14 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     });
     const hectaresLand = parcels.reduce((sum: number, r: Row) => {
       const total = Math.max(0, Number(r.surface_totale_ha || 0));
-      const agriShare = Math.max(0, Number(r.surface_agricapital_ha || 0));
-      const attributed = Math.max(0, Number(r.surface_attribuee_ha || 0));
+      const planted = Math.min(total, Math.max(0, plantedByParcel.get(String(r.id)) || 0));
       const explicitAvailable = Math.max(0, Number(r.surface_disponible_ha || 0));
-      const planted = Math.min(total || Number.POSITIVE_INFINITY, plantedByParcel.get(String(r.id)) || 0);
-      const domainShare = agriShare > 0 ? agriShare : total;
-      const remainingDomain = Math.max(0, domainShare - Math.min(domainShare, planted) - Math.min(domainShare, attributed));
-      // Use the explicit available value when it is greater than zero; otherwise derive the unplanted remainder.
-      // For shared parcels, cap the result to AgriCapital's share to avoid counting the owner's share twice.
-      const available = explicitAvailable > 0 ? Math.min(remainingDomain, explicitAvailable) : remainingDomain;
-      return sum + Math.max(0, available);
+      const attributed = Math.max(0, Number(r.surface_attribuee_ha || 0));
+      // Compter toutes les parcelles du registre, pas seulement la quote-part AgriCapital.
+      const available = explicitAvailable > 0
+        ? Math.min(explicitAvailable, Math.max(0, total - planted))
+        : Math.max(0, total - planted - Math.min(attributed, total - planted));
+      return sum + available;
     }, 0);
     return { inflow, outflow, net: inflow - outflow, hectaresClients, hectaresLand, activeClients: officialClients.length, proposalsOpen: proposals.filter(p => ["draft","proposed","in_review"].includes(p.status)).length, tasksOpen: tasks.filter(t => !/termin|clos|done|cancel/i.test(String(t.status || ""))).length, projectsOpen: projects.filter(p => !/termin|clos|done|cancel/i.test(String(p.status || ""))).length };
   }, [transactions, clients, landOwners, parcels, plantations, proposals, tasks, projects]);
@@ -259,21 +257,21 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     if (e) toast.error("Révocation impossible : " + e.message); else { toast.success("Délégation révoquée."); void load(); }
   };
 
-  const Metric = ({ title: metricTitle, value, icon: Icon, detail }: { title: string; value: string; icon: any; detail: string }) => <Card><CardContent className="p-4"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">{metricTitle}</p><p className="mt-1 text-xl font-semibold break-words">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div><Icon className="h-5 w-5 shrink-0 text-primary" /></div></CardContent></Card>;
+  const Metric = ({ title: metricTitle, value, icon: Icon, detail }: { title: string; value: string; icon: any; detail: string }) => <Card><CardContent className="p-4"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">{metricTitle}</p><p className="mt-1 text-xl font-semibold break-words">{value}</p></div><Icon className="h-5 w-5 shrink-0 text-primary" /></div></CardContent></Card>;
 
   if (!accessChecked || !accessAllowed) return embedded ? <div className="p-6 text-sm text-muted-foreground">Vérification des autorisations…</div> : <MainLayout><div className="p-6 text-sm text-muted-foreground">Vérification des autorisations…</div></MainLayout>;
 
   const content = <div className="mx-auto w-full max-w-[1500px] space-y-5 p-3 md:p-6">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><Activity className="h-6 w-6 text-primary"/><h1 className="text-2xl font-bold">AgriCapital Intelligence</h1></div><p className="mt-1 text-sm text-muted-foreground">Centre de décision stratégique et opérationnelle — données CRM et décisions traçables.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}/>Actualiser</Button></div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><Activity className="h-6 w-6 text-primary"/><h1 className="text-2xl font-bold">AgriCapital Intelligence</h1></div></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}/>Actualiser</Button></div>
     {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4"/><AlertTitle>Une source n’a pas pu être lue</AlertTitle><AlertDescription>{error}. Les indicateurs concernés peuvent être incomplets.</AlertDescription></Alert>}
     <Alert><ShieldCheck className="h-4 w-4"/><AlertTitle>Décision assistée, jamais automatique</AlertTitle><AlertDescription>Les propositions sont des aides à l’analyse. Aucun emprunt, recrutement, paiement ou engagement n’est exécuté automatiquement. Les taux bancaires sont utilisables seulement s’ils sont saisis avec une source vérifiable et une date de validité.</AlertDescription></Alert>
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Metric title="Flux entrants validés" value={money(metrics.inflow)} icon={ArrowDownRight} detail="Écritures reconnues comme entrées"/>
       <Metric title="Flux sortants validés" value={money(metrics.outflow)} icon={ArrowUpRight} detail="Écritures reconnues comme sorties"/>
       <Metric title="Flux net calculé" value={money(metrics.net)} icon={Wallet} detail="Entrées moins sorties reconnues"/>
-      <Metric title="Décisions à traiter" value={String(metrics.proposalsOpen)} icon={ClipboardList} detail={`${metrics.tasksOpen} tâches ouvertes · ${metrics.projectsOpen} projets actifs`}/>
-      <Metric title="Clients chargés" value={count(metrics.activeClients)} icon={Users} detail={`${count(metrics.hectaresClients)} ha déclarés sur les clients chargés`}/>
-      <Metric title="Superficies disponibles" value={`${count(metrics.hectaresLand)} ha`} icon={Sprout} detail="Surface non plantée disponible, dédupliquée et plafonnée à la part AgriCapital pour les parcelles partagées"/><Metric title="Propriétaires fonciers" value={count(landOwners.length)} icon={Users} detail="Fiches propriétaires fonciers chargées"/>
+      <Metric title="Décisions à traiter" value={String(metrics.proposalsOpen)} icon={ClipboardList} detail=""/>
+      <Metric title="Clients chargés" value={count(metrics.activeClients)} icon={Users} detail=""/>
+      <Metric title="Superficies disponibles" value={`${count(metrics.hectaresLand)} ha`} icon={Sprout} detail=""/><Metric title="Propriétaires fonciers" value={count(landOwners.length)} icon={Users} detail="Fiches propriétaires fonciers chargées"/>
       <Metric title="Budgets chargés" value={count(budgets.length)} icon={Banknote} detail="Lignes lues depuis le module budgétaire"/>
       <Metric title="Revues de performance" value={count(reviews.length)} icon={Activity} detail="Revues RH disponibles dans la base"/>
     </div>
