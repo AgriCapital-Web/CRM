@@ -30,6 +30,7 @@ import FileUploadVisual from "@/components/ui/file-upload-visual";
 import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { useSystemReferences } from "@/hooks/useSystemReferences";
 
 const ANNEXES_CONVENTION = [
   { field: "annexe_1_pv_delimitation_croquis", label: "Annexe 1 — Procès-verbal de délimitation / croquis parcellaire" },
@@ -72,13 +73,14 @@ const ProprietairesTerres = () => {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const { fetchFilteredDistricts, fetchFilteredRegions, fetchFilteredDepartements, fetchFilteredSousPrefectures } = useUserZones();
+  const { byCategory: identityRefs } = useSystemReferences(["type_personne", "nature_organisation", "forme_juridique"]);
 
   const [formData, setFormData] = useState<Record<string, any>>({
     type_proprietaire: "personne_physique",
     civilite: "", nom: "", prenoms: "", date_naissance: "", lieu_naissance: "",
     nom_pere: "", nom_mere: "",
-    denomination_sociale: "", numero_enregistrement: "",
-    nombre_membres: "", nom_representant: "",
+    denomination_sociale: "", numero_enregistrement: "", nature_organisation_code: "", forme_juridique_code: "",
+    nombre_membres: "", nom_representant: "", responsable_legal_nom: "", responsable_legal_prenoms: "", responsable_legal_telephone: "",
     telephone: "", telephone_indicatif: "", telephone_local: "", telephone_secondaire: "", telephone_secondaire_indicatif: "", telephone_secondaire_local: "", telephone_principal_whatsapp: false, telephone_secondaire_whatsapp: false, whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "",
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
     lieu_residence: "",
@@ -196,12 +198,12 @@ const ProprietairesTerres = () => {
       toast({ variant: "destructive", title: "Informations manquantes", description: "Renseignez la civilité et le nom du propriétaire." });
       return;
     }
-    if (type === "personne_morale" && (!formData.denomination_sociale.trim() || !formData.nom_representant.trim())) {
+    if (type === "personne_morale" && (!formData.denomination_sociale.trim() || !formData.nature_organisation_code || !formData.responsable_legal_nom.trim() || !formData.responsable_legal_prenoms.trim())) {
       setActiveFormTab("identite");
       toast({ variant: "destructive", title: "Informations manquantes", description: "Renseignez la dénomination sociale et le représentant." });
       return;
     }
-    if (type === "famille_groupement" && (!formData.nom.trim() || !formData.nom_representant.trim())) {
+    if (type === "famille_groupement" && (!formData.nom.trim() || !formData.responsable_legal_nom.trim() || !formData.responsable_legal_prenoms.trim())) {
       setActiveFormTab("identite");
       toast({ variant: "destructive", title: "Informations manquantes", description: "Renseignez le nom du groupement et son représentant." });
       return;
@@ -265,6 +267,12 @@ const ProprietairesTerres = () => {
         nom_complet: nomComplet,
         nom: formData.nom || nomComplet,
         type_proprietaire: formData.type_proprietaire,
+        type_personne: formData.type_proprietaire === "personne_morale" ? "personne_morale" : formData.type_proprietaire === "famille_groupement" ? "famille_informelle" : "personne_physique",
+        nature_organisation_code: formData.nature_organisation_code || null,
+        forme_juridique_code: formData.forme_juridique_code || null,
+        responsable_legal_nom: formData.responsable_legal_nom || null,
+        responsable_legal_prenoms: formData.responsable_legal_prenoms || null,
+        responsable_legal_telephone: formData.responsable_legal_telephone || null,
         civilite: formData.civilite || null,
         prenoms: formData.prenoms || null,
         lieu_naissance: formData.lieu_naissance || null,
@@ -272,7 +280,7 @@ const ProprietairesTerres = () => {
         nom_mere: formData.nom_mere || null,
         denomination_sociale: formData.denomination_sociale || null,
         numero_enregistrement: formData.numero_enregistrement || null,
-        nom_representant: formData.nom_representant || null,
+        nom_representant: [formData.responsable_legal_prenoms, formData.responsable_legal_nom].filter(Boolean).join(" ").trim() || formData.nom_representant || null,
         telephone: formData.telephone, telephone_indicatif: formData.telephone_indicatif || null, telephone_local: formData.telephone_local || null,
         telephone_secondaire: formData.telephone_secondaire || null, telephone_secondaire_indicatif: formData.telephone_secondaire_indicatif || null, telephone_secondaire_local: formData.telephone_secondaire_local || null,
         telephone_principal_whatsapp: !!formData.telephone_principal_whatsapp, telephone_secondaire_whatsapp: !!formData.telephone_secondaire_whatsapp,
@@ -576,12 +584,10 @@ const ProprietairesTerres = () => {
                     <TabsContent value="identite" className="space-y-4">
                       <div className="space-y-2">
                         <Label className="font-semibold">Type de propriétaire *</Label>
-                        <Select value={formData.type_proprietaire} onValueChange={v => update('type_proprietaire', v)}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
+                        <Select value={formData.type_proprietaire === "famille_groupement" ? "famille_informelle" : formData.type_proprietaire} onValueChange={v => update("type_proprietaire", v === "famille_informelle" ? "famille_groupement" : v)}>
+                          <SelectTrigger><SelectValue placeholder="Sélectionner une catégorie" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="personne_physique">☐ Personne physique</SelectItem>
-                            <SelectItem value="personne_morale">☐ Personne morale</SelectItem>
-                            <SelectItem value="famille_groupement">☐ Famille / Groupement</SelectItem>
+                            {identityRefs("type_personne").map((r: any) => <SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
@@ -640,18 +646,36 @@ const ProprietairesTerres = () => {
                               <Input value={formData.denomination_sociale} onChange={e => update('denomination_sociale', e.target.value)} required />
                             </div>
                             <div className="space-y-2">
+                              <Label>Nature de l’organisation *</Label>
+                              <Select value={formData.nature_organisation_code} onValueChange={v => update("nature_organisation_code", v)}>
+                                <SelectTrigger><SelectValue placeholder="Sélectionner la nature" /></SelectTrigger>
+                                <SelectContent>{identityRefs("nature_organisation").map((r: any) => <SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Forme juridique</Label>
+                              <Select value={formData.forme_juridique_code} onValueChange={v => update("forme_juridique_code", v)}>
+                                <SelectTrigger><SelectValue placeholder="Sélectionner la forme juridique" /></SelectTrigger>
+                                <SelectContent>{identityRefs("forme_juridique").map((r: any) => <SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
                               <Label>N° d'enregistrement</Label>
                               <Input value={formData.numero_enregistrement} onChange={e => update('numero_enregistrement', e.target.value)} />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label>Nom & Prénom(s) du représentant *</Label>
-                              <Input value={formData.nom_representant} onChange={e => update('nom_representant', e.target.value)} required />
+                              <Label>Nom du responsable légal *</Label>
+                              <Input value={formData.responsable_legal_nom} onChange={e => update('responsable_legal_nom', e.target.value)} required />
                             </div>
                             <div className="space-y-2">
-                              <Label>Né(e) le</Label>
-                              <Input type="date" value={formData.date_naissance} onChange={e => update('date_naissance', e.target.value)} />
+                              <Label>Prénom(s) du responsable légal *</Label>
+                              <Input value={formData.responsable_legal_prenoms} onChange={e => update('responsable_legal_prenoms', e.target.value)} required />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Téléphone du responsable légal</Label>
+                              <Input type="tel" value={formData.responsable_legal_telephone} onChange={e => update('responsable_legal_telephone', e.target.value)} />
                             </div>
                           </div>
                         </>
@@ -669,9 +693,19 @@ const ProprietairesTerres = () => {
                               <Input type="number" value={formData.nombre_membres} onChange={e => update('nombre_membres', e.target.value)} />
                             </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Nom & Prénom(s) du représentant *</Label>
-                            <Input value={formData.nom_representant} onChange={e => update('nom_representant', e.target.value)} required />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Nom du responsable familial *</Label>
+                              <Input value={formData.responsable_legal_nom} onChange={e => update('responsable_legal_nom', e.target.value)} required />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Prénom(s) du responsable familial *</Label>
+                              <Input value={formData.responsable_legal_prenoms} onChange={e => update('responsable_legal_prenoms', e.target.value)} required />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Téléphone du responsable familial</Label>
+                              <Input type="tel" value={formData.responsable_legal_telephone} onChange={e => update('responsable_legal_telephone', e.target.value)} />
+                            </div>
                           </div>
                         </>
                       )}
