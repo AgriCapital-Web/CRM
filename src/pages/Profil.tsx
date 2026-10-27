@@ -96,7 +96,7 @@ const Profil = () => {
     setSaving(true);
     try {
       const fields = [
-        "nom", "prenoms", "nom_complet", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
+        "nom_complet", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
         "type_piece_identite", "numero_piece_identite", "photo_url", "piece_identite_recto_url", "piece_identite_verso_url",
         "contact_urgence_nom", "contact_urgence_telephone1", "contact_urgence_telephone1_indicatif", "contact_urgence_telephone1_local", "contact_urgence_telephone2", "contact_urgence_telephone2_indicatif", "contact_urgence_telephone2_local", "contact_urgence_email", "contact_urgence_photo_url",
       ];
