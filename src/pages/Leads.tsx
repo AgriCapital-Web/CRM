@@ -556,6 +556,11 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
 
   const sendContact = async () => {
     if (!contactLead) return;
+    if (isAlreadyEffectiveContact(contactLead)) {
+      toast({ variant: "destructive", title: "Prospection bloquée", description: "Ce contact est déjà client ou propriétaire foncier. Les relances commerciales sont désactivées." });
+      setContactOpen(false);
+      return;
+    }
     const phone = String(contactChannel === "whatsapp" ? (contactLead.whatsapp || contactLead.telephone) : (contactLead.telephone || "")).replace(/[^0-9]/g, "");
     if (contactChannel === "appel") {
       if (!phone) { toast({ variant: "destructive", title: "Numéro manquant", description: "Ajoutez un numéro avant de lancer l’appel." }); return; }
