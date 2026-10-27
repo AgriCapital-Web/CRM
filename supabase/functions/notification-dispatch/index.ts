@@ -887,10 +887,27 @@ serve(async (req) => {
         "chef_equipe_commercial", "service_client", "chef_equipe_service_client"
       ].includes(r.role));
       const { data: lead, error: leadError } = await admin.from("leads")
-        .select("id,nom,prenoms,civilite,telephone,whatsapp,email,type_lead,assigned_to,created_by")
+        .select("id,nom,prenoms,civilite,telephone,whatsapp,email,type_lead,assigned_to,created_by,client_id,proprietaire_id,prospect_id")
         .eq("id", leadId).maybeSingle();
       if (leadError) throw leadError;
       if (!lead) return json(req, { error: "Lead ou prospect introuvable" }, 404);
+      // Barrière serveur : un client ou propriétaire foncier ne reçoit plus de prospection,
+      // même si un ancien dossier lead/prospect est encore présent.
+      if (lead.client_id || lead.proprietaire_id) {
+        return json(req, { error: "Prospection bloquée : ce contact est déjà client ou propriétaire foncier." }, 409);
+      }
+      const { data: identityLink, error: identityLinkError } = await admin.from("crm_party_links")
+        .select("party_id").eq("module_code", "leads").eq("record_id", lead.id).maybeSingle();
+      if (identityLinkError) throw identityLinkError;
+      if (identityLink?.party_id) {
+        const { data: effectiveLinks, error: effectiveLinksError } = await admin.from("crm_party_links")
+          .select("module_code").eq("party_id", identityLink.party_id)
+          .in("module_code", ["clients", "proprietaires_terres"]).limit(1);
+        if (effectiveLinksError) throw effectiveLinksError;
+        if (effectiveLinks?.length) {
+          return json(req, { error: "Prospection bloquée : ce contact est déjà client ou propriétaire foncier." }, 409);
+        }
+      }
       if (!supervisor && lead.assigned_to !== actor.id && lead.created_by !== actor.id) {
         return json(req, { error: "Vous ne pouvez contacter que vos propres leads ou prospects." }, 403);
       }
