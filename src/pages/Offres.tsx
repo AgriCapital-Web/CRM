@@ -524,7 +524,7 @@ const Offres = () => {
               { key: "TERRAPALM", label: "TerraPalm", description: "Plantation sur foncier du client.", icon: Leaf, tone: "text-emerald-700", bg: "bg-emerald-500/10" },
               { key: "PALMTERROIR", label: "PalmTerroir", description: "Formules Essentielle et Flexible.", icon: Crown, tone: "text-amber-700", bg: "bg-amber-500/10" },
             ].map((family) => {
-              const familyOffers = (offres || []).filter((o: any) => String(o.famille_offre || "").toUpperCase() === family.key);
+              const familyOffers = (offres || []).filter((o: any) => String(o.famille_offre || "").toUpperCase() === family.key && !/personnalis[ée]e?/i.test(String(o.formule_nom || o.nom || "")));
               const Icon = family.icon;
               const active = familyOffers.some((o: any) => o.actif);
               return (
@@ -550,7 +550,7 @@ const Offres = () => {
                         const total = Number(effective?.montant_total_effectif ?? effective?.montant_total_base ?? offer.montant_total_par_ha ?? (Number(offer.montant_pi_par_ha || 0) + monthly * Number(offer.duree_paiement_mois || 0)));
                         const cash = Number(effective?.cash_effectif ?? offer.montant_cash_par_ha ?? offer.montant_total_par_ha ?? 0);
                         const duration = Number(offer.duree_paiement_mois || 0);
-                        const formulas = Array.isArray(offer.formules_configuration) ? offer.formules_configuration : [];
+                        const formulas = (Array.isArray(offer.formules_configuration) ? offer.formules_configuration : []).filter((formula: any) => !/personnalis[ée]e?/i.test(String(formula.nom || formula.label || formula.code || formula.formule_nom || "")));
                         // PalmInvest et TerraPalm ont un tarif commun ; PalmTerroir n’affiche que ses formules.
                         if ((family.key === "PALMINVEST" || family.key === "TERRAPALM") && offer.id !== familyOffers[0]?.id) return null;
                         return <div key={offer.id} className="rounded-lg border bg-muted/20 p-3">
