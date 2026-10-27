@@ -84,7 +84,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
       db.from("decision_financing_sources").select("*").eq("is_active", true).order("observed_at", { ascending: false }).limit(100),
       db.from("finance_transactions").select("*").limit(5000),
       db.from("department_budgets").select("*").limit(2000),
-      db.from("clients").select("id,id_unique,type_client,is_internal,nom_complet,total_hectares,nombre_plantations,statut,statut_global,created_at").limit(5000),
+      db.from("clients").select("id,id_unique,type_client,is_internal,nom_complet,total_hectares,nombre_plantations,parcelle_id,statut,statut_global,created_at").limit(5000),
       db.from("proprietaires_terres").select("*").limit(2000),
       db.from("parcelles").select("*").limit(5000),
       db.from("workspace_tasks").select("*").limit(3000),
