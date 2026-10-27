@@ -1,9 +1,10 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useId } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useSystemReferences(categories: string[]) {
   const queryClient = useQueryClient();
+  const instanceId = useId().replace(/:/g, "");
   const key = [...categories].sort().join("|");
   const query = useQuery({
     queryKey: ["system-references", key],
@@ -25,7 +26,7 @@ export function useSystemReferences(categories: string[]) {
   });
 
   useEffect(() => {
-    const channel = supabase.channel("system-references-live-" + key.replace(/[^a-zA-Z0-9_-]/g, "_"))
+    const channel = supabase.channel("system-references-live-" + instanceId + "-" + key.replace(/[^a-zA-Z0-9_-]/g, "_"))
       .on("postgres_changes", { event: "*", schema: "public", table: "referentiels_systeme" }, (payload: any) => {
         const changedCategory = payload?.new?.categorie || payload?.old?.categorie;
         if (!changedCategory || key.split("|").includes(changedCategory)) {
@@ -33,7 +34,7 @@ export function useSystemReferences(categories: string[]) {
         }
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [key, queryClient]);
+  }, [key, queryClient, instanceId]);
 
   const rows = query.data || [];
   const byCategory = useCallback((category: string) => rows.filter((x: any) => x.categorie === category), [rows]);
