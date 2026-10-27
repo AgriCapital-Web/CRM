@@ -542,7 +542,9 @@ const Offres = () => {
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
                       <span className="text-xs text-muted-foreground">{familyOffers.reduce((count: number, offer: any) => count + (Array.isArray(offer.formules_configuration) ? offer.formules_configuration.length : 1), 0)} formules</span>
-                      <Button size="sm" variant="outline" onClick={() => setDetailsFamily(family.key)}>Voir les détails</Button>
+                      <Button size="sm" variant="outline" disabled={!familyOffers.length} onClick={() => { setEditOffre(familyOffers[0] as Offre); setIsOffreDialogOpen(true); }}>
+                        <Pencil className="mr-1 h-4 w-4" /> Modifier les paramètres
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
