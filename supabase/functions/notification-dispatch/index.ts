@@ -526,7 +526,12 @@ async function runCampaign(campaignId: string) {
   if (campaign.programme_le && new Date(campaign.programme_le).getTime() > Date.now()) return { skipped: true, reason: "programme" };
 
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
-  const contacts = await resolveContacts(criteria);
+  let contacts = await resolveContacts(criteria);
+  const selectedRecipients = Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients as Array<{ source_type?: string; source_id?: string }> : [];
+  if (selectedRecipients.length) {
+    const selected = new Set(selectedRecipients.map((r) => `${r.source_type || ""}:${r.source_id || ""}`));
+    contacts = contacts.filter((c) => selected.has(`${c.source_type}:${c.source_id}`));
+  }
   await admin.from("notification_campaigns").update({
     statut: "en_cours", demarre_le: new Date().toISOString(), total_destinataires: contacts.length,
   }).eq("id", campaign.id);
@@ -820,6 +825,10 @@ serve(async (req) => {
     }
     const requiredPermission = mode === "preview" ? "messagerie.view" : "messagerie.send";
     if (!(await staffAuthorized(req, requiredPermission))) return json(req, { error: "Accès refusé : votre rôle ne possède pas la permission de messagerie requise." }, 401);
+    if (mode === "recipient_directory") {
+      const contacts = await resolveContacts({ audience: "tous" });
+      return json(req, { ok: true, contacts: contacts.map((c) => ({ source_type: c.source_type, source_id: c.source_id, nom_complet: c.nom_complet, email: c.email, telephone: c.telephone, role_code: c.role_code })) });
+    }
     if (mode === "manual_contact") {
       const leadId = String(body.lead_id || "").trim();
       const channel = String(body.channel || "");
