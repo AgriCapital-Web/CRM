@@ -548,7 +548,7 @@ const Offres = () => {
                           ? Number(installments[installments.length - 1]?.mensualite_par_ha_effective ?? installments[installments.length - 1]?.mensualite_par_ha ?? offer.mensualite_par_ha ?? 0)
                           : Number(offer.mensualite_par_ha || 0);
                         const total = Number(effective?.montant_total_effectif ?? effective?.montant_total_base ?? offer.montant_total_par_ha ?? (Number(offer.montant_pi_par_ha || 0) + monthly * Number(offer.duree_paiement_mois || 0)));
-                        const cash = Number(effective?.pi_effectif ?? offer.montant_pi_par_ha ?? 0);
+                        const cash = Number(effective?.cash_effectif ?? offer.montant_cash_par_ha ?? offer.montant_total_par_ha ?? 0);
                         const duration = Number(offer.duree_paiement_mois || 0);
                         const formulas = Array.isArray(offer.formules_configuration) ? offer.formules_configuration : [];
                         return <div key={offer.id} className="rounded-lg border bg-muted/20 p-3">
