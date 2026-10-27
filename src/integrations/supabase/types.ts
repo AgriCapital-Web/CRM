@@ -34,6 +34,8 @@ export type Database = {
           sous_prefecture_id: string | null
           statut: string | null
           telephone: string
+          telephone_indicatif: string | null
+          telephone_local: string | null
           traite_le: string | null
           traite_par: string | null
           updated_at: string | null
@@ -58,6 +60,8 @@ export type Database = {
           sous_prefecture_id?: string | null
           statut?: string | null
           telephone: string
+          telephone_indicatif?: string | null
+          telephone_local?: string | null
           traite_le?: string | null
           traite_par?: string | null
           updated_at?: string | null
@@ -82,6 +86,8 @@ export type Database = {
           sous_prefecture_id?: string | null
           statut?: string | null
           telephone?: string
+          telephone_indicatif?: string | null
+          telephone_local?: string | null
           traite_le?: string | null
           traite_par?: string | null
           updated_at?: string | null
@@ -148,6 +154,7 @@ export type Database = {
       }
       acquisition_lots: {
         Row: {
+          acquisition_id: string | null
           client_id: string
           created_at: string | null
           created_by: string | null
@@ -155,10 +162,10 @@ export type Database = {
           id: string
           lot_id: string
           notes: string | null
-          acquisition_id: string | null
           surface_ha: number | null
         }
         Insert: {
+          acquisition_id?: string | null
           client_id: string
           created_at?: string | null
           created_by?: string | null
@@ -166,10 +173,10 @@ export type Database = {
           id?: string
           lot_id: string
           notes?: string | null
-          acquisition_id?: string | null
           surface_ha?: number | null
         }
         Update: {
+          acquisition_id?: string | null
           client_id?: string
           created_at?: string | null
           created_by?: string | null
@@ -177,10 +184,16 @@ export type Database = {
           id?: string
           lot_id?: string
           notes?: string | null
-          acquisition_id?: string | null
           surface_ha?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "acquisition_lots_acquisition_id_fkey"
+            columns: ["acquisition_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "acquisition_lots_client_id_fkey"
             columns: ["client_id"]
@@ -209,55 +222,281 @@ export type Database = {
             referencedRelation: "lots_hectares"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "acquisition_lots_acquisition_id_fkey"
-            columns: ["acquisition_id"]
-            isOneToOne: false
-            referencedRelation: "acquisitions"
-            referencedColumns: ["id"]
-          },
         ]
       }
-      acquisitions_brouillon: {
+      acquisitions: {
         Row: {
-          created_at: string | null
-          created_by: string
-          donnees: Json | null
-          etape_actuelle: number | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          duree_paiement_mois: number
+          echeancier: Json
+          famille_offre: string | null
+          formule_code: string
+          formule_nom: string
+          gestion_type: string | null
           id: string
-          offre_id: string | null
-          parcours_code: string | null
-          updated_at: string | null
+          lot_id: string | null
+          mensualite_montant: number
+          mensualite_par_ha: number
+          metadata: Json
+          mode_paiement: string
+          montant_pi_par_ha: number
+          montant_pi_total: number
+          montant_promo_applique: number
+          montant_total_contrat: number
+          montant_total_par_ha: number
+          necessite_foncier_client: boolean
+          notes: string | null
+          offre_code: string
+          offre_id: string
+          offre_nom: string
+          parcelle_id: string | null
+          promotion_id: string | null
+          statut: string
+          statut_technique: string
+          superficie_ha: number
+          updated_at: string
+          validation_at: string | null
+          validation_commentaire: string | null
+          validation_demande_at: string | null
+          validation_par: string | null
+          validation_statut: string
         }
         Insert: {
-          created_at?: string | null
-          created_by?: string
-          donnees?: Json | null
-          etape_actuelle?: number | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          duree_paiement_mois?: number
+          echeancier?: Json
+          famille_offre?: string | null
+          formule_code: string
+          formule_nom: string
+          gestion_type?: string | null
           id?: string
-          offre_id?: string | null
-          parcours_code?: string | null
-          updated_at?: string | null
+          lot_id?: string | null
+          mensualite_montant?: number
+          mensualite_par_ha?: number
+          metadata?: Json
+          mode_paiement?: string
+          montant_pi_par_ha?: number
+          montant_pi_total?: number
+          montant_promo_applique?: number
+          montant_total_contrat?: number
+          montant_total_par_ha?: number
+          necessite_foncier_client?: boolean
+          notes?: string | null
+          offre_code: string
+          offre_id: string
+          offre_nom: string
+          parcelle_id?: string | null
+          promotion_id?: string | null
+          statut?: string
+          statut_technique?: string
+          superficie_ha: number
+          updated_at?: string
+          validation_at?: string | null
+          validation_commentaire?: string | null
+          validation_demande_at?: string | null
+          validation_par?: string | null
+          validation_statut?: string
         }
         Update: {
-          created_at?: string | null
-          created_by?: string
-          donnees?: Json | null
-          etape_actuelle?: number | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          duree_paiement_mois?: number
+          echeancier?: Json
+          famille_offre?: string | null
+          formule_code?: string
+          formule_nom?: string
+          gestion_type?: string | null
           id?: string
-          offre_id?: string | null
-          parcours_code?: string | null
-          updated_at?: string | null
+          lot_id?: string | null
+          mensualite_montant?: number
+          mensualite_par_ha?: number
+          metadata?: Json
+          mode_paiement?: string
+          montant_pi_par_ha?: number
+          montant_pi_total?: number
+          montant_promo_applique?: number
+          montant_total_contrat?: number
+          montant_total_par_ha?: number
+          necessite_foncier_client?: boolean
+          notes?: string | null
+          offre_code?: string
+          offre_id?: string
+          offre_nom?: string
+          parcelle_id?: string | null
+          promotion_id?: string | null
+          statut?: string
+          statut_technique?: string
+          superficie_ha?: number
+          updated_at?: string
+          validation_at?: string | null
+          validation_commentaire?: string | null
+          validation_demande_at?: string | null
+          validation_par?: string | null
+          validation_statut?: string
         }
         Relationships: [
           {
-            foreignKeyName: "acquisitions_brouillon_offre_id_fkey"
+            foreignKeyName: "client_acquisitions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_acquisitions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_synthese"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_acquisitions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_monnaie_clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "client_acquisitions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_hectares"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_acquisitions_offre_id_fkey"
             columns: ["offre_id"]
             isOneToOne: false
             referencedRelation: "offres"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "client_acquisitions_parcelle_id_fkey"
+            columns: ["parcelle_id"]
+            isOneToOne: false
+            referencedRelation: "parcelles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_acquisitions_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      acremap_integration_settings: {
+        Row: {
+          api_base_url: string
+          api_key: string
+          enabled: boolean
+          id: string
+          updated_at: string
+          webhook_secret: string
+        }
+        Insert: {
+          api_base_url?: string
+          api_key?: string
+          enabled?: boolean
+          id?: string
+          updated_at?: string
+          webhook_secret?: string
+        }
+        Update: {
+          api_base_url?: string
+          api_key?: string
+          enabled?: boolean
+          id?: string
+          updated_at?: string
+          webhook_secret?: string
+        }
+        Relationships: []
+      }
+      acremap_lots: {
+        Row: {
+          area_m2: number | null
+          code: string
+          id: string
+          kind: string | null
+          owner_id: string | null
+          part: string | null
+          payload: Json
+          plan_id: string
+          received_at: string
+        }
+        Insert: {
+          area_m2?: number | null
+          code: string
+          id: string
+          kind?: string | null
+          owner_id?: string | null
+          part?: string | null
+          payload?: Json
+          plan_id: string
+          received_at?: string
+        }
+        Update: {
+          area_m2?: number | null
+          code?: string
+          id?: string
+          kind?: string | null
+          owner_id?: string | null
+          part?: string | null
+          payload?: Json
+          plan_id?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acremap_lots_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "acremap_morcellements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      acremap_morcellements: {
+        Row: {
+          event_id: string | null
+          id: string
+          owner_id: string | null
+          parcelle_id: string | null
+          payload: Json
+          received_at: string
+          reference: string | null
+          source_updated_at: string | null
+          status: string
+        }
+        Insert: {
+          event_id?: string | null
+          id: string
+          owner_id?: string | null
+          parcelle_id?: string | null
+          payload?: Json
+          received_at?: string
+          reference?: string | null
+          source_updated_at?: string | null
+          status?: string
+        }
+        Update: {
+          event_id?: string | null
+          id?: string
+          owner_id?: string | null
+          parcelle_id?: string | null
+          payload?: Json
+          received_at?: string
+          reference?: string | null
+          source_updated_at?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       activity_notes: {
         Row: {
@@ -694,7 +933,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           date_delivrance: string
-          date_expiration: string
+          date_expiration: string | null
           departement: string | null
           id: string
           matricule: string
@@ -705,8 +944,8 @@ export type Database = {
           profile_id: string
           role_code: string | null
           statut: string
-          statut_agent: string
-          type_contrat: string
+          statut_agent: string | null
+          type_contrat: string | null
           updated_at: string
           updated_by: string | null
           zone_intervention: string | null
@@ -716,7 +955,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date_delivrance?: string
-          date_expiration?: string
+          date_expiration?: string | null
           departement?: string | null
           id?: string
           matricule: string
@@ -727,8 +966,8 @@ export type Database = {
           profile_id: string
           role_code?: string | null
           statut?: string
-          statut_agent?: string
-          type_contrat?: string
+          statut_agent?: string | null
+          type_contrat?: string | null
           updated_at?: string
           updated_by?: string | null
           zone_intervention?: string | null
@@ -738,7 +977,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           date_delivrance?: string
-          date_expiration?: string
+          date_expiration?: string | null
           departement?: string | null
           id?: string
           matricule?: string
@@ -749,8 +988,8 @@ export type Database = {
           profile_id?: string
           role_code?: string | null
           statut?: string
-          statut_agent?: string
-          type_contrat?: string
+          statut_agent?: string | null
+          type_contrat?: string | null
           updated_at?: string
           updated_by?: string | null
           zone_intervention?: string | null
@@ -762,6 +1001,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartes_personnel_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartes_personnel_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartes_personnel_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "cartes_personnel_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -1290,158 +1557,6 @@ export type Database = {
           },
         ]
       }
-      acquisitions: {
-        Row: {
-          client_id: string
-          created_at: string
-          created_by: string | null
-          duree_paiement_mois: number
-          echeancier: Json
-          famille_offre: string | null
-          formule_code: string
-          formule_nom: string
-          gestion_type: string | null
-          id: string
-          lot_id: string | null
-          mensualite_montant: number
-          mensualite_par_ha: number
-          metadata: Json
-          mode_paiement: string
-          montant_pi_par_ha: number
-          montant_pi_total: number
-          montant_promo_applique: number
-          montant_total_contrat: number
-          montant_total_par_ha: number
-          necessite_foncier_client: boolean
-          notes: string | null
-          offre_code: string
-          offre_id: string
-          offre_nom: string
-          parcelle_id: string | null
-          promotion_id: string | null
-          statut: string
-          statut_technique: string
-          superficie_ha: number
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          created_by?: string | null
-          duree_paiement_mois?: number
-          echeancier?: Json
-          famille_offre?: string | null
-          formule_code: string
-          formule_nom: string
-          gestion_type?: string | null
-          id?: string
-          lot_id?: string | null
-          mensualite_montant?: number
-          mensualite_par_ha?: number
-          metadata?: Json
-          mode_paiement?: string
-          montant_pi_par_ha?: number
-          montant_pi_total?: number
-          montant_promo_applique?: number
-          montant_total_contrat?: number
-          montant_total_par_ha?: number
-          necessite_foncier_client?: boolean
-          notes?: string | null
-          offre_code: string
-          offre_id: string
-          offre_nom: string
-          parcelle_id?: string | null
-          promotion_id?: string | null
-          statut?: string
-          statut_technique?: string
-          superficie_ha: number
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          created_by?: string | null
-          duree_paiement_mois?: number
-          echeancier?: Json
-          famille_offre?: string | null
-          formule_code?: string
-          formule_nom?: string
-          gestion_type?: string | null
-          id?: string
-          lot_id?: string | null
-          mensualite_montant?: number
-          mensualite_par_ha?: number
-          metadata?: Json
-          mode_paiement?: string
-          montant_pi_par_ha?: number
-          montant_pi_total?: number
-          montant_promo_applique?: number
-          montant_total_contrat?: number
-          montant_total_par_ha?: number
-          necessite_foncier_client?: boolean
-          notes?: string | null
-          offre_code?: string
-          offre_id?: string
-          offre_nom?: string
-          parcelle_id?: string | null
-          promotion_id?: string | null
-          statut?: string
-          statut_technique?: string
-          superficie_ha?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "acquisitions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "acquisitions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "v_client_synthese"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "acquisitions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "v_monnaie_clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "acquisitions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots_hectares"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "acquisitions_offre_id_fkey"
-            columns: ["offre_id"]
-            isOneToOne: false
-            referencedRelation: "offres"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "acquisitions_parcelle_id_fkey"
-            columns: ["parcelle_id"]
-            isOneToOne: false
-            referencedRelation: "parcelles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "acquisitions_promotion_id_fkey"
-            columns: ["promotion_id"]
-            isOneToOne: false
-            referencedRelation: "promotions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       clients: {
         Row: {
           annee_contrat: number | null
@@ -1467,6 +1582,8 @@ export type Database = {
           documents_valides_at: string | null
           domicile: string | null
           domicile_residence: string | null
+          duree_paiement_mois: number | null
+          echeancier: Json | null
           email: string | null
           famille_offre: string | null
           fichier_piece_recto_url: string | null
@@ -1474,6 +1591,7 @@ export type Database = {
           fichier_piece_verso_url: string | null
           formule_code: string | null
           formule_nom: string | null
+          gestion_type: string | null
           id: string
           id_unique: string | null
           is_internal: boolean
@@ -1485,11 +1603,18 @@ export type Database = {
           lieu_naissance: string | null
           localite: string | null
           longitude: number | null
+          lot_id: string | null
           mensualite_montant: number | null
+          mensualite_par_ha: number | null
+          metadata: Json
           mode_paiement: string
+          montant_pi_par_ha: number | null
+          montant_pi_total: number | null
           montant_promo_applique: number
           montant_total_contrat: number
+          montant_total_par_ha: number | null
           nationalite: string | null
+          necessite_foncier_client: boolean | null
           nom: string | null
           nom_complet: string | null
           nom_famille: string | null
@@ -1497,11 +1622,14 @@ export type Database = {
           nom_pere: string | null
           nom_titulaire_compte: string | null
           nombre_plantations: number | null
+          notes: string | null
           numero_compte: string | null
           numero_contrat: string | null
           numero_ordre_global: number | null
           numero_piece: string | null
+          offre_code: string | null
           offre_id: string | null
+          offre_nom: string | null
           paiement_initial_montant: number
           paiement_initial_paye_at: string | null
           paiement_personnalise: Json
@@ -1521,10 +1649,17 @@ export type Database = {
           statut: string | null
           statut_global: string | null
           statut_marital: string | null
+          statut_technique: string | null
+          superficie_ha: number | null
           taux_journalier_ha: number
           telephone: string
           telephone_indicatif: string | null
           telephone_local: string | null
+          telephone_principal_whatsapp: boolean
+          telephone_secondaire: string | null
+          telephone_secondaire_indicatif: string | null
+          telephone_secondaire_local: string | null
+          telephone_secondaire_whatsapp: boolean
           total_hectares: number | null
           type_client: string | null
           type_client_foncier: string | null
@@ -1533,6 +1668,11 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
           user_id: string | null
+          validation_at: string | null
+          validation_commentaire: string | null
+          validation_demande_at: string | null
+          validation_par: string | null
+          validation_statut: string
           village_id: string | null
           whatsapp: string | null
           whatsapp_indicatif: string | null
@@ -1562,6 +1702,8 @@ export type Database = {
           documents_valides_at?: string | null
           domicile?: string | null
           domicile_residence?: string | null
+          duree_paiement_mois?: number | null
+          echeancier?: Json | null
           email?: string | null
           famille_offre?: string | null
           fichier_piece_recto_url?: string | null
@@ -1569,6 +1711,7 @@ export type Database = {
           fichier_piece_verso_url?: string | null
           formule_code?: string | null
           formule_nom?: string | null
+          gestion_type?: string | null
           id?: string
           id_unique?: string | null
           is_internal?: boolean
@@ -1580,11 +1723,18 @@ export type Database = {
           lieu_naissance?: string | null
           localite?: string | null
           longitude?: number | null
+          lot_id?: string | null
           mensualite_montant?: number | null
+          mensualite_par_ha?: number | null
+          metadata?: Json
           mode_paiement?: string
+          montant_pi_par_ha?: number | null
+          montant_pi_total?: number | null
           montant_promo_applique?: number
           montant_total_contrat?: number
+          montant_total_par_ha?: number | null
           nationalite?: string | null
+          necessite_foncier_client?: boolean | null
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null
@@ -1592,11 +1742,14 @@ export type Database = {
           nom_pere?: string | null
           nom_titulaire_compte?: string | null
           nombre_plantations?: number | null
+          notes?: string | null
           numero_compte?: string | null
           numero_contrat?: string | null
           numero_ordre_global?: number | null
           numero_piece?: string | null
+          offre_code?: string | null
           offre_id?: string | null
+          offre_nom?: string | null
           paiement_initial_montant?: number
           paiement_initial_paye_at?: string | null
           paiement_personnalise?: Json
@@ -1616,10 +1769,17 @@ export type Database = {
           statut?: string | null
           statut_global?: string | null
           statut_marital?: string | null
+          statut_technique?: string | null
+          superficie_ha?: number | null
           taux_journalier_ha?: number
           telephone: string
           telephone_indicatif?: string | null
           telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
           total_hectares?: number | null
           type_client?: string | null
           type_client_foncier?: string | null
@@ -1628,6 +1788,11 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
+          validation_at?: string | null
+          validation_commentaire?: string | null
+          validation_demande_at?: string | null
+          validation_par?: string | null
+          validation_statut?: string
           village_id?: string | null
           whatsapp?: string | null
           whatsapp_indicatif?: string | null
@@ -1657,6 +1822,8 @@ export type Database = {
           documents_valides_at?: string | null
           domicile?: string | null
           domicile_residence?: string | null
+          duree_paiement_mois?: number | null
+          echeancier?: Json | null
           email?: string | null
           famille_offre?: string | null
           fichier_piece_recto_url?: string | null
@@ -1664,6 +1831,7 @@ export type Database = {
           fichier_piece_verso_url?: string | null
           formule_code?: string | null
           formule_nom?: string | null
+          gestion_type?: string | null
           id?: string
           id_unique?: string | null
           is_internal?: boolean
@@ -1675,11 +1843,18 @@ export type Database = {
           lieu_naissance?: string | null
           localite?: string | null
           longitude?: number | null
+          lot_id?: string | null
           mensualite_montant?: number | null
+          mensualite_par_ha?: number | null
+          metadata?: Json
           mode_paiement?: string
+          montant_pi_par_ha?: number | null
+          montant_pi_total?: number | null
           montant_promo_applique?: number
           montant_total_contrat?: number
+          montant_total_par_ha?: number | null
           nationalite?: string | null
+          necessite_foncier_client?: boolean | null
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null
@@ -1687,11 +1862,14 @@ export type Database = {
           nom_pere?: string | null
           nom_titulaire_compte?: string | null
           nombre_plantations?: number | null
+          notes?: string | null
           numero_compte?: string | null
           numero_contrat?: string | null
           numero_ordre_global?: number | null
           numero_piece?: string | null
+          offre_code?: string | null
           offre_id?: string | null
+          offre_nom?: string | null
           paiement_initial_montant?: number
           paiement_initial_paye_at?: string | null
           paiement_personnalise?: Json
@@ -1711,10 +1889,17 @@ export type Database = {
           statut?: string | null
           statut_global?: string | null
           statut_marital?: string | null
+          statut_technique?: string | null
+          superficie_ha?: number | null
           taux_journalier_ha?: number
           telephone?: string
           telephone_indicatif?: string | null
           telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
           total_hectares?: number | null
           type_client?: string | null
           type_client_foncier?: string | null
@@ -1723,6 +1908,11 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
+          validation_at?: string | null
+          validation_commentaire?: string | null
+          validation_demande_at?: string | null
+          validation_par?: string | null
+          validation_statut?: string
           village_id?: string | null
           whatsapp?: string | null
           whatsapp_indicatif?: string | null
@@ -1748,6 +1938,13 @@ export type Database = {
             columns: ["commercial_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "clients_commercial_id_fkey"
+            columns: ["commercial_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
             referencedColumns: ["user_id"]
           },
           {
@@ -1857,6 +2054,52 @@ export type Database = {
           },
         ]
       }
+      commission_payment_allocations: {
+        Row: {
+          amount: number
+          commission_id: string
+          created_at: string
+          id: string
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          commission_id: string
+          created_at?: string
+          id?: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          commission_id?: string
+          created_at?: string
+          id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_payment_allocations_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "commissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_payment_allocations_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "v_portefeuille_commissions"
+            referencedColumns: ["commission_id"]
+          },
+          {
+            foreignKeyName: "commission_payment_allocations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "finance_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commissions: {
         Row: {
           annee_contrat: number | null
@@ -1957,6 +2200,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -2191,6 +2462,463 @@ export type Database = {
           },
         ]
       }
+      decision_access_grants: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          permissions: string[]
+          revoked_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permissions?: string[]
+          revoked_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permissions?: string[]
+          revoked_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      decision_approvals: {
+        Row: {
+          action: string
+          actor_user_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          new_status: string | null
+          previous_status: string | null
+          proposal_id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          new_status?: string | null
+          previous_status?: string | null
+          proposal_id: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          new_status?: string | null
+          previous_status?: string | null
+          proposal_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_approvals_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "decision_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decision_center_audit: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      decision_center_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      decision_confidentiality_rules: {
+        Row: {
+          category: string
+          hide_subject_from_subject: boolean
+          require_reason: boolean
+          updated_at: string
+          updated_by: string | null
+          visibility_scope: string
+        }
+        Insert: {
+          category: string
+          hide_subject_from_subject?: boolean
+          require_reason?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          visibility_scope: string
+        }
+        Update: {
+          category?: string
+          hide_subject_from_subject?: boolean
+          require_reason?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          visibility_scope?: string
+        }
+        Relationships: []
+      }
+      decision_financing_sources: {
+        Row: {
+          created_at: string
+          currency: string
+          effective_annual_rate: number | null
+          fees: number
+          id: string
+          insurance_monthly: number
+          is_active: boolean
+          nominal_annual_rate: number
+          notes: string | null
+          observed_at: string
+          product_name: string
+          provider_name: string
+          source_reference: string | null
+          source_url: string | null
+          updated_at: string
+          valid_until: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          effective_annual_rate?: number | null
+          fees?: number
+          id?: string
+          insurance_monthly?: number
+          is_active?: boolean
+          nominal_annual_rate: number
+          notes?: string | null
+          observed_at?: string
+          product_name: string
+          provider_name: string
+          source_reference?: string | null
+          source_url?: string | null
+          updated_at?: string
+          valid_until?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          effective_annual_rate?: number | null
+          fees?: number
+          id?: string
+          insurance_monthly?: number
+          is_active?: boolean
+          nominal_annual_rate?: number
+          notes?: string | null
+          observed_at?: string
+          product_name?: string
+          provider_name?: string
+          source_reference?: string | null
+          source_url?: string | null
+          updated_at?: string
+          valid_until?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
+      decision_proposal_versions: {
+        Row: {
+          change_reason: string | null
+          changed_by: string
+          created_at: string
+          id: string
+          proposal_id: string
+          snapshot: Json
+          version_number: number
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by: string
+          created_at?: string
+          id?: string
+          proposal_id: string
+          snapshot: Json
+          version_number: number
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string
+          created_at?: string
+          id?: string
+          proposal_id?: string
+          snapshot?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_proposal_versions_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "decision_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decision_proposals: {
+        Row: {
+          amount: number | null
+          assumptions: Json
+          category: string
+          confidence: number | null
+          created_at: string
+          created_by: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          deleted_at: string | null
+          department_scope: string | null
+          district_scope_id: string | null
+          due_at: string | null
+          executed_at: string | null
+          id: string
+          options: Json
+          outcome: Json | null
+          priority: string
+          proposed_action: string
+          rationale: string
+          region_scope_id: string | null
+          responsible_profile_id: string | null
+          risks: Json
+          source_modules: string[]
+          source_period_end: string | null
+          source_period_start: string | null
+          source_snapshot: Json
+          status: string
+          subject_user_id: string | null
+          summary: string
+          target_role_code: string | null
+          target_user_id: string | null
+          team_scope_id: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+          visibility_scope: string
+        }
+        Insert: {
+          amount?: number | null
+          assumptions?: Json
+          category: string
+          confidence?: number | null
+          created_at?: string
+          created_by: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          deleted_at?: string | null
+          department_scope?: string | null
+          district_scope_id?: string | null
+          due_at?: string | null
+          executed_at?: string | null
+          id?: string
+          options?: Json
+          outcome?: Json | null
+          priority?: string
+          proposed_action?: string
+          rationale?: string
+          region_scope_id?: string | null
+          responsible_profile_id?: string | null
+          risks?: Json
+          source_modules?: string[]
+          source_period_end?: string | null
+          source_period_start?: string | null
+          source_snapshot?: Json
+          status?: string
+          subject_user_id?: string | null
+          summary?: string
+          target_role_code?: string | null
+          target_user_id?: string | null
+          team_scope_id?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          visibility_scope?: string
+        }
+        Update: {
+          amount?: number | null
+          assumptions?: Json
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          created_by?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          deleted_at?: string | null
+          department_scope?: string | null
+          district_scope_id?: string | null
+          due_at?: string | null
+          executed_at?: string | null
+          id?: string
+          options?: Json
+          outcome?: Json | null
+          priority?: string
+          proposed_action?: string
+          rationale?: string
+          region_scope_id?: string | null
+          responsible_profile_id?: string | null
+          risks?: Json
+          source_modules?: string[]
+          source_period_end?: string | null
+          source_period_start?: string | null
+          source_snapshot?: Json
+          status?: string
+          subject_user_id?: string | null
+          summary?: string
+          target_role_code?: string | null
+          target_user_id?: string | null
+          team_scope_id?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          visibility_scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decision_proposals_responsible_profile_id_fkey"
+            columns: ["responsible_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_proposals_responsible_profile_id_fkey"
+            columns: ["responsible_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_proposals_responsible_profile_id_fkey"
+            columns: ["responsible_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "decision_proposals_responsible_profile_id_fkey"
+            columns: ["responsible_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "decision_proposals_responsible_profile_id_fkey"
+            columns: ["responsible_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      decision_scenarios: {
+        Row: {
+          assumptions: Json
+          created_at: string
+          created_by: string
+          id: string
+          inputs: Json
+          results: Json
+          risk_notes: Json
+          scenario_type: string
+          source_snapshot: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assumptions?: Json
+          created_at?: string
+          created_by: string
+          id?: string
+          inputs?: Json
+          results?: Json
+          risk_notes?: Json
+          scenario_type: string
+          source_snapshot?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assumptions?: Json
+          created_at?: string
+          created_by?: string
+          id?: string
+          inputs?: Json
+          results?: Json
+          risk_notes?: Json
+          scenario_type?: string
+          source_snapshot?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       departements: {
         Row: {
           code: string | null
@@ -2266,6 +2994,107 @@ export type Database = {
         }
         Relationships: []
       }
+      department_budgets: {
+        Row: {
+          activity_name: string | null
+          actual_amount: number
+          actual_revenue: number
+          approved_at: string | null
+          approved_by: string | null
+          budget_initial: number
+          budget_revised: number
+          category: string
+          committed_amount: number
+          created_at: string
+          created_by: string
+          department: string
+          description: string | null
+          forecast_amount: number
+          id: string
+          justification: string | null
+          last_reviewed_at: string | null
+          period_end: string | null
+          period_start: string | null
+          plan_id: string
+          project_name: string | null
+          revenue_forecast: number
+          risk_level: string
+          scenario_name: string
+          status: string
+          team_id: string | null
+          updated_at: string
+          variance_reason: string | null
+        }
+        Insert: {
+          activity_name?: string | null
+          actual_amount?: number
+          actual_revenue?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_initial?: number
+          budget_revised?: number
+          category: string
+          committed_amount?: number
+          created_at?: string
+          created_by?: string
+          department: string
+          description?: string | null
+          forecast_amount?: number
+          id?: string
+          justification?: string | null
+          last_reviewed_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id: string
+          project_name?: string | null
+          revenue_forecast?: number
+          risk_level?: string
+          scenario_name?: string
+          status?: string
+          team_id?: string | null
+          updated_at?: string
+          variance_reason?: string | null
+        }
+        Update: {
+          activity_name?: string | null
+          actual_amount?: number
+          actual_revenue?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_initial?: number
+          budget_revised?: number
+          category?: string
+          committed_amount?: number
+          created_at?: string
+          created_by?: string
+          department?: string
+          description?: string | null
+          forecast_amount?: number
+          id?: string
+          justification?: string | null
+          last_reviewed_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id?: string
+          project_name?: string | null
+          revenue_forecast?: number
+          risk_level?: string
+          scenario_name?: string
+          status?: string
+          team_id?: string | null
+          updated_at?: string
+          variance_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_budgets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       districts: {
         Row: {
           code: string | null
@@ -2292,6 +3121,7 @@ export type Database = {
       }
       documents_acquisition: {
         Row: {
+          acquisition_id: string | null
           categorie: string | null
           client_id: string | null
           code_document: string | null
@@ -2310,6 +3140,7 @@ export type Database = {
           validated_by: string | null
         }
         Insert: {
+          acquisition_id?: string | null
           categorie?: string | null
           client_id?: string | null
           code_document?: string | null
@@ -2328,6 +3159,7 @@ export type Database = {
           validated_by?: string | null
         }
         Update: {
+          acquisition_id?: string | null
           categorie?: string | null
           client_id?: string | null
           code_document?: string | null
@@ -2346,6 +3178,13 @@ export type Database = {
           validated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "documents_acquisition_acquisition_id_fkey"
+            columns: ["acquisition_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "documents_acquisition_client_id_fkey"
             columns: ["client_id"]
@@ -2527,6 +3366,34 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "equipe_membres_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipe_membres_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipe_membres_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "equipe_membres_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
         ]
       }
       equipes: {
@@ -2592,11 +3459,67 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "equipes_responsable_id_fkey"
+            columns: ["responsable_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipes_responsable_id_fkey"
+            columns: ["responsable_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipes_responsable_id_fkey"
+            columns: ["responsable_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "equipes_responsable_id_fkey"
+            columns: ["responsable_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "equipes_superviseur_id_fkey"
             columns: ["superviseur_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipes_superviseur_id_fkey"
+            columns: ["superviseur_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipes_superviseur_id_fkey"
+            columns: ["superviseur_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipes_superviseur_id_fkey"
+            columns: ["superviseur_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "equipes_superviseur_id_fkey"
+            columns: ["superviseur_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -2680,6 +3603,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_associates_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_associates_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_associates_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_associates_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -2766,9 +3717,250 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "finance_expenses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_expenses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_expenses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_expenses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "finance_expenses_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: true
+            referencedRelation: "finance_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_historical_import_batches: {
+        Row: {
+          created_at: string
+          created_by_profile_id: string | null
+          excluded_rows: number
+          finalized_at: string | null
+          id: string
+          notes: string | null
+          review_rows: number
+          source_filename: string
+          source_reference: string | null
+          source_rows: number
+          staged_rows: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_profile_id?: string | null
+          excluded_rows?: number
+          finalized_at?: string | null
+          id?: string
+          notes?: string | null
+          review_rows?: number
+          source_filename: string
+          source_reference?: string | null
+          source_rows?: number
+          staged_rows?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by_profile_id?: string | null
+          excluded_rows?: number
+          finalized_at?: string | null
+          id?: string
+          notes?: string | null
+          review_rows?: number
+          source_filename?: string
+          source_reference?: string | null
+          source_rows?: number
+          staged_rows?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_historical_import_batches_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_import_batches_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_import_batches_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_import_batches_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_historical_import_batches_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      finance_historical_ledger: {
+        Row: {
+          accounting_class: string
+          actor_name: string | null
+          affects_cash: boolean
+          amount: number
+          associate_id: string | null
+          batch_id: string
+          cash_direction: string | null
+          category: string | null
+          created_at: string
+          created_by_profile_id: string | null
+          description: string | null
+          id: string
+          matched_transaction_id: string | null
+          operation_date: string | null
+          operation_type: string
+          original_payload: Json
+          review_note: string | null
+          review_status: string
+          source_key: string
+          source_row_number: number
+          source_sheet: string
+          updated_at: string
+        }
+        Insert: {
+          accounting_class?: string
+          actor_name?: string | null
+          affects_cash?: boolean
+          amount: number
+          associate_id?: string | null
+          batch_id: string
+          cash_direction?: string | null
+          category?: string | null
+          created_at?: string
+          created_by_profile_id?: string | null
+          description?: string | null
+          id?: string
+          matched_transaction_id?: string | null
+          operation_date?: string | null
+          operation_type: string
+          original_payload?: Json
+          review_note?: string | null
+          review_status?: string
+          source_key: string
+          source_row_number: number
+          source_sheet: string
+          updated_at?: string
+        }
+        Update: {
+          accounting_class?: string
+          actor_name?: string | null
+          affects_cash?: boolean
+          amount?: number
+          associate_id?: string | null
+          batch_id?: string
+          cash_direction?: string | null
+          category?: string | null
+          created_at?: string
+          created_by_profile_id?: string | null
+          description?: string | null
+          id?: string
+          matched_transaction_id?: string | null
+          operation_date?: string | null
+          operation_type?: string
+          original_payload?: Json
+          review_note?: string | null
+          review_status?: string
+          source_key?: string
+          source_row_number?: number
+          source_sheet?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_historical_ledger_associate_id_fkey"
+            columns: ["associate_id"]
+            isOneToOne: false
+            referencedRelation: "finance_associates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_ledger_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "finance_historical_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_ledger_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_ledger_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_ledger_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_historical_ledger_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_historical_ledger_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "finance_historical_ledger_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
             referencedRelation: "finance_transactions"
             referencedColumns: ["id"]
           },
@@ -2830,6 +4022,34 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "finance_payroll_items_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payroll_items_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payroll_items_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_payroll_items_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "finance_payroll_items_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: true
@@ -2845,6 +4065,9 @@ export type Database = {
           id: string
           notes: string | null
           paid_at: string | null
+          payment_method: string | null
+          payment_proof_url: string | null
+          payment_reference: string | null
           period_end: string
           period_start: string
           status: string
@@ -2856,6 +4079,9 @@ export type Database = {
           id?: string
           notes?: string | null
           paid_at?: string | null
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          payment_reference?: string | null
           period_end: string
           period_start: string
           status?: string
@@ -2867,6 +4093,9 @@ export type Database = {
           id?: string
           notes?: string | null
           paid_at?: string | null
+          payment_method?: string | null
+          payment_proof_url?: string | null
+          payment_reference?: string | null
           period_end?: string
           period_start?: string
           status?: string
@@ -2916,6 +4145,90 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "finance_salary_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_salary_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_salary_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_salary_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      finance_transaction_budget_allocations: {
+        Row: {
+          allocated_amount: number
+          budget_id: string
+          created_at: string
+          created_by: string
+          id: string
+          transaction_id: string
+        }
+        Insert: {
+          allocated_amount: number
+          budget_id: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          transaction_id: string
+        }
+        Update: {
+          allocated_amount?: number
+          budget_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_transaction_budget_allocations_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "department_budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transaction_budget_allocations_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "v_planning_budget_control"
+            referencedColumns: ["budget_id"]
+          },
+          {
+            foreignKeyName: "finance_transaction_budget_allocations_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "v_planning_budget_reconciliation"
+            referencedColumns: ["budget_id"]
+          },
+          {
+            foreignKeyName: "finance_transaction_budget_allocations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "finance_transactions"
+            referencedColumns: ["id"]
+          },
         ]
       }
       finance_transactions: {
@@ -2932,6 +4245,8 @@ export type Database = {
           payment_method: string | null
           plantation_id: string | null
           profile_id: string | null
+          proof_name: string | null
+          proof_path: string | null
           reference: string | null
           source_id: string | null
           source_type: string | null
@@ -2952,6 +4267,8 @@ export type Database = {
           payment_method?: string | null
           plantation_id?: string | null
           profile_id?: string | null
+          proof_name?: string | null
+          proof_path?: string | null
           reference?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -2972,6 +4289,8 @@ export type Database = {
           payment_method?: string | null
           plantation_id?: string | null
           profile_id?: string | null
+          proof_name?: string | null
+          proof_path?: string | null
           reference?: string | null
           source_id?: string | null
           source_type?: string | null
@@ -3014,6 +4333,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -3122,6 +4469,34 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "historique_actions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historique_actions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historique_actions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "historique_actions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
         ]
       }
       historique_activites: {
@@ -3166,8 +4541,889 @@ export type Database = {
         }
         Relationships: []
       }
+      imported_phone_contacts: {
+        Row: {
+          contact_key: string
+          email: string | null
+          first_name: string | null
+          id: string
+          imported_at: string
+          last_error: string | null
+          last_name: string | null
+          lead_id: string | null
+          phone: string | null
+          secondary_phone: string | null
+          selected: boolean
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+          whatsapp_primary: boolean
+          whatsapp_secondary: boolean
+        }
+        Insert: {
+          contact_key: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          imported_at?: string
+          last_error?: string | null
+          last_name?: string | null
+          lead_id?: string | null
+          phone?: string | null
+          secondary_phone?: string | null
+          selected?: boolean
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_primary?: boolean
+          whatsapp_secondary?: boolean
+        }
+        Update: {
+          contact_key?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          imported_at?: string
+          last_error?: string | null
+          last_name?: string | null
+          lead_id?: string | null
+          phone?: string | null
+          secondary_phone?: string | null
+          selected?: boolean
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_primary?: boolean
+          whatsapp_secondary?: boolean
+        }
+        Relationships: []
+      }
+      internal_conversation_members: {
+        Row: {
+          conversation_id: string
+          id: string
+          joined_at: string
+          last_read_at: string | null
+          member_role: string
+          muted: boolean
+          profile_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          member_role?: string
+          muted?: boolean
+          profile_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          member_role?: string
+          muted?: boolean
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "internal_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_conversation_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_conversation_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_conversation_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_conversation_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_conversation_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_conversations: {
+        Row: {
+          conversation_type: string
+          created_at: string
+          created_by_profile_id: string
+          id: string
+          last_message_at: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_type?: string
+          created_at?: string
+          created_by_profile_id: string
+          id?: string
+          last_message_at?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_type?: string
+          created_at?: string
+          created_by_profile_id?: string
+          id?: string
+          last_message_at?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_conversations_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_conversations_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_conversations_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_conversations_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_conversations_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_external_meeting_invites: {
+        Row: {
+          created_at: string
+          created_by_profile_id: string
+          expires_at: string
+          id: string
+          invitee_email: string | null
+          invitee_name: string | null
+          max_uses: number
+          meeting_id: string
+          revoked_at: string | null
+          token_hash: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by_profile_id: string
+          expires_at: string
+          id?: string
+          invitee_email?: string | null
+          invitee_name?: string | null
+          max_uses?: number
+          meeting_id: string
+          revoked_at?: string | null
+          token_hash: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by_profile_id?: string
+          expires_at?: string
+          id?: string
+          invitee_email?: string | null
+          invitee_name?: string | null
+          max_uses?: number
+          meeting_id?: string
+          revoked_at?: string | null
+          token_hash?: string
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_external_meeting_invites_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_external_meeting_invites_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_external_meeting_invites_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_external_meeting_invites_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_external_meeting_invites_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "internal_external_meeting_invites_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "internal_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_meeting_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          meeting_id: string
+          mime_type: string | null
+          storage_path: string
+          uploaded_by_profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size?: number
+          id?: string
+          meeting_id: string
+          mime_type?: string | null
+          storage_path: string
+          uploaded_by_profile_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          meeting_id?: string
+          mime_type?: string | null
+          storage_path?: string
+          uploaded_by_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_meeting_attachments_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "internal_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_meeting_participants: {
+        Row: {
+          invited_at: string
+          joined_at: string | null
+          left_at: string | null
+          meeting_id: string
+          participant_role: string
+          profile_id: string
+          response: string
+        }
+        Insert: {
+          invited_at?: string
+          joined_at?: string | null
+          left_at?: string | null
+          meeting_id: string
+          participant_role?: string
+          profile_id: string
+          response?: string
+        }
+        Update: {
+          invited_at?: string
+          joined_at?: string | null
+          left_at?: string | null
+          meeting_id?: string
+          participant_role?: string
+          profile_id?: string
+          response?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "internal_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_meeting_provider_config: {
+        Row: {
+          id: boolean
+          provider: string
+          public_server_url: string | null
+          secret_configured: boolean
+          updated_at: string
+          updated_by_profile_id: string | null
+        }
+        Insert: {
+          id?: boolean
+          provider?: string
+          public_server_url?: string | null
+          secret_configured?: boolean
+          updated_at?: string
+          updated_by_profile_id?: string | null
+        }
+        Update: {
+          id?: boolean
+          provider?: string
+          public_server_url?: string | null
+          secret_configured?: boolean
+          updated_at?: string
+          updated_by_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_meeting_provider_config_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_provider_config_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_provider_config_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_provider_config_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_meeting_provider_config_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_meetings: {
+        Row: {
+          agenda: string | null
+          created_at: string
+          created_by_profile_id: string
+          description: string | null
+          ends_at: string
+          id: string
+          join_url: string | null
+          provider: string
+          provider_room_id: string | null
+          starts_at: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agenda?: string | null
+          created_at?: string
+          created_by_profile_id: string
+          description?: string | null
+          ends_at: string
+          id?: string
+          join_url?: string | null
+          provider?: string
+          provider_room_id?: string | null
+          starts_at: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agenda?: string | null
+          created_at?: string
+          created_by_profile_id?: string
+          description?: string | null
+          ends_at?: string
+          id?: string
+          join_url?: string | null
+          provider?: string
+          provider_room_id?: string | null
+          starts_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_meetings_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meetings_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meetings_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_meetings_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_meetings_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_message_attachments: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          message_id: string
+          mime_type: string | null
+          storage_path: string
+          uploaded_by_profile_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          file_name: string
+          file_size?: number
+          id?: string
+          message_id: string
+          mime_type?: string | null
+          storage_path: string
+          uploaded_by_profile_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          message_id?: string
+          mime_type?: string | null
+          storage_path?: string
+          uploaded_by_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_attachments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "internal_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_message_attachments_uploaded_by_profile_id_fkey"
+            columns: ["uploaded_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          message_id: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          message_id: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          message_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_reactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_reactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_reactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_reactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_message_reactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_message_receipts: {
+        Row: {
+          delivered_at: string | null
+          message_id: string
+          profile_id: string
+          read_at: string | null
+        }
+        Insert: {
+          delivered_at?: string | null
+          message_id: string
+          profile_id: string
+          read_at?: string | null
+        }
+        Update: {
+          delivered_at?: string | null
+          message_id?: string
+          profile_id?: string
+          read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_message_receipts_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_receipts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_receipts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_receipts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_message_receipts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_message_receipts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      internal_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          message_type: string
+          reply_to_id: string | null
+          sender_profile_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          message_type?: string
+          reply_to_id?: string | null
+          sender_profile_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          message_type?: string
+          reply_to_id?: string | null
+          sender_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "internal_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "internal_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_messages_sender_profile_id_fkey"
+            columns: ["sender_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_messages_sender_profile_id_fkey"
+            columns: ["sender_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_messages_sender_profile_id_fkey"
+            columns: ["sender_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_messages_sender_profile_id_fkey"
+            columns: ["sender_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "internal_messages_sender_profile_id_fkey"
+            columns: ["sender_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       interventions_techniques: {
         Row: {
+          acquisition_id: string | null
           agent_technique_id: string | null
           client_id: string | null
           contenu_client: string | null
@@ -3185,13 +5441,13 @@ export type Database = {
           parcelle_id: string | null
           plantation_id: string | null
           recommandations: string | null
-          acquisition_id: string | null
           statut: string
           ticket_id: string | null
           type_intervention: string
           updated_at: string
         }
         Insert: {
+          acquisition_id?: string | null
           agent_technique_id?: string | null
           client_id?: string | null
           contenu_client?: string | null
@@ -3209,13 +5465,13 @@ export type Database = {
           parcelle_id?: string | null
           plantation_id?: string | null
           recommandations?: string | null
-          acquisition_id?: string | null
           statut?: string
           ticket_id?: string | null
           type_intervention?: string
           updated_at?: string
         }
         Update: {
+          acquisition_id?: string | null
           agent_technique_id?: string | null
           client_id?: string | null
           contenu_client?: string | null
@@ -3233,7 +5489,6 @@ export type Database = {
           parcelle_id?: string | null
           plantation_id?: string | null
           recommandations?: string | null
-          acquisition_id?: string | null
           statut?: string
           ticket_id?: string | null
           type_intervention?: string
@@ -3241,11 +5496,46 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "interventions_techniques_acquisition_id_fkey"
+            columns: ["acquisition_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interventions_techniques_agent_technique_id_fkey"
             columns: ["agent_technique_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "interventions_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
           {
             foreignKeyName: "interventions_techniques_client_id_fkey"
@@ -3294,13 +5584,6 @@ export type Database = {
             columns: ["plantation_id"]
             isOneToOne: false
             referencedRelation: "plantations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_techniques_acquisition_id_fkey"
-            columns: ["acquisition_id"]
-            isOneToOne: false
-            referencedRelation: "acquisitions"
             referencedColumns: ["id"]
           },
           {
@@ -3480,13 +5763,19 @@ export type Database = {
           formule_code: string | null
           id: string
           id_unique: string | null
+          lieu_residence: string | null
+          localite: string | null
+          metadata: Json
           mode_contact_prefere: string | null
           nom: string
+          nom_complet: string | null
+          nom_famille: string | null
           offre_code: string | null
           pays_diaspora: string | null
           prenoms: string
           prochaine_relance_at: string | null
           proprietaire_id: string | null
+          prospect_id: string | null
           region_id: string | null
           region_residence: string | null
           source: string
@@ -3496,6 +5785,11 @@ export type Database = {
           superficie_disponible_ha: number | null
           superficie_souhaitee_ha: number | null
           telephone: string
+          telephone_principal_whatsapp: boolean
+          telephone_secondaire: string | null
+          telephone_secondaire_indicatif: string | null
+          telephone_secondaire_local: string | null
+          telephone_secondaire_whatsapp: boolean
           type_lead: string
           updated_at: string
           village_id: string | null
@@ -3524,13 +5818,19 @@ export type Database = {
           formule_code?: string | null
           id?: string
           id_unique?: string | null
+          lieu_residence?: string | null
+          localite?: string | null
+          metadata?: Json
           mode_contact_prefere?: string | null
           nom: string
+          nom_complet?: string | null
+          nom_famille?: string | null
           offre_code?: string | null
           pays_diaspora?: string | null
           prenoms: string
           prochaine_relance_at?: string | null
           proprietaire_id?: string | null
+          prospect_id?: string | null
           region_id?: string | null
           region_residence?: string | null
           source?: string
@@ -3540,6 +5840,11 @@ export type Database = {
           superficie_disponible_ha?: number | null
           superficie_souhaitee_ha?: number | null
           telephone: string
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
           type_lead?: string
           updated_at?: string
           village_id?: string | null
@@ -3568,13 +5873,19 @@ export type Database = {
           formule_code?: string | null
           id?: string
           id_unique?: string | null
+          lieu_residence?: string | null
+          localite?: string | null
+          metadata?: Json
           mode_contact_prefere?: string | null
           nom?: string
+          nom_complet?: string | null
+          nom_famille?: string | null
           offre_code?: string | null
           pays_diaspora?: string | null
           prenoms?: string
           prochaine_relance_at?: string | null
           proprietaire_id?: string | null
+          prospect_id?: string | null
           region_id?: string | null
           region_residence?: string | null
           source?: string
@@ -3584,6 +5895,11 @@ export type Database = {
           superficie_disponible_ha?: number | null
           superficie_souhaitee_ha?: number | null
           telephone?: string
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
           type_lead?: string
           updated_at?: string
           village_id?: string | null
@@ -3661,6 +5977,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leads_region_id_fkey"
             columns: ["region_id"]
             isOneToOne: false
@@ -3706,6 +6029,7 @@ export type Database = {
       }
       lots_hectares: {
         Row: {
+          acquisition_id: string | null
           centroid_lat: number | null
           centroid_lng: number | null
           certifie_geometre: boolean | null
@@ -3721,14 +6045,15 @@ export type Database = {
           notes: string | null
           numero_h: number
           parcelle_id: string | null
+          part_type: string
           polygone_gps: Json | null
           reference: string | null
-          acquisition_id: string | null
           statut: string | null
           surface_ha: number | null
           updated_at: string | null
         }
         Insert: {
+          acquisition_id?: string | null
           centroid_lat?: number | null
           centroid_lng?: number | null
           certifie_geometre?: boolean | null
@@ -3744,14 +6069,15 @@ export type Database = {
           notes?: string | null
           numero_h: number
           parcelle_id?: string | null
+          part_type?: string
           polygone_gps?: Json | null
           reference?: string | null
-          acquisition_id?: string | null
           statut?: string | null
           surface_ha?: number | null
           updated_at?: string | null
         }
         Update: {
+          acquisition_id?: string | null
           centroid_lat?: number | null
           centroid_lng?: number | null
           certifie_geometre?: boolean | null
@@ -3767,14 +6093,21 @@ export type Database = {
           notes?: string | null
           numero_h?: number
           parcelle_id?: string | null
+          part_type?: string
           polygone_gps?: Json | null
           reference?: string | null
-          acquisition_id?: string | null
           statut?: string | null
           surface_ha?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lots_hectares_acquisition_id_fkey"
+            columns: ["acquisition_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lots_hectares_client_id_fkey"
             columns: ["client_id"]
@@ -3808,13 +6141,6 @@ export type Database = {
             columns: ["parcelle_id"]
             isOneToOne: false
             referencedRelation: "parcelles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lots_hectares_acquisition_id_fkey"
-            columns: ["acquisition_id"]
-            isOneToOne: false
-            referencedRelation: "acquisitions"
             referencedColumns: ["id"]
           },
         ]
@@ -3889,11 +6215,67 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notification_automations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_automations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_automations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "notification_automations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "notification_automations_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_automations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_automations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_automations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "notification_automations_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -3973,6 +6355,34 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notification_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "notification_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "notification_campaigns_segment_id_fkey"
             columns: ["segment_id"]
             isOneToOne: false
@@ -3985,6 +6395,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_campaigns_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_campaigns_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_campaigns_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "notification_campaigns_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -4281,11 +6719,67 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notification_segments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_segments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_segments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "notification_segments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "notification_segments_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_segments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_segments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_segments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "notification_segments_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -4670,8 +7164,52 @@ export type Database = {
         }
         Relationships: []
       }
+      paiement_acquisition_allocations: {
+        Row: {
+          acquisition_id: string
+          created_at: string
+          id: string
+          montant: number
+          paiement_id: string
+          type_paiement: string
+        }
+        Insert: {
+          acquisition_id: string
+          created_at?: string
+          id?: string
+          montant: number
+          paiement_id: string
+          type_paiement: string
+        }
+        Update: {
+          acquisition_id?: string
+          created_at?: string
+          id?: string
+          montant?: number
+          paiement_id?: string
+          type_paiement?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paiement_acquisition_allocations_acquisition_id_fkey"
+            columns: ["acquisition_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paiement_acquisition_allocations_paiement_id_fkey"
+            columns: ["paiement_id"]
+            isOneToOne: false
+            referencedRelation: "paiements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paiements: {
         Row: {
+          acquisition_id: string | null
+          aggregateur_paiement: string | null
           annee: number | null
           cancelled_at: string | null
           client_id: string | null
@@ -4688,7 +7226,6 @@ export type Database = {
           jours_couverts: number
           jours_retard: number
           kkiapay_transaction_id: string | null
-          aggregateur_paiement: string | null
           metadata: Json | null
           mode_paiement: string | null
           montant: number
@@ -4708,7 +7245,6 @@ export type Database = {
           refund_reason: string | null
           refund_requested_at: string | null
           refunded_at: string | null
-          acquisition_id: string | null
           statut: string | null
           type_paiement: string | null
           type_preuve: string | null
@@ -4716,6 +7252,8 @@ export type Database = {
           valide_par: string | null
         }
         Insert: {
+          acquisition_id?: string | null
+          aggregateur_paiement?: string | null
           annee?: number | null
           cancelled_at?: string | null
           client_id?: string | null
@@ -4732,7 +7270,6 @@ export type Database = {
           jours_couverts?: number
           jours_retard?: number
           kkiapay_transaction_id?: string | null
-          aggregateur_paiement?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number
@@ -4752,7 +7289,6 @@ export type Database = {
           refund_reason?: string | null
           refund_requested_at?: string | null
           refunded_at?: string | null
-          acquisition_id?: string | null
           statut?: string | null
           type_paiement?: string | null
           type_preuve?: string | null
@@ -4760,6 +7296,8 @@ export type Database = {
           valide_par?: string | null
         }
         Update: {
+          acquisition_id?: string | null
+          aggregateur_paiement?: string | null
           annee?: number | null
           cancelled_at?: string | null
           client_id?: string | null
@@ -4776,7 +7314,6 @@ export type Database = {
           jours_couverts?: number
           jours_retard?: number
           kkiapay_transaction_id?: string | null
-          aggregateur_paiement?: string | null
           metadata?: Json | null
           mode_paiement?: string | null
           montant?: number
@@ -4796,7 +7333,6 @@ export type Database = {
           refund_reason?: string | null
           refund_requested_at?: string | null
           refunded_at?: string | null
-          acquisition_id?: string | null
           statut?: string | null
           type_paiement?: string | null
           type_preuve?: string | null
@@ -4804,6 +7340,13 @@ export type Database = {
           valide_par?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "paiements_acquisition_id_fkey"
+            columns: ["acquisition_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "paiements_client_id_fkey"
             columns: ["client_id"]
@@ -4830,13 +7373,6 @@ export type Database = {
             columns: ["plantation_id"]
             isOneToOne: false
             referencedRelation: "plantations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "paiements_acquisition_id_fkey"
-            columns: ["acquisition_id"]
-            isOneToOne: false
-            referencedRelation: "acquisitions"
             referencedColumns: ["id"]
           },
         ]
@@ -4878,6 +7414,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
           village: string | null
+          village_id: string | null
         }
         Insert: {
           code_parc?: string | null
@@ -4915,6 +7452,7 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           village?: string | null
+          village_id?: string | null
         }
         Update: {
           code_parc?: string | null
@@ -4952,6 +7490,7 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           village?: string | null
+          village_id?: string | null
         }
         Relationships: [
           {
@@ -5031,6 +7570,20 @@ export type Database = {
             referencedRelation: "v_geo_sous_prefectures"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "parcelles_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_villages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parcelles_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
         ]
       }
       photos_plantation: {
@@ -5084,6 +7637,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_plantation_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_plantation_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_plantation_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "photos_plantation_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -5183,6 +7764,7 @@ export type Database = {
       }
       plantations: {
         Row: {
+          acquisition_id: string | null
           activation_id: string | null
           age_plants: number | null
           alerte_non_paiement: boolean | null
@@ -5190,7 +7772,7 @@ export type Database = {
           altitude: number | null
           chef_village_nom: string | null
           chef_village_telephone: string | null
-          client_id: string
+          client_id: string | null
           created_at: string | null
           created_by: string | null
           date_activation: string | null
@@ -5212,6 +7794,7 @@ export type Database = {
           localite: string | null
           longitude: number | null
           lot_id: string | null
+          lot_reference_group: string | null
           montant_mensualite: number | null
           montant_pi: number | null
           montant_pi_paye: number | null
@@ -5229,7 +7812,6 @@ export type Database = {
           region_id: string | null
           role_attribution: string
           sous_prefecture_id: string | null
-          acquisition_id: string | null
           statut: string | null
           statut_global: string | null
           superficie_activee: number | null
@@ -5244,6 +7826,7 @@ export type Database = {
           village_nom: string | null
         }
         Insert: {
+          acquisition_id?: string | null
           activation_id?: string | null
           age_plants?: number | null
           alerte_non_paiement?: boolean | null
@@ -5251,7 +7834,7 @@ export type Database = {
           altitude?: number | null
           chef_village_nom?: string | null
           chef_village_telephone?: string | null
-          client_id: string
+          client_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date_activation?: string | null
@@ -5273,6 +7856,7 @@ export type Database = {
           localite?: string | null
           longitude?: number | null
           lot_id?: string | null
+          lot_reference_group?: string | null
           montant_mensualite?: number | null
           montant_pi?: number | null
           montant_pi_paye?: number | null
@@ -5290,7 +7874,6 @@ export type Database = {
           region_id?: string | null
           role_attribution?: string
           sous_prefecture_id?: string | null
-          acquisition_id?: string | null
           statut?: string | null
           statut_global?: string | null
           superficie_activee?: number | null
@@ -5305,6 +7888,7 @@ export type Database = {
           village_nom?: string | null
         }
         Update: {
+          acquisition_id?: string | null
           activation_id?: string | null
           age_plants?: number | null
           alerte_non_paiement?: boolean | null
@@ -5312,7 +7896,7 @@ export type Database = {
           altitude?: number | null
           chef_village_nom?: string | null
           chef_village_telephone?: string | null
-          client_id?: string
+          client_id?: string | null
           created_at?: string | null
           created_by?: string | null
           date_activation?: string | null
@@ -5334,6 +7918,7 @@ export type Database = {
           localite?: string | null
           longitude?: number | null
           lot_id?: string | null
+          lot_reference_group?: string | null
           montant_mensualite?: number | null
           montant_pi?: number | null
           montant_pi_paye?: number | null
@@ -5351,7 +7936,6 @@ export type Database = {
           region_id?: string | null
           role_attribution?: string
           sous_prefecture_id?: string | null
-          acquisition_id?: string | null
           statut?: string | null
           statut_global?: string | null
           superficie_activee?: number | null
@@ -5366,6 +7950,13 @@ export type Database = {
           village_nom?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "plantations_acquisition_id_fkey"
+            columns: ["acquisition_id"]
+            isOneToOne: false
+            referencedRelation: "acquisitions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "plantations_client_id_fkey"
             columns: ["client_id"]
@@ -5455,13 +8046,6 @@ export type Database = {
             columns: ["sous_prefecture_id"]
             isOneToOne: false
             referencedRelation: "v_geo_sous_prefectures"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plantations_acquisition_id_fkey"
-            columns: ["acquisition_id"]
-            isOneToOne: false
-            referencedRelation: "acquisitions"
             referencedColumns: ["id"]
           },
         ]
@@ -5733,6 +8317,47 @@ export type Database = {
           },
         ]
       }
+      portefeuille_versement_paiements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          mode_paiement: string
+          montant: number
+          preuve_paiement_url: string | null
+          reference: string | null
+          versement_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode_paiement: string
+          montant: number
+          preuve_paiement_url?: string | null
+          reference?: string | null
+          versement_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode_paiement?: string
+          montant?: number
+          preuve_paiement_url?: string | null
+          reference?: string | null
+          versement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portefeuille_versement_paiements_versement_id_fkey"
+            columns: ["versement_id"]
+            isOneToOne: false
+            referencedRelation: "portefeuille_versements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       portefeuille_versements: {
         Row: {
           created_at: string
@@ -5747,6 +8372,7 @@ export type Database = {
           paye_par: string | null
           periode_debut: string
           periode_fin: string
+          preuve_paiement_url: string | null
           profile_id: string
           reference: string | null
           statut: string
@@ -5766,6 +8392,7 @@ export type Database = {
           paye_par?: string | null
           periode_debut: string
           periode_fin: string
+          preuve_paiement_url?: string | null
           profile_id: string
           reference?: string | null
           statut?: string
@@ -5785,6 +8412,7 @@ export type Database = {
           paye_par?: string | null
           periode_debut?: string
           periode_fin?: string
+          preuve_paiement_url?: string | null
           profile_id?: string
           reference?: string | null
           statut?: string
@@ -5800,8 +8428,71 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "portefeuille_versements_paye_par_fkey"
+            columns: ["paye_par"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_paye_par_fkey"
+            columns: ["paye_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_paye_par_fkey"
+            columns: ["paye_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_paye_par_fkey"
+            columns: ["paye_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "portefeuille_versements_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_valide_par_fkey"
+            columns: ["valide_par"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -5810,8 +8501,29 @@ export type Database = {
             foreignKeyName: "portefeuille_versements_valide_par_fkey"
             columns: ["valide_par"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "v_internal_users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_valide_par_fkey"
+            columns: ["valide_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_valide_par_fkey"
+            columns: ["valide_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "portefeuille_versements_valide_par_fkey"
+            columns: ["valide_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -5876,6 +8588,7 @@ export type Database = {
           id: string
           nom_complet: string
           numero_piece_identite: string | null
+          password_change_required: boolean
           photo_url: string | null
           piece_identite_page_principale_url: string | null
           piece_identite_recto_url: string | null
@@ -5890,9 +8603,12 @@ export type Database = {
           telephone: string | null
           telephone_indicatif: string | null
           telephone_local: string | null
+          telephone_principal_whatsapp: boolean
           telephone_secondaire: string | null
           telephone_secondaire_indicatif: string | null
           telephone_secondaire_local: string | null
+          telephone_secondaire_whatsapp: boolean
+          type_compte: string
           type_piece_identite: string | null
           updated_at: string | null
           user_id: string | null
@@ -5923,6 +8639,7 @@ export type Database = {
           id?: string
           nom_complet: string
           numero_piece_identite?: string | null
+          password_change_required?: boolean
           photo_url?: string | null
           piece_identite_page_principale_url?: string | null
           piece_identite_recto_url?: string | null
@@ -5937,9 +8654,12 @@ export type Database = {
           telephone?: string | null
           telephone_indicatif?: string | null
           telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean
           telephone_secondaire?: string | null
           telephone_secondaire_indicatif?: string | null
           telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
+          type_compte?: string
           type_piece_identite?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -5970,6 +8690,7 @@ export type Database = {
           id?: string
           nom_complet?: string
           numero_piece_identite?: string | null
+          password_change_required?: boolean
           photo_url?: string | null
           piece_identite_page_principale_url?: string | null
           piece_identite_recto_url?: string | null
@@ -5984,9 +8705,12 @@ export type Database = {
           telephone?: string | null
           telephone_indicatif?: string | null
           telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean
           telephone_secondaire?: string | null
           telephone_secondaire_indicatif?: string | null
           telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
+          type_compte?: string
           type_piece_identite?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -6116,7 +8840,6 @@ export type Database = {
           denomination_sociale: string | null
           departement_id: string | null
           district_id: string | null
-          domicile: string | null
           email: string | null
           fichier_piece_recto_url: string | null
           fichier_piece_verso_url: string | null
@@ -6160,13 +8883,23 @@ export type Database = {
           telephone: string | null
           telephone_indicatif: string | null
           telephone_local: string | null
+          telephone_principal_whatsapp: boolean
+          telephone_secondaire: string | null
+          telephone_secondaire_indicatif: string | null
+          telephone_secondaire_local: string | null
+          telephone_secondaire_whatsapp: boolean
           temoin_proprietaire_nom: string | null
           temoin_proprietaire_qualite: string | null
           type_piece: string | null
           type_proprietaire: string | null
           updated_at: string | null
           updated_by: string | null
+          validated_at: string | null
+          validated_by: string | null
+          validation_notes: string | null
+          validation_statut: string
           village: string | null
+          village_id: string | null
           voisin_1_cote: string | null
           voisin_1_nom: string | null
           voisin_2_cote: string | null
@@ -6195,7 +8928,6 @@ export type Database = {
           denomination_sociale?: string | null
           departement_id?: string | null
           district_id?: string | null
-          domicile?: string | null
           email?: string | null
           fichier_piece_recto_url?: string | null
           fichier_piece_verso_url?: string | null
@@ -6239,13 +8971,23 @@ export type Database = {
           telephone?: string | null
           telephone_indicatif?: string | null
           telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
           temoin_proprietaire_nom?: string | null
           temoin_proprietaire_qualite?: string | null
           type_piece?: string | null
           type_proprietaire?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_notes?: string | null
+          validation_statut?: string
           village?: string | null
+          village_id?: string | null
           voisin_1_cote?: string | null
           voisin_1_nom?: string | null
           voisin_2_cote?: string | null
@@ -6274,7 +9016,6 @@ export type Database = {
           denomination_sociale?: string | null
           departement_id?: string | null
           district_id?: string | null
-          domicile?: string | null
           email?: string | null
           fichier_piece_recto_url?: string | null
           fichier_piece_verso_url?: string | null
@@ -6318,13 +9059,23 @@ export type Database = {
           telephone?: string | null
           telephone_indicatif?: string | null
           telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
           temoin_proprietaire_nom?: string | null
           temoin_proprietaire_qualite?: string | null
           type_piece?: string | null
           type_proprietaire?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_notes?: string | null
+          validation_statut?: string
           village?: string | null
+          village_id?: string | null
           voisin_1_cote?: string | null
           voisin_1_nom?: string | null
           voisin_2_cote?: string | null
@@ -6404,9 +9155,212 @@ export type Database = {
             referencedRelation: "v_geo_sous_prefectures"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proprietaires_terres_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_villages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proprietaires_terres_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      push_acquisitions: {
+      prospects: {
+        Row: {
+          assigned_to: string | null
+          campement_id: string | null
+          campement_quartier: string | null
+          civilite: string | null
+          client_id: string | null
+          commentaire: string | null
+          converted_client_at: string | null
+          created_at: string
+          created_by: string | null
+          creneau_prefere: string | null
+          date_contact_souhaitee: string | null
+          delai_demarrage: string | null
+          departement_id: string | null
+          dispose_terrain: boolean
+          district_id: string | null
+          email: string | null
+          formule_code: string | null
+          id: string
+          lead_id: string | null
+          lieu_residence: string | null
+          localite: string | null
+          metadata: Json
+          mode_contact_prefere: string | null
+          nom: string
+          nom_complet: string | null
+          nom_famille: string | null
+          offre_code: string | null
+          prenoms: string
+          prochaine_relance_at: string | null
+          proprietaire_id: string | null
+          region_id: string | null
+          region_residence: string | null
+          source: string
+          sous_prefecture_id: string | null
+          statut: string
+          superficie_a_valoriser_ha: number | null
+          superficie_disponible_ha: number | null
+          superficie_souhaitee_ha: number | null
+          telephone: string
+          telephone_principal_whatsapp: boolean
+          telephone_secondaire: string | null
+          telephone_secondaire_indicatif: string | null
+          telephone_secondaire_local: string | null
+          telephone_secondaire_whatsapp: boolean
+          type_lead: string
+          updated_at: string
+          village_id: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          campement_id?: string | null
+          campement_quartier?: string | null
+          civilite?: string | null
+          client_id?: string | null
+          commentaire?: string | null
+          converted_client_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          creneau_prefere?: string | null
+          date_contact_souhaitee?: string | null
+          delai_demarrage?: string | null
+          departement_id?: string | null
+          dispose_terrain?: boolean
+          district_id?: string | null
+          email?: string | null
+          formule_code?: string | null
+          id?: string
+          lead_id?: string | null
+          lieu_residence?: string | null
+          localite?: string | null
+          metadata?: Json
+          mode_contact_prefere?: string | null
+          nom: string
+          nom_complet?: string | null
+          nom_famille?: string | null
+          offre_code?: string | null
+          prenoms: string
+          prochaine_relance_at?: string | null
+          proprietaire_id?: string | null
+          region_id?: string | null
+          region_residence?: string | null
+          source: string
+          sous_prefecture_id?: string | null
+          statut?: string
+          superficie_a_valoriser_ha?: number | null
+          superficie_disponible_ha?: number | null
+          superficie_souhaitee_ha?: number | null
+          telephone: string
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
+          type_lead?: string
+          updated_at?: string
+          village_id?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          campement_id?: string | null
+          campement_quartier?: string | null
+          civilite?: string | null
+          client_id?: string | null
+          commentaire?: string | null
+          converted_client_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          creneau_prefere?: string | null
+          date_contact_souhaitee?: string | null
+          delai_demarrage?: string | null
+          departement_id?: string | null
+          dispose_terrain?: boolean
+          district_id?: string | null
+          email?: string | null
+          formule_code?: string | null
+          id?: string
+          lead_id?: string | null
+          lieu_residence?: string | null
+          localite?: string | null
+          metadata?: Json
+          mode_contact_prefere?: string | null
+          nom?: string
+          nom_complet?: string | null
+          nom_famille?: string | null
+          offre_code?: string | null
+          prenoms?: string
+          prochaine_relance_at?: string | null
+          proprietaire_id?: string | null
+          region_id?: string | null
+          region_residence?: string | null
+          source?: string
+          sous_prefecture_id?: string | null
+          statut?: string
+          superficie_a_valoriser_ha?: number | null
+          superficie_disponible_ha?: number | null
+          superficie_souhaitee_ha?: number | null
+          telephone?: string
+          telephone_principal_whatsapp?: boolean
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean
+          type_lead?: string
+          updated_at?: string
+          village_id?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_synthese"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "prospects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_monnaie_clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "prospects_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospects_proprietaire_id_fkey"
+            columns: ["proprietaire_id"]
+            isOneToOne: false
+            referencedRelation: "proprietaires_terres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
         Row: {
           active: boolean
           auth: string
@@ -6451,21 +9405,21 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "push_acquisitions_client_id_fkey"
+            foreignKeyName: "push_subscriptions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "push_acquisitions_client_id_fkey"
+            foreignKeyName: "push_subscriptions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "v_client_synthese"
             referencedColumns: ["client_id"]
           },
           {
-            foreignKeyName: "push_acquisitions_client_id_fkey"
+            foreignKeyName: "push_subscriptions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "v_monnaie_clients"
@@ -6523,6 +9477,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_medias_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_medias_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_medias_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_medias_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
           {
             foreignKeyName: "rapports_visites_medias_plantation_id_fkey"
@@ -6622,6 +9604,34 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "rapports_visites_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_techniques_agent_technique_id_fkey"
+            columns: ["agent_technique_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
             foreignKeyName: "rapports_visites_techniques_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -6648,6 +9658,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_techniques_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_techniques_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_techniques_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "rapports_visites_techniques_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
           {
             foreignKeyName: "rapports_visites_techniques_equipe_id_fkey"
@@ -6977,6 +10015,260 @@ export type Database = {
           },
         ]
       }
+      strategic_actions: {
+        Row: {
+          corrective_action: string | null
+          created_at: string
+          created_by: string
+          current_value: number
+          department: string
+          dependency_notes: string | null
+          description: string | null
+          due_on: string | null
+          id: string
+          indicator: string | null
+          last_reviewed_at: string | null
+          milestone_name: string | null
+          owner_profile_id: string | null
+          plan_id: string
+          priority: string
+          progress_percent: number
+          project_name: string | null
+          risk_description: string | null
+          starts_on: string | null
+          status: string
+          target_value: number | null
+          team_id: string | null
+          title: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string
+          current_value?: number
+          department: string
+          dependency_notes?: string | null
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          indicator?: string | null
+          last_reviewed_at?: string | null
+          milestone_name?: string | null
+          owner_profile_id?: string | null
+          plan_id: string
+          priority?: string
+          progress_percent?: number
+          project_name?: string | null
+          risk_description?: string | null
+          starts_on?: string | null
+          status?: string
+          target_value?: number | null
+          team_id?: string | null
+          title: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string
+          current_value?: number
+          department?: string
+          dependency_notes?: string | null
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          indicator?: string | null
+          last_reviewed_at?: string | null
+          milestone_name?: string | null
+          owner_profile_id?: string | null
+          plan_id?: string
+          priority?: string
+          progress_percent?: number
+          project_name?: string | null
+          risk_description?: string | null
+          starts_on?: string | null
+          status?: string
+          target_value?: number | null
+          team_id?: string | null
+          title?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategic_actions_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategic_actions_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategic_actions_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategic_actions_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "strategic_actions_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "strategic_actions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategic_actions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategic_actions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_performance_equipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategic_plan_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: number
+          plan_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: never
+          plan_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: never
+          plan_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategic_plan_audit_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategic_plans: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          assumptions: string | null
+          closed_at: string | null
+          created_at: string
+          created_by: string
+          currency_code: string
+          fiscal_year: number
+          id: string
+          period_end: string | null
+          period_start: string | null
+          planning_horizon: string
+          review_notes: string | null
+          scenario_name: string
+          status: string
+          strategic_objective: string | null
+          submitted_at: string | null
+          title: string
+          updated_at: string
+          version_number: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assumptions?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          currency_code?: string
+          fiscal_year: number
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          planning_horizon?: string
+          review_notes?: string | null
+          scenario_name?: string
+          status?: string
+          strategic_objective?: string | null
+          submitted_at?: string | null
+          title: string
+          updated_at?: string
+          version_number?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assumptions?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          currency_code?: string
+          fiscal_year?: number
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          planning_horizon?: string
+          review_notes?: string | null
+          scenario_name?: string
+          status?: string
+          strategic_objective?: string | null
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string
+          version_number?: number
+        }
+        Relationships: []
+      }
       tickets_techniques: {
         Row: {
           assigne_a: string | null
@@ -6996,6 +10288,8 @@ export type Database = {
           resolution_note: string | null
           statut: string | null
           titre: string
+          traite_at: string | null
+          traite_par: string | null
           updated_at: string | null
         }
         Insert: {
@@ -7016,6 +10310,8 @@ export type Database = {
           resolution_note?: string | null
           statut?: string | null
           titre: string
+          traite_at?: string | null
+          traite_par?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -7036,6 +10332,8 @@ export type Database = {
           resolution_note?: string | null
           statut?: string | null
           titre?: string
+          traite_at?: string | null
+          traite_par?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -7045,6 +10343,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_assigne_a_fkey"
+            columns: ["assigne_a"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_assigne_a_fkey"
+            columns: ["assigne_a"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_assigne_a_fkey"
+            columns: ["assigne_a"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_assigne_a_fkey"
+            columns: ["assigne_a"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
           {
             foreignKeyName: "tickets_techniques_client_id_fkey"
@@ -7073,6 +10399,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_cree_par_fkey"
+            columns: ["cree_par"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_cree_par_fkey"
+            columns: ["cree_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_cree_par_fkey"
+            columns: ["cree_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_cree_par_fkey"
+            columns: ["cree_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
           {
             foreignKeyName: "tickets_techniques_equipe_id_fkey"
@@ -7108,6 +10462,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_geo_regions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_traite_par_fkey"
+            columns: ["traite_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_traite_par_fkey"
+            columns: ["traite_par"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_traite_par_fkey"
+            columns: ["traite_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_traite_par_fkey"
+            columns: ["traite_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "tickets_techniques_traite_par_fkey"
+            columns: ["traite_par"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -7307,6 +10696,2050 @@ export type Database = {
           },
         ]
       }
+      workspace_availability: {
+        Row: {
+          availability_type: string
+          created_at: string
+          ends_at: string
+          id: string
+          note: string | null
+          profile_id: string
+          starts_at: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          availability_type: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          note?: string | null
+          profile_id: string
+          starts_at: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          availability_type?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          note?: string | null
+          profile_id?: string
+          starts_at?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_availability_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_availability_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_availability_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_availability_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_availability_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_decision_audit: {
+        Row: {
+          action: string
+          actor_profile_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: number
+          metadata: Json
+          summary: string
+        }
+        Insert: {
+          action: string
+          actor_profile_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: never
+          metadata?: Json
+          summary: string
+        }
+        Update: {
+          action?: string
+          actor_profile_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: never
+          metadata?: Json
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_decision_audit_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_decision_audit_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_decision_audit_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_decision_audit_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_decision_audit_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_document_comments: {
+        Row: {
+          author_profile_id: string
+          body: string
+          created_at: string
+          document_id: string
+          id: string
+        }
+        Insert: {
+          author_profile_id: string
+          body: string
+          created_at?: string
+          document_id: string
+          id?: string
+        }
+        Update: {
+          author_profile_id?: string
+          body?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_document_comments_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_comments_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_comments_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_comments_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_document_comments_author_profile_id_fkey"
+            columns: ["author_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_document_comments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_document_members: {
+        Row: {
+          created_at: string
+          created_by_profile_id: string
+          document_id: string
+          id: string
+          permission: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_profile_id: string
+          document_id: string
+          id?: string
+          permission?: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by_profile_id?: string
+          document_id?: string
+          id?: string
+          permission?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_document_members_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_document_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_document_versions: {
+        Row: {
+          changed_by_profile_id: string | null
+          content_text: string
+          created_at: string
+          document_id: string
+          document_type: string
+          id: string
+          title: string
+        }
+        Insert: {
+          changed_by_profile_id?: string | null
+          content_text: string
+          created_at?: string
+          document_id: string
+          document_type: string
+          id?: string
+          title: string
+        }
+        Update: {
+          changed_by_profile_id?: string | null
+          content_text?: string
+          created_at?: string
+          document_id?: string
+          document_type?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_document_versions_changed_by_profile_id_fkey"
+            columns: ["changed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_versions_changed_by_profile_id_fkey"
+            columns: ["changed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_versions_changed_by_profile_id_fkey"
+            columns: ["changed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_document_versions_changed_by_profile_id_fkey"
+            columns: ["changed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_document_versions_changed_by_profile_id_fkey"
+            columns: ["changed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_documents: {
+        Row: {
+          content_text: string
+          created_at: string
+          document_type: string
+          file_name: string | null
+          id: string
+          mime_type: string | null
+          owner_profile_id: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content_text?: string
+          created_at?: string
+          document_type?: string
+          file_name?: string | null
+          id?: string
+          mime_type?: string | null
+          owner_profile_id: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content_text?: string
+          created_at?: string
+          document_type?: string
+          file_name?: string | null
+          id?: string
+          mime_type?: string | null
+          owner_profile_id?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_documents_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_documents_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_documents_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_documents_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_documents_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_event_external_guests: {
+        Row: {
+          created_at: string
+          email: string
+          email_provider: string | null
+          email_status: string
+          event_id: string
+          full_name: string | null
+          id: string
+          invited_by_profile_id: string
+          last_error: string | null
+          provider_message_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_provider?: string | null
+          email_status?: string
+          event_id: string
+          full_name?: string | null
+          id?: string
+          invited_by_profile_id: string
+          last_error?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_provider?: string | null
+          email_status?: string
+          event_id?: string
+          full_name?: string | null
+          id?: string
+          invited_by_profile_id?: string
+          last_error?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_event_external_guests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_external_guests_invited_by_profile_id_fkey"
+            columns: ["invited_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_external_guests_invited_by_profile_id_fkey"
+            columns: ["invited_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_external_guests_invited_by_profile_id_fkey"
+            columns: ["invited_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_external_guests_invited_by_profile_id_fkey"
+            columns: ["invited_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_event_external_guests_invited_by_profile_id_fkey"
+            columns: ["invited_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_event_participants: {
+        Row: {
+          created_at: string
+          event_id: string
+          profile_id: string
+          response: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          profile_id: string
+          response?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          profile_id?: string
+          response?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_event_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_event_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_events: {
+        Row: {
+          alarm_enabled: boolean
+          all_day: boolean
+          created_at: string
+          created_by_profile_id: string
+          description: string | null
+          ends_at: string
+          event_type: string
+          id: string
+          linked_meeting_id: string | null
+          location: string | null
+          recurrence_rule: string
+          reminder_offset_minutes: number | null
+          starts_at: string
+          status: string
+          timezone: string
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          alarm_enabled?: boolean
+          all_day?: boolean
+          created_at?: string
+          created_by_profile_id: string
+          description?: string | null
+          ends_at: string
+          event_type?: string
+          id?: string
+          linked_meeting_id?: string | null
+          location?: string | null
+          recurrence_rule?: string
+          reminder_offset_minutes?: number | null
+          starts_at: string
+          status?: string
+          timezone?: string
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          alarm_enabled?: boolean
+          all_day?: boolean
+          created_at?: string
+          created_by_profile_id?: string
+          description?: string | null
+          ends_at?: string
+          event_type?: string
+          id?: string
+          linked_meeting_id?: string | null
+          location?: string | null
+          recurrence_rule?: string
+          reminder_offset_minutes?: number | null
+          starts_at?: string
+          status?: string
+          timezone?: string
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_events_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_events_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_events_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_events_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_events_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_events_linked_meeting_id_fkey"
+            columns: ["linked_meeting_id"]
+            isOneToOne: false
+            referencedRelation: "internal_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_job_assignments: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledgement: string
+          assigned_by_profile_id: string
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          job_description_id: string
+          notes: string | null
+          profile_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledgement?: string
+          assigned_by_profile_id: string
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          job_description_id: string
+          notes?: string | null
+          profile_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledgement?: string
+          assigned_by_profile_id?: string
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          job_description_id?: string
+          notes?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_job_assignments_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_job_description_id_fkey"
+            columns: ["job_description_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_job_descriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_job_assignments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_job_descriptions: {
+        Row: {
+          access_profile: string
+          created_at: string
+          created_by_profile_id: string
+          department: string | null
+          id: string
+          objectives: Json
+          published_at: string | null
+          purpose: string
+          reports_to_role: string | null
+          required_skills: Json
+          responsibilities: Json
+          status: string
+          title: string
+          updated_at: string
+          updated_by_profile_id: string | null
+          version: number
+        }
+        Insert: {
+          access_profile?: string
+          created_at?: string
+          created_by_profile_id: string
+          department?: string | null
+          id?: string
+          objectives?: Json
+          published_at?: string | null
+          purpose: string
+          reports_to_role?: string | null
+          required_skills?: Json
+          responsibilities?: Json
+          status?: string
+          title: string
+          updated_at?: string
+          updated_by_profile_id?: string | null
+          version?: number
+        }
+        Update: {
+          access_profile?: string
+          created_at?: string
+          created_by_profile_id?: string
+          department?: string | null
+          id?: string
+          objectives?: Json
+          published_at?: string | null
+          purpose?: string
+          reports_to_role?: string | null
+          required_skills?: Json
+          responsibilities?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+          updated_by_profile_id?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_job_descriptions_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_job_descriptions_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_leave_requests: {
+        Row: {
+          created_at: string
+          ends_on: string
+          id: string
+          leave_type: string
+          profile_id: string
+          reason: string | null
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by_profile_id: string | null
+          starts_on: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_on: string
+          id?: string
+          leave_type: string
+          profile_id: string
+          reason?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by_profile_id?: string | null
+          starts_on: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_on?: string
+          id?: string
+          leave_type?: string
+          profile_id?: string
+          reason?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by_profile_id?: string | null
+          starts_on?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_leave_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_reviewed_by_profile_id_fkey"
+            columns: ["reviewed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_reviewed_by_profile_id_fkey"
+            columns: ["reviewed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_reviewed_by_profile_id_fkey"
+            columns: ["reviewed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_reviewed_by_profile_id_fkey"
+            columns: ["reviewed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_leave_requests_reviewed_by_profile_id_fkey"
+            columns: ["reviewed_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_notifications: {
+        Row: {
+          actor_profile_id: string | null
+          body: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          notification_type: string
+          push_sent_at: string | null
+          read_at: string | null
+          recipient_profile_id: string
+          target_path: string | null
+          title: string
+        }
+        Insert: {
+          actor_profile_id?: string | null
+          body?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          notification_type: string
+          push_sent_at?: string | null
+          read_at?: string | null
+          recipient_profile_id: string
+          target_path?: string | null
+          title: string
+        }
+        Update: {
+          actor_profile_id?: string | null
+          body?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          notification_type?: string
+          push_sent_at?: string | null
+          read_at?: string | null
+          recipient_profile_id?: string
+          target_path?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_notifications_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_objectives: {
+        Row: {
+          created_at: string
+          created_by_profile_id: string
+          current_value: number | null
+          description: string | null
+          due_on: string | null
+          id: string
+          metric: string | null
+          profile_id: string
+          starts_on: string | null
+          status: string
+          target_value: number | null
+          title: string
+          unit: string | null
+          updated_at: string
+          updated_by_profile_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by_profile_id: string
+          current_value?: number | null
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          metric?: string | null
+          profile_id: string
+          starts_on?: string | null
+          status?: string
+          target_value?: number | null
+          title: string
+          unit?: string | null
+          updated_at?: string
+          updated_by_profile_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by_profile_id?: string
+          current_value?: number | null
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          metric?: string | null
+          profile_id?: string
+          starts_on?: string | null
+          status?: string
+          target_value?: number | null
+          title?: string
+          unit?: string | null
+          updated_at?: string
+          updated_by_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_objectives_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_objectives_updated_by_profile_id_fkey"
+            columns: ["updated_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_performance_reviews: {
+        Row: {
+          acknowledged_at: string | null
+          created_at: string
+          id: string
+          improvements: string | null
+          next_steps: string | null
+          period_end: string
+          period_start: string
+          profile_id: string
+          rating: number | null
+          reviewer_profile_id: string
+          status: string
+          strengths: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          improvements?: string | null
+          next_steps?: string | null
+          period_end: string
+          period_start: string
+          profile_id: string
+          rating?: number | null
+          reviewer_profile_id: string
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          improvements?: string | null
+          next_steps?: string | null
+          period_end?: string
+          period_start?: string
+          profile_id?: string
+          rating?: number | null
+          reviewer_profile_id?: string
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_performance_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_reviewer_profile_id_fkey"
+            columns: ["reviewer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_reviewer_profile_id_fkey"
+            columns: ["reviewer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_reviewer_profile_id_fkey"
+            columns: ["reviewer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_reviewer_profile_id_fkey"
+            columns: ["reviewer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_performance_reviews_reviewer_profile_id_fkey"
+            columns: ["reviewer_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_project_members: {
+        Row: {
+          created_at: string
+          member_role: string
+          profile_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          member_role?: string
+          profile_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          member_role?: string
+          profile_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_project_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_project_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_project_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_project_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_project_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_on: string | null
+          id: string
+          name: string
+          owner_profile_id: string
+          starts_on: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          name: string
+          owner_profile_id: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_on?: string | null
+          id?: string
+          name?: string
+          owner_profile_id?: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_projects_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_projects_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_projects_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_projects_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_projects_owner_profile_id_fkey"
+            columns: ["owner_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      workspace_reminders: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          created_by_profile_id: string | null
+          event_id: string | null
+          id: string
+          last_error: string | null
+          recipient_profile_id: string
+          remind_at: string
+          reminder_offset_minutes: number | null
+          sent_at: string | null
+          status: string
+          task_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          created_by_profile_id?: string | null
+          event_id?: string | null
+          id?: string
+          last_error?: string | null
+          recipient_profile_id: string
+          remind_at: string
+          reminder_offset_minutes?: number | null
+          sent_at?: string | null
+          status?: string
+          task_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          created_by_profile_id?: string | null
+          event_id?: string | null
+          id?: string
+          last_error?: string | null
+          recipient_profile_id?: string
+          remind_at?: string
+          reminder_offset_minutes?: number | null
+          sent_at?: string | null
+          status?: string
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_reminders_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reminders_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_reporting_lines: {
+        Row: {
+          assigned_by_profile_id: string
+          created_at: string
+          department: string | null
+          id: string
+          manager_profile_id: string | null
+          profile_id: string
+          team_id: string | null
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          assigned_by_profile_id: string
+          created_at?: string
+          department?: string | null
+          id?: string
+          manager_profile_id?: string | null
+          profile_id: string
+          team_id?: string | null
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          assigned_by_profile_id?: string
+          created_at?: string
+          department?: string | null
+          id?: string
+          manager_profile_id?: string | null
+          profile_id?: string
+          team_id?: string | null
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_reporting_lines_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_assigned_by_profile_id_fkey"
+            columns: ["assigned_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_manager_profile_id_fkey"
+            columns: ["manager_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_manager_profile_id_fkey"
+            columns: ["manager_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_manager_profile_id_fkey"
+            columns: ["manager_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_manager_profile_id_fkey"
+            columns: ["manager_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_manager_profile_id_fkey"
+            columns: ["manager_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_reporting_lines_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_performance_equipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_tasks: {
+        Row: {
+          assigned_to_profile_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by_profile_id: string
+          description: string | null
+          due_at: string | null
+          id: string
+          linked_client_id: string | null
+          linked_event_id: string | null
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to_profile_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_profile_id: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          linked_client_id?: string | null
+          linked_event_id?: string | null
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to_profile_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_profile_id?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          linked_client_id?: string | null
+          linked_event_id?: string | null
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_tasks_assigned_to_profile_id_fkey"
+            columns: ["assigned_to_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_assigned_to_profile_id_fkey"
+            columns: ["assigned_to_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_assigned_to_profile_id_fkey"
+            columns: ["assigned_to_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_assigned_to_profile_id_fkey"
+            columns: ["assigned_to_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_assigned_to_profile_id_fkey"
+            columns: ["assigned_to_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_created_by_profile_id_fkey"
+            columns: ["created_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_linked_client_id_fkey"
+            columns: ["linked_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_linked_client_id_fkey"
+            columns: ["linked_client_id"]
+            isOneToOne: false
+            referencedRelation: "v_client_synthese"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_linked_client_id_fkey"
+            columns: ["linked_client_id"]
+            isOneToOne: false
+            referencedRelation: "v_monnaie_clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "workspace_tasks_linked_event_id_fkey"
+            columns: ["linked_event_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zone_assignments: {
         Row: {
           created_at: string | null
@@ -7336,6 +12769,18 @@ export type Database = {
       }
     }
     Views: {
+      crm_duplicate_contact_candidates: {
+        Row: {
+          duplicate_id: string | null
+          duplicate_name: string | null
+          duplicate_reason: string | null
+          duplicate_table: string | null
+          first_id: string | null
+          first_name: string | null
+          first_table: string | null
+        }
+        Relationships: []
+      }
       profils_annuaire: {
         Row: {
           actif: boolean | null
@@ -7610,6 +13055,205 @@ export type Database = {
           },
         ]
       }
+      v_internal_users: {
+        Row: {
+          actif: boolean | null
+          adresse_mail_secondaire: string | null
+          contact_urgence_email: string | null
+          contact_urgence_nom: string | null
+          contact_urgence_photo_url: string | null
+          contact_urgence_prenom: string | null
+          contact_urgence_telephone1: string | null
+          contact_urgence_telephone1_indicatif: string | null
+          contact_urgence_telephone1_local: string | null
+          contact_urgence_telephone2: string | null
+          contact_urgence_telephone2_indicatif: string | null
+          contact_urgence_telephone2_local: string | null
+          created_at: string | null
+          departement: string | null
+          district_id: string | null
+          email: string | null
+          equipe_id: string | null
+          id: string | null
+          nom_complet: string | null
+          numero_piece_identite: string | null
+          password_change_required: boolean | null
+          photo_url: string | null
+          piece_identite_page_principale_url: string | null
+          piece_identite_recto_url: string | null
+          piece_identite_url: string | null
+          piece_identite_verso_url: string | null
+          poste: string | null
+          quartier: string | null
+          region_id: string | null
+          relation_rh: string | null
+          salaire_base: number | null
+          taux_commission: number | null
+          telephone: string | null
+          telephone_indicatif: string | null
+          telephone_local: string | null
+          telephone_principal_whatsapp: boolean | null
+          telephone_secondaire: string | null
+          telephone_secondaire_indicatif: string | null
+          telephone_secondaire_local: string | null
+          telephone_secondaire_whatsapp: boolean | null
+          type_compte: string | null
+          type_piece_identite: string | null
+          updated_at: string | null
+          user_id: string | null
+          username: string | null
+          ville: string | null
+          whatsapp: string | null
+          whatsapp_indicatif: string | null
+          whatsapp_local: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          adresse_mail_secondaire?: string | null
+          contact_urgence_email?: string | null
+          contact_urgence_nom?: string | null
+          contact_urgence_photo_url?: string | null
+          contact_urgence_prenom?: string | null
+          contact_urgence_telephone1?: string | null
+          contact_urgence_telephone1_indicatif?: string | null
+          contact_urgence_telephone1_local?: string | null
+          contact_urgence_telephone2?: string | null
+          contact_urgence_telephone2_indicatif?: string | null
+          contact_urgence_telephone2_local?: string | null
+          created_at?: string | null
+          departement?: string | null
+          district_id?: string | null
+          email?: string | null
+          equipe_id?: string | null
+          id?: string | null
+          nom_complet?: string | null
+          numero_piece_identite?: string | null
+          password_change_required?: boolean | null
+          photo_url?: string | null
+          piece_identite_page_principale_url?: string | null
+          piece_identite_recto_url?: string | null
+          piece_identite_url?: string | null
+          piece_identite_verso_url?: string | null
+          poste?: string | null
+          quartier?: string | null
+          region_id?: string | null
+          relation_rh?: string | null
+          salaire_base?: number | null
+          taux_commission?: number | null
+          telephone?: string | null
+          telephone_indicatif?: string | null
+          telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean | null
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean | null
+          type_compte?: string | null
+          type_piece_identite?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          username?: string | null
+          ville?: string | null
+          whatsapp?: string | null
+          whatsapp_indicatif?: string | null
+          whatsapp_local?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          adresse_mail_secondaire?: string | null
+          contact_urgence_email?: string | null
+          contact_urgence_nom?: string | null
+          contact_urgence_photo_url?: string | null
+          contact_urgence_prenom?: string | null
+          contact_urgence_telephone1?: string | null
+          contact_urgence_telephone1_indicatif?: string | null
+          contact_urgence_telephone1_local?: string | null
+          contact_urgence_telephone2?: string | null
+          contact_urgence_telephone2_indicatif?: string | null
+          contact_urgence_telephone2_local?: string | null
+          created_at?: string | null
+          departement?: string | null
+          district_id?: string | null
+          email?: string | null
+          equipe_id?: string | null
+          id?: string | null
+          nom_complet?: string | null
+          numero_piece_identite?: string | null
+          password_change_required?: boolean | null
+          photo_url?: string | null
+          piece_identite_page_principale_url?: string | null
+          piece_identite_recto_url?: string | null
+          piece_identite_url?: string | null
+          piece_identite_verso_url?: string | null
+          poste?: string | null
+          quartier?: string | null
+          region_id?: string | null
+          relation_rh?: string | null
+          salaire_base?: number | null
+          taux_commission?: number | null
+          telephone?: string | null
+          telephone_indicatif?: string | null
+          telephone_local?: string | null
+          telephone_principal_whatsapp?: boolean | null
+          telephone_secondaire?: string | null
+          telephone_secondaire_indicatif?: string | null
+          telephone_secondaire_local?: string | null
+          telephone_secondaire_whatsapp?: boolean | null
+          type_compte?: string | null
+          type_piece_identite?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          username?: string | null
+          ville?: string | null
+          whatsapp?: string | null
+          whatsapp_indicatif?: string | null
+          whatsapp_local?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "v_performance_equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "v_geo_regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_monnaie_clients: {
         Row: {
           client_id: string | null
@@ -7658,6 +13302,74 @@ export type Database = {
             columns: ["region_id"]
             isOneToOne: false
             referencedRelation: "v_geo_regions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_planning_budget_control: {
+        Row: {
+          activity_name: string | null
+          actual_amount: number | null
+          actual_revenue: number | null
+          budget_id: string | null
+          budget_initial: number | null
+          budget_revised: number | null
+          budget_status: string | null
+          category: string | null
+          committed_amount: number | null
+          department: string | null
+          execution_percent: number | null
+          fiscal_year: number | null
+          forecast_amount: number | null
+          last_reviewed_at: string | null
+          overspend_amount: number | null
+          plan_id: string | null
+          plan_status: string | null
+          plan_title: string | null
+          project_name: string | null
+          remaining_budget: number | null
+          revenue_forecast: number | null
+          revenue_variance: number | null
+          risk_level: string | null
+          team_id: string | null
+          uncommitted_budget: number | null
+          variance_reason: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_budgets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_planning_budget_reconciliation: {
+        Row: {
+          activity_name: string | null
+          budget_id: string | null
+          category: string | null
+          department: string | null
+          linked_actual_expenses: number | null
+          linked_actual_revenue: number | null
+          linked_expense_transactions: number | null
+          linked_revenue_transactions: number | null
+          linked_transactions: number | null
+          manually_entered_actual_amount: number | null
+          manually_entered_actual_revenue: number | null
+          period_end: string | null
+          period_start: string | null
+          plan_id: string | null
+          project_name: string | null
+          total_allocated: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_budgets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -7713,6 +13425,34 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "commissions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
         ]
       }
       v_prix_effectif_offres: {
@@ -7724,6 +13464,30 @@ export type Database = {
           pi_effectif: number | null
           total_base: number | null
           total_effectif: number | null
+        }
+        Relationships: []
+      }
+      v_public_signup_roles: {
+        Row: {
+          actif: boolean | null
+          code: string | null
+          niveau: number | null
+          niveau_couverture: string | null
+          nom: string | null
+        }
+        Insert: {
+          actif?: boolean | null
+          code?: string | null
+          niveau?: number | null
+          niveau_couverture?: string | null
+          nom?: string | null
+        }
+        Update: {
+          actif?: boolean | null
+          code?: string | null
+          niveau?: number | null
+          niveau_couverture?: string | null
+          nom?: string | null
         }
         Relationships: []
       }
@@ -7754,10 +13518,36 @@ export type Database = {
         }
         Relationships: []
       }
+      v_workspace_organization_chart: {
+        Row: {
+          district_id: string | null
+          district_name: string | null
+          employee_name: string | null
+          employee_photo_url: string | null
+          id: string | null
+          manager_name: string | null
+          manager_photo_url: string | null
+          manager_profile_id: string | null
+          profile_id: string | null
+          rattachement_a_verifier: boolean | null
+          region_id: string | null
+          region_name: string | null
+          role_code: string | null
+          role_level: number | null
+          role_name: string | null
+          team_id: string | null
+          team_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _http_wait_json: {
         Args: { max_wait?: number; req: number }
+        Returns: Json
+      }
+      acquisition_current_payment_state: {
+        Args: { _acquisition_id: string }
         Returns: Json
       }
       activate_client_lot_from_lot: {
@@ -7779,6 +13569,10 @@ export type Database = {
           profile_id: string
           user_id: string
         }[]
+      }
+      admin_set_user_roles_with_primary: {
+        Args: { p_primary_role: string; p_roles: string[]; p_user_id: string }
+        Returns: undefined
       }
       annuaire_staff: {
         Args: never
@@ -7813,13 +13607,26 @@ export type Database = {
         Args: { p_paiement_id: string }
         Returns: undefined
       }
+      can_access_decision_center: {
+        Args: { required_permission?: string }
+        Returns: boolean
+      }
       can_supervise_leads: { Args: { _user_id: string }; Returns: boolean }
+      can_view_decision_proposal: {
+        Args: { target_id: string }
+        Returns: boolean
+      }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       client_should_be_active: { Args: { _id: string }; Returns: boolean }
       compute_commission_for_paiement: {
         Args: { p_paiement_id: string }
         Returns: undefined
+      }
+      convert_lead_to_prospect: { Args: { _lead_id: string }; Returns: string }
+      convert_prospect_to_client: {
+        Args: { _prospect_id: string }
+        Returns: string
       }
       create_client_acquisition: {
         Args: {
@@ -7836,6 +13643,23 @@ export type Database = {
       }
       create_paiement_initial: { Args: { _client_id: string }; Returns: string }
       current_profile_id: { Args: never; Returns: string }
+      current_user_has_app_permission: {
+        Args: { required_code: string }
+        Returns: boolean
+      }
+      decision_center_can_read_proposal: {
+        Args: {
+          p_department: string
+          p_district: string
+          p_region: string
+          p_scope: string
+          p_target_role_code: string
+          p_target_user_id: string
+        }
+        Returns: boolean
+      }
+      decision_center_is_executive: { Args: never; Returns: boolean }
+      decision_center_is_pdg: { Args: never; Returns: boolean }
       ensure_client_contracts: {
         Args: { _client_id: string }
         Returns: undefined
@@ -7853,7 +13677,76 @@ export type Database = {
       finance_can_manage: { Args: never; Returns: boolean }
       finance_can_view: { Args: never; Returns: boolean }
       finance_can_view_payroll: { Args: never; Returns: boolean }
-      generate_client_id: { Args: never; Returns: string }
+      finance_generate_commission_payouts: {
+        Args: { p_period_end: string; p_period_start: string }
+        Returns: number
+      }
+      finance_generate_payroll_run: {
+        Args: { p_period_end: string; p_period_start: string }
+        Returns: string
+      }
+      finance_list_active_profiles: {
+        Args: never
+        Returns: {
+          actif: boolean
+          email: string
+          id: string
+          nom_complet: string
+          poste: string
+          relation_rh: string
+          salaire_base: number
+        }[]
+      }
+      finance_mark_commission_payout_paid: {
+        Args: {
+          p_mode_paiement: string
+          p_preuve_paiement_url?: string
+          p_reference: string
+          p_versement_id: string
+        }
+        Returns: undefined
+      }
+      finance_payroll_mark_paid: {
+        Args: {
+          p_payment_method: string
+          p_payment_proof_url?: string
+          p_payment_reference: string
+          p_run_id: string
+        }
+        Returns: undefined
+      }
+      finance_record_commission_payment: {
+        Args: {
+          p_amount: number
+          p_commission_ids: string[]
+          p_payment_date: string
+          p_payment_method: string
+          p_profile_id: string
+          p_reference?: string
+        }
+        Returns: string
+      }
+      finance_record_commission_payout_payment: {
+        Args: {
+          p_mode_paiement: string
+          p_montant: number
+          p_preuve_paiement_url?: string
+          p_reference: string
+          p_versement_id: string
+        }
+        Returns: Json
+      }
+      finance_validate_commission_payout: {
+        Args: { p_versement_id: string }
+        Returns: undefined
+      }
+      finance_validate_payroll_run: {
+        Args: { p_run_id: string }
+        Returns: undefined
+      }
+      generate_client_id:
+        | { Args: never; Returns: string }
+        | { Args: { p_type_client: string }; Returns: string }
       generate_parcelle_id: { Args: never; Returns: string }
       generate_plantation_id: { Args: never; Returns: string }
       generate_proprietaire_id: { Args: never; Returns: string }
@@ -7888,7 +13781,67 @@ export type Database = {
         }[]
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
+      internal_can_manage_conversation_members: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
+      internal_can_read_meeting: {
+        Args: { p_meeting_id: string }
+        Returns: boolean
+      }
+      internal_create_conversation: {
+        Args: {
+          p_conversation_type: string
+          p_member_profile_ids: string[]
+          p_title: string
+        }
+        Returns: {
+          conversation_type: string
+          created_by_profile_id: string
+          id: string
+          last_message_at: string
+          title: string
+        }[]
+      }
+      internal_create_meeting: {
+        Args: {
+          p_agenda: string
+          p_description: string
+          p_ends_at: string
+          p_join_url: string
+          p_participant_profile_ids: string[]
+          p_provider_room_id: string
+          p_starts_at: string
+          p_title: string
+        }
+        Returns: {
+          agenda: string
+          created_by_profile_id: string
+          description: string
+          ends_at: string
+          id: string
+          join_url: string
+          provider: string
+          starts_at: string
+          status: string
+          title: string
+        }[]
+      }
+      internal_current_profile_id: { Args: never; Returns: string }
+      internal_is_conversation_creator: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
+      internal_is_conversation_member: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
+      internal_is_conversation_owner: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_decision_executive: { Args: never; Returns: boolean }
       is_finance_staff: { Args: { _user_id: string }; Returns: boolean }
       is_rh: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
@@ -8015,6 +13968,10 @@ export type Database = {
         Args: { _amount: number; _client_id: string; _plantation_id: string }
         Returns: number
       }
+      portal_plantation_payment_state: {
+        Args: { _client_id: string; _plantation_id: string }
+        Returns: Json
+      }
       portal_public_references: {
         Args: never
         Returns: {
@@ -8064,6 +14021,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: undefined
       }
+      reconcile_lead_prospect_client_links: { Args: never; Returns: Json }
       reconcile_user_role_coverage: {
         Args: { _user_id: string }
         Returns: undefined
@@ -8095,9 +14053,37 @@ export type Database = {
         Returns: string
       }
       resolve_username_email: { Args: { _username: string }; Returns: string }
+      resubmit_returned_acquisition: {
+        Args: {
+          p_acquisition_id: string
+          p_notes?: string
+          p_superficie_ha: number
+        }
+        Returns: string
+      }
+      review_acquisition_validation: {
+        Args: { p_acquisition_id: string; p_action: string; p_comment?: string }
+        Returns: Json
+      }
+      review_client_validation: {
+        Args: { p_action: string; p_client_id: string; p_comment?: string }
+        Returns: Json
+      }
+      review_proprietaire_validation: {
+        Args: {
+          p_action: string
+          p_comment?: string
+          p_proprietaire_id: string
+        }
+        Returns: Json
+      }
       senndo_get_secret: { Args: { p_name: string }; Returns: string }
       senndo_store_secret: {
         Args: { p_name: string; p_value: string }
+        Returns: undefined
+      }
+      set_user_primary_zone_assignment: {
+        Args: { p_user_id: string; p_zone_id: string; p_zone_type: string }
         Returns: undefined
       }
       simuler_paiement_fractionne: {
@@ -8110,11 +14096,15 @@ export type Database = {
           taux_journalier: number
         }[]
       }
-      acquisition_current_payment_state: {
-        Args: { _acquisition_id: string }
-        Returns: Json
-      }
       sync_anstat_admin_2021: { Args: never; Returns: Json }
+      sync_owner_plantation_for_shared_parcel: {
+        Args: {
+          p_actor?: string
+          p_parcelle_id: string
+          p_proprietaire_id: string
+        }
+        Returns: string
+      }
       sync_profile_poste: { Args: { _user_id: string }; Returns: undefined }
       transfer_agricapital_plantation: {
         Args: { p_client_id: string; p_plantation_id: string }
@@ -8125,17 +14115,124 @@ export type Database = {
         Returns: number
       }
       username_available: { Args: { _username: string }; Returns: boolean }
+      validate_proprietaire_foncier: {
+        Args: { _decision: string; _notes?: string; _proprietaire_id: string }
+        Returns: Json
+      }
       verifier_carte: {
         Args: { _code: string }
         Returns: {
+          date_delivrance: string
           date_expiration: string
           matricule: string
           nom_complet: string
+          photo_bucket: string
+          photo_url: string
           poste: string
+          role_code: string
           statut: string
           type_contrat: string
           valide: boolean
         }[]
+      }
+      workspace_can_edit_document: {
+        Args: { p_document_id: string }
+        Returns: boolean
+      }
+      workspace_can_manage_finance: { Args: never; Returns: boolean }
+      workspace_can_read_document: {
+        Args: { p_document_id: string }
+        Returns: boolean
+      }
+      workspace_create_external_meeting_invite: {
+        Args: {
+          p_expires_at?: string
+          p_invitee_email?: string
+          p_invitee_name?: string
+          p_meeting_id: string
+          p_token_hash: string
+        }
+        Returns: string
+      }
+      workspace_current_profile_id: { Args: never; Returns: string }
+      workspace_dispatch_due_reminders: { Args: never; Returns: number }
+      workspace_event_has_participant: {
+        Args: { p_event_id: string; p_profile_id: string }
+        Returns: boolean
+      }
+      workspace_event_is_owner: {
+        Args: { p_event_id: string; p_profile_id: string }
+        Returns: boolean
+      }
+      workspace_list_collaborators: {
+        Args: never
+        Returns: {
+          email: string
+          id: string
+          nom_complet: string
+          poste: string
+        }[]
+      }
+      workspace_list_collaborators_with_roles: {
+        Args: never
+        Returns: {
+          email: string
+          id: string
+          nom_complet: string
+          poste: string
+          role_codes: string[]
+          role_names: string[]
+        }[]
+      }
+      workspace_list_finance_users: {
+        Args: never
+        Returns: {
+          actif: boolean
+          email: string
+          id: string
+          nom_complet: string
+          poste: string
+          relation_rh: string
+          role_codes: string[]
+          role_names: string[]
+          salaire_base: number
+        }[]
+      }
+      workspace_list_roles: {
+        Args: never
+        Returns: {
+          code: string
+          court: string
+          nom: string
+        }[]
+      }
+      workspace_list_teams_with_members: {
+        Args: never
+        Returns: {
+          id: string
+          member_profile_ids: string[]
+          nom: string
+        }[]
+      }
+      workspace_redeem_external_meeting_invite: {
+        Args: { p_token_hash: string }
+        Returns: {
+          ends_at: string
+          invitee_name: string
+          join_url: string
+          meeting_id: string
+          meeting_title: string
+          provider_room_id: string
+          starts_at: string
+        }[]
+      }
+      workspace_transfer_document_ownership: {
+        Args: { p_document_id: string; p_new_owner_profile_id: string }
+        Returns: undefined
+      }
+      workspace_validate_commission: {
+        Args: { p_commission_id: string }
+        Returns: undefined
       }
       zone_assignment_expected_type: {
         Args: { _user_id: string }
