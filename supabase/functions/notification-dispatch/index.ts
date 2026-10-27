@@ -114,8 +114,10 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || "Client");
   const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
   const displayName = nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName;
+  // Règle de communication globale : tous les alias de prénom/nom
+  // affichent le dernier prénom suivi du nom de famille, jamais le prénom seul.
   const vars: Record<string, string> = {
-    nom: displayName, nom_complet: displayName, prenom: firstName, nom_famille: familyName,
+    nom: displayName, nom_complet: displayName, prenom: displayName, dernier_prenom_nom: displayName, nom_prenom: displayName, nom_famille: familyName,
     email: contact.email || "", telephone: contact.telephone || "",
     role: contact.role_code || "", offre: contact.offre_nom || contact.offre_code || "",
     offre_code: contact.offre_code || "", date: new Date().toLocaleDateString("fr-FR"),
