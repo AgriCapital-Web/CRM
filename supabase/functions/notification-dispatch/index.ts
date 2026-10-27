@@ -114,19 +114,20 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || "Client");
   const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
   const displayName = nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName;
-  // Règle de communication globale : tous les alias de prénom/nom
-  // affichent le dernier prénom suivi du nom de famille, jamais le prénom seul.
+  // Seul le jeton {dernier_prenom_nom} est autorisé pour le nom du destinataire.
+  // Les anciens alias nom/prenom/nom_complet ne sont volontairement pas exposés.
   const vars: Record<string, string> = {
-    nom: displayName, nom_complet: displayName, prenom: displayName, dernier_prenom_nom: displayName, nom_prenom: displayName, nom_famille: familyName,
     email: contact.email || "", telephone: contact.telephone || "",
     role: contact.role_code || "", offre: contact.offre_nom || contact.offre_code || "",
     offre_code: contact.offre_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
+    dernier_prenom_nom: displayName,
   };
-  return template.replace(/\{\{\s*([a-zA-Z0-9_ ]+)\s*\}\}|\{\s*([a-zA-Z0-9_ ]+)\s*\}/g, (_match, doubleKey, singleKey) => {
-    const key = String(doubleKey || singleKey || "").trim().replace(/\s+/g, "_");
-    return vars[key] ?? "";
-  });
+  return template.replace(/\{\s*dernier_prenom_nom\s*\}/gi, () => displayName)
+    .replace(/\{\{\s*([a-zA-Z0-9_ ]+)\s*\}\}|\{\s*([a-zA-Z0-9_ ]+)\s*\}/g, (_match, doubleKey, singleKey) => {
+      const key = String(doubleKey || singleKey || "").trim().replace(/\s+/g, "_");
+      return key === "dernier_prenom_nom" ? displayName : vars[key] ?? "";
+    });
 };
 
 async function internalAuthorized(req: Request) {
