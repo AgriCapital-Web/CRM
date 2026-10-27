@@ -69,6 +69,15 @@ export default function GestionRemuneration() {
           updated_at: new Date().toISOString(),
         }).eq("id", row.id);
         if (error) throw error;
+        // Read-after-write: don't report success if the stored value differs from the form.
+        const { data: persisted, error: verifyError } = await (supabase as any)
+          .from("grille_remuneration").select("id,montant,taux_pourcentage,actif").eq("id", row.id).maybeSingle();
+        if (verifyError) throw verifyError;
+        if (!persisted || Number(persisted.taux_pourcentage ?? 0) !== Number(row.taux_pourcentage ?? 0)
+          || Number(persisted.montant ?? 0) !== Number(row.montant ?? 0)
+          || Boolean(persisted.actif) !== (row.actif !== false)) {
+          throw new Error("La base de données n’a pas confirmé l’enregistrement de la règle « " + row.code_regle + " ». Rechargez la page et réessayez.");
+        }
       }
       const recovery = byCode.get(RULES.partnerRecovery);
       if (recovery) {
