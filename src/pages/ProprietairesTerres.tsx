@@ -463,7 +463,7 @@ const ProprietairesTerres = () => {
     setFormData({
       type_proprietaire: "personne_physique", civilite: "", nom: "", prenoms: "",
       date_naissance: "", lieu_naissance: "", nom_pere: "", nom_mere: "",
-      denomination_sociale: "", numero_enregistrement: "", nombre_membres: "", nom_representant: "",
+      denomination_sociale: "", numero_enregistrement: "", nature_organisation_code: "", forme_juridique_code: "", nombre_membres: "", nom_representant: "", responsable_legal_nom: "", responsable_legal_prenoms: "", responsable_legal_telephone: "",
       telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", type_piece: "", numero_piece: "",
       date_delivrance_piece: "", lieu_residence: "", district_id: "", region_id: "",
       departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
