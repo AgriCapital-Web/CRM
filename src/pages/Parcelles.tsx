@@ -103,7 +103,28 @@ const Parcelles = () => {
     if (clientOwned || unvalidated) return sum;
     return sum + Math.max(0, Number(p.surface_agricapital_ha || 0) - Number(p.surface_attribuee_ha || 0));
   }, 0);
-  const totalLots = lots.filter((lot: any) => !lot.client_id && !["attribue","attribuée","cede","cédé","cedee","cédée"].includes(String(lot.statut || "").toLowerCase())).length;
+  const totalLots = lots.filter((lot: any) => {
+    if (lot.client_id || !["disponible", "available", ""].includes(String(lot.statut || "").toLowerCase())) return false;
+    const parcel = parcelles.find((p: any) => p.id === lot.parcelle_id);
+    if (!parcel) return false;
+    const agriShare = Math.max(0, Number(parcel.surface_agricapital_ha || 0));
+    const attributed = Math.max(0, Number(parcel.surface_attribuee_ha || 0));
+    // Un lot ne reste disponible que si la quote-part AgriCapital de sa parcelle n'est pas déjà entièrement cédée.
+    if (agriShare > 0 && attributed >= agriShare) return false;
+    const availableLotsForParcel = lots.filter((candidate: any) => candidate.parcelle_id === parcel.id && !candidate.client_id && ["disponible", "available", ""].includes(String(candidate.statut || "").toLowerCase()));
+    return availableLotsForParcel.length > 0 && (agriShare <= 0 || attributed < agriShare);
+  }).reduce((count: number, lot: any) => {
+    const parcel = parcelles.find((p: any) => p.id === lot.parcelle_id);
+    const share = Math.max(0, Number(parcel?.surface_agricapital_ha || 0));
+    const attributed = Math.max(0, Number(parcel?.surface_attribuee_ha || 0));
+    if (share > 0) {
+      const availableSurface = Math.max(0, share - attributed);
+      const sameParcel = lots.filter((x: any) => x.parcelle_id === lot.parcelle_id && !x.client_id && ["disponible", "available", ""].includes(String(x.statut || "").toLowerCase()));
+      const limit = Math.ceil(availableSurface / Math.max(0.0001, Number(lot.surface_ha || 1)));
+      return count + (sameParcel[0]?.id === lot.id && sameParcel.length > limit ? limit : sameParcel[0]?.id === lot.id ? sameParcel.length : 0);
+    }
+    return count + 1;
+  }, 0);
 
   const statusLabel = (p: any, parcelClients: any[], parcelPlantations: any[]) => {
     const activePlantation = parcelPlantations.some((planting) => ["actif", "active", "plantee", "plantée", "en_cours"].includes(String(planting.statut || "").toLowerCase()));
