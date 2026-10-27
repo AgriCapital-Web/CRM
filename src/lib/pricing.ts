@@ -48,8 +48,8 @@ export interface TrancheEffective extends TranchePaiement {
 
 export interface PrixEffectif {
   offre_id: string; code: string; nom: string;
-  montant_total_base: number; pi_base: number; mensualite_base: number;
-  montant_total_effectif: number; pi_effectif: number; mensualite_effective: number;
+  montant_total_base: number; pi_base: number; cash_base: number; mensualite_base: number;
+  montant_total_effectif: number; pi_effectif: number; cash_effectif: number; mensualite_effective: number;
   tranches_effectives: TrancheEffective[];
   promotion_id: string | null; promotion_nom: string | null; promotion_cible: string | null;
   reduction_pct: number; reduction_montant: number;
@@ -168,9 +168,9 @@ export const calculPrixEffectif = (
 
   if (!promo) return {
     offre_id: offre.id, code: offre.code, nom: offre.nom,
-    montant_total_base: totalBase, pi_base: mode==="comptant"?totalBase:piBase,
+    montant_total_base: totalBase, pi_base: mode==="comptant"?totalBase:piBase, cash_base: cashBase,
     mensualite_base: monthlyBase, montant_total_effectif: totalBase,
-    pi_effectif: mode==="comptant"?totalBase:piBase, mensualite_effective: monthlyBase,
+    pi_effectif: mode==="comptant"?totalBase:piBase, cash_effectif: mode==="comptant"?totalBase:cashBase, mensualite_effective: monthlyBase,
     tranches_effectives: effectiveTranches(tranches, 1, null),
     promotion_id:null, promotion_nom:null, promotion_cible:null, reduction_pct:0, reduction_montant:0,
   };
@@ -179,8 +179,8 @@ export const calculPrixEffectif = (
     const effective = cible === "cout_global" ? Math.max(totalBase*(1-pct/100)-fixe,0) : totalBase;
     return {
       offre_id:offre.id, code:offre.code, nom:offre.nom,
-      montant_total_base:totalBase, pi_base:totalBase, mensualite_base:0,
-      montant_total_effectif:effective, pi_effectif:effective, mensualite_effective:0,
+      montant_total_base:totalBase, pi_base:totalBase, cash_base: cashBase, mensualite_base:0,
+      montant_total_effectif:effective, pi_effectif:effective, cash_effectif:effective, mensualite_effective:0,
       tranches_effectives:[], promotion_id:promo.id, promotion_nom:promo.nom,
       promotion_cible:cible, reduction_pct:pct, reduction_montant:totalBase-effective,
     };
@@ -197,8 +197,9 @@ export const calculPrixEffectif = (
       .map(t=>num(t.mensualite_par_ha_effective));
     return {
       offre_id:offre.id, code:offre.code, nom:offre.nom,
-      montant_total_base:totalBase, pi_base:piBase, mensualite_base:monthlyBase,
+      montant_total_base:totalBase, pi_base:piBase, cash_base: cashBase, mensualite_base:monthlyBase,
       montant_total_effectif:totalEff, pi_effectif:piEff,
+      cash_effectif: Math.max(cashBase*(1-pct/100)-fixe,0),
       mensualite_effective:monthlyValues[monthlyValues.length-1] || 0,
       tranches_effectives:tranchesEff, promotion_id:promo.id, promotion_nom:promo.nom,
       promotion_cible:cible, reduction_pct:pct, reduction_montant:totalBase-totalEff,
@@ -210,8 +211,9 @@ export const calculPrixEffectif = (
   const totalEff = Math.max(totalBase-(piBase-piEff),0);
   return {
     offre_id:offre.id, code:offre.code, nom:offre.nom,
-    montant_total_base:totalBase, pi_base:piBase, mensualite_base:monthlyBase,
-    montant_total_effectif:totalEff, pi_effectif:piEff, mensualite_effective:monthlyBase,
+    montant_total_base:totalBase, pi_base:piBase, cash_base: cashBase, mensualite_base:monthlyBase,
+    montant_total_effectif:totalEff, pi_effectif:piEff,
+    cash_effectif: cashBase, mensualite_effective:monthlyBase,
     tranches_effectives:effectiveTranches(tranches), promotion_id:promo.id, promotion_nom:promo.nom,
     promotion_cible:cible, reduction_pct:pct, reduction_montant:totalBase-totalEff,
   };
