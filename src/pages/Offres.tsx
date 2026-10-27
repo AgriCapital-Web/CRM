@@ -551,18 +551,20 @@ const Offres = () => {
                         const cash = Number(effective?.cash_effectif ?? offer.montant_cash_par_ha ?? offer.montant_total_par_ha ?? 0);
                         const duration = Number(offer.duree_paiement_mois || 0);
                         const formulas = Array.isArray(offer.formules_configuration) ? offer.formules_configuration : [];
+                        // PalmInvest et TerraPalm ont un tarif commun ; PalmTerroir n’affiche que ses formules.
+                        if ((family.key === "PALMINVEST" || family.key === "TERRAPALM") && offer.id !== familyOffers[0]?.id) return null;
                         return <div key={offer.id} className="rounded-lg border bg-muted/20 p-3">
                           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                             <p className="font-semibold text-sm">{offer.formule_nom || offer.nom}</p>
                             <Badge variant={offer.actif ? "default" : "secondary"}>{offer.actif ? "Active" : "Inactive"}</Badge>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          {family.key !== "PALMTERROIR" && <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                             <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Prix total / ha</span><b className="text-sm tabular-nums">{formatMontant(total)} F CFA</b></div>
                             <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Comptant / ha</span><b className="text-sm tabular-nums">{formatMontant(cash)} F CFA</b></div>
                             <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Mensualités</span><b className="text-sm tabular-nums">{duration} mois</b></div>
                             <div className="rounded-md bg-background p-2"><span className="block text-[10px] text-muted-foreground">Prix / mensualité / ha</span><b className="text-sm tabular-nums">{formatMontant(monthly)} F CFA</b></div>
-                          </div>
-                          {formulas.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          </div>}
+                          {family.key === "PALMTERROIR" && formulas.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">
                             {formulas.map((formula: any) => {
                               const formulaDuration = Number(formula.duree_paiement_mois || duration || 0);
                               const formulaInitialBase = Math.max(0, Number(formula.montant_pi_par_ha || 0));
@@ -605,7 +607,7 @@ const Offres = () => {
                       })}
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
-                      <span className="text-xs text-muted-foreground">{familyOffers.reduce((count: number, offer: any) => count + (Array.isArray(offer.formules_configuration) ? offer.formules_configuration.length : 1), 0)} formules</span>
+                      <span className="text-xs text-muted-foreground">{family.key === "PALMTERROIR" ? familyOffers.reduce((count: number, offer: any) => count + (Array.isArray(offer.formules_configuration) ? offer.formules_configuration.length : 1), 0) : 1} tarif</span>
                       <Button size="sm" variant="outline" disabled={!familyOffers.length} onClick={() => { setEditOffre(familyOffers[0] as Offre); setIsOffreDialogOpen(true); }}>
                         <Pencil className="mr-1 h-4 w-4" /> Modifier les paramètres
                       </Button>
