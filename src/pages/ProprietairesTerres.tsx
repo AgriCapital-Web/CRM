@@ -596,6 +596,7 @@ const ProprietairesTerres = () => {
                                 <SelectContent>
                                   <SelectItem value="M">M.</SelectItem>
                                   <SelectItem value="Mme">Mme</SelectItem>
+                                  <SelectItem value="Mlle">Mlle</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
