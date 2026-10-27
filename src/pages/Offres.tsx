@@ -566,13 +566,13 @@ const Offres = () => {
                             {formulas.map((formula: any) => {
                               const formulaDuration = Number(formula.duree_paiement_mois || duration || 0);
                               const formulaMonthly = Number(formula.mensualite_par_ha || 0);
-                              const formulaCash = Number(formula.montant_pi_par_ha || 0);
+                              const formulaCash = Number(formula.montant_cash_par_ha ?? formula.montant_total_par_ha ?? 0);
                               const formulaTotal = Number(formula.montant_total_par_ha ?? (formulaCash + formulaMonthly * formulaDuration));
                               return <div key={formula.code || formula.nom} className="rounded-md border bg-background p-2">
                                 <p className="mb-1 text-xs font-semibold">{formula.nom || formula.code}</p>
                                 <div className="grid grid-cols-2 gap-1 text-xs">
                                   <span className="text-muted-foreground">Total / ha</span><b>{formatMontant(formulaTotal)} F</b>
-                                  <span className="text-muted-foreground">Comptant / ha</span><b>{formatMontant(formulaCash)} F</b>
+                                  <span className="text-muted-foreground">Prix comptant / ha</span><b>{formatMontant(formulaCash)} F</b>
                                   <span className="text-muted-foreground">Mensualités</span><b>{formulaDuration} mois</b>
                                   <span className="text-muted-foreground">Par mensualité / ha</span><b>{formatMontant(formulaMonthly)} F</b>
                                 </div>
