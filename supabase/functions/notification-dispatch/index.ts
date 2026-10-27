@@ -109,10 +109,12 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) =>
 );
 
 const render = (template: string, contact: Contact, context: Record<string, unknown> = {}) => {
-  const fullName = contact.nom_complet || "Client";
-  const firstName = fullName.split(/\s+/)[0] || "Client";
+  const nameParts = String(contact.nom_complet || "Client").trim().split(/\s+/).filter(Boolean);
+  const familyName = nameParts[0] || "Client";
+  const firstName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : familyName;
+  const displayName = nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName;
   const vars: Record<string, string> = {
-    nom: fullName, nom_complet: fullName, prenom: firstName,
+    nom: displayName, nom_complet: displayName, prenom: firstName, nom_famille: familyName,
     email: contact.email || "", telephone: contact.telephone || "",
     role: contact.role_code || "", offre: contact.offre_nom || contact.offre_code || "",
     offre_code: contact.offre_code || "", date: new Date().toLocaleDateString("fr-FR"),
@@ -893,7 +895,7 @@ serve(async (req) => {
       }
       const contact: Contact = {
         source_type: "lead", source_id: lead.id,
-        nom_complet: [lead.prenoms, lead.nom].filter(Boolean).join(" ").trim() || "Contact AgriCapital",
+        nom_complet: [lead.nom, lead.prenoms].filter(Boolean).join(" ").trim() || "Contact AgriCapital",
         email: lead.email || null, telephone: lead.telephone || null, whatsapp: lead.whatsapp || null,
       };
       if (channel === "whatsapp" && !(contact.whatsapp || contact.telephone)) return json(req, { error: "Numéro WhatsApp absent" }, 400);
