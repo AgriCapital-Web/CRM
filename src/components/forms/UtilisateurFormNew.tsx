@@ -56,7 +56,7 @@ interface UtilisateurFormProps {
 const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFormProps) => {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     resolver: zodResolver(userFormSchema),
-    defaultValues: utilisateur || {},
+    defaultValues: utilisateur ? { ...utilisateur, nom: utilisateur.nom || String(utilisateur.nom_complet || "").trim().split(/\\s+/).slice(-1)[0] || "", prenoms: utilisateur.prenoms || String(utilisateur.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || "" } : {},
   });
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
