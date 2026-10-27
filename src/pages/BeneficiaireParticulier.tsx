@@ -79,8 +79,9 @@ const BeneficiaireParticulier = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!beneficiaire.nom_complet.trim() || !beneficiaire.numero_piece.trim()) {
-      toast({ variant: "destructive", title: "Informations manquantes", description: "Le nom complet et le numéro de pièce sont obligatoires." });
+    const beneficiaireNomComplet = [beneficiaire.prenoms, beneficiaire.nom_famille].map((v: string) => String(v || "").trim()).filter(Boolean).join(" ");
+    if (!beneficiaireNomComplet || !beneficiaire.numero_piece.trim()) {
+      toast({ variant: "destructive", title: "Informations manquantes", description: "Le nom, le prénom et le numéro de pièce sont obligatoires." });
       return;
     }
     const proprietaireNomComplet = [proprietaire.nom, proprietaire.prenoms].filter(Boolean).join(" ").trim();
