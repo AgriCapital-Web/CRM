@@ -475,6 +475,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       }
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["prospects"] });
+      qc.invalidateQueries({ queryKey: ["crm-party-links-active-status"] });
       setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
       setCreateOpen(false);
       setEditingLead(null);
