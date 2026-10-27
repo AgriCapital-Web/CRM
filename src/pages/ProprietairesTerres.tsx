@@ -511,9 +511,9 @@ const ProprietairesTerres = () => {
     if (activeFormTab === "identite") {
       const type = formData.type_proprietaire;
       const identityMissing =
-        (type === "personne_physique" && (!formData.civilite || !String(formData.nom || "").trim())) ||
-        (type === "personne_morale" && (!String(formData.denomination_sociale || "").trim() || !String(formData.nom_representant || "").trim())) ||
-        (type === "famille_groupement" && (!String(formData.nom || "").trim() || !String(formData.nom_representant || "").trim()));
+        (type === "personne_physique" && (!formData.civilite || !String(formData.nom || "").trim() || !String(formData.prenoms || "").trim())) ||
+        (type === "personne_morale" && (!String(formData.denomination_sociale || "").trim() || !String(formData.nature_organisation_code || "").trim() || !String(formData.responsable_legal_nom || "").trim() || !String(formData.responsable_legal_prenoms || "").trim())) ||
+        (type === "famille_groupement" && (!String(formData.nom || "").trim() || !String(formData.responsable_legal_nom || "").trim() || !String(formData.responsable_legal_prenoms || "").trim()));
       if (identityMissing) {
         toast({ variant: "destructive", title: "Identité incomplète", description: "Complétez les champs obligatoires du type de propriétaire sélectionné." });
         return false;
