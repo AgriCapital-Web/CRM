@@ -2506,6 +2506,7 @@ export type Database = {
           nom: string | null
           nom_complet: string | null
           nom_famille: string | null
+          nombre_membres: number | null
           numero_enregistrement: string | null
           prenoms: string | null
           region_id: string | null
@@ -2536,6 +2537,7 @@ export type Database = {
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null
+          nombre_membres?: number | null
           numero_enregistrement?: string | null
           prenoms?: string | null
           region_id?: string | null
@@ -2566,6 +2568,7 @@ export type Database = {
           nom?: string | null
           nom_complet?: string | null
           nom_famille?: string | null
+          nombre_membres?: number | null
           numero_enregistrement?: string | null
           prenoms?: string | null
           region_id?: string | null
