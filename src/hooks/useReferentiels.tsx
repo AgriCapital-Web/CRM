@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { RoleDefinition } from "@/lib/roles";
@@ -19,6 +19,7 @@ export function useDepartementsEntreprise() {
 
 export function useAppRoles() {
   const queryClient = useQueryClient();
+  const instanceId = useId().replace(/:/g, "");
   const query = useQuery({
     queryKey: ["app-roles"],
     queryFn: async () => {
@@ -36,12 +37,12 @@ export function useAppRoles() {
     retry: 1,
   });
   useEffect(() => {
-    const channel = supabase.channel("app-roles-live")
+    const channel = supabase.channel("app-roles-live-" + instanceId)
       .on("postgres_changes", { event: "*", schema: "public", table: "app_roles" }, () => {
         void queryClient.invalidateQueries({ queryKey: ["app-roles"] });
       }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [queryClient]);
+  }, [queryClient, instanceId]);
   const reload = async () => { await query.refetch(); };
   return {
     roles: query.data || [],
