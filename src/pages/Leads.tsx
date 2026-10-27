@@ -1,5 +1,6 @@
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
+import { normalizeSearchText } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -640,7 +641,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const filteredLeads = stageLeads.filter((l: any) => {
     const isProspect = l._record_type === "prospect" || legacyStage(l) === "prospect";
     const typeMatches = (!showLeads && !showProspects) || (showLeads && !showProspects && !isProspect) || (!showLeads && showProspects && isProspect) || (showLeads && showProspects);
-    return typeMatches && JSON.stringify(l).toLowerCase().includes(tableSearch.trim().toLowerCase());
+    return typeMatches && normalizeSearchText(JSON.stringify(l)).includes(normalizeSearchText(tableSearch));
   });
   const paginatedLeads = filteredLeads.slice((tablePage - 1) * tablePageSize, tablePage * tablePageSize);
   useEffect(() => { setTablePage(1); }, [tableSearch, showLeads, showProspects, tablePageSize]);
