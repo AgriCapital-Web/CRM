@@ -370,7 +370,7 @@ const Clients = () => {
                 </Link>
               )}
               {can("acquisitions.validate") && (
-                <Link to="/acquisitions/validation" className="col-span-2 sm:col-span-1">
+                <Link to="/acquisitions/validation" className="col-span-2 w-full sm:col-span-1 sm:w-auto">
                   <Button variant="outline" className="h-auto min-h-10 w-full min-w-0 justify-center px-2 text-xs sm:w-auto sm:px-4 sm:text-sm">
                     <FileText className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
                     Ventes à valider <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 tabular-nums">{stats.salesPendingValidation}</span>
