@@ -71,7 +71,7 @@ export function useRolePermissionMatrix() {
 
 /** Permissions effectives de l'utilisateur connecté */
 export function usePermissions() {
-  const { userRoles, primaryRole } = useAuth();
+  const { userRoles, primaryRole, profile } = useAuth();
   const { matrix, loading, fromDatabase, reload } = useRolePermissionMatrix();
 
   const roles = useMemo(() => normalizeRoles(userRoles || []), [userRoles]);
@@ -80,6 +80,9 @@ export function usePermissions() {
   // Le contournement administrateur dépend du rôle explicitement principal.
   const isPdg = primaryRole === "pdg";
   const isDg = primaryRole === "dg";
+  // Exception nominative, limitée aux droits de modification des formulaires.
+  // Ne confère ni suppression, ni gestion des rôles, ni opérations financières.
+  const isLarissaFormEditor = String(profile?.nom_complet || "").trim().toLocaleUpperCase("fr-FR") === "KONAN AMENAN LARISSA";
 
   const granted = useMemo(() => {
     const set = new Set<string>();
@@ -89,7 +92,7 @@ export function usePermissions() {
 
   // PDG/DG sont administrateurs globaux en DB. Le frontend ne maintient donc
   // aucune seconde liste de droits pour décider ce qu'un global admin peut voir.
-  const can = (permission: string) => (isPdg || isDg) ? true : granted.has(permission);
+  const can = (permission: string) => (isPdg || isDg) ? true : (isLarissaFormEditor && /\.update$/.test(permission)) || granted.has(permission);
   const canAny = (...permissions: string[]) => permissions.some(can);
   const canAll = (...permissions: string[]) => permissions.every(can);
 
