@@ -102,7 +102,7 @@ const BeneficiaireParticulier = () => {
       let ids = pendingRegistration;
       if (!ids) {
         const { data, error } = await (supabase as any).rpc("register_beneficiaire_particulier", {
-          p_beneficiaire: beneficiaire,
+          p_beneficiaire: { ...beneficiaire, nom_complet: beneficiaireNomComplet },
           p_proprietaire: { ...proprietaire, nom_complet: proprietaireNomComplet },
           p_parcelle: parcelle,
           p_plantation: plantation,
