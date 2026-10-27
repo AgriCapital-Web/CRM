@@ -10,16 +10,14 @@ const displayCaseName = (value: string) => {
   return lower.replace(/(^|[\s’'-])\p{L}/gu, match => match.toLocaleUpperCase("fr-FR"));
 };
 
-/** Nom d'affichage court des utilisateurs CRM.
- * Convention DB: le premier élément est le nom de famille;
- * l'affichage métier présente d'abord le(s) prénom(s), puis le nom.
- * Exemple: KOFFI INOCENT → Inocent Koffi.
+/** Nom court pour les communications : dernier prénom usuel puis nom de famille.
+ * Convention CRM : NOM en premier, puis les prénoms. Exemple : KONAN AMENAN LARISSA → Larissa KONAN.
  */
 export function formatUserShortName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
   if (parts.length === 1) return displayCaseName(parts[0]);
-  return parts.slice(1).map(displayCaseName).join(" ") + " " + displayCaseName(parts[0]);
+  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
 }
 
 /** Bandeau de bienvenue: dernier prénom puis NOM en majuscules (ex: KONAN ADJOUA LARRISSA → Larrissa KONAN). */
@@ -30,10 +28,7 @@ export function formatWelcomeName(fullName?: string | null): string {
   return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
 }
 
-/** Affichage détaillé du profil: tous les prénoms, puis le nom de famille. */
+/** Nom utilisé dans les communications et les affichages courts. */
 export function formatUserProfileName(fullName?: string | null): string {
-  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "Utilisateur";
-  if (parts.length === 1) return displayCaseName(parts[0]);
-  return parts.slice(1).map(displayCaseName).join(" ") + ", " + displayCaseName(parts[0]);
+  return formatUserShortName(fullName);
 }
