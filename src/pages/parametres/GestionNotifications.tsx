@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import ConfigurationSenndo from "@/pages/parametres/ConfigurationSenndo";
-import { formatUserShortName, matchesAccentInsensitive } from "@/lib/utils";
 
 type Segment = { id: string; code: string; nom: string; description: string | null; criteres: Record<string, unknown>; actif: boolean };
 type Campaign = {
