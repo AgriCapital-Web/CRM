@@ -48,16 +48,12 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
     if (file) {
       setFiles((current) => ({ ...current, [key]: file }));
       
-      // Create preview for images
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreviews((current) => ({ ...current, [key]: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setPreviews((current) => ({ ...current, [key]: file.name }));
-      }
+      // Build a local preview immediately for every selected file type.
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviews((current) => ({ ...current, [key]: String(reader.result || "") }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -156,18 +152,21 @@ const DocumentsUploadForm = ({ onSuccess }: DocumentsUploadFormProps) => {
               <button type="button" className="mt-2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-700 text-emerald-800 hover:bg-emerald-50" aria-label={"Ajouter " + docType.label} title={"Ajouter ou remplacer " + docType.label} onClick={() => document.getElementById("document-upload-" + docType.key)?.click()}>
                 <Upload className="h-4 w-4" />
               </button>
-              {previews[docType.key] && (
-                <div className="mt-3 relative">
-                  {previews[docType.key].startsWith('data:image') ? (
-                    <img
-                      src={previews[docType.key]}
-                      alt="Aperçu"
-                      className="w-full h-32 object-cover rounded border"
-                    />
+              {previews[docType.key] && files[docType.key] && (
+                <div className="mt-3 relative space-y-2 rounded border p-2">
+                  <div className="pr-7 text-xs text-muted-foreground break-all">
+                    Aperçu avant envoi · {files[docType.key]?.name} · {((files[docType.key]?.size || 0) / 1048576).toFixed(2)} Mo
+                  </div>
+                  {files[docType.key]?.type.startsWith("image/") ? (
+                    <img src={previews[docType.key]} alt={"Aperçu " + docType.label} className="max-h-64 w-full rounded object-contain" />
+                  ) : files[docType.key]?.type.startsWith("video/") ? (
+                    <video src={previews[docType.key]} controls preload="metadata" className="max-h-64 w-full rounded" />
+                  ) : files[docType.key]?.type === "application/pdf" ? (
+                    <iframe title={"Aperçu " + docType.label} src={previews[docType.key]} className="h-64 w-full rounded border" />
+                  ) : files[docType.key]?.type.startsWith("text/") ? (
+                    <iframe title={"Aperçu " + docType.label} src={previews[docType.key]} className="h-48 w-full rounded border" />
                   ) : (
-                    <div className="p-3 bg-muted rounded border text-sm">
-                      📄 {previews[docType.key]}
-                    </div>
+                    <a href={previews[docType.key]} download={files[docType.key]?.name} className="inline-flex items-center gap-2 text-sm text-primary underline">Ouvrir / prévisualiser le document</a>
                   )}
                   <Button
                     type="button"
