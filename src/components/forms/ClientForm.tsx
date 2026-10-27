@@ -238,6 +238,13 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         filesQueued ||= contractOffline;
       }
 
+      if (form.type_personne === "personne_morale" && (!String(form.denomination_sociale || "").trim() || !String(form.nature_organisation_code || "").trim() || !String(form.responsable_legal_nom || form.nom || "").trim() || !String(form.responsable_legal_prenoms || form.prenoms || "").trim())) {
+        throw new Error("Pour une personne morale, renseignez la dénomination sociale, la nature de l’organisation, le nom et le prénom du responsable légal.");
+      }
+      if (form.type_personne === "famille_informelle" && (!String(form.nom_famille || "").trim() || !String(form.responsable_legal_nom || form.nom || "").trim() || !String(form.responsable_legal_prenoms || form.prenoms || "").trim())) {
+        throw new Error("Pour une famille informelle, renseignez le nom de la famille ainsi que le nom et le prénom du responsable.");
+      }
+
       // IMPORTANT : seules les colonnes métier de clients sont envoyées.
       // Les relations chargées pour l'affichage ne doivent jamais être réinjectées dans UPDATE.
       const clientPayload: any = {};
