@@ -1577,6 +1577,7 @@ export type Database = {
           created_by: string | null
           date_delivrance_piece: string | null
           date_naissance: string | null
+          denomination_sociale: string | null
           departement_id: string | null
           district_id: string | null
           documents_valides_at: string | null
@@ -1589,6 +1590,7 @@ export type Database = {
           fichier_piece_recto_url: string | null
           fichier_piece_url: string | null
           fichier_piece_verso_url: string | null
+          forme_juridique_code: string | null
           formule_code: string | null
           formule_nom: string | null
           gestion_type: string | null
@@ -1614,6 +1616,7 @@ export type Database = {
           montant_total_contrat: number
           montant_total_par_ha: number | null
           nationalite: string | null
+          nature_organisation_code: string | null
           necessite_foncier_client: boolean | null
           nom: string | null
           nom_complet: string | null
@@ -1621,10 +1624,12 @@ export type Database = {
           nom_mere: string | null
           nom_pere: string | null
           nom_titulaire_compte: string | null
+          nombre_membres: number | null
           nombre_plantations: number | null
           notes: string | null
           numero_compte: string | null
           numero_contrat: string | null
+          numero_enregistrement: string | null
           numero_ordre_global: number | null
           numero_piece: string | null
           offre_code: string | null
@@ -1645,6 +1650,9 @@ export type Database = {
           promotion_id: string | null
           proprietaire_id: string | null
           region_id: string | null
+          responsable_legal_nom: string | null
+          responsable_legal_prenoms: string | null
+          responsable_legal_telephone: string | null
           sous_prefecture_id: string | null
           statut: string | null
           statut_global: string | null
@@ -1664,6 +1672,7 @@ export type Database = {
           type_client: string | null
           type_client_foncier: string | null
           type_compte: string | null
+          type_personne: string
           type_piece: string | null
           updated_at: string | null
           updated_by: string | null
@@ -1697,6 +1706,7 @@ export type Database = {
           created_by?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           district_id?: string | null
           documents_valides_at?: string | null
@@ -1709,6 +1719,7 @@ export type Database = {
           fichier_piece_recto_url?: string | null
           fichier_piece_url?: string | null
           fichier_piece_verso_url?: string | null
+          forme_juridique_code?: string | null
           formule_code?: string | null
           formule_nom?: string | null
           gestion_type?: string | null
@@ -1734,6 +1745,7 @@ export type Database = {
           montant_total_contrat?: number
           montant_total_par_ha?: number | null
           nationalite?: string | null
+          nature_organisation_code?: string | null
           necessite_foncier_client?: boolean | null
           nom?: string | null
           nom_complet?: string | null
@@ -1741,10 +1753,12 @@ export type Database = {
           nom_mere?: string | null
           nom_pere?: string | null
           nom_titulaire_compte?: string | null
+          nombre_membres?: number | null
           nombre_plantations?: number | null
           notes?: string | null
           numero_compte?: string | null
           numero_contrat?: string | null
+          numero_enregistrement?: string | null
           numero_ordre_global?: number | null
           numero_piece?: string | null
           offre_code?: string | null
@@ -1765,6 +1779,9 @@ export type Database = {
           promotion_id?: string | null
           proprietaire_id?: string | null
           region_id?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_global?: string | null
@@ -1784,6 +1801,7 @@ export type Database = {
           type_client?: string | null
           type_client_foncier?: string | null
           type_compte?: string | null
+          type_personne?: string
           type_piece?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -1817,6 +1835,7 @@ export type Database = {
           created_by?: string | null
           date_delivrance_piece?: string | null
           date_naissance?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           district_id?: string | null
           documents_valides_at?: string | null
@@ -1829,6 +1848,7 @@ export type Database = {
           fichier_piece_recto_url?: string | null
           fichier_piece_url?: string | null
           fichier_piece_verso_url?: string | null
+          forme_juridique_code?: string | null
           formule_code?: string | null
           formule_nom?: string | null
           gestion_type?: string | null
@@ -1854,6 +1874,7 @@ export type Database = {
           montant_total_contrat?: number
           montant_total_par_ha?: number | null
           nationalite?: string | null
+          nature_organisation_code?: string | null
           necessite_foncier_client?: boolean | null
           nom?: string | null
           nom_complet?: string | null
@@ -1861,10 +1882,12 @@ export type Database = {
           nom_mere?: string | null
           nom_pere?: string | null
           nom_titulaire_compte?: string | null
+          nombre_membres?: number | null
           nombre_plantations?: number | null
           notes?: string | null
           numero_compte?: string | null
           numero_contrat?: string | null
+          numero_enregistrement?: string | null
           numero_ordre_global?: number | null
           numero_piece?: string | null
           offre_code?: string | null
@@ -1885,6 +1908,9 @@ export type Database = {
           promotion_id?: string | null
           proprietaire_id?: string | null
           region_id?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_global?: string | null
@@ -1904,6 +1930,7 @@ export type Database = {
           type_client?: string | null
           type_client_foncier?: string | null
           type_compte?: string | null
+          type_personne?: string
           type_piece?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -2459,6 +2486,224 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "proprietaires_terres"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_parties: {
+        Row: {
+          adresse: string | null
+          civilite: string | null
+          created_at: string
+          created_by: string | null
+          denomination_sociale: string | null
+          departement_id: string | null
+          district_id: string | null
+          email: string | null
+          forme_juridique_code: string | null
+          id: string
+          metadata: Json
+          nature_organisation_code: string | null
+          nom: string | null
+          nom_complet: string | null
+          nom_famille: string | null
+          numero_enregistrement: string | null
+          prenoms: string | null
+          region_id: string | null
+          responsable_legal_nom: string | null
+          responsable_legal_prenoms: string | null
+          responsable_legal_telephone: string | null
+          sous_prefecture_id: string | null
+          telephone: string | null
+          telephone_secondaire: string | null
+          type_personne: string
+          updated_at: string
+          village_id: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          civilite?: string | null
+          created_at?: string
+          created_by?: string | null
+          denomination_sociale?: string | null
+          departement_id?: string | null
+          district_id?: string | null
+          email?: string | null
+          forme_juridique_code?: string | null
+          id?: string
+          metadata?: Json
+          nature_organisation_code?: string | null
+          nom?: string | null
+          nom_complet?: string | null
+          nom_famille?: string | null
+          numero_enregistrement?: string | null
+          prenoms?: string | null
+          region_id?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
+          sous_prefecture_id?: string | null
+          telephone?: string | null
+          telephone_secondaire?: string | null
+          type_personne?: string
+          updated_at?: string
+          village_id?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          civilite?: string | null
+          created_at?: string
+          created_by?: string | null
+          denomination_sociale?: string | null
+          departement_id?: string | null
+          district_id?: string | null
+          email?: string | null
+          forme_juridique_code?: string | null
+          id?: string
+          metadata?: Json
+          nature_organisation_code?: string | null
+          nom?: string | null
+          nom_complet?: string | null
+          nom_famille?: string | null
+          numero_enregistrement?: string | null
+          prenoms?: string | null
+          region_id?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
+          sous_prefecture_id?: string | null
+          telephone?: string | null
+          telephone_secondaire?: string | null
+          type_personne?: string
+          updated_at?: string
+          village_id?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      crm_party_links: {
+        Row: {
+          id: string
+          linked_at: string
+          linked_by: string | null
+          metadata: Json
+          module_code: string
+          party_id: string
+          record_id: string
+        }
+        Insert: {
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          metadata?: Json
+          module_code: string
+          party_id: string
+          record_id: string
+        }
+        Update: {
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          metadata?: Json
+          module_code?: string
+          party_id?: string
+          record_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_party_links_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_party_links_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_party_duplicate_review"
+            referencedColumns: ["party_id_a"]
+          },
+          {
+            foreignKeyName: "crm_party_links_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_party_duplicate_review"
+            referencedColumns: ["party_id_b"]
+          },
+        ]
+      }
+      crm_party_relationships: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json
+          party_id: string
+          related_party_id: string
+          relationship_code: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          party_id: string
+          related_party_id: string
+          relationship_code: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          party_id?: string
+          related_party_id?: string
+          relationship_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_party_relationships_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_party_relationships_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_party_duplicate_review"
+            referencedColumns: ["party_id_a"]
+          },
+          {
+            foreignKeyName: "crm_party_relationships_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_party_duplicate_review"
+            referencedColumns: ["party_id_b"]
+          },
+          {
+            foreignKeyName: "crm_party_relationships_related_party_id_fkey"
+            columns: ["related_party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_parties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_party_relationships_related_party_id_fkey"
+            columns: ["related_party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_party_duplicate_review"
+            referencedColumns: ["party_id_a"]
+          },
+          {
+            foreignKeyName: "crm_party_relationships_related_party_id_fkey"
+            columns: ["related_party_id"]
+            isOneToOne: false
+            referencedRelation: "crm_party_duplicate_review"
+            referencedColumns: ["party_id_b"]
           },
         ]
       }
@@ -5753,6 +5998,7 @@ export type Database = {
           creneau_prefere: string | null
           date_contact_souhaitee: string | null
           delai_demarrage: string | null
+          denomination_sociale: string | null
           departement_id: string | null
           dispose_terrain: boolean
           district_id: string | null
@@ -5760,6 +6006,7 @@ export type Database = {
           est_diaspora: boolean
           etape_conversion: string | null
           etape_pipeline: string
+          forme_juridique_code: string | null
           formule_code: string | null
           id: string
           id_unique: string | null
@@ -5767,9 +6014,12 @@ export type Database = {
           localite: string | null
           metadata: Json
           mode_contact_prefere: string | null
+          nature_organisation_code: string | null
           nom: string
           nom_complet: string | null
           nom_famille: string | null
+          nombre_membres: number | null
+          numero_enregistrement: string | null
           offre_code: string | null
           pays_diaspora: string | null
           prenoms: string
@@ -5778,6 +6028,9 @@ export type Database = {
           prospect_id: string | null
           region_id: string | null
           region_residence: string | null
+          responsable_legal_nom: string | null
+          responsable_legal_prenoms: string | null
+          responsable_legal_telephone: string | null
           source: string
           sous_prefecture_id: string | null
           statut: string
@@ -5791,6 +6044,7 @@ export type Database = {
           telephone_secondaire_local: string | null
           telephone_secondaire_whatsapp: boolean
           type_lead: string
+          type_personne: string
           updated_at: string
           village_id: string | null
           whatsapp: string | null
@@ -5808,6 +6062,7 @@ export type Database = {
           creneau_prefere?: string | null
           date_contact_souhaitee?: string | null
           delai_demarrage?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           dispose_terrain?: boolean
           district_id?: string | null
@@ -5815,6 +6070,7 @@ export type Database = {
           est_diaspora?: boolean
           etape_conversion?: string | null
           etape_pipeline?: string
+          forme_juridique_code?: string | null
           formule_code?: string | null
           id?: string
           id_unique?: string | null
@@ -5822,9 +6078,12 @@ export type Database = {
           localite?: string | null
           metadata?: Json
           mode_contact_prefere?: string | null
+          nature_organisation_code?: string | null
           nom: string
           nom_complet?: string | null
           nom_famille?: string | null
+          nombre_membres?: number | null
+          numero_enregistrement?: string | null
           offre_code?: string | null
           pays_diaspora?: string | null
           prenoms: string
@@ -5833,6 +6092,9 @@ export type Database = {
           prospect_id?: string | null
           region_id?: string | null
           region_residence?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           source?: string
           sous_prefecture_id?: string | null
           statut?: string
@@ -5846,6 +6108,7 @@ export type Database = {
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
           type_lead?: string
+          type_personne?: string
           updated_at?: string
           village_id?: string | null
           whatsapp?: string | null
@@ -5863,6 +6126,7 @@ export type Database = {
           creneau_prefere?: string | null
           date_contact_souhaitee?: string | null
           delai_demarrage?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           dispose_terrain?: boolean
           district_id?: string | null
@@ -5870,6 +6134,7 @@ export type Database = {
           est_diaspora?: boolean
           etape_conversion?: string | null
           etape_pipeline?: string
+          forme_juridique_code?: string | null
           formule_code?: string | null
           id?: string
           id_unique?: string | null
@@ -5877,9 +6142,12 @@ export type Database = {
           localite?: string | null
           metadata?: Json
           mode_contact_prefere?: string | null
+          nature_organisation_code?: string | null
           nom?: string
           nom_complet?: string | null
           nom_famille?: string | null
+          nombre_membres?: number | null
+          numero_enregistrement?: string | null
           offre_code?: string | null
           pays_diaspora?: string | null
           prenoms?: string
@@ -5888,6 +6156,9 @@ export type Database = {
           prospect_id?: string | null
           region_id?: string | null
           region_residence?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           source?: string
           sous_prefecture_id?: string | null
           statut?: string
@@ -5901,6 +6172,7 @@ export type Database = {
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
           type_lead?: string
+          type_personne?: string
           updated_at?: string
           village_id?: string | null
           whatsapp?: string | null
@@ -8843,6 +9115,7 @@ export type Database = {
           email: string | null
           fichier_piece_recto_url: string | null
           fichier_piece_verso_url: string | null
+          forme_juridique_code: string | null
           id: string
           id_unique: string | null
           leader_communautaire_nom: string | null
@@ -8853,6 +9126,7 @@ export type Database = {
           limites_nord: string | null
           limites_ouest: string | null
           limites_sud: string | null
+          nature_organisation_code: string | null
           nom: string
           nom_complet: string | null
           nom_mere: string | null
@@ -8874,6 +9148,9 @@ export type Database = {
           region_id: string | null
           representant_agricapital_nom: string | null
           representant_agricapital_qualite: string | null
+          responsable_legal_nom: string | null
+          responsable_legal_prenoms: string | null
+          responsable_legal_telephone: string | null
           servitudes: string | null
           sous_prefecture_id: string | null
           statut: string | null
@@ -8890,6 +9167,7 @@ export type Database = {
           telephone_secondaire_whatsapp: boolean
           temoin_proprietaire_nom: string | null
           temoin_proprietaire_qualite: string | null
+          type_personne: string
           type_piece: string | null
           type_proprietaire: string | null
           updated_at: string | null
@@ -8931,6 +9209,7 @@ export type Database = {
           email?: string | null
           fichier_piece_recto_url?: string | null
           fichier_piece_verso_url?: string | null
+          forme_juridique_code?: string | null
           id?: string
           id_unique?: string | null
           leader_communautaire_nom?: string | null
@@ -8941,6 +9220,7 @@ export type Database = {
           limites_nord?: string | null
           limites_ouest?: string | null
           limites_sud?: string | null
+          nature_organisation_code?: string | null
           nom: string
           nom_complet?: string | null
           nom_mere?: string | null
@@ -8962,6 +9242,9 @@ export type Database = {
           region_id?: string | null
           representant_agricapital_nom?: string | null
           representant_agricapital_qualite?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           servitudes?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
@@ -8978,6 +9261,7 @@ export type Database = {
           telephone_secondaire_whatsapp?: boolean
           temoin_proprietaire_nom?: string | null
           temoin_proprietaire_qualite?: string | null
+          type_personne?: string
           type_piece?: string | null
           type_proprietaire?: string | null
           updated_at?: string | null
@@ -9019,6 +9303,7 @@ export type Database = {
           email?: string | null
           fichier_piece_recto_url?: string | null
           fichier_piece_verso_url?: string | null
+          forme_juridique_code?: string | null
           id?: string
           id_unique?: string | null
           leader_communautaire_nom?: string | null
@@ -9029,6 +9314,7 @@ export type Database = {
           limites_nord?: string | null
           limites_ouest?: string | null
           limites_sud?: string | null
+          nature_organisation_code?: string | null
           nom?: string
           nom_complet?: string | null
           nom_mere?: string | null
@@ -9050,6 +9336,9 @@ export type Database = {
           region_id?: string | null
           representant_agricapital_nom?: string | null
           representant_agricapital_qualite?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           servitudes?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
@@ -9066,6 +9355,7 @@ export type Database = {
           telephone_secondaire_whatsapp?: boolean
           temoin_proprietaire_nom?: string | null
           temoin_proprietaire_qualite?: string | null
+          type_personne?: string
           type_piece?: string | null
           type_proprietaire?: string | null
           updated_at?: string | null
@@ -9185,10 +9475,12 @@ export type Database = {
           creneau_prefere: string | null
           date_contact_souhaitee: string | null
           delai_demarrage: string | null
+          denomination_sociale: string | null
           departement_id: string | null
           dispose_terrain: boolean
           district_id: string | null
           email: string | null
+          forme_juridique_code: string | null
           formule_code: string | null
           id: string
           lead_id: string | null
@@ -9196,15 +9488,21 @@ export type Database = {
           localite: string | null
           metadata: Json
           mode_contact_prefere: string | null
+          nature_organisation_code: string | null
           nom: string
           nom_complet: string | null
           nom_famille: string | null
+          nombre_membres: number | null
+          numero_enregistrement: string | null
           offre_code: string | null
           prenoms: string
           prochaine_relance_at: string | null
           proprietaire_id: string | null
           region_id: string | null
           region_residence: string | null
+          responsable_legal_nom: string | null
+          responsable_legal_prenoms: string | null
+          responsable_legal_telephone: string | null
           source: string
           sous_prefecture_id: string | null
           statut: string
@@ -9218,6 +9516,7 @@ export type Database = {
           telephone_secondaire_local: string | null
           telephone_secondaire_whatsapp: boolean
           type_lead: string
+          type_personne: string
           updated_at: string
           village_id: string | null
           whatsapp: string | null
@@ -9235,10 +9534,12 @@ export type Database = {
           creneau_prefere?: string | null
           date_contact_souhaitee?: string | null
           delai_demarrage?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           dispose_terrain?: boolean
           district_id?: string | null
           email?: string | null
+          forme_juridique_code?: string | null
           formule_code?: string | null
           id?: string
           lead_id?: string | null
@@ -9246,15 +9547,21 @@ export type Database = {
           localite?: string | null
           metadata?: Json
           mode_contact_prefere?: string | null
+          nature_organisation_code?: string | null
           nom: string
           nom_complet?: string | null
           nom_famille?: string | null
+          nombre_membres?: number | null
+          numero_enregistrement?: string | null
           offre_code?: string | null
           prenoms: string
           prochaine_relance_at?: string | null
           proprietaire_id?: string | null
           region_id?: string | null
           region_residence?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           source: string
           sous_prefecture_id?: string | null
           statut?: string
@@ -9268,6 +9575,7 @@ export type Database = {
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
           type_lead?: string
+          type_personne?: string
           updated_at?: string
           village_id?: string | null
           whatsapp?: string | null
@@ -9285,10 +9593,12 @@ export type Database = {
           creneau_prefere?: string | null
           date_contact_souhaitee?: string | null
           delai_demarrage?: string | null
+          denomination_sociale?: string | null
           departement_id?: string | null
           dispose_terrain?: boolean
           district_id?: string | null
           email?: string | null
+          forme_juridique_code?: string | null
           formule_code?: string | null
           id?: string
           lead_id?: string | null
@@ -9296,15 +9606,21 @@ export type Database = {
           localite?: string | null
           metadata?: Json
           mode_contact_prefere?: string | null
+          nature_organisation_code?: string | null
           nom?: string
           nom_complet?: string | null
           nom_famille?: string | null
+          nombre_membres?: number | null
+          numero_enregistrement?: string | null
           offre_code?: string | null
           prenoms?: string
           prochaine_relance_at?: string | null
           proprietaire_id?: string | null
           region_id?: string | null
           region_residence?: string | null
+          responsable_legal_nom?: string | null
+          responsable_legal_prenoms?: string | null
+          responsable_legal_telephone?: string | null
           source?: string
           sous_prefecture_id?: string | null
           statut?: string
@@ -9318,6 +9634,7 @@ export type Database = {
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
           type_lead?: string
+          type_personne?: string
           updated_at?: string
           village_id?: string | null
           whatsapp?: string | null
@@ -12778,6 +13095,20 @@ export type Database = {
           first_id: string | null
           first_name: string | null
           first_table: string | null
+        }
+        Relationships: []
+      }
+      crm_party_duplicate_review: {
+        Row: {
+          email_a: string | null
+          email_b: string | null
+          motif: string | null
+          nom_a: string | null
+          nom_b: string | null
+          party_id_a: string | null
+          party_id_b: string | null
+          telephone_a: string | null
+          telephone_b: string | null
         }
         Relationships: []
       }
