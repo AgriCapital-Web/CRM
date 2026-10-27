@@ -418,7 +418,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           ? (leadForm.assigned_to || null) : user.id,
       };
       // Contrôle silencieux des doublons dans les deux tables avant toute création.
-      const duplicate = await findExistingCrmContact(record, conversionLeadId || undefined);
+      const duplicate = await findExistingCrmContact(record, conversionLeadId || undefined, formStage === "prospect" ? "prospects" : "leads");
       if (duplicate) return { duplicate: true };
 
       if (formStage === "prospect") {
