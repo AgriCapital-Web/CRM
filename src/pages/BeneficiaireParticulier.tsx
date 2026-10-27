@@ -197,7 +197,7 @@ const BeneficiaireParticulier = () => {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div><Label>Nom *</Label><Input value={beneficiaire.nom_famille} onChange={e=>setBeneficiaire({...beneficiaire,nom_famille:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
-            <div><Label>Prénoms *</Label><Input value={beneficiaire.prenoms} onChange={e=>setBeneficiaire({...beneficiaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
+            <div><Label>Prénom *</Label><Input value={beneficiaire.prenoms} onChange={e=>setBeneficiaire({...beneficiaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             
             <div><Label>Date de naissance</Label><Input type="date" value={beneficiaire.date_naissance} onChange={e=>setBeneficiaire({...beneficiaire,date_naissance:e.target.value})}/></div>
             <div><Label>Lieu de naissance</Label><Input value={beneficiaire.lieu_naissance} onChange={e=>setBeneficiaire({...beneficiaire,lieu_naissance:e.target.value})}/></div>
@@ -215,7 +215,7 @@ const BeneficiaireParticulier = () => {
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
             <div><Label>Nom</Label><Input value={proprietaire.nom} onChange={e=>setProprietaire({...proprietaire,nom:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
-            <div><Label>Prénoms</Label><Input value={proprietaire.prenoms} onChange={e=>setProprietaire({...proprietaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
+            <div><Label>Prénom</Label><Input value={proprietaire.prenoms} onChange={e=>setProprietaire({...proprietaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <CountryPhoneInput label="Téléphone du propriétaire" countryCode={proprietaire.telephone_indicatif||""} localValue={proprietaire.telephone_local||""} onChange={v=>setProprietaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
             <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={proprietaire.district_id} regionId={proprietaire.region_id} departementId={proprietaire.departement_id} sousPrefectureId={proprietaire.sous_prefecture_id} villageId={proprietaire.village_id} required onChange={(g)=>setProprietaire((x:any)=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",village:g.villageName||""}))}/></div>
             <div><Label>Statut foncier</Label><Input value={proprietaire.statut_foncier} onChange={e=>setProprietaire({...proprietaire,statut_foncier:e.target.value})}/></div>
