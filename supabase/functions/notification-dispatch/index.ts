@@ -886,22 +886,37 @@ serve(async (req) => {
         "pdg", "dg", "admin", "super_admin", "responsable_operations", "responsable_commercial",
         "chef_equipe_commercial", "service_client", "chef_equipe_service_client"
       ].includes(r.role));
-      const { data: lead, error: leadError } = await admin.from("leads")
+      let sourceType: "lead" | "prospect" = "lead";
+      let { data: lead, error: leadError } = await admin.from("leads")
         .select("id,nom,prenoms,civilite,telephone,whatsapp,email,type_lead,assigned_to,created_by,client_id,proprietaire_id,prospect_id")
         .eq("id", leadId).maybeSingle();
       if (leadError) throw leadError;
+      if (!lead) {
+        const prospectResult = await admin.from("prospects")
+          .select("id,lead_id,nom,prenoms,civilite,telephone,whatsapp,email,assigned_to,created_by,client_id,proprietaire_id")
+          .eq("id", leadId).maybeSingle();
+        if (prospectResult.error) throw prospectResult.error;
+        lead = prospectResult.data as typeof lead;
+        sourceType = "prospect";
+      }
       if (!lead) return json(req, { error: "Lead ou prospect introuvable" }, 404);
       // Barrière serveur : un client ou propriétaire foncier ne reçoit plus de prospection,
       // même si un ancien dossier lead/prospect est encore présent.
       if (lead.client_id || lead.proprietaire_id) {
         return json(req, { error: "Prospection bloquée : ce contact est déjà client ou propriétaire foncier." }, 409);
       }
-      const { data: identityLink, error: identityLinkError } = await admin.from("crm_party_links")
-        .select("party_id").eq("module_code", "leads").eq("record_id", lead.id).maybeSingle();
+      const linkSpecs: Array<{ module: "leads" | "prospects"; id: string }> = sourceType === "lead"
+        ? [{ module: "leads", id: lead.id }, ...("prospect_id" in lead && lead.prospect_id ? [{ module: "prospects" as const, id: lead.prospect_id }] : [])]
+        : [{ module: "prospects", id: lead.id }, ...("lead_id" in lead && lead.lead_id ? [{ module: "leads" as const, id: lead.lead_id }] : [])];
+      const identityLinkResults = await Promise.all(linkSpecs.map((spec) =>
+        admin.from("crm_party_links").select("party_id").eq("module_code", spec.module).eq("record_id", spec.id).maybeSingle()
+      ));
+      const identityLinkError = identityLinkResults.find((result) => result.error)?.error;
       if (identityLinkError) throw identityLinkError;
-      if (identityLink?.party_id) {
+      const partyIds = [...new Set(identityLinkResults.map((result) => result.data?.party_id).filter(Boolean))];
+      if (partyIds.length) {
         const { data: effectiveLinks, error: effectiveLinksError } = await admin.from("crm_party_links")
-          .select("module_code").eq("party_id", identityLink.party_id)
+          .select("module_code").in("party_id", partyIds)
           .in("module_code", ["clients", "proprietaires_terres"]).limit(1);
         if (effectiveLinksError) throw effectiveLinksError;
         if (effectiveLinks?.length) {
@@ -912,7 +927,7 @@ serve(async (req) => {
         return json(req, { error: "Vous ne pouvez contacter que vos propres leads ou prospects." }, 403);
       }
       const contact: Contact = {
-        source_type: "lead", source_id: lead.id,
+        source_type: sourceType, source_id: lead.id,
         nom_complet: [lead.prenoms, lead.nom].filter(Boolean).join(" ").trim() || "Contact AgriCapital",
         email: lead.email || null, telephone: lead.telephone || null, whatsapp: lead.whatsapp || null,
       };
