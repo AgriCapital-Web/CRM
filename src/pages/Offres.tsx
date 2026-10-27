@@ -565,9 +565,30 @@ const Offres = () => {
                           {formulas.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">
                             {formulas.map((formula: any) => {
                               const formulaDuration = Number(formula.duree_paiement_mois || duration || 0);
-                              const formulaMonthly = Number(formula.mensualite_par_ha || 0);
-                              const formulaCash = Number(formula.montant_cash_par_ha ?? formula.montant_total_par_ha ?? 0);
-                              const formulaTotal = Number(formula.montant_total_par_ha ?? (formulaCash + formulaMonthly * formulaDuration));
+                              const formulaInitialBase = Math.max(0, Number(formula.montant_pi_par_ha || 0));
+                              const formulaMonthlyBase = Math.max(0, Number(formula.mensualite_par_ha || 0));
+                              const formulaTotalBase = Math.max(0, Number(formula.montant_total_par_ha ?? (formulaInitialBase + formulaMonthlyBase * formulaDuration)));
+                              const formulaCashBase = Math.max(0, Number(formula.montant_cash_par_ha ?? formulaTotalBase));
+                              const selectedPromo = (promotions || []).find((promo: any) => promo.id === effective?.promotion_id) as any;
+                              const promoTarget = effective?.promotion_cible;
+                              const promoPct = Math.min(100, Math.max(0, Number(selectedPromo?.pourcentage_reduction || 0)));
+                              const promoFixed = Math.max(0, Number(selectedPromo?.montant_fixe_reduction || 0));
+                              const formulaInitial = selectedPromo && promoTarget === "paiement_initial"
+                                ? Math.max(formulaInitialBase - formulaInitialBase * promoPct / 100 - promoFixed, 0)
+                                : formulaInitialBase;
+                              const formulaTotal = selectedPromo
+                                ? promoTarget === "cout_global"
+                                  ? Math.max(formulaTotalBase - formulaTotalBase * promoPct / 100 - promoFixed, 0)
+                                  : Math.max(formulaTotalBase - (formulaInitialBase - formulaInitial), 0)
+                                : formulaTotalBase;
+                              const formulaCash = selectedPromo && promoTarget === "cout_global"
+                                ? Math.max(formulaCashBase - formulaCashBase * promoPct / 100 - promoFixed, 0)
+                                : formulaCashBase;
+                              const remainingBase = Math.max(formulaTotalBase - formulaInitialBase, 0);
+                              const remainingEffective = Math.max(formulaTotal - formulaInitialBase, 0);
+                              const formulaMonthly = selectedPromo && promoTarget === "cout_global" && remainingBase > 0
+                                ? formulaMonthlyBase * remainingEffective / remainingBase
+                                : formulaMonthlyBase;
                               return <div key={formula.code || formula.nom} className="rounded-md border bg-background p-2">
                                 <p className="mb-1 text-xs font-semibold">{formula.nom || formula.code}</p>
                                 <div className="grid grid-cols-2 gap-1 text-xs">
