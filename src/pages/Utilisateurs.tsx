@@ -57,7 +57,7 @@ const Utilisateurs = () => {
       const term = search.trim();
       let query = (supabase as any)
         .from("v_internal_users")
-        .select("*", { count: "exact" }
+        .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
         // Les fiches clients ne sont pas des comptes utilisateurs : seuls les profils avec email de connexion sont listés.
         .not("email", "is", null)
