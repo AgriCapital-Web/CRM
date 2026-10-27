@@ -307,6 +307,13 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       if (editingLead ? !canUpdateLeads : !canCreateLeads) {
         throw new Error(editingLead ? "Votre rôle ne permet pas de modifier les leads." : "Votre rôle ne permet pas de créer des leads.");
       }
+      const identityType = leadForm.type_personne || "personne_physique";
+      if (identityType === "personne_morale" && (!String(leadForm.denomination_sociale || "").trim() || !String(leadForm.nature_organisation_code || "").trim() || !String(leadForm.responsable_legal_nom || leadForm.nom || "").trim() || !String(leadForm.responsable_legal_prenoms || leadForm.prenoms || "").trim())) {
+        throw new Error("Pour une personne morale, renseignez la dénomination sociale, la nature de l’organisation, le nom et le prénom du responsable légal.");
+      }
+      if (identityType === "famille_informelle" && (!String(leadForm.nom_famille || "").trim() || !String(leadForm.responsable_legal_nom || leadForm.nom || "").trim() || !String(leadForm.responsable_legal_prenoms || leadForm.prenoms || "").trim())) {
+        throw new Error("Pour une famille informelle, renseignez le nom de la famille ainsi que le nom et le prénom du responsable.");
+      }
       if (editingLead) {
         const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
         if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
