@@ -76,12 +76,13 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
-  const { user, userRoles, primaryRole } = useAuth();
+  const { user, userRoles, primaryRole, profile } = useAuth();
   const { can } = usePermissions();
+  const isLarissaFormEditor = String(profile?.nom_complet || "").trim().toLocaleUpperCase("fr-FR") === "KONAN AMENAN LARISSA";
   const canCreateLeads = can("leads.create");
-  const canUpdateLeads = can("leads.update");
+  const canUpdateLeads = can("leads.update") || isLarissaFormEditor;
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
-  const isGlobalAdmin = ["pdg", "dg", "admin", "super_admin"].includes(primaryRole || "");
+  const isGlobalAdmin = ["pdg", "dg", "admin", "super_admin"].includes(primaryRole || "") || isLarissaFormEditor;
   const isFoncierRole = ["mobilisateur_foncier", "superviseur_mobilisation_fonciere"].includes(primaryRole || "");
   // Le périmètre d'encadrement suit le rôle principal; les rôles secondaires
   // continuent d'ajouter leurs permissions, sans élargir automatiquement le périmètre.
@@ -897,7 +898,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 sousPrefectureId={leadForm.sous_prefecture_id}
                                 villageId={leadForm.village_id}
                                 required
-                                onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",localite:g.villageName||x.localite||"",region_residence:g.regionName||x.region_residence||""}))}
+                                onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId!==undefined?(g.districtId||""):x.district_id,region_id:g.regionId!==undefined?(g.regionId||""):x.region_id,departement_id:g.departementId!==undefined?(g.departementId||""):x.departement_id,sous_prefecture_id:g.sousPrefectureId!==undefined?(g.sousPrefectureId||""):x.sous_prefecture_id,village_id:g.villageId!==undefined?(g.villageId||""):x.village_id,localite:g.villageName!==undefined?(g.villageName||""):x.localite,region_residence:g.regionName!==undefined?(g.regionName||""):x.region_residence}))}
                               />
                             </div>
                             <div><Label>Lieu de résidence</Label><Input value={leadForm.lieu_residence} onChange={(e) => setLeadForm({ ...leadForm, lieu_residence: e.target.value })} placeholder="Lieu de résidence" /></div>
