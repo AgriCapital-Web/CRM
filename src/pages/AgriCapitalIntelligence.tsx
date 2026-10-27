@@ -122,7 +122,7 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
     const valid = transactions.filter((r: Row) => !r.status || /valid|confirm|paid|payé|approuv/i.test(String(r.status)));
     const inflow = valid.filter((r: Row) => /entrée|entree|income|in|recette/i.test(String(r.direction || r.type || ""))).reduce((s: number, r: Row) => s + Number(r.amount || r.montant || 0), 0);
     const outflow = valid.filter((r: Row) => /sortie|expense|out|dépense|depense/i.test(String(r.direction || r.type || ""))).reduce((s: number, r: Row) => s + Number(r.amount || r.montant || 0), 0);
-    const officialClients = clients.filter((r: Row) => /^AC-C/i.test(String(r.id_unique || "").trim()) && r.is_internal !== true && String(r.type_client || "").toLowerCase() !== "beneficiaire_particulier");
+    const officialClients = clients.filter((r: Row) => /^AC[-_]C/i.test(String(r.id_unique || "").trim()) && r.is_internal !== true && String(r.type_client || "").toLowerCase() !== "beneficiaire_particulier");
     const hectaresClients = officialClients.filter((r: Row) => Number(r.total_hectares || 0) > 0).reduce((s: number, r: Row) => s + Number(r.total_hectares || 0), 0);
     const plantedByParcel = new Map<string, number>();
     plantations.forEach((r: Row) => {
