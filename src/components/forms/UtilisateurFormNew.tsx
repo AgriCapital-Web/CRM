@@ -414,7 +414,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             {errors.nom?.message && <p className="text-sm text-destructive">{String(errors.nom.message)}</p>}
           </div>
           <div className="space-y-2">
-            <Label>Prénom(s) *</Label>
+            <Label>Prénom *</Label>
             <Input {...register("prenoms", { required: true })} defaultValue={utilisateur?.prenoms || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || ""} />
             {errors.prenoms?.message && <p className="text-sm text-destructive">{String(errors.prenoms.message)}</p>}
           </div>
