@@ -382,9 +382,15 @@ const NouvelleAcquisition = () => {
       toast({variant:"destructive",title:"Formule obligatoire",description:"Choisissez d’abord la formule exacte de l’offre avant de passer à l’étape Client."}); return false;
     }
     if(step.code==="client"){
-      const fields=["civilite","nom_famille","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece","telephone","domicile"];
-      if(fields.some(f=>!formData[f])||(!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview)){
-        toast({variant:"destructive",title:"Client incomplet",description:"L’identité, les coordonnées, la photo et les deux faces de la pièce sont obligatoires."}); return false;
+      const identityType=formData.type_personne||"personne_physique";
+      const commonFields=["telephone","domicile"];
+      const physicalFields=["civilite","nom_famille","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece"];
+      const legalFields=["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"];
+      const familyFields=["nom_famille","responsable_legal_nom","responsable_legal_prenoms"];
+      const fields=[...commonFields,...(identityType==="personne_morale"?legalFields:identityType==="famille_informelle"?familyFields:physicalFields)];
+      const missingPersonalDocuments=identityType==="personne_physique"&&((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
+      if(fields.some(f=>!String(formData[f]||"").trim())||missingPersonalDocuments){
+        toast({variant:"destructive",title:"Identité incomplète",description:identityType==="personne_physique"?"Renseignez l’identité, les coordonnées, la photo et les deux faces de la pièce.":"Renseignez les informations de l’organisation ou de la famille, le responsable (nom et prénom) ainsi que les coordonnées."}); return false;
       }
     }
     if(step.code==="cotitulaire"){
@@ -528,12 +534,18 @@ const NouvelleAcquisition = () => {
       const mensualite=Number(prix.mensualite_effective||0)*ha;
       const reduction=Number(prix.reduction_montant||0)*ha;
       const external=!offer.necessite_foncier_client;
-      const nomComplet=(String(formData.nom_famille||"")+" "+String(formData.prenoms||"")).trim();
+      const identityType=formData.type_personne||"personne_physique";
+      const responsibleNom=identityType==="personne_physique" ? (formData.nom||formData.nom_famille||"") : (formData.responsable_legal_nom||formData.nom||"");
+      const responsiblePrenoms=identityType==="personne_physique" ? (formData.prenoms||"") : (formData.responsable_legal_prenoms||formData.prenoms||"");
+      const familyName=identityType==="famille_informelle" ? (formData.nom_famille||"") : responsibleNom;
+      const nomComplet=identityType==="personne_morale" ? String(formData.denomination_sociale||"").trim() : identityType==="famille_informelle" ? String(formData.nom_famille||"").trim() : (String(responsiblePrenoms)+" "+String(responsibleNom)).trim();
       const {data:client,error:clientError}=await offlineUpsert("clients",{id:stableClientId,
         offre_id:offer.id,commercial_id:formData.commercial_id||null,parcelle_id:null,type_client:external?"sans_terre":"avec_terre",type_client_foncier:external?"EXT":"OWN",
-        nom:formData.nom_famille||"",nom_famille:formData.nom_famille||"",prenoms:formData.prenoms||"",nom_complet:nomComplet,
-        civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,nationalite:formData.nationalite||null,
-        statut_marital:formData.statut_marital||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,date_delivrance_piece:formData.date_delivrance_piece||null,
+        type_personne:identityType,nom:responsibleNom,nom_famille:familyName,prenoms:responsiblePrenoms,nom_complet:nomComplet,
+        denomination_sociale:formData.denomination_sociale||null,nature_organisation_code:formData.nature_organisation_code||null,forme_juridique_code:formData.forme_juridique_code||null,numero_enregistrement:formData.numero_enregistrement||null,nombre_membres:formData.nombre_membres?Number(formData.nombre_membres):null,
+        responsable_legal_nom:identityType==="personne_physique"?null:responsibleNom,responsable_legal_prenoms:identityType==="personne_physique"?null:responsiblePrenoms,responsable_legal_telephone:formData.responsable_legal_telephone||null,
+        civilite:identityType==="personne_physique"?(formData.civilite||null):null,date_naissance:identityType==="personne_physique"?(formData.date_naissance||null):null,lieu_naissance:identityType==="personne_physique"?(formData.lieu_naissance||null):null,nationalite:identityType==="personne_physique"?(formData.nationalite||null):null,
+        statut_marital:identityType==="personne_physique"?(formData.statut_marital||null):null,type_piece:identityType==="personne_physique"?(formData.type_piece||null):null,numero_piece:identityType==="personne_physique"?(formData.numero_piece||null):null,date_delivrance_piece:identityType==="personne_physique"?(formData.date_delivrance_piece||null):null,
         telephone:formData.telephone||"",telephone_indicatif:formData.telephone_indicatif||null,telephone_local:formData.telephone_local||null,
         telephone_secondaire:formData.telephone_secondaire||null,telephone_secondaire_indicatif:formData.telephone_secondaire_indicatif||null,telephone_secondaire_local:formData.telephone_secondaire_local||null,
         telephone_principal_whatsapp:!!formData.telephone_principal_whatsapp,telephone_secondaire_whatsapp:!!formData.telephone_secondaire_whatsapp,
@@ -597,17 +609,19 @@ const NouvelleAcquisition = () => {
       // Les trois pièces d'identité sont gérées ici depuis leurs champs uniques
       // de l'étape Client. Elles ne doivent pas être répétées dans la configuration
       // des documents dynamiques ni téléversées une seconde fois.
-      for (const [code, config] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
-        const uploaded = identityUploadedPaths[code];
-        if (!uploaded?.path) throw new Error("Pièce d’identité manquante ou non téléversée : " + code);
-        const { error: identityDocError } = await offlineUpsert("documents_acquisition", {
-          id: stableUuid(stableClientId, "document:" + code),
-          client_id: client.id, type_document: code, code_document: code, categorie: "identite",
-          obligatoire: true, source_contractuelle: null, fichier_url: uploaded.path, statut: "en_attente",
-          uploaded_by: currentUser.id,
-          metadata: { offre_id: offer.id, parcours_code: offer.parcours_code || offer.code, storage_bucket: uploaded.bucket },
-        });
-        if (identityDocError) throw identityDocError;
+      if (identityType === "personne_physique") {
+        for (const [code, config] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
+          const uploaded = identityUploadedPaths[code];
+          if (!uploaded?.path) throw new Error("Pièce d’identité manquante ou non téléversée : " + code);
+          const { error: identityDocError } = await offlineUpsert("documents_acquisition", {
+            id: stableUuid(stableClientId, "document:" + code),
+            client_id: client.id, type_document: code, code_document: code, categorie: "identite",
+            obligatoire: true, source_contractuelle: null, fichier_url: uploaded.path, statut: "en_attente",
+            uploaded_by: currentUser.id,
+            metadata: { offre_id: offer.id, parcours_code: offer.parcours_code || offer.code, storage_bucket: uploaded.bucket },
+          });
+          if (identityDocError) throw identityDocError;
+        }
       }
 
       const {data:docs,error:docsError}=await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",offer.id).eq("actif",true).order("ordre");
