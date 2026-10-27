@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Upload, X, File } from "lucide-react";
+import { Upload, X, File, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FileUploadProps {
@@ -27,6 +27,8 @@ const FileUpload = ({
   const [error, setError] = useState<string>("");
   const [preview, setPreview] = useState<string>("");
   const [previewType, setPreviewType] = useState<string>("");
+  const [previewName, setPreviewName] = useState<string>("");
+  useEffect(() => () => { if (preview.startsWith("blob:")) URL.revokeObjectURL(preview); }, [preview]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,8 +43,9 @@ const FileUpload = ({
       return;
     }
 
-    setPreviewType(file.type);
-    const reader=new FileReader(); reader.onload=()=>setPreview(String(reader.result||"")); reader.readAsDataURL(file);
+    setPreviewType(file.type || "application/octet-stream");
+    setPreviewName(file.name);
+    setPreview(URL.createObjectURL(file));
     onFileSelect(file);
     // Permet de sélectionner à nouveau le même fichier après remplacement ou erreur.
     e.currentTarget.value = "";
@@ -57,7 +60,7 @@ const FileUpload = ({
       inputRef.current.value = "";
     }
     setError("");
-    setPreview(""); setPreviewType("");
+    setPreview(""); setPreviewType(""); setPreviewName("");
     onRemove?.();
   };
 
@@ -72,9 +75,10 @@ const FileUpload = ({
         disabled={disabled}
       />
       
-      {currentFile && preview && (
-        <div className="space-y-2">
-          {previewType.startsWith("image/") ? <img src={preview} alt="Aperçu" className="w-full max-h-56 rounded border object-contain" /> : previewType.startsWith("video/") ? <video src={preview} controls className="w-full max-h-56 rounded border" /> : previewType === "application/pdf" ? <iframe title="Aperçu PDF" src={preview} className="h-56 w-full rounded border" /> : null}
+      {preview && (
+        <div className="space-y-2 rounded-lg border p-3">
+          <div className="flex items-center gap-2 text-sm font-medium"><FileText className="h-4 w-4 shrink-0"/><span className="min-w-0 flex-1 truncate">{previewName || currentFile || "Fichier sélectionné"}</span><span className="text-xs text-muted-foreground">Aperçu avant envoi</span></div>
+          {previewType.startsWith("image/") ? <img src={preview} alt={previewName || "Aperçu de l’image"} className="w-full max-h-72 rounded border object-contain" /> : previewType.startsWith("video/") ? <video src={preview} controls preload="metadata" className="w-full max-h-72 rounded border" /> : previewType === "application/pdf" ? <iframe title={previewName || "Aperçu PDF"} src={preview} className="h-72 w-full rounded border" /> : previewType.startsWith("text/") ? <iframe title={previewName || "Aperçu du document"} src={preview} className="h-56 w-full rounded border" /> : <a href={preview} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-primary underline"><Eye className="h-4 w-4"/>Ouvrir / prévisualiser le document</a>}
         </div>
       )}
       {currentFile ? (
