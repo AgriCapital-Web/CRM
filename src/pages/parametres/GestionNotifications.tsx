@@ -15,7 +15,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, Video, X, History, MoreHorizontal, Pencil, Play, Pause, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import ConfigurationSenndo from "@/pages/parametres/ConfigurationSenndo";
-import JournalAudit from "@/pages/parametres/JournalAudit";
 
 type Segment = { id: string; code: string; nom: string; description: string | null; criteres: Record<string, unknown>; actif: boolean };
 type Campaign = {
@@ -116,7 +115,7 @@ const GestionNotifications = () => {
   const [automationMedia, setAutomationMedia] = useState<MediaAttachment[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [campaignRecipientCounts, setCampaignRecipientCounts] = useState<Record<string, number>>({});
+  const [campaignRecipientCounts, setCampaignRecipientCounts] = useState<Record<string, number | null>>({});
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [deliveryCampaignFilter, setDeliveryCampaignFilter] = useState("all");
   const [deliveryChannelFilter, setDeliveryChannelFilter] = useState("all");
@@ -178,7 +177,7 @@ const GestionNotifications = () => {
       if (selected) {
         const resolved = selected.filter((r: any) => directoryByKey.has(String(r.source_type) + ":" + String(r.source_id)));
         // Keep the persisted selection count visible even if the directory endpoint is temporarily unavailable.
-        details[item.id] = directoryByKey.size ? resolved.length : selected.length;
+        details[item.id] = directoryByKey.size ? resolved.length : null;
         return;
       }
       const audience = String(criteria.audience || "tous");
@@ -187,7 +186,7 @@ const GestionNotifications = () => {
         details[item.id] = Number(preview.count) || 0;
       } catch (error) {
         console.error("Impossible de prévisualiser l’audience de la campagne", item.id, error);
-        details[item.id] = Number(item.total_destinataires) || 0;
+        details[item.id] = null;
       }
     }));
     setCampaignRecipientCounts(details);
@@ -312,8 +311,10 @@ const GestionNotifications = () => {
   };
 
   const updateCampaignStatus = async (item: Campaign, statut: string) => {
+    const allowed = ["brouillon", "programme", "active", "suspendue", "en_cours", "termine", "partiel", "echoue", "annule"];
+    if (!allowed.includes(statut)) return toast.error("Statut de campagne non reconnu.");
     const { error } = await (supabase as any).from("notification_campaigns").update({ statut, updated_at: new Date().toISOString() }).eq("id", item.id);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error("Impossible de modifier la campagne : " + error.message);
     toast.success(statut === "suspendue" ? "Campagne suspendue" : statut === "active" ? "Campagne activée" : "Campagne mise à jour");
     await load();
   };
@@ -399,7 +400,7 @@ const GestionNotifications = () => {
             <TabsTrigger value="campaigns"><Send className="mr-2 h-4 w-4" />Campagnes</TabsTrigger><TabsTrigger value="deliveries"><CheckCircle2 className="mr-2 h-4 w-4"/>Journal des envois</TabsTrigger>
             <TabsTrigger value="automations"><Zap className="mr-2 h-4 w-4" />Automatisations</TabsTrigger>
             <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger><TabsTrigger value="templates"><FileText className="mr-2 h-4 w-4" />Modèles</TabsTrigger>
-            <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger><TabsTrigger value="traces"><History className="mr-2 h-4 w-4" />Traces</TabsTrigger>
+            <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger>
           </TabsList>
         </div>
 
@@ -438,7 +439,7 @@ const GestionNotifications = () => {
 
           <Card>
             <CardHeader><CardTitle>Campagnes recentes</CardTitle></CardHeader>
-            <CardContent><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left"><th className="p-3">Campagne</th><th className="p-3">Canal</th><th className="p-3">Etat</th><th className="p-3">Dest.</th><th className="p-3">Envoyes</th><th className="p-3">Actions</th></tr></thead><tbody>{campaigns.map((c) => <tr key={c.id} className="border-b last:border-0"><td className="p-3 font-medium">{c.nom}</td><td className="p-3">{CHANNELS.find(x => x.value === c.canal)?.label || c.canal}</td><td className="p-3"><Badge variant={c.statut === "termine" ? "default" : "outline"}>{c.statut}</Badge></td><td className="p-3">{campaignRecipientCounts[c.id] ?? (Array.isArray(c.criteres?.selected_recipients) ? c.criteres.selected_recipients.length : (c.total_destinataires || 0))}</td><td className="p-3">{c.total_envoyes}</td><td className="p-3"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`Actions pour ${c.nom}`} title="Actions de la campagne"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-52"><DropdownMenuItem onSelect={() => editCampaign(c)} disabled={["en_cours","termine"].includes(c.statut)}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>{["brouillon","suspendue","echoue","partiel"].includes(c.statut) ? <DropdownMenuItem onSelect={() => void updateCampaignStatus(c, "active")}><Play className="mr-2 h-4 w-4"/>Activer</DropdownMenuItem> : <DropdownMenuItem onSelect={() => void updateCampaignStatus(c, "suspendue")} disabled={["termine","annule"].includes(c.statut)}><Pause className="mr-2 h-4 w-4"/>Suspendre</DropdownMenuItem>}<DropdownMenuItem onSelect={() => void sendCampaign(c.id)} disabled={["termine","annule","en_cours"].includes(c.statut)}><Send className="mr-2 h-4 w-4"/>Envoyer</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void deleteCampaign(c)} disabled={c.statut === "en_cours"}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td></tr>)}{!loading && campaigns.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune campagne</td></tr>}</tbody></table></div></CardContent>
+            <CardContent><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left"><th className="p-3">Campagne</th><th className="p-3">Canal</th><th className="p-3">Etat</th><th className="p-3">Dest.</th><th className="p-3">Envoyes</th><th className="p-3">Actions</th></tr></thead><tbody>{campaigns.map((c) => <tr key={c.id} className="border-b last:border-0"><td className="p-3 font-medium">{c.nom}</td><td className="p-3">{CHANNELS.find(x => x.value === c.canal)?.label || c.canal}</td><td className="p-3"><Badge variant={c.statut === "termine" ? "default" : "outline"}>{c.statut}</Badge></td><td className="p-3">{Object.prototype.hasOwnProperty.call(campaignRecipientCounts, c.id) ? (campaignRecipientCounts[c.id] ?? "—") : (Array.isArray(c.criteres?.selected_recipients) ? c.criteres.selected_recipients.length : (c.total_destinataires || 0))}</td><td className="p-3">{c.total_envoyes}</td><td className="p-3"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="outline" aria-label={`Actions pour ${c.nom}`} title="Actions de la campagne"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-52"><DropdownMenuItem onSelect={() => editCampaign(c)} disabled={["en_cours","termine"].includes(c.statut)}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>{["brouillon","suspendue","echoue","partiel"].includes(c.statut) ? <DropdownMenuItem onSelect={() => void updateCampaignStatus(c, "active")}><Play className="mr-2 h-4 w-4"/>Activer</DropdownMenuItem> : <DropdownMenuItem onSelect={() => void updateCampaignStatus(c, "suspendue")} disabled={["termine","annule"].includes(c.statut)}><Pause className="mr-2 h-4 w-4"/>Suspendre</DropdownMenuItem>}<DropdownMenuItem onSelect={() => void sendCampaign(c.id)} disabled={["termine","annule","en_cours"].includes(c.statut)}><Send className="mr-2 h-4 w-4"/>Envoyer</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void deleteCampaign(c)} disabled={c.statut === "en_cours"}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td></tr>)}{!loading && campaigns.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune campagne</td></tr>}</tbody></table></div></CardContent>
           </Card>
         <Dialog open={recipientPickerOpen} onOpenChange={setRecipientPickerOpen}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl"><Card><CardHeader><CardTitle>Choisir les destinataires</CardTitle></CardHeader><CardContent className="space-y-3"><Input value={recipientSearch} onChange={e=>setRecipientSearch(e.target.value)} placeholder="Rechercher un nom, téléphone ou e-mail…"/><div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border p-3 text-sm sm:grid-cols-3">{[["client","Clients"],["proprietaire_foncier","Propriétaires fonciers"],["equipe","Collaborateurs"],["lead","Leads"],["prospect","Prospects"],["beneficiaire_particulier","Bénéficiaires particuliers"],["autre","Autres"]].map(([value,label])=><label key={value} className="flex min-w-0 items-center gap-2"><input type="checkbox" className="h-4 w-4 shrink-0" checked={recipientTypes.includes(value)} onChange={e=>setRecipientTypes(current=>e.target.checked?[...current,value]:current.filter(x=>x!==value))}/><span>{label}</span></label>)}</div><div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>{selectedRecipients.length} sélectionné(s)</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" onClick={()=>setSelectedRecipients(recipientDirectory.filter((r:any)=>recipientMatchesType(r,recipientTypes)).map((r:any)=>({source_type:r.source_type,source_id:r.source_id})))}>Tout cocher</Button><Button type="button" variant="outline" size="sm" onClick={()=>setSelectedRecipients([])}>Tout décocher</Button></div></div><div className="max-h-[42dvh] space-y-1 overflow-y-auto rounded-md border p-2">{recipientLoading ? <p className="p-4 text-sm">Chargement de tous les contacts…</p> : recipientDirectory.filter((r:any)=>recipientMatchesType(r,recipientTypes)&&[r.nom_complet,r.email,r.telephone].some((v:any)=>matchesAccentInsensitive(v, recipientSearch))).length === 0 ? <div className="p-4 text-sm text-muted-foreground">Aucun destinataire dans ce filtre. Décochez les catégories ou choisissez « Tout le monde » pour afficher tous les contacts.</div> : recipientDirectory.filter((r:any)=>recipientMatchesType(r,recipientTypes)&&[r.nom_complet,r.email,r.telephone].some((v:any)=>matchesAccentInsensitive(v, recipientSearch))).map((r:any)=>{const key={source_type:r.source_type,source_id:r.source_id};const checked=selectedRecipients.some(x=>x.source_type===key.source_type&&x.source_id===key.source_id);return <label key={r.source_type+":"+r.source_id} className="flex cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-muted"><input type="checkbox" checked={checked} onChange={e=>setSelectedRecipients(current=>e.target.checked?[...current.filter(x=>x.source_id!==key.source_id||x.source_type!==key.source_type),key]:current.filter(x=>x.source_id!==key.source_id||x.source_type!==key.source_type))}/><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{r.nom_complet ? formatRecipientName(r.nom_complet, r.source_type) : "Contact sans nom"}</span><span className="block truncate text-xs text-muted-foreground">{r.source_type} · {[r.telephone,r.email].filter(Boolean).join(" · ")}</span></span></label>})}</div><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setRecipientPickerOpen(false)}>Annuler</Button><Button type="button" onClick={()=>{const chosen=recipientDirectory.filter((r:any)=>selectedRecipients.some(x=>x.source_type===r.source_type&&x.source_id===r.source_id));setCampaign(c=>({...c,audience:"selection",segment_id:""}));setRecipientPickerOpen(false);setPreview({count:selectedRecipients.length,sample:chosen.slice(0,20)});}}>Confirmer la sélection</Button></div></CardContent></Card></DialogContent></Dialog>
 </TabsContent>
@@ -469,8 +470,6 @@ const GestionNotifications = () => {
         </TabsContent>
 
         <TabsContent value="senndo" className="space-y-5"><ConfigurationSenndo /></TabsContent>
-
-        <TabsContent value="traces"><JournalAudit /></TabsContent>
 
         <TabsContent value="templates"><Card><CardHeader><CardTitle>Modèles de messages</CardTitle></CardHeader><CardContent className="space-y-3">{templates.map(t=><div key={t.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.nom}</span><Badge variant="outline">{t.canal}</Badge><Badge variant={t.actif?"default":"secondary"}>{t.actif?"Actif":"Inactif"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t.evenement} · {t.code}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{t.contenu.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()}</p></div><Button type="button" variant="outline" onClick={()=>applyTemplate(t)}>Utiliser</Button></div>)}{!templates.length&&<p className="py-8 text-center text-muted-foreground">Aucun modèle enregistré en base.</p>}</CardContent></Card></TabsContent>
 
