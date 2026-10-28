@@ -118,6 +118,12 @@ const GestionNotifications = () => {
   const [automationMedia, setAutomationMedia] = useState<MediaAttachment[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [deliveryCampaignFilter, setDeliveryCampaignFilter] = useState("all");
+  const [deliveryChannelFilter, setDeliveryChannelFilter] = useState("all");
+  const [deliveryStatusFilter, setDeliveryStatusFilter] = useState("all");
+  const [deliveryTypeFilter, setDeliveryTypeFilter] = useState("all");
+  const [deliveryDateFilter, setDeliveryDateFilter] = useState("");
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState<Record<string, boolean | string | null>>({});
@@ -146,17 +152,20 @@ const GestionNotifications = () => {
 
   const load = async () => {
     setLoading(true);
-    const [s, c, a, t, cl, prefs] = await Promise.all([
+    const [s, c, a, t, cl, prefs, d] = await Promise.all([
       supabase.from("notification_segments").select("*").order("nom"),
       (supabase as any).from("notification_campaigns").select("*").order("created_at", { ascending: false }).limit(100),
       (supabase as any).from("notification_automations").select("*").order("nom"),
       (supabase as any).from("notification_templates").select("id,code,nom,canal,evenement,sujet,contenu,actif,parcours,media_attachments").order("evenement").order("canal"),
       supabase.from("clients").select("id,nom_complet,telephone,whatsapp,email").order("nom_complet").limit(500),
       (supabase as any).from("notification_client_preferences").select("client_id,canal_finalisation,canal_rappel"),
+      (supabase as any).from("notification_deliveries").select("id,campaign_id,automation_id,recipient_name,recipient_phone,recipient_email,canal,statut,fournisseur,provider_message_id,erreur,sent_at,created_at,source_type,contenu").order("created_at", {ascending:false}).limit(1000),
     ]);
     if (s.error || c.error || a.error) toast.error("Impossible de charger la communication");
     setSegments((s.data || []) as Segment[]);
     setCampaigns((c.data || []) as Campaign[]);
+    if (d.error) toast.error("Impossible de charger le journal des envois: " + d.error.message);
+    setDeliveries(d.data || []);
     setAutomations((a.data || []) as Automation[]);
     setTemplates((t.data || []) as NotificationTemplate[]);
     const savedPreferences = prefs.data || [];
@@ -346,12 +355,27 @@ const GestionNotifications = () => {
       <Tabs defaultValue="campaigns" className="w-full min-w-0">
         <div className="overflow-x-auto">
           <TabsList className="inline-flex min-w-max">
-            <TabsTrigger value="campaigns"><Send className="mr-2 h-4 w-4" />Campagnes</TabsTrigger>
+            <TabsTrigger value="campaigns"><Send className="mr-2 h-4 w-4" />Campagnes</TabsTrigger><TabsTrigger value="deliveries"><CheckCircle2 className="mr-2 h-4 w-4"/>Journal des envois</TabsTrigger>
             <TabsTrigger value="automations"><Zap className="mr-2 h-4 w-4" />Automatisations</TabsTrigger>
             <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger><TabsTrigger value="templates"><FileText className="mr-2 h-4 w-4" />Modèles</TabsTrigger><TabsTrigger value="preferences"><Smartphone className="mr-2 h-4 w-4" />Choix client</TabsTrigger>
             <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="deliveries" className="space-y-5">
+          <Card><CardHeader><CardTitle>Journal des envois et accusés de réception</CardTitle></CardHeader><CardContent className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              <Select value={deliveryCampaignFilter} onValueChange={setDeliveryCampaignFilter}><SelectTrigger><SelectValue placeholder="Toutes les campagnes"/></SelectTrigger><SelectContent><SelectItem value="all">Toutes les campagnes</SelectItem>{campaigns.map(x=><SelectItem key={x.id} value={x.id}>{x.nom}</SelectItem>)}</SelectContent></Select>
+              <Select value={deliveryChannelFilter} onValueChange={setDeliveryChannelFilter}><SelectTrigger><SelectValue placeholder="Tous les canaux"/></SelectTrigger><SelectContent><SelectItem value="all">Tous les canaux</SelectItem>{CHANNELS.map(x=><SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select>
+              <Select value={deliveryStatusFilter} onValueChange={setDeliveryStatusFilter}><SelectTrigger><SelectValue placeholder="Tous les statuts"/></SelectTrigger><SelectContent><SelectItem value="all">Tous les statuts</SelectItem>{["en_cours","envoye","livre","lu","echoue","en_attente"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+              <Select value={deliveryTypeFilter} onValueChange={setDeliveryTypeFilter}><SelectTrigger><SelectValue placeholder="Tous les types"/></SelectTrigger><SelectContent><SelectItem value="all">Tous les types</SelectItem><SelectItem value="campaign">Campagnes manuelles</SelectItem><SelectItem value="automation">Automatisations</SelectItem></SelectContent></Select>
+              <Input type="date" value={deliveryDateFilter} onChange={e=>setDeliveryDateFilter(e.target.value)} aria-label="Filtrer par date"/>
+            </div>
+            <div className="text-sm text-muted-foreground">{deliveries.filter(d=>(deliveryCampaignFilter==="all"||d.campaign_id===deliveryCampaignFilter)&&(deliveryChannelFilter==="all"||d.canal===deliveryChannelFilter)&&(deliveryStatusFilter==="all"||d.statut===deliveryStatusFilter)&&(deliveryTypeFilter==="all"||(deliveryTypeFilter==="campaign"?Boolean(d.campaign_id):Boolean(d.automation_id)))&&(!deliveryDateFilter||String(d.created_at||"").slice(0,10)===deliveryDateFilter)).length} enregistrement(s) — « envoyé » signifie accepté par le fournisseur, pas nécessairement livré ou lu.</div>
+            <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[1050px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Date</th><th className="p-2">Destinataire</th><th className="p-2">Type</th><th className="p-2">Canal</th><th className="p-2">Statut</th><th className="p-2">Fournisseur / ID</th><th className="p-2">Erreur</th></tr></thead><tbody>{deliveries.filter(d=>(deliveryCampaignFilter==="all"||d.campaign_id===deliveryCampaignFilter)&&(deliveryChannelFilter==="all"||d.canal===deliveryChannelFilter)&&(deliveryStatusFilter==="all"||d.statut===deliveryStatusFilter)&&(deliveryTypeFilter==="all"||(deliveryTypeFilter==="campaign"?Boolean(d.campaign_id):Boolean(d.automation_id)))&&(!deliveryDateFilter||String(d.created_at||"").slice(0,10)===deliveryDateFilter)).map(d=><tr key={d.id} className="border-b align-top"><td className="p-2 whitespace-nowrap">{d.sent_at?new Date(d.sent_at).toLocaleString("fr-FR"):new Date(d.created_at).toLocaleString("fr-FR")}</td><td className="p-2">{d.recipient_name||"—"}<div className="text-xs text-muted-foreground">{d.recipient_phone||d.recipient_email||""}</div></td><td className="p-2">{d.campaign_id?"Campagne":d.automation_id?"Automatisé":"Manuel"}</td><td className="p-2">{d.canal}</td><td className="p-2"><Badge variant={["envoye","livre","lu"].includes(d.statut)?"default":d.statut==="echoue"?"destructive":"outline"}>{d.statut}</Badge></td><td className="p-2">{d.fournisseur||"—"}<div className="text-xs text-muted-foreground break-all">{d.provider_message_id||""}</div></td><td className="p-2 max-w-64 whitespace-normal text-destructive">{d.erreur||"—"}</td></tr>)}{!deliveries.length&&<tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Aucun envoi enregistré.</td></tr>}</tbody></table></div>
+            <Button variant="outline" onClick={()=>void load()}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser le journal</Button>
+          </CardContent></Card>
+        </TabsContent>
 
         <TabsContent value="campaigns" className="space-y-5">
           <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Plus className="mr-2 h-4 w-4"/>Créer une campagne</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
