@@ -459,13 +459,13 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           </div>
 
           <div className="space-y-2">
-            <Label>Numéro de téléphone principal</Label>
+            <Label>Numéro principal</Label>
             <CountryPhoneInput label="" countryCode={watch("telephone_indicatif")||undefined} localValue={watch("telephone_local") || (() => { const raw=String(watch("telephone") || ""); const cc=String(watch("telephone_indicatif") || ""); return raw.startsWith(cc) ? raw.slice(cc.length) : raw; })()} onChange={v=>{setValue("telephone_indicatif",v.callingCode);setValue("telephone_local",v.localValue);setValue("telephone",v.internationalValue)}}/>
             {errors.telephone?.message && <p className="text-sm text-destructive">{String(errors.telephone.message)}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label>Numéro de téléphone secondaire</Label>
+            <Label>Numéro secondaire (facultatif)</Label>
             <CountryPhoneInput label="" countryCode={watch("telephone_secondaire_indicatif")||undefined} localValue={watch("telephone_secondaire_local") || String(watch("telephone_secondaire") || "").replace(/^\\+?\\d{1,4}/, "")} onChange={v=>{setValue("telephone_secondaire_indicatif",v.callingCode);setValue("telephone_secondaire_local",v.localValue);setValue("telephone_secondaire",v.internationalValue)}}/>
           </div>
           <div className="flex items-center gap-2">
