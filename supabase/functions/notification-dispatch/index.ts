@@ -532,7 +532,16 @@ async function runCampaign(campaignId: string) {
   if (campaign.programme_le && new Date(campaign.programme_le).getTime() > Date.now()) return { skipped: true, reason: "programme" };
 
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
-  const selectedRecipients = Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients as Array<{ source_type?: string; source_id?: string }> : [];
+  const hasExplicitSelection = Array.isArray(criteria.selected_recipients);
+  const selectedRecipients = hasExplicitSelection ? criteria.selected_recipients as Array<{ source_type?: string; source_id?: string }> : [];
+  // Fail closed: an empty saved manual selection must never fall through to the broad audience resolver.
+  if (hasExplicitSelection && !selectedRecipients.some((item) => item?.source_type && item?.source_id)) {
+    throw new Error("Campagne bloquée : aucun destinataire valide n’est enregistré. Modifiez la sélection avant l’envoi.");
+  }
+  // A zero-count campaign is not safe to dispatch: do not turn a missing selection into a broadcast.
+  if (!hasExplicitSelection && Number(campaign.total_destinataires || 0) <= 0) {
+    throw new Error("Campagne bloquée : le nombre de destinataires est nul. Prévisualisez et enregistrez les destinataires avant l’envoi.");
+  }
   let contacts: Contact[];
   if (selectedRecipients.length) {
     // Manual selection is authoritative: resolve each selected record directly,
@@ -564,6 +573,9 @@ async function runCampaign(campaignId: string) {
     }).filter((contact) => selectedRecipients.some((item) => item.source_id === contact.source_id && (!item.source_type || item.source_type === contact.source_type)));
   } else {
     contacts = await resolveContacts(criteria);
+  }
+  if (!contacts.length) {
+    throw new Error("Campagne bloquée : aucun destinataire n’a pu être résolu depuis la sélection enregistrée.");
   }
   await admin.from("notification_campaigns").update({
     statut: "en_cours", demarre_le: new Date().toISOString(), total_destinataires: contacts.length,
