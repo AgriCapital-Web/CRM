@@ -285,7 +285,15 @@ const GestionNotifications = () => {
   const sendCampaign = async (id: string) => {
     try {
       const data = await callDispatch({ mode: "campaign", campaign_id: id });
-      toast.success(`Campagne traitee: ${data.result?.sent || 0} envoi(s)`);
+      const result = data.result || {};
+      if (result.skipped) {
+        toast.warning(`Campagne non envoyée : ${result.reason || "état non autorisé"}`);
+      } else if (Number(result.failed || 0) > 0) {
+        const detail = Array.isArray(result.errors) && result.errors.length ? ` Détail : ${result.errors[0]}` : "";
+        toast.error(`Campagne : ${Number(result.sent || 0)} envoyé(s), ${Number(result.failed || 0)} échec(s).${detail}`);
+      } else {
+        toast.success(`Campagne terminée : ${Number(result.sent || 0)} envoi(s)`);
+      }
       await load();
     } catch (error: any) { toast.error(error.message || "Envoi impossible"); }
   };
