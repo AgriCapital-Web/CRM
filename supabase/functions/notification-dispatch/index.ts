@@ -528,7 +528,7 @@ async function runCampaign(campaignId: string) {
   const { data: campaign, error } = await admin.from("notification_campaigns")
     .select("*, segment:notification_segments(criteres)").eq("id", campaignId).single();
   if (error) throw error;
-  if (["annule","termine"].includes(campaign.statut)) return { skipped: true, reason: campaign.statut };
+  if (["annule","termine","suspendue"].includes(campaign.statut)) return { skipped: true, reason: campaign.statut };
   if (campaign.programme_le && new Date(campaign.programme_le).getTime() > Date.now()) return { skipped: true, reason: "programme" };
 
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
@@ -557,7 +557,11 @@ async function runCampaign(campaignId: string) {
       ...(leads.data || []).map((r:any):Contact => ({source_type:criteria.audience === "prospects" ? "prospect" : "lead",source_id:r.id,nom_complet:[r.prenoms,r.nom].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp})),
       ...(profiles.data || []).map((r:any):Contact => ({source_type:"equipe",source_id:r.id,user_id:r.user_id,nom_complet:r.nom_complet,email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,role_code:r.role_code})),
     ];
-    contacts = contacts.filter((contact) => selectedRecipients.some((item) => item.source_id === contact.source_id));
+    contacts = contacts.map((contact) => {
+      const selected = selectedRecipients.find((item) => item.source_id === contact.source_id);
+      if (!selected) return contact;
+      return { ...contact, source_type: selected.source_type || contact.source_type };
+    }).filter((contact) => selectedRecipients.some((item) => item.source_id === contact.source_id && (!item.source_type || item.source_type === contact.source_type)));
   } else {
     contacts = await resolveContacts(criteria);
   }
