@@ -462,19 +462,13 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <Label>Numéro principal</Label>
             <CountryPhoneInput label="" countryCode={watch("telephone_indicatif")||undefined} localValue={watch("telephone_local") || (() => { const raw=String(watch("telephone") || ""); const cc=String(watch("telephone_indicatif") || ""); return raw.startsWith(cc) ? raw.slice(cc.length) : raw; })()} onChange={v=>{setValue("telephone_indicatif",v.callingCode);setValue("telephone_local",v.localValue);setValue("telephone",v.internationalValue)}}/>
             {errors.telephone?.message && <p className="text-sm text-destructive">{String(errors.telephone.message)}</p>}
+            <label className="flex items-center gap-2 text-xs"><Checkbox checked={primaryIsWhatsapp} onCheckedChange={v=>setPrimaryIsWhatsapp(v===true)} />Dispose d'un compte WhatsApp !</label>
           </div>
 
           <div className="space-y-2">
             <Label>Numéro secondaire (facultatif)</Label>
             <CountryPhoneInput label="" countryCode={watch("telephone_secondaire_indicatif")||undefined} localValue={watch("telephone_secondaire_local") || String(watch("telephone_secondaire") || "").replace(/^\\+?\\d{1,4}/, "")} onChange={v=>{setValue("telephone_secondaire_indicatif",v.callingCode);setValue("telephone_secondaire_local",v.localValue);setValue("telephone_secondaire",v.internationalValue)}}/>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox checked={primaryIsWhatsapp} onCheckedChange={v=>setPrimaryIsWhatsapp(v===true)} />
-            <Label>Le numéro principal est WhatsApp</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox checked={secondaryIsWhatsapp} onCheckedChange={v=>setSecondaryIsWhatsapp(v===true)} />
-            <Label>Le numéro secondaire est WhatsApp</Label>
+            <label className="flex items-center gap-2 text-xs"><Checkbox checked={secondaryIsWhatsapp} onCheckedChange={v=>setSecondaryIsWhatsapp(v===true)} />Dispose d'un compte WhatsApp !</label>
           </div>
 
           {utilisateur && (<div className="col-span-2 min-w-0 flex items-center gap-3">
