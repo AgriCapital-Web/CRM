@@ -216,7 +216,7 @@ const GestionNotifications = () => {
     const submittedCampaign = { ...campaign };
     const submittedMedia = [...campaignMedia];
     if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
-    if (submittedCampaign.audience === "selection" && !selectedRecipients.length) return toast.error("Coche au moins un destinataire.");
+    if (submittedCampaign.audience === "selection" && !selectedRecipients.some((r) => r?.source_type && r?.source_id)) return toast.error("Coche au moins un destinataire valide.");
     if ((submittedCampaign.canal === "sms" || submittedCampaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
     if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
@@ -234,6 +234,7 @@ const GestionNotifications = () => {
       ? Array.from(new Map(selectedRecipients.filter((r) => r?.source_type && r?.source_id).map((r) => [r.source_type + ":" + r.source_id, { source_type: r.source_type, source_id: r.source_id }])).values())
       : [];
     recipientCount = manualSelection ? normalizedSelectedRecipients.length : recipientCount;
+    if (manualSelection && normalizedSelectedRecipients.length === 0) return toast.error("La sélection ne contient aucun destinataire valide. Ouvre le sélecteur, choisis au moins un contact et confirme la sélection.");
     const payload = {
       nom: submittedCampaign.nom.trim(), description: submittedCampaign.description || null, canal: submittedCampaign.canal,
       sujet: submittedCampaign.sujet || null, contenu: submittedCampaign.canal.includes("sms") ? normalizeSms(submittedCampaign.contenu) : submittedCampaign.contenu,
