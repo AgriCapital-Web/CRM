@@ -532,11 +532,34 @@ async function runCampaign(campaignId: string) {
   if (campaign.programme_le && new Date(campaign.programme_le).getTime() > Date.now()) return { skipped: true, reason: "programme" };
 
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
-  let contacts = await resolveContacts(criteria);
   const selectedRecipients = Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients as Array<{ source_type?: string; source_id?: string }> : [];
+  let contacts: Contact[];
   if (selectedRecipients.length) {
-    const selected = new Set(selectedRecipients.map((r) => `${r.source_type || ""}:${r.source_id || ""}`));
-    contacts = contacts.filter((c) => selected.has(`${c.source_type}:${c.source_id}`));
+    // Manual selection is authoritative: resolve each selected record directly,
+    // independently of audience RPC filters and of the WhatsApp checkbox.
+    const grouped = new Map<string, string[]>();
+    for (const item of selectedRecipients) {
+      if (!item.source_type || !item.source_id) continue;
+      const key = item.source_type.includes("proprietaire_foncier") || item.source_type.includes("beneficiaire_particulier") || item.source_type === "client" ? "clients"
+        : item.source_type === "lead" || item.source_type === "prospect" ? "leads"
+        : item.source_type === "equipe" ? "profiles" : "";
+      if (!key) continue;
+      grouped.set(key, [...(grouped.get(key) || []), item.source_id]);
+    }
+    const [clients, leads, profiles] = await Promise.all([
+      grouped.has("clients") ? admin.from("clients").select("id,nom_complet,prenoms,nom_famille,email,telephone,telephone_secondaire,whatsapp,user_id,proprietaire_id,type_client").in("id", grouped.get("clients")!) : Promise.resolve({data:[],error:null}),
+      grouped.has("leads") ? admin.from("leads").select("id,nom,prenoms,email,telephone,telephone_secondaire,whatsapp").in("id", grouped.get("leads")!) : Promise.resolve({data:[],error:null}),
+      grouped.has("profiles") ? admin.from("profiles").select("id,user_id,nom_complet,email,telephone,telephone_secondaire,whatsapp,role_code").in("id", grouped.get("profiles")!) : Promise.resolve({data:[],error:null}),
+    ]);
+    if (clients.error) throw clients.error; if (leads.error) throw leads.error; if (profiles.error) throw profiles.error;
+    contacts = [
+      ...(clients.data || []).map((r:any):Contact => ({source_type:r.proprietaire_id && r.type_client === "beneficiaire_particulier" ? "proprietaire_foncier+beneficiaire_particulier" : r.proprietaire_id ? "proprietaire_foncier" : r.type_client === "beneficiaire_particulier" ? "beneficiaire_particulier" : "client",source_id:r.id,nom_complet:r.nom_complet || [r.prenoms,r.nom_famille].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,user_id:r.user_id})),
+      ...(leads.data || []).map((r:any):Contact => ({source_type:criteria.audience === "prospects" ? "prospect" : "lead",source_id:r.id,nom_complet:[r.prenoms,r.nom].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp})),
+      ...(profiles.data || []).map((r:any):Contact => ({source_type:"equipe",source_id:r.id,user_id:r.user_id,nom_complet:r.nom_complet,email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,role_code:r.role_code})),
+    ];
+    contacts = contacts.filter((contact) => selectedRecipients.some((item) => item.source_id === contact.source_id));
+  } else {
+    contacts = await resolveContacts(criteria);
   }
   await admin.from("notification_campaigns").update({
     statut: "en_cours", demarre_le: new Date().toISOString(), total_destinataires: contacts.length,
