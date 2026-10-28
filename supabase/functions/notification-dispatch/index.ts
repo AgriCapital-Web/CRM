@@ -411,6 +411,7 @@ async function deliver(args: {
   context?: Record<string, unknown>; eventKey?: string; mediaAttachments?: MediaAttachment[];
 }) {
   let sent = 0, failed = 0;
+  const failureReasons: string[] = [];
   const effectiveChannel = args.canal === "app" ? "app" : "whatsapp";
   const needsSenndoMedia = effectiveChannel === "whatsapp";
   const preparedMedia = args.mediaAttachments?.length && needsSenndoMedia ? await prepareMedia(args.mediaAttachments) : [];
@@ -459,7 +460,7 @@ async function deliver(args: {
           .update({ statut: "en_cours", erreur: null })
           .eq("id", existing.id).eq("statut", existing.statut)
           .select("id").maybeSingle();
-        if (claimError) { failed++; continue; }
+        if (claimError) { failed++; failureReasons.push(claimError.message); console.error("[NotificationDelivery] réservation échouée", { campaignId: args.campaignId || null, sourceId: contact.source_id, reason: claimError.message }); continue; }
         if (!claimed) continue;
         delivery = claimed;
       } else {
@@ -470,6 +471,7 @@ async function deliver(args: {
           failed++;
           const reason = insertError?.message || "Impossible de créer la ligne de suivi de livraison.";
           console.error("[NotificationDelivery] insertion échouée", { campaignId: args.campaignId || null, sourceType: contact.source_type, sourceId: contact.source_id, channel, reason });
+          failureReasons.push(reason);
           continue;
         }
         delivery = inserted;
@@ -514,8 +516,11 @@ async function deliver(args: {
         if (effectiveChannel === "auto") break;
       } catch (error) {
         failed++;
+        const failureReason = error instanceof Error ? error.message : String(error);
+        failureReasons.push(failureReason);
+        console.error("[NotificationDelivery] échec fournisseur", { campaignId: args.campaignId || null, sourceType: contact.source_type, sourceId: contact.source_id, channel, reason: failureReason });
         await admin.from("notification_deliveries").update({
-          statut: "echoue", erreur: error instanceof Error ? error.message : String(error),
+          statut: "echoue", erreur: failureReason,
         }).eq("id", delivery.id);
         const status = Number((error as any)?.status || (error as any)?.statusCode || 0);
         const message = String((error as any)?.message || "");
@@ -526,7 +531,7 @@ async function deliver(args: {
       }
     }
   }
-  return { sent, failed };
+  return { sent, failed, errors: [...new Set(failureReasons)].slice(0, 3) };
 }
 
 async function runCampaign(campaignId: string) {
