@@ -577,17 +577,20 @@ async function runCampaign(campaignId: string) {
   if (!contacts.length) {
     throw new Error("Campagne bloquée : aucun destinataire n’a pu être résolu depuis la sélection enregistrée.");
   }
-  await admin.from("notification_campaigns").update({
+  const { error: startError } = await admin.from("notification_campaigns").update({
     statut: "en_cours", demarre_le: new Date().toISOString(), total_destinataires: contacts.length,
   }).eq("id", campaign.id);
+  if (startError) throw new Error("Impossible d’enregistrer le démarrage de la campagne en base : " + startError.message);
   const result = await deliver({
     campaignId: campaign.id, canal: campaign.canal, subject: campaign.sujet,
     content: campaign.contenu, contacts, mediaAttachments: campaign.media_attachments || [],
   });
-  await admin.from("notification_campaigns").update({
+  const { error: finishError } = await admin.from("notification_campaigns").update({
     statut: result.failed ? (result.sent ? "partiel" : "echoue") : "termine",
+    total_destinataires: contacts.length,
     total_envoyes: result.sent, total_echecs: result.failed, termine_le: new Date().toISOString(),
   }).eq("id", campaign.id);
+  if (finishError) throw new Error("Les livraisons ont été traitées, mais le résultat n’a pas pu être enregistré en base : " + finishError.message);
   return { campaign_id: campaign.id, contacts: contacts.length, ...result };
 }
 
