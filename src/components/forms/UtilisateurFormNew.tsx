@@ -34,6 +34,11 @@ const userFormSchema = z.object({
   prenoms: z.string().trim().min(1, "Le prénom est obligatoire").max(100, "Le prénom ne peut pas dépasser 100 caractères"),
   telephone: z.string().nullish(),
   telephone_local: z.string().nullish(),
+  telephone_secondaire: z.string().nullish(),
+  telephone_secondaire_local: z.string().nullish(),
+  telephone_secondaire_indicatif: z.string().nullish(),
+  telephone_whatsapp: z.boolean().optional(),
+  telephone_secondaire_whatsapp: z.boolean().optional(),
   telephone_indicatif: z.string().nullish(),
   district_id: z.string().uuid().optional().or(z.literal("")),
   region_id: z.string().uuid().optional().or(z.literal("")),
@@ -74,6 +79,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const [pieceVersoFile, setPieceVersoFile] = useState<File | null>(null);
   const [piecePassportFile, setPiecePassportFile] = useState<File | null>(null);
   const relationRH = watch("relation_rh");
+  const [primaryIsWhatsapp, setPrimaryIsWhatsapp] = useState(Boolean(utilisateur?.telephone_whatsapp));
+  const [secondaryIsWhatsapp, setSecondaryIsWhatsapp] = useState(Boolean(utilisateur?.telephone_secondaire_whatsapp));
   const departementSelectionne = watch("departement") ?? utilisateur?.departement;
 
   // Référentiels dynamiques : la base de données est la seule source de vérité.
@@ -161,7 +168,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
       toast({ variant: "destructive", title: "Couverture requise", description: "Sélectionnez la zone géographique exigée par le rôle principal." });
       return;
     }
-    const fullName = [String(data.prenoms || "").trim(), String(data.nom || "").trim()].filter(Boolean).join(" ");
+    const normalizedNom = String(data.nom || "").trim().toLocaleUpperCase("fr-FR");
+    const normalizedPrenoms = String(data.prenoms || "").trim().toLocaleUpperCase("fr-FR");
+    const fullName = [normalizedPrenoms, normalizedNom].filter(Boolean).join(" ");
     setLoading(true);
     try {
 
@@ -204,12 +213,19 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         const { error: profileError } = await (supabase as any)
           .from("profiles")
           .update({
+            nom: normalizedNom,
+            prenoms: normalizedPrenoms,
             nom_complet: fullName,
             username: String(data.username || "").trim(),
             email: String(data.email || "").trim(),
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
+            telephone_whatsapp: primaryIsWhatsapp,
+            telephone_secondaire: data.telephone_secondaire || null,
+            telephone_secondaire_local: data.telephone_secondaire_local || null,
+            telephone_secondaire_indicatif: data.telephone_secondaire_indicatif || null,
+            telephone_secondaire_whatsapp: secondaryIsWhatsapp,
             whatsapp: data.whatsapp || null,
             whatsapp_indicatif: data.whatsapp_indicatif || null,
             whatsapp_local: data.whatsapp_local || null,
@@ -410,12 +426,12 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
           <div className="space-y-2">
             <Label>Nom *</Label>
-            <Input {...register("nom", { required: true })} defaultValue={utilisateur?.nom || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(-1)[0] || ""} />
+            <Input {...register("nom", { required: true, onChange: e => setValue("nom", e.target.value.toLocaleUpperCase("fr-FR")) })} defaultValue={utilisateur?.nom || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(-1)[0] || ""} />
             {errors.nom?.message && <p className="text-sm text-destructive">{String(errors.nom.message)}</p>}
           </div>
           <div className="space-y-2">
             <Label>Prénom *</Label>
-            <Input {...register("prenoms", { required: true })} defaultValue={utilisateur?.prenoms || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || ""} />
+            <Input {...register("prenoms", { required: true, onChange: e => setValue("prenoms", e.target.value.toLocaleUpperCase("fr-FR")) })} defaultValue={utilisateur?.prenoms || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || ""} />
             {errors.prenoms?.message && <p className="text-sm text-destructive">{String(errors.prenoms.message)}</p>}
           </div>
 
@@ -440,9 +456,16 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           </div>
 
           <div className="space-y-2">
-            <Label>WhatsApp</Label>
-            <CountryPhoneInput label="" countryCode={watch("whatsapp_indicatif")||undefined} localValue={watch("whatsapp_local") || (() => { const raw=String(watch("whatsapp") || ""); const cc=String(watch("whatsapp_indicatif") || ""); return raw.startsWith(cc) ? raw.slice(cc.length) : raw; })()} onChange={v=>{setValue("whatsapp_indicatif",v.callingCode);setValue("whatsapp_local",v.localValue);setValue("whatsapp",v.internationalValue)}}/>
-            {errors.whatsapp?.message && <p className="text-sm text-destructive">{String(errors.whatsapp.message)}</p>}
+            <Label>Numéro secondaire</Label>
+            <CountryPhoneInput label="" countryCode={watch("telephone_secondaire_indicatif")||undefined} localValue={watch("telephone_secondaire_local") || String(watch("telephone_secondaire") || "").replace(/^\\+?\\d{1,4}/, "")} onChange={v=>{setValue("telephone_secondaire_indicatif",v.callingCode);setValue("telephone_secondaire_local",v.localValue);setValue("telephone_secondaire",v.internationalValue)}}/>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox checked={primaryIsWhatsapp} onCheckedChange={v=>setPrimaryIsWhatsapp(v===true)} />
+            <Label>Le numéro principal est WhatsApp</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox checked={secondaryIsWhatsapp} onCheckedChange={v=>setSecondaryIsWhatsapp(v===true)} />
+            <Label>Le numéro secondaire est WhatsApp</Label>
           </div>
 
           {utilisateur && (<div className="col-span-2 min-w-0 flex items-center gap-3">
