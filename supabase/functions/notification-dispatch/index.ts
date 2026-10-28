@@ -85,7 +85,7 @@ const assertSmsLength = (value: string) => {
 };
 const assertWhatsAppLength = (value: string) => {
   const length = Array.from(value).length;
-  if (length > 350) throw new Error(`Message WhatsApp trop long : ${length}/350 caractères.`);
+  if (length > 4096) throw new Error(`Message WhatsApp trop long : ${length}/4096 caractères.`);
   if (!length) throw new Error("Le message WhatsApp ne peut pas être vide.");
   return value;
 };
@@ -466,7 +466,12 @@ async function deliver(args: {
         const { data: inserted, error: insertError } = await admin.from("notification_deliveries")
           .insert(deliveryPayload).select("id").maybeSingle();
         if (insertError?.code === "23505") continue;
-        if (insertError || !inserted) { failed++; continue; }
+        if (insertError || !inserted) {
+          failed++;
+          const reason = insertError?.message || "Impossible de créer la ligne de suivi de livraison.";
+          console.error("[NotificationDelivery] insertion échouée", { campaignId: args.campaignId || null, sourceType: contact.source_type, sourceId: contact.source_id, channel, reason });
+          continue;
+        }
         delivery = inserted;
       }
       try {
