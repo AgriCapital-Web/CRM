@@ -302,6 +302,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             username: data.username,
             email: data.email,
             nom_complet: fullName,
+            nom: normalizedNom,
+            prenoms: normalizedPrenoms,
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
