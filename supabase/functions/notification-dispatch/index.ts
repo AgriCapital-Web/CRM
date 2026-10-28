@@ -538,10 +538,8 @@ async function runCampaign(campaignId: string) {
   if (hasExplicitSelection && !selectedRecipients.some((item) => item?.source_type && item?.source_id)) {
     throw new Error("Campagne bloquée : aucun destinataire valide n’est enregistré. Modifiez la sélection avant l’envoi.");
   }
-  // A zero-count campaign is not safe to dispatch: do not turn a missing selection into a broadcast.
-  if (!hasExplicitSelection && Number(campaign.total_destinataires || 0) <= 0) {
-    throw new Error("Campagne bloquée : le nombre de destinataires est nul. Prévisualisez et enregistrez les destinataires avant l’envoi.");
-  }
+  // For a saved audience (e.g. prospects), resolve the current real audience at send time.
+  // A stale zero counter must not block a valid audience, but an empty resolved audience is blocked below.
   let contacts: Contact[];
   if (selectedRecipients.length) {
     // Manual selection is authoritative: resolve each selected record directly,
@@ -575,7 +573,7 @@ async function runCampaign(campaignId: string) {
     contacts = await resolveContacts(criteria);
   }
   if (!contacts.length) {
-    throw new Error("Campagne bloquée : aucun destinataire n’a pu être résolu depuis la sélection enregistrée.");
+    throw new Error("Campagne bloquée : aucun destinataire actif n’a été trouvé pour l’audience enregistrée. Vérifiez les filtres et les fiches contacts.");
   }
   const { error: startError } = await admin.from("notification_campaigns").update({
     statut: "en_cours", demarre_le: new Date().toISOString(), total_destinataires: contacts.length,
