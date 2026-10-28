@@ -112,6 +112,7 @@ const GestionNotifications = () => {
   const [preferenceSearch, setPreferenceSearch] = useState("");
   const [preferencesDialogOpen, setPreferencesDialogOpen] = useState(false);
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [automationDialogOpen, setAutomationDialogOpen] = useState(false);
   const [campaignMedia, setCampaignMedia] = useState<MediaAttachment[]>([]);
   const [automationMedia, setAutomationMedia] = useState<MediaAttachment[]>([]);
@@ -210,15 +211,19 @@ const GestionNotifications = () => {
     if ((submittedCampaign.canal === "sms" || submittedCampaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
     if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
-    const { error } = await (supabase as any).from("notification_campaigns").insert({
+    const payload = {
       nom: submittedCampaign.nom.trim(), description: submittedCampaign.description || null, canal: submittedCampaign.canal,
       sujet: submittedCampaign.sujet || null, contenu: submittedCampaign.canal.includes("sms") ? normalizeSms(submittedCampaign.contenu) : submittedCampaign.contenu,
       media_attachments: submittedMedia, segment_id: submittedCampaign.audience === "selection" ? null : selected, criteres: submittedCampaign.audience === "selection" ? { audience: "tous", selected_recipients: selectedRecipients } : { audience: submittedCampaign.audience },
       statut: submittedCampaign.programme_le ? "programme" : "brouillon",
       programme_le: submittedCampaign.programme_le ? new Date(submittedCampaign.programme_le).toISOString() : null,
-    });
-    if (error) return toast.error(error.message);
-    toast.success(submittedCampaign.programme_le ? "Campagne programmee" : "Campagne enregistree");
+    };
+    const saveQuery = editingCampaignId
+      ? await (supabase as any).from("notification_campaigns").update(payload).eq("id", editingCampaignId)
+      : await (supabase as any).from("notification_campaigns").insert(payload);
+    if (saveQuery.error) return toast.error(saveQuery.error.message);
+    toast.success(submittedCampaign.programme_le ? "Campagne programmée" : editingCampaignId ? "Campagne modifiée" : "Campagne enregistrée");
+    setEditingCampaignId(null);
     setCampaignDialogOpen(false);
     setCampaign((current) => JSON.stringify(current) === JSON.stringify(submittedCampaign) ? { nom: "", description: "", canal: "app", sujet: "", contenu: "", segment_id: "", audience: "tous", programme_le: "" } : current);
     setCampaignMedia((current) => JSON.stringify(current) === JSON.stringify(submittedMedia) ? [] : current);
@@ -231,6 +236,33 @@ const GestionNotifications = () => {
       toast.success(`Campagne traitee: ${data.result?.sent || 0} envoi(s)`);
       await load();
     } catch (error: any) { toast.error(error.message || "Envoi impossible"); }
+  };
+
+  const editCampaign = (item: Campaign) => {
+    const criteria: any = item.criteres || {};
+    setEditingCampaignId(item.id);
+    setCampaign({
+      nom: item.nom || "", description: item.description || "", canal: item.canal || "app", sujet: item.sujet || "",
+      contenu: item.contenu || "", segment_id: item.segment_id || "", audience: Array.isArray(criteria.selected_recipients) ? "selection" : String(criteria.audience || "tous"),
+      programme_le: item.programme_le ? new Date(item.programme_le).toISOString().slice(0,16) : "",
+    });
+    setSelectedRecipients(Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients : []);
+    setCampaignDialogOpen(true);
+  };
+
+  const updateCampaignStatus = async (item: Campaign, statut: string) => {
+    const { error } = await (supabase as any).from("notification_campaigns").update({ statut, updated_at: new Date().toISOString() }).eq("id", item.id);
+    if (error) return toast.error(error.message);
+    toast.success(statut === "suspendue" ? "Campagne suspendue" : statut === "active" ? "Campagne activée" : "Campagne mise à jour");
+    await load();
+  };
+
+  const deleteCampaign = async (item: Campaign) => {
+    if (!confirm("Supprimer la campagne « " + item.nom + " » ? Le journal d’envoi conservé ne sera pas supprimé.")) return;
+    const { error } = await (supabase as any).from("notification_campaigns").delete().eq("id", item.id);
+    if (error) return toast.error(error.message);
+    toast.success("Campagne supprimée");
+    await load();
   };
 
   const saveAutomation = async () => {
@@ -323,7 +355,7 @@ const GestionNotifications = () => {
 
         <TabsContent value="campaigns" className="space-y-5">
           <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Plus className="mr-2 h-4 w-4"/>Créer une campagne</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
-            <CardHeader><CardTitle>Nouvelle campagne</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{editingCampaignId ? "Modifier la campagne" : "Nouvelle campagne"}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value })} placeholder="Campagne rentree agricole" /></Field>
@@ -335,13 +367,13 @@ const GestionNotifications = () => {
               <Field label="Sujet email"><Input uppercase={false} value={campaign.sujet} onChange={(e) => setCampaign({ ...campaign, sujet: e.target.value })} placeholder="Information AgriCapital" /></Field>
               <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {dernier_prenom_nom}, ..." /><div className="mt-1 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">{campaign.canal.includes("sms") && <span className={smsCount > 155 ? "font-semibold text-destructive" : ""}>{smsCount}/155 caractères SMS</span>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
               {preview && <Preview count={preview.count} sample={preview.sample} />}
-              <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />Enregistrer la campagne</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
+              <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />{editingCampaignId ? "Enregistrer les modifications" : "Enregistrer la campagne"}</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>
           </Card></DialogContent></Dialog>
 
           <Card>
             <CardHeader><CardTitle>Campagnes recentes</CardTitle></CardHeader>
-            <CardContent><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left"><th className="p-3">Campagne</th><th className="p-3">Canal</th><th className="p-3">Etat</th><th className="p-3">Dest.</th><th className="p-3">Envoyes</th><th className="p-3">Actions</th></tr></thead><tbody>{campaigns.map((c) => <tr key={c.id} className="border-b last:border-0"><td className="p-3 font-medium">{c.nom}</td><td className="p-3">{CHANNELS.find(x => x.value === c.canal)?.label || c.canal}</td><td className="p-3"><Badge variant={c.statut === "termine" ? "default" : "outline"}>{c.statut}</Badge></td><td className="p-3">{c.total_destinataires}</td><td className="p-3">{c.total_envoyes}</td><td className="p-3"><Button size="sm" variant="outline" onClick={() => void sendCampaign(c.id)} disabled={c.statut === "termine" || c.statut === "annule"}><Send className="mr-2 h-4 w-4" />Envoyer</Button></td></tr>)}{!loading && campaigns.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune campagne</td></tr>}</tbody></table></div></CardContent>
+            <CardContent><div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left"><th className="p-3">Campagne</th><th className="p-3">Canal</th><th className="p-3">Etat</th><th className="p-3">Dest.</th><th className="p-3">Envoyes</th><th className="p-3">Actions</th></tr></thead><tbody>{campaigns.map((c) => <tr key={c.id} className="border-b last:border-0"><td className="p-3 font-medium">{c.nom}</td><td className="p-3">{CHANNELS.find(x => x.value === c.canal)?.label || c.canal}</td><td className="p-3"><Badge variant={c.statut === "termine" ? "default" : "outline"}>{c.statut}</Badge></td><td className="p-3">{c.total_destinataires}</td><td className="p-3">{c.total_envoyes}</td><td className="p-3"><div className="flex flex-wrap gap-1"><Button size="sm" variant="outline" onClick={() => editCampaign(c)} disabled={["en_cours","termine"].includes(c.statut)}><RefreshCw className="mr-1 h-3 w-3"/>Modifier</Button><Button size="sm" variant="outline" onClick={() => void updateCampaignStatus(c, c.statut === "suspendue" ? "brouillon" : "suspendue")} disabled={["termine","annule"].includes(c.statut)}>{c.statut === "suspendue" ? "Reprendre" : "Suspendre"}</Button><Button size="sm" variant="outline" onClick={() => void sendCampaign(c.id)} disabled={["termine","annule","en_cours"].includes(c.statut)}><Send className="mr-1 h-3 w-3"/>Envoyer</Button><Button size="sm" variant="outline" onClick={() => void deleteCampaign(c)} disabled={c.statut === "en_cours"}><X className="mr-1 h-3 w-3"/>Supprimer</Button></div></td></tr>)}{!loading && campaigns.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune campagne</td></tr>}</tbody></table></div></CardContent>
           </Card>
         <Dialog open={recipientPickerOpen} onOpenChange={setRecipientPickerOpen}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl"><Card><CardHeader><CardTitle>Choisir les destinataires</CardTitle></CardHeader><CardContent className="space-y-3"><Input value={recipientSearch} onChange={e=>setRecipientSearch(e.target.value)} placeholder="Rechercher un nom, téléphone ou e-mail…"/><div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border p-3 text-sm sm:grid-cols-3">{[["client","Clients"],["proprietaire_foncier","Propriétaires fonciers"],["equipe","Utilisateurs internes"],["lead","Leads"],["prospect","Prospects"],["beneficiaire_particulier","Bénéficiaires particuliers"],["autre","Autres"]].map(([value,label])=><label key={value} className="flex min-w-0 items-center gap-2"><input type="checkbox" className="h-4 w-4 shrink-0" checked={recipientTypes.includes(value)} onChange={e=>setRecipientTypes(current=>e.target.checked?[...current,value]:current.filter(x=>x!==value))}/><span>{label}</span></label>)}</div><div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>{selectedRecipients.length} sélectionné(s)</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" onClick={()=>setSelectedRecipients(recipientDirectory.filter((r:any)=>recipientMatchesType(r,recipientTypes)).map((r:any)=>({source_type:r.source_type,source_id:r.source_id})))}>Tout cocher</Button><Button type="button" variant="outline" size="sm" onClick={()=>setSelectedRecipients([])}>Tout décocher</Button></div></div><div className="max-h-[42dvh] space-y-1 overflow-y-auto rounded-md border p-2">{recipientLoading ? <p className="p-4 text-sm">Chargement de tous les contacts…</p> : recipientDirectory.filter((r:any)=>recipientMatchesType(r,recipientTypes)&&[r.nom_complet,r.email,r.telephone].some((v:any)=>matchesAccentInsensitive(v, recipientSearch))).length === 0 ? <div className="p-4 text-sm text-muted-foreground">Aucun destinataire dans ce filtre. Décochez les catégories ou choisissez « Tout le monde » pour afficher tous les contacts.</div> : recipientDirectory.filter((r:any)=>recipientMatchesType(r,recipientTypes)&&[r.nom_complet,r.email,r.telephone].some((v:any)=>matchesAccentInsensitive(v, recipientSearch))).map((r:any)=>{const key={source_type:r.source_type,source_id:r.source_id};const checked=selectedRecipients.some(x=>x.source_type===key.source_type&&x.source_id===key.source_id);return <label key={r.source_type+":"+r.source_id} className="flex cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-muted"><input type="checkbox" checked={checked} onChange={e=>setSelectedRecipients(current=>e.target.checked?[...current.filter(x=>x.source_id!==key.source_id||x.source_type!==key.source_type),key]:current.filter(x=>x.source_id!==key.source_id||x.source_type!==key.source_type))}/><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{r.nom_complet ? formatRecipientName(r.nom_complet, r.source_type) : "Contact sans nom"}</span><span className="block truncate text-xs text-muted-foreground">{r.source_type} · {[r.telephone,r.email].filter(Boolean).join(" · ")}</span></span></label>})}</div><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setRecipientPickerOpen(false)}>Annuler</Button><Button type="button" onClick={()=>{setCampaign(c=>({...c,audience:"selection",segment_id:""}));setRecipientPickerOpen(false);setPreview({count:selectedRecipients.length,sample:recipientDirectory.filter((r:any)=>selectedRecipients.some(x=>x.source_type===r.source_type&&x.source_id===r.source_id)).slice(0,20)});}}>Confirmer la sélection</Button></div></CardContent></Card></DialogContent></Dialog>
 </TabsContent>
