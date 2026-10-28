@@ -166,32 +166,35 @@ const GestionNotifications = () => {
     setSegments((s.data || []) as Segment[]);
     const loadedCampaigns = (c.data || []) as Campaign[];
     setCampaigns(loadedCampaigns);
-    // Hydrate the table from the real directory/recipient resolver, never from the stale counter alone.
+    // Resolve audience counts independently: a directory failure must not blank every campaign count.
+    const details: Record<string, number> = {};
+    let directoryByKey = new Map<string, any>();
     try {
       const directoryResponse = await callDispatch({ mode: "recipient_directory" });
       const directory = Array.isArray(directoryResponse.contacts) ? directoryResponse.contacts : [];
-      const directoryByKey = new Map(directory.map((r: any) => [String(r.source_type) + ":" + String(r.source_id), r]));
-      const details: Record<string, { count: number; names: string[] }> = {};
-      await Promise.all(loadedCampaigns.map(async (item) => {
-        const criteria: any = item.criteres || {};
-        const selected = Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients : null;
-        if (selected) {
-          const resolved = selected.map((r: any) => directoryByKey.get(String(r.source_type) + ":" + String(r.source_id))).filter(Boolean);
-          details[item.id] = resolved.length;
-          return;
-        }
-        const audience = String(criteria.audience || "tous");
-        try {
-          const preview = await callDispatch({ mode: "preview", criteria: { audience } });
-          details[item.id] = Number(preview.count) || 0;
-        } catch {
-          details[item.id] = Number(item.total_destinataires) || 0;
-        }
-      }));
-      setCampaignRecipientCounts(details);
-    } catch {
-      setCampaignRecipientCounts({});
+      directoryByKey = new Map(directory.map((r: any) => [String(r.source_type) + ":" + String(r.source_id), r]));
+    } catch (error) {
+      console.warn("Annuaire des destinataires indisponible; les audiences seront comptées via l’aperçu.", error);
     }
+    await Promise.all(loadedCampaigns.map(async (item) => {
+      const criteria: any = item.criteres || {};
+      const selected = Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients : null;
+      if (selected) {
+        const resolved = selected.filter((r: any) => directoryByKey.has(String(r.source_type) + ":" + String(r.source_id)));
+        // Keep the persisted selection count visible even if the directory endpoint is temporarily unavailable.
+        details[item.id] = directoryByKey.size ? resolved.length : selected.length;
+        return;
+      }
+      const audience = String(criteria.audience || "tous");
+      try {
+        const preview = await callDispatch({ mode: "preview", criteria });
+        details[item.id] = Number(preview.count) || 0;
+      } catch (error) {
+        console.error("Impossible de prévisualiser l’audience de la campagne", item.id, error);
+        details[item.id] = Number(item.total_destinataires) || 0;
+      }
+    }));
+    setCampaignRecipientCounts(details);
     if (d.error) toast.error("Impossible de charger le journal des envois: " + d.error.message);
     setDeliveries(d.data || []);
     setAutomations((a.data || []) as Automation[]);
