@@ -1,7 +1,7 @@
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, History, IdCard, Map, KeyRound, Cable, Contact } from "lucide-react";
+import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, IdCard, Map, KeyRound, Cable, Contact } from "lucide-react";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import Utilisateurs from "@/pages/Utilisateurs";
@@ -16,7 +16,6 @@ import GestionNotifications from "@/pages/parametres/GestionNotifications";
 import GestionBaseDonnees from "@/pages/parametres/GestionBaseDonnees";
 import { SyncQueueContent as SyncQueue } from "@/pages/SyncQueue";
 import GestionZones from "@/pages/parametres/GestionZones";
-import JournalAudit from "@/pages/parametres/JournalAudit";
 import GestionCartes from "@/pages/parametres/GestionCartes";
 import GestionRemuneration from "@/pages/parametres/GestionRemuneration";
 import ReinitialiserCodesAcces from "@/pages/parametres/ReinitialiserCodesAcces";
@@ -52,7 +51,6 @@ const Parametres = () => {
     { value: 'codes-acces', label: 'Codes d’accès', mobileLabel: 'Codes', icon: KeyRound, permission: PERMISSIONS.MANAGE_SYSTEM, component: ReinitialiserCodesAcces },
     { value: 'statuts', label: 'Statuts', icon: List, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionStatuts },
     { value: 'notifications', label: 'Notifs', icon: Bell, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionNotifications },
-    { value: 'tracabilite', label: 'Traçabilité', mobileLabel: 'Traces', icon: History, permission: PERMISSIONS.VIEW_AUDIT, component: JournalAudit },
     { value: 'database', label: 'BDD', icon: Database, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionBaseDonnees },
     { value: 'systeme', label: 'Système', icon: Globe, permission: PERMISSIONS.MANAGE_SYSTEM, component: ConfigurationSysteme },
     { value: 'acremap', label: 'AcreMap API', mobileLabel: 'AcreMap', icon: Cable, permission: PERMISSIONS.MANAGE_SYSTEM, component: IntegrationAcreMap },
