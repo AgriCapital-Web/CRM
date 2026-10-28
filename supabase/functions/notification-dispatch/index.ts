@@ -896,7 +896,8 @@ serve(async (req) => {
       const directory = new Map<string, any>();
       for (const c of contacts) directory.set(c.source_type + ":" + c.source_id, c);
       for (const row of clientsRes.data || []) {
-        if (["archive","supprime"].includes(String(row.statut_global || "").toLowerCase()) || row.compte_actif === false) continue;
+        if (["archive","supprime"].includes(String(row.statut_global || "").toLowerCase())) continue;
+        if (row.compte_actif === false && row.type_client === "client") continue;
         const source_type = row.proprietaire_id && row.type_client === "beneficiaire_particulier" ? "proprietaire_foncier+beneficiaire_particulier" : row.proprietaire_id ? "proprietaire_foncier" : row.type_client === "beneficiaire_particulier" ? "beneficiaire_particulier" : "client";
         directory.set(source_type + ":" + row.id, { source_type, source_id: row.id, nom_complet: row.nom_complet || [row.prenoms,row.nom_famille].filter(Boolean).join(" "), email: row.email, telephone: row.whatsapp || row.telephone, role_code: null });
       }
@@ -922,7 +923,7 @@ serve(async (req) => {
       if (!["whatsapp", "email", "sms"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
       const normalizedContent = channel === "sms" ? normalizeSms(content) : content;
       const effectiveLength = Array.from(normalizedContent).length;
-      const limit = channel === "sms" ? 155 : channel === "whatsapp" ? 350 : 5000;
+      const limit = channel === "sms" ? 155 : channel === "whatsapp" ? 4096 : 5000;
       if (!normalizedContent || effectiveLength > limit) {
         return json(req, { error: `Le message doit contenir entre 1 et ${limit} caractères (actuellement ${effectiveLength}).` }, 400);
       }
