@@ -556,7 +556,7 @@ async function runCampaign(campaignId: string) {
     const [clients, leads, profiles] = await Promise.all([
       grouped.has("clients") ? admin.from("clients").select("id,nom_complet,prenoms,nom_famille,email,telephone,telephone_secondaire,whatsapp,user_id,proprietaire_id,type_client").in("id", grouped.get("clients")!) : Promise.resolve({data:[],error:null}),
       grouped.has("leads") ? admin.from("leads").select("id,nom,prenoms,email,telephone,telephone_secondaire,whatsapp").in("id", grouped.get("leads")!) : Promise.resolve({data:[],error:null}),
-      grouped.has("profiles") ? admin.from("profiles").select("id,user_id,nom_complet,email,telephone,telephone_secondaire,whatsapp,role_code").in("id", grouped.get("profiles")!) : Promise.resolve({data:[],error:null}),
+      grouped.has("profiles") ? admin.from("profiles").select("id,user_id,nom_complet,email,telephone,telephone_secondaire,whatsapp").in("id", grouped.get("profiles")!) : Promise.resolve({data:[],error:null}),
     ]);
     if (clients.error) throw clients.error; if (leads.error) throw leads.error; if (profiles.error) throw profiles.error;
     contacts = [
