@@ -79,7 +79,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const [pieceVersoFile, setPieceVersoFile] = useState<File | null>(null);
   const [piecePassportFile, setPiecePassportFile] = useState<File | null>(null);
   const relationRH = watch("relation_rh");
-  const [primaryIsWhatsapp, setPrimaryIsWhatsapp] = useState(Boolean(utilisateur?.telephone_whatsapp));
+  const [primaryIsWhatsapp, setPrimaryIsWhatsapp] = useState(Boolean(utilisateur?.telephone_principal_whatsapp ?? utilisateur?.telephone_whatsapp));
   const [secondaryIsWhatsapp, setSecondaryIsWhatsapp] = useState(Boolean(utilisateur?.telephone_secondaire_whatsapp));
   const departementSelectionne = watch("departement") ?? utilisateur?.departement;
 
@@ -218,10 +218,12 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             nom_complet: fullName,
             username: String(data.username || "").trim(),
             email: String(data.email || "").trim(),
+            nom: normalizedNom,
+            prenoms: normalizedPrenoms,
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
-            telephone_whatsapp: primaryIsWhatsapp,
+            telephone_principal_whatsapp: primaryIsWhatsapp,
             telephone_secondaire: data.telephone_secondaire || null,
             telephone_secondaire_local: data.telephone_secondaire_local || null,
             telephone_secondaire_indicatif: data.telephone_secondaire_indicatif || null,
@@ -303,6 +305,11 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
+            telephone_principal_whatsapp: primaryIsWhatsapp,
+            telephone_secondaire: data.telephone_secondaire || null,
+            telephone_secondaire_local: data.telephone_secondaire_local || null,
+            telephone_secondaire_indicatif: data.telephone_secondaire_indicatif || null,
+            telephone_secondaire_whatsapp: secondaryIsWhatsapp,
             whatsapp: data.whatsapp || null,
             whatsapp_indicatif: data.whatsapp_indicatif || null,
             whatsapp_local: data.whatsapp_local || null,
@@ -450,13 +457,13 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           </div>
 
           <div className="space-y-2">
-            <Label>Téléphone</Label>
+            <Label>Numéro de téléphone principal</Label>
             <CountryPhoneInput label="" countryCode={watch("telephone_indicatif")||undefined} localValue={watch("telephone_local") || (() => { const raw=String(watch("telephone") || ""); const cc=String(watch("telephone_indicatif") || ""); return raw.startsWith(cc) ? raw.slice(cc.length) : raw; })()} onChange={v=>{setValue("telephone_indicatif",v.callingCode);setValue("telephone_local",v.localValue);setValue("telephone",v.internationalValue)}}/>
             {errors.telephone?.message && <p className="text-sm text-destructive">{String(errors.telephone.message)}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label>Numéro secondaire</Label>
+            <Label>Numéro de téléphone secondaire</Label>
             <CountryPhoneInput label="" countryCode={watch("telephone_secondaire_indicatif")||undefined} localValue={watch("telephone_secondaire_local") || String(watch("telephone_secondaire") || "").replace(/^\\+?\\d{1,4}/, "")} onChange={v=>{setValue("telephone_secondaire_indicatif",v.callingCode);setValue("telephone_secondaire_local",v.localValue);setValue("telephone_secondaire",v.internationalValue)}}/>
           </div>
           <div className="flex items-center gap-2">
