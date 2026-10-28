@@ -11,9 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, Video, X } from "lucide-react";
+import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, Video, X, History } from "lucide-react";
 import { toast } from "sonner";
 import ConfigurationSenndo from "@/pages/parametres/ConfigurationSenndo";
+import JournalAudit from "@/pages/parametres/JournalAudit";
 
 type Segment = { id: string; code: string; nom: string; description: string | null; criteres: Record<string, unknown>; actif: boolean };
 type Campaign = {
@@ -23,7 +24,6 @@ type Campaign = {
 };
 type MediaAttachment = { bucket: string; path: string; name: string; mimeType: string; size: number };
 type NotificationTemplate = { id: string; code: string; nom: string; canal: string; evenement: string; sujet: string | null; contenu: string; actif: boolean; parcours: string | null; media_attachments?: MediaAttachment[] };
-type ClientPreference = { id: string; nom_complet: string | null; telephone: string | null; whatsapp: string | null; email: string | null; canal_finalisation: string; canal_rappel: string };
 type Automation = {
   id: string; code: string; nom: string; description: string | null; evenement: string; canal: string;
   sujet: string | null; contenu: string; criteres: Record<string, unknown>; actif: boolean; cooldown_minutes: number; media_attachments?: MediaAttachment[];
@@ -108,9 +108,6 @@ async function compressVideo(file: File): Promise<File> {
 const GestionNotifications = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
-  const [clientPreferences, setClientPreferences] = useState<ClientPreference[]>([]);
-  const [preferenceSearch, setPreferenceSearch] = useState("");
-  const [preferencesDialogOpen, setPreferencesDialogOpen] = useState(false);
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [automationDialogOpen, setAutomationDialogOpen] = useState(false);
@@ -153,13 +150,11 @@ const GestionNotifications = () => {
 
   const load = async () => {
     setLoading(true);
-    const [s, c, a, t, cl, prefs, d] = await Promise.all([
+    const [s, c, a, t, d] = await Promise.all([
       supabase.from("notification_segments").select("*").order("nom"),
       (supabase as any).from("notification_campaigns").select("*").order("created_at", { ascending: false }).limit(100),
       (supabase as any).from("notification_automations").select("*").order("nom"),
       (supabase as any).from("notification_templates").select("id,code,nom,canal,evenement,sujet,contenu,actif,parcours,media_attachments").order("evenement").order("canal"),
-      supabase.from("clients").select("id,nom_complet,telephone,whatsapp,email").order("nom_complet").limit(500),
-      (supabase as any).from("notification_client_preferences").select("client_id,canal_finalisation,canal_rappel"),
       (supabase as any).from("notification_deliveries").select("id,campaign_id,automation_id,recipient_name,recipient_phone,recipient_email,canal,statut,fournisseur,provider_message_id,erreur,sent_at,created_at,source_type,contenu").order("created_at", {ascending:false}).limit(1000),
     ]);
     if (s.error || c.error || a.error) toast.error("Impossible de charger la communication");
@@ -199,8 +194,6 @@ const GestionNotifications = () => {
     setDeliveries(d.data || []);
     setAutomations((a.data || []) as Automation[]);
     setTemplates((t.data || []) as NotificationTemplate[]);
-    const savedPreferences = prefs.data || [];
-    setClientPreferences((cl.data || []).map((client: any) => { const pref = savedPreferences.find((x: any) => x.client_id === client.id); return { ...client, canal_finalisation: pref?.canal_finalisation || "auto", canal_rappel: pref?.canal_rappel || "auto" }; }));
     setLoading(false);
   };
 
@@ -346,17 +339,6 @@ const GestionNotifications = () => {
     await load();
   };
 
-  const saveClientPreference = async (clientId: string, field: "canal_finalisation" | "canal_rappel", value: string) => {
-    setClientPreferences((current) => current.map((item) => item.id === clientId ? { ...item, [field]: value } : item));
-    const { data: { user } } = await supabase.auth.getUser();
-    const row = clientPreferences.find((item) => item.id === clientId);
-    const { error } = await (supabase as any).from("notification_client_preferences").upsert({
-      client_id: clientId, canal_finalisation: field === "canal_finalisation" ? value : row?.canal_finalisation || "auto",
-      canal_rappel: field === "canal_rappel" ? value : row?.canal_rappel || "auto", updated_by: user?.id || null, updated_at: new Date().toISOString(),
-    }, { onConflict: "client_id" });
-    if (error) { toast.error(error.message); void load(); } else toast.success("Préférence de notification enregistrée.");
-  };
-
   const toggleAutomation = async (item: Automation) => {
     const { error } = await (supabase as any).from("notification_automations").update({ actif: !item.actif }).eq("id", item.id);
     if (error) toast.error(error.message); else await load();
@@ -407,8 +389,8 @@ const GestionNotifications = () => {
           <TabsList className="inline-flex min-w-max">
             <TabsTrigger value="campaigns"><Send className="mr-2 h-4 w-4" />Campagnes</TabsTrigger><TabsTrigger value="deliveries"><CheckCircle2 className="mr-2 h-4 w-4"/>Journal des envois</TabsTrigger>
             <TabsTrigger value="automations"><Zap className="mr-2 h-4 w-4" />Automatisations</TabsTrigger>
-            <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger><TabsTrigger value="templates"><FileText className="mr-2 h-4 w-4" />Modèles</TabsTrigger><TabsTrigger value="preferences"><Smartphone className="mr-2 h-4 w-4" />Choix client</TabsTrigger>
-            <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger>
+            <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger><TabsTrigger value="templates"><FileText className="mr-2 h-4 w-4" />Modèles</TabsTrigger>
+            <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger><TabsTrigger value="traces"><History className="mr-2 h-4 w-4" />Traces</TabsTrigger>
           </TabsList>
         </div>
 
@@ -479,13 +461,7 @@ const GestionNotifications = () => {
 
         <TabsContent value="senndo" className="space-y-5"><ConfigurationSenndo /></TabsContent>
 
-        <TabsContent value="preferences"><Dialog open={preferencesDialogOpen} onOpenChange={setPreferencesDialogOpen}><DialogTrigger asChild><Button variant="outline" className="mb-3">Modifier les canaux par client</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-5xl"><Card><CardHeader><CardTitle>Canal de notification par client</CardTitle></CardHeader><CardContent className="space-y-3">
-          <Input value={preferenceSearch} onChange={(e) => setPreferenceSearch(e.target.value)} placeholder="Rechercher un client" />
-          <div className="overflow-x-auto rounded-lg border"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left"><th className="p-3">Client</th><th className="p-3">Contact</th><th className="p-3">Finalisation du solde</th><th className="p-3">Rappels</th></tr></thead><tbody>
-          {clientPreferences.filter((p) => matchesAccentInsensitive(p.nom_complet, preferenceSearch) || (p.telephone || "").includes(preferenceSearch) || matchesAccentInsensitive(p.email, preferenceSearch)).map((p) => <tr key={p.id} className="border-b last:border-0"><td className="p-3 font-medium">{p.nom_complet ? formatUserShortName(p.nom_complet) : "Client"}</td><td className="p-3">{p.whatsapp || p.telephone || p.email || "Aucun contact"}</td><td className="p-3"><Select value={p.canal_finalisation} onValueChange={(v) => void saveClientPreference(p.id,"canal_finalisation",v)}><SelectTrigger className="min-w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.filter((x) => ["auto","sms","whatsapp","email","email_sms"].includes(x.value)).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Select value={p.canal_rappel} onValueChange={(v) => void saveClientPreference(p.id,"canal_rappel",v)}><SelectTrigger className="min-w-[190px]"><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.filter((x) => ["auto","sms","whatsapp","email","email_sms"].includes(x.value)).map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></td></tr>)}
-          {!clientPreferences.length && <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Aucun client disponible.</td></tr>}
-          </tbody></table></div>
-        </CardContent></Card></DialogContent></Dialog></TabsContent>
+        <TabsContent value="traces"><JournalAudit /></TabsContent>
 
         <TabsContent value="templates"><Card><CardHeader><CardTitle>Modèles de messages</CardTitle></CardHeader><CardContent className="space-y-3">{templates.map(t=><div key={t.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.nom}</span><Badge variant="outline">{t.canal}</Badge><Badge variant={t.actif?"default":"secondary"}>{t.actif?"Actif":"Inactif"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t.evenement} · {t.code}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{t.contenu.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()}</p></div><Button type="button" variant="outline" onClick={()=>applyTemplate(t)}>Utiliser</Button></div>)}{!templates.length&&<p className="py-8 text-center text-muted-foreground">Aucun modèle enregistré en base.</p>}</CardContent></Card></TabsContent>
 
