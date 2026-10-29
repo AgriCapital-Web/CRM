@@ -454,7 +454,8 @@ async function deliver(args: {
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
       const rendered = brandAutomatedMessage(render(args.content, contact, args.context || {}), channel);
-      const rawSubject = render(args.subject || "", contact, args.context || {});\n      const renderedSubject = channel === "app" && rawSubject && !/^AgriCapital\\b/i.test(rawSubject) ? "AgriCapital · " + rawSubject : rawSubject;
+      const rawSubject = render(args.subject || "", contact, args.context || {});
+      const renderedSubject = channel === "app" && rawSubject && !/^AgriCapital\\b/i.test(rawSubject) ? "AgriCapital · " + rawSubject : rawSubject;
       const attachments = args.mediaAttachments || [];
       const mediaForChannel = channel === "whatsapp" ? preparedMedia : [];
       const attachmentMetadata = attachments.map((item) => ({
@@ -1095,7 +1096,8 @@ serve(async (req) => {
       if (channel === "whatsapp" && !(contact.whatsapp || contact.telephone)) return json(req, { error: "Numéro WhatsApp absent" }, 400);
       if (channel === "sms" && !contact.telephone) return json(req, { error: "Numéro de téléphone absent" }, 400);
       if (channel === "email" && !contact.email) return json(req, { error: "Adresse email absente" }, 400);
-      const requestBucket = Math.floor(Date.now() / (5 * 60 * 1000));\n      const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || requestBucket + ":" + (await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizedContent)).then(hash => Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, "0")).join("").slice(0, 20)))}`;
+      const requestBucket = Math.floor(Date.now() / (5 * 60 * 1000));
+      const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || requestBucket + ":" + (await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizedContent)).then(hash => Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, "0")).join("").slice(0, 20)))}`;
       let result: { provider: string; messageId: string | null };
       if (channel === "whatsapp" || channel === "auto" || channel === "email_sms") {
         assertWhatsAppLength(normalizedContent);
