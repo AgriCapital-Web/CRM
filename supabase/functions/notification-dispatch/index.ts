@@ -89,15 +89,40 @@ const assertWhatsAppLength = (value: string) => {
   if (!length) throw new Error("Le message WhatsApp ne peut pas être vide.");
   return value;
 };
+
+function brandAutomatedMessage(value: string, channel: string): string {
+  const content = value.trim();
+  if (/agricapital\s*[|·—-].*(notification automatique|message automatique)/i.test(content) ||
+      /notification automatique envoyée par agricapital/i.test(content)) return content;
+  if (channel === "sms") {
+    const signature = " - AgriCapital (auto)";
+    const base = normalizeSms(content);
+    const maxBody = 155 - Array.from(signature).length;
+    const clipped = Array.from(base).length > maxBody
+      ? Array.from(base).slice(0, maxBody - 1).join("").trimEnd() + "…"
+      : base;
+    return clipped + signature;
+  }
+  if (channel === "email") return content + "\n\n— AgriCapital\nNotification automatique envoyée par AgriCapital.\nInvestir la terre. Cultiver l’avenir.\nContact : contact@agricapital.ci";
+  return content + "\n\n— AgriCapital\nNotification automatique · Investir la terre. Cultiver l’avenir.\nBesoin d’aide ? contact@agricapital.ci";
+}
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
 async function prepareMedia(attachments: MediaAttachment[] = []) {
   const prepared: Array<{ ref: string; name: string; mimeType: string; path: string }> = [];
   const client = await getSenndoClient();
   for (const item of attachments) {
     if (!item?.path || !item?.name || !item?.mimeType) continue;
+    // Senndo ne reçoit que des images dans des formats éprouvés. Les anciens
+    // documents/vidéos ne doivent jamais être transmis comme des médias WhatsApp.
+    if (!/^image\/(jpeg|png|webp)$/i.test(item.mimeType)) {
+      console.warn("[NotificationMedia] pièce jointe ignorée : format non accepté", { name: item.name, mimeType: item.mimeType });
+      continue;
+    }
     const { data, error } = await admin.storage.from(item.bucket || "notification-media").download(item.path);
     if (error || !data) throw new Error(`Média indisponible : ${item.name}`);
-    const uploaded = await client.uploadMedia({ file: new Uint8Array(await data.arrayBuffer()), fileName: item.name, contentType: item.mimeType });
+    const bytes = new Uint8Array(await data.arrayBuffer());
+    if (!bytes.length) throw new Error(`Image vide : ${item.name}`);
+    const uploaded = await client.uploadMedia({ file: bytes, fileName: item.name, contentType: item.mimeType });
     if (!uploaded?.ref) throw new Error(`Téléversement Senndo impossible : ${item.name}`);
     prepared.push({ ref: uploaded.ref, name: item.name, mimeType: item.mimeType, path: item.path });
   }
@@ -428,8 +453,8 @@ async function deliver(args: {
 
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
-      const rendered = render(args.content, contact, args.context || {});
-      const renderedSubject = render(args.subject || "", contact, args.context || {});
+      const rendered = brandAutomatedMessage(render(args.content, contact, args.context || {}), channel);
+      const rawSubject = render(args.subject || "", contact, args.context || {});\n      const renderedSubject = channel === "app" && rawSubject && !/^AgriCapital\\b/i.test(rawSubject) ? "AgriCapital · " + rawSubject : rawSubject;
       const attachments = args.mediaAttachments || [];
       const mediaForChannel = channel === "whatsapp" ? preparedMedia : [];
       const attachmentMetadata = attachments.map((item) => ({
@@ -531,12 +556,15 @@ async function deliver(args: {
         const failureReason = error instanceof Error ? error.message : String(error);
         failureReasons.push(failureReason);
         console.error("[NotificationDelivery] échec fournisseur", { campaignId: args.campaignId || null, sourceType: contact.source_type, sourceId: contact.source_id, channel, reason: failureReason });
-        await admin.from("notification_deliveries").update({
-          statut: "echoue", erreur: failureReason,
-        }).eq("id", delivery.id);
         const status = Number((error as any)?.status || (error as any)?.statusCode || 0);
         const message = String((error as any)?.message || "");
         const outcomeUncertain = status >= 500 || /timeout|timed out|network|failed to fetch|connection reset|socket|econn|abort/i.test(message);
+        // A provider timeout may happen after delivery. Do not retry automatically:
+        // doing so could send a duplicate message to the same recipient.
+        await admin.from("notification_deliveries").update({
+          statut: outcomeUncertain ? "incertain" : "echoue",
+          erreur: outcomeUncertain ? "Résultat fournisseur incertain ; vérification manuelle requise pour éviter un doublon. " + failureReason : failureReason,
+        }).eq("id", delivery.id);
         // En mode automatique, un résultat de livraison incertain interdit le repli vers un autre canal :
         // le premier message a peut-être été délivré malgré le timeout.
         if (args.canal === "auto" && outcomeUncertain) break;
@@ -1005,7 +1033,7 @@ serve(async (req) => {
       const requestId = String(body.request_id || crypto.randomUUID()).replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 100);
       if (!leadId) return json(req, { error: "lead_id requis" }, 400);
       if (!["whatsapp", "email", "sms"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
-      const normalizedContent = channel === "sms" ? normalizeSms(content) : content;
+      const normalizedContent = brandAutomatedMessage(content, channel === "email" ? "email" : channel === "sms" ? "sms" : "whatsapp");
       const effectiveLength = Array.from(normalizedContent).length;
       const limit = channel === "sms" ? 155 : channel === "whatsapp" ? 4096 : 5000;
       if (!normalizedContent || effectiveLength > limit) {
@@ -1030,7 +1058,7 @@ serve(async (req) => {
         }
         templateMedia = Array.isArray(selectedTemplate.media_attachments) ? selectedTemplate.media_attachments : [];
       }
-      const allowedMime = /^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime|3gpp)|application\/(pdf|msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel)|text\/(plain|csv))$/i;
+      const allowedMime = /^image\/(jpeg|png|webp)$/i;
       const mediaAttachments: MediaAttachment[] = [];
       for (const item of rawAttachments) {
         if (!item || typeof item.path !== "string" || typeof item.name !== "string" || typeof item.mimeType !== "string") {
@@ -1067,7 +1095,7 @@ serve(async (req) => {
       if (channel === "whatsapp" && !(contact.whatsapp || contact.telephone)) return json(req, { error: "Numéro WhatsApp absent" }, 400);
       if (channel === "sms" && !contact.telephone) return json(req, { error: "Numéro de téléphone absent" }, 400);
       if (channel === "email" && !contact.email) return json(req, { error: "Adresse email absente" }, 400);
-      const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || crypto.randomUUID()}`;
+      const requestBucket = Math.floor(Date.now() / (5 * 60 * 1000));\n      const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || requestBucket + ":" + (await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizedContent)).then(hash => Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, "0")).join("").slice(0, 20)))}`;
       let result: { provider: string; messageId: string | null };
       if (channel === "whatsapp" || channel === "auto" || channel === "email_sms") {
         assertWhatsAppLength(normalizedContent);
