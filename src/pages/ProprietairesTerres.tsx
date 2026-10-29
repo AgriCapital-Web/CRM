@@ -53,7 +53,7 @@ const ProprietairesTerres = () => {
   const { user, userRoles = [] } = useAuth();
   const { can } = usePermissions();
   const canCreateProprietaire = can("proprietaires.create");
-  const canEditProprietaire = (userRoles || []).some((role:string) => ["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
+  const canEditProprietaire = (userRoles || []).some((role:string) => ["pdg","relation_client","support"].includes(role));
   const canValidateOwners = can("proprietaires.validate");
   const [searchParams] = useSearchParams();
   const conversionLeadId = searchParams.get("lead_id");
