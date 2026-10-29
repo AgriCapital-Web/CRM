@@ -38,8 +38,9 @@ const CLIENT_COLUMNS = new Set([
 const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommercialAssignment = false }: ClientFormProps) => {
   const { user, userRoles } = useAuth();
   const { can } = usePermissions();
-  const canEditClient = can("clients.update") || Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
-  const [isEditing, setIsEditing] = useState(!readOnly);
+  const roleCanEditClient = (userRoles || []).some((role: string) => ["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
+  const canEditClient = roleCanEditClient && (client?.type_client === "beneficiaire_particulier" ? (userRoles || []).includes("pdg") : can("clients.update"));
+  const [isEditing, setIsEditing] = useState(!readOnly && roleCanEditClient);
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   // valeurs ou les médias du client précédent lorsque l'identifiant change.
   useEffect(() => {
     setForm({ ...(client || {}) });
-    setIsEditing(!readOnly);
+    setIsEditing(!readOnly && roleCanEditClient);
     setPhotoFile(null);
     setPieceRectoFile(null);
     setPieceVersoFile(null);
@@ -165,7 +166,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
 
   const onSubmit = async () => {
     if (!canEditClient) {
-      toast({ variant: "destructive", title: "Accès refusé", description: "Seuls les rôles Relation client et les responsables autorisés peuvent modifier un dossier client." });
+      toast({ variant: "destructive", title: "Accès refusé", description: client?.type_client === "beneficiaire_particulier" ? "Seul le PDG peut modifier un bénéficiaire particulier." : "Seuls le PDG et les rôles Relation client & Support autorisés peuvent modifier un dossier client." });
       return;
     }
     if (!user || !client?.id) return;
