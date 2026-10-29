@@ -784,6 +784,7 @@ const ClientDetail = () => {
                 <div className="rounded-lg bg-muted/50 p-3 text-sm">
                   <p className="font-semibold">{client.nom_complet}</p>
                   <p className="text-muted-foreground">Une nouvelle offre et une nouvelle formule seront enregistrées comme une acquisition distincte, sans modifier les acquisitions précédentes.</p>
+                  <p className="text-xs text-muted-foreground">Les promotions réservées aux nouveaux clients ne s’appliquent pas aux clients déjà enregistrés.</p>
                 </div>
 
                 <Etape0Offre
