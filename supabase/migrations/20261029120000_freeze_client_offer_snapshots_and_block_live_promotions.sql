@@ -264,7 +264,12 @@ begin
   if position('select p.* into v_promo' in v_definition)>0 then
     v_updated := regexp_replace(v_definition,
       '(?s)  select p\.\* into v_promo.*?  limit 1;',
-      '  -- No current promotion is applied to an existing client acquisition.\n  v_promo_id := null;\n  v_promo_name := null;\n  v_pct := 0;\n  v_fixed := 0;\n  v_promo_target := ''paiement_initial'';',
+      '  -- No current promotion is applied to an existing client acquisition.' || chr(10) ||
+      '  v_promo_id := null;' || chr(10) ||
+      '  v_promo_name := null;' || chr(10) ||
+      '  v_pct := 0;' || chr(10) ||
+      '  v_fixed := 0;' || chr(10) ||
+      '  v_promo_target := ''paiement_initial''',
       'g');
     if v_updated = v_definition then raise exception 'Could not safely remove dynamic promotion selection from create_client_acquisition'; end if;
     execute v_updated;
