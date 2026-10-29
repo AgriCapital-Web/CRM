@@ -198,6 +198,9 @@ const NouvelleAcquisition = () => {
       if(!active) return;
       const sourceValues = {
         ...(isProspect ? {prospect_id:source.id,lead_id:source.lead_id||undefined} : {lead_id:source.id,prospect_id:source.prospect_id||undefined}),
+        type_personne:source.type_personne||"personne_physique",
+        denomination_sociale:source.denomination_sociale||"",nature_organisation_code:source.nature_organisation_code||"",forme_juridique_code:source.forme_juridique_code||"",
+        numero_enregistrement:source.numero_enregistrement||"",responsable_legal_nom:source.responsable_legal_nom||"",responsable_legal_prenoms:source.responsable_legal_prenoms||"",nombre_membres:source.nombre_membres||null,
         nom_famille:source.nom_famille||source.nom||"", prenoms:source.prenoms||"",
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
@@ -578,7 +581,7 @@ const NouvelleAcquisition = () => {
         offre_id:offer.id,commercial_id:formData.commercial_id||null,parcelle_id:null,type_client:external?"sans_terre":"avec_terre",type_client_foncier:external?"EXT":"OWN",
         type_personne:formData.type_personne||"personne_physique",
         denomination_sociale:formData.denomination_sociale||null,nature_organisation_code:formData.nature_organisation_code||null,forme_juridique_code:formData.forme_juridique_code||null,
-        numero_enregistrement:formData.numero_enregistrement||null,responsable_legal_nom:formData.responsable_legal_nom||null,responsable_legal_prenoms:formData.responsable_legal_prenoms||null,
+        numero_enregistrement:formData.numero_enregistrement||null,responsable_legal_nom:formData.responsable_legal_nom||null,responsable_legal_prenoms:formData.responsable_legal_prenoms||null,responsable_legal_telephone:formData.telephone||null,
         nombre_membres:formData.nombre_membres?Number(formData.nombre_membres):null,
         nom:(formData.type_personne==="personne_morale"||formData.type_personne==="famille_informelle" ? (formData.denomination_sociale||formData.nom_famille||"") : (formData.nom_famille||"")),
         nom_famille:formData.nom_famille||formData.responsable_legal_nom||null,prenoms:formData.prenoms||formData.responsable_legal_prenoms||null,
