@@ -91,20 +91,23 @@ const assertWhatsAppLength = (value: string) => {
 };
 
 function brandAutomatedMessage(value: string, channel: string): string {
-  const content = value.trim();
-  if (/agricapital\s*[|·—-].*(notification automatique|message automatique)/i.test(content) ||
-      /notification automatique envoyée par agricapital/i.test(content)) return content;
+  let content = value.trim().replace(/^bonjour\s+[^,\n!]+[,!]\s*/i, "").replace(/^salut\s+[^,\n!]+[,!]\s*/i, "");
+  const alreadyBranded = /agricapital\s*[|·—-].*(notification automatique|message automatique)/i.test(content) ||
+    /notification automatique envoyée par agricapital/i.test(content);
   if (channel === "sms") {
-    const signature = " - AgriCapital (auto)";
+    const prefix = "AgriCapital (auto): ";
+    if (alreadyBranded) return assertSmsLength(normalizeSms(content));
     const base = normalizeSms(content);
-    const maxBody = 155 - Array.from(signature).length;
+    const maxBody = 155 - Array.from(prefix).length;
     const clipped = Array.from(base).length > maxBody
       ? Array.from(base).slice(0, maxBody - 1).join("").trimEnd() + "…"
       : base;
-    return clipped + signature;
+    return assertSmsLength(prefix + clipped);
   }
+  if (alreadyBranded) return content;
   if (channel === "email") return content + "\n\n— AgriCapital\nNotification automatique envoyée par AgriCapital.\nInvestir la terre. Cultiver l’avenir.\nContact : contact@agricapital.ci";
-  return content + "\n\n— AgriCapital\nNotification automatique · Investir la terre. Cultiver l’avenir.\nBesoin d’aide ? contact@agricapital.ci";
+  return "🌱 AgriCapital · Notification automatique\n" + content +
+    "\n\nInvestir la terre. Cultiver l’avenir.\nBesoin d’aide ? contact@agricapital.ci";
 }
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
 async function prepareMedia(attachments: MediaAttachment[] = []) {
@@ -933,6 +936,7 @@ function buildAgriCapitalEmailHtml(content: string) {
   <tr><td style="height:6px;background:#16834a;font-size:0;line-height:0;">&nbsp;</td></tr>
   <tr><td align="center" style="padding:24px;"><a href="https://www.agricapital.ci/" style="text-decoration:none;">
   <img src="${BRAND_LOGO_URL}" width="250" alt="AgriCapital — Investir la terre. Cultiver l’avenir." style="display:block;width:250px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;"></a></td></tr>
+  <tr><td style="padding:0 28px 12px;font-size:12px;line-height:1.5;color:#176b45;font-weight:700;">AGRICAPITAL · NOTIFICATION AUTOMATIQUE</td></tr>
   <tr><td style="padding:0 28px 28px;font-size:15px;line-height:1.75;overflow-wrap:anywhere;">${body}</td></tr>
   <tr><td style="padding:20px 24px;background:#f8faf8;border-top:1px solid #e6ebe7;text-align:center;font-size:12px;line-height:1.7;color:#66736b;">
   <strong style="font-size:14px;color:#176b45;">AgriCapital SARL</strong><br>Investir la terre. Cultiver l’avenir.<br>
