@@ -608,6 +608,7 @@ const NouvelleAcquisition = () => {
       // Ainsi un délai sur le lead ne coupe plus l'envoi des photos et ne laisse pas
       // un client à moitié enregistré.
       const identityUploadedPaths: Record<string, { path: string; bucket: string }> = {};
+      if ((formData.type_personne || "personne_physique") === "personne_physique") {
       for (const [code, config] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
         const existingPath = (client as any)[config.column];
         if (existingPath) identityUploadedPaths[code] = { path: existingPath, bucket: config.bucket };
@@ -626,6 +627,7 @@ const NouvelleAcquisition = () => {
           const {error:mediaLinkError}=await offlineUpdate("clients",client.id,{[column]:uploaded.path});
           if(mediaLinkError)throw mediaLinkError;
         }
+      }
       }
 
 
@@ -648,7 +650,7 @@ const NouvelleAcquisition = () => {
       // Les trois pièces d'identité sont gérées ici depuis leurs champs uniques
       // de l'étape Client. Elles ne doivent pas être répétées dans la configuration
       // des documents dynamiques ni téléversées une seconde fois.
-      for (const [code, config] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
+      if ((formData.type_personne || "personne_physique") === "personne_physique") for (const [code, config] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
         const uploaded = identityUploadedPaths[code];
         if (!uploaded?.path) throw new Error("Pièce d’identité manquante ou non téléversée : " + code);
         const { error: identityDocError } = await offlineUpsert("documents_acquisition", {
