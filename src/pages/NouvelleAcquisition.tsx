@@ -451,8 +451,10 @@ const NouvelleAcquisition = () => {
       const contracts = recordId
         ? (Array.isArray(formData.offre_snapshot?.workflow?.contracts) ? formData.offre_snapshot.workflow.contracts : [])
         : ((await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",formData.offre_id).eq("actif",true)).data || []);
-      for(const contract of contracts) if(contract.obligatoire&&!["a_signer","signe"].includes(formData["contrat_"+contract.type_contrat+"_statut"]||"a_preparer")){
-        toast({variant:"destructive",title:"Contrat à traiter",description:"Indiquez le statut du contrat applicable avant de continuer."});return false;
+      for(const contract of contracts) if(contract.obligatoire){
+        const key="contrat_"+contract.type_contrat;
+        const signedFile=recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
+        if(!signedFile){toast({variant:"destructive",title:"Contrat signé manquant",description:"Téléversez le contrat signé requis : "+(contract.source_document||contract.type_contrat)+"."});return false;}
       }
     }
     if(step.code==="confirmation"&&!formData.contrat_lu){
