@@ -1037,7 +1037,7 @@ serve(async (req) => {
       const channel = String(body.channel || "");
       const content = String(body.content || "").trim();
       const subject = String(body.subject || "Suivi de votre projet de plantation de palmier à huile").slice(0, 160);
-      const requestId = String(body.request_id || crypto.randomUUID()).replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 100);
+      const requestId = String(body.request_id || "").replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 100);
       if (!leadId) return json(req, { error: "lead_id requis" }, 400);
       if (!["whatsapp", "email", "sms"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
       const normalizedContent = brandAutomatedMessage(content, channel === "email" ? "email" : channel === "sms" ? "sms" : "whatsapp");
