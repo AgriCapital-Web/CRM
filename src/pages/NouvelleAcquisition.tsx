@@ -733,7 +733,7 @@ const NouvelleAcquisition = () => {
           if(contractDocError)throw contractDocError;
         }
         const {error:contractStatusError}=await offlineUpdate("clients",client.id,{
-          [contract.type_contrat==="contrat_acquisition_client"?"contrat_acquisition_statut":"contrat_accompagnement_statut"]:formData[key+"_statut"]||"a_preparer"
+          [contract.type_contrat==="contrat_acquisition_client"?"contrat_acquisition_statut":"contrat_accompagnement_statut"]:file ? "signe" : (formData[key+"_statut"]||"a_preparer")
         });
         if(contractStatusError)throw contractStatusError;
       }
