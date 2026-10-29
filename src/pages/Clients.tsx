@@ -335,26 +335,26 @@ const Clients = () => {
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Acquisitions</h1>
               
             </div>
-            <div className="flex w-full min-w-0 flex-row gap-2 sm:w-auto">
+            <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:w-auto">
               {can("beneficiaires.create") && (
-            <Link to="/beneficiaire-particulier">
-                <Button variant="outline" className="h-auto min-h-10 w-full min-w-0 px-2 text-xs sm:w-auto sm:px-4 sm:text-sm">
-                  <UserRound className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
-                  Nouveau bénéficiaire
-                </Button>
-              </Link>
-            )}
+                <Link to="/beneficiaire-particulier" className="min-w-0">
+                  <Button variant="outline" className="h-auto min-h-10 w-full min-w-0 whitespace-normal px-2 text-xs sm:w-auto sm:whitespace-nowrap sm:px-4 sm:text-sm">
+                    <UserRound className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
+                    Nouveau bénéficiaire
+                  </Button>
+                </Link>
+              )}
               {can("clients.create") && (
-                <Link to="/nouvelle-acquisition">
-                  <Button className="h-auto min-h-10 w-full min-w-0 px-2 text-xs sm:w-auto sm:px-4 sm:text-sm bg-primary hover:bg-primary-hover">
+                <Link to="/nouvelle-acquisition" className="min-w-0">
+                  <Button className="h-auto min-h-10 w-full min-w-0 whitespace-normal px-2 text-xs sm:w-auto sm:whitespace-nowrap sm:px-4 sm:text-sm bg-primary hover:bg-primary-hover">
                     <FileText className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
                     Nouveau Client
                   </Button>
                 </Link>
               )}
               {can("acquisitions.validate") && (
-                <Link to="/acquisitions/validation">
-                  <Button variant="outline" className="h-auto min-h-10 w-full min-w-0 justify-center px-2 text-xs sm:w-auto sm:px-4 sm:text-sm">
+                <Link to="/acquisitions/validation" className="col-span-2 min-w-0 sm:col-span-1">
+                  <Button variant="outline" className="h-auto min-h-10 w-full min-w-0 justify-center whitespace-normal px-2 text-xs sm:w-auto sm:whitespace-nowrap sm:px-4 sm:text-sm">
                     <FileText className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
                     Ventes à valider <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 tabular-nums">{stats.salesPendingValidation}</span>
                   </Button>
