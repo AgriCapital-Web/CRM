@@ -21,6 +21,7 @@ interface Etape0Props {
   showCommercial?: boolean;
   surfaceReadOnly?: boolean;
   contractReadOnly?: boolean;
+  allowPromotions?: boolean;
 }
 
 const getFormulaConfig = (offer: any, code?: string) => {
@@ -48,8 +49,8 @@ const applyFormulaConfig = (offer: any, formula: any) => {
   return next;
 };
 
-export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false, contractReadOnly = false }: Etape0Props) => {
-  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code, !contractReadOnly);
+export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false, contractReadOnly = false, allowPromotions = true }: Etape0Props) => {
+  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code, !contractReadOnly && allowPromotions);
   const [loadingCommercialDefault, setLoadingCommercialDefault] = useState(false);
 
   useEffect(() => {
