@@ -621,7 +621,7 @@ const NouvelleAcquisition = () => {
         const existingPath = (client as any)[config.column];
         if (existingPath) identityUploadedPaths[code] = { path: existingPath, bucket: config.bucket };
       }
-      for(const [field,column,bucket,docCode] of [
+      if ((formData.type_personne||"personne_physique")==="personne_physique") for(const [field,column,bucket,docCode] of [
         ["photo_profil","photo_profil_url","photos-profils","client_photo_profil"],
         ["photo_piece_recto","fichier_piece_recto_url","pieces-identite","client_piece_recto"],
         ["photo_piece_verso","fichier_piece_verso_url","pieces-identite","client_piece_verso"]
@@ -725,6 +725,9 @@ const NouvelleAcquisition = () => {
       for(const contract of contracts){
         const key="contrat_"+contract.type_contrat;
         const file=recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
+        if(contract.obligatoire&&!file){
+          throw new Error("Le contrat signé obligatoire doit être téléversé : "+(contract.type_contrat||"contrat"));
+        }
         if(file){
           const uploaded=await uploadFile("documents",file,user.id+"/clients/"+client.id+"/contrats","contrat-"+contract.type_contrat);
           if(!uploaded?.path)throw new Error("Upload contrat impossible");
