@@ -140,7 +140,7 @@ const NouvelleAcquisition = () => {
   const navigate=useNavigate();
   const { user, userRoles=[] } = useAuth();
   const { can } = usePermissions();
-  const canEditExistingRole = can("clients.update") && (userRoles || []).some((role:string)=>["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
+  const canEditExistingRole = (userRoles || []).some((role:string)=>["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
   const canEditExisting = canEditExistingRole && (existingRecord?.client?.type_client === "beneficiaire_particulier" ? (userRoles || []).includes("pdg") : true);
   const [searchParams]=useSearchParams();
   const {data:promotionActive}=usePromotionActive(formData.offre_id, undefined, !recordId);
