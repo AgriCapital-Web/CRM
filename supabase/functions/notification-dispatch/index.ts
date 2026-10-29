@@ -119,7 +119,7 @@ async function prepareMedia(attachments: MediaAttachment[] = []) {
     if (!item?.path || !item?.name || !item?.mimeType) continue;
     // Senndo ne reçoit que des images dans des formats éprouvés. Les anciens
     // documents/vidéos ne doivent jamais être transmis comme des médias WhatsApp.
-    if (!/^image\/(jpeg|png|webp)$/i.test(item.mimeType)) {
+    if (!/^image\/(jpeg|png)$/i.test(item.mimeType)) {
       console.warn("[NotificationMedia] pièce jointe ignorée : format non accepté", { name: item.name, mimeType: item.mimeType });
       continue;
     }
@@ -1065,7 +1065,7 @@ serve(async (req) => {
         }
         templateMedia = Array.isArray(selectedTemplate.media_attachments) ? selectedTemplate.media_attachments : [];
       }
-      const allowedMime = /^image\/(jpeg|png|webp)$/i;
+      const allowedMime = /^image\/(jpeg|png)$/i;
       const mediaAttachments: MediaAttachment[] = [];
       for (const item of rawAttachments) {
         if (!item || typeof item.path !== "string" || typeof item.name !== "string" || typeof item.mimeType !== "string") {
