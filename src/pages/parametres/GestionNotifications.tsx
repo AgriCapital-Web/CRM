@@ -100,7 +100,7 @@ async function convertToSenndoImage(file: File): Promise<File> {
       drawable = image;
     } catch {
       URL.revokeObjectURL(objectUrl);
-      throw new Error(`Impossible de décoder « ${file.name} » sur cet appareil. Réexportez l’image en JPG, PNG ou WebP puis réessayez.`);
+      throw new Error(`Impossible de décoder « ${file.name} » sur cet appareil. Réexportez l’image en JPG ou PNG puis réessayez.`);
     }
   }
   try {
@@ -117,12 +117,12 @@ async function convertToSenndoImage(file: File): Promise<File> {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(drawable, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-      value => value ? resolve(value) : reject(new Error("Conversion WebP impossible.")),
-      "image/webp", 0.88,
+      value => value ? resolve(value) : reject(new Error("Conversion JPG impossible.")),
+      "image/jpeg", 0.88,
     ));
     if (!blob.size) throw new Error("L’image convertie est vide.");
     const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_") || "image";
-    return new File([blob], baseName + ".webp", { type: "image/webp", lastModified: Date.now() });
+    return new File([blob], baseName + ".jpg", { type: "image/jpeg", lastModified: Date.now() });
   } finally {
     bitmap?.close();
     if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -405,13 +405,13 @@ const GestionNotifications = () => {
         const name = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `${user.id}/${crypto.randomUUID()}-${name}`;
         const { error } = await supabase.storage.from("notification-media").upload(path, file, {
-          contentType: "image/webp", upsert: false,
+          contentType: "image/jpeg", upsert: false,
         });
         if (error) throw error;
-        uploaded.push({ bucket: "notification-media", path, name: file.name, mimeType: "image/webp", size: file.size });
+        uploaded.push({ bucket: "notification-media", path, name: file.name, mimeType: "image/jpeg", size: file.size });
       }
       if (target === "campaign") setCampaignMedia(v => [...v, ...uploaded]); else setAutomationMedia(v => [...v, ...uploaded]);
-      toast.success("Images converties en WebP, prévisualisées et enregistrées.");
+      toast.success("Images converties en JPG, prévisualisées et enregistrées.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Conversion ou téléversement impossible.");
     } finally {
@@ -428,16 +428,16 @@ const GestionNotifications = () => {
         toast.warning(`La pièce jointe non-image « ${item.name} » a été exclue.`);
         continue;
       }
-      if (item.mimeType === "image/webp") { normalized.push(item); continue; }
+      if (["image/jpeg", "image/png"].includes(String(item.mimeType).toLowerCase())) { normalized.push(item); continue; }
       const { data: blob, error } = await supabase.storage.from(item.bucket || "notification-media").download(item.path);
       if (error || !blob) { toast.warning(`Impossible de convertir « ${item.name} » ; cette pièce jointe a été ignorée.`); continue; }
       try {
         const converted = await convertToSenndoImage(new File([blob], item.name, { type: item.mimeType }));
         const name = converted.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const newPath = `${user.id}/${crypto.randomUUID()}-${name}`;
-        const { error: uploadError } = await supabase.storage.from("notification-media").upload(newPath, converted, { contentType: "image/webp", upsert: false });
+        const { error: uploadError } = await supabase.storage.from("notification-media").upload(newPath, converted, { contentType: converted.type, upsert: false });
         if (uploadError) throw uploadError;
-        normalized.push({ bucket: "notification-media", path: newPath, name: converted.name, mimeType: "image/webp", size: converted.size });
+        normalized.push({ bucket: "notification-media", path: newPath, name: converted.name, mimeType: converted.type, size: converted.size });
         void supabase.storage.from(item.bucket || "notification-media").remove([item.path]);
       } catch (error) {
         toast.warning(`L’image « ${item.name} » n’a pas pu être convertie et a été exclue.`);
