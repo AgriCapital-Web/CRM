@@ -779,10 +779,17 @@ const NouvelleAcquisition = () => {
         email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
         domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
-         commercial_id:formData.commercial_id||existingRecord.client.commercial_id||null,
          contrat_acquisition_statut:formData.contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
          contrat_accompagnement_statut:formData.contrat_accompagnement_client_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
          updated_by:user.id,updated_at:new Date().toISOString()};
+      // Ne pas inclure commercial_id dans UPDATE si l’affectation n’a pas changé :
+      // le trigger SQL revalide toute colonne incluse et peut bloquer une fiche historique
+      // dont le commercial a depuis été désactivé. Une nouvelle affectation reste validée par la DB.
+      const selectedCommercialId = formData.commercial_id || null;
+      const previousCommercialId = existingRecord.client.commercial_id || null;
+      if (selectedCommercialId && selectedCommercialId !== previousCommercialId) {
+        payload.commercial_id = selectedCommercialId;
+      }
       for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
         const file=recoverFile(formData[field+"_file"],formData[field+"_preview"],field);
         if(file){const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+existingClientId,"identity-"+field);if(!uploaded)throw new Error("Téléversement impossible : "+field);payload[column]=uploaded.path;}
