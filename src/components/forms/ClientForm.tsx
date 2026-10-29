@@ -151,7 +151,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         ? formulaConfiguration.tranches_paiement : []),
     type_offre: offer.type_offre || form.type_client, actif: undefined,
   } : null;
-  const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
   const paymentTranches = Array.isArray(effectiveOffer?.tranches_paiement)
     ? effectiveOffer.tranches_paiement.filter((tranche: any) =>
         tranche.type !== "paiement_initial" && Number(tranche.mensualite_par_ha || 0) > 0) : [];
