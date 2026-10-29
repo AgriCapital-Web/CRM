@@ -1,4 +1,37 @@
 
+CREATE OR REPLACE FUNCTION public.validate_client_selected_offer_formula()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+DECLARE v_formulas jsonb;
+BEGIN
+  IF COALESCE(NEW.is_internal,false) THEN RETURN NEW; END IF;
+  IF NEW.offre_id IS NULL THEN RETURN NEW; END IF;
+  IF TG_OP='UPDATE' AND NEW.offre_id IS NOT DISTINCT FROM OLD.offre_id
+     AND NEW.formule_code IS NOT DISTINCT FROM OLD.formule_code THEN RETURN NEW; END IF;
+  SELECT formules_configuration INTO v_formulas FROM public.offres
+   WHERE id=NEW.offre_id
+     AND (actif=true OR COALESCE(NEW.metadata->>'offre_catalogue_rattachee','true')='false');
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'L’offre sélectionnée est introuvable ou inactive.'
+      USING ERRCODE='23514';
+  END IF;
+  IF jsonb_typeof(v_formulas)<>'array' OR jsonb_array_length(v_formulas)=0 THEN
+    RAISE EXCEPTION 'Aucune formule n’est configurée pour cette offre.'
+      USING ERRCODE='23514';
+  END IF;
+  IF COALESCE(NULLIF(btrim(NEW.formule_code),''),'')='' OR NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(v_formulas) f(value) WHERE f.value->>'code'=NEW.formule_code
+  ) THEN
+    RAISE EXCEPTION 'La formule doit être choisie parmi les formules configurées pour cette offre.'
+      USING ERRCODE='23514';
+  END IF;
+  SELECT f.value->>'nom' INTO NEW.formule_nom FROM jsonb_array_elements(v_formulas) f(value)
+   WHERE f.value->>'code'=NEW.formule_code LIMIT 1;
+  RETURN NEW;
+END;
+$$;
+
+
 ALTER TABLE public.clients DROP CONSTRAINT IF EXISTS clients_telephone_unique;
 CREATE UNIQUE INDEX IF NOT EXISTS clients_telephone_type_unique
   ON public.clients (telephone, type_client)
@@ -97,7 +130,9 @@ BEGIN
    mensualite_montant=5600,montant_pi_total=20000,paiement_initial_montant=20000,montant_total_contrat=87200,
    duree_paiement_mois=12,contrat_debut_at=DATE '2026-10-24',prochaine_echeance=DATE '2026-11-23',
    paiement_initial_paye_at=TIMESTAMPTZ '2026-10-24 16:39:05+00',statut='actif',statut_global='a_jour',
-   validation_statut='valide',compte_actif=true,is_internal=false,updated_at=now()
+   validation_statut='valide',compte_actif=true,is_internal=false,
+   metadata=coalesce(metadata,'{}'::jsonb)||jsonb_build_object('offre_catalogue_rattachee',false,'source_personnalisation','emmanuel_camp_bethel_20261024'),
+   updated_at=now()
  WHERE id=v_paid_client;
 
  UPDATE public.plantations SET client_id=v_paid_client,role_attribution='client',montant_mensualite=5600,updated_at=now()
