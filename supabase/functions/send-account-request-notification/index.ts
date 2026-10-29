@@ -91,23 +91,32 @@ serve(async (req) => {
     for (const adminProfile of adminProfiles || []) {
       console.log("Processing notification for admin");
 
-      // Create in-app notification
-      const { error: notifError } = await supabaseAdmin.from('notifications').insert({
+      // The in-app row is the idempotency claim for all external channels.
+      const notificationDedupeKey = `account-request:${String(requestData.auth_user_id || requestData.email).toLowerCase()}:${adminProfile.user_id || adminProfile.id}`;
+      const { data: existingNotification, error: lookupError } = await supabaseAdmin
+        .from('notifications').select('id').eq('dedupe_key', notificationDedupeKey).maybeSingle();
+      if (lookupError) {
+        console.error("Notification claim lookup failed; external delivery skipped.");
+        continue;
+      }
+      if (existingNotification) {
+        console.log("Duplicate account-request notification suppressed");
+        continue;
+      }
+      const { data: insertedNotification, error: notifError } = await supabaseAdmin.from('notifications').insert({
         user_id: adminProfile.id,
         type: 'account_request',
         titre: 'Nouvelle demande de compte',
         message: `${requestData.nom_complet} (${requestData.email}) demande un accès à la plateforme.`,
         lien: '/account-requests',
-        dedupe_key: `account-request:${String(requestData.auth_user_id || requestData.email).toLowerCase()}:${adminProfile.user_id || adminProfile.id}`
-      });
+        dedupe_key: notificationDedupeKey
+      }).select('id').maybeSingle();
 
-      if (notifError) {
-        if (notifError.code === "23505") { console.log("Duplicate account-request notification suppressed"); continue; }
-        console.error("Notification claim failed; external delivery skipped to avoid duplicates.");
+      if (notifError || !insertedNotification) {
+        console.error("Notification claim failed or duplicate; external delivery skipped.");
         continue;
-      } else {
-        console.log("In-app notification created");
       }
+      console.log("In-app notification created");
 
       // Send email notification using Resend
       const resendKey = Deno.env.get('RESEND_API_KEY');
