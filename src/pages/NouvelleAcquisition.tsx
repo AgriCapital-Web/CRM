@@ -96,15 +96,6 @@ function hasDocumentFile(formData: any, code: string): boolean {
   if (identity) return Boolean(recoverFile(formData[identity.field + "_file"], formData[identity.field + "_preview"], identity.field));
   return Boolean(recoverFile(formData["doc_" + code + "_file"], formData["doc_" + code + "_preview"], code));
 }
-
-// Retire uniquement l'ancien document justificatif du formulaire d'acquisition.
-// Les autres pièces dynamiques et tous les contrats restent inchangés.
-function isRetiredClientJustificationDocument(doc: any): boolean {
-  const code = String(doc?.code || doc?.code_document || doc?.type_document || "").trim().toLowerCase();
-  const label = String(doc?.libelle || "").trim().toLowerCase();
-  return ["document_justificatif", "dossier_justificatif", "justificatif_client", "document_annexe_anss", "anss"].includes(code)
-    || ["document justificatif", "dossier justificatif", "pièce justificative", "piece justificative", "document annexe anss"].includes(label);
-}
 const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, documents: FileText, confirmation: CheckCircle2 };
 const StoredAttachmentLinks=({formData}:{formData:any})=>{
   const [items,setItems]=useState<Array<{label:string;url:string;image:boolean}>>([]);
@@ -295,7 +286,6 @@ const NouvelleAcquisition = () => {
           representant_type_piece:repResult.data.type_piece||"",representant_numero_piece:repResult.data.numero_piece||"",
           representant_telephone:repResult.data.telephone||""});
         for(const doc of docsResult.data||[]){
-          if (isRetiredClientJustificationDocument(doc)) continue;
           const code=String(doc.code_document||doc.type_document||"");
           if(code==="client_photo_profil") values.photo_profil_preview=doc.fichier_url||values.photo_profil_preview;
           else if(code==="client_piece_recto") values.photo_piece_recto_preview=doc.fichier_url||values.photo_piece_recto_preview;
@@ -429,7 +419,6 @@ const NouvelleAcquisition = () => {
         ? (Array.isArray(formData.offre_snapshot?.workflow?.documents) ? formData.offre_snapshot.workflow.documents : [])
         : ((await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre")).data || []);
       for(const doc of docs){
-        if (isRetiredClientJustificationDocument(doc)) continue;
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
@@ -671,7 +660,7 @@ const NouvelleAcquisition = () => {
       const {data:docs,error:docsError}=await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",offer.id).eq("actif",true).order("ordre");
       if (docsError) throw docsError;
       if (!docs) throw new Error("Impossible de vérifier les pièces requises pour cette offre.");
-      for(const doc of docs.filter((item: any) => !IDENTITY_DOCUMENT_FIELDS[item.code] && !isRetiredClientJustificationDocument(item))){
+      for(const doc of docs.filter((item: any) => !IDENTITY_DOCUMENT_FIELDS[item.code])){
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
