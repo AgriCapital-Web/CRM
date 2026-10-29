@@ -339,6 +339,16 @@ const NouvelleAcquisition = () => {
   },[user, searchParams, recordId]);
 
   useEffect(()=>{
+    if(recordId){
+      const savedSteps = Array.isArray(formData.offre_snapshot?.workflow?.steps) ? formData.offre_snapshot.workflow.steps : [];
+      const configuredSteps = savedSteps
+        .filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()))
+        .map((item:any)=>({code:item.code,titre:item.titre,description:item.description,ordre:item.ordre,obligatoire:item.obligatoire}));
+      setSteps(configuredSteps);
+      setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
+      setLoadingSteps(false);
+      return;
+    }
     if(!formData.offre_id){ setSteps([]); setCurrent(0); return; }
     let mounted=true;
     (async()=>{
@@ -355,7 +365,7 @@ const NouvelleAcquisition = () => {
       setLoadingSteps(false);
     })();
     return()=>{mounted=false;};
-  },[formData.offre_id]);
+  },[formData.offre_id,recordId,formData.offre_snapshot?.workflow]);
 
   const activeSteps=useMemo(()=>formData.offre_id?steps:[{code:"offre",titre:"Offre et superficie",ordre:1,obligatoire:true}], [formData.offre_id,steps]);
   const step=activeSteps[current];
@@ -405,8 +415,10 @@ const NouvelleAcquisition = () => {
       }
     }
     if(step.code==="documents"){
-      const {data:docs}=await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre");
-      for(const doc of docs||[]){
+      const docs = recordId
+        ? (Array.isArray(formData.offre_snapshot?.workflow?.documents) ? formData.offre_snapshot.workflow.documents : [])
+        : ((await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre")).data || []);
+      for(const doc of docs){
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
@@ -417,8 +429,10 @@ const NouvelleAcquisition = () => {
       }
     }
     if(step.code==="documents"){
-      const {data:contracts}=await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",formData.offre_id).eq("actif",true);
-      for(const contract of contracts||[]) if(contract.obligatoire&&!["a_signer","signe"].includes(formData["contrat_"+contract.type_contrat+"_statut"]||"a_preparer")){
+      const contracts = recordId
+        ? (Array.isArray(formData.offre_snapshot?.workflow?.contracts) ? formData.offre_snapshot.workflow.contracts : [])
+        : ((await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",formData.offre_id).eq("actif",true)).data || []);
+      for(const contract of contracts) if(contract.obligatoire&&!["a_signer","signe"].includes(formData["contrat_"+contract.type_contrat+"_statut"]||"a_preparer")){
         toast({variant:"destructive",title:"Contrat à traiter",description:"Indiquez le statut du contrat applicable avant de continuer."});return false;
       }
     }
