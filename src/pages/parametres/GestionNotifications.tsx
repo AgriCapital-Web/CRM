@@ -73,36 +73,36 @@ const AUDIENCES = [
 const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) return true; const type = String(r.source_type || ""); return types.some((t) => t === "proprietaire_foncier" ? type.includes("proprietaire_foncier") : t === "beneficiaire_particulier" ? type.includes("beneficiaire_particulier") : t === "autre" ? !["client","lead","prospect","equipe"].includes(type) && !type.includes("proprietaire_foncier") && !type.includes("beneficiaire_particulier") : type === t); };
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const smsLength = (value: string) => Array.from(normalizeSms(value)).length
-async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || file.type === "image/gif" || file.size < 700 * 1024) return file;
+async function convertToSenndoImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error(`« ${file.name} » ignoré : seules les images sont acceptées. Les vidéos et documents ne peuvent pas être joints aux notifications WhatsApp.`);
+  }
+  let bitmap: ImageBitmap;
   try {
-    const bitmap = await createImageBitmap(file);
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error(`Impossible de lire « ${file.name} » dans ce navigateur. Convertissez cette image en JPG, PNG ou WebP puis réessayez.`);
+  }
+  try {
     const scale = Math.min(1, 2560 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
     const ctx = canvas.getContext("2d");
-    if (!ctx) { bitmap.close(); return file; }
+    if (!ctx) throw new Error("Conversion d’image indisponible dans ce navigateur.");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+      value => value ? resolve(value) : reject(new Error("Conversion WebP impossible.")),
+      "image/webp", 0.88,
+    ));
+    if (!blob.size) throw new Error("L’image convertie est vide.");
+    const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_") || "image";
+    return new File([blob], baseName + ".webp", { type: "image/webp", lastModified: Date.now() });
+  } finally {
     bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.88));
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp", lastModified: Date.now() });
-  } catch { return file; }
-}
-async function compressVideo(file: File): Promise<File> {
-  if (!file.type.startsWith("video/") || file.size < 5*1024*1024 || typeof MediaRecorder === "undefined") return file;
-  const mime = ["video/mp4","video/webm;codecs=vp9","video/webm"].find((x) => MediaRecorder.isTypeSupported(x)); if (!mime) return file;
-  const url=URL.createObjectURL(file), video=document.createElement("video"); video.src=url; video.muted=true; video.playsInline=true;
-  try { await new Promise<void>((resolve,reject)=>{video.onloadedmetadata=()=>resolve();video.onerror=()=>reject(new Error("Vidéo illisible"));});
-    if(video.duration>30*60)throw new Error("Une vidéo jointe ne peut pas dépasser 30 minutes.");
-    const scale=Math.min(1,1280/Math.max(video.videoWidth,video.videoHeight)), canvas=document.createElement("canvas");
-    canvas.width=Math.max(2,Math.round(video.videoWidth*scale/2)*2);canvas.height=Math.max(2,Math.round(video.videoHeight*scale/2)*2);
-    const ctx=canvas.getContext("2d"), capture=(video as HTMLVideoElement & {captureStream?:()=>MediaStream}).captureStream;
-    if(!ctx||!canvas.captureStream||!capture)return file;const stream=canvas.captureStream(24);capture.call(video).getAudioTracks().forEach(t=>stream.addTrack(t));const chunks:BlobPart[]=[];
-    const recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:1500000});const blob=await new Promise<Blob>((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onerror=()=>reject(new Error("Compression impossible"));recorder.onstop=()=>resolve(new Blob(chunks,{type:mime}));const draw=()=>{if(video.ended||video.paused)return;ctx.drawImage(video,0,0,canvas.width,canvas.height);requestAnimationFrame(draw)};recorder.start(1000);void video.play().then(draw).catch(reject);video.onended=()=>{if(recorder.state!=="inactive")recorder.stop()}});
-    if(!blob.size||blob.size>=file.size)return file;return new File([blob],file.name.replace(/\.[^.]+$/,"")+(mime.includes("mp4")?".mp4":".webm"),{type:mime,lastModified:Date.now()});
-  } catch { return file; } finally { URL.revokeObjectURL(url);video.src=""; }
+  }
 }
 
 const GestionNotifications = () => {
@@ -355,22 +355,44 @@ const GestionNotifications = () => {
   };
   const uploadMedia = async (files: FileList | null, target: "campaign" | "automation") => {
     if (!files?.length) return;
-    // FileList is live and the input is reset immediately after selection; snapshot it before awaiting auth.
     const selectedFiles = Array.from(files);
-    if (target === "campaign") setCampaignPendingFiles(selectedFiles); else setAutomationPendingFiles(selectedFiles);
+    if (selectedFiles.some(file => !file.type.startsWith("image/"))) {
+      toast.error("Seules les images sont autorisées. Les vidéos et les documents sont ignorés.");
+    }
+    const imageFiles = selectedFiles.filter(file => file.type.startsWith("image/"));
+    if (!imageFiles.length) {
+      if (target === "campaign") setCampaignPendingFiles([]); else setAutomationPendingFiles([]);
+      return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { if(target==="campaign")setCampaignPendingFiles([]);else setAutomationPendingFiles([]); return toast.error("Connexion requise."); }
-    setUploadingMedia(true); const uploaded: MediaAttachment[]=[];
-    try { for (const original of selectedFiles) {
-      if(original.type.startsWith("video/")) { const probeUrl=URL.createObjectURL(original); try { const duration=await new Promise<number>((resolve,reject)=>{const probe=document.createElement("video");probe.preload="metadata";probe.onloadedmetadata=()=>resolve(probe.duration);probe.onerror=()=>reject(new Error("Vidéo illisible : "+original.name));probe.src=probeUrl;}); if(duration>30*60)throw new Error(original.name+" dépasse la durée maximale de 30 minutes."); } finally { URL.revokeObjectURL(probeUrl); } }
-      const optimizedImage=await compressImage(original), file=await compressVideo(optimizedImage), name=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"), path=`${user.id}/${crypto.randomUUID()}-${name}`;
-      const {error}=await supabase.storage.from("notification-media").upload(path,file,{contentType:file.type||"application/octet-stream"});
-      if(error)throw error; uploaded.push({bucket:"notification-media",path,name:file.name,mimeType:file.type||"application/octet-stream",size:file.size});
-    } if(target==="campaign")setCampaignMedia(v=>[...v,...uploaded]);else setAutomationMedia(v=>[...v,...uploaded]);toast.success("Pièces jointes enregistrées.");}
-    catch(e){toast.error(e instanceof Error?e.message:"Téléversement impossible.");}finally{setUploadingMedia(false);if(target==="campaign")setCampaignPendingFiles([]);else setAutomationPendingFiles([]);}
+    if (!user) return toast.error("Connexion requise.");
+    setUploadingMedia(true);
+    const uploaded: MediaAttachment[] = [];
+    try {
+      // Convertir toutes les images avant l’aperçu et avant le téléversement.
+      const convertedFiles: File[] = [];
+      for (const original of imageFiles) convertedFiles.push(await convertToSenndoImage(original));
+      if (target === "campaign") setCampaignPendingFiles(convertedFiles); else setAutomationPendingFiles(convertedFiles);
+      for (const file of convertedFiles) {
+        const name = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${user.id}/${crypto.randomUUID()}-${name}`;
+        const { error } = await supabase.storage.from("notification-media").upload(path, file, {
+          contentType: "image/webp", upsert: false,
+        });
+        if (error) throw error;
+        uploaded.push({ bucket: "notification-media", path, name: file.name, mimeType: "image/webp", size: file.size });
+      }
+      if (target === "campaign") setCampaignMedia(v => [...v, ...uploaded]); else setAutomationMedia(v => [...v, ...uploaded]);
+      toast.success("Images converties en WebP, prévisualisées et enregistrées.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Conversion ou téléversement impossible.");
+    } finally {
+      setUploadingMedia(false);
+      if (target === "campaign") setCampaignPendingFiles([]); else setAutomationPendingFiles([]);
+    }
   };
   const applyTemplate = (t: NotificationTemplate) => { setCampaign(v=>({...v,canal:t.canal,sujet:t.sujet||"",contenu:t.contenu,nom:v.nom||t.nom}));setCampaignMedia(t.media_attachments||[]); };
-  const MediaPicker = ({target,items}:{target:"campaign"|"automation";items:MediaAttachment[]}) => <div className="space-y-2"><Label>Pièces jointes</Label><label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"><Paperclip className="h-4 w-4"/>{uploadingMedia?"Téléversement…":"Ajouter des fichiers"}<input type="file" className="hidden" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.pptx,.csv,.txt" disabled={uploadingMedia} onChange={e=>{void uploadMedia(e.target.files,target);e.currentTarget.value="";}}/></label>{(target==="campaign"?campaignPendingFiles:automationPendingFiles).map((file,index)=><div key={file.name+file.size+index} className="flex flex-col gap-2 rounded border border-dashed p-2 text-sm"><div className="font-medium">{file.name} · {(file.size/1048576).toFixed(1)} Mo · Aperçu avant envoi</div><PendingMediaPreview file={file}/></div>)}{items.map(item=><div key={item.path} className="flex flex-col gap-2 rounded border p-2 text-sm sm:flex-row sm:items-start">{item.mimeType.startsWith("image/")?<><ImageIcon className="h-4 w-4"/><MediaPreview item={item} kind="image"/></>:item.mimeType.startsWith("video/")?<><Video className="h-4 w-4"/><MediaPreview item={item} kind="video"/></>:<><FileText className="h-4 w-4"/><MediaPreview item={item} kind="document"/></>}<span className="min-w-0 flex-1 truncate">{item.name} · {(item.size/1048576).toFixed(1)} Mo</span><Button size="icon" type="button" variant="ghost" onClick={()=>{if(target==="campaign")setCampaignMedia(v=>v.filter(x=>x.path!==item.path));else setAutomationMedia(v=>v.filter(x=>x.path!==item.path));void supabase.storage.from(item.bucket).remove([item.path]);}}><X className="h-4 w-4"/></Button></div>)}</div>;
+  const MediaPicker = ({target,items}:{target:"campaign"|"automation";items:MediaAttachment[]}) => <div className="space-y-2"><Label>Pièces jointes</Label><label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"><Paperclip className="h-4 w-4"/>{uploadingMedia?"Téléversement…":"Ajouter des fichiers"}<input type="file" className="hidden" multiple accept="image/*" disabled={uploadingMedia} onChange={e=>{void uploadMedia(e.target.files,target);e.currentTarget.value="";}}/></label>{(target==="campaign"?campaignPendingFiles:automationPendingFiles).map((file,index)=><div key={file.name+file.size+index} className="flex flex-col gap-2 rounded border border-dashed p-2 text-sm"><div className="font-medium">{file.name} · {(file.size/1048576).toFixed(1)} Mo · Aperçu avant envoi</div><PendingMediaPreview file={file}/></div>)}{items.map(item=><div key={item.path} className="flex flex-col gap-2 rounded border p-2 text-sm sm:flex-row sm:items-start">{<><ImageIcon className="h-4 w-4"/><MediaPreview item={item} kind="image"/></>}<span className="min-w-0 flex-1 truncate">{item.name} · {(item.size/1048576).toFixed(1)} Mo</span><Button size="icon" type="button" variant="ghost" onClick={()=>{if(target==="campaign")setCampaignMedia(v=>v.filter(x=>x.path!==item.path));else setAutomationMedia(v=>v.filter(x=>x.path!==item.path));void supabase.storage.from(item.bucket).remove([item.path]);}}><X className="h-4 w-4"/></Button></div>)}</div>;
 
   return (
     <div className="w-full max-w-full min-w-0 space-y-6">
@@ -481,7 +503,7 @@ const GestionNotifications = () => {
   );
 };
 
-const PendingMediaPreview = ({file}:{file:File}) => { const [url,setUrl]=useState(""); useEffect(()=>{const next=URL.createObjectURL(file);setUrl(next);return()=>URL.revokeObjectURL(next)},[file]); if(!url)return null; if(file.type.startsWith("image/"))return <img src={url} alt={file.name} className="max-h-48 max-w-full rounded object-contain"/>; if(file.type.startsWith("video/"))return <video src={url} controls preload="metadata" className="max-h-56 max-w-full rounded"/>; if(file.type==="application/pdf")return <iframe src={url} title={file.name} className="h-64 w-full rounded border"/>; if(file.type.startsWith("text/")||/\.(txt|csv)$/i.test(file.name))return <iframe src={url} title={file.name} className="h-48 w-full rounded border bg-background"/>; return <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><FileText className="h-4 w-4"/><span>Aperçu direct non pris en charge par le navigateur pour ce format ; le fichier est chargé et prêt à être ouvert.</span><a href={url} target="_blank" rel="noreferrer" className="text-primary underline">Ouvrir le document</a></div>;};
+const PendingMediaPreview = ({file}:{file:File}) => { const [url,setUrl]=useState(""); useEffect(()=>{const next=URL.createObjectURL(file);setUrl(next);return()=>URL.revokeObjectURL(next)},[file]); if(!url)return null; return <div className="space-y-1"><img src={url} alt={file.name} className="max-h-48 max-w-full rounded object-contain"/><p className="text-xs text-muted-foreground">Aperçu du fichier converti · WebP · prêt pour Senndo</p></div>;};
 const MediaPreview = ({item,kind}:{item:MediaAttachment;kind:"image"|"video"|"document"}) => { const [url,setUrl]=useState(""); useEffect(()=>{let active=true;void supabase.storage.from(item.bucket).createSignedUrl(item.path,600).then(({data})=>{if(active&&data?.signedUrl)setUrl(data.signedUrl)});return()=>{active=false}},[item.bucket,item.path]); if(!url)return <span className="text-xs text-muted-foreground">Préparation de l’aperçu…</span>; if(kind==="image")return <img src={url} alt={item.name} className="max-h-48 max-w-full rounded object-contain"/>; if(kind==="video")return <video src={url} controls preload="metadata" className="max-h-56 max-w-full rounded"/>; if(item.mimeType==="application/pdf")return <iframe src={url} title={item.name} className="h-64 w-full rounded border"/>; if(/\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(item.name))return <iframe src={"https://view.officeapps.live.com/op/embed.aspx?src="+encodeURIComponent(url)} title={item.name} className="h-64 w-full rounded border"/>; if(item.mimeType.startsWith("text/")||/\.(txt|csv)$/i.test(item.name))return <iframe src={url} title={item.name} className="h-48 w-full rounded border"/>; return <a href={url} target="_blank" rel="noreferrer" className="text-primary underline">Prévisualiser / ouvrir le document</a>;};
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => <div className="min-w-0 space-y-2"><Label>{label}</Label>{children}</div>;
