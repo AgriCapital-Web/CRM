@@ -787,6 +787,7 @@ const ClientDetail = () => {
                 </div>
 
                 <Etape0Offre
+                  allowPromotions={false}
                   formData={newAcquisitionFormData}
                   updateFormData={updateNewAcquisitionFormData}
                   showCommercial={false}
