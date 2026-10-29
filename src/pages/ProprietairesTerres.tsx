@@ -53,6 +53,7 @@ const ProprietairesTerres = () => {
   const { user } = useAuth();
   const { can } = usePermissions();
   const canCreateProprietaire = can("proprietaires.create");
+  const canEditProprietaire = can("proprietaires.update") && (useAuth().userRoles || []).some((role:string) => ["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
   const canValidateOwners = can("proprietaires.validate");
   const [searchParams] = useSearchParams();
   const conversionLeadId = searchParams.get("lead_id");
@@ -186,8 +187,8 @@ const ProprietairesTerres = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canCreateProprietaire) {
-      toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de créer un propriétaire foncier." });
+    if (editingOwner ? !canEditProprietaire : !canCreateProprietaire) {
+      toast({ variant: "destructive", title: "Accès refusé", description: editingOwner ? "Seuls le PDG et les rôles Relation client & Support autorisés peuvent modifier un propriétaire foncier." : "Votre rôle ne permet pas de créer un propriétaire foncier." });
       return;
     }
     const type = formData.type_proprietaire;
@@ -884,7 +885,7 @@ const ProprietairesTerres = () => {
                     {ownerReadOnly ? (
                       <div className="flex w-full justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => { setIsFormOpen(false); resetForm(); }}>Fermer</Button>
-                        <Button type="button" onClick={() => setOwnerReadOnly(false)}>Modifier</Button>
+                        {canEditProprietaire && <Button type="button" onClick={() => setOwnerReadOnly(false)}>Modifier</Button>}
                       </div>
                     ) : (
                       <>
@@ -895,7 +896,7 @@ const ProprietairesTerres = () => {
                         {activeStepIndex < formSteps.length - 1 ? (
                           <Button type="button" onClick={goToNextFormStep}>Suivant</Button>
                         ) : (
-                          <Button type="submit" disabled={uploading || !canCreateProprietaire}>{uploading ? "Enregistrement..." : editingOwner ? "Enregistrer les modifications" : "Enregistrer la convention"}</Button>
+                          <Button type="submit" disabled={uploading || (editingOwner ? !canEditProprietaire : !canCreateProprietaire)}>{uploading ? "Enregistrement..." : editingOwner ? "Enregistrer les modifications" : "Enregistrer la convention"}</Button>
                         )}
                       </>
                     )}
