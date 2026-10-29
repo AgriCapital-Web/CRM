@@ -446,10 +446,10 @@ const NouvelleAcquisition = () => {
   const draftSaveAgain = useRef(false);
   const submitInFlightRef = useRef(false);
   const pendingSubmitRetryRef = useRef(false);
-  const saveDraft=async(index:number):Promise<string|null>=>{
+  const saveDraft=async(index:number, draftData: any = formData):Promise<string|null>=>{
     const currentUser = user;
     if(!currentUser)return null;
-    const payload={...formData,parcours_code:formData.offre_code||null};
+    const payload={...draftData,parcours_code:draftData.offre_code||null};
     // Les brouillons sont exclusivement locaux. On conserve les aperçus des fichiers
     // pour pouvoir les reconstruire au rechargement, sans écrire en base.
     for (const [code, { field }] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
@@ -511,8 +511,31 @@ const NouvelleAcquisition = () => {
     try{
       const currentUser = user;
       if(!currentUser)throw new Error("Session utilisateur introuvable");
-      const savedDraftId = await saveDraft(current);
-      const stableClientId = stableUuid(currentUser.id, "client:" + String(formData.telephone || formData.nom_famille || "draft"));
+      // Une conversion déjà finalisée doit rouvrir le client existant, jamais créer
+      // un second client à partir du même lead ou prospect.
+      const sourceKind = formData.prospect_id ? "prospects" : formData.lead_id ? "leads" : null;
+      const sourceId = formData.prospect_id || formData.lead_id;
+      if (sourceKind && sourceId) {
+        const { data: sourceRecord, error: sourceError } = await (supabase as any)
+          .from(sourceKind).select("id,client_id,statut").eq("id", sourceId).maybeSingle();
+        if (sourceError) throw sourceError;
+        if (sourceRecord?.client_id) {
+          toast({ title: "Conversion déjà effectuée", description: "Ce dossier est déjà rattaché à un client. La fiche existante va être ouverte pour éviter tout doublon." });
+          navigate("/acquisitions/" + sourceRecord.client_id);
+          return;
+        }
+        if (String(sourceRecord?.statut || "").toLowerCase() === "converti") {
+          throw new Error("Ce dossier est marqué comme converti mais aucun client lié n’a été retrouvé. Vérification manuelle nécessaire pour éviter de créer un doublon.");
+        }
+      }
+      // L'identifiant du client est créé une seule fois par brouillon, puis réutilisé
+      // lors des reprises réseau. Le téléphone ou le nom ne sont jamais des clés primaires :
+      // deux dossiers distincts ne doivent pas s'écraser silencieusement.
+      const draftClientId = String(formData.__client_draft_id || (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : stableUuid(currentUser.id, "client-draft:" + Date.now() + ":" + Math.random())));
+      const savedDraftId = await saveDraft(current, { ...formData, __client_draft_id: draftClientId });
+      const stableClientId = draftClientId;
       const {data:baseOffer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
       if(offerError)throw offerError;
       if(!baseOffer)throw new Error("Offre sélectionnée introuvable");
