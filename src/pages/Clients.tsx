@@ -36,29 +36,14 @@ const formatHectares = (value: unknown) => {
 };
 
 const getOfferDisplayName = (client: any) => {
-  const offer = client?.offres;
-  const formulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
-  const code = String(client?.formule_code || "").trim();
-  const formulaName = String(client?.formule_nom || "").trim();
-  const exactFormula = formulas.find((formula: any) => formula.code === code);
-  if (exactFormula?.nom) return exactFormula.nom;
-
-  // Old records sometimes copied the offer name into the formula fields.
-  // Never present the offer itself as if it were a configured formula.
-  const genericFormula = !code || code === offer?.code || formulaName === offer?.nom;
-  if (genericFormula && formulas.length) {
-    const hectares = Number(client?.total_hectares || 0);
-    const total = Number(client?.montant_total_contrat || 0);
-    const perHa = hectares > 0 ? total / hectares : total;
-    const matchingFormula = formulas.find((formula: any) => {
-      const configured = Number(formula.montant_total_par_ha ?? formula.montant_cash_par_ha);
-      return Number.isFinite(configured) && configured > 0 && Math.abs(configured - perHa) < 0.01;
-    });
-    if (matchingFormula?.nom) return matchingFormula.nom;
-    return "Formule à vérifier";
-  }
-
-  const name = formulaName || code || offer?.nom || "—";
+  // Le nom historique de la formule enregistré sur le client prime toujours.
+  // Ne jamais déduire le contrat d'une formule actuellement publiée au catalogue.
+  const snapshotFormula = client?.offre_snapshot?.formula;
+  const snapshotOffer = client?.offre_snapshot?.offer;
+  const name = String(
+    client?.formule_nom || snapshotFormula?.nom || client?.formule_code ||
+    snapshotFormula?.code || snapshotOffer?.nom || client?.famille_offre || "—"
+  ).trim();
   return /^essential$/i.test(name) ? "Offre 1.3" : name;
 };
 
@@ -138,14 +123,13 @@ const Clients = () => {
       // Découper les identifiants en lots pour éviter des requêtes URL trop longues.
       const clientIdBatches: string[][] = [];
       for (let i = 0; i < ids.length; i += 250) clientIdBatches.push(ids.slice(i, i + 250));
-      const [plantationBatches, attributionBatches, offresRes, regionsRes, teamPerfRes, pendingSalesRes] = await Promise.all([
+      const [plantationBatches, attributionBatches, regionsRes, teamPerfRes, pendingSalesRes] = await Promise.all([
         Promise.all(clientIdBatches.map((batch) =>
           supabase.from("plantations").select("id,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,role_attribution").in("client_id", batch)
         )),
         Promise.all(clientIdBatches.map((batch) =>
           (supabase as any).from("beneficiaire_attributions").select("id,client_id,plantation_id,surface_attribuee_ha,role_attribution,statut").eq("statut", "active").in("client_id", batch)
         )),
-        supabase.from("offres").select("id,nom,couleur,code,formules_configuration"),
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
         can("acquisitions.validate") ? (supabase as any).from("clients").select("id,validation_statut,metadata").in("validation_statut", ["a_valider", "modification_demandee"]) : Promise.resolve({ data: [] }),
@@ -154,7 +138,6 @@ const Clients = () => {
       setSalesPendingValidation((pendingSalesRes?.data || []).filter((client: any) => ["a_valider", "modification_demandee"].includes(String(client.validation_statut || ""))).length);
       const plantations = plantationBatches.flatMap((result: any) => result.data || []);
       const attributionsData = attributionBatches.flatMap((result: any) => result.data || []);
-      const offresMap = new Map((offresRes.data || []).map((o: any) => [o.id, o]));
       const regionsMap = new Map((regionsRes.data || []).map((r: any) => [r.id, r]));
 
       const enrichedData = (baseClients || []).map((client: any) => {
@@ -166,7 +149,7 @@ const Clients = () => {
 
         return {
           ...client,
-          offres: offresMap.get(client.offre_id) || null,
+          offres: client.offre_snapshot?.offer || { nom: client.formule_nom || client.famille_offre || "Offre enregistrée", code: client.formule_code, couleur: undefined },
           regions: regionsMap.get(client.region_id) || null,
           plantations: clientPlantations,
           beneficiaire_attributions: clientAttributions,
