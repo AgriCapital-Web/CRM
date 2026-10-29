@@ -55,6 +55,17 @@ const Clients = () => {
   const { profile, userRoles } = useAuth();
   const serviceClient = (userRoles || []).some((role:string) => ["service_client","chef_equipe_service_client"].includes(role)) || String(profile?.poste || "").toLowerCase().includes("service client") || String(profile?.relation_rh || "").toLowerCase().includes("service client");
   const canEditClient = can("clients.update");
+  // Les bénéficiaires particuliers ont leur propre parcours de dossier; ne pas
+  // les envoyer dans le formulaire d'acquisition commerciale.
+  const openClientRecord = (client: any) => {
+    const id = encodeURIComponent(String(client?.id || ""));
+    if (!id) return;
+    if (String(client?.type_client || "").toLowerCase() === "beneficiaire_particulier") {
+      navigate("/client/" + id);
+      return;
+    }
+    navigate("/acquisitions/" + id);
+  };
   const canDeleteClient = can("clients.delete") && !serviceClient;
   const [clients, setClients] = useState<any[]>([]);
   const [salesPendingValidation, setSalesPendingValidation] = useState(0);
@@ -445,7 +456,7 @@ const Clients = () => {
                       </TableRow>
                     ) : (
                       filteredClients.map((client) => (
-                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate("/acquisitions/" + encodeURIComponent(client.id)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
+                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => openClientRecord(client)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openClientRecord(client); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
@@ -487,7 +498,7 @@ const Clients = () => {
                           </TableCell>
                           <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" title="Fiche client" aria-label="Fiche client" onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}>
+                              <Button variant="ghost" size="sm" title="Fiche client" aria-label="Fiche client" onClick={() => openClientRecord(client)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               <DropdownMenu>
@@ -497,7 +508,7 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {canEditClient && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
+                                  {canEditClient && <DropdownMenuItem onClick={() => openClientRecord(client)}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
                                   {canEditClient && <DropdownMenuSeparator />}
                                   {canEditClient && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
