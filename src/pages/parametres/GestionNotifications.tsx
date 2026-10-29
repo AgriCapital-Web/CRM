@@ -74,7 +74,7 @@ const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) r
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const smsLength = (value: string) => Array.from(normalizeSms(value)).length
 const isImageFile = (file: File | MediaAttachment) => {
-  const mime = String(file.type || ("mimeType" in file ? file.mimeType : "") || "").toLowerCase();
+  const mime = String(("type" in file ? file.type : "") || ("mimeType" in file ? file.mimeType : "") || "").toLowerCase();
   const name = String(file.name || "").toLowerCase();
   return mime.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|avif|svg|tiff?|heic|heif)$/i.test(name);
 };
