@@ -848,12 +848,12 @@ toast({title:"Dossier mis à jour",description:"Les informations du client et de
   const renderStep=()=>{
     if(!step)return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
     switch(step.code){
-      case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
+      case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
       case "client":return <EtapeClientDynamique formData={formData} updateFormData={updateFormData}/>;
       case "cotitulaire":return <EtapeRepresentantDynamique formData={formData} updateFormData={updateFormData}/>;
       case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData}/>;
       case "confirmation":return <EtapeConfirmationDossier formData={formData} updateFormData={updateFormData}/>;
-      default:return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
+      default:return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
     }
   };
 
