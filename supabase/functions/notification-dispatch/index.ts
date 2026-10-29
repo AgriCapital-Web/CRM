@@ -92,7 +92,9 @@ const assertWhatsAppLength = (value: string) => {
 
 function brandAutomatedMessage(value: string, channel: string): string {
   let content = value.trim().replace(/^bonjour\s+[^,\n!]+[,!]\s*/i, "").replace(/^salut\s+[^,\n!]+[,!]\s*/i, "").replace(/^AgriCapital\s*:\s*/i, "");
-  const alreadyBranded = /agricapital\s*[|·—-].*(notification automatique|message automatique)/i.test(content) ||
+  const alreadyBranded = /^AgriCapital\s*\(auto\):/i.test(content) ||
+    /^AgriCapital\s*\(notification automatique\):/i.test(content) ||
+    /agricapital\s*[|·—-].*(notification automatique|message automatique)/i.test(content) ||
     /notification automatique envoyée par agricapital/i.test(content);
   if (channel === "sms") {
     const prefix = "AgriCapital (auto): ";
@@ -1103,17 +1105,21 @@ serve(async (req) => {
       const requestBucket = Math.floor(Date.now() / (5 * 60 * 1000));
       const dedupeKey = `manual-contact:${lead.id}:${channel}:${requestId || requestBucket + ":" + (await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizedContent)).then(hash => Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, "0")).join("").slice(0, 20)))}`;
       let result: { provider: string; messageId: string | null };
-      if (channel === "whatsapp" || channel === "auto" || channel === "email_sms") {
+      if (channel === "whatsapp") {
         assertWhatsAppLength(normalizedContent);
         const prepared = mediaAttachments.length ? await prepareMedia(mediaAttachments) : [];
         result = await sendWhatsApp(contact, normalizedContent, dedupeKey, prepared[0]?.ref);
         for (let i = 1; i < prepared.length; i++) {
           await sendWhatsApp(contact, "", `${dedupeKey}:media:${i}`, prepared[i].ref);
         }
+      } else if (channel === "email") {
+        result = await sendEmail(contact, subject, normalizedContent, dedupeKey, mediaAttachments);
+      } else if (channel === "sms") {
+        result = await sendSms(contact, normalizedContent, dedupeKey);
       } else {
-        return json(req, { error: "Canal désactivé : utilisez WhatsApp pour les notifications externes." }, 400);
+        return json(req, { error: "Canal non pris en charge pour un contact manuel." }, 400);
       }
-      return json(req, { ok: true, channel: "whatsapp", messageId: result.messageId || null, characterCount: Array.from(normalizedContent).length, attachmentsSent: mediaAttachments.length });
+      return json(req, { ok: true, channel, messageId: result.messageId || null, characterCount: Array.from(normalizedContent).length, attachmentsSent: mediaAttachments.length });
     }
     if (mode === "preview") {
       const contacts = await resolveContacts(body.criteria || {});
