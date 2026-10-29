@@ -773,20 +773,23 @@ async function runEvents(events: Array<{ id: string; event_code: string; context
 async function runScheduledAutomations() {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const plusDeuxJours = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const plusDeuxJours = new Date(now.getTime() + 2 * 86400000).toISOString().slice(0, 10);
   const results: unknown[] = [];
   const addDays = (date: string, days: number) => {
     const value = new Date(date + "T12:00:00.000Z");
     value.setUTCDate(value.getUTCDate() + days);
     return value.toISOString().slice(0, 10);
   };
+  const dayDiff = (later: string, earlier: string) =>
+    Math.floor((Date.parse(later + "T00:00:00Z") - Date.parse(earlier + "T00:00:00Z")) / 86400000);
   const formatDate = (date: string) => {
     const [year, month, day] = date.slice(0, 10).split("-");
     return day + "/" + month + "/" + year;
   };
 
-  // Les échéances sont calculées sur des cycles fixes de 30 jours.
-  // Seuls les vrais clients payants avec une plantation réellement activée sont éligibles.
+  // Règle métier : 30 jours = un mois. Seuls les clients officiels payants
+  // avec au moins une plantation activée sont concernés. Les bénéficiaires gratuits,
+  // propriétaires fonciers, fiches internes et plantations non activées sont exclus.
   const { data: clients, error: clientsError } = await admin.from("clients")
     .select("id,id_unique,nom_complet,type_client,is_internal,statut_global,compte_actif,mensualite_montant,prochaine_echeance,contrat_debut_at")
     .in("type_client", ["client", "avec_terre"])
@@ -818,32 +821,65 @@ async function runScheduledAutomations() {
     const monthlyAmount = Number(client.mensualite_montant || 0);
     if (!activePlantations.length || monthlyAmount <= 0) continue;
 
-    const earliestActivation = activePlantations
+    // Darius has an explicit, manually scheduled exception in the CRM. Respect it
+    // rather than recalculating from the older activation date or sending early.
+    const isDarius = client.id_unique === "AC_C000002" ||
+      String(client.nom_complet || "").toLocaleUpperCase("fr-FR").includes("DARIUS");
+    if (isDarius && client.prochaine_echeance) {
+      const dueDate = String(client.prochaine_echeance).slice(0, 10);
+      const paymentKey = String(client.id) + ":" + dueDate;
+      const context = {
+        client_id: client.id, paiement_id: paymentKey, montant: String(Math.round(monthlyAmount)),
+        date_echeance: formatDate(dueDate),
+      };
+      if (dueDate < today) {
+        results.push(await runEvent("paiement_retard", {
+          ...context, jours_retard: String(dayDiff(today, dueDate)),
+        }));
+      } else if (dueDate === plusDeuxJours) {
+        results.push(await runEvent("paiement_echeance", context));
+      }
+      continue;
+    }
+
+    const activationDate = activePlantations
       .map((plantation) => String(plantation.date_activation).slice(0, 10))
       .sort()[0];
-    const baseDate = client.contrat_debut_at || earliestActivation;
-    let dueDate = client.prochaine_echeance || addDays(String(baseDate).slice(0, 10), 30);
+    const baseDate = String(client.contrat_debut_at || activationDate).slice(0, 10);
+    const firstDueDate = addDays(baseDate, 30);
+    let overdueDueDate: string | null = null;
+    let upcomingDueDate: string;
 
-    // Backfill the next due date once for existing paid clients whose field was empty.
-    if (!client.prochaine_echeance) {
+    if (firstDueDate > today) {
+      upcomingDueDate = firstDueDate;
+    } else {
+      const elapsed = Math.max(0, dayDiff(today, firstDueDate));
+      const cyclesElapsed = Math.floor(elapsed / 30);
+      overdueDueDate = addDays(firstDueDate, cyclesElapsed * 30);
+      upcomingDueDate = addDays(overdueDueDate, 30);
+    }
+
+    // Store the next scheduled 30-day due date for the CRM UI.
+    if (client.prochaine_echeance !== upcomingDueDate) {
       const { error: dateError } = await admin.from("clients")
-        .update({ prochaine_echeance: dueDate }).eq("id", client.id).is("prochaine_echeance", null);
+        .update({ prochaine_echeance: upcomingDueDate }).eq("id", client.id);
       if (dateError) throw dateError;
     }
 
-    // A unique event key per client and due date prevents repeated reminders on every cron run.
-    const paymentKey = String(client.id) + ":" + dueDate;
-    const commonContext = {
-      client_id: client.id,
-      paiement_id: paymentKey,
-      montant: String(Math.round(monthlyAmount)),
-      date_echeance: formatDate(dueDate),
-    };
-    if (dueDate < today) {
-      const daysLate = Math.floor((Date.parse(today + "T00:00:00Z") - Date.parse(dueDate + "T00:00:00Z")) / 86400000);
-      results.push(await runEvent("paiement_retard", { ...commonContext, jours_retard: String(daysLate) }));
-    } else if (dueDate === plusDeuxJours) {
-      results.push(await runEvent("paiement_echeance", commonContext));
+    if (overdueDueDate && overdueDueDate < today) {
+      const paymentKey = String(client.id) + ":" + overdueDueDate;
+      results.push(await runEvent("paiement_retard", {
+        client_id: client.id, paiement_id: paymentKey,
+        montant: String(Math.round(monthlyAmount)), date_echeance: formatDate(overdueDueDate),
+        jours_retard: String(dayDiff(today, overdueDueDate)),
+      }));
+    }
+    if (upcomingDueDate === plusDeuxJours) {
+      const paymentKey = String(client.id) + ":" + upcomingDueDate;
+      results.push(await runEvent("paiement_echeance", {
+        client_id: client.id, paiement_id: paymentKey,
+        montant: String(Math.round(monthlyAmount)), date_echeance: formatDate(upcomingDueDate),
+      }));
     }
   }
 
@@ -851,10 +887,8 @@ async function runScheduledAutomations() {
     .eq("statut", "programme").lte("programme_le", now.toISOString()).limit(20);
   if (scheduledError) throw scheduledError;
   for (const campaign of scheduled || []) results.push(await runCampaign(campaign.id));
-
   return results;
 }
-
 
 const BRAND_LOGO_URL = "https://www.agricapital.ci/logo-agricapital.png";
 function escapeEmailHtml(value: string) {
