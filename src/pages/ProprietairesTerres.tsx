@@ -456,7 +456,7 @@ const ProprietairesTerres = () => {
       type_proprietaire: "personne_physique", civilite: "", nom: "", prenoms: "",
       date_naissance: "", lieu_naissance: "", nom_pere: "", nom_mere: "",
       denomination_sociale: "", numero_enregistrement: "", nombre_membres: "", nom_representant: "",
-      telephone: "", telephone_indicatif: "", telephone_local: "", whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", type_piece: "", numero_piece: "",
+      telephone: "", telephone_indicatif: "", telephone_local: "", telephone_secondaire: "", telephone_secondaire_indicatif: "", telephone_secondaire_local: "", telephone_principal_whatsapp: false, telephone_secondaire_whatsapp: false, whatsapp: "", whatsapp_indicatif: "", whatsapp_local: "", email: "", type_piece: "", numero_piece: "",
       date_delivrance_piece: "", lieu_residence: "", district_id: "", region_id: "",
       departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
       surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
