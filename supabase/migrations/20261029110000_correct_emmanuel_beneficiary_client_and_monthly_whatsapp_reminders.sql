@@ -19,9 +19,13 @@ BEGIN
  DELETE FROM public.crm_party_links WHERE
    (module_code='clients' AND record_id='f8d93ba9-b197-4478-a3fd-a8086106495f'::uuid) OR
    (module_code='leads' AND record_id='921ef454-97cc-49cb-a731-07bb9a9b726a'::uuid) OR
-   (module_code='prospects' AND record_id='ddaf96e9-d825-4812-bf79-23141c85f4b7'::uuid);
+   (module_code='prospects' AND record_id IN (
+     SELECT id FROM public.prospects WHERE lead_id='921ef454-97cc-49cb-a731-07bb9a9b726a'::uuid
+        OR id='ddaf96e9-d825-4812-bf79-23141c85f4b7'::uuid
+   ));
  DELETE FROM public.notification_client_preferences WHERE client_id='f8d93ba9-b197-4478-a3fd-a8086106495f'::uuid;
- DELETE FROM public.prospects WHERE id='ddaf96e9-d825-4812-bf79-23141c85f4b7'::uuid;
+ DELETE FROM public.prospects WHERE lead_id='921ef454-97cc-49cb-a731-07bb9a9b726a'::uuid
+    OR id='ddaf96e9-d825-4812-bf79-23141c85f4b7'::uuid;
  DELETE FROM public.leads WHERE id='921ef454-97cc-49cb-a731-07bb9a9b726a'::uuid;
  DELETE FROM public.clients WHERE id='f8d93ba9-b197-4478-a3fd-a8086106495f'::uuid;
 
