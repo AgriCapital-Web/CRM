@@ -316,6 +316,17 @@ const NouvelleAcquisition = () => {
       setDraftLoading(false);
       return () => { mounted = false; };
     }
+    // The explicit "Nouveau client" action must start from a clean form.
+    // Keep the saved draft untouched until the user starts entering the new record,
+    // but never preload it into a newly requested client form.
+    if (searchParams.get("nouveau") === "1") {
+      setFormData({});
+      setBrouillonId(null);
+      setCurrent(0);
+      setSyncState("draft");
+      setDraftLoading(false);
+      return () => { mounted = false; };
+    }
     setDraftLoading(true);
     (async()=>{
       try {
