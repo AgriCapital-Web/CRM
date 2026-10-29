@@ -788,8 +788,16 @@ const NouvelleAcquisition = () => {
       const offer:any = existingRecord.offer || savedSnapshot.offer || {
         id: existingRecord.client.offre_id, nom: existingRecord.client.formule_nom || "Offre enregistrée",
       };
-      const payload:any={nom:formData.nom_famille||formData.nom||"",nom_famille:formData.nom_famille||formData.nom||"",
-        prenoms:formData.prenoms||"",nom_complet:[formData.nom_famille||formData.nom,formData.prenoms].filter(Boolean).join(" ").trim(),
+      const typePersonne=formData.type_personne||existingRecord.client.type_personne||"personne_physique";
+      const organisationOrFamily=typePersonne==="personne_morale"||typePersonne==="famille_informelle";
+      const displayName=organisationOrFamily?(formData.denomination_sociale||existingRecord.client.denomination_sociale||formData.nom_complet||""):(formData.nom_famille||formData.nom||"");
+      const payload:any={type_personne:typePersonne,denomination_sociale:formData.denomination_sociale||null,
+        nature_organisation_code:formData.nature_organisation_code||null,forme_juridique_code:formData.forme_juridique_code||null,
+        numero_enregistrement:formData.numero_enregistrement||null,responsable_legal_nom:formData.responsable_legal_nom||null,
+        responsable_legal_prenoms:formData.responsable_legal_prenoms||null,responsable_legal_telephone:formData.telephone||null,
+        nombre_membres:formData.nombre_membres?Number(formData.nombre_membres):null,
+        nom:displayName,nom_famille:formData.nom_famille||formData.responsable_legal_nom||null,
+        prenoms:formData.prenoms||formData.responsable_legal_prenoms||"",nom_complet:organisationOrFamily?displayName:[formData.nom_famille||formData.nom,formData.prenoms].filter(Boolean).join(" ").trim(),
         civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,
         nationalite:formData.nationalite||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,
         date_delivrance_piece:formData.date_delivrance_piece||null,telephone:formData.telephone||"",
@@ -801,8 +809,8 @@ const NouvelleAcquisition = () => {
         email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
         domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
-         contrat_acquisition_statut:formData.contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
-         contrat_accompagnement_statut:formData.contrat_accompagnement_client_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
+         contrat_acquisition_statut:formData.contrat_contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
+         contrat_accompagnement_statut:formData.contrat_contrat_accompagnement_agricole_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
          updated_by:user.id,updated_at:new Date().toISOString()};
       // Ne pas inclure commercial_id dans UPDATE si l’affectation n’a pas changé :
       // le trigger SQL revalide toute colonne incluse et peut bloquer une fiche historique
