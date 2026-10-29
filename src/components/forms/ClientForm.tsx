@@ -78,7 +78,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     setContractFile(null);
     setContractPreview("");
     setStoredContractPreview("");
-    setContractDocument(null);  }, [client?.id, readOnly]);
+    setContractDocument(null);  }, [client?.id, readOnly, roleCanEditClient]);
 
   useEffect(() => {
     let active = true;
