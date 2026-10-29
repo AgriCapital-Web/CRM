@@ -345,7 +345,7 @@ const Clients = () => {
                 </Link>
               )}
               {can("clients.create") && (
-                <Link to="/nouvelle-acquisition" className="min-w-0">
+                <Link to="/nouvelle-acquisition?nouveau=1" className="min-w-0">
                   <Button className="h-auto min-h-10 w-full min-w-0 whitespace-normal px-2 text-xs sm:w-auto sm:whitespace-nowrap sm:px-4 sm:text-sm bg-primary hover:bg-primary-hover">
                     <FileText className="mr-1 h-4 w-4 shrink-0 sm:mr-2" />
                     Nouveau Client
