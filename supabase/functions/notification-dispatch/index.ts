@@ -91,7 +91,7 @@ const assertWhatsAppLength = (value: string) => {
 };
 
 function brandAutomatedMessage(value: string, channel: string): string {
-  let content = value.trim().replace(/^bonjour\s+[^,\n!]+[,!]\s*/i, "").replace(/^salut\s+[^,\n!]+[,!]\s*/i, "");
+  let content = value.trim().replace(/^bonjour\s+[^,\n!]+[,!]\s*/i, "").replace(/^salut\s+[^,\n!]+[,!]\s*/i, "").replace(/^AgriCapital\s*:\s*/i, "");
   const alreadyBranded = /agricapital\s*[|·—-].*(notification automatique|message automatique)/i.test(content) ||
     /notification automatique envoyée par agricapital/i.test(content);
   if (channel === "sms") {
