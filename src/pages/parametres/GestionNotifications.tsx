@@ -310,7 +310,8 @@ const GestionNotifications = () => {
     setCampaignDialogOpen(true);
     setUploadingMedia(true);
     void normalizeSavedImages(Array.isArray(item.media_attachments) ? item.media_attachments : [])
-      .then(setCampaignMedia).catch((error) => toast.error(error instanceof Error ? error.message : "Impossible de préparer les images."))\n      .finally(() => setUploadingMedia(false));
+      .then(setCampaignMedia).catch((error) => toast.error(error instanceof Error ? error.message : "Impossible de préparer les images."))
+      .finally(() => setUploadingMedia(false));
   };
 
   const updateCampaignStatus = async (item: Campaign, statut: string) => {
