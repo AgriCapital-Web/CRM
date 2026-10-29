@@ -20,6 +20,7 @@ interface Etape0Props {
   updateFormData: (data: any) => void;
   showCommercial?: boolean;
   surfaceReadOnly?: boolean;
+  contractReadOnly?: boolean;
 }
 
 const getFormulaConfig = (offer: any, code?: string) => {
@@ -47,8 +48,8 @@ const applyFormulaConfig = (offer: any, formula: any) => {
   return next;
 };
 
-export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false }: Etape0Props) => {
-  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code);
+export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false, contractReadOnly = false }: Etape0Props) => {
+  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code, !contractReadOnly);
   const [loadingCommercialDefault, setLoadingCommercialDefault] = useState(false);
 
   useEffect(() => {
@@ -74,14 +75,22 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     return () => { mounted = false; };
   }, [formData.lead_id, updateFormData]);
 
-  const { data: offres, isLoading } = useQuery({
+  const { data: catalogueOffres, isLoading: catalogueLoading } = useQuery({
     queryKey: ["offres-acquisition"],
+    enabled: !contractReadOnly,
     queryFn: async () => {
       const { data, error } = await supabase.from("offres").select("*").eq("actif", true).order("ordre", { ascending: true });
       if (error) throw error;
       return data as Offre[];
     },
   });
+  const snapshotOffer = formData.offre_snapshot?.offer || formData.offre || null;
+  const offres: Offre[] = contractReadOnly
+    ? (snapshotOffer ? [{ ...snapshotOffer, id: snapshotOffer.id || formData.offre_id,
+        code: snapshotOffer.code || formData.offre_code || "", nom: snapshotOffer.nom || formData.formule_nom || "Offre enregistrée",
+        formules_configuration: Array.isArray(snapshotOffer.formules_configuration) ? snapshotOffer.formules_configuration : [] } as Offre] : [])
+    : (catalogueOffres || []);
+  const isLoading = !contractReadOnly && catalogueLoading;
 
   const familles = useMemo(() => {
     const groups = new Map<string, Offre[]>();
@@ -99,6 +108,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
   // Restore the selected offer from a lead or saved draft without silently
   // choosing the first formula when the offer has multiple configured formulas.
   useEffect(() => {
+    if (contractReadOnly) return;
     if (!formData.offre_id || !offres?.length) return;
     const baseOffer: any = offres.find((item) => item.id === formData.offre_id);
     if (!baseOffer) return;
@@ -136,7 +146,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
         type_client: baseOffer.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
       });
     }
-  }, [offres, formData.offre_id, formData.offre?.id, formData.formule_code, formData.formule_nom, formData.formule_confirmed, updateFormData]);
+  }, [contractReadOnly, offres, formData.offre_id, formData.offre?.id, formData.formule_code, formData.formule_nom, formData.formule_confirmed, updateFormData]);
 
 
 
@@ -145,6 +155,22 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
 
 
   const calculs = useMemo(() => {
+    if (contractReadOnly) {
+      const contract = formData.offre_snapshot?.contract || {};
+      const ha = Math.max(Number(contract.superficie_ha ?? formData.superficie_prevue ?? 0), 0);
+      const perHa = (amount: any) => ha > 0 ? Number(amount || 0) / ha : Number(amount || 0);
+      const pi = Number(contract.paiement_initial_montant ?? formData.paiement_initial_montant ?? 0);
+      const total = Number(contract.montant_total_contrat ?? formData.montant_total_contrat ?? 0);
+      const monthly = Number(contract.mensualite_montant ?? formData.mensualite_montant ?? 0);
+      return {
+        ha, piUnitaire: perHa(pi), piUnitaireFinal: perHa(pi), totalPI: pi,
+        totalUnitaire: perHa(total), totalFinal: total, totalNormal: total,
+        modePaiement: contract.mode_paiement || formData.mode_paiement || "echeancier",
+        tranches: Array.isArray(contract.echeancier) ? contract.echeancier : [],
+        duree: Number(contract.duree_paiement_mois || 0), mensualiteEffective: perHa(monthly),
+        promoCible: null, promoReduction: 0, promotionAppliquee: Boolean(contract.promotion_id),
+      };
+    }
     if (!formData.offre_id || !formData.superficie_prevue || !offres) return null;
     const baseOffer = offres.find((o) => o.id === formData.offre_id);
     if (!baseOffer) return null;
@@ -187,7 +213,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
       promoReduction: Number(prix.reduction_pct || 0),
       promotionAppliquee: !!prix.promotion_id,
     };
-  }, [formData.offre_id, formData.formule_code, formData.superficie_prevue, formData.mode_paiement, promotionActive, offres]);
+  }, [contractReadOnly, formData.offre_snapshot, formData.paiement_initial_montant, formData.montant_total_contrat, formData.mensualite_montant, formData.offre_id, formData.formule_code, formData.superficie_prevue, formData.mode_paiement, promotionActive, offres]);
 
   if (isLoading) return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
@@ -230,10 +256,10 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base sm:text-lg">Choisissez votre offre</CardTitle>
+          <CardTitle className="text-base sm:text-lg">{contractReadOnly ? "Offre et conditions enregistrées" : "Choisissez votre offre"}</CardTitle>
           
         </CardHeader>
-        {formData.offre_id && (
+        {formData.offre_id && !contractReadOnly && (
           <CardContent className="pt-0 pb-3">
             <Button type="button" variant="outline" size="sm" onClick={() => updateFormData({ offre_id: "", offre_code: "", offre: null, type_client: "" })}>
               Changer d’offre
@@ -249,6 +275,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
               <div key={famille} className="rounded-xl border transition-all border-border">
                 <button
                   type="button"
+                  disabled={contractReadOnly}
                   className="flex w-full min-w-0 items-center gap-3 p-3 text-left sm:p-4"
                   onClick={() => {
                     if (selectedFamily) return;
@@ -280,6 +307,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                   <div className="border-t px-3 pb-3 pt-3 sm:px-4">
                     <Label className="text-xs">Formule</Label>
                     <Select
+                      disabled={contractReadOnly}
                       value={formData.formule_code || ""}
                       onValueChange={(value) => {
                         const formulaOwner = familyOffers.find((item: any) => {
