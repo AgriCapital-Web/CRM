@@ -164,8 +164,11 @@ const Clients = () => {
       setAttributions(attributionsData);
       // Exclure uniquement l'entité interne AgriCapital et les propriétaires fonciers.
       // Les bénéficiaires particuliers sont affichés aussi dans Acquisition.
+      const isPdg = (userRoles || []).includes("pdg");
       setClients(enrichedData.filter((client: any) =>
-        !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier"
+        !client.is_internal && !isAgriCapitalInternal(client) &&
+        String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" &&
+        (isPdg || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier")
       ));
     } catch (error: any) {
       if (!navigator.onLine) {
@@ -173,8 +176,11 @@ const Clients = () => {
           getCachedClients(),
           getCachedPlantations(),
         ]);
+        const isPdg = (userRoles || []).includes("pdg");
         const enrichedData = cachedClients
-          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) && String(client.type_client || "").toLowerCase() !== "proprietaire_foncier")
+          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) &&
+            String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" &&
+            (isPdg || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
           .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
