@@ -6,9 +6,10 @@ import { meilleurePromotion, PromotionBase, OffreBase } from "@/lib/pricing";
  * Retourne la meilleure promotion active applicable à l'offre demandée.
  * Sans offreId, retourne la meilleure promotion active globale.
  */
-export const usePromotionActive = (offreId?: string | null, formuleCode?: string | null) => {
+export const usePromotionActive = (offreId?: string | null, formuleCode?: string | null, enabled = true) => {
   return useQuery({
     queryKey: ["promotion-active", offreId || "global", formuleCode || "default"],
+    enabled,
     queryFn: async () => {
       const now = new Date().toISOString();
       const { data, error } = await supabase
