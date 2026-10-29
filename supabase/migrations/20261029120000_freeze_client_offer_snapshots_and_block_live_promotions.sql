@@ -269,7 +269,7 @@ begin
       '  v_promo_name := null;' || chr(10) ||
       '  v_pct := 0;' || chr(10) ||
       '  v_fixed := 0;' || chr(10) ||
-      '  v_promo_target := ''paiement_initial''',
+      '  v_promo_target := ''paiement_initial'';',
       'g');
     if v_updated = v_definition then raise exception 'Could not safely remove dynamic promotion selection from create_client_acquisition'; end if;
     execute v_updated;
