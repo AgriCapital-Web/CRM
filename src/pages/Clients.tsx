@@ -462,7 +462,7 @@ const Clients = () => {
                       </TableRow>
                     ) : (
                       filteredClients.map((client) => (
-                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => { if (String(client.type_client || "").toLowerCase() === "beneficiaire_particulier") { const params = new URLSearchParams({ client_id: String(client.id), nom_complet: String(client.nom_complet || ""), telephone: String(client.telephone || ""), whatsapp: String(client.whatsapp || ""), email: String(client.email || "") }); navigate("/beneficiaire-particulier?" + params.toString()); } else if (acquisitionsView) navigate("/acquisitions/" + encodeURIComponent(client.id)); else { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); } }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (String(client.type_client || "").toLowerCase() === "beneficiaire_particulier") { const params = new URLSearchParams({ client_id: String(client.id), nom_complet: String(client.nom_complet || ""), telephone: String(client.telephone || ""), whatsapp: String(client.whatsapp || ""), email: String(client.email || "") }); navigate("/beneficiaire-particulier?" + params.toString()); } else if (acquisitionsView) navigate("/acquisitions/" + encodeURIComponent(client.id)); else { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); } } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
+                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate("/acquisitions/" + encodeURIComponent(client.id)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
@@ -504,7 +504,7 @@ const Clients = () => {
                           </TableCell>
                           <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" title="Fiche client" aria-label="Fiche client" onClick={() => { setSelectedClient(client); setFormMode("view"); setIsFormOpen(true); }}>
+                              <Button variant="ghost" size="sm" title="Fiche client" aria-label="Fiche client" onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               <DropdownMenu>
@@ -514,7 +514,7 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {canEditClient && <DropdownMenuItem onClick={() => { setSelectedClient(client); setFormMode("edit"); setIsFormOpen(true); }}><Edit className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>}
+                                  {canEditClient && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
                                   {canEditClient && <DropdownMenuSeparator />}
                                   {canEditClient && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
@@ -565,7 +565,7 @@ const Clients = () => {
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {formMode === "edit" ? "Modification client" : "Nouveau Client"}
+                {formMode === "edit" ? "Modification client" : formMode === "view" ? "Fiche client" : "Nouveau client"}
               </DialogTitle>
             </DialogHeader>
             <ClientForm
