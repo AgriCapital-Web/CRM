@@ -511,6 +511,23 @@ const NouvelleAcquisition = () => {
     try{
       const currentUser = user;
       if(!currentUser)throw new Error("Session utilisateur introuvable");
+      // Une conversion déjà finalisée doit rouvrir le client existant, jamais créer
+      // un second client à partir du même lead ou prospect.
+      const sourceKind = formData.prospect_id ? "prospects" : formData.lead_id ? "leads" : null;
+      const sourceId = formData.prospect_id || formData.lead_id;
+      if (sourceKind && sourceId) {
+        const { data: sourceRecord, error: sourceError } = await (supabase as any)
+          .from(sourceKind).select("id,client_id,statut").eq("id", sourceId).maybeSingle();
+        if (sourceError) throw sourceError;
+        if (sourceRecord?.client_id) {
+          toast({ title: "Conversion déjà effectuée", description: "Ce dossier est déjà rattaché à un client. La fiche existante va être ouverte pour éviter tout doublon." });
+          navigate("/acquisitions/" + sourceRecord.client_id);
+          return;
+        }
+        if (String(sourceRecord?.statut || "").toLowerCase() === "converti") {
+          throw new Error("Ce dossier est marqué comme converti mais aucun client lié n’a été retrouvé. Vérification manuelle nécessaire pour éviter de créer un doublon.");
+        }
+      }
       // L'identifiant du client est créé une seule fois par brouillon, puis réutilisé
       // lors des reprises réseau. Le téléphone ou le nom ne sont jamais des clés primaires :
       // deux dossiers distincts ne doivent pas s'écraser silencieusement.
