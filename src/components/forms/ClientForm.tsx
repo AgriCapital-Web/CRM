@@ -39,7 +39,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const { user, userRoles } = useAuth();
   const { can } = usePermissions();
   const roleCanEditClient = (userRoles || []).some((role: string) => ["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
-  const canEditClient = roleCanEditClient && (client?.type_client === "beneficiaire_particulier" ? (userRoles || []).includes("pdg") : can("clients.update"));
+  const canEditClient = roleCanEditClient && (client?.type_client === "beneficiaire_particulier" ? (userRoles || []).includes("pdg") : true);
   const [isEditing, setIsEditing] = useState(!readOnly && roleCanEditClient);
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
