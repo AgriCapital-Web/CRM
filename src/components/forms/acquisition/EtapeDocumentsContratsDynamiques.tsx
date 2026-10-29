@@ -13,14 +13,6 @@ interface Props {
   updateFormData: (data: any) => void;
 }
 
-// Ce document n'appartient plus au formulaire initial du client.
-const isClientJustificationDocument = (doc: any) => {
-  const code = String(doc?.code || "").trim().toLowerCase();
-  const label = String(doc?.libelle || "").trim().toLowerCase();
-  return ["document_justificatif", "dossier_justificatif", "justificatif_client", "document_annexe_anss", "anss"].includes(code)
-    || ["document justificatif", "dossier justificatif", "pièce justificative", "piece justificative", "document annexe anss"].includes(label);
-};
-
 const conditionActive = (doc: any, formData: any) => {
   const condition = doc.condition || {};
   if (condition.relation === "mandataire" && formData.representant_type !== "mandataire") return false;
@@ -58,8 +50,8 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
 
   const identityDocumentCodes = new Set(["client_piece_recto", "client_piece_verso", "client_photo_profil"]);
   const visibleDocuments = useMemo(
-    () => documents.filter((doc) => !identityDocumentCodes.has(doc.code) && !isClientJustificationDocument(doc) && conditionActive(doc, formData)),
-    [documents, formData.has_representant, formData.offre_code, formData.formule_code, formData.formule_nom, formData.document_securisation_necessaire, formData.offre_id]
+    () => documents.filter((doc) => !identityDocumentCodes.has(doc.code) && conditionActive(doc, formData)),
+    [documents, formData.has_representant, formData.offre_code, formData.formule_code, formData.formule_nom, formData.document_securisation_necessaire]
   );
 
   const handleFileChange = (code: string, file: File | null, preview: string) => {
