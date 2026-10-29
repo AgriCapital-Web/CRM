@@ -441,6 +441,7 @@ const NouvelleAcquisition = () => {
         ? (Array.isArray(formData.offre_snapshot?.workflow?.documents) ? formData.offre_snapshot.workflow.documents : [])
         : ((await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre")).data || []);
       for(const doc of docs){
+        if (IDENTITY_DOCUMENT_FIELDS[doc.code] && (formData.type_personne || "personne_physique") !== "personne_physique") continue;
         const c=doc.condition||{};
         if(c.when==="representant_active"&&!formData.has_representant)continue;
         if(c.relation==="mandataire"&&formData.representant_type!=="mandataire")continue;
