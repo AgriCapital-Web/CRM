@@ -73,26 +73,49 @@ const AUDIENCES = [
 const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) return true; const type = String(r.source_type || ""); return types.some((t) => t === "proprietaire_foncier" ? type.includes("proprietaire_foncier") : t === "beneficiaire_particulier" ? type.includes("beneficiaire_particulier") : t === "autre" ? !["client","lead","prospect","equipe"].includes(type) && !type.includes("proprietaire_foncier") && !type.includes("beneficiaire_particulier") : type === t); };
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const smsLength = (value: string) => Array.from(normalizeSms(value)).length
+const isImageFile = (file: File | MediaAttachment) => {
+  const mime = String(file.type || ("mimeType" in file ? file.mimeType : "") || "").toLowerCase();
+  const name = String(file.name || "").toLowerCase();
+  return mime.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|avif|svg|tiff?|heic|heif)$/i.test(name);
+};
 async function convertToSenndoImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/")) {
+  if (!isImageFile(file)) {
     throw new Error(`« ${file.name} » ignoré : seules les images sont acceptées. Les vidéos et documents ne peuvent pas être joints aux notifications WhatsApp.`);
   }
-  let bitmap: ImageBitmap;
+  let drawable: ImageBitmap | HTMLImageElement;
+  let bitmap: ImageBitmap | null = null;
+  let objectUrl: string | null = null;
   try {
     bitmap = await createImageBitmap(file);
+    drawable = bitmap;
   } catch {
-    throw new Error(`Impossible de lire « ${file.name} » dans ce navigateur. Convertissez cette image en JPG, PNG ou WebP puis réessayez.`);
+    // Fallback navigateur pour les formats que ImageBitmap ne décode pas mais que
+    // le moteur HTMLImageElement sait afficher (notamment certains formats mobiles).
+    objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.decoding = "async";
+    image.src = objectUrl;
+    try {
+      await image.decode();
+      drawable = image;
+    } catch {
+      URL.revokeObjectURL(objectUrl);
+      throw new Error(`Impossible de décoder « ${file.name} » sur cet appareil. Réexportez l’image en JPG, PNG ou WebP puis réessayez.`);
+    }
   }
   try {
-    const scale = Math.min(1, 2560 / Math.max(bitmap.width, bitmap.height));
+    const width = bitmap?.width || (drawable as HTMLImageElement).naturalWidth;
+    const height = bitmap?.height || (drawable as HTMLImageElement).naturalHeight;
+    if (!width || !height) throw new Error(`Dimensions invalides pour « ${file.name} ».`);
+    const scale = Math.min(1, 2560 / Math.max(width, height));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Conversion d’image indisponible dans ce navigateur.");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(drawable, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
       value => value ? resolve(value) : reject(new Error("Conversion WebP impossible.")),
       "image/webp", 0.88,
@@ -101,7 +124,8 @@ async function convertToSenndoImage(file: File): Promise<File> {
     const baseName = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_") || "image";
     return new File([blob], baseName + ".webp", { type: "image/webp", lastModified: Date.now() });
   } finally {
-    bitmap.close();
+    bitmap?.close();
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
 }
 
@@ -360,10 +384,10 @@ const GestionNotifications = () => {
   const uploadMedia = async (files: FileList | null, target: "campaign" | "automation") => {
     if (!files?.length) return;
     const selectedFiles = Array.from(files);
-    if (selectedFiles.some(file => !file.type.startsWith("image/"))) {
+    if (selectedFiles.some(file => !isImageFile(file))) {
       toast.error("Seules les images sont autorisées. Les vidéos et les documents sont ignorés.");
     }
-    const imageFiles = selectedFiles.filter(file => file.type.startsWith("image/"));
+    const imageFiles = selectedFiles.filter(isImageFile);
     if (!imageFiles.length) {
       if (target === "campaign") setCampaignPendingFiles([]); else setAutomationPendingFiles([]);
       return;
@@ -400,7 +424,7 @@ const GestionNotifications = () => {
     if (!user) throw new Error("Connexion requise.");
     const normalized: MediaAttachment[] = [];
     for (const item of items || []) {
-      if (!item.mimeType?.startsWith("image/")) {
+      if (!isImageFile(item)) {
         toast.warning(`La pièce jointe non-image « ${item.name} » a été exclue.`);
         continue;
       }
