@@ -213,9 +213,10 @@ const Clients = () => {
     s.telephone?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const handleStatusChange = async (id: string, newStatus: string) => {
-    if (!canEditClient) { toast({variant:"destructive",title:"Action non autorisée",description:"Le Service Client ne peut pas modifier le dossier client."}); return; }
+    const client = clients.find(s => s.id === id);
+    const canEditThisClient = canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && (client?.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg"));
+    if (!canEditThisClient) { toast({variant:"destructive",title:"Action non autorisée",description:client?.type_client === "beneficiaire_particulier" ? "Seul le PDG peut modifier un bénéficiaire particulier." : "Votre rôle ne permet pas de modifier ce dossier client."}); return; }
     try {
-      const client = clients.find(s => s.id === id);
       const { error } = await offlineUpdate("clients", id, { statut: newStatus, statut_global: newStatus });
       if (error) throw error;
 
@@ -497,21 +498,21 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {canEditClient && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
-                                  {canEditClient && <DropdownMenuSeparator />}
-                                  {canEditClient && client.statut !== 'actif' && (
+                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
+                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && <DropdownMenuSeparator />}
+                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
                                       <RotateCcw className="mr-2 h-4 w-4 text-green-500" />
                                       Activer
                                     </DropdownMenuItem>
                                   )}
-                                  {canEditClient && client.statut !== 'suspendu' && (
+                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && client.statut !== 'suspendu' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'suspendu')}>
                                       <Ban className="mr-2 h-4 w-4 text-orange-500" />
                                       Suspendre
                                     </DropdownMenuItem>
                                   )}
-                                  {canEditClient && client.statut !== 'archive' && (
+                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && client.statut !== 'archive' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'archive')}>
                                       <Archive className="mr-2 h-4 w-4 text-slate-500" />
                                       Archiver
