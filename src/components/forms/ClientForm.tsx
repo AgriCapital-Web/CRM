@@ -147,7 +147,8 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     duree_paiement_mois: Number(snapshotContract.duree_paiement_mois ??
       (Number(snapshotContract.jours_contrat_total ?? form.jours_contrat_total ?? 0) / 30)),
     tranches_paiement: Array.isArray(snapshotContract.echeancier) ? snapshotContract.echeancier
-      : (Array.isArray(formulaConfiguration.tranches_paiement) ? formulaConfiguration.tranches_paiement : []),
+      : (String(offerSnapshot.source || "").startsWith("client_registration") && Array.isArray(formulaConfiguration.tranches_paiement)
+        ? formulaConfiguration.tranches_paiement : []),
     type_offre: offer.type_offre || form.type_client, actif: undefined,
   } : null;
   const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
@@ -423,7 +424,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">Aucune tranche annuelle n’est configurée pour cette offre/formule dans la base.</p>
+                <p className="text-xs text-muted-foreground">Aucun échéancier détaillé n’est enregistré dans ce dossier.</p>
               )}
               <div className="flex flex-wrap gap-1.5">
                 <Badge variant="outline">Applicable : {effectiveOffer.type_offre === "sans_terre" ? "sans terre" : effectiveOffer.type_offre === "avec_terre" ? "avec terre" : "type non précisé"}</Badge>
