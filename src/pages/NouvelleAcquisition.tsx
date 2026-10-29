@@ -457,7 +457,8 @@ const NouvelleAcquisition = () => {
       for(const contract of contracts) if(contract.obligatoire){
         const key="contrat_"+contract.type_contrat;
         const signedFile=recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
-        if(!signedFile){toast({variant:"destructive",title:"Contrat signé manquant",description:"Téléversez le contrat signé requis : "+(contract.source_document||contract.type_contrat)+"."});return false;}
+        const hasSavedOrNewSignedFile=Boolean(formData[key+"_preview"]) || Boolean(signedFile);
+        if(!hasSavedOrNewSignedFile){toast({variant:"destructive",title:"Contrat signé manquant",description:"Téléversez le contrat signé requis : "+(contract.source_document||contract.type_contrat)+"."});return false;}
       }
     }
     if(step.code==="confirmation"&&!formData.contrat_lu){
