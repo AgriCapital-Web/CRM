@@ -412,11 +412,11 @@ async function deliver(args: {
 }) {
   let sent = 0, failed = 0;
   const failureReasons: string[] = [];
-  const effectiveChannel = args.canal === "app" ? "app" : "whatsapp";
+  const effectiveChannel = args.canal === "auto" ? "whatsapp" : args.canal;
   const needsSenndoMedia = effectiveChannel === "whatsapp";
   const preparedMedia = args.mediaAttachments?.length && needsSenndoMedia ? await prepareMedia(args.mediaAttachments) : [];
   for (const contact of args.contacts) {
-    const channels = args.canal === "app" ? ["app"] : ["whatsapp"];
+    const channels = args.canal === "auto" ? ["whatsapp"] : [args.canal];
     for (const channel of [...new Set(channels)]) {
       if (channel === "app" && !contact.user_id && contact.source_type === "equipe") continue;
       const dedupeKey = (args.campaignId || args.automationId || "manual") + ":" +
@@ -511,9 +511,21 @@ async function deliver(args: {
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
+        } else if (channel === "sms") {
+          const result = await sendSms(contact, rendered, dedupeKey);
+          await admin.from("notification_deliveries").update({
+            statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId,
+            recipient_phone: result.to || contact.telephone || null, contenu: result.content || normalizeSms(rendered),
+            sent_at: new Date().toISOString(),
+          }).eq("id", delivery.id);
+        } else if (channel === "email") {
+          const result = await sendEmail(contact, renderedSubject, rendered, dedupeKey, attachments);
+          await admin.from("notification_deliveries").update({
+            statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
+          }).eq("id", delivery.id);
         }
         sent++;
-        if (effectiveChannel === "auto") break;
+        if (args.canal === "auto") break;
       } catch (error) {
         failed++;
         const failureReason = error instanceof Error ? error.message : String(error);
@@ -617,13 +629,14 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
     }
     if (context.user_id) contacts = contacts.filter((c) => c.user_id === context.user_id);
     const cooldownMinutes = Math.max(0, Number(automation.cooldown_minutes) || 0);
-    if (cooldownMinutes > 0 && contacts.length) {
+    if (contacts.length) {
       const cutoff = new Date(Date.now() - cooldownMinutes * 60_000).toISOString();
       const eligible: Contact[] = [];
       for (const contact of contacts) {
         let query = admin.from("notification_deliveries").select("id").eq("automation_id", automation.id)
-          .eq("source_id", contact.source_id).gte("created_at", cutoff)
-          .in("statut", ["en_cours", "envoye", "livre"]).limit(1);
+          .eq("source_id", contact.source_id)
+          .in("statut", context.paiement_id ? ["envoye", "livre"] : ["en_cours", "envoye", "livre"]).limit(1);
+        if (!context.paiement_id && cooldownMinutes > 0) query = query.gte("created_at", cutoff);
         if (context.paiement_id) query = query.contains("metadata", { event_key: eventCode + ":" + String(context.paiement_id) });
         const { data: recent, error: recentError } = await query;
         if (recentError) throw recentError;
@@ -759,47 +772,84 @@ async function runEvents(events: Array<{ id: string; event_code: string; context
 
 async function runScheduledAutomations() {
   const now = new Date();
-  const inThreeDays = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-  const results = [];
+  const today = now.toISOString().slice(0, 10);
+  const plusDeuxJours = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const results: unknown[] = [];
+  const addDays = (date: string, days: number) => {
+    const value = new Date(date + "T12:00:00.000Z");
+    value.setUTCDate(value.getUTCDate() + days);
+    return value.toISOString().slice(0, 10);
+  };
+  const formatDate = (date: string) => {
+    const [year, month, day] = date.slice(0, 10).split("-");
+    return day + "/" + month + "/" + year;
+  };
 
-  // Les rappels sont ciblés par client et par échéance : aucun envoi massif à toute la base.
-  const { data: duePayments, error: dueError } = await admin.from("paiements")
-    .select("id,client_id,montant,date_echeance,statut")
-    .eq("type_paiement", "REDEVANCE")
-    .neq("statut", "valide")
-    .gte("date_echeance", now.toISOString().slice(0, 10))
-    .lte("date_echeance", inThreeDays.toISOString().slice(0, 10))
-    .limit(500);
-  if (dueError) throw dueError;
+  // Les échéances sont calculées sur des cycles fixes de 30 jours.
+  // Seuls les vrais clients payants avec une plantation réellement activée sont éligibles.
+  const { data: clients, error: clientsError } = await admin.from("clients")
+    .select("id,id_unique,nom_complet,type_client,is_internal,statut_global,compte_actif,mensualite_montant,prochaine_echeance,contrat_debut_at")
+    .in("type_client", ["client", "avec_terre"])
+    .eq("is_internal", false)
+    .eq("compte_actif", true)
+    .gt("mensualite_montant", 0)
+    .not("statut_global", "in", '("archive","supprime")')
+    .limit(1000);
+  if (clientsError) throw clientsError;
 
-  for (const paiement of duePayments || []) {
-    results.push(await runEvent("paiement_echeance", {
-      client_id: paiement.client_id,
-      paiement_id: paiement.id,
-      montant: paiement.montant,
-      date_echeance: paiement.date_echeance,
-    }));
+  const { data: plantations, error: plantationsError } = await admin.from("plantations")
+    .select("id,client_id,date_activation,statut,statut_global,superficie_ha")
+    .not("client_id", "is", null)
+    .not("date_activation", "is", null)
+    .limit(2000);
+  if (plantationsError) throw plantationsError;
+
+  const activeByClient = new Map<string, any[]>();
+  for (const plantation of plantations || []) {
+    const statuses = [String(plantation.statut || "").toLowerCase(), String(plantation.statut_global || "").toLowerCase()];
+    if (!statuses.some((status) => ["actif", "active", "activee", "activée"].includes(status))) continue;
+    const list = activeByClient.get(plantation.client_id) || [];
+    list.push(plantation);
+    activeByClient.set(plantation.client_id, list);
   }
 
-  const { data: overduePayments, error: overdueError } = await admin.from("paiements")
-    .select("id,client_id,montant,date_echeance,statut")
-    .eq("type_paiement", "REDEVANCE")
-    .neq("statut", "valide")
-    .lt("date_echeance", now.toISOString().slice(0, 10))
-    .limit(500);
-  if (overdueError) throw overdueError;
+  for (const client of clients || []) {
+    const activePlantations = activeByClient.get(client.id) || [];
+    const monthlyAmount = Number(client.mensualite_montant || 0);
+    if (!activePlantations.length || monthlyAmount <= 0) continue;
 
-  for (const paiement of overduePayments || []) {
-    results.push(await runEvent("paiement_retard", {
-      client_id: paiement.client_id,
-      paiement_id: paiement.id,
-      montant: paiement.montant,
-      date_echeance: paiement.date_echeance,
-    }));
+    const earliestActivation = activePlantations
+      .map((plantation) => String(plantation.date_activation).slice(0, 10))
+      .sort()[0];
+    const baseDate = client.contrat_debut_at || earliestActivation;
+    let dueDate = client.prochaine_echeance || addDays(String(baseDate).slice(0, 10), 30);
+
+    // Backfill the next due date once for existing paid clients whose field was empty.
+    if (!client.prochaine_echeance) {
+      const { error: dateError } = await admin.from("clients")
+        .update({ prochaine_echeance: dueDate }).eq("id", client.id).is("prochaine_echeance", null);
+      if (dateError) throw dateError;
+    }
+
+    // A unique event key per client and due date prevents repeated reminders on every cron run.
+    const paymentKey = String(client.id) + ":" + dueDate;
+    const commonContext = {
+      client_id: client.id,
+      paiement_id: paymentKey,
+      montant: String(Math.round(monthlyAmount)),
+      date_echeance: formatDate(dueDate),
+    };
+    if (dueDate < today) {
+      const daysLate = Math.floor((Date.parse(today + "T00:00:00Z") - Date.parse(dueDate + "T00:00:00Z")) / 86400000);
+      results.push(await runEvent("paiement_retard", { ...commonContext, jours_retard: String(daysLate) }));
+    } else if (dueDate === plusDeuxJours) {
+      results.push(await runEvent("paiement_echeance", commonContext));
+    }
   }
 
-  const { data: scheduled } = await admin.from("notification_campaigns").select("id")
+  const { data: scheduled, error: scheduledError } = await admin.from("notification_campaigns").select("id")
     .eq("statut", "programme").lte("programme_le", now.toISOString()).limit(20);
+  if (scheduledError) throw scheduledError;
   for (const campaign of scheduled || []) results.push(await runCampaign(campaign.id));
 
   return results;
