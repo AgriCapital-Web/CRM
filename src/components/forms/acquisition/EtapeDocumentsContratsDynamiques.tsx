@@ -126,7 +126,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
                   label="Contrat signé *"
                   field={"contrat_"+contract.type_contrat}
                   accept=".pdf,image/*"
-                  required={false}
+                  required={Boolean(contract.obligatoire)}
                   currentFile={formData["contrat_"+contract.type_contrat+"_file"]||null}
                   currentPreview={formData["contrat_"+contract.type_contrat+"_preview"]||""}
                   onFileChange={(field,file,preview)=>updateFormData({["contrat_"+contract.type_contrat+"_file"]: file, ["contrat_"+contract.type_contrat+"_preview"]: preview})}
