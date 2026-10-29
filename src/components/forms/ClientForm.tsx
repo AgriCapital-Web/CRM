@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,7 +30,7 @@ const CLIENT_COLUMNS = new Set([
   "type_personne","nom_famille","denomination_sociale","nature_organisation_code","forme_juridique_code","numero_enregistrement","nombre_membres","responsable_legal_nom","responsable_legal_prenoms","responsable_legal_telephone",
   "civilite","nom","prenoms","date_naissance","lieu_naissance","statut_marital",
   "type_piece","numero_piece","date_delivrance_piece","telephone","telephone_secondaire","telephone_secondaire_indicatif","telephone_secondaire_local","telephone_principal_whatsapp","telephone_secondaire_whatsapp","whatsapp","email","domicile","domicile_residence",
-  "district_id","region_id","departement_id","sous_prefecture_id","village_id","offre_id","famille_offre","formule_code","formule_nom","parcours_code","commercial_id","type_compte","banque_operateur",
+  "district_id","region_id","departement_id","sous_prefecture_id","village_id","commercial_id","type_compte","banque_operateur",
   "numero_compte","nom_titulaire_compte","photo_profil_url","fichier_piece_url","fichier_piece_recto_url",
   "fichier_piece_verso_url","localite","nationalite","type_client","telephone_indicatif","telephone_local",
   "whatsapp_indicatif","whatsapp_local","latitude","longitude","updated_by"
@@ -44,17 +43,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const [isEditing, setIsEditing] = useState(!readOnly);
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
-  const { data: offers = [] } = useQuery({
-    queryKey: ["offres-actives"],
-    queryFn: async () => {
-      const columns = "id,code,nom,description,famille_offre,formule_code,formule_nom,formules_configuration,parcours_code,type_offre,necessite_foncier_client,necessite_cotitulaire,contrat_acquisition_requis,contrat_accompagnement_requis,gestion_type,montant_pi_par_ha,montant_cash_par_ha,mensualite_par_ha,montant_total_par_ha,duree_paiement_mois,tranches_paiement,paiement_signature_par_ha,paiement_apres_trouaison_par_ha,actif,ordre";
-      const { data, error } = await (supabase as any).from("offres").select(columns).eq("actif", true).order("ordre").order("nom");
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 0,
-    refetchOnMount: "always",
-  });
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [pieceRectoFile, setPieceRectoFile] = useState<File | null>(null);
@@ -132,38 +120,41 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
 
 
 
-  const offer = useMemo(() => offers.find(o => o.id === form.offre_id) || null, [offers, form.offre_id]);
+  // Une fiche client existante lit uniquement son instantané contractuel.
+  // Le catalogue courant ne doit jamais recalculer ni réécrire une vente historique.
+  const offerSnapshot = form.offre_snapshot && typeof form.offre_snapshot === "object"
+    ? form.offre_snapshot : (client?.offre_snapshot || {});
+  const snapshotContract = offerSnapshot.contract && typeof offerSnapshot.contract === "object" ? offerSnapshot.contract : {};
+  const snapshotFormula = offerSnapshot.formula && typeof offerSnapshot.formula === "object" ? offerSnapshot.formula : {};
+  const formulaConfiguration = snapshotFormula.configuration && typeof snapshotFormula.configuration === "object"
+    ? snapshotFormula.configuration : {};
+  const offer = offerSnapshot.offer && typeof offerSnapshot.offer === "object" ? offerSnapshot.offer
+    : (form.offre_id ? { id: form.offre_id, nom: form.formule_nom || form.famille_offre || "Offre enregistrée",
+        code: form.famille_offre || form.parcours_code || "", famille_offre: form.famille_offre,
+        parcours_code: form.parcours_code, formules_configuration: [] }
+      : (form.paiement_personnalise && Object.keys(form.paiement_personnalise).length
+        ? { nom: form.formule_nom || "Offre personnalisée", code: form.formule_code || "PERSONNALISEE" } : null));
+  const selectedFormula = snapshotFormula.code || form.formule_code
+    ? { ...formulaConfiguration, code: snapshotFormula.code || form.formule_code,
+        nom: snapshotFormula.nom || form.formule_nom || formulaConfiguration.nom } : null;
+  const hectares = Math.max(Number(snapshotContract.superficie_ha ?? form.total_hectares ?? 0), 0);
+  const perHa = (amount: unknown) => hectares > 0 ? Number(amount || 0) / hectares : Number(amount || 0);
+  const effectiveOffer = offer ? {
+    ...offer, ...formulaConfiguration, nom: offer.nom || form.famille_offre || "Offre enregistrée",
+    montant_pi_par_ha: perHa(snapshotContract.paiement_initial_montant ?? form.paiement_initial_montant),
+    montant_total_par_ha: perHa(snapshotContract.montant_total_contrat ?? form.montant_total_contrat),
+    mensualite_par_ha: perHa(snapshotContract.mensualite_montant ?? form.mensualite_montant),
+    duree_paiement_mois: Number(snapshotContract.duree_paiement_mois ??
+      (Number(snapshotContract.jours_contrat_total ?? form.jours_contrat_total ?? 0) / 30)),
+    tranches_paiement: Array.isArray(snapshotContract.echeancier) ? snapshotContract.echeancier
+      : (Array.isArray(formulaConfiguration.tranches_paiement) ? formulaConfiguration.tranches_paiement : []),
+    type_offre: offer.type_offre || form.type_client, actif: undefined,
+  } : null;
   const offerFormulas = Array.isArray(offer?.formules_configuration) ? offer.formules_configuration : [];
-  const selectedFormula = offerFormulas.find((formula: any) => formula.code === form.formule_code) || null;
-  const effectiveOffer = useMemo(() => {
-    if (!offer) return null;
-    const result: any = { ...offer };
-    if (selectedFormula) {
-      const sharedTariff = selectedFormula.utilise_tarif_commun === true;
-      for (const key of [
-        "montant_pi_par_ha", "montant_cash_par_ha", "mensualite_par_ha",
-        "montant_total_par_ha", "duree_paiement_mois", "tranches_paiement",
-      ]) {
-        if (selectedFormula[key] !== undefined && selectedFormula[key] !== null) result[key] = selectedFormula[key];
-        else if (sharedTariff) result[key] = (offer as any)[key] ?? null;
-        else result[key] = null;
-      }
-      if (selectedFormula.gestion_type !== undefined && selectedFormula.gestion_type !== null) result.gestion_type = selectedFormula.gestion_type;
-      else if (!sharedTariff) result.gestion_type = null;
-      for (const key of ["necessite_foncier_client", "necessite_cotitulaire", "contrat_acquisition_requis", "contrat_accompagnement_requis"]) {
-        if (selectedFormula[key] !== undefined && selectedFormula[key] !== null) result[key] = selectedFormula[key];
-      }
-    } else if (offerFormulas.length > 0) {
-      // A legacy/custom client contract must not fall back to the offer's generic price.
-      const hectares = Math.max(Number(form.total_hectares || 0), 1);
-      result.montant_pi_par_ha = Number(form.paiement_initial_montant || 0) / hectares;
-      result.montant_total_par_ha = Number(form.montant_total_contrat || 0) / hectares;
-      result.mensualite_par_ha = Number(form.mensualite_montant || 0) / hectares;
-      result.tranches_paiement = [];
-      result.duree_paiement_mois = Math.max(0, Math.ceil(Number(form.jours_contrat_total || 0) / 30));
-    }
-    return result;
-  }, [offer, selectedFormula, offerFormulas.length, form.total_hectares, form.paiement_initial_montant, form.montant_total_contrat, form.mensualite_montant, form.jours_contrat_total]);
+  const paymentTranches = Array.isArray(effectiveOffer?.tranches_paiement)
+    ? effectiveOffer.tranches_paiement.filter((tranche: any) =>
+        tranche.type !== "paiement_initial" && Number(tranche.mensualite_par_ha || 0) > 0) : [];
+
   const formatOfferAmount = (value: unknown) => {
     const amount = Number(value);
     return value !== null && value !== undefined && value !== "" && Number.isFinite(amount)
@@ -395,17 +386,17 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         <CardContent className="space-y-2 px-4 pb-3 pt-0">
           <div className="grid md:grid-cols-3 gap-2">
             <div><Label className="text-xs">Type de dossier</Label><Input className="h-8" value={isBeneficiary ? "Bénéficiaire particulier" : "Client officiel"} disabled /></div>
-            <div><Label className="text-xs">Offre</Label><Select value={form.offre_id || ""} onValueChange={v=>{const selected=offers.find(o=>o.id===v);if(!selected)return;setForm((x:any)=>({...x,offre_id:selected.id,famille_offre:selected.famille_offre||null,formule_code:"",formule_nom:"",parcours_code:selected.parcours_code||selected.code,type_client:selected.type_offre==="sans_terre"?"sans_terre":"avec_terre"}));}}><SelectTrigger className="h-8"><SelectValue placeholder={offer?.nom || "Sélectionner une offre"}/></SelectTrigger><SelectContent>{offers.map(o=><SelectItem key={o.id} value={o.id}>{o.nom}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label className="text-xs">Formule</Label><Select value={selectedFormula?.code || ""} onValueChange={code=>{const formula=offerFormulas.find((item:any)=>item.code===code);if(!formula)return;setForm((x:any)=>({...x,formule_code:formula.code,formule_nom:formula.nom,famille_offre:offer?.famille_offre||null,parcours_code:offer?.parcours_code||offer?.code}));}} disabled={!offerFormulas.length}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner une formule"/></SelectTrigger><SelectContent>{offerFormulas.map((formula:any)=><SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="text-xs">Offre enregistrée</Label><Input className="h-8" value={offer?.nom || "Offre personnalisée"} disabled readOnly /></div>
+            <div><Label className="text-xs">Formule contractuelle</Label><Input className="h-8" value={selectedFormula?.nom || form.formule_nom || form.formule_code || "Personnalisée"} disabled readOnly /></div>
           </div>
           {effectiveOffer && (
             <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">{effectiveOffer.nom}{selectedFormula?.nom ? ` — ${selectedFormula.nom}` : ""}</p>
-                  <p className="text-xs text-muted-foreground">Configuration chargée depuis Paramètres → Offres · valeurs par hectare</p>
+                  <p className="text-xs text-muted-foreground">Conditions enregistrées à la souscription · valeurs historiques par hectare</p>
                 </div>
-                <Badge variant={effectiveOffer.actif ? "default" : "outline"}>{effectiveOffer.actif ? "Offre active" : "Offre inactive"}</Badge>
+                <Badge variant="outline">Conditions figées</Badge>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 <div className="rounded-md border bg-background p-2">
@@ -444,7 +435,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
               </div>
             </div>
           )}
-          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Le dossier possède déjà une activation, un paiement initial ou une plantation. Le choix de l’offre ici ne recalcule pas les éléments contractuels déjà activés.</span></div>}
+          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Les conditions commerciales sont figées dans ce dossier. La modification des coordonnées, de l’identité ou des documents ne change ni le tarif contractuel ni une promotion passée ou en cours.</span></div>}
         </CardContent>
       </Card>
 
