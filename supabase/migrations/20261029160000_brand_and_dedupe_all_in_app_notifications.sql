@@ -55,3 +55,24 @@ drop trigger if exists trg_prepare_agricapital_notification on public.notificati
 create trigger trg_prepare_agricapital_notification
 before insert on public.notifications
 for each row execute function public.prepare_agricapital_notification();
+
+-- Remove legacy duplicate portal-message notifications created with two different key formats.
+with ranked as (
+  select id,row_number() over (
+    partition by user_id,type,data->>'message_id'
+    order by created_at,id
+  ) rn
+  from public.notifications
+  where type='message_portail' and data ? 'message_id'
+)
+delete from public.notifications n using ranked r
+where n.id=r.id and r.rn>1;
+
+-- Normalize already-created in-app notifications as well as all future ones.
+update public.notifications
+set dedupe_key=coalesce(nullif(btrim(dedupe_key),''),'legacy-notification:'||id::text),
+    title=case when title is not null and title<>'' and title !~* '^AgriCapital\\s*[·|—-]'
+      then 'AgriCapital · '||title else title end,
+    message=case when message is not null and message<>'' and message !~* 'notification automatique'
+      and message !~* '^AgriCapital\\s*\\(auto\\)'
+      then 'AgriCapital · Notification automatique : '||message else message end;
