@@ -1,3 +1,6 @@
+ALTER TABLE public.clients DISABLE TRIGGER clients_reject_duplicate_contact;
+ALTER TABLE public.clients DISABLE TRIGGER trg_recalculer_parametres_financiers_client;
+ALTER TABLE public.clients DISABLE TRIGGER trg_notification_client_created;
 
 DO $$
 DECLARE
@@ -73,3 +76,7 @@ BEGIN
    RAISE EXCEPTION 'La plantation payante d’Emmanuel n’est pas reliée au client officiel.';
  END IF;
 END $$;
+
+ALTER TABLE public.clients ENABLE TRIGGER clients_reject_duplicate_contact;
+ALTER TABLE public.clients ENABLE TRIGGER trg_recalculer_parametres_financiers_client;
+ALTER TABLE public.clients ENABLE TRIGGER trg_notification_client_created;
