@@ -142,7 +142,7 @@ const NouvelleAcquisition = () => {
   const { can } = usePermissions();
   const canEditExisting = can("clients.update") && (userRoles || []).some((role:string)=>["pdg","service_client","support","relation_client"].includes(role));
   const [searchParams]=useSearchParams();
-  const {data:promotionActive}=usePromotionActive(formData.offre_id);
+  const {data:promotionActive}=usePromotionActive(formData.offre_id, undefined, !recordId);
 
   const updateFormData = useCallback((data: any) => setFormData((prev: any) => ({ ...prev, ...data })), []);
 
@@ -250,13 +250,22 @@ const NouvelleAcquisition = () => {
           if(result.error) throw result.error;
           acquisition=result.data;
         }
-        const offerId=acquisition?.offre_id||client.offre_id||"";
-        let offer:any=null;
-        if(offerId){
-          const result=await (supabase as any).from("offres").select("*").eq("id",offerId).maybeSingle();
-          if(result.error) throw result.error;
-          offer=result.data;
-        }
+        const acquisitionSnapshot = acquisition?.offre_snapshot && Object.keys(acquisition.offre_snapshot).length
+          ? acquisition.offre_snapshot : null;
+        const clientSnapshot = client?.offre_snapshot && Object.keys(client.offre_snapshot).length
+          ? client.offre_snapshot : null;
+        const savedSnapshot = acquisitionSnapshot || clientSnapshot || {};
+        const offerId = acquisition?.offre_id || client.offre_id || savedSnapshot.offer?.id || "";
+        // Existing dossiers must load the saved offer snapshot, never today's live catalogue.
+        const offer:any = savedSnapshot.offer ? {
+          ...savedSnapshot.offer, id: savedSnapshot.offer.id || offerId,
+          formules_configuration: Array.isArray(savedSnapshot.offer.formules_configuration) ? savedSnapshot.offer.formules_configuration : [],
+        } : {
+          id: offerId, code: client.famille_offre || client.parcours_code || "",
+          nom: client.formule_nom || client.famille_offre || "Offre enregistrée",
+          famille_offre: client.famille_offre, parcours_code: client.parcours_code, formules_configuration: [],
+        };
+        const savedFormula = savedSnapshot.formula || {};
         const [docsResult,repResult]=await Promise.all([
           (supabase as any).from("documents_acquisition").select("*").eq("client_id",client.id).order("created_at",{ascending:false}),
           (supabase as any).from("client_cotitulaires_mandataires").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(1).maybeSingle()
@@ -264,9 +273,10 @@ const NouvelleAcquisition = () => {
         if(docsResult.error) throw docsResult.error;
         if(repResult.error) throw repResult.error;
         const values:any={...client,commercial_id:client.commercial_id||acquisition?.created_by||"",offre_id:offerId,offre:offer,
-          formule_code:acquisition?.formule_code||client.formule_code||offer?.formule_code||"",
-          formule_nom:acquisition?.formule_nom||client.formule_nom||offer?.formule_nom||"",
-          formule_confirmed:true,superficie_prevue:String(acquisition?.superficie_ha??client.total_hectares??client.superficie_ha??""),
+          offre_snapshot:savedSnapshot,
+          formule_code:acquisition?.formule_code||savedFormula.code||client.formule_code||"",
+          formule_nom:acquisition?.formule_nom||savedFormula.nom||client.formule_nom||"",
+          formule_confirmed:true,superficie_prevue:String(acquisition?.superficie_ha??savedSnapshot.contract?.superficie_ha??client.total_hectares??client.superficie_ha??""),
           photo_profil_preview:client.photo_profil_url||"",photo_piece_recto_preview:client.fichier_piece_recto_url||"",
           photo_piece_verso_preview:client.fichier_piece_verso_url||"",contrat_lu:true,documents_authentiques:true,autorisation_donnees:true};
         if(repResult.data) Object.assign(values,{has_representant:true,representant_type:repResult.data.type_relation||"cotitulaire",
@@ -285,7 +295,7 @@ const NouvelleAcquisition = () => {
         }
         if(!active)return;
         setExistingClientId(client.id);setExistingAcquisitionId(acquisition?.id||null);
-        setExistingRecord({client,acquisition,offer,representative:repResult.data||null});setEditExisting(false);setCurrent(0);setFormData(values);
+        setExistingRecord({client,acquisition,offer,snapshot:savedSnapshot,representative:repResult.data||null});setEditExisting(false);setCurrent(0);setFormData(values);
       }catch(error:any){if(active)toast({variant:"destructive",title:"Dossier impossible à ouvrir",description:getSafeErrorMessage(error)});}
       finally{if(active)setDraftLoading(false);}
     })();
@@ -727,22 +737,10 @@ const NouvelleAcquisition = () => {
     if(!existingRecord||!existingClientId||!user?.id||!canEditExisting)return;
     setSaving(true);
     try{
-      const hectares=Math.max(0,Number(formData.superficie_prevue)||0);
-      const {data:offer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
-      if(offerError)throw offerError;
-      const formulas=Array.isArray(offer.formules_configuration)?offer.formules_configuration:[];
-      const formula=formulas.find((item:any)=>item.code===formData.formule_code);
-      if(!formula)throw new Error("La formule sélectionnée n’existe plus dans la configuration.");
-      const shared=formula.utilise_tarif_commun===true;
-      const effective=(key:string)=>formula[key]??(shared?offer[key]:null);
-      const pricingOffer:any={...offer,formule_code:formula.code,formule_nom:formula.nom,montant_pi_par_ha:effective("montant_pi_par_ha"),
-        montant_cash_par_ha:effective("montant_cash_par_ha"),mensualite_par_ha:effective("mensualite_par_ha"),
-        montant_total_par_ha:effective("montant_total_par_ha"),duree_paiement_mois:effective("duree_paiement_mois"),tranches_paiement:effective("tranches_paiement")};
-      // Une modification de fiche ne doit jamais réappliquer une promotion courante à une vente déjà enregistrée.
-      const price=calculPrixEffectif(pricingOffer,[],{modePaiement:"echeancier"});
-      const total=Number(price.montant_total_effectif||price.montant_total_base||0)*hectares;
-      const pi=Number(price.pi_effectif||0)*hectares;
-      const monthly=Number(price.mensualite_effective||0)*hectares;
+      const savedSnapshot = existingRecord.snapshot || existingRecord.acquisition?.offre_snapshot || existingRecord.client.offre_snapshot || {};
+      const offer:any = existingRecord.offer || savedSnapshot.offer || {
+        id: existingRecord.client.offre_id, nom: existingRecord.client.formule_nom || "Offre enregistrée",
+      };
       const payload:any={nom:formData.nom_famille||formData.nom||"",nom_famille:formData.nom_famille||formData.nom||"",
         prenoms:formData.prenoms||"",nom_complet:[formData.nom_famille||formData.nom,formData.prenoms].filter(Boolean).join(" ").trim(),
         civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,
@@ -756,11 +754,10 @@ const NouvelleAcquisition = () => {
         email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
         domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
-        offre_id:offer.id,famille_offre:offer.famille_offre||null,formule_code:formula.code,formule_nom:formula.nom,
-        parcours_code:offer.parcours_code||offer.code,commercial_id:formData.commercial_id||null,total_hectares:hectares,superficie_ha:hectares,
-        montant_total_contrat:total,paiement_initial_montant:pi,montant_pi_total:pi,mensualite_montant:monthly,
-        duree_paiement_mois:Number(pricingOffer.duree_paiement_mois||offer.duree_paiement_mois||0),
-        montant_promo_applique:Number(existingRecord.client.montant_promo_applique||0),promotion_id:existingRecord.client.promotion_id||null,contrat_acquisition_statut:formData.contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",contrat_accompagnement_statut:formData.contrat_accompagnement_client_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",updated_by:user.id,updated_at:new Date().toISOString()};
+         commercial_id:formData.commercial_id||existingRecord.client.commercial_id||null,
+         contrat_acquisition_statut:formData.contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
+         contrat_accompagnement_statut:formData.contrat_accompagnement_client_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
+         updated_by:user.id,updated_at:new Date().toISOString()};
       for(const [field,column,bucket] of [["photo_profil","photo_profil_url","photos-profils"],["photo_piece_recto","fichier_piece_recto_url","pieces-identite"],["photo_piece_verso","fichier_piece_verso_url","pieces-identite"]] as const){
         const file=recoverFile(formData[field+"_file"],formData[field+"_preview"],field);
         if(file){const uploaded=await uploadFile(bucket,file,user.id+"/clients/"+existingClientId,"identity-"+field);if(!uploaded)throw new Error("Téléversement impossible : "+field);payload[column]=uploaded.path;}
@@ -811,14 +808,8 @@ const NouvelleAcquisition = () => {
       }
       const {error:clientError}=await offlineUpdate("clients",existingClientId,payload);
       if(clientError)throw clientError;
-      if(existingAcquisitionId){
-        const {error:acquisitionError}=await offlineUpdate("acquisitions",existingAcquisitionId,{offre_id:offer.id,offre_nom:offer.nom,offre_code:offer.code,
-          famille_offre:offer.famille_offre||null,formule_code:formula.code,formule_nom:formula.nom,superficie_ha:hectares,
-          montant_total_contrat:total,montant_pi_total:pi,mensualite_montant:monthly,duree_paiement_mois:Number(pricingOffer.duree_paiement_mois||offer.duree_paiement_mois||0),
-          montant_promo_applique:Number(existingRecord.client.montant_promo_applique||0),promotion_id:existingRecord.client.promotion_id||null,updated_at:new Date().toISOString()});
-        if(acquisitionError)throw acquisitionError;
-      }
-      toast({title:"Dossier mis à jour",description:"Les informations du client et de sa souscription ont été enregistrées sans créer de doublon."});
+      // Les conditions de l’acquisition restent immuables pendant une modification de fiche.
+toast({title:"Dossier mis à jour",description:"Les informations du client et de sa souscription ont été enregistrées sans créer de doublon."});
       setEditExisting(false);
     }catch(error:any){toast({variant:"destructive",title:"Modification impossible",description:getSafeErrorMessage(error)});}
     finally{setSaving(false);}
@@ -855,7 +846,7 @@ const NouvelleAcquisition = () => {
   }, [draftLoading, loadingSteps, saving, user, brouillonId, formData, current, activeSteps.length]);
 
   const renderStep=()=>{
-    if(!step)return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
+    if(!step)return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
     switch(step.code){
       case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData}/>;
       case "client":return <EtapeClientDynamique formData={formData} updateFormData={updateFormData}/>;
