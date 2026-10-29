@@ -446,10 +446,10 @@ const NouvelleAcquisition = () => {
   const draftSaveAgain = useRef(false);
   const submitInFlightRef = useRef(false);
   const pendingSubmitRetryRef = useRef(false);
-  const saveDraft=async(index:number):Promise<string|null>=>{
+  const saveDraft=async(index:number, draftData: any = formData):Promise<string|null>=>{
     const currentUser = user;
     if(!currentUser)return null;
-    const payload={...formData,parcours_code:formData.offre_code||null};
+    const payload={...draftData,parcours_code:draftData.offre_code||null};
     // Les brouillons sont exclusivement locaux. On conserve les aperçus des fichiers
     // pour pouvoir les reconstruire au rechargement, sans écrire en base.
     for (const [code, { field }] of Object.entries(IDENTITY_DOCUMENT_FIELDS)) {
@@ -511,8 +511,14 @@ const NouvelleAcquisition = () => {
     try{
       const currentUser = user;
       if(!currentUser)throw new Error("Session utilisateur introuvable");
-      const savedDraftId = await saveDraft(current);
-      const stableClientId = stableUuid(currentUser.id, "client:" + String(formData.telephone || formData.nom_famille || "draft"));
+      // L'identifiant du client est créé une seule fois par brouillon, puis réutilisé
+      // lors des reprises réseau. Le téléphone ou le nom ne sont jamais des clés primaires :
+      // deux dossiers distincts ne doivent pas s'écraser silencieusement.
+      const draftClientId = String(formData.__client_draft_id || (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : stableUuid(currentUser.id, "client-draft:" + Date.now() + ":" + Math.random())));
+      const savedDraftId = await saveDraft(current, { ...formData, __client_draft_id: draftClientId });
+      const stableClientId = draftClientId;
       const {data:baseOffer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
       if(offerError)throw offerError;
       if(!baseOffer)throw new Error("Offre sélectionnée introuvable");
