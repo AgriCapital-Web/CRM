@@ -306,8 +306,10 @@ const GestionNotifications = () => {
       programme_le: item.programme_le ? new Date(item.programme_le).toISOString().slice(0,16) : "",
     });
     setSelectedRecipients(Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients : []);
-    setCampaignMedia(Array.isArray(item.media_attachments) ? item.media_attachments : []);
+    setCampaignMedia([]);
     setCampaignDialogOpen(true);
+    setUploadingMedia(true);
+    void normalizeSavedImages(Array.isArray(item.media_attachments) ? item.media_attachments : [])\n      .then(setCampaignMedia).catch((error) => toast.error(error instanceof Error ? error.message : "Impossible de préparer les images."))\n      .finally(() => setUploadingMedia(false));
   };
 
   const updateCampaignStatus = async (item: Campaign, statut: string) => {
@@ -391,7 +393,39 @@ const GestionNotifications = () => {
       if (target === "campaign") setCampaignPendingFiles([]); else setAutomationPendingFiles([]);
     }
   };
-  const applyTemplate = (t: NotificationTemplate) => { setCampaign(v=>({...v,canal:t.canal,sujet:t.sujet||"",contenu:t.contenu,nom:v.nom||t.nom}));setCampaignMedia(t.media_attachments||[]); };
+  const normalizeSavedImages = async (items: MediaAttachment[]): Promise<MediaAttachment[]> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Connexion requise.");
+    const normalized: MediaAttachment[] = [];
+    for (const item of items || []) {
+      if (!item.mimeType?.startsWith("image/")) {
+        toast.warning(`La pièce jointe non-image « ${item.name} » a été exclue.`);
+        continue;
+      }
+      if (item.mimeType === "image/webp") { normalized.push(item); continue; }
+      const { data: blob, error } = await supabase.storage.from(item.bucket || "notification-media").download(item.path);
+      if (error || !blob) { toast.warning(`Impossible de convertir « ${item.name} » ; cette pièce jointe a été ignorée.`); continue; }
+      try {
+        const converted = await convertToSenndoImage(new File([blob], item.name, { type: item.mimeType }));
+        const name = converted.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const newPath = `${user.id}/${crypto.randomUUID()}-${name}`;
+        const { error: uploadError } = await supabase.storage.from("notification-media").upload(newPath, converted, { contentType: "image/webp", upsert: false });
+        if (uploadError) throw uploadError;
+        normalized.push({ bucket: "notification-media", path: newPath, name: converted.name, mimeType: "image/webp", size: converted.size });
+        void supabase.storage.from(item.bucket || "notification-media").remove([item.path]);
+      } catch (error) {
+        toast.warning(`L’image « ${item.name} » n’a pas pu être convertie et a été exclue.`);
+      }
+    }
+    return normalized;
+  };
+  const applyTemplate = async (t: NotificationTemplate) => {
+    setCampaign(v=>({...v,canal:t.canal,sujet:t.sujet||"",contenu:t.contenu,nom:v.nom||t.nom}));
+    setUploadingMedia(true);
+    try { setCampaignMedia(await normalizeSavedImages(t.media_attachments || [])); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Impossible de préparer les images du modèle."); }
+    finally { setUploadingMedia(false); }
+  };
   const MediaPicker = ({target,items}:{target:"campaign"|"automation";items:MediaAttachment[]}) => <div className="space-y-2"><Label>Pièces jointes</Label><label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"><Paperclip className="h-4 w-4"/>{uploadingMedia?"Téléversement…":"Ajouter des fichiers"}<input type="file" className="hidden" multiple accept="image/*" disabled={uploadingMedia} onChange={e=>{void uploadMedia(e.target.files,target);e.currentTarget.value="";}}/></label>{(target==="campaign"?campaignPendingFiles:automationPendingFiles).map((file,index)=><div key={file.name+file.size+index} className="flex flex-col gap-2 rounded border border-dashed p-2 text-sm"><div className="font-medium">{file.name} · {(file.size/1048576).toFixed(1)} Mo · Aperçu avant envoi</div><PendingMediaPreview file={file}/></div>)}{items.map(item=><div key={item.path} className="flex flex-col gap-2 rounded border p-2 text-sm sm:flex-row sm:items-start">{<><ImageIcon className="h-4 w-4"/><MediaPreview item={item} kind="image"/></>}<span className="min-w-0 flex-1 truncate">{item.name} · {(item.size/1048576).toFixed(1)} Mo</span><Button size="icon" type="button" variant="ghost" onClick={()=>{if(target==="campaign")setCampaignMedia(v=>v.filter(x=>x.path!==item.path));else setAutomationMedia(v=>v.filter(x=>x.path!==item.path));void supabase.storage.from(item.bucket).remove([item.path]);}}><X className="h-4 w-4"/></Button></div>)}</div>;
 
   return (
