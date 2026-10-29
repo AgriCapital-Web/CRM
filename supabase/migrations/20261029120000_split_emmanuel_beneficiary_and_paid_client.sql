@@ -1,3 +1,47 @@
+
+ALTER TABLE public.clients DROP CONSTRAINT IF EXISTS clients_telephone_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS clients_telephone_type_unique
+  ON public.clients (telephone, type_client)
+  WHERE telephone IS NOT NULL AND btrim(telephone) <> '';
+
+CREATE OR REPLACE FUNCTION public.validate_client_contact_role_duplicates()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+DECLARE
+  existing public.clients%ROWTYPE;
+  new_name text;
+  existing_name text;
+  allowed_role_overlap boolean;
+BEGIN
+  new_name := regexp_replace(lower(coalesce(nullif(NEW.nom_complet,''),concat_ws(' ',NEW.prenoms,NEW.nom_famille),NEW.nom,'')), '[^a-z0-9]', '', 'g');
+  FOR existing IN
+    SELECT c.* FROM public.clients c
+    WHERE c.id IS DISTINCT FROM NEW.id
+      AND (
+        (nullif(btrim(NEW.telephone),'') IS NOT NULL AND regexp_replace(coalesce(c.telephone,''),'[^0-9]','','g')=regexp_replace(NEW.telephone,'[^0-9]','','g'))
+        OR (nullif(btrim(NEW.whatsapp),'') IS NOT NULL AND regexp_replace(coalesce(c.whatsapp,''),'[^0-9]','','g')=regexp_replace(NEW.whatsapp,'[^0-9]','','g'))
+        OR (nullif(btrim(NEW.email),'') IS NOT NULL AND lower(btrim(coalesce(c.email,'')))=lower(btrim(NEW.email)))
+      )
+  LOOP
+    existing_name := regexp_replace(lower(coalesce(nullif(existing.nom_complet,''),concat_ws(' ',existing.prenoms,existing.nom_famille),existing.nom,'')), '[^a-z0-9]', '', 'g');
+    allowed_role_overlap :=
+      existing_name <> '' AND existing_name = new_name
+      AND existing.type_client <> NEW.type_client
+      AND existing.type_client IN ('beneficiaire_particulier','client','avec_terre','proprietaire_foncier')
+      AND NEW.type_client IN ('beneficiaire_particulier','client','avec_terre','proprietaire_foncier');
+    IF NOT allowed_role_overlap THEN
+      RAISE EXCEPTION 'Un contact avec ce téléphone, WhatsApp ou e-mail existe déjà dans les fiches clients.'
+        USING ERRCODE='23505', CONSTRAINT='clients_contact_role_unique';
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS clients_reject_duplicate_contact ON public.clients;
+CREATE TRIGGER clients_reject_duplicate_contact
+  BEFORE INSERT OR UPDATE ON public.clients
+  FOR EACH ROW EXECUTE FUNCTION public.validate_client_contact_role_duplicates();
+
 ALTER TABLE public.clients DISABLE TRIGGER clients_reject_duplicate_contact;
 ALTER TABLE public.clients DISABLE TRIGGER trg_recalculer_parametres_financiers_client;
 ALTER TABLE public.clients DISABLE TRIGGER trg_notification_client_created;
