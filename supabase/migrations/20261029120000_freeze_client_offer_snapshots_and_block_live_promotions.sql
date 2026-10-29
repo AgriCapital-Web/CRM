@@ -272,6 +272,11 @@ begin
       '  v_promo_target := ''paiement_initial'';',
       'g');
     if v_updated = v_definition then raise exception 'Could not safely remove dynamic promotion selection from create_client_acquisition'; end if;
+    -- The old promotion branch followed the query and relied on FOUND. Guard it explicitly
+    -- so the removed live lookup cannot reuse a previous query's FOUND state.
+    v_updated := replace(v_updated,
+      '  if found then' || chr(10) || '    v_promo_id := v_promo.id;',
+      '  if v_promo_id is not null then' || chr(10) || '    v_promo_id := v_promo.id;');
     execute v_updated;
   end if;
 end $migration$;
