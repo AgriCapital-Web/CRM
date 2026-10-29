@@ -208,7 +208,7 @@ const Clients = () => {
   useEffect(() => {
     const timer = window.setTimeout(() => { void fetchData(); }, searchTerm ? 250 : 0);
     return () => window.clearTimeout(timer);
-  }, [searchTerm, acquisitionsView]);
+  }, [searchTerm, acquisitionsView, userRoles]);
 
   useRealtime({ table: "clients", onChange: fetchData });
   useRealtime({ table: "plantations", onChange: fetchData });
