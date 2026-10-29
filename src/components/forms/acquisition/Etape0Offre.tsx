@@ -159,7 +159,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
       const contract = formData.offre_snapshot?.contract || {};
       const ha = Math.max(Number(contract.superficie_ha ?? formData.superficie_prevue ?? 0), 0);
       const perHa = (amount: any) => ha > 0 ? Number(amount || 0) / ha : Number(amount || 0);
-      const pi = Number(contract.paiement_initial_montant ?? formData.paiement_initial_montant ?? 0);
+      const pi = Number(contract.paiement_initial_montant ?? contract.montant_pi_total ?? formData.paiement_initial_montant ?? 0);
       const total = Number(contract.montant_total_contrat ?? formData.montant_total_contrat ?? 0);
       const monthly = Number(contract.mensualite_montant ?? formData.mensualite_montant ?? 0);
       return {
