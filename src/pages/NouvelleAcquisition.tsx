@@ -249,6 +249,9 @@ const NouvelleAcquisition = () => {
         }
         const clientId=client?.id||acquisition?.client_id||recordId;
         if(!client) throw new Error("Dossier client introuvable.");
+        if(client.type_client==="beneficiaire_particulier" && !(userRoles||[]).includes("pdg")) {
+          throw new Error("L’accès aux bénéficiaires particuliers est réservé au PDG.");
+        }
         if(!acquisition){
           const result=await (supabase as any).from("acquisitions").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
           if(result.error) throw result.error;
@@ -304,7 +307,7 @@ const NouvelleAcquisition = () => {
       finally{if(active)setDraftLoading(false);}
     })();
     return()=>{active=false;};
-  },[recordId]);
+  },[recordId, userRoles]);
 
   // Restaurer le brouillon avant d'autoriser la saisie : un chargement réseau tardif
   // ne doit jamais interférer avec les premières modifications de l'utilisateur.
