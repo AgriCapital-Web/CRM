@@ -810,7 +810,7 @@ const NouvelleAcquisition = () => {
         domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
          contrat_acquisition_statut:formData.contrat_contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
-         contrat_accompagnement_statut:formData.contrat_contrat_accompagnement_agricole_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
+         contrat_accompagnement_statut:formData.contrat_accompagnement_agricole_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
          updated_by:user.id,updated_at:new Date().toISOString()};
       // Ne pas inclure commercial_id dans UPDATE si l’affectation n’a pas changé :
       // le trigger SQL revalide toute colonne incluse et peut bloquer une fiche historique
