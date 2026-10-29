@@ -160,10 +160,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       ? `${new Intl.NumberFormat("fr-FR").format(amount)} F/ha`
       : "Non configuré";
   };
-  const paymentTranches = Array.isArray(effectiveOffer?.tranches_paiement)
-    ? effectiveOffer.tranches_paiement.filter((tranche: any) => tranche.type !== "paiement_initial" && Number(tranche.mensualite_par_ha || 0) > 0)
-    : [];
-
   const isBeneficiary = form.type_client === "beneficiaire_particulier";
   const hasActivity = Number(form.nombre_plantations || 0) > 0 || Boolean(form.pi_paye_at || form.paiement_initial_paye_at);
 
