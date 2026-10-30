@@ -794,7 +794,7 @@ const NouvelleAcquisition = () => {
       };
       const typePersonne=formData.type_personne||existingRecord.client.type_personne||"personne_physique";
       const organisationOrFamily=typePersonne==="personne_morale"||typePersonne==="famille_informelle";
-      const displayName=organisationOrFamily?(formData.denomination_sociale||existingRecord.client.denomination_sociale||formData.nom_complet||""):(formData.nom||formData.nom||"");
+      const displayName=organisationOrFamily?(formData.denomination_sociale||existingRecord.client.denomination_sociale||formData.nom_complet||""):(formData.nom||"");
       const payload:any={type_personne:typePersonne,denomination_sociale:formData.denomination_sociale||null,
         nature_organisation_code:formData.nature_organisation_code||null,forme_juridique_code:formData.forme_juridique_code||null,
         numero_enregistrement:formData.numero_enregistrement||null,responsable_legal_nom:formData.responsable_legal_nom||null,
