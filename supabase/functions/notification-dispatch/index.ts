@@ -654,7 +654,24 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
   if (error) throw error;
   const results = [];
   for (const automation of automations || []) {
-    let contacts = await resolveContacts(automation.criteres || {});
+    let contacts: Contact[] = [];
+    if (context.independent_service_customer_id) {
+      const { data: independentCustomer, error: independentCustomerError } = await admin
+        .from("independent_service_customers")
+        .select("id,display_name,telephone,email")
+        .eq("id", String(context.independent_service_customer_id))
+        .maybeSingle();
+      if (independentCustomerError) throw independentCustomerError;
+      if (independentCustomer) contacts = [{
+        source_type: "independent_service_customer",
+        source_id: independentCustomer.id,
+        nom_complet: independentCustomer.display_name,
+        telephone: independentCustomer.telephone,
+        email: independentCustomer.email || null,
+      }];
+    } else {
+      contacts = await resolveContacts(automation.criteres || {});
+    }
     if (context.client_id) {
       contacts = contacts.filter((c) => c.source_id === context.client_id && c.source_type === "client");
     }
