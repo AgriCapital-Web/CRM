@@ -124,3 +124,5 @@ drop trigger if exists independent_service_mark_proforma_in_progress_trg on publ
 create trigger independent_service_mark_proforma_in_progress_trg
 after insert on public.independent_service_events
 for each row execute function public.independent_service_mark_proforma_in_progress();
+
+revoke all on function public.independent_service_mark_proforma_in_progress() from public, anon, authenticated;
