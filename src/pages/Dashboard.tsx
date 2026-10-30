@@ -129,6 +129,9 @@ const Dashboard = () => {
     portfolio: 0,
     forecastRevenue: 0,
     clientCredit: 0,
+    independentCustomers: 0,
+    independentProformas: 0,
+    independentServicePipelineAmount: 0,
   });
 
   const [recentClients, setRecentClients] = useState<any[]>([]);
@@ -150,6 +153,8 @@ const Dashboard = () => {
     try {
       const [
         clientsRes,
+        independentCustomersRes,
+        independentProformasRes,
         acquisitionsValidationRes,
         acquisitionsRes,
         plantationsRes,
@@ -172,6 +177,12 @@ const Dashboard = () => {
         canClients || canTechnical || canPlantations || globalAdmin
           ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
+        canClients || globalAdmin
+          ? (supabase as any).from("independent_service_customers").select("id").is("archived_at", null)
+          : Promise.resolve({ data: [] }),
+        canPlantations || canFinance || globalAdmin
+          ? (supabase as any).from("independent_service_proformas").select("id,status,total_amount").is("archived_at", null)
+          : Promise.resolve({ data: [] }),
         canClients || globalAdmin
           ? (supabase as any).from("clients").select("id,validation_statut")
           : Promise.resolve({ data: [] }),
@@ -229,6 +240,10 @@ const Dashboard = () => {
       ]);
 
       const clients = clientsRes.data || [];
+      const independentCustomers = independentCustomersRes.data || [];
+      const independentProformas = independentProformasRes.data || [];
+      const acceptedIndependentProformas = independentProformas.filter((p: any) => ["acceptee", "en_cours", "terminee"].includes(String(p.status || "").toLowerCase()));
+      const independentServicePipelineAmount = acceptedIndependentProformas.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.total_amount || 0)), 0);
       const acquisitionsForValidation = acquisitionsValidationRes.data || [];
       const acquisitions = acquisitionsRes.data || [];
       const teamRows = teamsRes.data || [];
@@ -486,6 +501,9 @@ const Dashboard = () => {
         portfolio: portfolioTotal,
         forecastRevenue,
         clientCredit,
+        independentCustomers: independentCustomers.length,
+        independentProformas: independentProformas.length,
+        independentServicePipelineAmount,
       });
 
       // IMPORTANT: "Clients récents" = ordre de création récent, pas numéro métier.
@@ -694,6 +712,8 @@ const Dashboard = () => {
   useRealtime({ table: "parcelles", onChange: refreshSilently });
   useRealtime({ table: "proprietaires_terres", onChange: refreshSilently });
   useRealtime({ table: "conventions_foncieres", onChange: refreshSilently });
+  useRealtime({ table: "independent_service_customers", onChange: refreshSilently });
+  useRealtime({ table: "independent_service_proformas", onChange: refreshSilently });
 
   const progress = stats.engagedHa > 0 ? Math.min(100, Math.round((stats.plantedHa / stats.engagedHa) * 100)) : 0;
   const roleLabel = userRoles.map((r) => ROLE_SHORT_LABELS[r] || r).join(" / ");
@@ -705,6 +725,7 @@ const Dashboard = () => {
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Clients soldés",value:stats.settledClients,href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
+      {label:"Prestations indépendantes engagées",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"},
       {label:"Échéances en retard",value:stats.overdueCount,href:"/finance"},
     ]},
     { label:"Développement commercial", icon:Target, href:canLeads ? "/leads" : "/acquisitions", show:canClients || canLeads, metrics:[
@@ -713,7 +734,8 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients actifs (sur "+stats.clients+" clients)",shortLabel:"Actifs / "+stats.clients,value:stats.clientsActive,href:"/clients"},
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:canPayments ? "/paiements" : "/clients"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
-        {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"}
+        {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"},
+        {group:"Clients",label:"Client indépendant",shortLabel:"Indépendants",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}
       ] : []),
     ]},
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
@@ -730,6 +752,7 @@ const Dashboard = () => {
       {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
+      {label:"Prestations indépendantes",value:stats.independentProformas,href:"/acquisitions/prestations-independantes"},
     ]},
   ];
 
