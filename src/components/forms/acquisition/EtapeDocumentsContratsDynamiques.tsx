@@ -12,6 +12,7 @@ interface Props {
   formData: any;
   updateFormData: (data: any) => void;
   showIdentityAndContracts?: boolean;
+  showSignedContract?: boolean;
   showAdditionalDocuments?: boolean;
 }
 
@@ -26,7 +27,7 @@ const conditionActive = (doc: any, formData: any) => {
   return true;
 };
 
-export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, showIdentityAndContracts = true, showAdditionalDocuments = true }: Props) => {
+export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, showIdentityAndContracts = true, showSignedContract = true, showAdditionalDocuments = true }: Props) => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +114,14 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
             </>
           )}
 
+          {showSignedContract && (
+            <Card>
+              <CardHeader><CardTitle>Contrat signé</CardTitle></CardHeader>
+              <CardContent>
+                <FileUploadVisual label="Contrat signé *" field="contrat_signe_client" accept=".pdf,image/*" required currentFile={formData.contrat_signe_client_file||null} currentPreview={formData.contrat_signe_client_preview||""} onFileChange={(field,file,preview)=>updateFormData({contrat_signe_client_file:file,contrat_signe_client_preview:preview})}/>
+              </CardContent>
+            </Card>
+          )}
         </CardContent>
       </Card>
     </div>
