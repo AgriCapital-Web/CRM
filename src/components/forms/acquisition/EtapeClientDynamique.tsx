@@ -44,5 +44,6 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
    <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} required onChange={(g)=>updateFormData({district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||""})}/>
    <div><Label>Lieu de résidence *</Label><Input value={formData.domicile||""} onChange={e=>updateFormData({domicile:e.target.value})} placeholder="Quartier, campement, rue ou commune"/></div>
   </CardContent></Card>
+  <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={true} showAdditionalDocuments={false}/>
  </div>;
 };
