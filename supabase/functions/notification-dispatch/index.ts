@@ -647,6 +647,35 @@ async function runCampaign(campaignId: string) {
   return { campaign_id: campaign.id, contacts: contacts.length, ...result };
 }
 
+async function retryFailedCampaign(campaignId: string, deliveryId?: string | null) {
+  const { data: campaign, error: campaignError } = await admin.from("notification_campaigns").select("id,canal,contenu,sujet,media_attachments,statut").eq("id", campaignId).single();
+  if (campaignError || !campaign) throw campaignError || new Error("Campagne introuvable.");
+  if (campaign.canal !== "whatsapp") throw new Error("La relance ciblée est réservée aux campagnes WhatsApp.");
+  if (["annule","suspendue","en_cours"].includes(campaign.statut)) throw new Error("Campagne non relançable dans son état actuel.");
+  let query = admin.from("notification_deliveries").select("id,source_type,source_id,user_id,recipient_name,recipient_phone,recipient_email").eq("campaign_id", campaignId).eq("canal", "whatsapp").eq("statut", "echoue");
+  if (deliveryId) query = query.eq("id", deliveryId);
+  const { data: failedRows, error } = await query;
+  if (error) throw error;
+  if (!failedRows?.length) return { sent: 0, failed: 0, skipped: 0, reason: "Aucun échec WhatsApp à relancer." };
+  // Source stricte : uniquement les lignes déjà marquées echoue. Les lignes envoyées,
+  // acceptées, en cours ou incertaines ne sont jamais incluses dans cette sélection.
+  const contacts: Contact[] = failedRows.filter((row:any) => Boolean(row.recipient_phone)).map((row:any) => ({
+    source_type: row.source_type, source_id: row.source_id, user_id: row.user_id,
+    nom_complet: row.recipient_name, telephone: row.recipient_phone, whatsapp: row.recipient_phone, email: row.recipient_email
+  }));
+  const skipped = failedRows.length - contacts.length;
+  const result = contacts.length ? await deliver({ campaignId, canal: "whatsapp", subject: campaign.sujet, content: campaign.contenu, contacts, mediaAttachments: campaign.media_attachments || [] }) : { sent: 0, failed: 0, errors: [] };
+  const { data: statuses, error: statusError } = await admin.from("notification_deliveries").select("statut").eq("campaign_id", campaignId);
+  if (statusError) throw statusError;
+  const accepted = (statuses || []).filter((row:any) => ["envoye","livre","lu"].includes(row.statut)).length;
+  const remainingFailed = (statuses || []).filter((row:any) => row.statut === "echoue").length;
+  await admin.from("notification_campaigns").update({
+    total_destinataires: statuses?.length || 0, total_envoyes: accepted, total_echecs: remainingFailed,
+    statut: remainingFailed ? (accepted ? "partiel" : "echoue") : "termine", termine_le: new Date().toISOString()
+  }).eq("id", campaignId);
+  return { ...result, skipped, remaining_failed: remainingFailed, total_accepted: accepted };
+}
+
 async function runEvent(eventCode: string, context: Record<string, unknown>) {
   const { data: automations, error } = await admin.from("notification_automations")
     .select("*").eq("evenement", eventCode).eq("actif", true);
@@ -1150,6 +1179,10 @@ serve(async (req) => {
     if (mode === "campaign") {
       if (!body.campaign_id) return json(req, { error: "campaign_id requis" }, 400);
       return json(req, { ok: true, result: await runCampaign(body.campaign_id) });
+    }
+    if (mode === "retry_failed_campaign" || mode === "retry_failed_delivery") {
+      if (!body.campaign_id) return json(req, { error: "campaign_id requis" }, 400);
+      return json(req, { ok: true, result: await retryFailedCampaign(String(body.campaign_id), mode === "retry_failed_delivery" ? String(body.delivery_id || "") : null) });
     }
     return json(req, { error: "Mode non reconnu" }, 400);
   } catch (error) {
