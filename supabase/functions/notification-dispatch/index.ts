@@ -506,6 +506,16 @@ async function deliver(args: {
         }
         delivery = inserted;
       }
+      let attemptId: string | null = null;
+      try {
+        const { count } = await admin.from("notification_delivery_attempts").select("id", { count: "exact", head: true }).eq("delivery_id", delivery.id);
+        const { data: attempt } = await admin.from("notification_delivery_attempts").insert({
+          delivery_id: delivery.id, attempt_number: (count || 0) + 1, statut: "en_cours"
+        }).select("id").maybeSingle();
+        attemptId = attempt?.id || null;
+      } catch (attemptError) {
+        console.warn("[NotificationDelivery] historique de tentative indisponible", { deliveryId: delivery.id, reason: String(attemptError) });
+      }
       try {
         if (channel === "app") {
           if (contact.user_id) {
@@ -554,6 +564,7 @@ async function deliver(args: {
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         }
+        if (attemptId) await admin.from("notification_delivery_attempts").update({ statut: "accepte_fournisseur", provider_status: "accepted", finished_at: new Date().toISOString() }).eq("id", attemptId);
         sent++;
         if (args.canal === "auto") break;
       } catch (error) {
@@ -568,8 +579,14 @@ async function deliver(args: {
         // doing so could send a duplicate message to the same recipient.
         await admin.from("notification_deliveries").update({
           statut: outcomeUncertain ? "incertain" : "echoue",
+          provider_status: String((error as any)?.providerStatus || status || "error"),
           erreur: outcomeUncertain ? "Résultat fournisseur incertain ; vérification manuelle requise pour éviter un doublon. " + failureReason : failureReason,
         }).eq("id", delivery.id);
+        if (attemptId) await admin.from("notification_delivery_attempts").update({
+          statut: outcomeUncertain ? "incertain" : "echoue",
+          provider_status: String((error as any)?.providerStatus || status || "error"),
+          provider_error: failureReason.slice(0, 2000), finished_at: new Date().toISOString()
+        }).eq("id", attemptId);
         // En mode automatique, un résultat de livraison incertain interdit le repli vers un autre canal :
         // le premier message a peut-être été délivré malgré le timeout.
         if (args.canal === "auto" && outcomeUncertain) break;
