@@ -72,7 +72,7 @@ async function sendWebPush(contact: Contact, title: string, body: string, dedupe
 
 type Contact = {
   source_type: string; source_id: string; user_id?: string | null;
-  nom_complet?: string | null; email?: string | null; telephone?: string | null; telephone_secondaire?: string | null; whatsapp?: string | null;
+  nom_complet?: string | null; email?: string | null; telephone?: string | null; telephone_secondaire?: string | null; whatsapp?: string | null; telephone_secondaire_whatsapp_numero?: string | null;
   role_code?: string | null; offre_id?: string | null; offre_code?: string | null; offre_nom?: string | null;
 };
 
@@ -107,9 +107,8 @@ function brandAutomatedMessage(value: string, channel: string): string {
     return assertSmsLength(prefix + clipped);
   }
   if (alreadyBranded) return content;
-  if (channel === "email") return content + "\n\n— AgriCapital\nNotification automatique envoyée par AgriCapital.\nInvestir la terre. Cultiver l’avenir.\nContact : contact@agricapital.ci";
-  return "🌱 AgriCapital · Notification automatique\n" + content +
-    "\n\nInvestir la terre. Cultiver l’avenir.\nBesoin d’aide ? contact@agricapital.ci";
+  if (channel === "email") return content + "\n\n— AgriCapital\nContact : contact@agricapital.ci";
+  return content;
 }
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
 async function prepareMedia(attachments: MediaAttachment[] = []) {
@@ -367,7 +366,7 @@ function normalizeWhatsAppRecipient(value: string): string {
 }
 
 async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string, mediaRef?: string) {
-  const rawRecipient = contact.whatsapp || contact.telephone;
+  const rawRecipient = contact.whatsapp || contact.telephone_secondaire_whatsapp_numero || contact.telephone || contact.telephone_secondaire;
   if (!rawRecipient) throw new Error("Numéro WhatsApp absent");
   const recipient = normalizeWhatsAppRecipient(rawRecipient);
   const session = await resolveWhatsAppSenderSession();
@@ -612,13 +611,13 @@ async function runCampaign(campaignId: string) {
     const [clients, leads, profiles] = await Promise.all([
       grouped.has("clients") ? admin.from("clients").select("id,nom_complet,prenoms,nom_famille,email,telephone,telephone_secondaire,whatsapp,user_id,proprietaire_id,type_client").in("id", grouped.get("clients")!) : Promise.resolve({data:[],error:null}),
       grouped.has("leads") ? admin.from("leads").select("id,nom,prenoms,email,telephone,telephone_secondaire,whatsapp").in("id", grouped.get("leads")!) : Promise.resolve({data:[],error:null}),
-      grouped.has("profiles") ? admin.from("profiles").select("id,user_id,nom_complet,email,telephone,telephone_secondaire,whatsapp").in("id", grouped.get("profiles")!) : Promise.resolve({data:[],error:null}),
+      grouped.has("profiles") ? admin.from("profiles").select("id,user_id,nom_complet,email,telephone,telephone_secondaire,whatsapp,telephone_secondaire_whatsapp_numero,telephone_local,telephone_indicatif,whatsapp_local,whatsapp_indicatif,telephone_principal_whatsapp,telephone_secondaire_whatsapp,telephone_whatsapp").in("id", grouped.get("profiles")!) : Promise.resolve({data:[],error:null}),
     ]);
     if (clients.error) throw clients.error; if (leads.error) throw leads.error; if (profiles.error) throw profiles.error;
     contacts = [
       ...(clients.data || []).map((r:any):Contact => ({source_type:r.proprietaire_id && r.type_client === "beneficiaire_particulier" ? "proprietaire_foncier+beneficiaire_particulier" : r.proprietaire_id ? "proprietaire_foncier" : r.type_client === "beneficiaire_particulier" ? "beneficiaire_particulier" : "client",source_id:r.id,nom_complet:r.nom_complet || [r.prenoms,r.nom_famille].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,user_id:r.user_id})),
       ...(leads.data || []).map((r:any):Contact => ({source_type:criteria.audience === "prospects" ? "prospect" : "lead",source_id:r.id,nom_complet:[r.prenoms,r.nom].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp})),
-      ...(profiles.data || []).map((r:any):Contact => ({source_type:"equipe",source_id:r.id,user_id:r.user_id,nom_complet:r.nom_complet,email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,role_code:r.role_code})),
+      ...(profiles.data || []).map((r:any):Contact => ({source_type:"equipe",source_id:r.id,user_id:r.user_id,nom_complet:r.nom_complet,email:r.email,telephone:r.telephone || (r.telephone_local ? String(r.telephone_indicatif || "+225")+String(r.telephone_local) : null) || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp || (r.whatsapp_local ? String(r.whatsapp_indicatif || "+225")+String(r.whatsapp_local) : null) || (r.telephone_principal_whatsapp ? r.telephone : null),telephone_secondaire_whatsapp_numero:r.telephone_secondaire_whatsapp_numero || (r.telephone_secondaire_whatsapp ? r.telephone_secondaire : null),role_code:r.role_code})),
     ];
     contacts = contacts.map((contact) => {
       const selected = selectedRecipients.find((item) => item.source_id === contact.source_id);
