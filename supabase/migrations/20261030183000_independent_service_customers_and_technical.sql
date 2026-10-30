@@ -106,3 +106,21 @@ for select to authenticated using (
   and exists(select 1 from public.user_roles ur where ur.user_id=(select auth.uid())
     and ur.role in ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations'))
 );
+
+-- First submitted field report automatically moves an accepted proforma into execution.
+create or replace function public.independent_service_mark_proforma_in_progress()
+returns trigger language plpgsql security definer set search_path=public
+as $$
+begin
+  if new.event_code='technical_intervention' then
+    update public.independent_service_proformas
+      set status='en_cours', updated_at=now()
+      where id=new.proforma_id and status='acceptee';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists independent_service_mark_proforma_in_progress_trg on public.independent_service_events;
+create trigger independent_service_mark_proforma_in_progress_trg
+after insert on public.independent_service_events
+for each row execute function public.independent_service_mark_proforma_in_progress();
