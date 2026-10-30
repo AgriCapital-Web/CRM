@@ -232,8 +232,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       clientPayload.photo_profil_url = photo_profil_url;
       clientPayload.fichier_piece_recto_url = fichier_piece_recto_url;
       clientPayload.fichier_piece_verso_url = fichier_piece_verso_url;
-      clientPayload.nom = String(form.nom || form.nom_famille || "").trim();
-      clientPayload.nom_famille = clientPayload.nom; // compatibilité des dossiers historiques
+      clientPayload.nom = String(form.nom || "").trim();
       clientPayload.nom_complet = [clientPayload.nom, form.prenoms].filter(Boolean).join(" ").trim();
       clientPayload.whatsapp = form.telephone_principal_whatsapp ? form.telephone : form.telephone_secondaire_whatsapp ? (form.telephone_secondaire || null) : null;
       clientPayload.updated_by = user.id;
@@ -317,8 +316,8 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
         <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Identité</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-2 px-4 pb-3 pt-0">
           <div><Label className="text-xs">Civilité</Label><Select value={form.civilite || ""} onValueChange={v=>setField("civilite",v)}><SelectTrigger className="h-8"><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent><SelectItem value="M">M.</SelectItem><SelectItem value="Mme">Mme</SelectItem><SelectItem value="Mlle">Mlle</SelectItem></SelectContent></Select></div>
-          <div><Label className="text-xs">Nom</Label><Input className="h-8" value={form.nom || form.nom_famille || ""} onChange={e=>{setField("nom",e.target.value);setField("nom_famille",e.target.value);setField("nom_complet",[e.target.value,form.prenoms].filter(Boolean).join(" "));}}/></div>
-          <div><Label className="text-xs">Prénom</Label><Input className="h-8" value={form.prenoms || ""} onChange={e=>{setField("prenoms",e.target.value);setField("nom_complet",[form.nom || form.nom_famille,e.target.value].filter(Boolean).join(" "));}}/></div>
+          <div><Label className="text-xs">Nom</Label><Input className="h-8" value={form.nom || ""} onChange={e=>{setField("nom",e.target.value);setField("nom_complet",[e.target.value,form.prenoms].filter(Boolean).join(" "));}}/></div>
+          <div><Label className="text-xs">Prénom</Label><Input className="h-8" value={form.prenoms || ""} onChange={e=>{setField("prenoms",e.target.value);setField("nom_complet",[form.nom,e.target.value].filter(Boolean).join(" "));}}/></div>
           <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <div className="min-w-0"><Label className="text-xs">Naissance</Label><Input className="h-8" type="date" value={form.date_naissance || ""} onChange={e=>setField("date_naissance",e.target.value)}/></div>
             <div className="min-w-0"><Label className="text-xs">Lieu de naissance</Label><Input className="h-8" value={form.lieu_naissance || ""} onChange={e=>setField("lieu_naissance",e.target.value)}/></div>
