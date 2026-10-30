@@ -33,7 +33,7 @@ export async function findExistingCrmContact(candidate: Record<string, any>, exc
     const pageSize = 1000;
     while (true) {
       const { data, error } = await (supabase as any).from(table)
-        .select("id,nom,prenoms,nom_complet,nom_famille,telephone,telephone_secondaire,whatsapp,email")
+        .select("id,telephone,telephone_secondaire,whatsapp,email")
         .range(offset, offset + pageSize - 1);
       if (error) throw error;
       const match = (data || []).find((row: any) =>
