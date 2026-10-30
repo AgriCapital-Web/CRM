@@ -76,3 +76,18 @@ drop policy if exists independent_service_customers_pdg_delete on public.indepen
 create policy independent_service_customers_pdg_delete on public.independent_service_customers for delete to authenticated using
 (exists(select 1 from public.user_roles ur where ur.user_id=(select auth.uid()) and ur.role='pdg'));
 grant select,insert,update,delete on public.independent_service_customers to authenticated;
+
+-- Technicians may append independent-service technical reports; they do not gain
+-- write access to customer records, proformas, catalogue or standard interventions.
+drop policy if exists independent_service_events_technician_insert on public.independent_service_events;
+create policy independent_service_events_technician_insert on public.independent_service_events
+for insert to authenticated with check (
+  event_code='technical_intervention'
+  and actor_type='staff'
+  and actor_id=(select auth.uid())
+  and exists(
+    select 1 from public.user_roles ur
+    where ur.user_id=(select auth.uid())
+      and ur.role in ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations')
+  )
+);
