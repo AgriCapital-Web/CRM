@@ -62,10 +62,6 @@ export default function PrestationsIndependantesTechniques(){
    const details={date_intervention:form.date_intervention,technician_user_id:user.id,travaux_realises:form.travaux_realises||null,observations:form.observations||null,recommandations:form.recommandations||null,contenu_client:form.contenu_client||null,quantite_realisee:form.quantite_realisee?Number(form.quantite_realisee):null,unite_realisee:form.unite_realisee||null,latitude:lat?Number(lat):null,longitude:lng?Number(lng):null,media_paths:mediaPaths};
    const {error}=await (supabase as any).from("independent_service_events").insert({id:eventId,proforma_id:proforma.id,event_code:"technical_intervention",actor_type:"staff",actor_id:user.id,details});
    if(error)throw error;
-   if(proforma.status==="acceptee"){
-    const {error:updateError}=await (supabase as any).from("independent_service_proformas").update({status:"en_cours",updated_by:user.id}).eq("id",proforma.id).eq("status","acceptee");
-    if(updateError)throw updateError;
-   }
    toast({title:"Intervention indépendante enregistrée",description:"Le compte rendu et la localisation réellement relevée sont enregistrés."});
    setOpen(false);setFiles([]);setForm(emptyForm());await load();
   }catch(error:any){toast({variant:"destructive",title:"Enregistrement impossible",description:error?.message||"Erreur inconnue"});}
