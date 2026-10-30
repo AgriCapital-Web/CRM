@@ -67,6 +67,7 @@ const Dashboard = () => {
   const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate") || userRoles.some((role) => ["pdg", "service_client", "chef_equipe_service_client"].includes(role));
   const canViewIndependentServiceCustomers = globalAdmin || userRoles.some((role) => ["service_client", "chef_equipe_service_client", "comptable", "manager_commercial_national", "responsable_operations"].includes(role));
   const canViewIndependentServiceProformas = canViewIndependentServiceCustomers || userRoles.some((role) => ["technicien", "chef_equipe_technique", "manager_technique_national"].includes(role));
+  const canViewIndependentServiceItems = canViewIndependentServiceCustomers;
 
   const [connectionTime] = useState(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
   const [loading, setLoading] = useState(true);
@@ -188,7 +189,7 @@ const Dashboard = () => {
         canViewIndependentServiceProformas
           ? (supabase as any).from("independent_service_proformas").select("id,status,total_amount").is("archived_at", null)
           : Promise.resolve({ data: [] }),
-        canViewIndependentServiceProformas
+        canViewIndependentServiceItems
           ? (supabase as any).from("independent_service_items").select("proforma_id,hectares")
           : Promise.resolve({ data: [] }),
         canClients || globalAdmin
@@ -766,7 +767,7 @@ const Dashboard = () => {
       {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
-      ...(canViewIndependentServiceProformas ? [{label:"Superficie indépendante",value:num(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
+      ...(canViewIndependentServiceItems ? [{label:"Superficie indépendante",value:num(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
     ]},
   ];
 
