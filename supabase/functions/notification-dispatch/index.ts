@@ -549,7 +549,7 @@ async function deliver(args: {
             await sendWhatsApp(contact, "", dedupeKey + ":media:" + i, mediaForChannel[i].ref);
           }
           await admin.from("notification_deliveries").update({
-            statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
+            statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, provider_status: result.providerStatus || "accepted", erreur: null, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         } else if (channel === "sms") {
           const result = await sendSms(contact, rendered, dedupeKey);
@@ -994,16 +994,14 @@ function buildAgriCapitalEmailHtml(content: string) {
   const body = /<\/?[a-z][\s\S]*>/i.test(content) ? content : escapeEmailHtml(content).replace(/\r?\n/g, "<br>");
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body style="margin:0;padding:0;background:#f3f5f4;font-family:Arial,Helvetica,sans-serif;color:#27332d;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">AgriCapital — Investir la terre. Cultiver l’avenir.</div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f4;padding:24px 10px;"><tr><td align="center">
   <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border:1px solid #e1e7e3;border-radius:12px;overflow:hidden;">
   <tr><td style="height:6px;background:#16834a;font-size:0;line-height:0;">&nbsp;</td></tr>
   <tr><td align="center" style="padding:24px;"><a href="https://www.agricapital.ci/" style="text-decoration:none;">
-  <img src="${BRAND_LOGO_URL}" width="250" alt="AgriCapital — Investir la terre. Cultiver l’avenir." style="display:block;width:250px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;"></a></td></tr>
-  <tr><td style="padding:0 28px 12px;font-size:12px;line-height:1.5;color:#176b45;font-weight:700;">AGRICAPITAL · NOTIFICATION AUTOMATIQUE</td></tr>
+  <img src="${BRAND_LOGO_URL}" width="250" alt="AgriCapital" style="display:block;width:250px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;"></a></td></tr>
   <tr><td style="padding:0 28px 28px;font-size:15px;line-height:1.75;overflow-wrap:anywhere;">${body}</td></tr>
   <tr><td style="padding:20px 24px;background:#f8faf8;border-top:1px solid #e6ebe7;text-align:center;font-size:12px;line-height:1.7;color:#66736b;">
-  <strong style="font-size:14px;color:#176b45;">AgriCapital SARL</strong><br>Investir la terre. Cultiver l’avenir.<br>
+  <strong style="font-size:14px;color:#176b45;">AgriCapital SARL</strong><br>
   <a href="https://www.agricapital.ci/" style="color:#176b45;">www.agricapital.ci</a> ·
   <a href="mailto:contact@agricapital.ci" style="color:#176b45;">contact@agricapital.ci</a><br>Daloa – Gonaté, Haut-Sassandra, Côte d’Ivoire</td></tr>
   </table><div style="max-width:560px;padding:12px 10px;color:#8a958e;font-size:11px;line-height:1.5;text-align:center;">Message envoyé par AgriCapital via Senndo.</div>
