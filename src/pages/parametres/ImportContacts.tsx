@@ -154,7 +154,7 @@ export default function ImportContacts() {
       void (async () => {
         if (!user?.id) throw new Error("Reconnectez-vous pour sauvegarder les contacts.");
         const payload = merged.map((contact) => ({
-          user_id: user.id, contact_key: contact.key, first_name: contact.prenoms, last_name: contact.nom,
+          user_id: user.id, contact_key: contact.key, prenoms: contact.prenoms, nom: contact.nom,
           phone: normalizePhone(contact.telephone), secondary_phone: normalizePhone(contact.telephone_secondaire) || null,
           email: contact.email || null, whatsapp_primary: contact.whatsapp_principal,
           whatsapp_secondary: contact.whatsapp_secondaire, selected: contact.selected, source: contact.source,
