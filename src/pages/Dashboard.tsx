@@ -65,6 +65,8 @@ const Dashboard = () => {
   const canTickets = can(PERMISSIONS.VIEW_TICKETS);
   const canCreateAcquisition = can(PERMISSIONS.CREATE_ACQUISITION);
   const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate") || userRoles.some((role) => ["pdg", "service_client", "chef_equipe_service_client"].includes(role));
+  const canViewIndependentServiceCustomers = globalAdmin || userRoles.some((role) => ["service_client", "chef_equipe_service_client", "comptable", "manager_commercial_national", "responsable_operations"].includes(role));
+  const canViewIndependentServiceProformas = canViewIndependentServiceCustomers || userRoles.some((role) => ["technicien", "chef_equipe_technique", "manager_technique_national"].includes(role));
 
   const [connectionTime] = useState(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
   const [loading, setLoading] = useState(true);
@@ -177,10 +179,10 @@ const Dashboard = () => {
         canClients || canTechnical || canPlantations || globalAdmin
           ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
-        canClients || globalAdmin
+        canViewIndependentServiceCustomers
           ? (supabase as any).from("independent_service_customers").select("id").is("archived_at", null)
           : Promise.resolve({ data: [] }),
-        canPlantations || canFinance || globalAdmin
+        canViewIndependentServiceProformas
           ? (supabase as any).from("independent_service_proformas").select("id,status,total_amount").is("archived_at", null)
           : Promise.resolve({ data: [] }),
         canClients || globalAdmin
@@ -725,7 +727,7 @@ const Dashboard = () => {
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Clients soldés",value:stats.settledClients,href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
-      {label:"Prestations indépendantes engagées",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"},
+      ...(canViewIndependentServiceProformas ? [{label:"Prestations indépendantes engagées",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"}] : []),
       {label:"Échéances en retard",value:stats.overdueCount,href:"/finance"},
     ]},
     { label:"Développement commercial", icon:Target, href:canLeads ? "/leads" : "/acquisitions", show:canClients || canLeads, metrics:[
@@ -735,7 +737,7 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:canPayments ? "/paiements" : "/clients"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"},
-        {group:"Clients",label:"Client indépendant",shortLabel:"Indépendants",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}
+        ...(canViewIndependentServiceCustomers ? [{group:"Clients",label:"Client indépendant",shortLabel:"Indépendants",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}] : [])
       ] : []),
     ]},
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
@@ -752,7 +754,7 @@ const Dashboard = () => {
       {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
-      {label:"Prestations indépendantes",value:stats.independentProformas,href:"/acquisitions/prestations-independantes"},
+      ...(canViewIndependentServiceProformas ? [{label:"Prestations indépendantes",value:stats.independentProformas,href:"/acquisitions/prestations-independantes"}] : []),
     ]},
   ];
 
