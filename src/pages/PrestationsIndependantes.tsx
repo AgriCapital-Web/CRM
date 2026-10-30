@@ -79,7 +79,9 @@ export default function PrestationsIndependantes(){
    if(itemError){await (supabase as any).from("independent_service_proformas").delete().eq("id",data.id);throw itemError;}
    const {error:eventError}=await (supabase as any).from("independent_service_events").insert({proforma_id:data.id,event_code:"created",actor_type:"staff",actor_id:user.id});
    if(eventError)throw eventError;
-   toast.success("Proforma indépendante créée en brouillon.");
+   const {error:notificationError}=await supabase.functions.invoke("notification-dispatch",{body:{mode:"event",event_code:"proforma_independante_creee",context:{independent_service_customer_id:client.id,proforma_reference:reference}}});
+   if(notificationError)toast.warning("Proforma créée, mais le SMS de confirmation n'a pas pu être déclenché : "+notificationError.message);
+   else toast.success("Proforma créée. Notification client déclenchée.");
    setDialogOpen(false);setCustomer(initialCustomer());setCustomerId("");setObservations("");setLines([emptyLine()]);setCustomerMode("new");await load();
   }catch(e:any){toast.error(e?.message||"La création a échoué.");}
   finally{setSaving(false);}
@@ -90,7 +92,9 @@ export default function PrestationsIndependantes(){
   if(error){toast.error(error.message);return;}
   const {error:eventError}=await (supabase as any).from("independent_service_events").insert({proforma_id:row.id,event_code:"issued",actor_type:"staff",actor_id:user.id});
   if(eventError){toast.error("Proforma émise, mais l'historique n'a pas été enregistré : "+eventError.message);return;}
-  toast.success("Proforma émise. Validité : 15 jours.");await load();
+  const {error:notificationError}=await supabase.functions.invoke("notification-dispatch",{body:{mode:"event",event_code:"proforma_independante_emise",context:{independent_service_customer_id:row.client_id,proforma_reference:row.reference}}});
+  if(notificationError)toast.warning("Proforma émise, mais le SMS client n'a pas pu être déclenché : "+notificationError.message);
+  else toast.success("Proforma émise. SMS client déclenché. Validité : 15 jours.");await load();
  };
  const openDetails=async(row:Proforma)=>{const {data,error}=await (supabase as any).from("independent_service_items").select("*").eq("proforma_id",row.id).order("sort_order");if(error){toast.error(error.message);return;}setSelected(row);setSelectedItems(data||[]);};
  const setLine=(i:number,patch:Partial<Line>)=>setLines(v=>v.map((x,j)=>j===i?{...x,...patch}:x));
