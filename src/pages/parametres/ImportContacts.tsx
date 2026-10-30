@@ -111,7 +111,7 @@ export default function ImportContacts() {
         .eq("user_id", user.id).neq("status", "created").neq("status", "duplicate").order("imported_at", { ascending: true });
       if (cancelled) return;
       if (!error && data) setContacts(data.map((row: any) => ({
-        key: row.contact_key, nom: row.last_name || "", prenoms: row.first_name || "",
+        key: row.contact_key, nom: row.nom || "", prenoms: row.prenoms || "",
         telephone: row.phone || "", telephone_secondaire: row.secondary_phone || "", email: row.email || "",
         whatsapp_principal: !!row.whatsapp_primary, whatsapp_secondaire: !!row.whatsapp_secondary,
         selected: !!row.selected, source: row.source || "import"
@@ -130,7 +130,7 @@ export default function ImportContacts() {
   const persistContact = async (contact: ImportedContact) => {
     if (!user?.id) throw new Error("Session expirée.");
     const { error } = await (supabase as any).from("imported_phone_contacts").upsert({
-      user_id: user.id, contact_key: contact.key, first_name: contact.prenoms, last_name: contact.nom,
+      user_id: user.id, contact_key: contact.key, prenoms: contact.prenoms, nom: contact.nom,
       phone: normalizePhone(contact.telephone), secondary_phone: normalizePhone(contact.telephone_secondaire) || null,
       email: contact.email || null, whatsapp_primary: contact.whatsapp_principal,
       whatsapp_secondary: contact.whatsapp_secondaire, selected: contact.selected, source: contact.source,
