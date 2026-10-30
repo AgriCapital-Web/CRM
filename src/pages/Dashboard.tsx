@@ -750,8 +750,8 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"},
         ...(canViewIndependentServiceCustomers ? [{group:"Clients",label:"Client indépendant",shortLabel:"Indépendants",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}] : []),
-        ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Prestations indépendantes",shortLabel:"Prestations indép.",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : [])
       ] : []),
+      ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Prestations indépendantes",shortLabel:"Prestations indép.",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : []),
     ]},
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
