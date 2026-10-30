@@ -105,7 +105,8 @@ const DomainRouter = () => {
       <Route path="/parcelles" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PARCELLES}><Parcelles /></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute requiredPermission="documents.view"><Documents /></ProtectedRoute>} />
       <Route path="/acquisitions" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><Clients /></ProtectedRoute>} />
-      <Route path="/prestations-independantes" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><PrestationsIndependantes /></ProtectedRoute>} />
+      <Route path="/acquisitions/prestations-independantes" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><PrestationsIndependantes /></ProtectedRoute>} />
+      <Route path="/prestations-independantes" element={<Navigate to="/acquisitions/prestations-independantes" replace />} />
       <Route path="/acquisitions/nouveau" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/validation" element={<ProtectedRoute><ValidationDossiers /></ProtectedRoute>} />
       <Route path="/nouvelle-acquisition" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
