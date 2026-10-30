@@ -91,3 +91,18 @@ for insert to authenticated with check (
       and ur.role in ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations')
   )
 );
+
+drop policy if exists independent_service_proformas_technician_read on public.independent_service_proformas;
+create policy independent_service_proformas_technician_read on public.independent_service_proformas
+for select to authenticated using (
+  status in ('acceptee','en_cours')
+  and exists(select 1 from public.user_roles ur where ur.user_id=(select auth.uid())
+    and ur.role in ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations'))
+);
+drop policy if exists independent_service_events_technician_read on public.independent_service_events;
+create policy independent_service_events_technician_read on public.independent_service_events
+for select to authenticated using (
+  event_code='technical_intervention'
+  and exists(select 1 from public.user_roles ur where ur.user_id=(select auth.uid())
+    and ur.role in ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations'))
+);
