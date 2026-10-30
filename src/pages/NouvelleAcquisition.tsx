@@ -201,7 +201,7 @@ const NouvelleAcquisition = () => {
         type_personne:source.type_personne||"personne_physique",
         denomination_sociale:source.denomination_sociale||"",nature_organisation_code:source.nature_organisation_code||"",forme_juridique_code:source.forme_juridique_code||"",
         numero_enregistrement:source.numero_enregistrement||"",responsable_legal_nom:source.responsable_legal_nom||"",responsable_legal_prenoms:source.responsable_legal_prenoms||"",nombre_membres:source.nombre_membres||null,
-        nom:source.nom||source.nom||"", prenoms:source.prenoms||"",
+        nom:source.nom||"", prenoms:source.prenoms||"",
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
         departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
