@@ -133,6 +133,8 @@ const Dashboard = () => {
     clientCredit: 0,
     independentCustomers: 0,
     independentProformas: 0,
+    independentAcceptedProformas: 0,
+    independentServiceAreaHa: 0,
     independentServicePipelineAmount: 0,
   });
 
@@ -157,6 +159,7 @@ const Dashboard = () => {
         clientsRes,
         independentCustomersRes,
         independentProformasRes,
+        independentServiceItemsRes,
         acquisitionsValidationRes,
         acquisitionsRes,
         plantationsRes,
@@ -184,6 +187,9 @@ const Dashboard = () => {
           : Promise.resolve({ data: [] }),
         canViewIndependentServiceProformas
           ? (supabase as any).from("independent_service_proformas").select("id,status,total_amount").is("archived_at", null)
+          : Promise.resolve({ data: [] }),
+        canViewIndependentServiceProformas
+          ? (supabase as any).from("independent_service_items").select("proforma_id,hectares")
           : Promise.resolve({ data: [] }),
         canClients || globalAdmin
           ? (supabase as any).from("clients").select("id,validation_statut")
@@ -244,7 +250,10 @@ const Dashboard = () => {
       const clients = clientsRes.data || [];
       const independentCustomers = independentCustomersRes.data || [];
       const independentProformas = independentProformasRes.data || [];
+      const independentServiceItems = independentServiceItemsRes.data || [];
       const acceptedIndependentProformas = independentProformas.filter((p: any) => ["acceptee", "en_cours", "terminee"].includes(String(p.status || "").toLowerCase()));
+      const acceptedIndependentProformaIds = new Set(acceptedIndependentProformas.map((p: any) => p.id));
+      const independentServiceAreaHa = independentServiceItems.reduce((sum: number, item: any) => sum + (acceptedIndependentProformaIds.has(item.proforma_id) ? Math.max(0, Number(item.hectares || 0)) : 0), 0);
       const independentServicePipelineAmount = acceptedIndependentProformas.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.total_amount || 0)), 0);
       const acquisitionsForValidation = acquisitionsValidationRes.data || [];
       const acquisitions = acquisitionsRes.data || [];
@@ -505,6 +514,8 @@ const Dashboard = () => {
         clientCredit,
         independentCustomers: independentCustomers.length,
         independentProformas: independentProformas.length,
+        independentAcceptedProformas: acceptedIndependentProformas.length,
+        independentServiceAreaHa,
         independentServicePipelineAmount,
       });
 
@@ -737,7 +748,8 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:canPayments ? "/paiements" : "/clients"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"},
-        ...(canViewIndependentServiceCustomers ? [{group:"Clients",label:"Client indépendant",shortLabel:"Indépendants",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}] : [])
+        ...(canViewIndependentServiceCustomers ? [{group:"Clients",label:"Client indépendant",shortLabel:"Indépendants",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}] : []),
+        ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Prestations indépendantes",shortLabel:"Prestations indép.",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : [])
       ] : []),
     ]},
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
@@ -754,7 +766,7 @@ const Dashboard = () => {
       {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
-      ...(canViewIndependentServiceProformas ? [{label:"Prestations indépendantes",value:stats.independentProformas,href:"/acquisitions/prestations-independantes"}] : []),
+      ...(canViewIndependentServiceProformas ? [{label:"Superficie indépendante",value:num(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
     ]},
   ];
 
