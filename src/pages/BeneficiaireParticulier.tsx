@@ -30,7 +30,7 @@ const BeneficiaireParticulier = () => {
   const initialNameParts = initialFullName.trim().split(/\\s+/);
   const [beneficiaire, setBeneficiaire] = useState({
     civilite: "M",
-    nom_famille: initialNameParts[0] || "",
+    nom: initialNameParts[0] || "",
     prenoms: initialNameParts.slice(1).join(" "),
     nom_complet: initialFullName,
     date_naissance: "", lieu_naissance: "", nationalite: "",
@@ -79,7 +79,7 @@ const BeneficiaireParticulier = () => {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const beneficiaireNomComplet = [beneficiaire.prenoms, beneficiaire.nom_famille].map((v: string) => String(v || "").trim()).filter(Boolean).join(" ");
+    const beneficiaireNomComplet = [beneficiaire.nom, beneficiaire.prenoms].map((v: string) => String(v || "").trim()).filter(Boolean).join(" ");
     if (!beneficiaireNomComplet || !beneficiaire.numero_piece.trim()) {
       toast({ variant: "destructive", title: "Informations manquantes", description: "Le nom, le prénom et le numéro de pièce sont obligatoires." });
       return;
@@ -196,7 +196,7 @@ const BeneficiaireParticulier = () => {
 
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><Label>Nom *</Label><Input value={beneficiaire.nom_famille} onChange={e=>setBeneficiaire({...beneficiaire,nom_famille:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
+            <div><Label>Nom *</Label><Input value={beneficiaire.nom} onChange={e=>setBeneficiaire({...beneficiaire,nom:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <div><Label>Prénom *</Label><Input value={beneficiaire.prenoms} onChange={e=>setBeneficiaire({...beneficiaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             
             <div><Label>Date de naissance</Label><Input type="date" value={beneficiaire.date_naissance} onChange={e=>setBeneficiaire({...beneficiaire,date_naissance:e.target.value})}/></div>
