@@ -606,7 +606,7 @@ const ProprietairesTerres = () => {
                               <Input value={formData.nom} onChange={e => update('nom', e.target.value)} required />
                             </div>
                             <div className="space-y-2">
-                              <Label>Prénom(s)</Label>
+                              <Label>Prénom</Label>
                               <Input value={formData.prenoms} onChange={e => update('prenoms', e.target.value)} />
                             </div>
                           </div>
