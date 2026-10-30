@@ -426,10 +426,9 @@ const NouvelleAcquisition = () => {
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
-      const signedContractMissing=!formData.contrat_signe_client_file&&!formData.contrat_signe_client_preview;
-      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||signedContractMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
+      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
         const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing];
-        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : signedContractMissing ? "Le contrat signé est obligatoire pour toutes les offres. Importez un PDF ou une image." : "Un groupe familial doit compter au moins deux membres.";
+        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : "Un groupe familial doit compter au moins deux membres.";
         toast({variant:"destructive",title:"Fiche client incomplète",description:reason}); return false;
       }
     }
@@ -601,19 +600,6 @@ const NouvelleAcquisition = () => {
         created_by:currentUser.id,updated_by:currentUser.id,compte_actif:false,phase_actuelle:"pre_activation",total_hectares:ha
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
-
-      const signedContractFile=recoverFile(formData.contrat_signe_client_file,formData.contrat_signe_client_preview,"contrat_signe_client");
-      if(!signedContractFile) throw new Error("Le contrat signé est obligatoire pour toutes les offres.");
-      const signedContractUpload=await uploadFile("documents",signedContractFile,user.id+"/clients/"+client.id+"/contrats","contrat-signe-client");
-      if(!signedContractUpload?.path) throw new Error("Téléversement du contrat signé impossible.");
-      const {error:signedContractSaveError}=await offlineUpsert("documents_acquisition",{
-        id:stableUuid(stableClientId,"contract:contrat_signe_client"),client_id:client.id,
-        type_document:"contrat_signe_client",code_document:"contrat_signe_client",categorie:"contrat",
-        obligatoire:true,source_contractuelle:"contrat_signe_client",fichier_url:signedContractUpload.path,
-        statut:"signe",uploaded_by:currentUser.id,
-        metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:"Contrat signé",storage_bucket:"documents"}
-      });
-      if(signedContractSaveError) throw signedContractSaveError;
 
       // Le lien lead/prospect est finalisé APRÈS les médias et documents.
       // Ainsi un délai sur le lead ne coupe plus l'envoi des photos et ne laisse pas
