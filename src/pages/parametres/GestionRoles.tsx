@@ -780,7 +780,7 @@ const GestionRoles = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Créer une permission</DialogTitle>
-            <DialogDescription>Ajoutez un code de permission réutilisable dans la matrice des rôles. Les contrôles applicatifs doivent ensuite utiliser ce code pour protéger une action.</DialogDescription>
+            <DialogDescription>Ajoutez un code à la matrice, puis utilisez-le pour protéger l’action concernée.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>Code unique (module.action) *</Label><Input value={permissionDraft.code} onChange={(e) => setPermissionDraft({ ...permissionDraft, code: e.target.value })} placeholder="ex. plantations.exporter" /></div>
