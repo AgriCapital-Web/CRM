@@ -341,7 +341,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
               <div><Label className="text-xs">Latitude</Label><Input className="h-8" type="number" step="any" value={form.latitude ?? ""} onChange={e=>setField("latitude",e.target.value === "" ? null : Number(e.target.value))} placeholder="Ex. -6.2107333" /></div>
               <div><Label className="text-xs">Longitude</Label><Input className="h-8" type="number" step="any" value={form.longitude ?? ""} onChange={e=>setField("longitude",e.target.value === "" ? null : Number(e.target.value))} placeholder="Ex. 6.925555" /></div>
             </div>
-            <p className="text-[11px] text-muted-foreground">Ces coordonnées alimentent la carte des plantations et sont disponibles dans les données de l’espace client.</p>
+            <p className="text-[11px] text-muted-foreground">Coordonnées utilisées sur la carte et dans l’espace client.</p>
           </div>
         </CardContent>
       </Card>
@@ -409,7 +409,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
               </div>
             </div>
           )}
-          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Les conditions commerciales sont figées dans ce dossier. La modification des coordonnées, de l’identité ou des documents ne change ni le tarif contractuel ni une promotion passée ou en cours.</span></div>}
+          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Les conditions commerciales restent figées. Modifier le dossier ne change ni le tarif ni les promotions.</span></div>}
         </CardContent>
       </Card>
 
@@ -425,7 +425,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       <Card className="overflow-hidden">
         <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Contrat du client</CardTitle></CardHeader>
         <CardContent className="space-y-2 px-4 pb-3 pt-0">
-          {contractDocument && !contractFile && <p className="text-xs text-muted-foreground">Un contrat est déjà rattaché à ce dossier. Sélectionnez un autre fichier pour le remplacer.</p>}
+          {contractDocument && !contractFile && <p className="text-xs text-muted-foreground">Contrat déjà rattaché. Choisissez un autre fichier pour le remplacer.</p>}
           <FileUploadVisual
             label="Importer le contrat (PDF ou image)"
             field="fiche_contrat"
