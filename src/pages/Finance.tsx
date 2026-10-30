@@ -203,7 +203,7 @@ export default function Finance(){
   };
 
   const saveAssociateMovement=async()=>{
-    if(!associateForm.associateId||!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0||!associateForm.date||(associateForm.type==="autre"&&!associateForm.otherLabel.trim())||(associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"&&(!associateForm.contributionDescription.trim()||Number(associateForm.estimatedValue)<=0))||(associateForm.useProofFile&&!associateProof)||(!associateForm.useProofFile&&!associateForm.reference.trim())){
+    if(!associateForm.associateId||!associateForm.date||(associateForm.type==="apport"&&associateForm.contributionStatus==="numeraire"&&(!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0))||(associateForm.type!=="apport"&&(!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0))||(associateForm.type==="autre"&&!associateForm.otherLabel.trim())||(associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"&&(!associateForm.contributionDescription.trim()||Number(associateForm.estimatedValue)<=0))||(associateForm.useProofFile&&!associateProof)||(!associateForm.useProofFile&&!associateForm.reference.trim()&&!(associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"))){
       toast({title:"Informations requises",description:"Choisissez un associé, un montant positif, une date et une référence ou un justificatif. Précisez la nature si le type est Autre.",variant:"destructive"});
       return;
     }
@@ -219,25 +219,37 @@ export default function Finance(){
         proofPath = uploaded.path;
         proofName = associateProof.name;
       }
-      const direction=associateForm.type==="apport"?"entree":"sortie";
-      const label=associateForm.type==="apport"?"APPORT ASSOCIÉ":associateForm.type==="remboursement"?"REMBOURSEMENT ASSOCIÉ":associateForm.otherLabel.trim();
-      const {data,error}=await (supabase as any).from("finance_transactions").insert({
-        direction,category:"ASSOCIE",label,transaction_date:associateForm.date,
-        amount:Number(associateForm.amount),reference:associateForm.useProofFile?null:associateForm.reference.trim(),proof_path:proofPath,proof_name:proofName,status:"valide",notes:associateForm.notes.trim()||null
-      }).select("id").single();
-      if(error)throw error;
-      if(!data?.id)throw new Error("La transaction financière n’a pas été confirmée par la base de données.");
-      transactionId=data.id;
+      const isNonCashContribution=associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire";
+      let linkedTransactionId: string | null = null;
+      if(!isNonCashContribution){
+        const direction=associateForm.type==="apport"?"entree":"sortie";
+        const label=associateForm.type==="apport"?"APPORT ASSOCIÉ":associateForm.type==="remboursement"?"REMBOURSEMENT ASSOCIÉ":associateForm.otherLabel.trim();
+        const {data,error}=await (supabase as any).from("finance_transactions").insert({
+          direction,category:"ASSOCIE",label,transaction_date:associateForm.date,
+          amount:Number(associateForm.amount),reference:associateForm.useProofFile?null:associateForm.reference.trim(),proof_path:proofPath,proof_name:proofName,status:"valide",notes:associateForm.notes.trim()||null
+        }).select("id").single();
+        if(error)throw error;
+        if(!data?.id)throw new Error("La transaction financière n’a pas été confirmée par la base de données.");
+        transactionId=data.id;
+        linkedTransactionId=data.id;
+      }
       const {error:movementError}=await (supabase as any).from("finance_associate_transactions").insert({
-        associate_id:associateForm.associateId,transaction_id:transactionId,movement_type:associateForm.type,contribution_status:associateForm.type==="apport"?associateForm.contributionStatus:"non_applicable",contribution_description:associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"?associateForm.contributionDescription.trim():null,estimated_value:associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"?Number(associateForm.estimatedValue):null,project_reference:associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"?(associateForm.projectReference.trim()||null):null,notes:associateForm.notes.trim()||null
+        associate_id:associateForm.associateId,transaction_id:linkedTransactionId,movement_type:associateForm.type,
+        contribution_status:associateForm.type==="apport"?associateForm.contributionStatus:"non_applicable",
+        contribution_description:isNonCashContribution?associateForm.contributionDescription.trim():null,
+        estimated_value:isNonCashContribution?Number(associateForm.estimatedValue):null,
+        project_reference:isNonCashContribution?(associateForm.projectReference.trim()||null):null,
+        notes:associateForm.notes.trim()||null
       });
       if(movementError){
-        const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",transactionId);
-        if(rollbackError)throw new Error("Le mouvement associé n’a pas été enregistré ("+movementError.message+"). La transaction financière "+transactionId+" n’a pas pu être annulée automatiquement ("+rollbackError.message+").");
-        transactionId=null;
+        if(transactionId){
+          const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",transactionId);
+          if(rollbackError)throw new Error("Le mouvement associé n’a pas été enregistré ("+movementError.message+"). La transaction financière "+transactionId+" n’a pas pu être annulée automatiquement ("+rollbackError.message+").");
+          transactionId=null;
+        }
         throw movementError;
       }
-      toast({title:"Mouvement associé enregistré"});
+      toast({title:"Mouvement associé enregistré",description:isNonCashContribution?"L’apport a été valorisé sans être comptabilisé comme un encaissement.":"L’écriture financière a été enregistrée."});
       setAssociateForm({associateId:"",amount:"",type:"apport",contributionStatus:"numeraire",contributionDescription:"",estimatedValue:"",projectReference:"",reference:"",date:today(),notes:"",otherLabel:"",useProofFile:false});
       setAssociateProof(null);
       setAssociateFormOpen(false);
@@ -532,7 +544,7 @@ export default function Finance(){
             <div className="space-y-1"><Label>Associé *</Label><Select value={associateForm.associateId} onValueChange={v=>setAssociateForm({...associateForm,associateId:v})}><SelectTrigger><SelectValue placeholder="Choisir un associé"/></SelectTrigger><SelectContent>{associates.map(a=><SelectItem key={a.id} value={a.id}>{a.full_name} — {a.role_label}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-1"><Label>Mouvement *</Label><Select value={associateForm.type} onValueChange={v=>setAssociateForm({...associateForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">Apport</SelectItem><SelectItem value="remboursement">Remboursement</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>\n            {associateForm.type==="apport"&&<div className="space-y-1 sm:col-span-2"><Label>Statut de l’apport *</Label><Select value={associateForm.contributionStatus} onValueChange={v=>setAssociateForm({...associateForm,contributionStatus:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="numeraire">En numéraire</SelectItem><SelectItem value="nature">En nature</SelectItem><SelectItem value="prestation">Prestation réalisée</SelectItem></SelectContent></Select></div>}\n            {associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"&&<><div className="space-y-1 sm:col-span-2"><Label>Description de l’apport *</Label><Textarea rows={3} value={associateForm.contributionDescription} onChange={e=>setAssociateForm({...associateForm,contributionDescription:e.target.value})} placeholder="Décrire le bien fourni ou le travail réalisé"/></div><div className="space-y-1"><Label>Coût estimatif (FCFA) *</Label><Input type="number" min="1" value={associateForm.estimatedValue} onChange={e=>setAssociateForm({...associateForm,estimatedValue:e.target.value})}/></div><div className="space-y-1"><Label>Projet / réalisation</Label><Input value={associateForm.projectReference} onChange={e=>setAssociateForm({...associateForm,projectReference:e.target.value})} placeholder="Ex. plateforme AgriCapital 360"/></div></>}
             <div className="space-y-1"><Label>Date du mouvement *</Label><Input type="date" value={associateForm.date} onChange={e=>setAssociateForm({...associateForm,date:e.target.value})} required/></div>
-            <div className="space-y-1"><Label>Montant (FCFA) *</Label><Input type="number" min="1" step="1" value={associateForm.amount} onChange={e=>setAssociateForm({...associateForm,amount:e.target.value})} placeholder="Montant positif" required/></div>
+            {associateForm.type!=="apport"||associateForm.contributionStatus==="numeraire"?<div className="space-y-1"><Label>Montant (FCFA) *</Label><Input type="number" min="1" step="1" value={associateForm.amount} onChange={e=>setAssociateForm({...associateForm,amount:e.target.value})} placeholder="Montant positif" required/></div>:<div className="space-y-1"><Label>Coût estimatif (FCFA) *</Label><Input type="number" min="1" step="1" value={associateForm.estimatedValue} onChange={e=>setAssociateForm({...associateForm,estimatedValue:e.target.value})} placeholder="Valeur estimée" required/></div>}
             {associateForm.type==="autre"&&<div className="space-y-1 sm:col-span-2"><Label>Préciser la nature *</Label><Input value={associateForm.otherLabel} onChange={e=>setAssociateForm({...associateForm,otherLabel:e.target.value})} placeholder="Ex. frais, régularisation, ajustement" required/></div>}
             <div className="space-y-2 sm:col-span-2 rounded-lg border p-3">
               <Label>Justificatif du mouvement</Label>
