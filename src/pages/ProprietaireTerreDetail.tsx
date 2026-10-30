@@ -282,7 +282,7 @@ const ProprietaireTerreDetail = () => {
           {canValidateOwner && owner.validation_statut === "a_valider" && <Card>
             <CardHeader><CardTitle>Validation du dossier foncier</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">Vérifiez les informations, la parcelle et les pièces jointes avant de valider. La validation active la convention et rend les parcelles soumises disponibles dans le suivi foncier.</p>
+              <p className="text-sm text-muted-foreground">La validation active la convention et intègre les parcelles au suivi foncier.</p>
               <div className="space-y-1">
                 <Label htmlFor="owner-validation-notes">Commentaire de validation ou motif de refus</Label>
                 <Textarea id="owner-validation-notes" value={validationNotes} onChange={e => setValidationNotes(e.target.value)} rows={3} placeholder="Observations facultatives…" />
