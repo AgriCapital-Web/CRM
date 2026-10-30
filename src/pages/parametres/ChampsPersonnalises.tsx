@@ -8,8 +8,8 @@ const ChampsPersonnalises = () => (
       </CardHeader>
       <CardContent>
         <div role="note" className="rounded-md border bg-muted/30 p-4 text-sm leading-relaxed">
-          <p className="font-medium">La création de champs personnalisés n’est pas encore connectée à la base de données ni aux formulaires métier.</p>
-          <p className="mt-2 text-muted-foreground">L’ancien écran affichait des champs de saisie et un bouton « Ajouter le champ », mais aucune donnée n’était enregistrée. Ces commandes ont été retirées afin de ne pas laisser croire qu’un champ a été créé. Pour activer cette fonction correctement, il faudra une définition persistée en base et son intégration explicite aux formulaires concernés.</p>
+          <p className="font-medium">Fonction en préparation : les champs ne sont pas encore enregistrés ni reliés aux formulaires.</p>
+          <p className="mt-2 text-muted-foreground"></p>
         </div>
       </CardContent>
     </Card>
