@@ -110,10 +110,6 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
               </div>
             );
           })}
-        </CardContent>
-      </Card>
-
-
             </>
           )}
 
