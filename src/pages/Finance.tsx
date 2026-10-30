@@ -125,14 +125,14 @@ export default function Finance(){
     setSaving(true);
     let uploadedProofPath:string|null=null;
     try{
-      const labels:Record<string,string>={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",apport_associe:"Apport associé",vente:"Vente",autre:"Autre entrée"};
+      const labels:Record<string,string>={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",vente:"Vente",autre:"Autre entrée"};
       if(entryProof){
         const uploaded=await uploadFile("documents",entryProof,"finance/entrees");
         if(!uploaded?.path)throw new Error("Le justificatif de l’entrée n’a pas pu être téléversé.");
         uploadedProofPath=uploaded.path;
       }
       const {error}=await (supabase as any).from("finance_transactions").insert({
-        direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="apport_associe"?"ASSOCIE":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
+        direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
         label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:Number(entryForm.amount),
         transaction_date:new Date(entryForm.date+"T12:00:00").toISOString(),payment_method:entryForm.method||null,
         reference:entryForm.reference.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
@@ -351,7 +351,7 @@ export default function Finance(){
           ].map(item=><Card key={item.label}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{item.label}</p><p className="whitespace-nowrap text-base font-bold tabular-nums">{money(item.value)}</p></CardContent></Card>)}
         </div>
         <Dialog open={entryFormOpen} onOpenChange={setEntryFormOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Nouvelle entrée financière</DialogTitle></DialogHeader><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1"><Label>Type d’entrée</Label><Select value={entryForm.type} onValueChange={v=>setEntryForm({...entryForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="financement">Financement</SelectItem><SelectItem value="pret">Prêt reçu</SelectItem><SelectItem value="don">Don</SelectItem><SelectItem value="apport_associe">Apport associé</SelectItem><SelectItem value="vente">Vente / prestation</SelectItem><SelectItem value="autre">Autre entrée</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1"><Label>Type d’entrée</Label><Select value={entryForm.type} onValueChange={v=>setEntryForm({...entryForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="financement">Financement</SelectItem><SelectItem value="pret">Prêt reçu</SelectItem><SelectItem value="don">Don</SelectItem><SelectItem value="vente">Vente / prestation</SelectItem><SelectItem value="autre">Autre entrée</SelectItem></SelectContent></Select></div>
           <div className="space-y-1"><Label>Source / raison sociale / nom</Label><Input value={entryForm.source} onChange={e=>setEntryForm({...entryForm,source:e.target.value})} placeholder="Nom du financeur ou organisme"/></div>
           <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={entryForm.amount} onChange={e=>setEntryForm({...entryForm,amount:e.target.value})} placeholder="Montant reçu"/></div>
           <div className="space-y-1"><Label>Date de réception</Label><Input type="date" value={entryForm.date} onChange={e=>setEntryForm({...entryForm,date:e.target.value})}/></div>
