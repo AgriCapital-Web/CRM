@@ -18,6 +18,7 @@ import Plantations from "./pages/Plantations";
 import PlantationDetail from "./pages/PlantationDetail";
 import GestionPaiements from "./pages/GestionPaiements";
 import Finance from "./pages/Finance";
+import PrestationsIndependantes from "./pages/PrestationsIndependantes";
 import Commissions from "./pages/Commissions";
 import Portefeuilles from "./pages/Portefeuilles";
 import NouvelleAcquisition from "./pages/NouvelleAcquisition";
@@ -104,6 +105,7 @@ const DomainRouter = () => {
       <Route path="/parcelles" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PARCELLES}><Parcelles /></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute requiredPermission="documents.view"><Documents /></ProtectedRoute>} />
       <Route path="/acquisitions" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><Clients /></ProtectedRoute>} />
+      <Route path="/prestations-independantes" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><PrestationsIndependantes /></ProtectedRoute>} />
       <Route path="/acquisitions/nouveau" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/validation" element={<ProtectedRoute><ValidationDossiers /></ProtectedRoute>} />
       <Route path="/nouvelle-acquisition" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
