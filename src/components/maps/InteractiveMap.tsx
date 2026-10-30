@@ -62,6 +62,7 @@ interface InteractiveMapProps {
   markers?: MapMarker[];
   height?: string;
   className?: string;
+  allowGeolocation?: boolean;
 }
 
 // Leaflet must recalculate its viewport after a responsive container or lazy-loaded map becomes visible.
@@ -122,7 +123,8 @@ const InteractiveMapComponent = ({
   onPositionChange,
   markers = [],
   height = '400px',
-  className = ''
+  className = '',
+  allowGeolocation = true
 }: InteractiveMapProps) => {
   const [position, setPosition] = useState<[number, number] | null>(initialPosition || null);
   const [loading, setLoading] = useState(false);
@@ -158,7 +160,7 @@ const InteractiveMapComponent = ({
 
   return (
     <div className={`relative ${className}`} style={{ height }}>
-      {mode === 'pick' && (
+      {mode === 'pick' && allowGeolocation && (
         <div className="absolute top-2 right-2 z-[1000] flex gap-2">
           <Button type="button" size="sm" onClick={handleGeolocate} disabled={loading} className="gap-2 bg-primary shadow-lg">
             {loading ? <Navigation className="h-4 w-4 animate-spin" /> : <Locate className="h-4 w-4" />}
