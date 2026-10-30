@@ -426,9 +426,10 @@ const NouvelleAcquisition = () => {
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
-      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
+      const signedContractMissing=!formData.contrat_signe_client_file&&!formData.contrat_signe_client_preview;
+      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||signedContractMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
         const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing];
-        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : "Un groupe familial doit compter au moins deux membres.";
+        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : signedContractMissing ? "Le contrat signé est obligatoire pour toutes les offres. Importez un PDF ou une image." : "Un groupe familial doit compter au moins deux membres.";
         toast({variant:"destructive",title:"Fiche client incomplète",description:reason}); return false;
       }
     }
@@ -452,17 +453,6 @@ const NouvelleAcquisition = () => {
         if(c.when==="client_land"&&!formData.offre?.necessite_foncier_client)continue;
         if(c.when==="acquisition"&&!formData.offre?.contrat_acquisition_requis)continue;
         if(doc.obligatoire&&!hasDocumentFile(formData, doc.code)){toast({variant:"destructive",title:"Pièce obligatoire manquante",description:doc.libelle});return false;}
-      }
-    }
-    if(step.code==="documents"){
-      const contracts = recordId
-        ? (Array.isArray(formData.offre_snapshot?.workflow?.contracts) ? formData.offre_snapshot.workflow.contracts : [])
-        : ((await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",formData.offre_id).eq("actif",true)).data || []);
-      for(const contract of contracts) if(contract.obligatoire){
-        const key="contrat_"+contract.type_contrat;
-        const signedFile=recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
-        const hasSavedOrNewSignedFile=Boolean(formData[key+"_preview"]) || Boolean(signedFile);
-        if(!hasSavedOrNewSignedFile){toast({variant:"destructive",title:"Contrat signé manquant",description:"Téléversez le contrat signé requis : "+(contract.source_document||contract.type_contrat)+"."});return false;}
       }
     }
     if(step.code==="confirmation"&&!formData.contrat_lu){
@@ -611,6 +601,19 @@ const NouvelleAcquisition = () => {
         created_by:currentUser.id,updated_by:currentUser.id,compte_actif:false,phase_actuelle:"pre_activation",total_hectares:ha
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
+
+      const signedContractFile=recoverFile(formData.contrat_signe_client_file,formData.contrat_signe_client_preview,"contrat_signe_client");
+      if(!signedContractFile) throw new Error("Le contrat signé est obligatoire pour toutes les offres.");
+      const signedContractUpload=await uploadFile("documents",signedContractFile,user.id+"/clients/"+client.id+"/contrats","contrat-signe-client");
+      if(!signedContractUpload?.path) throw new Error("Téléversement du contrat signé impossible.");
+      const {error:signedContractSaveError}=await offlineUpsert("documents_acquisition",{
+        id:stableUuid(stableClientId,"contract:contrat_signe_client"),client_id:client.id,
+        type_document:"contrat_signe_client",code_document:"contrat_signe_client",categorie:"contrat",
+        obligatoire:true,source_contractuelle:"contrat_signe_client",fichier_url:signedContractUpload.path,
+        statut:"signe",uploaded_by:currentUser.id,
+        metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:"Contrat signé",storage_bucket:"documents"}
+      });
+      if(signedContractSaveError) throw signedContractSaveError;
 
       // Le lien lead/prospect est finalisé APRÈS les médias et documents.
       // Ainsi un délai sur le lead ne coupe plus l'envoi des photos et ne laisse pas
@@ -920,7 +923,7 @@ toast({title:"Dossier mis à jour",description:"Les informations du client et de
       case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
       case "client":return <EtapeClientDynamique formData={formData} updateFormData={updateFormData}/>;
       case "cotitulaire":return <EtapeRepresentantDynamique formData={formData} updateFormData={updateFormData}/>;
-      case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData}/>;
+      case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={false} showAdditionalDocuments={true}/>;
       case "confirmation":return <EtapeConfirmationDossier formData={formData} updateFormData={updateFormData}/>;
       default:return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
     }
