@@ -25,7 +25,6 @@ import FinanceAnalytics from "@/pages/FinanceAnalytics";
 import FinanceHistoryImport from "@/pages/FinanceHistoryImport";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
-const today=()=>new Date().toISOString().slice(0,10);
 
 export default function Finance(){
   const [searchParams] = useSearchParams();
@@ -52,18 +51,13 @@ export default function Finance(){
   const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|null>(null);
   const [selectedExpense,setSelectedExpense]=useState<any|null>(null);
   const [expenseSearch,setExpenseSearch]=useState("");
-  const [associateForm,setAssociateForm]=useState({associateId:"",amount:"",type:"apport",contributionStatus:"numeraire",contributionDescription:"",estimatedValue:"",projectReference:"",reference:"",date:today(),notes:"",otherLabel:"",useProofFile:false});
-  const [associateProof,setAssociateProof]=useState<File|null>(null);
   const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
   const [entryProof,setEntryProof]=useState<File|null>(null);
   const entryProofPreview = useMemo(() => entryProof && (entryProof.type.startsWith("image/") || entryProof.type === "application/pdf") ? URL.createObjectURL(entryProof) : null, [entryProof]);
   useEffect(() => () => { if (entryProofPreview) URL.revokeObjectURL(entryProofPreview); }, [entryProofPreview]);
-  const associateProofPreview = useMemo(() => associateProof && (associateProof.type.startsWith("image/") || associateProof.type === "application/pdf") ? URL.createObjectURL(associateProof) : null, [associateProof]);
-  useEffect(() => () => { if (associateProofPreview) URL.revokeObjectURL(associateProofPreview); }, [associateProofPreview]);
   const [entryFormOpen,setEntryFormOpen]=useState(false);
   const [salaryFormOpen,setSalaryFormOpen]=useState(false);
   const [payrollGenerateOpen,setPayrollGenerateOpen]=useState(false);
-  const [associateFormOpen,setAssociateFormOpen]=useState(false);
   const [salaryForm,setSalaryForm]=useState({profileId:"",baseSalary:"",payDay:"28"});
   const [period,setPeriod]=useState(new Date().toISOString().slice(0,7));
   const [payrollPaymentRunId,setPayrollPaymentRunId]=useState("");
@@ -202,64 +196,6 @@ export default function Finance(){
     } finally { setSaving(false); }
   };
 
-  const saveAssociateMovement=async()=>{
-    if(!associateForm.associateId||!associateForm.date||(associateForm.type==="apport"&&associateForm.contributionStatus==="numeraire"&&(!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0))||(associateForm.type!=="apport"&&(!Number.isFinite(Number(associateForm.amount))||Number(associateForm.amount)<=0))||(associateForm.type==="autre"&&!associateForm.otherLabel.trim())||(associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"&&(!associateForm.contributionDescription.trim()||Number(associateForm.estimatedValue)<=0))||(associateForm.useProofFile&&!associateProof)||(!associateForm.useProofFile&&!associateForm.reference.trim()&&!(associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"))){
-      toast({title:"Informations requises",description:"Choisissez un associé, un montant positif, une date et une référence ou un justificatif. Précisez la nature si le type est Autre.",variant:"destructive"});
-      return;
-    }
-    if(saving)return;
-    setSaving(true);
-    let transactionId: string | null = null;
-    try {
-      let proofPath: string | null = null;
-      let proofName: string | null = null;
-      if (associateForm.useProofFile && associateProof) {
-        const uploaded = await uploadFile("documents", associateProof, "finance/associate-movements");
-        if (!uploaded?.path) throw new Error("Le justificatif n’a pas pu être téléversé dans le stockage sécurisé.");
-        proofPath = uploaded.path;
-        proofName = associateProof.name;
-      }
-      const isNonCashContribution=associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire";
-      let linkedTransactionId: string | null = null;
-      if(!isNonCashContribution){
-        const direction=associateForm.type==="apport"?"entree":"sortie";
-        const label=associateForm.type==="apport"?"APPORT ASSOCIÉ":associateForm.type==="remboursement"?"REMBOURSEMENT ASSOCIÉ":associateForm.otherLabel.trim();
-        const {data,error}=await (supabase as any).from("finance_transactions").insert({
-          direction,category:"ASSOCIE",label,transaction_date:associateForm.date,
-          amount:Number(associateForm.amount),reference:associateForm.useProofFile?null:associateForm.reference.trim(),proof_path:proofPath,proof_name:proofName,status:"valide",notes:associateForm.notes.trim()||null
-        }).select("id").single();
-        if(error)throw error;
-        if(!data?.id)throw new Error("La transaction financière n’a pas été confirmée par la base de données.");
-        transactionId=data.id;
-        linkedTransactionId=data.id;
-      }
-      const {error:movementError}=await (supabase as any).from("finance_associate_transactions").insert({
-        associate_id:associateForm.associateId,transaction_id:linkedTransactionId,movement_type:associateForm.type,
-        contribution_status:associateForm.type==="apport"?associateForm.contributionStatus:"non_applicable",
-        contribution_description:isNonCashContribution?associateForm.contributionDescription.trim():null,
-        estimated_value:isNonCashContribution?Number(associateForm.estimatedValue):null,
-        project_reference:isNonCashContribution?(associateForm.projectReference.trim()||null):null,
-        notes:associateForm.notes.trim()||null
-      });
-      if(movementError){
-        if(transactionId){
-          const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",transactionId);
-          if(rollbackError)throw new Error("Le mouvement associé n’a pas été enregistré ("+movementError.message+"). La transaction financière "+transactionId+" n’a pas pu être annulée automatiquement ("+rollbackError.message+").");
-          transactionId=null;
-        }
-        throw movementError;
-      }
-      toast({title:"Mouvement associé enregistré",description:isNonCashContribution?"L’apport a été valorisé sans être comptabilisé comme un encaissement.":"L’écriture financière a été enregistrée."});
-      setAssociateForm({associateId:"",amount:"",type:"apport",contributionStatus:"numeraire",contributionDescription:"",estimatedValue:"",projectReference:"",reference:"",date:today(),notes:"",otherLabel:"",useProofFile:false});
-      setAssociateProof(null);
-      setAssociateFormOpen(false);
-      await load();
-    } catch(error:any) {
-      toast({title:"Enregistrement impossible",description:error?.message||"Le mouvement associé n’a pas été enregistré.",variant:"destructive"});
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const saveSalary=async()=>{
     const baseSalary=Number(salaryForm.baseSalary);
@@ -520,7 +456,6 @@ export default function Finance(){
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
             <div><CardTitle className="text-base">Associés et répartition des apports</CardTitle></div>
-            {can("finance.associates")&&<Button size="sm" onClick={()=>setAssociateFormOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouveau mouvement</Button>}
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -539,23 +474,6 @@ export default function Finance(){
             </div>
           </CardContent>
         </Card>
-        {can("finance.associates")&&<Dialog open={associateFormOpen} onOpenChange={open=>{setAssociateFormOpen(open);if(!open)setAssociateProof(null);}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Nouveau mouvement associé</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1"><Label>Associé *</Label><Select value={associateForm.associateId} onValueChange={v=>setAssociateForm({...associateForm,associateId:v})}><SelectTrigger><SelectValue placeholder="Choisir un associé"/></SelectTrigger><SelectContent>{associates.map(a=><SelectItem key={a.id} value={a.id}>{a.full_name} — {a.role_label}</SelectItem>)}</SelectContent></Select></div>
-            <div className="space-y-1"><Label>Mouvement *</Label><Select value={associateForm.type} onValueChange={v=>setAssociateForm({...associateForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">Apport</SelectItem><SelectItem value="remboursement">Remboursement</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>\n            {associateForm.type==="apport"&&<div className="space-y-1 sm:col-span-2"><Label>Statut de l’apport *</Label><Select value={associateForm.contributionStatus} onValueChange={v=>setAssociateForm({...associateForm,contributionStatus:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="numeraire">En numéraire</SelectItem><SelectItem value="nature">En nature</SelectItem><SelectItem value="prestation">Prestation réalisée</SelectItem></SelectContent></Select></div>}\n            {associateForm.type==="apport"&&associateForm.contributionStatus!=="numeraire"&&<><div className="space-y-1 sm:col-span-2"><Label>Description de l’apport *</Label><Textarea rows={3} value={associateForm.contributionDescription} onChange={e=>setAssociateForm({...associateForm,contributionDescription:e.target.value})} placeholder="Décrire le bien fourni ou le travail réalisé"/></div><div className="space-y-1"><Label>Coût estimatif (FCFA) *</Label><Input type="number" min="1" value={associateForm.estimatedValue} onChange={e=>setAssociateForm({...associateForm,estimatedValue:e.target.value})}/></div><div className="space-y-1"><Label>Projet / réalisation</Label><Input value={associateForm.projectReference} onChange={e=>setAssociateForm({...associateForm,projectReference:e.target.value})} placeholder="Ex. plateforme AgriCapital 360"/></div></>}
-            <div className="space-y-1"><Label>Date du mouvement *</Label><Input type="date" value={associateForm.date} onChange={e=>setAssociateForm({...associateForm,date:e.target.value})} required/></div>
-            {associateForm.type!=="apport"||associateForm.contributionStatus==="numeraire"?<div className="space-y-1"><Label>Montant (FCFA) *</Label><Input type="number" min="1" step="1" value={associateForm.amount} onChange={e=>setAssociateForm({...associateForm,amount:e.target.value})} placeholder="Montant positif" required/></div>:<div className="space-y-1"><Label>Coût estimatif (FCFA) *</Label><Input type="number" min="1" step="1" value={associateForm.estimatedValue} onChange={e=>setAssociateForm({...associateForm,estimatedValue:e.target.value})} placeholder="Valeur estimée" required/></div>}
-            {associateForm.type==="autre"&&<div className="space-y-1 sm:col-span-2"><Label>Préciser la nature *</Label><Input value={associateForm.otherLabel} onChange={e=>setAssociateForm({...associateForm,otherLabel:e.target.value})} placeholder="Ex. frais, régularisation, ajustement" required/></div>}
-            <div className="space-y-2 sm:col-span-2 rounded-lg border p-3">
-              <Label>Justificatif du mouvement</Label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={associateForm.useProofFile} onChange={e=>{setAssociateForm({...associateForm,useProofFile:e.target.checked,reference:""});setAssociateProof(null);}}/><span>Joindre un fichier au lieu de saisir une référence</span></label>
-              {associateForm.useProofFile?<Input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={e=>setAssociateProof(e.target.files?.[0]||null)}/>:<Input value={associateForm.reference} onChange={e=>setAssociateForm({...associateForm,reference:e.target.value})} placeholder="Référence de transaction, reçu ou pièce"/>}
-              
-            </div>
-            <div className="space-y-1 sm:col-span-2"><Label>Note complémentaire</Label><Textarea rows={2} value={associateForm.notes} onChange={e=>setAssociateForm({...associateForm,notes:e.target.value})} placeholder="Commentaire facultatif"/></div>
-            <div className="flex justify-end gap-2 sm:col-span-2"><Button variant="outline" onClick={()=>setAssociateFormOpen(false)} disabled={saving}>Annuler</Button><Button onClick={()=>void saveAssociateMovement()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>{saving?"Enregistrement…":"Enregistrer le mouvement"}</Button></div>
-          </div>
-        </DialogContent></Dialog>}
         <Card><CardHeader className="pb-2"><CardTitle className="text-base">Historique des mouvements associés</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[600px] text-sm"><thead className="bg-muted/50"><tr className="border-b"><th className="p-2 text-left">Date</th><th className="p-2 text-left">Associé</th><th className="p-2 text-left">Mouvement</th><th className="p-2 text-left">Référence / pièce</th><th className="p-2 text-right">Montant</th></tr></thead><tbody>{associateMovements.map(m=><tr key={m.id} className="border-b last:border-0"><td className="whitespace-nowrap p-2">{new Date(m.finance_transactions?.transaction_date||m.created_at).toLocaleDateString("fr-FR")}</td><td className="p-2">{associates.find(a=>a.id===m.associate_id)?.full_name||"—"}</td><td className="p-2">{m.movement_type==="apport"?(m.contribution_status==="nature"?"Apport en nature":m.contribution_status==="prestation"?"Prestation apportée":"Apport en numéraire"):m.movement_type==="remboursement"?"Remboursement":m.finance_transactions?.label||"Autre"}{m.contribution_description&&<div className="text-xs text-muted-foreground">{m.contribution_description}{m.project_reference?" · "+m.project_reference:""}</div> }</td><td className="p-2">{m.finance_transactions?.proof_path?<Button variant="ghost" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(m.finance_transactions.proof_path,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-1 h-3.5 w-3.5"/>{m.finance_transactions?.proof_name||"Ouvrir"}</Button>:(m.finance_transactions?.reference||"—")}</td><td className="whitespace-nowrap p-2 text-right font-semibold tabular-nums">{money(Number(m.contribution_status==="numeraire"?m.finance_transactions?.amount:m.estimated_value||m.finance_transactions?.amount||0))}</td></tr>)}{!associateMovements.length&&<tr><td colSpan={5} className="p-5 text-center text-muted-foreground">Aucun mouvement associé enregistré</td></tr>}</tbody></table></div></CardContent></Card>
       </TabsContent>
       <TabsContent value="rapports" className="mt-4 min-w-0 space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">Rapports financiers</h2><Button onClick={exportFinancialReport}><FileText className="mr-2 h-4 w-4"/>Exporter le rapport (CSV)</Button></div><div className="responsive-auto-grid gap-3"><Card><CardContent className="min-w-0 p-3 sm:p-4"><p className="text-xs text-muted-foreground">ENCAISSEMENTS VALIDÉS</p><p className="money-value mt-1 text-[clamp(0.78rem,3.2vw,1.5rem)] font-bold leading-tight">{money(totals.income)}</p></CardContent></Card><Card><CardContent className="min-w-0 p-3 sm:p-4"><p className="text-xs text-muted-foreground">SORTIES VALIDÉES</p><p className="money-value mt-1 text-[clamp(0.78rem,3.2vw,1.5rem)] font-bold leading-tight">{money(totals.out)}</p></CardContent></Card><Card><CardContent className="min-w-0 p-3 sm:p-4"><p className="text-xs text-muted-foreground">SOLDE</p><p className="money-value mt-1 text-[clamp(0.78rem,3.2vw,1.5rem)] font-bold leading-tight">{money(totals.balance)}</p></CardContent></Card><Card><CardContent className="p-3 sm:p-4"><p className="text-xs text-muted-foreground">OPÉRATIONS VALIDÉES</p><p className="mt-1 text-2xl font-bold leading-tight">{transactions.filter((t:any)=>t.status==="valide").length}</p></CardContent></Card></div><Card><CardHeader><CardTitle>Répartition par source</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Source</th><th className="p-2 text-right">Entrées</th><th className="p-2 text-right">Sorties</th><th className="p-2 text-right">Opérations</th></tr></thead><tbody>{reportSources.map(r=><tr key={r.source} className="border-b last:border-0"><td className="p-2 font-medium">{r.source}</td><td className="money-value p-2 text-right">{money(r.entrees)}</td><td className="money-value p-2 text-right">{money(r.sorties)}</td><td className="p-2 text-right">{r.count}</td></tr>)}{!reportSources.length&&<tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Aucune opération validée</td></tr>}</tbody></table></div></CardContent></Card><Card><CardHeader><CardTitle>Dernières opérations validées</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-2">Date</th><th className="p-2">Libellé</th><th className="p-2">Source</th><th className="p-2 text-right">Montant</th></tr></thead><tbody>{recentValidTransactions.map((t:any)=><tr key={t.id} className="border-b last:border-0"><td className="p-2 whitespace-nowrap">{t.transaction_date?new Date(t.transaction_date).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{t.label||"—"}</td><td className="p-2">{String(t.source_type||"MANUEL").toUpperCase()}</td><td className={`money-value p-2 text-right font-semibold ${t.direction==="sortie"?"text-destructive":"text-primary"}`}>{t.direction==="sortie"?"−":"+"}{money(t.amount)}</td></tr>)}{!recentValidTransactions.length&&<tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Aucune opération validée</td></tr>}</tbody></table></div></CardContent></Card></TabsContent>
