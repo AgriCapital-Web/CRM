@@ -232,7 +232,7 @@ const ConfigurationSysteme = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" />Configuration système</CardTitle>
-          <CardDescription>Centre de réglages du CRM AgriCapital. Les nombres sur les onglets indiquent combien de réglages existent dans chaque catégorie, pas des erreurs ni des tâches à faire.</CardDescription>
+          <CardDescription>Réglages du CRM AgriCapital.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg bg-muted/50 p-3"><p className="text-xs text-muted-foreground">Réglages recensés</p><p className="text-2xl font-semibold">{configurations?.length ?? 0}</p></div>
@@ -245,14 +245,14 @@ const ConfigurationSysteme = () => {
         <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Info className="h-4 w-4" />Comment utiliser cette page</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p><strong>1. Choisissez une catégorie.</strong> Le chiffre à côté de son nom indique le nombre de réglages qu’elle contient.</p>
-          <p><strong>2. Lisez la description et la clé.</strong> La description explique l’usage connu ; la clé technique identifie le réglage. Si son effet reste incertain, ne changez pas sa valeur.</p>
-          <p><strong>3. Modifiez la valeur.</strong> Un interrupteur sert aux options activées/désactivées ; les autres champs servent aux nombres, adresses ou textes.</p>
-          <p><strong>4. Enregistrez.</strong> Utilisez « Enregistrer ce réglage » pour une seule valeur, ou « Enregistrer les modifications » pour toutes les valeurs modifiées. Attendez la confirmation avant de quitter.</p>
-          <p><strong>Où régler quoi ?</strong> Les taux, barèmes et règles de commission se gèrent exclusivement dans Paramètres → Rémunération. Les canaux et modèles de notification se règlent dans Paramètres → Notifications et dans la configuration Senndo. Les coordonnées de l’entreprise se règlent dans « Contacts » et « Général ».</p>
-          <p><strong>Attention :</strong> après avoir activé/désactivé une option ou modifié un champ, cliquez sur « Enregistrer les modifications ». Cliquer sur un interrupteur seul ne sauvegarde pas la valeur.</p>
+          <p><strong>2. Lisez la description et la clé.</strong> La description précise l’usage ; la clé identifie le réglage.</p>
+          <p><strong>3. Modifiez la valeur.</strong> Interrupteur : activer ou désactiver. Autres champs : modifier la valeur.</p>
+          <p><strong>4. Enregistrez.</strong> Enregistrez un réglage ou l’ensemble des modifications.</p>
+          <p><strong>Où régler quoi ?</strong> Commissions : Paramètres → Rémunération. Notifications : Paramètres → Notifications / Senndo.</p>
+          <p><strong>Attention :</strong> Après chaque modification, cliquez sur « Enregistrer les modifications ».</p>
           <p><strong>Droits et sécurité :</strong> l’enregistrement est réservé aux administrateurs globaux (PDG/DG habilités). La base refuse les écritures non autorisées, les valeurs incompatibles avec leur type et les réglages marqués non modifiables.</p>
           <p><strong>Propagation :</strong> la valeur enregistrée devient la référence centrale en base. Elle ne change un comportement métier que dans les modules et fonctions qui lisent explicitement cette clé ; les secrets Senndo restent dans Vault et se règlent dans la page Senndo.</p>
-          <p><strong>Enregistrement groupé :</strong> toutes les modifications sont validées et appliquées dans une seule transaction : si une valeur ou un droit échoue, l’ensemble est annulé.</p>
+          <p><strong>Enregistrement groupé :</strong> Les modifications sont enregistrées ensemble ; en cas d’échec, tout est annulé.</p>
         </CardContent>
       </Card>
 
