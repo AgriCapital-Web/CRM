@@ -91,13 +91,12 @@ const assertWhatsAppLength = (value: string) => {
 };
 
 function brandAutomatedMessage(value: string, channel: string): string {
-  let content = value.trim().replace(/^bonjour\s+[^,\n!]+[,!]\s*/i, "").replace(/^salut\s+[^,\n!]+[,!]\s*/i, "").replace(/^AgriCapital\s*:\s*/i, "");
-  const alreadyBranded = /^AgriCapital\s*\(auto\):/i.test(content) ||
-    /^AgriCapital\s*\(notification automatique\):/i.test(content) ||
-    /agricapital\s*[|·—-].*(notification automatique|message automatique)/i.test(content) ||
-    /notification automatique envoyée par agricapital/i.test(content);
+  // Ne jamais supprimer le texte rédigé dans le modèle ou la campagne :
+  // salutation personnalisée, signature et contenu restent intacts.
+  const content = value.trim();
   if (channel === "sms") {
-    const prefix = "AgriCapital (auto): ";
+    const prefix = "AgriCapital : ";
+    const alreadyBranded = /^AgriCapital\\s*[:(]/i.test(content);
     if (alreadyBranded) return assertSmsLength(normalizeSms(content));
     const base = normalizeSms(content);
     const maxBody = 155 - Array.from(prefix).length;
@@ -106,8 +105,8 @@ function brandAutomatedMessage(value: string, channel: string): string {
       : base;
     return assertSmsLength(prefix + clipped);
   }
-  if (alreadyBranded) return content;
-  if (channel === "email") return content + "\n\n— AgriCapital\nContact : contact@agricapital.ci";
+  // WhatsApp et e-mail transmettent le contenu source sans retirer le prénom,
+  // la salutation, le titre, la signature ou le slogan.
   return content;
 }
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
