@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, RefreshCw, FileText, Send, Search, Eye } from "lucide-react";
+import { Plus, RefreshCw, Send, Search, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 type Client = { id: string; nom_complet?: string; nom?: string; prenoms?: string; telephone: string; email?: string | null; localite?: string | null; type_compte?: string | null };
