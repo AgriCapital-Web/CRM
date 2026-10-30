@@ -1,0 +1,1 @@
+alter view public.crm_duplicate_contact_candidates rename column first_name to first_contact_name;
