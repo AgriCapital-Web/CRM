@@ -11,6 +11,8 @@ import { getCachedItems, STORES } from "@/lib/offlineDb";
 interface Props {
   formData: any;
   updateFormData: (data: any) => void;
+  showIdentityAndContracts?: boolean;
+  showAdditionalDocuments?: boolean;
 }
 
 const conditionActive = (doc: any, formData: any) => {
@@ -24,7 +26,7 @@ const conditionActive = (doc: any, formData: any) => {
   return true;
 };
 
-export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: Props) => {
+export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, showIdentityAndContracts = true, showAdditionalDocuments = true }: Props) => {
   const [documents, setDocuments] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,9 +73,11 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
           
         </CardHeader>
         <CardContent className="space-y-4">
-{(formData.type_personne || "personne_physique") === "personne_physique" && (
+{showIdentityAndContracts && (formData.type_personne || "personne_physique") === "personne_physique" && (
           <div className="space-y-4 rounded-xl border p-4"><h3 className="font-semibold">Identité et photos du client</h3><div className="grid gap-4 md:grid-cols-3"><div><Label>Type de pièce *</Label><PieceTypeSelect value={formData.type_piece||""} onChange={v=>updateFormData({type_piece:v})}/></div><div><Label>Numéro de pièce *</Label><Input value={formData.numero_piece||""} onChange={e=>updateFormData({numero_piece:e.target.value})}/></div><div><Label>Date de délivrance</Label><Input type="date" value={formData.date_delivrance_piece||""} onChange={e=>updateFormData({date_delivrance_piece:e.target.value})}/></div></div><div className="grid gap-3 sm:grid-cols-3"><FileUploadVisual label="Pièce d’identité — recto *" field="photo_piece_recto" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_recto_file||null} currentPreview={formData.photo_piece_recto_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_recto_file:file,photo_piece_recto_preview:preview})} onIdentityNumberDetected={n=>updateFormData({numero_piece:n})} identityDocumentType={formData.type_piece}/><FileUploadVisual label="Pièce d’identité — verso *" field="photo_piece_verso" accept=".pdf,image/jpeg,image/png" required currentFile={formData.photo_piece_verso_file||null} currentPreview={formData.photo_piece_verso_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_piece_verso_file:file,photo_piece_verso_preview:preview})} identityDocumentType={formData.type_piece}/></div><FileUploadVisual label="Photo de profil client *" field="photo_profil" accept="image/*" required currentFile={formData.photo_profil_file||null} currentPreview={formData.photo_profil_preview||""} onFileChange={(field,file,preview)=>updateFormData({photo_profil_file:file,photo_profil_preview:preview})}/></div>
           )}
+          {showAdditionalDocuments && (
+            <>
           {visibleDocuments.length === 0 && (
             <p className="text-sm text-muted-foreground">Aucune pièce supplémentaire à téléverser à cette étape.</p>
           )}
@@ -109,35 +113,21 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData }: P
         </CardContent>
       </Card>
 
-      {contracts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Contrat</CardTitle>
-            
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {contracts.map((contract) => (
-              <div key={contract.id} className="rounded-lg border p-3">
-                <p className="font-medium">
-                  {contract.type_contrat === "contrat_acquisition_client"
-                    ? "Contrat d’acquisition de plantation agricole"
-                    : "Contrat d’accompagnement agricole"}
-                </p>
-                <p className="text-xs text-muted-foreground">{contract.source_document}</p>
-                <FileUploadVisual
-                  label="Contrat signé *"
-                  field={"contrat_"+contract.type_contrat}
-                  accept=".pdf,image/*"
-                  required={Boolean(contract.obligatoire)}
-                  currentFile={formData["contrat_"+contract.type_contrat+"_file"]||null}
-                  currentPreview={formData["contrat_"+contract.type_contrat+"_preview"]||""}
-                  onFileChange={(field,file,preview)=>updateFormData({["contrat_"+contract.type_contrat+"_file"]: file, ["contrat_"+contract.type_contrat+"_preview"]: preview})}
-                />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+
+            </>
+          )}
+
+          {showIdentityAndContracts && (
+            <Card>
+              <CardHeader><CardTitle>Contrat signé</CardTitle></CardHeader>
+              <CardContent>
+                <p className="mb-3 text-sm text-muted-foreground">Le contrat signé est obligatoire pour toute offre et toute catégorie de client. Formats acceptés : PDF ou image.</p>
+                <FileUploadVisual label="Contrat signé *" field="contrat_signe_client" accept=".pdf,image/*" required currentFile={formData.contrat_signe_client_file||null} currentPreview={formData.contrat_signe_client_preview||""} onFileChange={(field,file,preview)=>updateFormData({contrat_signe_client_file:file,contrat_signe_client_preview:preview})}/>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
