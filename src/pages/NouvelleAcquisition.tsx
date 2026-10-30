@@ -164,7 +164,7 @@ const NouvelleAcquisition = () => {
       lead_id: leadId || "",
       prospect_id: prospectId || "",
       commercial_id: searchParams.get("commercial_id") || "",
-      nom_famille: searchParams.get("nom") || "",
+      nom: searchParams.get("nom") || "",
       prenoms: searchParams.get("prenoms") || "",
       telephone: searchParams.get("telephone") || "",
       whatsapp: searchParams.get("whatsapp") || "",
@@ -201,7 +201,7 @@ const NouvelleAcquisition = () => {
         type_personne:source.type_personne||"personne_physique",
         denomination_sociale:source.denomination_sociale||"",nature_organisation_code:source.nature_organisation_code||"",forme_juridique_code:source.forme_juridique_code||"",
         numero_enregistrement:source.numero_enregistrement||"",responsable_legal_nom:source.responsable_legal_nom||"",responsable_legal_prenoms:source.responsable_legal_prenoms||"",nombre_membres:source.nombre_membres||null,
-        nom_famille:source.nom_famille||source.nom||"", prenoms:source.prenoms||"",
+        nom:source.nom||source.nom||"", prenoms:source.prenoms||"",
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
         departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
@@ -422,7 +422,7 @@ const NouvelleAcquisition = () => {
     if(step.code==="client"){
       const typePersonne=formData.type_personne||"personne_physique";
       const commonMissing=["telephone","domicile"].filter(f=>!formData[f]);
-      const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom_famille","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
+      const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
@@ -487,7 +487,7 @@ const NouvelleAcquisition = () => {
   // conservé même si l’étape finale échoue; aucune actualisation n’est requise.
   useEffect(() => {
     if (draftLoading || saving || !user || !Object.keys(formData).length) return;
-    const hasMeaningfulData = Boolean(formData.offre_id || formData.lead_id || formData.prospect_id || formData.nom_famille || formData.telephone);
+    const hasMeaningfulData = Boolean(formData.offre_id || formData.lead_id || formData.prospect_id || formData.nom || formData.telephone);
     if (!hasMeaningfulData) return;
     const timer = window.setTimeout(async () => {
       if (draftSaveInFlight.current) { draftSaveAgain.current = true; return; }
@@ -531,7 +531,7 @@ const NouvelleAcquisition = () => {
       const currentUser = user;
       if(!currentUser)throw new Error("Session utilisateur introuvable");
       const savedDraftId = await saveDraft(current);
-      const stableClientId = stableUuid(currentUser.id, "client:" + String(formData.telephone || formData.nom_famille || "draft"));
+      const stableClientId = stableUuid(currentUser.id, "client:" + String(formData.telephone || formData.nom || "draft"));
       const {data:baseOffer,error:offerError}=await (supabase as any).from("offres").select("*").eq("id",formData.offre_id).single();
       if(offerError)throw offerError;
       if(!baseOffer)throw new Error("Offre sélectionnée introuvable");
@@ -571,15 +571,15 @@ const NouvelleAcquisition = () => {
       const mensualite=Number(prix.mensualite_effective||0)*ha;
       const reduction=Number(prix.reduction_montant||0)*ha;
       const external=!offer.necessite_foncier_client;
-      const nomComplet=(String(formData.nom_famille||"")+" "+String(formData.prenoms||"")).trim();
+      const nomComplet=(String(formData.nom||"")+" "+String(formData.prenoms||"")).trim();
       const {data:client,error:clientError}=await offlineUpsert("clients",{id:stableClientId,
         offre_id:offer.id,commercial_id:formData.commercial_id||null,parcelle_id:null,type_client:external?"sans_terre":"avec_terre",type_client_foncier:external?"EXT":"OWN",
         type_personne:formData.type_personne||"personne_physique",
         denomination_sociale:formData.denomination_sociale||null,nature_organisation_code:formData.nature_organisation_code||null,forme_juridique_code:formData.forme_juridique_code||null,
         numero_enregistrement:formData.numero_enregistrement||null,responsable_legal_nom:formData.responsable_legal_nom||null,responsable_legal_prenoms:formData.responsable_legal_prenoms||null,responsable_legal_telephone:formData.telephone||null,
         nombre_membres:formData.nombre_membres?Number(formData.nombre_membres):null,
-        nom:(formData.type_personne==="personne_morale"||formData.type_personne==="famille_informelle" ? (formData.denomination_sociale||formData.nom_famille||"") : (formData.nom_famille||"")),
-        nom_famille:formData.nom_famille||formData.responsable_legal_nom||null,prenoms:formData.prenoms||formData.responsable_legal_prenoms||null,
+        nom:(formData.type_personne==="personne_morale"||formData.type_personne==="famille_informelle" ? (formData.denomination_sociale||"") : (formData.nom||"")),
+        prenoms:formData.prenoms||formData.responsable_legal_prenoms||null,
         nom_complet:(formData.type_personne==="personne_morale"||formData.type_personne==="famille_informelle" ? (formData.denomination_sociale||nomComplet) : nomComplet),
         civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,nationalite:formData.nationalite||null,
         statut_marital:formData.statut_marital||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,date_delivrance_piece:formData.date_delivrance_piece||null,
@@ -794,14 +794,14 @@ const NouvelleAcquisition = () => {
       };
       const typePersonne=formData.type_personne||existingRecord.client.type_personne||"personne_physique";
       const organisationOrFamily=typePersonne==="personne_morale"||typePersonne==="famille_informelle";
-      const displayName=organisationOrFamily?(formData.denomination_sociale||existingRecord.client.denomination_sociale||formData.nom_complet||""):(formData.nom_famille||formData.nom||"");
+      const displayName=organisationOrFamily?(formData.denomination_sociale||existingRecord.client.denomination_sociale||formData.nom_complet||""):(formData.nom||formData.nom||"");
       const payload:any={type_personne:typePersonne,denomination_sociale:formData.denomination_sociale||null,
         nature_organisation_code:formData.nature_organisation_code||null,forme_juridique_code:formData.forme_juridique_code||null,
         numero_enregistrement:formData.numero_enregistrement||null,responsable_legal_nom:formData.responsable_legal_nom||null,
         responsable_legal_prenoms:formData.responsable_legal_prenoms||null,responsable_legal_telephone:formData.telephone||null,
         nombre_membres:formData.nombre_membres?Number(formData.nombre_membres):null,
-        nom:displayName,nom_famille:formData.nom_famille||formData.responsable_legal_nom||null,
-        prenoms:formData.prenoms||formData.responsable_legal_prenoms||"",nom_complet:organisationOrFamily?displayName:[formData.nom_famille||formData.nom,formData.prenoms].filter(Boolean).join(" ").trim(),
+        nom:displayName,
+        prenoms:formData.prenoms||formData.responsable_legal_prenoms||"",nom_complet:organisationOrFamily?displayName:[formData.nom,formData.prenoms].filter(Boolean).join(" ").trim(),
         civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,
         nationalite:formData.nationalite||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,
         date_delivrance_piece:formData.date_delivrance_piece||null,telephone:formData.telephone||"",
