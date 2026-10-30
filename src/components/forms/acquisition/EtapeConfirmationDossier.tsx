@@ -13,7 +13,7 @@ export const EtapeConfirmationDossier=({formData,updateFormData}:Props)=>{
  const docs=[...identityDocs,...extraDocs];
  const contracts=Object.keys(formData).filter(k=>k.startsWith("contrat_")&&k.endsWith("_file")&&formData[k]);
  const location=[formData.district_nom,formData.region_nom,formData.departement_nom,formData.sous_prefecture_nom,formData.village_nom||formData.village_propre].filter(Boolean).join(" / ");
- const clientName=(String(formData.nom_famille||"")+" "+String(formData.prenoms||"")).trim();
+ const clientName=(String(formData.nom||"")+" "+String(formData.prenoms||"")).trim();
  const repName=(String(formData.representant_nom||"")+" "+String(formData.representant_prenoms||"")).trim();
  return <div className="space-y-6">
   <Card><CardHeader><CardTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5"/>Récapitulatif du dossier</CardTitle></CardHeader><CardContent className="space-y-5">
