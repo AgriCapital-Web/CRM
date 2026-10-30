@@ -1,162 +1,125 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback,useEffect,useMemo,useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, RefreshCw, Send, Search, Eye } from "lucide-react";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from "@/components/ui/dialog";
+import { Table,TableBody,TableCell,TableHead,TableHeader,TableRow } from "@/components/ui/table";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { Plus,RefreshCw,Send,Search,Eye,MapPin } from "lucide-react";
 import { toast } from "sonner";
+import GeographieCascade from "@/components/common/GeographieCascade";
+import CountryPhoneInput from "@/components/common/CountryPhoneInput";
+import InteractiveMap from "@/components/maps/InteractiveMap";
 
-type Client = { id: string; nom_complet?: string; nom?: string; prenoms?: string; telephone: string; email?: string | null; localite?: string | null; type_compte?: string | null };
-type Line = { designation: string; quantity: string; unit: string; unit_price: string; hectares: string };
-type Proforma = { id: string; reference: string; client_id: string; client_name: string; client_phone: string; status: string; version: number; total_amount: number; issued_at: string | null; valid_until: string | null; created_at: string };
-
-const money = (v: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(v || 0);
-const canWriteRoles = ["pdg", "dg", "service_client", "chef_equipe_service_client"];
-const statusLabels: Record<string, string> = { brouillon: "Brouillon", emise: "Émise", acceptee: "Acceptée", modification_demandee: "Modification demandée", refusee: "Refusée", en_cours: "En cours", terminee: "Terminée", annulee: "Annulée", expiree: "Expirée" };
-const emptyLine = (): Line => ({ designation: "Fourniture de plants", quantity: "1", unit: "plant", unit_price: "0", hectares: "" });
-
-export default function PrestationsIndependantes() {
-  const { user, userRoles } = useAuth();
-  const canWrite = userRoles.some(role => canWriteRoles.includes(role));
-  const [rows, setRows] = useState<Proforma[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [clientId, setClientId] = useState("");
-  const [clientType, setClientType] = useState("personne");
-  const [observations, setObservations] = useState("");
-  const [lines, setLines] = useState<Line[]>([emptyLine()]);
-  const [selected, setSelected] = useState<Proforma | null>(null);
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [p, c] = await Promise.all([
-      (supabase as any).from("independent_service_proformas").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(300),
-      (supabase as any).from("clients").select("id,nom_complet,nom,prenoms,telephone,email,localite,type_compte").order("nom_complet").limit(3000),
-    ]);
-    if (p.error) toast.error("Impossible de charger les proformas : " + p.error.message);
-    if (c.error) toast.error("Impossible de charger les clients : " + c.error.message);
-    setRows((p.data || []) as Proforma[]);
-    setClients((c.data || []) as Client[]);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase("fr");
-    return rows.filter(r => !q || [r.reference, r.client_name, r.client_phone, r.status].some(v => String(v || "").toLocaleLowerCase("fr").includes(q)));
-  }, [rows, search]);
-  const total = useMemo(() => lines.reduce((s, l) => s + Math.max(0, Number(l.quantity) || 0) * Math.max(0, Number(l.unit_price) || 0), 0), [lines]);
-  const client = clients.find(c => c.id === clientId);
-
-  const createProforma = async () => {
-    if (!canWrite || !user?.id) return;
-    if (!client) { toast.error("Sélectionnez un client."); return; }
-    if (!lines.length || lines.some(l => !l.designation.trim() || Number(l.quantity) <= 0 || Number(l.unit_price) < 0 || !l.unit)) {
-      toast.error("Vérifiez les désignations, quantités, unités et prix unitaires."); return;
-    }
-    setSaving(true);
-    try {
-      const reference = "PS-" + new Date().toISOString().slice(0,10).replaceAll("-", "") + "-" + crypto.randomUUID().slice(0,8).toUpperCase();
-      const name = client.nom_complet || [client.prenoms, client.nom].filter(Boolean).join(" ") || client.nom || "Client";
-      const { data, error } = await (supabase as any).from("independent_service_proformas").insert({
-        reference, client_id: client.id, client_type: clientType, client_name: name,
-        client_phone: client.telephone, client_email: client.email || null, client_locality: client.localite || null,
-        status: "brouillon", subtotal: total, tax_amount: 0, total_amount: total,
-        observations: observations || null, created_by: user.id, updated_by: user.id,
-      }).select("*").single();
-      if (error) throw error;
-      const itemRows = lines.map((l, i) => ({
-        proforma_id: data.id, designation: l.designation.trim(), quantity: Number(l.quantity),
-        unit: l.unit, unit_price: Number(l.unit_price), amount: Number(l.quantity) * Number(l.unit_price),
-        hectares: l.hectares.trim() ? Number(l.hectares) : null, sort_order: i,
-      }));
-      const { error: itemError } = await (supabase as any).from("independent_service_items").insert(itemRows);
-      if (itemError) {
-        await (supabase as any).from("independent_service_proformas").delete().eq("id", data.id);
-        throw itemError;
-      }
-      await (supabase as any).from("independent_service_events").insert({ proforma_id: data.id, event_code: "created", actor_type: "staff", actor_id: user.id });
-      toast.success("Proforma créée en brouillon.");
-      setDialogOpen(false); setClientId(""); setObservations(""); setLines([emptyLine()]);
-      await load();
-    } catch (e: any) { toast.error(e?.message || "La création a échoué."); }
-    finally { setSaving(false); }
-  };
-
-  const issueProforma = async (row: Proforma) => {
-    if (!canWrite || !user?.id) return;
-    const issued = new Date();
-    const valid = new Date(issued); valid.setDate(valid.getDate() + 15);
-    const { error } = await (supabase as any).from("independent_service_proformas").update({
-      status: "emise", issued_at: issued.toISOString(), valid_until: valid.toISOString().slice(0,10), updated_by: user.id,
-    }).eq("id", row.id).eq("status", "brouillon");
-    if (error) { toast.error(error.message); return; }
-    await (supabase as any).from("independent_service_events").insert({ proforma_id: row.id, event_code: "issued", actor_type: "staff", actor_id: user.id });
-    toast.success("Proforma émise. Validité : 15 jours.");
-    await load();
-  };
-
-  const openDetails = async (row: Proforma) => {
-    const { data, error } = await (supabase as any).from("independent_service_items").select("*").eq("proforma_id", row.id).order("sort_order");
-    if (error) { toast.error(error.message); return; }
-    setSelected(row); setSelectedItems(data || []);
-  };
-
-  return <MainLayout>
-    <div className="mx-auto max-w-7xl space-y-6 p-3 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-2xl font-bold">Prestations indépendantes</h1><p className="text-sm text-muted-foreground">Gestion des prestations, devis et proformas hors offres d’acquisition.</p></div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
-          {canWrite && <Dialog open={dialogOpen} onOpenChange={setDialogOpen}><DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4"/>Nouvelle proforma</Button></DialogTrigger>
-            <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-              <DialogHeader><DialogTitle>Créer une proforma indépendante</DialogTitle></DialogHeader>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2"><Label>Client</Label><Select value={clientId} onValueChange={setClientId}><SelectTrigger><SelectValue placeholder="Sélectionner un client existant"/></SelectTrigger><SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.nom_complet || [c.prenoms,c.nom].filter(Boolean).join(" ") || c.nom} · {c.telephone}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Type de client</Label><Select value={clientType} onValueChange={setClientType}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="personne">Particulier</SelectItem><SelectItem value="entreprise">Entreprise</SelectItem><SelectItem value="groupe_familial">Groupe familial</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Observations</Label><Input value={observations} onChange={e=>setObservations(e.target.value)} placeholder="Facultatif"/></div>
-              </div>
-              <div className="space-y-3"><div className="flex items-center justify-between"><h3 className="font-semibold">Détail des prestations</h3><Button size="sm" variant="outline" onClick={()=>setLines(v=>[...v,emptyLine()])}><Plus className="mr-1 h-4 w-4"/>Ajouter une ligne</Button></div>
-                {lines.map((line,i)=><div key={i} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-12">
-                  <div className="space-y-1 sm:col-span-4"><Label>Désignation</Label><Input value={line.designation} onChange={e=>setLines(v=>v.map((x,j)=>j===i?{...x,designation:e.target.value}:x))}/></div>
-                  <div className="space-y-1 sm:col-span-2"><Label>Quantité</Label><Input type="number" min="0.001" step="0.001" value={line.quantity} onChange={e=>setLines(v=>v.map((x,j)=>j===i?{...x,quantity:e.target.value}:x))}/></div>
-                  <div className="space-y-1 sm:col-span-2"><Label>Unité</Label><Select value={line.unit} onValueChange={value=>setLines(v=>v.map((x,j)=>j===i?{...x,unit:value}:x))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["ha","plant","u","j","h","forfait"].map(u=><SelectItem key={u} value={u}>{u==="plant"?"Plant":u==="u"?"Unité":u==="j"?"Jour":u==="h"?"Heure":u==="ha"?"Hectare":"Forfait"}</SelectItem>)}</SelectContent></Select></div>
-                  <div className="space-y-1 sm:col-span-2"><Label>Prix unitaire</Label><Input type="number" min="0" value={line.unit_price} onChange={e=>setLines(v=>v.map((x,j)=>j===i?{...x,unit_price:e.target.value}:x))}/></div>
-                  <div className="space-y-1 sm:col-span-2"><Label>Superficie (ha)</Label><Input type="number" min="0" step="0.001" value={line.hectares} onChange={e=>setLines(v=>v.map((x,j)=>j===i?{...x,hectares:e.target.value}:x))} placeholder="Optionnel"/></div>
-                  <div className="flex items-center justify-between sm:col-span-12"><span className="text-sm text-muted-foreground">Montant : {money((Number(line.quantity)||0)*(Number(line.unit_price)||0))}</span>{lines.length>1&&<Button size="sm" variant="ghost" onClick={()=>setLines(v=>v.filter((_,j)=>j!==i))}>Retirer</Button>}</div>
-                </div>)}
-              </div>
-              <div className="flex items-center justify-between border-t pt-3"><span className="font-semibold">Total HT / Total</span><span className="text-xl font-bold">{money(total)}</span></div>
-              <p className="text-xs text-muted-foreground">Aucun taux de taxe n’est appliqué automatiquement. La proforma sera créée en brouillon et ne constitue ni une facture ni un encaissement.</p>
-              <Button onClick={()=>void createProforma()} disabled={saving}>{saving?"Enregistrement…":"Créer le brouillon"}</Button>
-            </DialogContent>
-          </Dialog>}
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Proformas</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{rows.length}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Proformas émises</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{rows.filter(r=>r.status!=="brouillon").length}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Montant des proformas</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{money(rows.filter(r=>r.status!=="brouillon").reduce((s,r)=>s+Number(r.total_amount||0),0))}</CardContent></Card>
-      </div>
-      <div className="flex items-center gap-2"><Search className="h-4 w-4 text-muted-foreground"/><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher une référence, un client ou un statut…" className="max-w-md"/></div>
-      <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>Référence</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Validité</TableHead><TableHead>Montant</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>
-        {loading?<TableRow><TableCell colSpan={7} className="py-8 text-center">Chargement…</TableCell></TableRow>:filtered.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Aucune proforma indépendante.</TableCell></TableRow>:filtered.map(r=><TableRow key={r.id}><TableCell className="font-medium">{r.reference} <span className="text-xs text-muted-foreground">v{r.version}</span></TableCell><TableCell>{r.client_name}<div className="text-xs text-muted-foreground">{r.client_phone}</div></TableCell><TableCell>{new Date(r.issued_at||r.created_at).toLocaleDateString("fr-FR")}</TableCell><TableCell>{r.valid_until?new Date(r.valid_until+"T00:00:00").toLocaleDateString("fr-FR"):"—"}</TableCell><TableCell>{money(Number(r.total_amount))}</TableCell><TableCell><Badge variant="outline">{statusLabels[r.status]||r.status}</Badge></TableCell><TableCell className="space-x-1 text-right"><Button size="sm" variant="ghost" onClick={()=>void openDetails(r)}><Eye className="h-4 w-4"/></Button>{canWrite&&r.status==="brouillon"&&<Button size="sm" onClick={()=>void issueProforma(r)}><Send className="mr-1 h-3 w-3"/>Émettre</Button>}</TableCell></TableRow>)}
-      </TableBody></Table></CardContent></Card>
-      <Dialog open={!!selected} onOpenChange={open=>!open&&setSelected(null)}><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Proforma {selected?.reference}</DialogTitle></DialogHeader>{selected&&<div className="space-y-4"><div className="flex justify-between"><div><p className="font-semibold">{selected.client_name}</p><p className="text-sm text-muted-foreground">{selected.client_phone}</p></div><Badge>{statusLabels[selected.status]||selected.status}</Badge></div><Table><TableHeader><TableRow><TableHead>Désignation</TableHead><TableHead>Qté</TableHead><TableHead>Unité</TableHead><TableHead>Prix unitaire</TableHead><TableHead>Montant</TableHead></TableRow></TableHeader><TableBody>{selectedItems.map(item=><TableRow key={item.id}><TableCell>{item.designation}</TableCell><TableCell>{item.quantity}</TableCell><TableCell>{item.unit}</TableCell><TableCell>{money(Number(item.unit_price))}</TableCell><TableCell>{money(Number(item.amount))}</TableCell></TableRow>)}</TableBody></Table><div className="text-right text-lg font-bold">Total : {money(Number(selected.total_amount))}</div><p className="text-xs text-muted-foreground">Document de consultation interne. L’émission PDF officielle, la validation client sécurisée et les paiements en ligne seront activés avec les services dédiés.</p></div>}</DialogContent></Dialog>
-    </div>
-  </MainLayout>;
+type Customer={id:string;customer_type:string;display_name:string;telephone:string;email?:string|null;locality?:string|null;details:any};
+type Catalog={id:string;code:string;designation:string;description?:string|null;default_unit:string};
+type Line={catalog_id:string;designation:string;quantity:string;unit:string;unit_price:string;hectares:string};
+type Proforma={id:string;reference:string;client_id:string;client_name:string;client_phone:string;status:string;version:number;total_amount:number;issued_at:string|null;valid_until:string|null;created_at:string};
+const money=(v:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(v||0);
+const canWriteRoles=["pdg","dg","service_client","chef_equipe_service_client"];
+const statusLabels:Record<string,string>={brouillon:"Brouillon",emise:"Émise",acceptee:"Acceptée",modification_demandee:"Modification demandée",refusee:"Refusée",en_cours:"En cours",terminee:"Terminée",annulee:"Annulée",expiree:"Expirée"};
+const emptyLine=():Line=>({catalog_id:"",designation:"",quantity:"1",unit:"forfait",unit_price:"0",hectares:""});
+const initialCustomer=()=>({customer_type:"particulier",nom:"",prenoms:"",civilite:"",denomination_sociale:"",nature_organisation_code:"",forme_juridique_code:"",numero_enregistrement:"",responsable_legal_nom:"",responsable_legal_prenoms:"",nombre_membres:"",telephone:"",telephone_indicatif:"+225",telephone_local:"",email:"",district_id:"",region_id:"",departement_id:"",sous_prefecture_id:"",village_id:"",locality:"",domicile:"",has_representant:false,representant_nom:"",representant_prenoms:"",representant_telephone:"",representant_lien:""});
+export default function PrestationsIndependantes(){
+ const {user,userRoles}=useAuth(); const canWrite=userRoles.some(role=>canWriteRoles.includes(role));
+ const [rows,setRows]=useState<Proforma[]>([]); const [customers,setCustomers]=useState<Customer[]>([]); const [catalog,setCatalog]=useState<Catalog[]>([]); const [techEvents,setTechEvents]=useState<any[]>([]);
+ const [loading,setLoading]=useState(true); const [search,setSearch]=useState(""); const [dialogOpen,setDialogOpen]=useState(false); const [saving,setSaving]=useState(false);
+ const [customerMode,setCustomerMode]=useState<"new"|"existing">("new"); const [customerId,setCustomerId]=useState(""); const [customer,setCustomer]=useState<any>(initialCustomer());
+ const [observations,setObservations]=useState(""); const [lines,setLines]=useState<Line[]>([emptyLine()]); const [selected,setSelected]=useState<Proforma|null>(null); const [selectedItems,setSelectedItems]=useState<any[]>([]);
+ const load=useCallback(async()=>{
+  setLoading(true);
+  const [p,c,s,e]=await Promise.all([
+   (supabase as any).from("independent_service_proformas").select("*").is("archived_at",null).order("created_at",{ascending:false}).limit(300),
+   (supabase as any).from("independent_service_customers").select("*").is("archived_at",null).order("display_name").limit(3000),
+   (supabase as any).from("independent_service_catalog").select("id,code,designation,description,default_unit").eq("active",true).order("sort_order"),
+   (supabase as any).from("independent_service_events").select("id,proforma_id,details,created_at,proforma:independent_service_proformas(reference,client_name,client_phone)").eq("event_code","technical_intervention").order("created_at",{ascending:false}).limit(500)
+  ]);
+  if(p.error)toast.error("Chargement des proformas impossible : "+p.error.message);
+  if(c.error)toast.error("Chargement des clients indépendants impossible : "+c.error.message);
+  if(s.error)toast.error("Chargement du catalogue impossible : "+s.error.message);
+  if(e.error)toast.error("Chargement des interventions impossible : "+e.error.message);
+  setRows(p.data||[]);setCustomers(c.data||[]);setCatalog(s.data||[]);setTechEvents(e.data||[]);setLoading(false);
+ },[]);
+ useEffect(()=>{void load();},[load]);
+ const filtered=useMemo(()=>{const q=search.trim().toLocaleLowerCase("fr");return rows.filter(r=>!q||[r.reference,r.client_name,r.client_phone,r.status].some(v=>String(v||"").toLocaleLowerCase("fr").includes(q)));},[rows,search]);
+ const total=useMemo(()=>lines.reduce((s,l)=>s+Math.max(0,Number(l.quantity)||0)*Math.max(0,Number(l.unit_price)||0),0),[lines]);
+ const markers=useMemo(()=>techEvents.filter(e=>e.details?.latitude!=null&&e.details?.longitude!=null).map(e=>({id:e.id,lat:Number(e.details.latitude),lng:Number(e.details.longitude),label:e.proforma?.reference||"Prestation indépendante",info:[e.proforma?.client_name,e.details?.travaux_realises].filter(Boolean).join(" · ")})),[techEvents]);
+ const updateCustomer=(patch:any)=>setCustomer((v:any)=>({...v,...patch}));
+ const setCatalogLine=(index:number,id:string)=>{const item=catalog.find(x=>x.id===id);setLines(v=>v.map((x,i)=>i===index?{...x,catalog_id:id,designation:item?.designation||"",unit:item?.default_unit||"forfait"}:x));};
+ const createProforma=async()=>{
+  if(!canWrite||!user?.id)return;
+  if(customerMode==="existing"&&!customerId){toast.error("Sélectionnez un client indépendant.");return;}
+  if(customerMode==="new"&&(!customer.telephone||!customer.customer_type)){toast.error("Le type de client et le téléphone sont obligatoires.");return;}
+  if(customerMode==="new"&&customer.customer_type==="particulier"&&(!customer.nom.trim()||!customer.prenoms.trim())){toast.error("Renseignez le nom et les prénoms du particulier.");return;}
+  if(customerMode==="new"&&customer.customer_type==="personne_morale"&&(!customer.denomination_sociale.trim()||!customer.responsable_legal_nom.trim())){toast.error("Renseignez la dénomination et le responsable légal.");return;}
+  if(customerMode==="new"&&customer.customer_type==="groupement_familial"&&(!customer.denomination_sociale.trim()||!customer.responsable_legal_nom.trim())){toast.error("Renseignez le nom du groupement et son représentant principal.");return;}
+  if(!lines.length||lines.some(l=>!l.catalog_id||!l.designation.trim()||Number(l.quantity)<=0||Number(l.unit_price)<0||!l.unit)){toast.error("Choisissez une prestation du catalogue et vérifiez les quantités et prix.");return;}
+  setSaving(true);
+  try{
+   let client=customers.find(c=>c.id===customerId)||null;
+   if(customerMode==="new"){
+    const displayName=customer.customer_type==="particulier"?[customer.prenoms,customer.nom].filter(Boolean).join(" "):customer.denomination_sociale;
+    const details={...customer,telephone_indicatif:customer.telephone_indicatif,representant:customer.has_representant?{nom:customer.representant_nom,prenoms:customer.representant_prenoms,telephone:customer.representant_telephone,lien:customer.representant_lien}:null};
+    const {data,error}=await (supabase as any).from("independent_service_customers").insert({customer_type:customer.customer_type,display_name:displayName,telephone:customer.telephone,email:customer.email||null,locality:customer.locality||null,district_id:customer.district_id||null,region_id:customer.region_id||null,departement_id:customer.departement_id||null,sous_prefecture_id:customer.sous_prefecture_id||null,village_id:customer.village_id||null,domicile:customer.domicile||null,details,created_by:user.id,updated_by:user.id}).select("*").single();
+    if(error)throw error;client=data;
+   }
+   if(!client)throw new Error("Client indépendant introuvable.");
+   const reference="PS-"+new Date().toISOString().slice(0,10).replaceAll("-","")+"-"+crypto.randomUUID().slice(0,8).toUpperCase();
+   const {data,error}=await (supabase as any).from("independent_service_proformas").insert({reference,client_id:client.id,client_type:client.customer_type==="particulier"?"personne":client.customer_type==="personne_morale"?"entreprise":"groupe_familial",client_name:client.display_name,client_phone:client.telephone,client_email:client.email||null,client_locality:client.locality||null,status:"brouillon",subtotal:total,tax_amount:0,total_amount:total,observations:observations||null,created_by:user.id,updated_by:user.id}).select("*").single();
+   if(error)throw error;
+   const itemRows=lines.map((l,i)=>({proforma_id:data.id,catalog_id:l.catalog_id,designation:l.designation,quantity:Number(l.quantity),unit:l.unit,unit_price:Number(l.unit_price),amount:Number(l.quantity)*Number(l.unit_price),hectares:l.hectares.trim()?Number(l.hectares):null,sort_order:i}));
+   const {error:itemError}=await (supabase as any).from("independent_service_items").insert(itemRows);
+   if(itemError){await (supabase as any).from("independent_service_proformas").delete().eq("id",data.id);throw itemError;}
+   const {error:eventError}=await (supabase as any).from("independent_service_events").insert({proforma_id:data.id,event_code:"created",actor_type:"staff",actor_id:user.id});
+   if(eventError)throw eventError;
+   toast.success("Proforma indépendante créée en brouillon.");
+   setDialogOpen(false);setCustomer(initialCustomer());setCustomerId("");setObservations("");setLines([emptyLine()]);setCustomerMode("new");await load();
+  }catch(e:any){toast.error(e?.message||"La création a échoué.");}
+  finally{setSaving(false);}
+ };
+ const issueProforma=async(row:Proforma)=>{
+  if(!canWrite||!user?.id)return;const issued=new Date();const valid=new Date(issued);valid.setDate(valid.getDate()+15);
+  const {error}=await (supabase as any).from("independent_service_proformas").update({status:"emise",issued_at:issued.toISOString(),valid_until:valid.toISOString().slice(0,10),updated_by:user.id}).eq("id",row.id).eq("status","brouillon");
+  if(error){toast.error(error.message);return;}
+  const {error:eventError}=await (supabase as any).from("independent_service_events").insert({proforma_id:row.id,event_code:"issued",actor_type:"staff",actor_id:user.id});
+  if(eventError){toast.error("Proforma émise, mais l'historique n'a pas été enregistré : "+eventError.message);return;}
+  toast.success("Proforma émise. Validité : 15 jours.");await load();
+ };
+ const openDetails=async(row:Proforma)=>{const {data,error}=await (supabase as any).from("independent_service_items").select("*").eq("proforma_id",row.id).order("sort_order");if(error){toast.error(error.message);return;}setSelected(row);setSelectedItems(data||[]);};
+ const setLine=(i:number,patch:Partial<Line>)=>setLines(v=>v.map((x,j)=>j===i?{...x,...patch}:x));
+ return <MainLayout><div className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6">
+  <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Prestations indépendantes</h1><p className="text-sm text-muted-foreground">Clients, catalogue, devis et proformas hors offres d’acquisition.</p></div><div className="flex gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>{canWrite&&<Button onClick={()=>setDialogOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouvelle proforma</Button>}</div></div>
+  <Tabs defaultValue="proformas"><TabsList><TabsTrigger value="proformas">Proformas ({rows.length})</TabsTrigger><TabsTrigger value="carte">Carte des interventions ({markers.length})</TabsTrigger></TabsList>
+   <TabsContent value="proformas" className="space-y-4"><div className="grid gap-3 sm:grid-cols-3"><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Proformas</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{rows.length}</CardContent></Card><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Proformas émises</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{rows.filter(r=>r.status!=="brouillon").length}</CardContent></Card><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Montant émis</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{money(rows.filter(r=>r.status!=="brouillon").reduce((s,r)=>s+Number(r.total_amount||0),0))}</CardContent></Card></div>
+    <div className="flex items-center gap-2"><Search className="h-4 w-4 text-muted-foreground"/><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher une référence, un client ou un statut…" className="max-w-md"/></div>
+    <Card><CardContent className="p-0"><Table><TableHeader><TableRow><TableHead>Référence</TableHead><TableHead>Client indépendant</TableHead><TableHead>Date</TableHead><TableHead>Validité</TableHead><TableHead>Montant</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={7} className="py-8 text-center">Chargement…</TableCell></TableRow>:filtered.length===0?<TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Aucune proforma indépendante.</TableCell></TableRow>:filtered.map(r=><TableRow key={r.id}><TableCell className="font-medium">{r.reference} <span className="text-xs text-muted-foreground">v{r.version}</span></TableCell><TableCell>{r.client_name}<div className="text-xs text-muted-foreground">{r.client_phone}</div></TableCell><TableCell>{new Date(r.issued_at||r.created_at).toLocaleDateString("fr-FR")}</TableCell><TableCell>{r.valid_until?new Date(r.valid_until+"T00:00:00").toLocaleDateString("fr-FR"):"—"}</TableCell><TableCell>{money(Number(r.total_amount))}</TableCell><TableCell><Badge variant="outline">{statusLabels[r.status]||r.status}</Badge></TableCell><TableCell className="space-x-1 text-right"><Button size="sm" variant="ghost" onClick={()=>void openDetails(r)}><Eye className="h-4 w-4"/></Button>{canWrite&&r.status==="brouillon"&&<Button size="sm" onClick={()=>void issueProforma(r)}><Send className="mr-1 h-3 w-3"/>Émettre</Button>}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+   </TabsContent>
+   <TabsContent value="carte">{markers.length?<InteractiveMap mode="view" markers={markers} height="480px"/>:<Card><CardContent className="p-6 text-center text-muted-foreground">Aucune localisation enregistrée pour le moment. Les points apparaîtront après les visites techniques.</CardContent></Card>}</TabsContent>
+  </Tabs>
+  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}><DialogContent className="max-h-[92dvh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>Créer une proforma indépendante</DialogTitle></DialogHeader>
+   <div className="space-y-5">
+    <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant={customerMode==="new"?"default":"outline"} onClick={()=>setCustomerMode("new")}>Enregistrer un nouveau client indépendant</Button><Button type="button" size="sm" variant={customerMode==="existing"?"default":"outline"} onClick={()=>setCustomerMode("existing")}>Choisir un client indépendant existant</Button></div>
+    {customerMode==="existing"?<div><Label>Client indépendant *</Label><Select value={customerId} onValueChange={setCustomerId}><SelectTrigger><SelectValue placeholder="Sélectionner dans les clients indépendants"/></SelectTrigger><SelectContent>{customers.map(c=><SelectItem key={c.id} value={c.id}>{c.display_name} · {c.telephone}</SelectItem>)}</SelectContent></Select></div>:<>
+     <div className="rounded-lg border p-3 space-y-3"><div><Label>Catégorie du client *</Label><Select value={customer.customer_type} onValueChange={v=>updateCustomer({customer_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="particulier">Particulier</SelectItem><SelectItem value="personne_morale">Personne morale</SelectItem><SelectItem value="groupement_familial">Groupement familial</SelectItem></SelectContent></Select></div>
+      {customer.customer_type==="particulier"&&<div className="grid gap-3 sm:grid-cols-3"><div><Label>Civilité</Label><Select value={customer.civilite} onValueChange={v=>updateCustomer({civilite:v})}><SelectTrigger><SelectValue placeholder="Civilité"/></SelectTrigger><SelectContent><SelectItem value="M">M.</SelectItem><SelectItem value="Mme">Mme</SelectItem><SelectItem value="Mlle">Mlle</SelectItem></SelectContent></Select></div><div><Label>Nom *</Label><Input value={customer.nom} onChange={e=>updateCustomer({nom:e.target.value.toLocaleUpperCase("fr-FR")})}/></div><div><Label>Prénoms *</Label><Input value={customer.prenoms} onChange={e=>updateCustomer({prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div></div>}
+      {customer.customer_type!=="particulier"&&<div className="space-y-3"><div><Label>{customer.customer_type==="personne_morale"?"Dénomination sociale *":"Nom du groupement / de la famille *"}</Label><Input value={customer.denomination_sociale} onChange={e=>updateCustomer({denomination_sociale:e.target.value})}/></div>{customer.customer_type==="personne_morale"&&<div className="grid gap-3 sm:grid-cols-3"><div><Label>Nature</Label><Select value={customer.nature_organisation_code} onValueChange={v=>updateCustomer({nature_organisation_code:v})}><SelectTrigger><SelectValue placeholder="Nature"/></SelectTrigger><SelectContent>{["societe","association","cooperative","ong","groupement","autre"].map(v=><SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div><div><Label>Forme juridique</Label><Input value={customer.forme_juridique_code} onChange={e=>updateCustomer({forme_juridique_code:e.target.value})} placeholder="SARL, SA, GIE…"/></div><div><Label>N° enregistrement</Label><Input value={customer.numero_enregistrement} onChange={e=>updateCustomer({numero_enregistrement:e.target.value})}/></div></div>}<div className="grid gap-3 sm:grid-cols-3"><div><Label>Nom du représentant principal *</Label><Input value={customer.responsable_legal_nom} onChange={e=>updateCustomer({responsable_legal_nom:e.target.value.toLocaleUpperCase("fr-FR")})}/></div><div><Label>Prénoms du représentant</Label><Input value={customer.responsable_legal_prenoms} onChange={e=>updateCustomer({responsable_legal_prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div><div><Label>Nombre de membres</Label><Input type="number" min="1" value={customer.nombre_membres} onChange={e=>updateCustomer({nombre_membres:e.target.value})}/></div></div></div>}
+     </div>
+     <div className="rounded-lg border p-3 space-y-3"><h3 className="font-semibold">Coordonnées et résidence</h3><CountryPhoneInput label="Téléphone principal *" countryCode={customer.telephone_indicatif} localValue={customer.telephone_local} onChange={v=>updateCustomer({telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue})}/><div><Label>Email</Label><Input type="email" value={customer.email} onChange={e=>updateCustomer({email:e.target.value})}/></div><GeographieCascade districtId={customer.district_id} regionId={customer.region_id} departementId={customer.departement_id} sousPrefectureId={customer.sous_prefecture_id} villageId={customer.village_id} required onChange={g=>updateCustomer({district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",locality:g.villageName||g.sousPrefectureName||""})}/><div><Label>Lieu de résidence</Label><Input value={customer.domicile} onChange={e=>updateCustomer({domicile:e.target.value})}/></div></div>
+     <div className="rounded-lg border p-3 space-y-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={customer.has_representant} onChange={e=>updateCustomer({has_representant:e.target.checked})}/>Ajouter un cotitulaire ou un mandataire (facultatif)</label>{customer.has_representant&&<div className="grid gap-3 sm:grid-cols-2"><div><Label>Nom du représentant</Label><Input value={customer.representant_nom} onChange={e=>updateCustomer({representant_nom:e.target.value})}/></div><div><Label>Prénoms</Label><Input value={customer.representant_prenoms} onChange={e=>updateCustomer({representant_prenoms:e.target.value})}/></div><div><Label>Téléphone</Label><Input value={customer.representant_telephone} onChange={e=>updateCustomer({representant_telephone:e.target.value})}/></div><div><Label>Lien / qualité</Label><Input value={customer.representant_lien} onChange={e=>updateCustomer({representant_lien:e.target.value})}/></div></div>}</div>
+    </>}
+    <div className="space-y-3"><div className="flex items-center justify-between"><h3 className="font-semibold">Prestations à chiffrer</h3><Button size="sm" variant="outline" onClick={()=>setLines(v=>[...v,emptyLine()])}><Plus className="mr-1 h-4 w-4"/>Ajouter une ligne</Button></div>{lines.map((line,i)=><div key={i} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-12"><div className="space-y-1 sm:col-span-4"><Label>Prestation du catalogue *</Label><Select value={line.catalog_id} onValueChange={v=>setCatalogLine(i,v)}><SelectTrigger><SelectValue placeholder="Choisir une prestation"/></SelectTrigger><SelectContent>{catalog.map(c=><SelectItem key={c.id} value={c.id}>{c.designation}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1 sm:col-span-2"><Label>Quantité</Label><Input type="number" min="0.001" step="0.001" value={line.quantity} onChange={e=>setLine(i,{quantity:e.target.value})}/></div><div className="space-y-1 sm:col-span-2"><Label>Unité</Label><Input value={line.unit} readOnly/></div><div className="space-y-1 sm:col-span-2"><Label>Prix unitaire (FCFA)</Label><Input type="number" min="0" value={line.unit_price} onChange={e=>setLine(i,{unit_price:e.target.value})}/></div><div className="space-y-1 sm:col-span-2"><Label>Superficie (ha)</Label><Input type="number" min="0" step="0.001" value={line.hectares} onChange={e=>setLine(i,{hectares:e.target.value})}/></div><div className="flex items-center justify-between sm:col-span-12"><span className="text-sm text-muted-foreground">Montant : {money((Number(line.quantity)||0)*(Number(line.unit_price)||0))}</span>{lines.length>1&&<Button size="sm" variant="ghost" onClick={()=>setLines(v=>v.filter((_,j)=>j!==i))}>Retirer</Button>}</div></div>)}</div>
+    <div><Label>Observations</Label><Textarea value={observations} onChange={e=>setObservations(e.target.value)}/></div>
+    <div className="rounded-lg border p-3"><div className="flex items-center justify-between"><span className="font-semibold">Total provisoire</span><span className="text-xl font-bold">{money(total)}</span></div><p className="mt-2 text-xs text-muted-foreground">Montant hors paramétrage fiscal validé. Aucun taux de TVA n’est appliqué automatiquement.</p></div>
+    <Button className="w-full" onClick={()=>void createProforma()} disabled={saving}>{saving?"Enregistrement…":"Créer le brouillon de proforma"}</Button>
+   </div>
+  </DialogContent></Dialog>
+  <Dialog open={!!selected} onOpenChange={v=>!v&&setSelected(null)}><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Proforma {selected?.reference}</DialogTitle></DialogHeader>{selected&&<div className="space-y-4"><div className="flex items-start justify-between"><img src="/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official" alt="Logo officiel AgriCapital" className="h-16 w-auto object-contain"/><Badge>{statusLabels[selected.status]||selected.status}</Badge></div><div><p className="font-semibold">{selected.client_name}</p><p className="text-sm text-muted-foreground">{selected.client_phone}</p></div><Table><TableHeader><TableRow><TableHead>Désignation</TableHead><TableHead>Qté</TableHead><TableHead>Unité</TableHead><TableHead>Prix unitaire</TableHead><TableHead>Montant</TableHead></TableRow></TableHeader><TableBody>{selectedItems.map(item=><TableRow key={item.id}><TableCell>{item.designation}</TableCell><TableCell>{item.quantity}</TableCell><TableCell>{item.unit}</TableCell><TableCell>{money(Number(item.unit_price))}</TableCell><TableCell>{money(Number(item.amount))}</TableCell></TableRow>)}</TableBody></Table><div className="text-right text-lg font-bold">Total : {money(Number(selected.total_amount))}</div><p className="text-xs text-muted-foreground">Proforma — document commercial préalable. Ce document ne vaut ni facture normalisée électronique ni preuve d’encaissement.</p></div>}</DialogContent></Dialog>
+ </div></MainLayout>;
 }
