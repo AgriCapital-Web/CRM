@@ -817,7 +817,7 @@ const ProprietairesTerres = () => {
                     <TabsContent value="parties" className="space-y-4">
                       <div className="rounded-lg border bg-muted/20 p-3">
                         <h3 className="font-semibold">Cotitulaires, mandataires et signatures</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">Renseignez séparément les personnes associées au dossier foncier et les témoins de la convention.</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Distinguez les personnes associées au dossier des témoins de la convention.</p>
                       </div>
                       <h4 className="font-semibold mt-4">Co-titulaire / mandataire et signatures</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
