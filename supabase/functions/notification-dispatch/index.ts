@@ -90,9 +90,23 @@ const assertWhatsAppLength = (value: string) => {
   return value;
 };
 
+function normalizeWhatsAppMessage(value: string): string {
+  // Remove only the legacy auto-branding line and duplicate slogan, preserving the campaign's text formatting.
+  const lines = value.replace(/\\r\\n?/g, "\\n").split("\\n").map((line) => line.replace(/🌱/gu, "").trimEnd());
+  const filtered = lines.filter((line) => !/^AgriCapital\\s*[·•—-]\\s*Notification automatique\\s*$/i.test(line.trim()));
+  const normalizeForCompare = (line: string) => line.replace(/[*_~`]/g, "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[’‘]/g, "'").replace(/[.!]/g, "").replace(/\\s+/g, " ").trim().toLocaleLowerCase("fr");
+  const slogan = "Investir la terre. Cultiver l'avenir.";
+  let sloganSeen = false;
+  const unique = filtered.filter((line) => {
+    if (normalizeForCompare(line) !== normalizeForCompare(slogan)) return true;
+    if (sloganSeen) return false;
+    sloganSeen = true;
+    return true;
+  });
+  return unique.join("\\n").replace(/\\n{3,}/g, "\\n\\n").trim();
+}
+
 function brandAutomatedMessage(value: string, channel: string): string {
-  // Ne jamais supprimer le texte rédigé dans le modèle ou la campagne :
-  // salutation personnalisée, signature et contenu restent intacts.
   const content = value.trim();
   if (channel === "sms") {
     const prefix = "AgriCapital : ";
@@ -105,8 +119,7 @@ function brandAutomatedMessage(value: string, channel: string): string {
       : base;
     return assertSmsLength(prefix + clipped);
   }
-  // WhatsApp et e-mail transmettent le contenu source sans retirer le prénom,
-  // la salutation, le titre, la signature ou le slogan.
+  if (channel === "whatsapp") return normalizeWhatsAppMessage(content);
   return content;
 }
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
