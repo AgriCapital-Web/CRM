@@ -650,10 +650,12 @@ async function runCampaign(campaignId: string) {
       ...(profiles.data || []).map((r:any):Contact => ({source_type:"equipe",source_id:r.id,user_id:r.user_id,nom_complet:r.nom_complet,email:r.email,telephone:r.telephone || (r.telephone_local ? String(r.telephone_indicatif || "+225")+String(r.telephone_local) : null) || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp || (r.whatsapp_local ? String(r.whatsapp_indicatif || "+225")+String(r.whatsapp_local) : null) || (r.telephone_principal_whatsapp ? r.telephone : null),telephone_secondaire_whatsapp_numero:r.telephone_secondaire_whatsapp_numero || (r.telephone_secondaire_whatsapp ? r.telephone_secondaire : null),role_code:r.role_code})),
     ];
     contacts = contacts.map((contact) => {
-      const selected = selectedRecipients.find((item) => item.source_id === contact.source_id);
-      if (!selected) return contact;
-      return { ...contact, source_type: selected.source_type || contact.source_type };
-    }).filter((contact) => selectedRecipients.some((item) => item.source_id === contact.source_id && (!item.source_type || item.source_type === contact.source_type)));
+      const selected = selectedRecipients.find((item) =>
+        String(item.source_id) === String(contact.source_id) &&
+        (!item.source_type || item.source_type === contact.source_type)
+      );
+      return selected ? contact : null;
+    }).filter((contact): contact is Contact => Boolean(contact));
   } else {
     contacts = await resolveContacts(criteria);
   }
