@@ -15,9 +15,10 @@ const corsHeaders = (req: Request) => {
   if (origin && /^https:\/\/([a-z0-9-]+\.)*(agricapital\.ci|lovableproject\.com|lovable\.app)$/i.test(origin)) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 };
-const json = (req: Request, body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-});
+const json = (req: Request, body: unknown, status = 200) => new Response(
+  [204, 205, 304].includes(status) ? null : JSON.stringify(body),
+  { status, headers: { ...corsHeaders(req), ...(status === 204 || status === 304 ? {} : { "Content-Type": "application/json" }) } },
+);
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const admin = createClient(supabaseUrl, serviceKey);
