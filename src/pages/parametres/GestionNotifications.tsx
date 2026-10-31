@@ -350,13 +350,20 @@ const GestionNotifications = () => {
 
   const editCampaign = (item: Campaign) => {
     const criteria: any = item.criteres || {};
+    const selected = Array.isArray(criteria.selected_recipients)
+      ? Array.from(new Map(criteria.selected_recipients.filter((r: any) => r?.source_type && r?.source_id)
+          .map((r: any) => [String(r.source_type) + ":" + String(r.source_id), { source_type: String(r.source_type), source_id: String(r.source_id) }])).values())
+      : [];
     setEditingCampaignId(item.id);
     setCampaign({
       nom: item.nom || "", description: item.description || "", canal: item.canal || "app", sujet: item.sujet || "",
-      contenu: item.contenu || "", segment_id: item.segment_id || "", audience: Array.isArray(criteria.selected_recipients) ? "selection" : String(criteria.audience || "tous"),
+      contenu: item.contenu || "", segment_id: item.segment_id || "", audience: selected.length ? "selection" : String(criteria.audience || "tous"),
       programme_le: item.programme_le ? new Date(item.programme_le).toISOString().slice(0,16) : "",
     });
-    setSelectedRecipients(Array.isArray(criteria.selected_recipients) ? criteria.selected_recipients : []);
+    setSelectedRecipients(selected);
+    setPreview(selected.length ? { count: selected.length, sample: [] } : null);
+    setRecipientTypes([]);
+    setRecipientSearch("");
     setCampaignMedia([]);
     setCampaignDialogOpen(true);
     setUploadingMedia(true);
