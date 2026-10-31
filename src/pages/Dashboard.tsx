@@ -748,7 +748,6 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:canPayments ? "/paiements" : "/clients"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"},
-        ...(canViewIndependentServiceCustomers ? [{group:"Clients",label:"Clients dépannage",shortLabel:"Clients dépannage",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}] : []),
       ] : []),
       ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Devis acceptés",shortLabel:"Devis acceptés",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : []),
     ]},
