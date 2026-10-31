@@ -1060,36 +1060,29 @@ serve(async (req) => {
     const requiredPermission = mode === "preview" ? "messagerie.view" : "messagerie.send";
     if (!(await staffAuthorized(req, requiredPermission))) return json(req, { error: "Accès refusé : votre rôle ne possède pas la permission de messagerie requise." }, 401);
     if (mode === "recipient_directory") {
+      // Use the same canonical recipient resolver as campaign previews and sends.
+      // Directly querying legacy CRM columns here caused the picker to fail with
+      // a  non-2xx response when a legacy column was absent from the live schema.
+      // resolveContacts already applies active/contact eligibility, canonical IDs,
+      // and deduplication across the supported audiences.
       const contacts = await resolveContacts({ audience: "tous" });
-      // Directory must be exhaustive even when the legacy recipient RPC filters
-      // a category out. Merge direct service-role reads from every CRM audience.
-      const [clientsRes, leadsRes, profilesRes] = await Promise.all([
-        admin.from("clients").select("id,nom_complet,prenoms,nom_famille,email,telephone,whatsapp,proprietaire_id,type_client,statut_global,compte_actif"),
-        admin.from("leads").select("id,nom,prenoms,email,telephone,whatsapp,etape_pipeline,statut,client_id"),
-        admin.from("profiles").select("id,user_id,nom_complet,email,telephone,whatsapp,actif"),
-      ]);
-      if (clientsRes.error) throw clientsRes.error;
-      if (leadsRes.error) throw leadsRes.error;
-      if (profilesRes.error) throw profilesRes.error;
-      const directory = new Map<string, any>();
-      for (const c of contacts) directory.set(c.source_type + ":" + c.source_id, c);
-      for (const row of clientsRes.data || []) {
-        if (["archive","supprime"].includes(String(row.statut_global || "").toLowerCase())) continue;
-        if (row.compte_actif === false && row.type_client === "client") continue;
-        const source_type = row.proprietaire_id && row.type_client === "beneficiaire_particulier" ? "proprietaire_foncier+beneficiaire_particulier" : row.proprietaire_id ? "proprietaire_foncier" : row.type_client === "beneficiaire_particulier" ? "beneficiaire_particulier" : "client";
-        directory.set(source_type + ":" + row.id, { source_type, source_id: row.id, nom_complet: row.nom_complet || [row.prenoms,row.nom_famille].filter(Boolean).join(" "), email: row.email, telephone: row.whatsapp || row.telephone, role_code: null });
+      const directory = new Map<string, Contact>();
+      for (const contact of contacts) {
+        if (!contact?.source_type || !contact?.source_id) continue;
+        const key = String(contact.source_type) + ":" + String(contact.source_id);
+        if (!directory.has(key)) directory.set(key, contact);
       }
-      for (const row of leadsRes.data || []) {
-        if (row.client_id || ["converti","converti_client","archive","supprime"].includes(String(row.statut || "").toLowerCase())) continue;
-        const source_type = row.etape_pipeline === "prospect" ? "prospect" : "lead";
-        directory.set(source_type + ":" + row.id, { source_type, source_id: row.id, nom_complet: [row.prenoms,row.nom].filter(Boolean).join(" "), email: row.email, telephone: row.whatsapp || row.telephone, role_code: null });
-      }
-      for (const row of profilesRes.data || []) {
-        if (row.actif === false) continue;
-        const source_type = "equipe";
-        directory.set(source_type + ":" + row.id, { source_type, source_id: row.id, nom_complet: row.nom_complet, email: row.email, telephone: row.whatsapp || row.telephone, role_code: null });
-      }
-      return json(req, { ok: true, contacts: [...directory.values()].map((c) => ({ source_type: c.source_type, source_id: c.source_id, nom_complet: c.nom_complet, email: c.email, telephone: c.telephone, role_code: c.role_code })) });
+      return json(req, {
+        ok: true,
+        contacts: [...directory.values()].map((contact) => ({
+          source_type: contact.source_type,
+          source_id: contact.source_id,
+          nom_complet: contact.nom_complet || "",
+          email: contact.email || null,
+          telephone: contact.whatsapp || contact.telephone || null,
+          role_code: contact.role_code || null,
+        })),
+      });
     }
     if (mode === "manual_contact") {
       const leadId = String(body.lead_id || "").trim();
