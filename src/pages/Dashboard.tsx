@@ -738,6 +738,7 @@ const Dashboard = () => {
       {label:"Encaissé",value:money(stats.collected),href:"/finance"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
+      ...(canViewIndependentServiceProformas ? [{label:"Montant devis acceptés",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"}] : []),
       {label:"Échéances en retard",value:stats.overdueCount,href:"/finance"},
     ]},
     { label:"Développement commercial", icon:Target, href:canLeads ? "/leads" : "/acquisitions", show:canClients || canLeads, metrics:[
@@ -747,9 +748,9 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients en retard",shortLabel:"En retard",value:stats.clientsOverdue,href:canPayments ? "/paiements" : "/clients"},
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"},
-        ...(canViewIndependentServiceCustomers ? [{group:"Clients",label:"Client indépendant",shortLabel:"Indépendants",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}] : []),
+        ...(canViewIndependentServiceCustomers ? [{group:"Clients",label:"Clients dépannage",shortLabel:"Clients dépannage",value:stats.independentCustomers,href:"/acquisitions/prestations-independantes"}] : []),
       ] : []),
-      ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Prestations indépendantes",shortLabel:"Prestations indép.",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : []),
+      ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Devis acceptés",shortLabel:"Devis acceptés",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : []),
     ]},
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
