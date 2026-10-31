@@ -88,5 +88,18 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "service\\.agricapital\\.ci"
+        }
+      ],
+      "destination": "https://client.agricapital.ci/:path*",
+      "permanent": true
+    }
   ]
 }
