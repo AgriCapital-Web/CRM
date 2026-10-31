@@ -225,8 +225,23 @@ const GestionNotifications = () => {
 
   const callDispatch = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("notification-dispatch", { body });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
+    if (error) {
+      // Supabase wraps non-2xx responses in FunctionsHttpError; expose the
+      // server's JSON message instead of the unhelpful generic status toast.
+      const context = (error as any)?.context;
+      let serverMessage = "";
+      if (context && typeof context.json === "function") {
+        try {
+          const payload = await context.json();
+          serverMessage = String(payload?.error || payload?.message || "");
+        } catch {
+          // The response may not contain JSON; fall back to the SDK message.
+        }
+      }
+      const detail = serverMessage || error.message || "Erreur inconnue";
+      throw new Error(`Notification (${String(body.mode || "requête")}): ${detail}`);
+    }
+    if (data?.error) throw new Error(String(data.error));
     return data;
   };
 
