@@ -737,9 +737,7 @@ const Dashboard = () => {
       {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
       {label:"Encaissé",value:money(stats.collected),href:"/finance"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
-      {label:"Clients soldés",value:stats.settledClients,href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
-      ...(canViewIndependentServiceProformas ? [{label:"Prest. indépendantes",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"}] : []),
       {label:"Échéances en retard",value:stats.overdueCount,href:"/finance"},
     ]},
     { label:"Développement commercial", icon:Target, href:canLeads ? "/leads" : "/acquisitions", show:canClients || canLeads, metrics:[
