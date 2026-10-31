@@ -738,7 +738,7 @@ const Dashboard = () => {
       {label:"Encaissé",value:money(stats.collected),href:"/finance"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
-      ...(canViewIndependentServiceProformas ? [{label:"Montant devis acceptés",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"}] : []),
+      ...(canViewIndependentServiceProformas ? [{label:"Prest. indép.",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"}] : []),
       {label:"Échéances en retard",value:stats.overdueCount,href:"/finance"},
     ]},
     { label:"Développement commercial", icon:Target, href:canLeads ? "/leads" : "/acquisitions", show:canClients || canLeads, metrics:[
@@ -749,7 +749,7 @@ const Dashboard = () => {
         {group:"Clients",label:"Clients suspendus",shortLabel:"Suspendus",value:stats.clientsSuspended,href:"/clients"},
         {group:"Clients",label:"Clients soldés",shortLabel:"Soldés",value:stats.settledClients,href:canPayments ? "/paiements" : "/clients"},
       ] : []),
-      ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Devis acceptés",shortLabel:"Devis acceptés",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : []),
+      ...(canViewIndependentServiceProformas ? [{group:"Prestations",label:"Prest. indép.",shortLabel:"Prest. indép.",value:stats.independentAcceptedProformas,href:"/acquisitions/prestations-independantes"}] : []),
     ]},
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
@@ -765,7 +765,7 @@ const Dashboard = () => {
       {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
       {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
       {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
-      ...(canViewIndependentServiceItems ? [{label:"Superficie indépendante",value:num(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
+      ...(canViewIndependentServiceItems ? [{label:"Superficie indép.",value:num(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
     ]},
   ];
 
