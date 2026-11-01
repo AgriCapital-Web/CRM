@@ -342,7 +342,9 @@ const GestionNotifications = () => {
       if (result.skipped) {
         toast.warning(`Campagne non envoyée : ${result.reason || "état non autorisé"}`);
       } else if (Number(result.failed || 0) > 0) {
-        const detail = Array.isArray(result.errors) && result.errors.length ? ` Détail : ${result.errors[0]}` : "";
+        const firstError = Array.isArray(result.errors) && result.errors.length ? result.errors[0] : null;
+        const detailText = typeof firstError === "string" ? firstError : firstError && typeof firstError === "object" ? String((firstError as any).message || (firstError as any).error || (firstError as any).reason || JSON.stringify(firstError)) : "";
+        const detail = detailText ? ` Détail : ${detailText}` : "";
         toast.error(`Campagne : ${Number(result.sent || 0)} envoyé(s), ${Number(result.failed || 0)} échec(s).${detail}`);
       } else {
         toast.success(`Campagne terminée : ${Number(result.sent || 0)} envoi(s)`);
@@ -551,7 +553,7 @@ const GestionNotifications = () => {
         </TabsContent>
 
         <TabsContent value="campaigns" className="space-y-5">
-          <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}><DialogTrigger asChild><Button className="mb-3"><Plus className="mr-2 h-4 w-4"/>Créer une campagne</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
+          <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}><DialogTrigger asChild><Button className="mb-3" onClick={() => { setEditingCampaignId(null); setCampaign({ nom: "", description: "", canal: "app", sujet: "", contenu: "", segment_id: "", audience: "tous", programme_le: "" }); setCampaignMedia([]); setCampaignPendingFiles([]); setSelectedRecipients([]); setPreview(null); setRecipientTypes([]); setRecipientSearch(""); }}><Plus className="mr-2 h-4 w-4"/>Créer une campagne</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl"><Card>
             <CardHeader><CardTitle>{editingCampaignId ? "Modifier la campagne" : "Nouvelle campagne"}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
