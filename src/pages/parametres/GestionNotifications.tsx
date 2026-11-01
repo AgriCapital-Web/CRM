@@ -233,7 +233,22 @@ const GestionNotifications = () => {
       if (context && typeof context.json === "function") {
         try {
           const payload = await context.json();
-          serverMessage = String(payload?.error || payload?.message || "");
+          const extractMessage = (value: unknown, depth = 0): string => {
+            if (depth > 5 || value == null) return "";
+            if (typeof value === "string") return value.trim();
+            if (typeof value === "number" || typeof value === "boolean") return String(value);
+            if (Array.isArray(value)) return value.map((item) => extractMessage(item, depth + 1)).filter(Boolean).join("; ");
+            if (typeof value === "object") {
+              const record = value as Record<string, unknown>;
+              for (const key of ["error_description", "message", "error", "details", "hint", "cause"]) {
+                const message = extractMessage(record[key], depth + 1);
+                if (message) return message;
+              }
+              try { return JSON.stringify(value); } catch { return ""; }
+            }
+            return "";
+          };
+          serverMessage = extractMessage(payload);
         } catch {
           // The response may not contain JSON; fall back to the SDK message.
         }
