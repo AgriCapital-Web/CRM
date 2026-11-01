@@ -96,8 +96,8 @@ function normalizeWhatsAppMessage(value: string): string {
   // Remove only the prohibited plant emoji and duplicate slogan; preserve message formatting.
   const normalized = value.replace(/\\r\\n?/g, "\\n").replace(/🌱/gu, "");
   const lines = normalized.split("\\n").map((line) => line.trimEnd());
-  const headerIndex = lines.findIndex((line) => /^AgriCapital\\s*[·•—-]\\s*Notification automatique\\s*$/i.test(line.trim()));
-  const header = headerIndex >= 0 ? lines[headerIndex].trim() : "";
+  const headerIndex = lines.findIndex((line) => /^(?:AgriCapital\\s*[·•—-]\\s*)?Notification automatique\\s*$/i.test(line.trim()));
+  const header = headerIndex >= 0 ? "Notification automatique" : "";
   const bodyLines = lines.filter((_, index) => index !== headerIndex);
   const normalizeForCompare = (line: string) => line.replace(/[*_~`]/g, "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[’‘]/g, "'").replace(/[.!]/g, "").replace(/\\s+/g, " ").trim().toLocaleLowerCase("fr");
   const slogan = "Investir la terre. Cultiver l'avenir.";

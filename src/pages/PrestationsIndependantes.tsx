@@ -82,7 +82,7 @@ export default function PrestationsIndependantes(){
    if(itemError){await (supabase as any).from("independent_service_proformas").delete().eq("id",data.id);throw itemError;}
    const {error:eventError}=await (supabase as any).from("independent_service_events").insert({proforma_id:data.id,event_code:"created",actor_type:"staff",actor_id:user.id});
    if(eventError)throw eventError;
-   const {error:notificationError}=await supabase.functions.invoke("notification-dispatch",{body:{mode:"event",event_code:"proforma_independante_creee",context:{independent_service_customer_id:client.id,proforma_reference:reference}}});
+   const {error:notificationError}=await supabase.functions.invoke("notification-dispatch",{body:{mode:"event",event_code:"proforma_independante_creee",context:{independent_service_customer_id:client.id,proforma_reference:reference,titre_du_devis:titre.trim()}}});
    if(notificationError)toast.warning("Devis enregistré. Notification non transmise.");
    else toast.success("Devis enregistré.");
    setDialogOpen(false);setCustomer(initialCustomer());setCustomerId("");setObservations("");setLines([emptyLine()]);setCustomerMode("new");await load();
