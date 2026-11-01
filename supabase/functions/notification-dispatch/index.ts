@@ -696,17 +696,26 @@ async function runCampaign(campaignId: string) {
     statut: "en_cours", demarre_le: new Date().toISOString(), total_destinataires: contacts.length,
   }).eq("id", campaign.id);
   if (startError) throw new Error("Impossible d’enregistrer le démarrage de la campagne en base : " + startError.message);
-  const result = await deliver({
-    campaignId: campaign.id, canal: campaign.canal, subject: campaign.sujet,
-    content: campaign.contenu, contacts, mediaAttachments: campaign.media_attachments || [],
-  });
-  const { error: finishError } = await admin.from("notification_campaigns").update({
-    statut: result.failed ? (result.sent ? "partiel" : "echoue") : "termine",
-    total_destinataires: contacts.length,
-    total_envoyes: result.sent, total_echecs: result.failed, termine_le: new Date().toISOString(),
-  }).eq("id", campaign.id);
-  if (finishError) throw new Error("Les livraisons ont été traitées, mais le résultat n’a pas pu être enregistré en base : " + finishError.message);
-  return { campaign_id: campaign.id, contacts: contacts.length, ...result };
+  try {
+    const result = await deliver({
+      campaignId: campaign.id, canal: campaign.canal, subject: campaign.sujet,
+      content: campaign.contenu, contacts, mediaAttachments: campaign.media_attachments || [],
+    });
+    const { error: finishError } = await admin.from("notification_campaigns").update({
+      statut: result.failed ? (result.sent ? "partiel" : "echoue") : "termine",
+      total_destinataires: contacts.length,
+      total_envoyes: result.sent, total_echecs: result.failed, termine_le: new Date().toISOString(),
+    }).eq("id", campaign.id);
+    if (finishError) throw new Error("Les livraisons ont été traitées, mais le résultat n’a pas pu être enregistré en base : " + finishError.message);
+    return { campaign_id: campaign.id, contacts: contacts.length, ...result };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await admin.from("notification_campaigns").update({
+      statut: "echoue", total_echecs: Math.max(1, Number(campaign.total_echecs || 0)),
+      termine_le: new Date().toISOString(),
+    }).eq("id", campaign.id).eq("statut", "en_cours");
+    throw new Error("Échec de la campagne " + campaign.nom + " : " + message);
+  }
 }
 
 async function retryFailedCampaign(campaignId: string, deliveryId?: string | null) {
