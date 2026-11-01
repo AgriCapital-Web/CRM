@@ -612,6 +612,33 @@ async function deliver(args: {
   return { sent, failed, errors: [...new Set(failureReasons)].slice(0, 3) };
 }
 
+async function runScheduledCampaigns() {
+  const now = new Date().toISOString();
+  const { data: dueCampaigns, error } = await admin.from("notification_campaigns")
+    .select("id")
+    .eq("statut", "programme")
+    .not("programme_le", "is", null)
+    .lte("programme_le", now)
+    .order("programme_le", { ascending: true })
+    .limit(25);
+  if (error) throw new Error("Lecture des campagnes programmées impossible : " + error.message);
+  const results: Array<{ id: string; ok: boolean; result?: unknown; error?: string }> = [];
+  for (const campaign of dueCampaigns || []) {
+    try {
+      const result = await runCampaign(String(campaign.id));
+      results.push({ id: campaign.id, ok: true, result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Make failed campaigns visible and avoid leaving them indefinitely in "en cours".
+      await admin.from("notification_campaigns").update({
+        statut: "echoue", total_echecs: 1, termine_le: new Date().toISOString(),
+      }).eq("id", campaign.id).eq("statut", "en_cours");
+      results.push({ id: campaign.id, ok: false, error: message });
+    }
+  }
+  return { checked: (dueCampaigns || []).length, results };
+}
+
 async function runCampaign(campaignId: string) {
   const { data: campaign, error } = await admin.from("notification_campaigns")
     .select("*, segment:notification_segments(criteres)").eq("id", campaignId).single();
@@ -1056,6 +1083,10 @@ serve(async (req) => {
     if (mode === "run_automations") {
       if (!(await internalAuthorized(req))) return json(req, { error: "Non autorise" }, 401);
       return json(req, { ok: true, results: await runScheduledAutomations() });
+    }
+    if (mode === "run_scheduled_campaigns") {
+      if (!(await internalAuthorized(req))) return json(req, { error: "Non autorise" }, 401);
+      return json(req, { ok: true, results: await runScheduledCampaigns() });
     }
     if (mode === "events") {
       // Les événements déclenchés depuis le CRM peuvent venir d'un utilisateur du personnel.
