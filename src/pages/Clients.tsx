@@ -370,6 +370,11 @@ const Clients = () => {
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/acquisitions" className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium text-foreground hover:bg-muted">Acquisitions</Link>
+            <Link to="/acquisitions/prestations-independantes" className="inline-flex h-9 items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary hover:bg-primary/10">Prestations indépendantes</Link>
+          </div>
+
           <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Clients commerciaux</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Actifs</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.actifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statut actif</p></CardContent></Card>
@@ -409,7 +414,7 @@ const Clients = () => {
                   <LayoutGrid className="h-4 w-4" />
                   <span className="hidden sm:inline">Pipeline</span>
                 </TabsTrigger>
-                <Link to="/acquisitions/prestations-independantes" className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-transparent px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground">Prestations indépendantes</Link>
+                
               </TabsList>
             </div>
 
