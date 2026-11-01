@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
     };
 
     const scheduled = await call({ mode: "run_automations" });
+    const scheduledCampaigns = await call({ mode: "run_scheduled_campaigns" });
 
     const { data: accounts } = await admin.from("client_account_provision_outbox")
       .select("id,client_id,tentatives")
@@ -133,7 +134,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, scheduled, accounts: accountResults, outbox: results }), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, scheduled, scheduledCampaigns, accounts: accountResults, outbox: results }), { headers: { "Content-Type": "application/json" } });
   } catch (error) {
     console.error(error);
     return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }), { status: 500, headers: { "Content-Type": "application/json" } });
