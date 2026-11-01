@@ -100,6 +100,10 @@ export default function PrestationsIndependantes(){
  const setLine=(i:number,patch:Partial<Line>)=>setLines(v=>v.map((x,j)=>j===i?{...x,...patch}:x));
  return <MainLayout><div className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6">
   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Prestations indépendantes</h1></div><div className="flex gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>{canWrite&&<Button onClick={()=>setDialogOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouveau devis</Button>}</div></div>
+  <nav aria-label="Navigation Acquisition" className="flex flex-wrap items-center gap-2">
+   <a href="/acquisitions" className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium text-foreground hover:bg-muted">Acquisitions</a>
+   <span aria-current="page" className="inline-flex h-9 items-center rounded-md border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary">Prestations indépendantes</span>
+  </nav>
   <div className="space-y-4">
    <div className="grid grid-cols-3 gap-2">
     <Card className="min-w-0"><CardContent className="flex min-h-[76px] flex-col justify-center p-2 sm:p-3"><span className="truncate text-[10px] text-muted-foreground sm:text-xs">Devis</span><strong className="text-lg leading-tight sm:text-xl">{rows.length}</strong></CardContent></Card>
