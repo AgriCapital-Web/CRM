@@ -20,7 +20,7 @@ type Segment = { id: string; code: string; nom: string; description: string | nu
 type Campaign = {
   id: string; nom: string; description: string | null; canal: string; sujet: string | null; contenu: string;
   segment_id: string | null; criteres: Record<string, unknown>; statut: string; programme_le: string | null;
-  total_destinataires: number; total_envoyes: number; total_echecs: number; media_attachments?: MediaAttachment[];
+  total_destinataires: number; total_envoyes: number; total_echecs: number; actif?: boolean; media_attachments?: MediaAttachment[];
 };
 type MediaAttachment = { bucket: string; path: string; name: string; mimeType: string; size: number };
 type NotificationTemplate = { id: string; code: string; nom: string; canal: string; evenement: string; sujet: string | null; contenu: string; actif: boolean; parcours: string | null; media_attachments?: MediaAttachment[] };
