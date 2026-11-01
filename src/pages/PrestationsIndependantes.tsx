@@ -1,4 +1,5 @@
 import { useCallback,useEffect,useMemo,useState } from "react";
+import { Link } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,7 +102,7 @@ export default function PrestationsIndependantes(){
  return <MainLayout><div className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6">
   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Prestations indépendantes</h1></div><div className="flex gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>{canWrite&&<Button onClick={()=>setDialogOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouveau devis</Button>}</div></div>
   <nav aria-label="Navigation Acquisition" className="flex flex-wrap items-center gap-2">
-   <a href="/acquisitions" className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium text-foreground hover:bg-muted">Acquisitions</a>
+   <Link to="/acquisitions" className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium text-foreground hover:bg-muted">Acquisitions</Link>
    <span aria-current="page" className="inline-flex h-9 items-center rounded-md border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary">Prestations indépendantes</span>
   </nav>
   <div className="space-y-4">
