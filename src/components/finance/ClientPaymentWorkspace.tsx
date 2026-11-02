@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -483,7 +484,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Numéro de paiement (Mobile Money / Wave)</label>
-                <Input type="tel" inputMode="tel" value={paymentPhone} onChange={e => setPaymentPhone(e.target.value)} placeholder="Numéro à débiter" />
+                <CountryPhoneInput label="" countryCode={paymentPhone.startsWith("+225") ? "+225" : undefined} localValue={paymentPhone.startsWith("+") ? paymentPhone.replace(/^\+\d{1,4}/, "") : paymentPhone} onChange={v => setPaymentPhone(v.internationalValue)} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Montant à payer (F CFA)</label>
