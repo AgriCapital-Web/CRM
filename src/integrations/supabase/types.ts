@@ -3957,6 +3957,7 @@ export type Database = {
       finance_expenses: {
         Row: {
           beneficiary_name: string | null
+          beneficiary_phone: string | null
           client_id: string | null
           created_at: string
           description: string | null
@@ -3980,6 +3981,7 @@ export type Database = {
         }
         Insert: {
           beneficiary_name?: string | null
+          beneficiary_phone?: string | null
           client_id?: string | null
           created_at?: string
           description?: string | null
@@ -4003,6 +4005,7 @@ export type Database = {
         }
         Update: {
           beneficiary_name?: string | null
+          beneficiary_phone?: string | null
           client_id?: string | null
           created_at?: string
           description?: string | null
@@ -4580,6 +4583,7 @@ export type Database = {
           amount: number
           category: string
           client_id: string | null
+          contact_phone: string | null
           created_at: string
           created_by: string | null
           direction: string
@@ -4602,6 +4606,7 @@ export type Database = {
           amount: number
           category: string
           client_id?: string | null
+          contact_phone?: string | null
           created_at?: string
           created_by?: string | null
           direction: string
@@ -4624,6 +4629,7 @@ export type Database = {
           amount?: number
           category?: string
           client_id?: string | null
+          contact_phone?: string | null
           created_at?: string
           created_by?: string | null
           direction?: string

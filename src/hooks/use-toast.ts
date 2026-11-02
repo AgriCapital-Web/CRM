@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toUserText } from "@/lib/userMessage";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
@@ -136,6 +137,8 @@ type Toast = Omit<ToasterToast, "id">;
 
 function toast({ ...props }: Toast) {
   const id = genId();
+  props.title = toUserText(props.title) as Toast["title"];
+  props.description = toUserText(props.description) as Toast["description"];
 
   const update = (props: ToasterToast) =>
     dispatch({
