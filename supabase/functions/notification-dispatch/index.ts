@@ -523,15 +523,28 @@ async function deliver(args: {
         delivery = inserted;
       }
       let attemptId: string | null = null;
+      let attemptNumber = 1;
       try {
-        const { count } = await admin.from("notification_delivery_attempts").select("id", { count: "exact", head: true }).eq("delivery_id", delivery.id);
-        const { data: attempt } = await admin.from("notification_delivery_attempts").insert({
-          delivery_id: delivery.id, attempt_number: (count || 0) + 1, statut: "en_cours"
+        const { count, error: countError } = await admin.from("notification_delivery_attempts")
+          .select("id", { count: "exact", head: true }).eq("delivery_id", delivery.id);
+        if (countError) throw countError;
+        attemptNumber = (count || 0) + 1;
+        const { data: attempt, error: attemptInsertError } = await admin.from("notification_delivery_attempts").insert({
+          delivery_id: delivery.id, attempt_number: attemptNumber, statut: "en_cours"
         }).select("id").maybeSingle();
-        attemptId = attempt?.id || null;
+        if (attemptInsertError || !attempt) throw attemptInsertError || new Error("La tentative n’a pas été enregistrée.");
+        attemptId = attempt.id;
       } catch (attemptError) {
-        console.warn("[NotificationDelivery] historique de tentative indisponible", { deliveryId: delivery.id, reason: String(attemptError) });
+        const reason = attemptError instanceof Error ? attemptError.message : String(attemptError);
+        await admin.from("notification_deliveries").update({
+          statut: "echoue", erreur: "Envoi arrêté : impossible d’enregistrer la tentative de livraison. " + reason,
+        }).eq("id", delivery.id);
+        failed++;
+        failureReasons.push(reason);
+        console.error("[NotificationDelivery] tentative non enregistrée; envoi interrompu", { deliveryId: delivery.id, reason });
+        continue;
       }
+      const providerDedupeKey = attemptNumber > 1 ? dedupeKey + ":attempt:" + attemptNumber : dedupeKey;
       try {
         if (channel === "app") {
           if (contact.user_id) {
@@ -560,22 +573,22 @@ async function deliver(args: {
           await admin.from("notification_deliveries").update({ statut: "envoye", sent_at: new Date().toISOString() }).eq("id", delivery.id);
         } else if (channel === "whatsapp") {
           assertWhatsAppLength(rendered);
-          const result = await sendWhatsApp(contact, rendered, dedupeKey, mediaForChannel[0]?.ref);
+          const result = await sendWhatsApp(contact, rendered, providerDedupeKey, mediaForChannel[0]?.ref);
           for (let i = 1; i < mediaForChannel.length; i++) {
-            await sendWhatsApp(contact, "", dedupeKey + ":media:" + i, mediaForChannel[i].ref);
+            await sendWhatsApp(contact, "", providerDedupeKey + ":media:" + i, mediaForChannel[i].ref);
           }
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, provider_status: result.providerStatus || "accepted", erreur: null, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         } else if (channel === "sms") {
-          const result = await sendSms(contact, rendered, dedupeKey);
+          const result = await sendSms(contact, rendered, providerDedupeKey);
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId,
             recipient_phone: result.to || contact.telephone || null, contenu: result.content || normalizeSms(rendered),
             sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         } else if (channel === "email") {
-          const result = await sendEmail(contact, renderedSubject, rendered, dedupeKey, attachments);
+          const result = await sendEmail(contact, renderedSubject, rendered, providerDedupeKey, attachments);
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
@@ -719,10 +732,19 @@ async function runCampaign(campaignId: string) {
 }
 
 async function retryFailedCampaign(campaignId: string, deliveryId?: string | null) {
-  const { data: campaign, error: campaignError } = await admin.from("notification_campaigns").select("id,canal,contenu,sujet,media_attachments,statut").eq("id", campaignId).single();
+  const { data: campaign, error: campaignError } = await admin.from("notification_campaigns")
+    .select("id,canal,contenu,sujet,media_attachments,statut,demarre_le").eq("id", campaignId).single();
   if (campaignError || !campaign) throw campaignError || new Error("Campagne introuvable.");
   if (campaign.canal !== "whatsapp") throw new Error("La relance ciblée est réservée aux campagnes WhatsApp.");
-  if (["annule","suspendue","en_cours"].includes(campaign.statut)) throw new Error("Campagne non relançable dans son état actuel.");
+  if (["annule","suspendue"].includes(campaign.statut)) throw new Error("Campagne annulée ou suspendue : réactivez-la avant la relance.");
+  if (campaign.statut === "en_cours") {
+    const startedAt = campaign.demarre_le ? new Date(campaign.demarre_le).getTime() : 0;
+    const stale = startedAt > 0 && Date.now() - startedAt > 10 * 60 * 1000;
+    const { count, error: activeError } = await admin.from("notification_deliveries")
+      .select("id", { count: "exact", head: true }).eq("campaign_id", campaignId).eq("canal", "whatsapp").eq("statut", "en_cours");
+    if (activeError) throw activeError;
+    if (!stale || (count || 0) > 0) throw new Error("Campagne encore en cours : attendez la fin des envois avant de relancer.");
+  }
   let query = admin.from("notification_deliveries").select("id,source_type,source_id,user_id,recipient_name,recipient_phone,recipient_email").eq("campaign_id", campaignId).eq("canal", "whatsapp").eq("statut", "echoue");
   if (deliveryId) query = query.eq("id", deliveryId);
   const { data: failedRows, error } = await query;
