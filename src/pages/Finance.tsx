@@ -42,7 +42,7 @@ export default function Finance(){
   const [payrollRuns,setPayrollRuns]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
-  const [expense,setExpense]=useState({category:"AUTRE",amount:"",description:"",profileId:"",clientId:"",plantationId:"",direct:false});
+  const [expense,setExpense]=useState({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false});
   const [expenseUserPickerOpen,setExpenseUserPickerOpen]=useState(false);
   const [expenseProof,setExpenseProof]=useState<File|null>(null);
   const expenseProofPreview = useMemo(() => expenseProof && (expenseProof.type.startsWith("image/") || expenseProof.type === "application/pdf") ? URL.createObjectURL(expenseProof) : null, [expenseProof]);
@@ -177,14 +177,14 @@ export default function Finance(){
       }
       const {data,error}=await (supabase as any).from("finance_transactions").insert({
         direction:"sortie",category:"DEPENSE",label:expense.category,amount:Number(expense.amount),
-        status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
+        transaction_date:new Date(expense.date+"T12:00:00").toISOString(),status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
         notes:expense.description||null
       }).select("id").single();
       if(error) throw error;
       const {error: expenseError}=await (supabase as any).from("finance_expenses").insert({
         transaction_id:data.id,expense_category:expense.category,profile_id:expense.profileId||null,supplier_name:profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null,
         description:expense.description||null,client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        is_direct_cost:expense.direct,expense_date:new Date().toISOString().slice(0,10),
+        is_direct_cost:expense.direct,expense_date:expense.date,
         total_amount:Number(expense.amount),paid_amount:Number(expense.amount),status:"paid",
         proof_path:proofPath,proof_name:expenseProof?.name||null,
         proof_mime_type:expenseProof?.type||null
@@ -195,7 +195,7 @@ export default function Finance(){
         throw expenseError;
       }
       toast({title:"Sortie enregistrée",description:proofPath ? "Justificatif joint à la sortie." : "Sortie enregistrée sans justificatif."});
-      setExpense({category:"AUTRE",amount:"",description:"",profileId:"",clientId:"",plantationId:"",direct:false});
+      setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false});
       setExpenseUserPickerOpen(false);
       setExpenseProof(null);
       setExpenseFormMode(null);
@@ -513,6 +513,7 @@ export default function Finance(){
           <CardContent className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1"><Label>Catégorie</Label><Select disabled={expenseFormMode==="view"} value={expenseFormMode==="view"?(selectedExpense?.expense_category||"AUTRE"):expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["SALAIRES","ÉLECTRICITÉ","EAU","INTERNET","TÉLÉPHONE","CARBURANT","TRANSPORT","FRAIS DE MISSION","HÉBERGEMENT","RESTAURATION","FOURNITURES DE BUREAU","FOURNITURES AGRICOLES","ENTRETIEN","RÉPARATIONS","LOYER","ASSURANCE","BANQUE","FRAIS BANCAIRES","IMPÔTS ET TAXES","HONORAIRES","PRESTATIONS","COMMUNICATION","MARKETING","FORMATION","RECRUTEMENT","SÉCURITÉ","NETTOYAGE","ÉQUIPEMENTS","LOGICIELS","ABONNEMENTS","DÉPLACEMENTS","LOGISTIQUE","DONS","AUTRE"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={expenseFormMode==="view"?String(selectedExpense?.transaction?.amount??transactions.find(t=>t.id===selectedExpense?.transaction_id)?.amount??""):expense.amount} onChange={e=>setExpense({...expense,amount:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div>
+            <div className="space-y-1"><Label>Date de sortie</Label><Input type="date" value={expenseFormMode==="view"?(selectedExpense?.expense_date||""):expense.date} onChange={e=>setExpense({...expense,date:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div>
             <div className="space-y-1"><Label>Utilisateur</Label>
               {expenseFormMode==="view"?<Input value={profiles.find((p:any)=>p.id===selectedExpense?.profile_id)?.nom_complet||selectedExpense?.supplier_name||"Utilisateur non renseigné"} disabled readOnly/>:
                 <Popover open={expenseUserPickerOpen} onOpenChange={setExpenseUserPickerOpen}>
