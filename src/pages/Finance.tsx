@@ -184,7 +184,9 @@ export default function Finance(){
       const {error: expenseError}=await (supabase as any).from("finance_expenses").insert({
         transaction_id:data.id,expense_category:expense.category,profile_id:expense.profileId||null,supplier_name:profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null,
         description:expense.description||null,client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        is_direct_cost:expense.direct,proof_path:proofPath,proof_name:expenseProof?.name||null,
+        is_direct_cost:expense.direct,expense_date:new Date().toISOString().slice(0,10),
+        total_amount:Number(expense.amount),paid_amount:Number(expense.amount),status:"paid",
+        proof_path:proofPath,proof_name:expenseProof?.name||null,
         proof_mime_type:expenseProof?.type||null
       });
       if(expenseError) {
