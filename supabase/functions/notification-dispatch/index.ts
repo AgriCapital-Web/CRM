@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
-import webpush from "npm:web-push@3.6.7";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = (req: Request) => {
   const origin = req.headers.get("origin") || "";
