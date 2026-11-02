@@ -341,7 +341,7 @@ export default function Finance(){
         t.reference || ""
       ])
     ];
-    const csv = "\\uFEFF" + rows.map((row:any[])=>row.map((cell:any)=>{
+    const csv = "\uFEFF" + rows.map((row:any[])=>row.map((cell:any)=>{
       const value = String(cell ?? "");
       return '"' + value.replace(/"/g, '""') + '"';
     }).join(";")).join("\r\n");
