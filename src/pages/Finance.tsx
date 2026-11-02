@@ -50,6 +50,15 @@ export default function Finance(){
   const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|null>(null);
   const [selectedExpense,setSelectedExpense]=useState<any|null>(null);
   const [expenseSearch,setExpenseSearch]=useState("");
+  const [plannedExpense,setPlannedExpense]=useState({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
+  const [plannedProof,setPlannedProof]=useState<File|null>(null);
+  const [paymentTarget,setPaymentTarget]=useState<any|null>(null);
+  const [paymentAmount,setPaymentAmount]=useState("");
+  const [paymentDate,setPaymentDate]=useState(new Date().toISOString().slice(0,10));
+  const [paymentMethod,setPaymentMethod]=useState("mobile_money");
+  const [paymentReference,setPaymentReference]=useState("");
+  const [paymentProof,setPaymentProof]=useState<File|null>(null);
+
   const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
   const [entryProof,setEntryProof]=useState<File|null>(null);
   const entryProofPreview = useMemo(() => entryProof && (entryProof.type.startsWith("image/") || entryProof.type === "application/pdf") ? URL.createObjectURL(entryProof) : null, [entryProof]);
@@ -196,6 +205,69 @@ export default function Finance(){
   };
 
 
+  const savePlannedExpense=async()=>{
+    const amount=Number(plannedExpense.amount);
+    if(!plannedExpense.category||!Number.isFinite(amount)||amount<=0||!plannedExpense.expenseDate){
+      toast({title:"Informations requises",description:"Indiquez une catégorie, une date et un montant positif.",variant:"destructive"});return;
+    }
+    setSaving(true);
+    let proofPath:string|null=null;
+    try{
+      if(plannedProof){const uploaded=await uploadFile("documents",plannedProof,"finance/depenses-a-payer");if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");proofPath=uploaded.path;}
+      const {error}=await (supabase as any).from("finance_expenses").insert({
+        transaction_id:null,expense_category:plannedExpense.category,description:plannedExpense.description.trim()||null,
+        supplier_name:plannedExpense.beneficiary.trim()||null,beneficiary_name:plannedExpense.beneficiary.trim()||null,
+        is_direct_cost:plannedExpense.direct,expense_date:plannedExpense.expenseDate,due_date:plannedExpense.dueDate||null,
+        total_amount:amount,paid_amount:0,status:"unpaid",payment_method:null,notes:null,
+        proof_path:proofPath,proof_name:plannedProof?.name||null,proof_mime_type:plannedProof?.type||null
+      });
+      if(error)throw error;
+      toast({title:"Dépense à payer enregistrée",description:"Elle reste distincte des sorties jusqu’à l’enregistrement d’un paiement."});
+      setPlannedExpense({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
+      setPlannedProof(null);await load();
+    }catch(error:any){if(proofPath)await supabase.storage.from("documents").remove([proofPath]);toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
+    finally{setSaving(false);}
+  };
+
+  const registerExpensePayment=async()=>{
+    if(!paymentTarget)return;
+    const amount=Number(paymentAmount);
+    const remaining=Number(paymentTarget.total_amount||0)-Number(paymentTarget.paid_amount||0);
+    if(!Number.isFinite(amount)||amount<=0||amount>remaining){toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});return;}
+    setSaving(true);let proofPath:string|null=null;let transactionId:string|null=null;
+    try{
+      if(paymentProof){const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");proofPath=uploaded.path;}
+      const nextPaid=Number(paymentTarget.paid_amount||0)+amount;
+      const status=nextPaid>=Number(paymentTarget.total_amount)?"paid":"partial";
+      const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({
+        direction:"sortie",category:paymentTarget.expense_category,label:paymentTarget.expense_category+(paymentTarget.description?" — "+paymentTarget.description:""),
+        amount,transaction_date:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
+        reference:paymentReference.trim()||null,source_type:"finance_expense",source_id:paymentTarget.id,status:"valide",
+        notes:paymentTarget.description||("Bénéficiaire : "+(paymentTarget.beneficiary_name||paymentTarget.supplier_name||"—")),
+        proof_path:proofPath,proof_name:paymentProof?.name||null
+      }).select("id").single();
+      if(txError)throw txError;transactionId=tx.id;
+      const {error:payError}=await (supabase as any).from("finance_expense_payments").insert({
+        expense_id:paymentTarget.id,transaction_id:transactionId,amount,paid_at:new Date(paymentDate+"T12:00:00").toISOString(),
+        payment_method:paymentMethod,proof_path:proofPath,proof_name:paymentProof?.name||null
+      });
+      if(payError)throw payError;
+      const {error:updateError}=await (supabase as any).from("finance_expenses").update({paid_amount:nextPaid,status,transaction_id:transactionId,payment_method:paymentMethod}).eq("id",paymentTarget.id);
+      if(updateError)throw updateError;
+      toast({title:"Paiement enregistré",description:status==="paid"?"Dépense entièrement payée et inscrite dans les sorties.":"Paiement partiel enregistré dans les sorties; le solde reste à payer."});
+      setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);await load();
+    }catch(error:any){toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});}
+    finally{setSaving(false);}
+  };
+
+  const deletePlannedExpense=async(item:any)=>{
+    if(item.status!=="unpaid"||Number(item.paid_amount||0)>0)return;
+    if(!window.confirm("Supprimer cette dépense à payer ?"))return;
+    setSaving(true);const {error}=await (supabase as any).from("finance_expenses").delete().eq("id",item.id).is("transaction_id",null);
+    if(error)toast({title:"Suppression impossible",description:error.message,variant:"destructive"});else toast({title:"Dépense supprimée"});
+    await load();setSaving(false);
+  };
+
   const saveSalary=async()=>{
     const baseSalary=Number(salaryForm.baseSalary);
     const payDay=Number(salaryForm.payDay||28);
@@ -338,7 +410,7 @@ export default function Finance(){
       <TabsList className="grid h-auto w-full min-w-0 grid-cols-2 gap-1.5 rounded-xl bg-muted/70 p-1.5 sm:grid-cols-4 xl:grid-cols-7">
         <TabsTrigger value="journal" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><Wallet className="mb-1 h-4 w-4 shrink-0" />Journal financier</TabsTrigger>
         <TabsTrigger value="entrees" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><ArrowDownLeft className="mb-1 h-4 w-4 shrink-0" />Entrées</TabsTrigger>
-        <TabsTrigger value="depenses" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><ArrowUpRight className="mb-1 h-4 w-4 shrink-0" />Sorties</TabsTrigger>
+        <TabsTrigger value="a-payer" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><Banknote className="mb-1 h-4 w-4 shrink-0" />Dépenses à payer</TabsTrigger>\n        <TabsTrigger value="depenses" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><ArrowUpRight className="mb-1 h-4 w-4 shrink-0" />Sorties</TabsTrigger>
         <TabsTrigger value="salaires" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><Banknote className="mb-1 h-4 w-4 shrink-0" />Salaires & paie</TabsTrigger>
         
         <TabsTrigger value="rapports" className="min-w-0 flex-col whitespace-normal rounded-lg border border-transparent px-2 py-3 text-center text-xs font-semibold leading-tight data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm sm:text-sm"><RefreshCw className="mb-1 h-4 w-4 shrink-0" />Rapports</TabsTrigger>
@@ -408,6 +480,26 @@ export default function Finance(){
           </CardContent>
         </Card>
       </TabsContent>
+      <TabsContent value="a-payer" className="mt-3 min-w-0 space-y-3">
+        <Card><CardHeader><CardTitle>Enregistrer une dépense à payer</CardTitle><p className="text-sm text-muted-foreground">Une dépense prévue n’est pas une sortie comptabilisée. Elle apparaît dans les sorties uniquement lorsqu’un paiement est enregistré.</p></CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1"><Label>Motif / catégorie</Label><Select value={plannedExpense.category} onValueChange={v=>setPlannedExpense({...plannedExpense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["PRESTATIONS","ACHAT DE PLANTS","FOURNITURES","PRÊT DE PLANTS","DÉFRICHAGE","TROUAISON","NETTOYAGE","LOGISTIQUE","TRANSPORT","CARBURANT","MATÉRIEL","MAIN-D’ŒUVRE","AUTRE"].map(v=><SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1"><Label>Montant prévu (FCFA)</Label><Input type="number" min="1" value={plannedExpense.amount} onChange={e=>setPlannedExpense({...plannedExpense,amount:e.target.value})}/></div>
+            <div className="space-y-1"><Label>Bénéficiaire / fournisseur</Label><Input value={plannedExpense.beneficiary} onChange={e=>setPlannedExpense({...plannedExpense,beneficiary:e.target.value})} placeholder="Nom du bénéficiaire"/></div>
+            <div className="space-y-1"><Label>Date de la dépense</Label><Input type="date" value={plannedExpense.expenseDate} onChange={e=>setPlannedExpense({...plannedExpense,expenseDate:e.target.value})}/></div>
+            <div className="space-y-1"><Label>Date prévue de paiement</Label><Input type="date" value={plannedExpense.dueDate} onChange={e=>setPlannedExpense({...plannedExpense,dueDate:e.target.value})}/></div>
+            <div className="space-y-1"><Label>Justificatif / devis / facture</Label><Input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setPlannedProof(e.target.files?.[0]||null)}/></div>
+            <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Description</Label><Textarea value={plannedExpense.description} onChange={e=>setPlannedExpense({...plannedExpense,description:e.target.value})} rows={2}/></div>
+            <div className="flex items-center gap-2"><input type="checkbox" checked={plannedExpense.direct} onChange={e=>setPlannedExpense({...plannedExpense,direct:e.target.checked})} className="h-4 w-4"/><Label>Coût direct</Label></div>
+            <div className="sm:col-span-2 lg:col-span-3"><Button onClick={()=>void savePlannedExpense()} disabled={saving}>{saving?"Enregistrement…":"Enregistrer la dépense à payer"}</Button></div>
+          </CardContent>
+        </Card>
+        <Card><CardHeader><CardTitle>Dépenses à payer / soldes en cours</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Date</th><th className="p-2">Motif</th><th className="p-2">Bénéficiaire</th><th className="p-2 text-right">Montant prévu</th><th className="p-2 text-right">Payé</th><th className="p-2 text-right">Reste</th><th className="p-2">Statut / actions</th></tr></thead><tbody>
+          {expenses.filter((e:any)=>!e.transaction_id&&e.status!=="cancelled").map((e:any)=><tr key={e.id} className="border-b"><td className="p-2 whitespace-nowrap">{e.expense_date?new Date(e.expense_date+"T12:00:00").toLocaleDateString("fr-FR"):"—"}{e.due_date&&<p className="text-xs text-muted-foreground">Échéance {new Date(e.due_date+"T12:00:00").toLocaleDateString("fr-FR")}</p>}</td><td className="p-2">{e.expense_category}<p className="text-xs text-muted-foreground">{e.description||""}</p></td><td className="p-2">{e.beneficiary_name||e.supplier_name||"—"}</td><td className="p-2 text-right">{money(e.total_amount)}</td><td className="p-2 text-right">{money(e.paid_amount)}</td><td className="p-2 text-right font-semibold">{money(Number(e.total_amount)-Number(e.paid_amount||0))}</td><td className="p-2"><div className="flex flex-wrap gap-1"><Badge variant="secondary">{e.status==="partial"?"Partiel":"À payer"}</Badge><Button size="sm" onClick={()=>{setPaymentTarget(e);setPaymentAmount(String(Number(e.total_amount)-Number(e.paid_amount||0)));setPaymentDate(new Date().toISOString().slice(0,10));setPaymentMethod("mobile_money");setPaymentReference("");setPaymentProof(null);}}>Enregistrer paiement</Button>{e.status==="unpaid"&&<Button size="sm" variant="outline" onClick={()=>void deletePlannedExpense(e)} disabled={saving}><Trash2 className="h-3.5 w-3.5"/></Button>}</div></td></tr>)}
+          {!expenses.some((e:any)=>!e.transaction_id&&e.status!=="cancelled")&&<tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Aucune dépense à payer en attente.</td></tr>}
+        </tbody></table></div></CardContent></Card>
+        {paymentTarget&&<Dialog open={!!paymentTarget} onOpenChange={open=>{if(!open&&!saving)setPaymentTarget(null);}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Enregistrer un paiement</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2 rounded-md bg-muted p-3"><p className="text-sm">{paymentTarget.expense_category} · {paymentTarget.beneficiary_name||paymentTarget.supplier_name||"Bénéficiaire non renseigné"}</p><p className="font-semibold">Solde : {money(Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))}</p></div><div className="space-y-1"><Label>Montant payé (FCFA)</Label><Input type="number" min="1" max={Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)} value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)}/></div><div className="space-y-1"><Label>Date de paiement</Label><Input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}/></div><div className="space-y-1"><Label>Mode de paiement</Label><Select value={paymentMethod} onValueChange={setPaymentMethod}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Virement</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Référence (facultative)</Label><Input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)}/></div><div className="space-y-1 sm:col-span-2"><Label>Preuve de paiement / reçu</Label><Input type="file" accept="image/*,.pdf" onChange={e=>setPaymentProof(e.target.files?.[0]||null)}/></div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void registerExpensePayment()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement"}</Button><Button variant="outline" onClick={()=>setPaymentTarget(null)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>}
+      </TabsContent>
       <TabsContent value="depenses" className="mt-3 min-w-0 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
           <h2 className="font-semibold">Sorties enregistrées</h2>
@@ -416,7 +508,7 @@ export default function Finance(){
         {expenseFormMode!==null&&<Dialog open={expenseFormMode!==null} onOpenChange={open=>{if(!open&&!saving){setExpenseFormMode(null);setSelectedExpense(null);setExpenseProof(null);}}}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><Card>
           <CardHeader><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><CardTitle>{expenseFormMode==="new"?"Nouvelle sortie":"Détail de la sortie"}</CardTitle>{expenseFormMode==="view"&&<Badge variant="secondary">Lecture seule</Badge>}</div></CardHeader>
           <CardContent className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1"><Label>Catégorie</Label><Select disabled={expenseFormMode==="view"} value={expenseFormMode==="view"?(selectedExpense?.expense_category||"AUTRE"):expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["SALAIRES","ÉLECTRICITÉ","EAU","INTERNET","TÉLÉPHONE","CARBURANT","TRANSPORT","FRAIS DE MISSION","HÉBERGEMENT","RESTAURATION","FOURNITURES DE BUREAU","FOURNITURES AGRICOLES","ENTRETIEN","RÉPARATIONS","LOYER","ASSURANCE","BANQUE","FRAIS BANCAIRES","IMPÔTS ET TAXES","HONORAIRES","PRESTATIONS","COMMUNICATION","MARKETING","FORMATION","RECRUTEMENT","SÉCURITÉ","NETTOYAGE","ÉQUIPEMENTS","LOGICIELS","ABONNEMENTS","DÉPLACEMENTS","DONS","AUTRE"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1"><Label>Catégorie</Label><Select disabled={expenseFormMode==="view"} value={expenseFormMode==="view"?(selectedExpense?.expense_category||"AUTRE"):expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["SALAIRES","ÉLECTRICITÉ","EAU","INTERNET","TÉLÉPHONE","CARBURANT","TRANSPORT","FRAIS DE MISSION","HÉBERGEMENT","RESTAURATION","FOURNITURES DE BUREAU","FOURNITURES AGRICOLES","ENTRETIEN","RÉPARATIONS","LOYER","ASSURANCE","BANQUE","FRAIS BANCAIRES","IMPÔTS ET TAXES","HONORAIRES","PRESTATIONS","COMMUNICATION","MARKETING","FORMATION","RECRUTEMENT","SÉCURITÉ","NETTOYAGE","ÉQUIPEMENTS","LOGICIELS","ABONNEMENTS","DÉPLACEMENTS","LOGISTIQUE","DONS","AUTRE"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={expenseFormMode==="view"?String(selectedExpense?.transaction?.amount??transactions.find(t=>t.id===selectedExpense?.transaction_id)?.amount??""):expense.amount} onChange={e=>setExpense({...expense,amount:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div>
             <div className="space-y-1"><Label>Utilisateur</Label>
               {expenseFormMode==="view"?<Input value={profiles.find((p:any)=>p.id===selectedExpense?.profile_id)?.nom_complet||selectedExpense?.supplier_name||"Utilisateur non renseigné"} disabled readOnly/>:
