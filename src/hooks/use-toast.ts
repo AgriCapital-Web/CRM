@@ -136,6 +136,8 @@ type Toast = Omit<ToasterToast, "id">;
 
 function toast({ ...props }: Toast) {
   const id = genId();
+  props.title = toUserText(props.title) as Toast["title"];
+  props.description = toUserText(props.description) as Toast["description"];
 
   const update = (props: ToasterToast) =>
     dispatch({
