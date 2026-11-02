@@ -40,7 +40,7 @@ contacts(source_type,source_id,user_id,nom_complet,email,telephone,role_code,off
       WHEN c.proprietaire_id IS NOT NULL THEN 'proprietaire_foncier'
       WHEN c.type_client='beneficiaire_particulier' THEN 'beneficiaire_particulier'
       ELSE 'client' END,
-    c.id,c.user_id,COALESCE(NULLIF(c.nom_complet,''),concat_ws(' ',c.prenoms,c.nom_famille)),
+    c.id,c.user_id,COALESCE(NULLIF(c.nom_complet,''),concat_ws(' ',c.prenoms,c.nom)),
     c.email,COALESCE(c.telephone,c.whatsapp),NULL::text,c.offre_id,o.code,o.nom
   FROM public.clients c
   LEFT JOIN public.offres o ON o.id=c.offre_id
