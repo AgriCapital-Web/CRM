@@ -218,8 +218,6 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             nom_complet: fullName,
             username: String(data.username || "").trim(),
             email: String(data.email || "").trim(),
-            nom: normalizedNom,
-            prenoms: normalizedPrenoms,
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,

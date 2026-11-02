@@ -377,7 +377,7 @@ const GestionNotifications = () => {
     const criteria: any = item.criteres || {};
     const selected = Array.isArray(criteria.selected_recipients)
       ? Array.from(new Map(criteria.selected_recipients.filter((r: any) => r?.source_type && r?.source_id)
-          .map((r: any) => [String(r.source_type) + ":" + String(r.source_id), { source_type: String(r.source_type), source_id: String(r.source_id) }])).values())
+          .map((r: any) => [String(r.source_type) + ":" + String(r.source_id), { source_type: String(r.source_type), source_id: String(r.source_id) }])).values()) as { source_type: string; source_id: string }[]
       : [];
     setEditingCampaignId(item.id);
     setCampaign({
