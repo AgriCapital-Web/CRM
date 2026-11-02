@@ -7,7 +7,7 @@ type Country = { code: string; name: string; callingCode: string; flag: string }
 const digits = (value: string) => String(value || "").replace(/\D/g, "");
 const countryFlag = (code: string) => String(code || "").toUpperCase().replace(/[A-Z]/g, letter => String.fromCodePoint(127397 + letter.charCodeAt(0)));
 const displayNames = new Intl.DisplayNames(["fr"], { type: "region" });
-const COUNTRIES: Country[] = getCountries().map(code => ({
+export const COUNTRIES: Country[] = getCountries().map(code => ({
   code,
   name: displayNames.of(code) || code,
   callingCode: "+" + getCountryCallingCode(code),
@@ -79,13 +79,13 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         searchPlaceholder="Rechercher un pays..."
         emptyText="Aucun pays trouvé."
         disabled={disabled}
-        className="h-9 w-10 min-w-10 shrink-0 px-0"
+        className="h-10 w-10 min-w-10 shrink-0 px-0"
         triggerLabel={selected.callingCode}
         triggerFlagUrl={flagUrl(selected.code)}
         triggerIconOnly
       />
       <Input
-        className={`min-w-0 w-0 flex-1 h-9 ${compact ? "px-2 text-sm" : ""}`}
+        className={`min-w-0 w-0 flex-1 h-10 ${compact ? "px-2 text-sm" : ""}`}
         type="tel"
         inputMode="tel"
         autoComplete="tel-national"
