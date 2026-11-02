@@ -256,7 +256,15 @@ const GestionNotifications = () => {
       const detail = serverMessage || error.message || "Erreur inconnue";
       throw new Error(`Notification (${String(body.mode || "requête")}): ${detail}`);
     }
-    if (data?.error) throw new Error(String(data.error));
+    if (data?.error) {
+      const errorValue = data.error;
+      const errorMessage = typeof errorValue === "string"
+        ? errorValue
+        : errorValue && typeof errorValue === "object"
+          ? String((errorValue as any).message || (errorValue as any).error_description || (errorValue as any).details || JSON.stringify(errorValue))
+          : String(errorValue);
+      throw new Error(errorMessage || "Erreur de notification inconnue.");
+    }
     return data;
   };
 
