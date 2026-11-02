@@ -288,7 +288,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         }
 
       } else {
-        const tempPassword = createdAccount?.tempPassword || "";
+        let tempPassword = createdAccount?.tempPassword || "";
         let result: any;
         if (createdAccount) {
           // Reprendre les opérations secondaires sans recréer un compte déjà créé.
@@ -334,7 +334,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           result = createdResult;
           // Mémoriser le compte dès sa création : une erreur de salaire ou de média
           // ne doit pas obliger à recréer le même compte à la prochaine tentative.
-          setCreatedAccount({ user_id: result.user_id, tempPassword: createdResult.temp_password || tempPassword });
+          tempPassword = createdResult.temp_password || tempPassword;
+          setCreatedAccount({ user_id: result.user_id, tempPassword });
         }
 
         // La création initiale attribue déjà les rôles de manière transactionnelle.
