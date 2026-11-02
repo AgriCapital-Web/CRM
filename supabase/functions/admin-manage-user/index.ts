@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+function generateTempPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = new Uint8Array(12); crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("") + "!7";
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,7 +77,7 @@ serve(async (req) => {
       if (rolesLookupError) return json({ error: `Vérification des rôles impossible : ${rolesLookupError.message}`, step }, 400);
       const validRoles = new Set((rolesFound || []).filter((r: any) => r.actif === true).map((r: any) => String(r.code)));
       if (roleList.some((r) => !validRoles.has(r))) return json({ error: "Un ou plusieurs rôles sont inconnus ou inactifs.", step }, 400);
-      const tempPassword = "Ac0000";
+      const tempPassword = generateTempPassword();
       step = "create_auth_user";
       const { data: created, error: createError } = await admin.auth.admin.createUser({
         email: cleanEmail,
