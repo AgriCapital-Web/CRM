@@ -9,7 +9,7 @@ export default function IndependentServiceGeo({values,onChange}:{values:Partial<
  useEffect(()=>{void Promise.all([(supabase as any).from("districts").select("id,nom").order("nom"),(supabase as any).from("regions").select("id,nom,district_id").order("nom"),(supabase as any).from("departements").select("id,nom,region_id").order("nom"),(supabase as any).from("sous_prefectures").select("id,nom,departement_id").order("nom"),(supabase as any).from("villages").select("id,nom,sous_prefecture_id").order("nom").limit(50000)]).then(([d,r,de,sp,v])=>{setDistricts(d.data||[]);setRegions(r.data||[]);setDepartments(de.data||[]);setSubprefectures(sp.data||[]);setVillages(v.data||[]);});},[]);
  const districtOptions=useMemo(()=>districts.map(x=>({value:x.id,label:x.nom})),[districts]);
  const regionOptions=regions.filter(x=>x.district_id===values.district_id).map(x=>({value:x.id,label:x.nom}));
- const departmentOptions=[{value:"diaspora",label:"Diaspora"},...departments.filter(x=>x.region_id===values.region_id).map(x=>({value:x.id,label:x.nom}))];
+ const departmentOptions=[{value:"diaspora",label:"Diaspora"},...departments.map(x=>({value:x.id,label:x.nom}))];
  const subOptions=subprefectures.filter(x=>x.departement_id===values.departement_id).map(x=>({value:x.id,label:x.nom}));
  const villageOptions=villages.filter(x=>x.sous_prefecture_id===values.sous_prefecture_id).map(x=>({value:x.id,label:x.nom}));
  return <div className="grid gap-3 sm:grid-cols-2">
