@@ -99,7 +99,8 @@ const parseSpreadsheetContent = (content: string): { name: string; rows: any[][]
 const buildWorksheet = (sheet: ExcelJS.Worksheet, rows: any[][]) => {
   rows.forEach((row, rowIndex) => {
     sheet.addRow(row.map((value) => {
-      if (typeof value === "string" && value.startsWith("=") && value.length > 1) return { formula: value.slice(1) };
+      // Never turn user-supplied text into live formulas; neutralize formula-leading strings.
+      if (typeof value === "string" && /^[=+\-@\t\r]/.test(value)) return "'" + value;
       return value;
     }));
   });

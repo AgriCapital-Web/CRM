@@ -63,9 +63,7 @@ const AccountRequests = () => {
         try {
           await supabase.functions.invoke('send-account-approved-notification', {
             body: {
-              email: selectedRequest.email,
-              nom_complet: selectedRequest.nom_complet,
-              login_url: `${window.location.origin}/login`,
+              request_id: selectedRequest.id,
               used_own_password: !payload?.temp_password,
               temp_password: payload?.temp_password || undefined,
             },

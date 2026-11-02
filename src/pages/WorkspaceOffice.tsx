@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import OfficeFormatTools, { type OfficeDocumentType } from "@/components/workspace/OfficeFormatTools";
 import { toast } from "sonner";
+import { sanitizeWorkspaceHtml } from "@/lib/sanitizeWorkspaceHtml";
 import { FileText, FileSpreadsheet, Presentation, Files, Plus, Save, Trash2, RefreshCw, Search, ShieldCheck, LoaderCircle, Download } from "lucide-react";
 
 type WorkspaceDocument = {
@@ -30,13 +31,13 @@ function RichTextEditor({ value, onChange, disabled }: { value: string; onChange
   const editorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const editor = editorRef.current;
-    if (editor && document.activeElement !== editor && editor.innerHTML !== value) editor.innerHTML = value || "";
+    if (editor && document.activeElement !== editor && editor.innerHTML !== value) editor.innerHTML = sanitizeWorkspaceHtml(value || "");
   }, [value]);
   const command = (name: string, argument?: string) => {
     if (!editorRef.current || disabled) return;
     editorRef.current.focus();
     document.execCommand(name, false, argument);
-    onChange(editorRef.current.innerHTML);
+    onChange(sanitizeWorkspaceHtml(editorRef.current.innerHTML));
   };
   const tools = [
     { label: "Gras", command: "bold", text: "B", style: "font-bold" },
@@ -54,7 +55,7 @@ function RichTextEditor({ value, onChange, disabled }: { value: string; onChange
       </select>
     </div>
     <div ref={editorRef} contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-label="Éditeur de document" aria-multiline="true"
-      onInput={(event) => onChange(event.currentTarget.innerHTML)}
+      onInput={(event) => onChange(sanitizeWorkspaceHtml(event.currentTarget.innerHTML))}
       className="min-h-[420px] max-w-none overflow-y-auto px-5 py-4 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary [&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:pl-4 [&_blockquote]:italic"
       data-placeholder="Commencez à rédiger votre document…"/>
   </div>;

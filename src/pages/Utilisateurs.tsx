@@ -190,7 +190,7 @@ const Utilisateurs = () => {
         }
         toast({
           title: "Compte créé et rôle attribué",
-          description: `Mot de passe initial : ${payload.temp_password || "Ac0000"}. Changement obligatoire à la première connexion.`,
+          description: `Mot de passe initial : ${payload.temp_password || "communiqué par l\u2019administrateur"}. Changement obligatoire à la première connexion.`,
           duration: 20000,
         });
         setAdminAction(null);

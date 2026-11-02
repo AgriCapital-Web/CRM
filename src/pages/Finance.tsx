@@ -342,7 +342,8 @@ export default function Finance(){
       ])
     ];
     const csv = "\uFEFF" + rows.map((row:any[])=>row.map((cell:any)=>{
-      const value = String(cell ?? "");
+      const raw = String(cell ?? "");
+      const value = typeof cell === "string" && /^[=+\-@\t\r]/.test(raw) ? "'" + raw : raw;
       return '"' + value.replace(/"/g, '""') + '"';
     }).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8;"}));
