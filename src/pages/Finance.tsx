@@ -55,7 +55,7 @@ export default function Finance(){
   const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|null>(null);
   const [selectedExpense,setSelectedExpense]=useState<any|null>(null);
   const [expenseSearch,setExpenseSearch]=useState("");
-  const [plannedExpense,setPlannedExpense]=useState({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
+  const [plannedExpense,setPlannedExpense]=useState({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
   const [plannedProof,setPlannedProof]=useState<File|null>(null);
   const [paymentTarget,setPaymentTarget]=useState<any|null>(null);
   const [paymentAmount,setPaymentAmount]=useState("");
@@ -64,7 +64,7 @@ export default function Finance(){
   const [paymentReference,setPaymentReference]=useState("");
   const [paymentProof,setPaymentProof]=useState<File|null>(null);
 
-  const [entryForm,setEntryForm]=useState({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+  const [entryForm,setEntryForm]=useState({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
   const [entryProof,setEntryProof]=useState<File|null>(null);
   const entryProofPreview = useMemo(() => entryProof && (entryProof.type.startsWith("image/") || entryProof.type === "application/pdf") ? URL.createObjectURL(entryProof) : null, [entryProof]);
   useEffect(() => () => { if (entryProofPreview) URL.revokeObjectURL(entryProofPreview); }, [entryProofPreview]);
@@ -158,12 +158,12 @@ export default function Finance(){
         direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
         label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:Number(entryForm.amount),
         transaction_date:new Date(entryForm.date+"T12:00:00").toISOString(),payment_method:entryForm.method||null,
-        reference:entryForm.reference.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
+        reference:entryForm.reference.trim()||null,contact_phone:entryForm.contactPhone.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
         proof_path:uploadedProofPath,proof_name:entryProof?.name||null
       });
       if(error)throw error;
       toast({title:"Entrée enregistrée"});
-      setEntryForm({type:"financement",source:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+      setEntryForm({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
       setEntryProof(null);
       setEntryFormOpen(false);
       await load();
@@ -241,14 +241,14 @@ export default function Finance(){
       if(plannedProof){const uploaded=await uploadFile("documents",plannedProof,"finance/depenses-a-payer");if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");proofPath=uploaded.path;}
       const {error}=await (supabase as any).from("finance_expenses").insert({
         transaction_id:null,expense_category:plannedExpense.category,description:plannedExpense.description.trim()||null,
-        supplier_name:plannedExpense.beneficiary.trim()||null,beneficiary_name:plannedExpense.beneficiary.trim()||null,
+        supplier_name:plannedExpense.beneficiary.trim()||null,beneficiary_name:plannedExpense.beneficiary.trim()||null,beneficiary_phone:plannedExpense.beneficiaryPhone.trim()||null,
         is_direct_cost:plannedExpense.direct,expense_date:plannedExpense.expenseDate,due_date:plannedExpense.dueDate||null,
         total_amount:amount,paid_amount:0,status:"unpaid",payment_method:null,notes:null,
         proof_path:proofPath,proof_name:plannedProof?.name||null,proof_mime_type:plannedProof?.type||null
       });
       if(error)throw error;
       toast({title:"Dépense à payer enregistrée",description:"Elle reste distincte des sorties jusqu’à l’enregistrement d’un paiement."});
-      setPlannedExpense({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
+      setPlannedExpense({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
       setPlannedProof(null);await load();
     }catch(error:any){if(proofPath)await supabase.storage.from("documents").remove([proofPath]);toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
     finally{setSaving(false);}
@@ -458,7 +458,7 @@ export default function Finance(){
         </div>
         <Dialog open={entryFormOpen} onOpenChange={setEntryFormOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Nouvelle entrée financière</DialogTitle></DialogHeader><div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1"><Label>Type d’entrée</Label><Select value={entryForm.type} onValueChange={v=>setEntryForm({...entryForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="financement">Financement</SelectItem><SelectItem value="pret">Prêt reçu</SelectItem><SelectItem value="don">Don</SelectItem><SelectItem value="vente">Vente / prestation</SelectItem><SelectItem value="autre">Autre entrée</SelectItem></SelectContent></Select></div>
-          <div className="space-y-1"><Label>Source / raison sociale / nom</Label><Input value={entryForm.source} onChange={e=>setEntryForm({...entryForm,source:e.target.value})} placeholder="Nom du financeur ou organisme"/></div>
+          <div className="space-y-1"><Label>Source / raison sociale / nom</Label><Input value={entryForm.source} onChange={e=>setEntryForm({...entryForm,source:e.target.value})} placeholder="Nom du financeur ou organisme"/></div><div className="space-y-1"><Label>Téléphone du contact</Label><Input type="tel" value={entryForm.contactPhone} onChange={e=>setEntryForm({...entryForm,contactPhone:e.target.value})} placeholder="+225 07 00 00 00 00"/></div>
           <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={entryForm.amount} onChange={e=>setEntryForm({...entryForm,amount:e.target.value})} placeholder="Montant reçu"/></div>
           <div className="space-y-1"><Label>Date de réception</Label><Input type="date" value={entryForm.date} onChange={e=>setEntryForm({...entryForm,date:e.target.value})}/></div>
           <div className="space-y-1"><Label>Mode de réception</Label><Select value={entryForm.method} onValueChange={v=>setEntryForm({...entryForm,method:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>
@@ -512,7 +512,7 @@ export default function Finance(){
         <div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold">Dépenses à payer</h2><p className="text-sm text-muted-foreground">Une dépense prévue ne devient une sortie qu’après l’enregistrement d’un paiement.</p></div><Button onClick={()=>setPlannedExpenseOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouvelle dépense à payer</Button></div>
         <Dialog open={plannedExpenseOpen} onOpenChange={setPlannedExpenseOpen}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Nouvelle dépense à payer</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1"><Label>Motif / catégorie</Label><Select value={plannedExpense.category} onValueChange={v=>setPlannedExpense({...plannedExpense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["PRESTATIONS","ACHAT DE PLANTS","FOURNITURES","PRÊT DE PLANTS","DÉFRICHAGE","TROUAISON","NETTOYAGE","LOGISTIQUE","TRANSPORT","CARBURANT","MATÉRIEL","MAIN-D’ŒUVRE","AUTRE"].map(v=><SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-1"><Label>Montant prévu (FCFA)</Label><Input type="number" min="1" value={plannedExpense.amount} onChange={e=>setPlannedExpense({...plannedExpense,amount:e.target.value})}/></div><div className="space-y-1"><Label>Bénéficiaire / fournisseur</Label><Input value={plannedExpense.beneficiary} onChange={e=>setPlannedExpense({...plannedExpense,beneficiary:e.target.value})} placeholder="Nom du bénéficiaire"/></div>
+          <div className="space-y-1"><Label>Montant prévu (FCFA)</Label><Input type="number" min="1" value={plannedExpense.amount} onChange={e=>setPlannedExpense({...plannedExpense,amount:e.target.value})}/></div><div className="space-y-1"><Label>Bénéficiaire / fournisseur</Label><Input value={plannedExpense.beneficiary} onChange={e=>setPlannedExpense({...plannedExpense,beneficiary:e.target.value})} placeholder="Nom du bénéficiaire"/></div><div className="space-y-1"><Label>Téléphone du bénéficiaire / fournisseur</Label><Input type="tel" value={plannedExpense.beneficiaryPhone} onChange={e=>setPlannedExpense({...plannedExpense,beneficiaryPhone:e.target.value})} placeholder="+225 07 00 00 00 00"/></div>
           <div className="space-y-1"><Label>Date de la dépense</Label><Input type="date" value={plannedExpense.expenseDate} onChange={e=>setPlannedExpense({...plannedExpense,expenseDate:e.target.value})}/></div><div className="space-y-1"><Label>Date prévue de paiement</Label><Input type="date" value={plannedExpense.dueDate} onChange={e=>setPlannedExpense({...plannedExpense,dueDate:e.target.value})}/></div><div className="space-y-1"><Label>Justificatif / devis / facture</Label><Input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setPlannedProof(e.target.files?.[0]||null)}/></div>
           <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Description</Label><Textarea value={plannedExpense.description} onChange={e=>setPlannedExpense({...plannedExpense,description:e.target.value})} rows={2}/></div><div className="flex items-center gap-2"><input type="checkbox" checked={plannedExpense.direct} onChange={e=>setPlannedExpense({...plannedExpense,direct:e.target.checked})} className="h-4 w-4"/><Label>Coût direct</Label></div><div className="flex gap-2 sm:col-span-2 lg:col-span-3"><Button onClick={()=>void savePlannedExpense()} disabled={saving}>{saving?"Enregistrement…":"Enregistrer"}</Button><Button variant="outline" onClick={()=>setPlannedExpenseOpen(false)} disabled={saving}>Annuler</Button></div>
         </div></DialogContent></Dialog>
