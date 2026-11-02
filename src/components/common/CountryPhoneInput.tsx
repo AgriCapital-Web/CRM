@@ -79,10 +79,10 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         searchPlaceholder="Rechercher un pays..."
         emptyText="Aucun pays trouvé."
         disabled={disabled}
-        className={compact ? "h-9 w-10 min-w-10 shrink-0 px-0" : "h-9 w-[112px] shrink-0 sm:w-[145px]"}
+        className="h-9 w-10 min-w-10 shrink-0 px-0"
         triggerLabel={selected.callingCode}
         triggerFlagUrl={flagUrl(selected.code)}
-        triggerIconOnly={compact}
+        triggerIconOnly
       />
       <Input
         className={`min-w-0 w-0 flex-1 h-9 ${compact ? "px-2 text-sm" : ""}`}
