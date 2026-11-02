@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +60,24 @@ async function findClient(supabase: any, phone: string) {
     try { return normalizePhone(value) === phone; } catch { return false; }
   })) || null;
 }
+function maskPhone(value: unknown) {
+  const d = String(value ?? "").replace(/\D/g, "");
+  return d.length >= 4 ? "•••• " + d.slice(-4) : null;
+}
+function smsDestination(client: any) {
+  const pairs = [[client.telephone_indicatif, client.telephone_local], [client.whatsapp_indicatif, client.whatsapp_local]];
+  for (const [ind, loc] of pairs) if (ind && loc) return "+" + String(ind).replace(/\D/g, "") + String(loc).replace(/\D/g, "");
+  const raw = String(client.telephone || client.whatsapp || client.telephone_local || "").replace(/\D/g, "").replace(/^00/, "");
+  if (!raw) return null;
+  return "+" + (raw.length <= 10 ? "225" + raw : raw);
+}
+async function sendOtpSms(supabase: any, to: string, code: string) {
+  const { data: apiKey } = await supabase.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
+  if (typeof apiKey !== "string" || !apiKey) throw new Error("SMS provider not configured");
+  const senndo = new SenndoClient({ apiKey, baseUrl: "https://api.senndo.com", timeoutMs: 30000, maxRetries: 1, userAgent: "AgriCapital-Portal/1.0" });
+  await senndo.sendMessage({ channel: "sms", to, senderId: "AgriCapital", text: "AgriCapital : votre code de verification portail est " + code + ". Valable 10 minutes. Ne le partagez pas.", idempotencyKey: crypto.randomUUID() });
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -83,17 +102,44 @@ serve(async (req: Request) => {
     if (action === "inspect") {
       if (isDemo) {
         const token = await issueSession(supabase, client.id);
-        return json({ success: true, demo: true, demo_code: "2026", access_token: token, client_id: client.id,
-          telephone: client.telephone || client.whatsapp || client.telephone_local || client.whatsapp_local, nom_complet: client.nom_complet });
+        return json({ success: true, demo: true, demo_code: "2026", access_token: token });
       }
-      return json({ success: true, demo: false, client_id: client.id,
-        telephone: client.telephone || client.whatsapp || client.telephone_local || client.whatsapp_local,
-        nom_complet: client.nom_complet, needs_access_code_setup: !access, locked_until: access?.locked_until || null, pre_activation: isPreActivation });
+      // Never disclose client identity before the caller proves control of the phone or knows the code.
+      return json({ success: true, demo: false, telephone_masque: maskPhone(client.telephone || client.whatsapp || client.telephone_local),
+        needs_access_code_setup: !access, locked_until: access?.locked_until || null, pre_activation: isPreActivation, otp_required_for_setup: !access });
+    }
+    if (action === "request_otp") {
+      if (access) return json({ success: false, error: "Un code d'accès existe déjà pour ce compte.", needs_access_code_setup: false }, 409);
+      const dest = smsDestination(client);
+      if (!dest) return json({ success: false, error: "Aucun numéro joignable n'est enregistré pour ce dossier." }, 400);
+      const { data: recent } = await supabase.from("otp_codes").select("created_at").eq("telephone", phone)
+        .gte("created_at", new Date(Date.now() - 60 * 1000).toISOString()).limit(1);
+      if (recent && recent.length) return json({ success: false, error: "Un code vient d'être envoyé. Patientez une minute avant d'en demander un autre." }, 429);
+      const otp = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, "0");
+      await supabase.from("otp_codes").delete().eq("telephone", phone).eq("verified", false);
+      const { error: otpErr } = await supabase.from("otp_codes").insert({ telephone: phone, code: await codeHash(otp, "otp:" + phone),
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), verified: false, attempts: 0 });
+      if (otpErr) throw otpErr;
+      await sendOtpSms(supabase, dest, otp);
+      return json({ success: true, otp_sent: true, telephone_masque: maskPhone(dest) });
     }
     if (action === "setup") {
       if (access) return json({ success: false, error: "Un code d'accès existe déjà pour ce compte. Utilisez-le pour vous connecter.", needs_access_code_setup: false }, 409);
       const code = String(body?.code || ""), confirm = String(body?.confirm_code || "");
       if (!/^\d{4}$/.test(code) || code !== confirm) return json({ success: false, error: "Le code doit contenir exactement 4 chiffres et les deux champs doivent être identiques." }, 400);
+      // Proof of phone ownership: a one-time SMS code sent to the client's registered number.
+      const otp = String(body?.otp || "");
+      if (!/^\d{6}$/.test(otp)) return json({ success: false, code: "OTP_REQUIRED", error: "Saisissez le code de vérification reçu par SMS." }, 400);
+      const { data: otpRow } = await supabase.from("otp_codes").select("id,code,expires_at,attempts").eq("telephone", phone)
+        .eq("verified", false).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!otpRow || new Date(otpRow.expires_at).getTime() < Date.now() || Number(otpRow.attempts || 0) >= 5) {
+        return json({ success: false, code: "OTP_EXPIRED", error: "Code de vérification expiré. Demandez un nouveau code." }, 400);
+      }
+      if (otpRow.code !== await codeHash(otp, "otp:" + phone)) {
+        await supabase.from("otp_codes").update({ attempts: Number(otpRow.attempts || 0) + 1 }).eq("id", otpRow.id);
+        return json({ success: false, code: "OTP_INVALID", error: "Code de vérification incorrect." }, 401);
+      }
+      await supabase.from("otp_codes").update({ verified: true }).eq("id", otpRow.id);
       const salt = randomHex(16), hash = await codeHash(code, salt);
       const { error } = await supabase.from("client_portal_access_codes").insert({
         client_id: client.id, code_hash: hash, code_salt: salt, failed_attempts: 0, locked_until: null,
