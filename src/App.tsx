@@ -21,6 +21,7 @@ import Finance from "./pages/Finance";
 import Commissions from "./pages/Commissions";
 import Portefeuilles from "./pages/Portefeuilles";
 import NouvelleAcquisition from "./pages/NouvelleAcquisition";
+import PrestationsIndependantes from "./pages/PrestationsIndependantes";
 import Parametres from "./pages/Parametres";
 import Profil from "./pages/Profil";
 import HistoriqueComplet from "./pages/HistoriqueComplet";
@@ -106,6 +107,7 @@ const DomainRouter = () => {
       <Route path="/acquisitions" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><Clients /></ProtectedRoute>} />
       <Route path="/acquisitions/nouveau" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/validation" element={<ProtectedRoute><ValidationDossiers /></ProtectedRoute>} />
+      <Route path="/acquisitions/prestations-independantes" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><PrestationsIndependantes /></ProtectedRoute>} />
       <Route path="/nouvelle-acquisition" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_ACQUISITION}><NouvelleAcquisition /></ProtectedRoute>} />
       
       <Route path="/acquisition/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
