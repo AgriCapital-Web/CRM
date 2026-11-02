@@ -29,10 +29,21 @@ serve(async (req) => {
       if (!isAdmin) return deny("Accès réservé aux administrateurs", 403);
     }
 
-    const { email, nom_complet, login_url, used_own_password, temp_password } = await req.json();
-    if (!email) throw new Error("email requis");
+    const body = await req.json();
+    const requestId = typeof body?.request_id === "string" ? body.request_id : "";
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) return deny("Demande de compte invalide", 400);
+    const used_own_password = body?.used_own_password === true;
+    const rawTemp = typeof body?.temp_password === "string" ? body.temp_password : "";
+    if (!used_own_password && !/^[A-Za-z0-9!]{8,64}$/.test(rawTemp)) return deny("Mot de passe temporaire invalide", 400);
+    const temp_password = used_own_password ? "" : rawTemp;
+    // Recipient comes only from the approved account request, never from the caller.
+    const login_url = "https://app.agricapital.ci/login";
 
     const secretClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data: reqRow, error: reqErr } = await secretClient.from("account_requests").select("email,statut").eq("id", requestId).maybeSingle();
+    if (reqErr || !reqRow?.email) return deny("Demande de compte introuvable", 404);
+    if (!["approuve", "approuvee", "approved", "valide", "validee"].includes(String(reqRow.statut ?? "").toLowerCase())) return deny("La demande n'est pas approuvée", 409);
+    const email = String(reqRow.email);
     const { data: senndoKey } = await secretClient.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
     const { data: senndoSender } = await secretClient.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
