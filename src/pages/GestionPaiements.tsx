@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtime } from "@/hooks/useRealtime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -517,13 +518,13 @@ const GestionPaiements = () => {
                 {/* Source - Débiteur */}
                 <div className="space-y-2">
                   <Label>Numéro téléphone du débiteur (source)</Label>
-                  <Input
-                    type="tel"
-                    placeholder="Ex: 0759566087"
-                    value={sourcePhone}
-                    onChange={(e) => {
-                      setSourcePhone(e.target.value);
-                      searchClient(e.target.value, 'source');
+                  <CountryPhoneInput
+                    label=""
+                    countryCode="+225"
+                    localValue={sourcePhone}
+                    onChange={(v) => {
+                      setSourcePhone(v.internationalValue);
+                      searchClient(v.internationalValue, "source");
                     }}
                   />
                   {sourceClient && (
@@ -596,13 +597,13 @@ const GestionPaiements = () => {
                 {/* Source - Client */}
                 <div className="space-y-2">
                   <Label>Numéro téléphone du client</Label>
-                  <Input
-                    type="tel"
-                    placeholder="Ex: 0759566087"
-                    value={refundSourcePhone}
-                    onChange={(e) => {
-                      setRefundSourcePhone(e.target.value);
-                      searchClient(e.target.value, 'source');
+                  <CountryPhoneInput
+                    label=""
+                    countryCode="+225"
+                    localValue={refundSourcePhone}
+                    onChange={(v) => {
+                      setRefundSourcePhone(v.internationalValue);
+                      searchClient(v.internationalValue, "source");
                     }}
                   />
                   {sourceClient && (
