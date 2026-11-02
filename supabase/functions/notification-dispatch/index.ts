@@ -398,8 +398,19 @@ async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const detail = typeof payload?.message === "string" ? payload.message.slice(0, 250) : "";
-    throw new Error("Senndo a refusé l’envoi WhatsApp appairé (HTTP " + response.status + ")." + (detail ? " " + detail : ""));
+    const detailValue = payload?.message ?? payload?.error ?? payload?.details ?? payload?.reason;
+    const detail = typeof detailValue === "string"
+      ? detailValue.slice(0, 350)
+      : detailValue != null
+        ? JSON.stringify(detailValue).slice(0, 350)
+        : "";
+    const providerCode = typeof payload?.code === "string" ? payload.code.slice(0, 80) : "";
+    const error = new Error("Senndo a refusé l’envoi WhatsApp appairé (HTTP " + response.status + ")." +
+      (providerCode ? " Code: " + providerCode + "." : "") + (detail ? " " + detail : ""));
+    (error as any).status = response.status;
+    (error as any).code = providerCode || "SENNDO_WHATSAPP_REJECTED";
+    (error as any).providerStatus = payload?.status ?? response.status;
+    throw error;
   }
   return { provider: "senndo_whatsapp_baileys", messageId: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null };
 }
