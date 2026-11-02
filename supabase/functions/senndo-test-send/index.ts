@@ -24,12 +24,28 @@ function reply(req: Request, body: unknown, status = 200) {
 }
 async function authorize(req: Request) {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!token || token.length < 20) return false;
+  if (!token || token.length < 20) return null;
   const { data, error } = await admin.auth.getUser(token);
-  if (error || !data.user) return false;
+  if (error || !data.user) return null;
   const { data: roles, error: roleError } = await admin.from("user_roles").select("role").eq("user_id", data.user.id);
-  if (roleError) return false;
-  return (roles || []).some((r) => ["pdg", "dg", "admin", "super_admin"].includes(String(r.role).toLowerCase()));
+  if (roleError) return null;
+  const ok = (roles || []).some((r) => ["pdg", "dg", "admin", "super_admin"].includes(String(r.role).toLowerCase()));
+  return ok ? data.user : null;
+}
+const digitsTail = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-8);
+// Test sends may only target the calling administrator's own registered contacts.
+async function isOwnContact(user: { id: string; email?: string | null }, channel: string, to: string) {
+  const { data: p } = await admin.from("profiles")
+    .select("email,telephone,telephone_local,telephone_secondaire,telephone_secondaire_local,whatsapp,whatsapp_local")
+    .eq("user_id", user.id).maybeSingle();
+  if (channel === "email") {
+    const emails = [user.email, p?.email].filter(Boolean).map((e) => String(e).trim().toLowerCase());
+    return emails.includes(to.toLowerCase());
+  }
+  const target = digitsTail(to);
+  if (target.length < 8) return false;
+  const phones = [p?.telephone, p?.telephone_local, p?.telephone_secondaire, p?.telephone_secondaire_local, p?.whatsapp, p?.whatsapp_local];
+  return phones.some((v) => v && digitsTail(v) === target);
 }
 
 const BRAND_LOGO_URL = "https://www.agricapital.ci/logo-agricapital.png";
@@ -80,7 +96,8 @@ async function sendBrandedEmail(input: { apiKey: string; to: string; subject: st
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req) });
   if (req.method !== "POST") return reply(req, { error: "POST requis" }, 405);
-  if (!(await authorize(req))) return reply(req, { error: "Accès réservé aux administrateurs autorisés" }, 403);
+  const caller = await authorize(req);
+  if (!caller) return reply(req, { error: "Accès réservé aux administrateurs autorisés" }, 403);
   try {
     const body = await req.json();
     const channel = body?.channel;
@@ -91,6 +108,9 @@ Deno.serve(async (req) => {
     if (!to || to.length > 254) return reply(req, { error: "Destinataire invalide" }, 400);
     if (!text || text.length > 1000) return reply(req, { error: "Le message doit contenir entre 1 et 1000 caractères" }, 400);
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return reply(req, { error: "Adresse e-mail invalide" }, 400);
+    if (!(await isOwnContact(caller, channel, to))) {
+      return reply(req, { error: "Le test ne peut être envoyé qu’à vos propres coordonnées (e-mail ou téléphone de votre profil)." }, 403);
+    }
     if (channel !== "email") {
       const destinationDigits = to.replace(/\D/g, "");
       if (!/^[1-9]\d{7,14}$/.test(destinationDigits)) {
