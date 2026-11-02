@@ -1,6 +1,6 @@
--- AgriCapital 360 — normalisation des audiences de notification
--- Migration additive/idempotente : ne supprime aucune campagne, audience ni livraison.
--- Corrige les alias d'audience historiques et évite les doublons de parties CRM liées.
+-- AgriCapital 360 — normalisation sûre des audiences de notification.
+-- Reprend le schéma canonique existant; aucun champ CRM nouveau ou supposé.
+-- Idempotent, non destructif, et sans effet direct sur les campagnes déjà envoyées.
 
 CREATE OR REPLACE FUNCTION public.notification_resolve_recipients(_criteres jsonb DEFAULT '{}'::jsonb)
 RETURNS TABLE(
@@ -21,172 +21,73 @@ SECURITY DEFINER
 SET search_path = public
 AS $function$
 WITH criteria AS (
-  SELECT
-    lower(trim(coalesce(_criteres->>'audience', 'tous'))) AS audience,
-    nullif(trim(_criteres->>'offer_code'), '') AS offer_code,
-    nullif(trim(_criteres->>'role_code'), '') AS role_code,
-    nullif(_criteres->>'has_email', '')::boolean AS has_email,
-    nullif(_criteres->>'has_phone', '')::boolean AS has_phone
+  SELECT lower(trim(coalesce(_criteres->>'audience', 'tous'))) AS audience
 ),
-contacts AS (
-  SELECT
-    'equipe'::text AS source_type,
-    p.id AS source_id,
-    p.user_id,
-    p.nom_complet,
-    p.email,
-    coalesce(nullif(trim(p.telephone), ''), nullif(trim(p.whatsapp), '')) AS telephone,
-    ur.role AS role_code,
-    NULL::uuid AS offre_id,
-    NULL::text AS offre_code,
-    NULL::text AS offre_nom
+contacts(source_type,source_id,user_id,nom_complet,email,telephone,role_code,offre_id,offre_code,offre_nom) AS (
+  SELECT 'equipe',p.id,p.user_id,p.nom_complet,p.email,COALESCE(p.telephone,p.whatsapp),
+    ur.role,NULL::uuid,NULL::text,NULL::text
   FROM public.profiles p
-  JOIN LATERAL (
-    SELECT r.role
-    FROM public.user_roles r
-    WHERE r.user_id = p.user_id
-    ORDER BY
-      CASE WHEN r.role IN ('commercial','responsable_commercial','chef_equipe_commercial') THEN 0 ELSE 1 END,
-      r.is_primary DESC NULLS LAST,
-      r.created_at ASC
-    LIMIT 1
+  LEFT JOIN LATERAL (
+    SELECT r.role FROM public.user_roles r
+    WHERE r.user_id=p.user_id ORDER BY r.created_at LIMIT 1
   ) ur ON true
-  WHERE coalesce(p.actif, true) AND p.user_id IS NOT NULL
+  WHERE COALESCE(p.actif,true) AND public.is_staff(p.user_id)
 
   UNION ALL
 
-  SELECT
-    'client'::text,
-    c.id,
-    c.user_id,
-    coalesce(nullif(c.nom_complet,''), concat_ws(' ', c.prenoms, c.nom_famille)),
-    c.email,
-    coalesce(nullif(trim(c.telephone),''), nullif(trim(c.whatsapp),'')),
-    NULL::text,
-    c.offre_id,
-    coalesce(nullif(c.offre_code,''), o.code),
-    coalesce(nullif(c.offre_nom,''), o.nom)
+  SELECT CASE
+      WHEN c.proprietaire_id IS NOT NULL AND c.type_client='beneficiaire_particulier' THEN 'proprietaire_foncier+beneficiaire_particulier'
+      WHEN c.proprietaire_id IS NOT NULL THEN 'proprietaire_foncier'
+      WHEN c.type_client='beneficiaire_particulier' THEN 'beneficiaire_particulier'
+      ELSE 'client' END,
+    c.id,c.user_id,COALESCE(NULLIF(c.nom_complet,''),concat_ws(' ',c.prenoms,c.nom_famille)),
+    c.email,COALESCE(c.telephone,c.whatsapp),NULL::text,c.offre_id,o.code,o.nom
   FROM public.clients c
-  LEFT JOIN public.offres o ON o.id = c.offre_id
-  WHERE c.type_client IN ('client','avec_terre')
-    AND c.proprietaire_id IS NULL
-    AND coalesce(c.is_internal,false) = false
-    AND coalesce(c.statut_global,'actif') NOT IN ('archive','supprime')
-    AND coalesce(c.compte_actif,true)
+  LEFT JOIN public.offres o ON o.id=c.offre_id
+  WHERE COALESCE(c.statut_global,'actif') NOT IN ('archive','supprime')
+    AND COALESCE(c.compte_actif,true)
 
   UNION ALL
 
-  SELECT
-    'proprietaire_foncier'::text,
-    p.id,
-    NULL::uuid,
-    p.nom_complet,
-    p.email,
-    coalesce(nullif(trim(p.telephone),''), nullif(trim(p.whatsapp),'')),
-    NULL::text,
-    NULL::uuid,
-    NULL::text,
-    NULL::text
-  FROM public.proprietaires_terres p
-  WHERE coalesce(p.statut,'actif') NOT IN ('archive','supprime')
-
-  UNION ALL
-
-  SELECT
-    'beneficiaire_particulier'::text,
-    c.id,
-    c.user_id,
-    coalesce(nullif(c.nom_complet,''), concat_ws(' ', c.prenoms, c.nom_famille)),
-    c.email,
-    coalesce(nullif(trim(c.telephone),''), nullif(trim(c.whatsapp),'')),
-    NULL::text,
-    NULL::uuid,
-    NULL::text,
-    NULL::text
-  FROM public.clients c
-  WHERE c.type_client = 'beneficiaire_particulier'
-    AND coalesce(c.statut_global,'actif') NOT IN ('archive','supprime')
-    AND coalesce(c.compte_actif,true)
-
-  UNION ALL
-
-  SELECT
-    'prospect'::text,
-    l.id,
-    NULL::uuid,
-    concat_ws(' ', nullif(l.prenoms,''), nullif(l.nom,'')),
-    l.email,
-    coalesce(nullif(trim(l.whatsapp),''), nullif(trim(l.telephone),'')),
-    NULL::text,
-    o.id,
-    l.offre_code,
-    o.nom
+  SELECT 'prospect',l.id,NULL::uuid,concat_ws(' ',NULLIF(l.prenoms,''),NULLIF(l.nom,'')),
+    l.email,COALESCE(NULLIF(l.whatsapp,''),l.telephone),NULL::text,o.id,l.offre_code,o.nom
   FROM public.leads l
-  LEFT JOIN public.offres o ON lower(o.code) = lower(l.offre_code)
-  WHERE l.etape_pipeline = 'prospect'
-    AND coalesce(l.statut,'') NOT IN ('converti','converti_client','archive','supprime')
+  LEFT JOIN public.offres o ON lower(o.code)=lower(l.offre_code)
+  WHERE l.etape_pipeline='prospect'
+    AND COALESCE(l.statut,'') NOT IN ('converti','converti_client','archive','supprime')
     AND l.client_id IS NULL
-    AND l.proprietaire_id IS NULL
-    AND NOT EXISTS (
-      SELECT 1
-      FROM public.crm_party_links a
-      JOIN public.crm_party_links b ON b.party_id = a.party_id
-      WHERE a.module_code = 'leads'
-        AND a.record_id = l.id
-        AND b.module_code IN ('clients','proprietaires_terres')
-    )
 
   UNION ALL
 
-  SELECT
-    'lead'::text,
-    l.id,
-    NULL::uuid,
-    concat_ws(' ', nullif(l.prenoms,''), nullif(l.nom,'')),
-    l.email,
-    coalesce(nullif(trim(l.whatsapp),''), nullif(trim(l.telephone),'')),
-    NULL::text,
-    o.id,
-    l.offre_code,
-    o.nom
+  SELECT 'lead',l.id,NULL::uuid,concat_ws(' ',NULLIF(l.prenoms,''),NULLIF(l.nom,'')),
+    l.email,COALESCE(NULLIF(l.whatsapp,''),l.telephone),NULL::text,o.id,l.offre_code,o.nom
   FROM public.leads l
-  LEFT JOIN public.offres o ON lower(o.code) = lower(l.offre_code)
-  WHERE coalesce(l.etape_pipeline,'lead') <> 'prospect'
-    AND coalesce(l.statut,'') NOT IN ('converti','converti_client','archive','supprime')
+  LEFT JOIN public.offres o ON lower(o.code)=lower(l.offre_code)
+  WHERE COALESCE(l.etape_pipeline,'lead') <> 'prospect'
+    AND COALESCE(l.statut,'') NOT IN ('converti','converti_client','archive','supprime')
     AND l.client_id IS NULL
-    AND l.proprietaire_id IS NULL
-    AND NOT EXISTS (
-      SELECT 1
-      FROM public.crm_party_links a
-      JOIN public.crm_party_links b ON b.party_id = a.party_id
-      WHERE a.module_code = 'leads'
-        AND a.record_id = l.id
-        AND b.module_code IN ('clients','proprietaires_terres')
-    )
 )
 SELECT c.*
 FROM contacts c
 CROSS JOIN criteria f
-WHERE
-  (
-    f.audience IN ('tous','all','all_contacts','everyone')
-    OR (f.audience IN ('clients','client','customers') AND c.source_type = 'client')
-    OR (f.audience IN ('leads','lead') AND c.source_type = 'lead')
-    OR (f.audience IN ('prospects','prospect') AND c.source_type = 'prospect')
-    OR (f.audience IN ('equipe','equipe_interne','staff','team','personnel') AND c.source_type = 'equipe')
-    OR (f.audience IN ('commerciaux','sales_team') AND c.source_type = 'equipe'
-        AND c.role_code IN ('commercial','responsable_commercial','chef_equipe_commercial'))
-    OR (f.audience IN ('palminvest','palm-invest') AND lower(coalesce(c.offre_code,'')) IN ('palm-invest','palminvest'))
-    OR (f.audience IN ('terrapalm','terra-palm') AND lower(coalesce(c.offre_code,'')) IN ('terra-palm','terrapalm'))
-    OR (f.audience = 'palmterroir' AND lower(coalesce(c.offre_code,'')) = 'palmterroir')
-    OR (f.audience IN ('proprietaires_fonciers','proprietaires_foncier','owners') AND c.source_type = 'proprietaire_foncier')
-    OR (f.audience IN ('beneficiaires_particuliers','beneficiaire_particulier','beneficiaries') AND c.source_type = 'beneficiaire_particulier')
-  )
-  AND (f.offer_code IS NULL OR lower(coalesce(c.offre_code,'')) = lower(f.offer_code))
-  AND (f.role_code IS NULL OR c.role_code = f.role_code)
-  AND (f.has_email IS NULL OR (f.has_email AND nullif(trim(c.email),'') IS NOT NULL) OR (NOT f.has_email AND nullif(trim(c.email),'') IS NULL))
-  AND (f.has_phone IS NULL OR (f.has_phone AND nullif(trim(c.telephone),'') IS NOT NULL) OR (NOT f.has_phone AND nullif(trim(c.telephone),'') IS NULL));
+WHERE (
+  f.audience IN ('tous','all','all_contacts','everyone')
+  OR (f.audience IN ('clients','client','customers') AND c.source_type='client')
+  OR (f.audience IN ('leads','lead') AND c.source_type='lead')
+  OR (f.audience IN ('prospects','prospect') AND c.source_type='prospect')
+  OR (f.audience IN ('proprietaires_fonciers','proprietaire_foncier','owners') AND c.source_type LIKE 'proprietaire_foncier%')
+  OR (f.audience IN ('beneficiaires_particuliers','beneficiaire_particulier','beneficiaries') AND c.source_type LIKE '%beneficiaire_particulier%')
+  OR (f.audience IN ('equipe','equipe_interne','staff','team','personnel') AND c.source_type='equipe')
+  OR (f.audience IN ('commerciaux','sales_team') AND c.role_code IN ('commercial','responsable_commercial','chef_equipe_commercial'))
+  OR (f.audience IN ('palminvest','palm-invest') AND lower(coalesce(c.offre_code,'')) IN ('palm-invest','palminvest'))
+  OR (f.audience IN ('terrapalm','terra-palm') AND lower(coalesce(c.offre_code,'')) IN ('terra-palm','terrapalm'))
+  OR (f.audience='palmterroir' AND lower(coalesce(c.offre_code,''))='palmterroir')
+)
+AND (NULLIF(_criteres->>'offer_code','') IS NULL OR lower(coalesce(c.offre_code,''))=lower(_criteres->>'offer_code'))
+AND (NULLIF(_criteres->>'role_code','') IS NULL OR c.role_code=_criteres->>'role_code')
+AND (NULLIF(_criteres->>'has_email','') IS NULL OR CASE WHEN (_criteres->>'has_email')::boolean THEN NULLIF(trim(c.email),'') IS NOT NULL ELSE NULLIF(trim(c.email),'') IS NULL END)
+AND (NULLIF(_criteres->>'has_phone','') IS NULL OR CASE WHEN (_criteres->>'has_phone')::boolean THEN NULLIF(trim(c.telephone),'') IS NOT NULL ELSE NULLIF(trim(c.telephone),'') IS NULL END);
 $function$;
 
 COMMENT ON FUNCTION public.notification_resolve_recipients(jsonb) IS
-  'Résout les audiences CRM de notification en acceptant les alias historiques. La fonction ne déclenche aucun envoi et ne modifie aucune donnée.';
+  'Résout les audiences enregistrées de communication avec prise en charge des alias historiques. Lecture seule, sans déclenchement d’envoi.';
