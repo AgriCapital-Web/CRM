@@ -93,7 +93,7 @@ export default function PrestationsIndependantes(){
   const {error}=await (supabase as any).from("independent_service_proformas").update({status:"emise",issued_at:issued.toISOString(),valid_until:valid.toISOString().slice(0,10),updated_by:user.id}).eq("id",row.id).eq("status","brouillon");
   if(error){toast.error(error.message);return;}
   const {error:eventError}=await (supabase as any).from("independent_service_events").insert({proforma_id:row.id,event_code:"issued",actor_type:"staff",actor_id:user.id});
-  if(eventError){toast.error("Proforma émise, mais l'historique n'a pas été enregistré : "+eventError.message);return;}
+  if(eventError){toast.error("Devis émis, mais l'historique n'a pas été enregistré : "+eventError.message);return;}
   const {error:notificationError}=await supabase.functions.invoke("notification-dispatch",{body:{mode:"event",event_code:"proforma_independante_emise",context:{independent_service_customer_id:row.client_id,proforma_reference:row.reference}}});
   if(notificationError)toast.warning("Devis émis. Notification non transmise.");
   else toast.success("Devis émis. Validité : 15 jours.");await load();
