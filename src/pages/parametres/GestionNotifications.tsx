@@ -326,7 +326,7 @@ const GestionNotifications = () => {
       sujet: submittedCampaign.sujet || null, contenu: submittedCampaign.canal.includes("sms") ? normalizeSms(submittedCampaign.contenu) : submittedCampaign.contenu,
       media_attachments: submittedMedia, segment_id: manualSelection ? null : selected, criteres: manualSelection ? { audience: "tous", selected_recipients: normalizedSelectedRecipients } : { audience: submittedCampaign.audience },
       total_destinataires: recipientCount,
-      statut: submittedCampaign.programme_le ? "programme" : "brouillon",
+      statut: submittedCampaign.programme_le ? "programme" : "active",
       programme_le: submittedCampaign.programme_le ? new Date(submittedCampaign.programme_le).toISOString() : null,
     };
     const saveQuery = editingCampaignId
