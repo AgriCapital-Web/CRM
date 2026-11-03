@@ -501,7 +501,7 @@ async function deliver(args: {
         campaign_id: args.campaignId || null, automation_id: args.automationId || null,
         user_id: contact.user_id || null, source_type: contact.source_type, source_id: contact.source_id,
         recipient_name: contact.nom_complet || null, recipient_email: contact.email || null,
-        recipient_phone: contact.telephone || null, canal: channel, statut: "en_cours",
+        recipient_phone: (channel === "whatsapp" ? contact.whatsapp || contact.telephone_secondaire_whatsapp_numero || contact.telephone || contact.telephone_secondaire : contact.telephone || contact.telephone_secondaire) || null, canal: channel, statut: "en_cours",
         contenu: channel === "sms" ? assertSmsLength(normalizeSms(rendered)) : rendered, dedupe_key: dedupeKey,
         media_attachments: attachmentMetadata,
         metadata: { event_key: args.eventKey || null },
@@ -726,7 +726,7 @@ async function runCampaign(campaignId: string) {
       content: campaign.contenu, contacts, mediaAttachments: campaign.media_attachments || [],
     });
     const { error: finishError } = await admin.from("notification_campaigns").update({
-      statut: result.failed ? (result.sent ? "partiel" : "echoue") : "termine",
+      statut: "active",
       total_destinataires: contacts.length,
       total_envoyes: result.sent, total_echecs: result.failed, termine_le: new Date().toISOString(),
     }).eq("id", campaign.id);
@@ -735,7 +735,7 @@ async function runCampaign(campaignId: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await admin.from("notification_campaigns").update({
-      statut: "echoue", total_echecs: Math.max(1, Number(campaign.total_echecs || 0)),
+      statut: "active", total_echecs: Math.max(1, Number(campaign.total_echecs || 0)),
       termine_le: new Date().toISOString(),
     }).eq("id", campaign.id).eq("statut", "en_cours");
     throw new Error("Échec de la campagne " + campaign.nom + " : " + message);
@@ -775,7 +775,7 @@ async function retryFailedCampaign(campaignId: string, deliveryId?: string | nul
   const remainingFailed = (statuses || []).filter((row:any) => row.statut === "echoue").length;
   await admin.from("notification_campaigns").update({
     total_destinataires: statuses?.length || 0, total_envoyes: accepted, total_echecs: remainingFailed,
-    statut: remainingFailed ? (accepted ? "partiel" : "echoue") : "termine", termine_le: new Date().toISOString()
+    statut: "active", termine_le: new Date().toISOString()
   }).eq("id", campaignId);
   return { ...result, skipped, remaining_failed: remainingFailed, total_accepted: accepted };
 }
