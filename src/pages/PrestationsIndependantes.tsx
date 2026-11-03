@@ -51,7 +51,9 @@ export default function PrestationsIndependantes(){
  useEffect(()=>{void load();},[load]);
  const filtered=useMemo(()=>{const q=search.trim().toLocaleLowerCase("fr");return rows.filter(r=>!q||[r.reference,r.client_name,r.client_phone,r.status].some(v=>String(v||"").toLocaleLowerCase("fr").includes(q)));},[rows,search]);
  const unitOptions=["hectares","plantes","points","forfait"];
- const lineSubtotal=(l:Line)=>Math.max(0,Number(l.quantity)||0)*(Math.max(0,Number(l.unit_price)||0)+(l.annexe_active?Math.max(0,Number(l.annexe_prix)||0):0));\n const lineUnitPrice=(l:Line)=>Math.max(0,Number(l.unit_price)||0);\n const lineAnnexePrice=(l:Line)=>l.annexe_active?Math.max(0,Number(l.annexe_prix)||0):0;
+ const lineSubtotal=(l:Line)=>Math.max(0,Number(l.quantity)||0)*(Math.max(0,Number(l.unit_price)||0)+(l.annexe_active?Math.max(0,Number(l.annexe_prix)||0):0));
+ const lineUnitPrice=(l:Line)=>Math.max(0,Number(l.unit_price)||0);
+ const lineAnnexePrice=(l:Line)=>l.annexe_active?Math.max(0,Number(l.annexe_prix)||0):0;
  const total=useMemo(()=>lines.reduce((s,l)=>s+lineSubtotal(l),0),[lines]);
  const markers=useMemo(()=>techEvents.filter(e=>e.details?.latitude!=null&&e.details?.longitude!=null).map(e=>({id:e.id,lat:Number(e.details.latitude),lng:Number(e.details.longitude),label:e.proforma?.reference||"Prestation indépendante",info:[e.proforma?.client_name,e.details?.travaux_realises].filter(Boolean).join(" · ")})),[techEvents]);
  const updateCustomer=(patch:any)=>setCustomer((v:any)=>({...v,...patch}));
