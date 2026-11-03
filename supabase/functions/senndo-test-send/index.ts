@@ -32,7 +32,7 @@ async function authorize(req: Request) {
   const ok = (roles || []).some((r) => ["pdg", "dg", "admin", "super_admin"].includes(String(r.role).toLowerCase()));
   return ok ? data.user : null;
 }
-const digitsTail = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-8);
+const digitsAll = (v: unknown) => String(v ?? "").replace(/\D/g, "");
 // Test sends may only target the calling administrator's own registered contacts.
 async function isOwnContact(user: { id: string; email?: string | null }, channel: string, to: string) {
   const { data: p } = await admin.from("profiles")
@@ -42,10 +42,10 @@ async function isOwnContact(user: { id: string; email?: string | null }, channel
     const emails = [user.email, p?.email].filter(Boolean).map((e) => String(e).trim().toLowerCase());
     return emails.includes(to.toLowerCase());
   }
-  const target = digitsTail(to);
+  const target = digitsAll(to);
   if (target.length < 8) return false;
   const phones = [p?.telephone, p?.telephone_local, p?.telephone_secondaire, p?.telephone_secondaire_local, p?.whatsapp, p?.whatsapp_local];
-  return phones.some((v) => v && digitsTail(v) === target);
+  return phones.some((v) => v && digitsAll(v) === target);
 }
 
 const BRAND_LOGO_URL = "https://www.agricapital.ci/logo-agricapital.png";

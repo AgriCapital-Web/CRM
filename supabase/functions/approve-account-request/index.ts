@@ -34,7 +34,7 @@ serve(async (req) => {
     if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
     const { data: isAdmin } = await admin.rpc("is_admin", { _user_id: caller.user.id });
     if (!isAdmin) return json({ error: "Accès réservé aux administrateurs", step, logs }, 403);
-    log(`caller=${caller.user.email}`);
+    log(`caller=${caller.user.id}`);
 
     step = "parse_body";
     const { request_id, action, role, motif_rejet } = await req.json();

@@ -5094,6 +5094,9 @@ export type Database = {
       independent_service_items: {
         Row: {
           amount: number
+          annexe_active: boolean
+          annexe_prix: number
+          annexe_qualite: string | null
           catalog_id: string | null
           created_at: string
           description: string | null
@@ -5108,6 +5111,9 @@ export type Database = {
         }
         Insert: {
           amount: number
+          annexe_active?: boolean
+          annexe_prix?: number
+          annexe_qualite?: string | null
           catalog_id?: string | null
           created_at?: string
           description?: string | null
@@ -5122,6 +5128,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          annexe_active?: boolean
+          annexe_prix?: number
+          annexe_qualite?: string | null
           catalog_id?: string | null
           created_at?: string
           description?: string | null
@@ -5151,6 +5160,85 @@ export type Database = {
           },
         ]
       }
+      independent_service_portal_otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          customer_id: string
+          expires_at: string
+          id: string
+          phone_e164: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          customer_id: string
+          expires_at: string
+          id?: string
+          phone_e164: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          customer_id?: string
+          expires_at?: string
+          id?: string
+          phone_e164?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "independent_service_portal_otps_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "independent_service_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      independent_service_portal_sessions: {
+        Row: {
+          created_at: string
+          customer_id: string
+          expires_at: string
+          id: string
+          last_seen_at: string | null
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          expires_at: string
+          id?: string
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          expires_at?: string
+          id?: string
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "independent_service_portal_sessions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "independent_service_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       independent_service_proformas: {
         Row: {
           accepted_at: string | null
@@ -5176,6 +5264,7 @@ export type Database = {
           status: string
           subtotal: number
           tax_amount: number
+          title: string | null
           total_amount: number
           updated_at: string
           updated_by: string | null
@@ -5206,6 +5295,7 @@ export type Database = {
           status?: string
           subtotal?: number
           tax_amount?: number
+          title?: string | null
           total_amount?: number
           updated_at?: string
           updated_by?: string | null
@@ -5236,6 +5326,7 @@ export type Database = {
           status?: string
           subtotal?: number
           tax_amount?: number
+          title?: string | null
           total_amount?: number
           updated_at?: string
           updated_by?: string | null
