@@ -253,8 +253,10 @@ const GestionNotifications = () => {
           // The response may not contain JSON; fall back to the SDK message.
         }
       }
-      const detail = serverMessage || error.message || "Erreur inconnue";
-      throw new Error(`Notification (${String(body.mode || "requête")}): ${detail}`);
+      const detail = serverMessage && !/edge function|non-2xx|status code/i.test(serverMessage)
+        ? serverMessage
+        : "Le service d’envoi n’a pas répondu. Réessayez dans un instant.";
+      throw new Error(detail);
     }
     if (data?.error) {
       const errorValue = data.error;
