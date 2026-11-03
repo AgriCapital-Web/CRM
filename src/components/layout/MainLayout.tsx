@@ -45,6 +45,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
     { icon: Sprout, label: "Opérations techniques", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
+    { icon: LandPlot, label: "Prestations indépendantes", path: "/acquisitions/prestations-independantes", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
     { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" as any },
     { icon: CreditCard, label: "Paiements", path: "/paiements", permission: PERMISSIONS.VIEW_PAIEMENTS },
     { icon: Receipt, label: "Commissions", path: "/commissions", permission: PERMISSIONS.VIEW_COMMISSIONS },
