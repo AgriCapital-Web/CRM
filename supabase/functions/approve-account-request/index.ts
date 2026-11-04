@@ -88,34 +88,33 @@ serve(async (req) => {
 
     if (action !== "approve") return json({ error: `Action inconnue: ${action}`, step, logs }, 400);
 
-    // Le rôle demandé par le demandeur n'est jamais fiable : l'admin doit choisir
-    // explicitement un rôle, validé ici contre une liste blanche.
+    // Le rôle attribué est vérifié dans le catalogue actif de la base,
+    // sans liste de rôles codée en dur. Les rôles de gouvernance restent protégés.
     const LEGACY_ROLE_MAP: Record<string, string> = {
       superviseur_tc: "responsable_commercial",
-      responsable_zone: "responsable_commercial",
-      responsable_technique_agronomique: "responsable_operations",
+      responsable_zone: "responsable_district",
+      responsable_technique_agronomique: "responsable_technique_agronomique",
       chef_equipe: "chef_equipe_commercial",
       assistant: "assistant_administratif",
       assistante: "assistant_administratif",
       secretaire: "assistant_administratif",
       raf: "comptable",
     };
-    const ASSIGNABLE_ROLES = new Set([
-      "responsable_operations", "directeur_tc", "responsable_commercial", "comptable",
-      "chef_equipe_commercial", "chef_equipe_technique", "chef_equipe_service_client",
-      "commercial", "technicien", "mobilisateur_foncier", "superviseur_mobilisation_fonciere",
-      "responsable_district", "responsable_technique_agronomique", "operations",
-      "service_client", "assistant_administratif",
-    ]);
-    const requested = role || reqRow.role_souhaite;
+    const requested = String(role || reqRow.role_souhaite || "").trim();
     const finalRole = LEGACY_ROLE_MAP[requested] ?? requested;
     if (!finalRole) return json({ error: "Aucun rôle à attribuer", step: "resolve_role", logs }, 400);
-    if (finalRole === "super_admin") {
-      return json({ error: "Le rôle super_admin ne peut pas être attribué via une demande de compte.", step: "resolve_role", logs }, 403);
+    if (["super_admin", "pdg", "dg"].includes(finalRole)) {
+      return json({ error: "Ce rôle de gouvernance ne peut pas être attribué via une demande de compte.", step: "resolve_role", logs }, 403);
     }
-    if (!ASSIGNABLE_ROLES.has(finalRole)) {
-      return json({ error: `Rôle non autorisé à l'attribution: ${finalRole}`, step: "resolve_role", logs }, 400);
-    }
+    step = "validate_role_catalog";
+    const { data: roleRecord, error: roleCatalogError } = await admin
+      .from("app_roles")
+      .select("code,actif")
+      .eq("code", finalRole)
+      .eq("actif", true)
+      .maybeSingle();
+    if (roleCatalogError) return json({ error: `Vérification du rôle impossible: ${roleCatalogError.message}`, step, logs }, 500);
+    if (!roleRecord) return json({ error: `Le rôle choisi n'existe pas ou n'est pas actif: ${finalRole}`, step, logs }, 400);
 
     let userId: string | null = reqRow.auth_user_id;
     let tempPassword: string | null = null;
@@ -175,14 +174,15 @@ serve(async (req) => {
       telephone_indicatif: reqRow.telephone_indicatif ?? null,
       telephone_local: reqRow.telephone_local ?? reqRow.telephone ?? null,
       username: reqRow.username ?? String(reqRow.email).split("@")[0],
-      poste: reqRow.poste_souhaite,
+      poste: reqRow.poste_souhaite || finalRole,
+      photo_url: reqRow.photo_url ?? null,
       district_id: reqRow.district_id,
       region_id: reqRow.region_id,
       actif: true,
       password_change_required: Boolean(tempPassword),
     };
     const { data: linkedProfile, error: linkedProfileError } = await admin
-      .from("profiles").select("id,user_id").eq("user_id", userId).maybeSingle();
+      .from("profiles").select("id,user_id,photo_url").eq("user_id", userId).maybeSingle();
     if (linkedProfileError) return json({ error: `Profil: ${linkedProfileError.message}`, step, logs }, 400);
     if (linkedProfile) {
       const { error: profileUpdateError } = await admin.from("profiles").update({
@@ -193,6 +193,7 @@ serve(async (req) => {
         telephone_local: profilePayload.telephone_local,
         username: profilePayload.username,
         poste: profilePayload.poste,
+        photo_url: profilePayload.photo_url ?? linkedProfile.photo_url ?? null,
         district_id: profilePayload.district_id,
         region_id: profilePayload.region_id,
         password_change_required: Boolean(tempPassword),
