@@ -126,10 +126,13 @@ export default function Finance(){
       setProfiles((p.data||[]).filter((profile:any)=>profile.id));
       setSalaryProfiles(s.data||[]);
       setPayrollRuns(r.data||[]);
-    } catch(error) {
-      // Un chargement temporairement indisponible ne doit pas casser toute la page
-      // ni afficher de détail technique à l'utilisateur.
-      console.error("[Finance] Chargement des données différé", error);
+    } catch(error:any) {
+      console.error("[Finance] Chargement des données impossible", error);
+      toast({
+        title:"Chargement financier indisponible",
+        description:error?.message || "Les données n’ont pas pu être chargées. Vérifiez vos droits ou réessayez.",
+        variant:"destructive",
+      });
     } finally {
       setLoading(false);
     }
