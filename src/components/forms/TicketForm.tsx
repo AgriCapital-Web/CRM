@@ -183,21 +183,13 @@ const TicketForm = ({ ticket, plantationId, clientId: fixedClientId, clientLocat
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2"><Label>Catégorie du problème *</Label>
-          <Select defaultValue={ticket?.categorie || "etat_plantation"} onValueChange={v => setValue("categorie", v)} disabled={readOnly}>
+          <Select defaultValue={ticket?.categorie || refs("ticket_type")[0]?.code || ""} onValueChange={v => setValue("categorie", v)} disabled={readOnly}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="etat_plantation">État de la plantation</SelectItem>
-              <SelectItem value="ravageurs">Ravageurs / insectes</SelectItem>
-              <SelectItem value="maladie">Maladie / jaunissement</SelectItem>
-              <SelectItem value="mortalite">Plants morts / dépérissement</SelectItem>
-              <SelectItem value="entretien">Entretien</SelectItem>
-              <SelectItem value="travaux">Travaux à réaliser</SelectItem>
-              <SelectItem value="autre">Autre</SelectItem>
-            </SelectContent>
+            <SelectContent>{refs("ticket_type").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2"><Label>Priorité *</Label>
-          <Select defaultValue={ticket?.priorite || "moyenne"} onValueChange={v => setValue("priorite", v)} disabled={readOnly}>
+          <Select defaultValue={ticket?.priorite || refs("ticket_priorite")[0]?.code || ""} onValueChange={v => setValue("priorite", v)} disabled={readOnly}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{refs("ticket_priorite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
           </Select>
