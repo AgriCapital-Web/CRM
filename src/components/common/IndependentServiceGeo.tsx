@@ -10,7 +10,7 @@ export default function IndependentServiceGeo({values,onChange}:{values:Partial<
  const [departments,setDepartments]=useState<Department[]>([]);
  useEffect(()=>{
   let active=true;
-  void (supabase as any).from("departements").select("id,nom").order("nom").then(({data,error}:any)=>{
+  void (supabase as any).from("v_geo_departements").select("id,nom").order("nom").then(({data,error}:any)=>{
    if(active&&!error)setDepartments(data||[]);
   });
   return ()=>{active=false;};
