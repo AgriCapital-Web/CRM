@@ -13,7 +13,6 @@ export function useRegions() {
         const { data, error } = await (supabase as any)
           .from("v_geo_regions")
           .select("id,nom")
-          .eq("est_active_effectif", true)
           .order("nom", { ascending: true });
         if (error) throw error;
         if (active) setRegions((data || []).map((r: any) => String(r.nom)).filter(Boolean));
