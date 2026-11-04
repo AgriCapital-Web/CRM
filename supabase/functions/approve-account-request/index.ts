@@ -32,8 +32,21 @@ serve(async (req) => {
     if (!token) return json({ error: "Non authentifié", step, logs }, 401);
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
-    const { data: isAdmin } = await admin.rpc("is_admin", { _user_id: caller.user.id });
-    if (!isAdmin) return json({ error: "Accès réservé aux administrateurs", step, logs }, 403);
+    const { data: isAdmin, error: adminCheckError } = await admin.rpc("is_admin", { _user_id: caller.user.id });
+    if (adminCheckError) {
+      log(`échec vérification is_admin: ${adminCheckError.message}`);
+    }
+    const { data: callerRoles, error: rolesCheckError } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", caller.user.id);
+    if (rolesCheckError) {
+      return json({ error: `Vérification des rôles impossible: ${rolesCheckError.message}`, step, logs }, 500);
+    }
+    const hasPdgRole = (callerRoles ?? []).some((r: any) => r.role === "pdg");
+    if (isAdmin !== true && !hasPdgRole) {
+      return json({ error: "Accès réservé au PDG ou aux administrateurs", step, logs }, 403);
+    }
     log(`caller=${caller.user.id}`);
 
     step = "parse_body";
