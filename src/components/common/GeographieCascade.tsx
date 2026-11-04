@@ -123,7 +123,7 @@ export default function GeographieCascade({
     void (async () => {
       const { data, error } = await (supabase as any).from("v_geo_villages").select("id,nom")
         .eq("sous_prefecture_id", sousPrefectureId).order("nom");
-      const cached = error ? (await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId && x.est_actif_effectif===true) : [];
+      const cached = error ? (await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId) : [];
       if (active) setVillages(error ? cached : (data || []));
       if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((x:any)=>({...x,sous_prefecture_id:sousPrefectureId,est_actif_effectif:true}))).catch(()=>{});
     })();
@@ -145,7 +145,7 @@ export default function GeographieCascade({
         if (!offline) {
           const PAGE=1000; let offset=0; const fresh:any[]=[];
           for(let page=0;page<50;page++){
-            const {data,error}=await (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id").eq("est_actif_effectif",true).order("nom").range(offset,offset+PAGE-1);
+            const {data,error}=await (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id").order("nom").range(offset,offset+PAGE-1);
             if(error||!data?.length)break;
             fresh.push(...data.map((x:any)=>({...x,est_actif_effectif:true}))); if(data.length<PAGE)break; offset+=PAGE;
           }
