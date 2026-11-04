@@ -139,24 +139,35 @@ const BeneficiaireParticulier = () => {
         if (!updatedDocument) throw new Error(`Le document « ${doc.libelle} » n'a pas été rattaché à la base de données.`);
       }
 
-      for (const photo of remisePhotos) {
+      for (const [photoIndex, photo] of remisePhotos.entries()) {
         const uploaded = await uploadFile("documents", photo, `beneficiaires/${ids.client_id}/remise-acte`);
-        if (!uploaded) continue;
-        const { data: insertedDocument, error: documentInsertError } = await (supabase as any).from("beneficiaire_documents").insert({
+        if (!uploaded) throw new Error(`Échec du stockage de la photo de remise ${photo.name}`);
+        // Une reprise après erreur réutilise la ligne du même fichier au même rang
+        // au lieu d'ajouter une deuxième pièce au dossier.
+        const libelle = `Photo remise de l’acte ${photoIndex + 1} — ${photo.name}`;
+        const { data: existingPhoto, error: existingPhotoError } = await (supabase as any)
+          .from("beneficiaire_documents").select("id").eq("client_id", ids.client_id)
+          .eq("document_type", "photo_remise_acte").eq("libelle", libelle).maybeSingle();
+        if (existingPhotoError) throw existingPhotoError;
+        const photoPayload = {
           client_id: ids.client_id,
           proprietaire_id: ids.proprietaire_id,
           parcelle_id: ids.parcelle_id,
           plantation_id: ids.plantation_id,
           document_type: "photo_remise_acte",
-          libelle: `Photo remise de l’acte — ${photo.name}`,
+          libelle,
           categorie: "remise_acte",
           fichier_url: uploaded.path,
           storage_bucket: "documents",
           storage_path: uploaded.path,
           statut: "stocke",
-        }).select("id").maybeSingle();
-        if (documentInsertError) throw documentInsertError;
-        if (!insertedDocument) throw new Error("La photo de remise n'a pas été rattachée à la base de données.");
+        };
+        const photoQuery = existingPhoto?.id
+          ? (supabase as any).from("beneficiaire_documents").update(photoPayload).eq("id", existingPhoto.id)
+          : (supabase as any).from("beneficiaire_documents").insert(photoPayload);
+        const { data: savedPhoto, error: documentSaveError } = await photoQuery.select("id").maybeSingle();
+        if (documentSaveError) throw documentSaveError;
+        if (!savedPhoto) throw new Error("La photo de remise n'a pas été rattachée à la base de données.");
       }
 
       toast({
