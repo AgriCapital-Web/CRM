@@ -59,10 +59,10 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
       setLoading(true);
       try {
         const [d, r, de, sp] = await Promise.all([
-          (supabase as any).from("v_geo_districts").select("id,nom").eq("est_actif_effectif", true).order("nom"),
-          (supabase as any).from("v_geo_regions").select("id,nom,district_id").eq("est_active_effectif", true).order("nom"),
-          (supabase as any).from("v_geo_departements").select("id,nom,region_id").eq("est_actif_effectif", true).order("nom"),
-          (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id").eq("est_active_effectif", true).order("nom"),
+          (supabase as any).from("v_geo_districts").select("id,nom").order("nom"),
+          (supabase as any).from("v_geo_regions").select("id,nom,district_id").order("nom"),
+          (supabase as any).from("v_geo_departements").select("id,nom,region_id").order("nom"),
+          (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id").order("nom"),
         ]);
         if (d.error || r.error || de.error || sp.error) throw d.error || r.error || de.error || sp.error;
         if (!active) return;
