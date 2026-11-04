@@ -15,13 +15,7 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import RoleGeographyFields from "@/components/common/RoleGeographyFields";
 
 type AccountRole = { code: string; nom: string; niveau_couverture: string | null; actif: boolean };
-const PUBLIC_SIGNUP_ROLE_CODES = new Set([
-  "commercial", "technicien", "mobilisateur_foncier", "superviseur_mobilisation_fonciere",
-  "chef_equipe_commercial", "chef_equipe_technique", "responsable_commercial",
-  "responsable_operations", "responsable_district", "comptable", "service_client",
-]);
-
-
+// Catalogue public DB comme source de vérité : aucun filtre local des postes/rôles.
 
 const compressPhoto = async (file: File): Promise<{ data: string; mime: string }> => {
   if (!file.type.startsWith("image/")) throw new Error("Sélectionnez une image.");
@@ -99,7 +93,7 @@ const AccountRequest = () => {
           .order("niveau", { ascending: true })
           .order("nom", { ascending: true });
         if (error) throw error;
-        if (active) setRoles((data || []).filter((role: AccountRole) => PUBLIC_SIGNUP_ROLE_CODES.has(role.code)));
+        if (active) setRoles((data || []).filter((role: AccountRole) => Boolean(role.code && role.nom)));
       } catch (error) {
         console.error("Impossible de charger les rôles actifs depuis la base", error);
         if (active) setRoles([]);
@@ -205,7 +199,7 @@ const AccountRequest = () => {
 
       toast({
         title: "Demande envoyée",
-        description: "Votre photo et vos informations ont bien été enregistrées. L'adresse email doit être confirmée avant le traitement de la demande.",
+        description: "Votre demande a été enregistrée. Le PDG validera le compte et activera le rôle choisi. Aucune confirmation email séparée ne sera nécessaire après validation.",
       });
       navigate("/login");
     } catch (error: any) {
