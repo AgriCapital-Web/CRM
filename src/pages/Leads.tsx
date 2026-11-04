@@ -308,7 +308,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       }
       if (editingLead) {
         const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
-        if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres prospects.");
+        if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres dossiers ou ceux de votre équipe autorisée.");
         const num = (v: string) => (v === "" || v == null ? null : Number(v));
         // Un prospect autonome ne doit jamais déclencher une mise à jour de leads.
         if (editingLead._record_type === "prospect" && !editingLead.lead_id) {
@@ -994,7 +994,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             )}
             </fieldset>
             <DialogFooter>
-              {formReadOnly ? <><Button variant="outline" onClick={() => setCreateOpen(false)}>Fermer</Button>{canUpdateLeads && ((editingLead?.assigned_to === user?.id || editingLead?.created_by === user?.id) || isGlobalAdmin) && <Button onClick={() => setFormReadOnly(false)}>Modifier</Button>}</> : <><Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button><Button onClick={() => createLead.mutate()} disabled={createLead.isPending || (editingLead ? !canUpdateLeads : !canCreateLeads) || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim()}>{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button></>} 
+              {formReadOnly ? <><Button variant="outline" onClick={() => setCreateOpen(false)}>Fermer</Button>{canUpdateLeads && ((editingLead?.assigned_to === user?.id || editingLead?.created_by === user?.id) || isGlobalAdmin || canSupervise) && <Button onClick={() => setFormReadOnly(false)}>Modifier</Button>}</> : <><Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button><Button onClick={() => createLead.mutate()} disabled={createLead.isPending || (editingLead ? !canUpdateLeads : !canCreateLeads) || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim()}>{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button></>} 
             </DialogFooter>
           </DialogContent>
         </Dialog>
