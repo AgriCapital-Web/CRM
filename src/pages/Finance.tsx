@@ -37,6 +37,7 @@ export default function Finance(){
   const { toast } = useToast();
   const [transactions,setTransactions]=useState<any[]>([]);
   const [independentProformas,setIndependentProformas]=useState<any[]>([]);
+  const [independentInvoices,setIndependentInvoices]=useState<any[]>([]);
   const [expenses,setExpenses]=useState<any[]>([]);
   const [associates,setAssociates]=useState<any[]>([]);
   const [associateMovements,setAssociateMovements]=useState<any[]>([]);
@@ -103,7 +104,7 @@ export default function Finance(){
   const load=async()=>{
     setLoading(true);
     try {
-      const [t,e,a,am,p,s,r,independent]=await Promise.all([
+      const [t,e,a,am,p,s,r,independent,independentInvoiceRows]=await Promise.all([
         (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
         (supabase as any).from("finance_expenses").select("*").order("created_at",{ascending:false}),
         (supabase as any).from("finance_associates").select("*").order("full_name"),
@@ -116,10 +117,12 @@ export default function Finance(){
         (supabase as any).from("finance_salary_profiles").select("*").order("created_at",{ascending:false}),
         (supabase as any).from("finance_payroll_runs").select("*").order("period_start",{ascending:false}).limit(24),
         (supabase as any).from("independent_service_proformas").select("id,reference,client_name,status,total_amount,created_at").is("archived_at",null).order("created_at",{ascending:false}),
+        (supabase as any).from("independent_service_invoices").select("id,proforma_id,status,amount_due,amount_paid,issued_at").order("issued_at",{ascending:false}),
       ]);
-      for (const result of [t,e,a,am,s,r,independent]) if(result.error) throw result.error;
+      for (const result of [t,e,a,am,s,r,independent,independentInvoiceRows]) if(result.error) throw result.error;
       setTransactions(t.data||[]);
       setIndependentProformas(independent.data||[]);
+      setIndependentInvoices(independentInvoiceRows.data||[]);
       setExpenses(e.data||[]);
       setAssociates(a.data||[]);
       setAssociateMovements(am.data||[]);
@@ -139,7 +142,10 @@ export default function Finance(){
   };
   useEffect(()=>{if(canView)void load();},[canView]);
 
+  const independentForecast=useMemo(()=>independentProformas.filter((p:any)=>["emise","modification_demandee"].includes(String(p.status||"").toLowerCase())).reduce((sum:number,p:any)=>sum+Math.max(0,Number(p.total_amount||0)),0),[independentProformas]);
   const independentPipeline=useMemo(()=>independentProformas.filter((p:any)=>["acceptee","en_cours","terminee"].includes(String(p.status||"").toLowerCase())).reduce((sum:number,p:any)=>sum+Math.max(0,Number(p.total_amount||0)),0),[independentProformas]);
+  const independentCollected=useMemo(()=>independentInvoices.reduce((sum:number,i:any)=>sum+Math.max(0,Number(i.amount_paid||0)),0),[independentInvoices]);
+  const independentOutstanding=useMemo(()=>independentInvoices.filter((i:any)=>i.status!=="cancelled").reduce((sum:number,i:any)=>sum+Math.max(0,Number(i.amount_due||0)-Number(i.amount_paid||0)),0),[independentInvoices]);
 
   const totals=useMemo(()=>{
     const valid=transactions.filter((t:any)=>t.status==="valide");
@@ -435,7 +441,10 @@ export default function Finance(){
       <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">ENTRÉES VALIDÉES</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(totals.income)}</p></CardContent></Card>
       <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">SORTIES VALIDÉES</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(totals.out)}</p></CardContent></Card>
       <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">SOLDE FINANCIER</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(totals.balance)}</p></CardContent></Card>
-      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">PRESTATIONS ENGAGÉES</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(independentPipeline)}</p><p className="mt-1 text-[10px] text-muted-foreground">Prévisionnel, hors encaissements</p></CardContent></Card>
+      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">DEVIS ÉMIS · PRÉVISIONNEL</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(independentForecast)}</p></CardContent></Card>
+      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">PRESTATIONS ACCEPTÉES</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(independentPipeline)}</p></CardContent></Card>
+      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">ENCAISSÉ · PRESTATIONS</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(independentCollected)}</p></CardContent></Card>
+      <Card className="min-w-0 overflow-hidden"><CardContent className="min-w-0 p-2 sm:p-3"><p className="whitespace-nowrap text-[clamp(0.48rem,2.2vw,0.7rem)] leading-tight text-muted-foreground">RESTE À ENCAISSER</p><p className="mt-1 whitespace-nowrap text-[clamp(0.56rem,2.7vw,1.125rem)] font-bold leading-tight tracking-tight tabular-nums">{money(independentOutstanding)}</p></CardContent></Card>
     </div>
     <Tabs key={initialTab} defaultValue={initialTab}>
       <TabsList className="grid h-auto w-full min-w-0 grid-cols-2 gap-1.5 rounded-xl bg-muted/70 p-1.5 sm:grid-cols-4 xl:grid-cols-8">

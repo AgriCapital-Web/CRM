@@ -67,7 +67,10 @@ const Dashboard = () => {
   const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate") || userRoles.some((role) => ["pdg", "service_client", "chef_equipe_service_client"].includes(role));
   const canViewIndependentServiceCustomers = globalAdmin || userRoles.some((role) => ["service_client", "chef_equipe_service_client", "comptable", "manager_commercial_national", "responsable_operations"].includes(role));
   const canViewIndependentServiceProformas = canViewIndependentServiceCustomers || userRoles.some((role) => ["technicien", "chef_equipe_technique", "manager_technique_national"].includes(role));
-  const canViewIndependentServiceItems = canViewIndependentServiceCustomers;
+  const canViewIndependentServiceItems = globalAdmin || userRoles.some((role) => [
+    "service_client","chef_equipe_service_client","comptable","manager_commercial_national",
+    "responsable_operations","technicien","chef_equipe_technique","manager_technique_national"
+  ].includes(role));
 
   const [connectionTime] = useState(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
   const [loading, setLoading] = useState(true);
