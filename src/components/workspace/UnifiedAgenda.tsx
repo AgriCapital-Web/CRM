@@ -372,23 +372,8 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
     </div>;
   };
 
-  const upcoming = items.filter(i => new Date(i.ends_at) >= new Date() && i.status !== "done").slice(0, 6);
-
   return <div className="min-w-0 space-y-2">
-    <aside className="hidden">
-      <Button size="lg" className="h-12 w-full rounded-2xl text-base shadow-md" onClick={() => openCreate("event")}><Plus className="mr-2 h-5 w-5" />Créer</Button>
-      <Card><CardContent className="space-y-2 p-3 text-sm">
-        <p className="font-medium">Légende</p>
-        {(Object.keys(KIND_LABEL) as Kind[]).map(k => <div key={k} className="flex items-center gap-2"><span className={`h-3 w-3 rounded-sm ${KIND_DOT[k]}`} />{KIND_LABEL[k]}</div>)}
-      </CardContent></Card>
-      <Card className="hidden lg:block"><CardContent className="space-y-2 p-3">
-        <p className="text-sm font-medium">À venir</p>
-        {upcoming.length ? upcoming.map(i => <button key={i.id} type="button" onClick={() => setSelected(i)} className="block w-full rounded-md p-1.5 text-left text-xs hover:bg-muted">
-          <div className="flex items-center gap-1.5"><span className={`h-2 w-2 shrink-0 rounded-full ${KIND_DOT[i.kind]}`} /><span className="truncate font-medium">{i.title}</span></div>
-          <div className="pl-3.5 text-muted-foreground">{fr(new Date(i.starts_at),{day:"numeric",month:"short"})}{!i.all_day && " · " + time(i.starts_at)}</div>
-        </button>) : <p className="text-xs text-muted-foreground">Rien de prévu.</p>}
-      </CardContent></Card>
-    </aside>
+
 
     <div className="min-w-0 space-y-3">
       <div className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card p-1.5 sm:gap-2">
