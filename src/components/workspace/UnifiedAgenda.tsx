@@ -53,7 +53,7 @@ const monthsInView = (v: ViewMode) => v === "quarter" ? 3 : v === "semester" ? 6
 const periodStartMonth = (d: Date, v: ViewMode) => v === "quarter" ? Math.floor(d.getMonth()/3)*3 : v === "semester" ? Math.floor(d.getMonth()/6)*6 : v === "year" ? 0 : d.getMonth();
 
 export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }: { profileId?: string; meetings: MeetingItem[]; onScheduleMeeting: (draft?: { title: string; start: string; end: string; description: string }) => void }) {
-  const [view, setView] = useState<ViewMode>("week");
+  const [view, setView] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState(() => new Date());
   const [rows, setRows] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -332,11 +332,11 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
       <div className="grid grid-cols-7">{days.map(d => {
         const list = itemsOn(d); const inMonth = d.getMonth() === cursor.getMonth();
         return <div key={dayKey(d)} onClick={() => { const at = new Date(d); at.setHours(9,0,0,0); openCreate("event", at); }}
-          className={`min-h-24 cursor-pointer border-b border-r p-1 hover:bg-muted/30 sm:min-h-28 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"}`}>
+          className={`min-h-[3.65rem] cursor-pointer border-b border-r px-1 py-0.5 hover:bg-muted/30 sm:min-h-[4.6rem] sm:px-1.5 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"}`}>
           <button type="button" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}
             className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs hover:bg-muted ${sameDay(d, new Date()) ? "bg-primary font-bold text-primary-foreground hover:bg-primary" : ""}`}>{d.getDate()}</button>
-          <div className="space-y-0.5">{list.slice(0, 3).map(i => <Chip key={i.id} it={i} />)}
-            {list.length > 3 && <button type="button" className="text-[10px] font-medium text-primary" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}>+{list.length - 3} de plus</button>}</div>
+          <div className="space-y-0.5">{list.slice(0, 2).map(i => <Chip key={i.id} it={i} compact />)}
+            {list.length > 2 && <button type="button" className="block max-w-full truncate text-[9px] font-medium leading-tight text-primary sm:text-[10px]" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}>+{list.length - 2} autres</button>}</div>
         </div>;
       })}</div>
     </div>;
@@ -372,8 +372,8 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
   const upcoming = items.filter(i => new Date(i.ends_at) >= new Date() && i.status !== "done").slice(0, 6);
 
-  return <div className="grid min-w-0 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
-    <aside className="space-y-4">
+  return <div className="min-w-0 space-y-2">
+    <aside className="hidden">
       <Button size="lg" className="h-12 w-full rounded-2xl text-base shadow-md" onClick={() => openCreate("event")}><Plus className="mr-2 h-5 w-5" />Créer</Button>
       <Card><CardContent className="space-y-2 p-3 text-sm">
         <p className="font-medium">Légende</p>
@@ -393,10 +393,10 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
         <Button variant="outline" size="sm" onClick={() => setCursor(new Date())}>Aujourd'hui</Button>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Période précédente"><ChevronLeft className="h-5 w-5" /></Button>
         <Button variant="ghost" size="icon" onClick={() => navigate(1)} aria-label="Période suivante"><ChevronRight className="h-5 w-5" /></Button>
-        <h3 className="min-w-0 flex-1 truncate text-lg font-semibold capitalize">{label}</h3>
+        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold capitalize sm:text-base">{label}</h3>
         <Button variant="ghost" size="icon" onClick={() => void load()} aria-label="Actualiser"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
         <Select value={view} onValueChange={v => setView(v as ViewMode)}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-8 w-[7.5rem] text-xs sm:w-36"><SelectValue /></SelectTrigger>
           <SelectContent>{VIEWS.map(v => <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>)}</SelectContent>
         </Select>
       </div>
