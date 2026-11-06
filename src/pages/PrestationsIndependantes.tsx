@@ -15,7 +15,6 @@ import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { Plus,RefreshCw,Send,Search,Eye,MapPin } from "lucide-react";
 import { toast } from "sonner";
 import IndependentServiceGeo from "@/components/common/IndependentServiceGeo";
-import IndependentServiceOperations from "@/components/technique/IndependentServiceOperations";
 import { COUNTRIES } from "@/components/common/CountryPhoneInput";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import InteractiveMap from "@/components/maps/InteractiveMap";
@@ -112,7 +111,6 @@ export default function PrestationsIndependantes({embedded=false}:{embedded?:boo
  const openDetails=async(row:Proforma)=>{const {data,error}=await (supabase as any).from("independent_service_items").select("*").eq("proforma_id",row.id).order("sort_order");if(error){toast.error(error.message);return;}setSelected(row);setSelectedItems(data||[]);};
  const setLine=(i:number,patch:Partial<Line>)=>setLines(v=>v.map((x,j)=>j===i?{...x,...patch}:x));
  const content = <div className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6">
-  {canAccessTechnical&&<IndependentServiceOperations />}
   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Prestations indépendantes</h1></div><div className="flex gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>{canWrite&&<Button onClick={()=>setDialogOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouveau devis</Button>}</div></div>
   <div className="space-y-4">
    <div className="grid grid-cols-3 gap-2">
