@@ -280,7 +280,8 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
   const TimeGrid = ({ days }: { days: Date[] }) => {
     const now = new Date();
-    return <div className="overflow-hidden rounded-lg border">
+    return <div className="overflow-x-auto rounded-lg border">
+      <div className="min-w-[38rem]">
       <div className="grid border-b bg-muted/40" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0,1fr))` }}>
         <div />
         {days.map(d => <button key={dayKey(d)} type="button" onClick={() => { setCursor(d); setView("day"); }} className="flex flex-col items-center py-2 hover:bg-muted">
@@ -320,6 +321,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
           })}
         </div>
       </div>
+      </div>
     </div>;
   };
 
@@ -328,14 +330,14 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
     const start = startOfWeek(first);
     const days = Array.from({ length: 42 }, (_, i) => plusDays(start, i));
     return <div className="overflow-hidden rounded-lg border">
-      <div className="grid grid-cols-7 bg-muted/40">{["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(d => <div key={d} className="border-b p-2 text-center text-[11px] font-medium uppercase text-muted-foreground">{d}</div>)}</div>
-      <div className="grid grid-cols-7">{days.map(d => {
+      <div className="grid grid-cols-7 bg-muted/40">{["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(d => <div key={d} className="border-b py-1 text-center text-[9px] font-medium uppercase text-muted-foreground sm:py-1.5 sm:text-[11px]">{d}</div>)}</div>
+      <div className="grid grid-cols-7" style={{ height: "clamp(21rem, calc(100dvh - 20rem), 34rem)", gridTemplateRows: "repeat(6, minmax(0, 1fr))" }}>{days.map(d => {
         const list = itemsOn(d); const inMonth = d.getMonth() === cursor.getMonth();
         return <div key={dayKey(d)} onClick={() => { const at = new Date(d); at.setHours(9,0,0,0); openCreate("event", at); }}
-          className={`min-h-[3.65rem] cursor-pointer border-b border-r px-1 py-0.5 hover:bg-muted/30 sm:min-h-[4.6rem] sm:px-1.5 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"}`}>
+          className={`min-h-0 overflow-hidden cursor-pointer border-b border-r px-0.5 py-0.5 hover:bg-muted/30 sm:px-1.5 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"}`}>
           <button type="button" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}
-            className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs hover:bg-muted ${sameDay(d, new Date()) ? "bg-primary font-bold text-primary-foreground hover:bg-primary" : ""}`}>{d.getDate()}</button>
-          <div className="space-y-0.5">{list.slice(0, 2).map(i => <Chip key={i.id} it={i} compact />)}
+            className={`mb-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] hover:bg-muted ${sameDay(d, new Date()) ? "bg-primary font-bold text-primary-foreground hover:bg-primary" : ""}`}>{d.getDate()}</button>
+          <div className="space-y-px overflow-hidden">{list.slice(0, 2).map(i => <Chip key={i.id} it={i} compact />)}
             {list.length > 2 && <button type="button" className="block max-w-full truncate text-[9px] font-medium leading-tight text-primary sm:text-[10px]" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}>+{list.length - 2} autres</button>}</div>
         </div>;
       })}</div>
@@ -389,12 +391,12 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
     </aside>
 
     <div className="min-w-0 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setCursor(new Date())}<Button size="sm" className="h-8 px-2.5" onClick={() => openCreate("event")}><Plus className="mr-1.5 h-4 w-4" />Créer</Button>>Aujourd'hui</Button>
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Période précédente"><ChevronLeft className="h-5 w-5" /></Button>
-        <Button variant="ghost" size="icon" onClick={() => navigate(1)} aria-label="Période suivante"><ChevronRight className="h-5 w-5" /></Button>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card p-1.5 sm:gap-2">
+        <Button size="sm" className="h-8 px-2.5" onClick={() => openCreate("event")}><Plus className="mr-1.5 h-4 w-4" />Créer</Button><Button variant="outline" size="sm" className="h-8 px-2.5" onClick={() => setCursor(new Date())}>Aujourd’hui</Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)} aria-label="Période précédente"><ChevronLeft className="h-5 w-5" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(1)} aria-label="Période suivante"><ChevronRight className="h-5 w-5" /></Button>
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold capitalize sm:text-base">{label}</h3>
-        <Button variant="ghost" size="icon" onClick={() => void load()} aria-label="Actualiser"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => void load()} aria-label="Actualiser"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></Button>
         <Select value={view} onValueChange={v => setView(v as ViewMode)}>
           <SelectTrigger className="h-8 w-[7.5rem] text-xs sm:w-36"><SelectValue /></SelectTrigger>
           <SelectContent>{VIEWS.map(v => <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>)}</SelectContent>
