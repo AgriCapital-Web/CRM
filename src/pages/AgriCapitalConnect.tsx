@@ -359,7 +359,7 @@ export default function AgriCapitalConnect() {
           <Tabs value={tab} onValueChange={changeTab} className="min-w-0">
             <TabsList aria-label="Modules AgriCapital 360" className="flex h-auto w-full min-w-0 max-w-full flex-nowrap justify-start gap-1 overflow-x-auto overscroll-x-contain whitespace-nowrap p-1 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible">
               {canViewMessaging && <>
-                <TabsTrigger value="activities" aria-label="Agenda" title="Agenda" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Clock3 className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Agenda</span></TabsTrigger>
+                <TabsTrigger value="activities" aria-label="Agenda" title="Agenda" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Clock3 className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Agenda & pilotage</span></TabsTrigger>
                 <TabsTrigger value="messages" aria-label="Messages internes" title="Messages internes" className="h-10 min-w-10 shrink-0 gap-2 px-3"><MessageCircle className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Messages internes</span></TabsTrigger>
                 
                 <TabsTrigger value="organisation" aria-label="Organisation" title="Organisation" className="h-10 min-w-10 shrink-0 gap-2 px-3"><Users className="h-4 w-4 shrink-0" /><span className="hidden md:inline">Organisation</span></TabsTrigger>
