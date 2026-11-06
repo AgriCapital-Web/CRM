@@ -5091,6 +5091,56 @@ export type Database = {
           },
         ]
       }
+      independent_service_invoices: {
+        Row: {
+          amount_due: number
+          amount_paid: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          invoice_number: string
+          issued_at: string
+          proforma_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_due: number
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_number: string
+          issued_at?: string
+          proforma_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_number?: string
+          issued_at?: string
+          proforma_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "independent_service_invoices_proforma_id_fkey"
+            columns: ["proforma_id"]
+            isOneToOne: false
+            referencedRelation: "independent_service_proformas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       independent_service_items: {
         Row: {
           amount: number
@@ -5156,6 +5206,62 @@ export type Database = {
             columns: ["proforma_id"]
             isOneToOne: false
             referencedRelation: "independent_service_proformas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      independent_service_payments: {
+        Row: {
+          amount: number
+          checkout_url: string | null
+          created_at: string
+          currency: string
+          id: string
+          idempotency_key: string
+          invoice_id: string
+          provider: string
+          provider_payload: Json
+          provider_transaction_id: string | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          amount: number
+          checkout_url?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          idempotency_key: string
+          invoice_id: string
+          provider?: string
+          provider_payload?: Json
+          provider_transaction_id?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          amount?: number
+          checkout_url?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          idempotency_key?: string
+          invoice_id?: string
+          provider?: string
+          provider_payload?: Json
+          provider_transaction_id?: string | null
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "independent_service_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "independent_service_invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -14526,6 +14632,28 @@ export type Database = {
         Args: { p_paiement_id: string }
         Returns: undefined
       }
+      convert_independent_service_quote_to_invoice: {
+        Args: { p_quote_id: string }
+        Returns: {
+          amount_due: number
+          amount_paid: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          invoice_number: string
+          issued_at: string
+          proforma_id: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "independent_service_invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       convert_lead_to_prospect: { Args: { _lead_id: string }; Returns: string }
       convert_prospect_to_client: {
         Args: { _prospect_id: string }
@@ -14545,6 +14673,10 @@ export type Database = {
         Returns: Json
       }
       create_paiement_initial: { Args: { _client_id: string }; Returns: string }
+      crm_normalize_phone_e164: {
+        Args: { p_dial_code?: string; p_value: string }
+        Returns: string
+      }
       current_profile_id: { Args: never; Returns: string }
       current_user_has_app_permission: {
         Args: { required_code: string }
