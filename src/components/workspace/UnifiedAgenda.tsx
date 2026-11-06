@@ -28,7 +28,7 @@ const VIEWS: { id: ViewMode; label: string }[] = [
 const EVENT_TYPES: [string, string][] = [["appointment","Rendez-vous"],["field_visit","Visite terrain"],["training","Formation"],["travel","Déplacement"],["occupation","Occupation"],["leave","Congé"],["other","Autre"]];
 const AVAILABILITY_TYPES: [string, string][] = [["busy","Occupé"],["absent","Absent"],["remote","Télétravail"],["travel","En déplacement"],["unavailable","Indisponible"],["available","Disponible"]];
 const REPEATS: [string, string][] = [["none","Ne se répète pas"],["daily","Tous les jours"],["weekly","Toutes les semaines"],["monthly","Tous les mois"],["yearly","Tous les ans"]];
-const REMINDERS: [string, string][] = [["none","Aucun rappel"],["0","À l'heure prévue"],["5","5 minutes avant"],["15","15 minutes avant"],["30","30 minutes avant"],["60","1 heure avant"],["1440","1 jour avant"],["4320","3 jours avant"],["10080","1 semaine avant"]];
+const REMINDERS: [string, string][] = [["none","Aucun rappel"],["0","À l'heure prévue"],["5","5 minutes avant"],["15","15 minutes avant"],["30","30 minutes avant"],["60","1 heure avant"],["1440","1 jour avant"],["4320","3 jours avant"],["10080","1 semaine avant"],["43200","1 mois avant"]];
 const PRIORITIES: [string, string][] = [["low","Basse"],["normal","Normale"],["high","Haute"],["urgent","Urgente"]];
 
 const KIND_STYLE: Record<Kind, string> = {
