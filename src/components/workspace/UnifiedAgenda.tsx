@@ -390,7 +390,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setCursor(new Date())}>Aujourd'hui</Button>
+        <Button variant="outline" size="sm" onClick={() => setCursor(new Date())}<Button size="sm" className="h-8 px-2.5" onClick={() => openCreate("event")}><Plus className="mr-1.5 h-4 w-4" />Créer</Button>>Aujourd'hui</Button>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} aria-label="Période précédente"><ChevronLeft className="h-5 w-5" /></Button>
         <Button variant="ghost" size="icon" onClick={() => navigate(1)} aria-label="Période suivante"><ChevronRight className="h-5 w-5" /></Button>
         <h3 className="min-w-0 flex-1 truncate text-sm font-semibold capitalize sm:text-base">{label}</h3>
