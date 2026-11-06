@@ -1,0 +1,1 @@
+drop index if exists public.independent_service_events_proforma_idx;

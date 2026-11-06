@@ -15,6 +15,7 @@ import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { Plus,RefreshCw,Send,Search,Eye,MapPin } from "lucide-react";
 import { toast } from "sonner";
 import IndependentServiceGeo from "@/components/common/IndependentServiceGeo";
+import IndependentServiceOperations from "@/components/technique/IndependentServiceOperations";
 import { COUNTRIES } from "@/components/common/CountryPhoneInput";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import InteractiveMap from "@/components/maps/InteractiveMap";
@@ -24,12 +25,13 @@ type Catalog={id:string;code:string;designation:string;description?:string|null;
 type Line={catalog_id:string;designation:string;quantity:string;unit:string;unit_price:string;hectares:string;annexe_active:boolean;annexe_qualite:string;annexe_prix:string};
 type Proforma={id:string;reference:string;title?:string|null;client_id:string;client_name:string;client_phone:string;status:string;version:number;total_amount:number;issued_at:string|null;valid_until:string|null;created_at:string};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(v||0);
-const canWriteRoles=["pdg","service_client","comptable","responsable_operations"];
+const canWriteRoles=["pdg","dg","service_client","chef_equipe_service_client"];
 const statusLabels:Record<string,string>={brouillon:"Brouillon",emise:"Émise",acceptee:"Acceptée",modification_demandee:"Modification demandée",refusee:"Refusée",en_cours:"En cours",terminee:"Terminée",annulee:"Annulée",expiree:"Expirée"};
 const emptyLine=():Line=>({catalog_id:"",designation:"",quantity:"1",unit:"forfait",unit_price:"0",hectares:"",annexe_active:false,annexe_qualite:"",annexe_prix:"0"});
 const initialCustomer=()=>({customer_type:"particulier",nom:"",prenoms:"",civilite:"",nationalite:"",type_piece:"",numero_piece:"",denomination_sociale:"",nature_organisation_code:"",forme_juridique_code:"",numero_enregistrement:"",responsable_legal_nom:"",responsable_legal_prenoms:"",nombre_membres:"",telephone:"",telephone_indicatif:"+225",telephone_local:"",email:"",district_id:"",region_id:"",departement_id:"",sous_prefecture_id:"",village_id:"",locality:"",domicile:"",has_representant:false,representant_nom:"",representant_prenoms:"",representant_telephone:"",representant_telephone_indicatif:"+225",representant_telephone_local:"",representant_lien:""});
-export default function PrestationsIndependantes(){
+export default function PrestationsIndependantes({embedded=false}:{embedded?:boolean}){
  const {user,userRoles}=useAuth(); const canWrite=userRoles.some(role=>canWriteRoles.includes(role));
+ const canAccessTechnical=userRoles.some(role=>["pdg","dg","technicien","chef_equipe_technique","manager_technique_national","responsable_operations"].includes(role));
  const [rows,setRows]=useState<Proforma[]>([]); const [customers,setCustomers]=useState<Customer[]>([]); const [catalog,setCatalog]=useState<Catalog[]>([]); const [techEvents,setTechEvents]=useState<any[]>([]);
  const [loading,setLoading]=useState(true); const [search,setSearch]=useState(""); const [dialogOpen,setDialogOpen]=useState(false); const [saving,setSaving]=useState(false);
  const [customerMode,setCustomerMode]=useState<"new"|"existing">("new"); const [customerId,setCustomerId]=useState(""); const [customer,setCustomer]=useState<any>(initialCustomer());
@@ -109,7 +111,8 @@ export default function PrestationsIndependantes(){
  };
  const openDetails=async(row:Proforma)=>{const {data,error}=await (supabase as any).from("independent_service_items").select("*").eq("proforma_id",row.id).order("sort_order");if(error){toast.error(error.message);return;}setSelected(row);setSelectedItems(data||[]);};
  const setLine=(i:number,patch:Partial<Line>)=>setLines(v=>v.map((x,j)=>j===i?{...x,...patch}:x));
- return <MainLayout><div className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6">
+ const content = <div className="mx-auto max-w-7xl space-y-5 p-3 sm:p-6">
+  {canAccessTechnical&&<IndependentServiceOperations />}
   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Prestations indépendantes</h1></div><div className="flex gap-2"><Button variant="outline" onClick={()=>void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>{canWrite&&<Button onClick={()=>setDialogOpen(true)}><Plus className="mr-2 h-4 w-4"/>Nouveau devis</Button>}</div></div>
   <div className="space-y-4">
    <div className="grid grid-cols-3 gap-2">
@@ -140,5 +143,6 @@ export default function PrestationsIndependantes(){
    </div>
   </DialogContent></Dialog>
   <Dialog open={!!selected} onOpenChange={v=>!v&&setSelected(null)}><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>{selected?.title||"Devis"} · {selected?.reference}</DialogTitle></DialogHeader>{selected&&<div className="space-y-4"><div className="flex items-start justify-between"><img src="/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official" alt="Logo officiel AgriCapital" className="h-16 w-auto object-contain"/><Badge>{statusLabels[selected.status]||selected.status}</Badge></div><div><p className="font-semibold">{selected.client_name}</p><p className="text-sm text-muted-foreground">{selected.client_phone}</p></div><Table><TableHeader><TableRow><TableHead>Désignation</TableHead><TableHead>Qté</TableHead><TableHead>Unité</TableHead><TableHead>Prix unitaire</TableHead><TableHead>Montant</TableHead></TableRow></TableHeader><TableBody>{selectedItems.map(item=><TableRow key={item.id}><TableCell>{item.designation}</TableCell><TableCell>{item.quantity}</TableCell><TableCell>{item.unit}</TableCell><TableCell>{money(Number(item.unit_price))}{item.annexe_active&&<div className="text-xs text-muted-foreground">Annexe {item.annexe_qualite||""} : +{money(Number(item.annexe_prix||0))}</div>}</TableCell><TableCell>{money(Number(item.amount))}</TableCell></TableRow>)}</TableBody></Table><div className="text-right text-lg font-bold">Total : {money(Number(selected.total_amount))}</div></div>}</DialogContent></Dialog>
- </div></MainLayout>;
+ </div>;
+ return embedded ? content : <MainLayout>{content}</MainLayout>;
 }
