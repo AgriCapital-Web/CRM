@@ -74,6 +74,10 @@ async function sendWebPush(contact: Contact, title: string, body: string, dedupe
 type Contact = {
   source_type: string; source_id: string; user_id?: string | null;
   nom_complet?: string | null; email?: string | null; telephone?: string | null; telephone_secondaire?: string | null; whatsapp?: string | null; telephone_secondaire_whatsapp_numero?: string | null;
+  telephone_indicatif?: string | null; telephone_local?: string | null; whatsapp_indicatif?: string | null; whatsapp_local?: string | null;
+  telephone_secondaire_indicatif?: string | null; telephone_secondaire_local?: string | null;
+  telephone_principal_whatsapp?: boolean | null; telephone_secondaire_whatsapp?: boolean | null; telephone_whatsapp?: boolean | null;
+  whatsapp_candidates?: string[];
   role_code?: string | null; offre_id?: string | null; offre_code?: string | null; offre_nom?: string | null;
 };
 
@@ -366,53 +370,93 @@ async function resolveWhatsAppSenderSession(): Promise<{ apiKey: string; senderS
   return { apiKey, senderSessionId, senderPhone: String(configuredPhone).trim() };
 }
 
-function normalizeWhatsAppRecipient(value: string): string {
-  const raw = value.trim();
+function normalizeWhatsAppRecipient(value: unknown, indicatif?: unknown): string | null {
+  const raw = String(value ?? "").trim().split("@")[0].split(":")[0];
+  if (!raw) return null;
   const digits = raw.replace(/\D/g, "");
-  if (!digits) throw new Error("Numéro WhatsApp destinataire invalide.");
+  if (!digits) return null;
   let normalized = "";
   if (raw.startsWith("+")) normalized = "+" + digits;
   else if (raw.startsWith("00")) normalized = "+" + digits.slice(2);
-  else if (digits.startsWith("225")) normalized = "+" + digits;
-  else if (digits.length === 10 && /^0[157]\d{8}$/.test(digits)) normalized = "+225" + digits;
+  else if (digits.startsWith("225") && digits.length >= 11) normalized = "+" + digits;
+  else if (indicatif && digits.length >= 8 && digits.length <= 12) {
+    let dial = String(indicatif).replace(/\D/g, "");
+    if (dial.startsWith("00")) dial = dial.slice(2);
+    if (dial) normalized = "+" + (digits.startsWith(dial) ? digits : dial + digits);
+  } else if (digits.length === 10 && /^0[157]\d{8}$/.test(digits)) normalized = "+225" + digits;
   else if (digits.length === 8) normalized = "+225" + digits;
-  else throw new Error("Le numéro WhatsApp destinataire doit être au format international, par exemple +2250700000000.");
-  if (!/^\+[1-9]\d{7,14}$/.test(normalized)) throw new Error("Numéro WhatsApp destinataire invalide.");
-  return normalized;
+  else return null;
+  return /^\+[1-9]\d{7,14}$/.test(normalized) ? normalized : null;
+}
+
+function whatsappCandidates(contact: Contact): string[] {
+  const candidates: Array<[unknown, unknown]> = [];
+  if (contact.whatsapp) candidates.push([contact.whatsapp, null]);
+  if (contact.whatsapp_local) candidates.push([contact.whatsapp_local, contact.whatsapp_indicatif || "+225"]);
+  if (contact.telephone_secondaire_whatsapp_numero) candidates.push([contact.telephone_secondaire_whatsapp_numero, null]);
+  if (contact.telephone_principal_whatsapp || contact.telephone_whatsapp) {
+    candidates.push([contact.telephone_local || contact.telephone, contact.telephone_indicatif]);
+  }
+  if (contact.telephone_secondaire_whatsapp) {
+    candidates.push([contact.telephone_secondaire_local || contact.telephone_secondaire, contact.telephone_secondaire_indicatif]);
+  }
+  // Backward-compatible fallback only when no dedicated WhatsApp number/flag exists.
+  if (!candidates.length && contact.telephone) candidates.push([contact.telephone_local || contact.telephone, contact.telephone_indicatif]);
+  return [...new Set(candidates.map(([value, dial]) => normalizeWhatsAppRecipient(value, dial)).filter((value): value is string => Boolean(value)))];
+}
+
+function selectedWhatsAppNumber(contact: Contact): string | null {
+  return contact.whatsapp_candidates?.[0] || whatsappCandidates(contact)[0] || null;
 }
 
 async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string, mediaRef?: string) {
-  const rawRecipient = contact.whatsapp || contact.telephone_secondaire_whatsapp_numero || contact.telephone || contact.telephone_secondaire;
-  if (!rawRecipient) throw new Error("Numéro WhatsApp absent");
-  const recipient = normalizeWhatsAppRecipient(rawRecipient);
+  const recipients = contact.whatsapp_candidates?.length ? contact.whatsapp_candidates : whatsappCandidates(contact);
+  if (!recipients.length) throw new Error("Aucun numéro WhatsApp valide dans la fiche du destinataire. Vérifiez le WhatsApp, l’indicatif et le téléphone principal marqué WhatsApp.");
   const session = await resolveWhatsAppSenderSession();
+  for (let index = 0; index < recipients.length; index++) {
+    const recipient = recipients[index];
   const response = await fetch("https://api.senndo.com/v1/messages", {
     method: "POST",
     headers: { authorization: "Bearer " + session.apiKey, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({
       channel: "whatsapp_baileys", to: recipient, text: content,
-      senderSessionId: session.senderSessionId, idempotencyKey: dedupeKey,
+      senderSessionId: session.senderSessionId, idempotencyKey: index === 0 ? dedupeKey : dedupeKey + ":recipient:" + index,
       ...(mediaRef ? { media: { ref: mediaRef } } : {}),
     }),
     signal: AbortSignal.timeout(30000),
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const detailValue = payload?.message ?? payload?.error ?? payload?.details ?? payload?.reason;
+    const nestedErrors = [payload?.error, payload?.message, payload?.details, payload?.data?.error, payload?.data]
+      .filter((value: any) => value && typeof value === "object");
+    const providerCodeValue = payload?.code ?? nestedErrors.map((value: any) => value.code).find((value: any) => typeof value === "string");
+    const providerCode = typeof providerCodeValue === "string" ? providerCodeValue.slice(0, 80) : "";
+    const nestedMessage = nestedErrors.map((value: any) => value.message ?? value.description ?? value.detail).find((value: any) => typeof value === "string");
+    const detailValue = typeof payload?.message === "string" ? payload.message
+      : nestedMessage ?? payload?.error ?? payload?.details ?? payload?.reason;
     const detail = typeof detailValue === "string"
       ? detailValue.slice(0, 350)
       : detailValue != null
         ? JSON.stringify(detailValue).slice(0, 350)
         : "";
-    const providerCode = typeof payload?.code === "string" ? payload.code.slice(0, 80) : "";
     const error = new Error("Senndo a refusé l’envoi WhatsApp appairé (HTTP " + response.status + ")." +
       (providerCode ? " Code: " + providerCode + "." : "") + (detail ? " " + detail : ""));
     (error as any).status = response.status;
     (error as any).code = providerCode || "SENNDO_WHATSAPP_REJECTED";
     (error as any).providerStatus = payload?.status ?? response.status;
-    throw error;
+    (error as any).recipient = recipient;
+    if (providerCode !== "RECIPIENT_NOT_REACHABLE" || index === recipients.length - 1) throw error;
+    console.warn("[NotificationWhatsApp] numéro injoignable, essai du prochain numéro explicitement WhatsApp", { sourceType: contact.source_type, sourceId: contact.source_id, attempted: recipient });
+    continue;
   }
-  return { provider: "senndo_whatsapp_baileys", messageId: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null };
+  return {
+    provider: "senndo_whatsapp_baileys",
+    messageId: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null,
+    to: recipient,
+    senderPhone: session.senderPhone,
+  };
+  }
+  throw new Error("Aucun numéro WhatsApp n’a pu être utilisé.");
 }
 
 async function sendVoice(contact: Contact, content: string, dedupeKey: string) {
@@ -429,13 +473,13 @@ async function resolveContacts(criteria: Record<string, unknown>) {
   // The legacy RPC folds WhatsApp into the telephone field and does not return a
   // separate whatsapp property. Hydrate that property server-side so "auto"
   // can select the paired WhatsApp channel instead of silently choosing SMS.
-  const clientIds = [...new Set(rows.filter((row) => row.source_type !== "prospect" && row.source_type !== "equipe").map((row) => row.source_id))];
-  const prospectIds = [...new Set(rows.filter((row) => row.source_type === "prospect").map((row) => row.source_id))];
+  const clientIds = [...new Set(rows.filter((row) => !["lead", "prospect", "equipe"].includes(row.source_type)).map((row) => row.source_id))];
+  const prospectIds = [...new Set(rows.filter((row) => row.source_type === "lead" || row.source_type === "prospect").map((row) => row.source_id))];
   const staffProfileIds = [...new Set(rows.filter((row) => row.source_type === "equipe").map((row) => row.source_id))];
   const [clientsResult, prospectsResult, staffResult] = await Promise.all([
-    clientIds.length ? admin.from("clients").select("id,whatsapp,telephone_secondaire").in("id", clientIds) : Promise.resolve({ data: [], error: null }),
-    prospectIds.length ? admin.from("leads").select("id,whatsapp,telephone_secondaire").in("id", prospectIds) : Promise.resolve({ data: [], error: null }),
-    staffProfileIds.length ? admin.from("profiles").select("id,whatsapp,telephone_secondaire").in("id", staffProfileIds) : Promise.resolve({ data: [], error: null }),
+    clientIds.length ? admin.from("clients").select("id,whatsapp,telephone,telephone_indicatif,telephone_local,whatsapp_indicatif,whatsapp_local,telephone_secondaire,telephone_secondaire_indicatif,telephone_secondaire_local,telephone_principal_whatsapp,telephone_secondaire_whatsapp").in("id", clientIds) : Promise.resolve({ data: [], error: null }),
+    prospectIds.length ? admin.from("leads").select("id,whatsapp,telephone,telephone_secondaire,telephone_principal_whatsapp,telephone_secondaire_whatsapp,telephone_secondaire_indicatif,telephone_secondaire_local").in("id", prospectIds) : Promise.resolve({ data: [], error: null }),
+    staffProfileIds.length ? admin.from("profiles").select("id,whatsapp,telephone,telephone_indicatif,telephone_local,whatsapp_indicatif,whatsapp_local,telephone_secondaire,telephone_secondaire_indicatif,telephone_secondaire_local,telephone_principal_whatsapp,telephone_secondaire_whatsapp,telephone_whatsapp,telephone_secondaire_whatsapp_numero").in("id", staffProfileIds) : Promise.resolve({ data: [], error: null }),
   ]);
   if (clientsResult.error) throw clientsResult.error;
   if (prospectsResult.error) throw prospectsResult.error;
@@ -445,15 +489,17 @@ async function resolveContacts(criteria: Record<string, unknown>) {
   const staffContacts = new Map((staffResult.data || []).map((row: any) => [row.id, row]));
   const map = new Map<string, Contact>();
   for (const original of rows) {
-    const contactData:any = original.source_type === "prospect"
+    const contactData:any = original.source_type === "prospect" || original.source_type === "lead"
       ? prospectContacts.get(original.source_id)
       : original.source_type === "equipe"
         ? staffContacts.get(original.source_id)
         : clientContacts.get(original.source_id);
+    const hydrated: Contact = { ...original, ...(contactData || {}) };
+    const candidates = whatsappCandidates(hydrated);
     const row: Contact = {
-      ...original,
-      whatsapp: typeof contactData?.whatsapp === "string" && contactData.whatsapp.trim() ? contactData.whatsapp : null,
-      telephone_secondaire: typeof contactData?.telephone_secondaire === "string" && contactData.telephone_secondaire.trim() ? contactData.telephone_secondaire : null,
+      ...hydrated, whatsapp: candidates[0] || null, whatsapp_candidates: candidates,
+      telephone: original.telephone?.trim() || contactData?.telephone?.trim() || null,
+      telephone_secondaire: contactData?.telephone_secondaire || null,
     };
     const key = row.user_id || row.email?.toLowerCase() || row.whatsapp || row.telephone || row.source_type + ":" + row.source_id;
     if (!map.has(key)) map.set(key, row);
@@ -501,7 +547,7 @@ async function deliver(args: {
         campaign_id: args.campaignId || null, automation_id: args.automationId || null,
         user_id: contact.user_id || null, source_type: contact.source_type, source_id: contact.source_id,
         recipient_name: contact.nom_complet || null, recipient_email: contact.email || null,
-        recipient_phone: (channel === "whatsapp" ? contact.whatsapp || contact.telephone_secondaire_whatsapp_numero || contact.telephone || contact.telephone_secondaire : contact.telephone || contact.telephone_secondaire) || null, canal: channel, statut: "en_cours",
+        recipient_phone: (channel === "whatsapp" ? selectedWhatsAppNumber(contact) : contact.telephone || contact.telephone_secondaire) || null, canal: channel, statut: "en_cours",
         contenu: channel === "sms" ? assertSmsLength(normalizeSms(rendered)) : rendered, dedupe_key: dedupeKey,
         media_attachments: attachmentMetadata,
         metadata: { event_key: args.eventKey || null },
@@ -589,7 +635,10 @@ async function deliver(args: {
             await sendWhatsApp(contact, "", providerDedupeKey + ":media:" + i, mediaForChannel[i].ref);
           }
           await admin.from("notification_deliveries").update({
-            statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId, provider_status: result.providerStatus || "accepted", erreur: null, sent_at: new Date().toISOString(),
+            statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId,
+            recipient_phone: result.to || deliveryPayload.recipient_phone,
+            metadata: { ...deliveryPayload.metadata, attempted_recipient: result.to || deliveryPayload.recipient_phone, sender_phone: result.senderPhone || null, provider_code: null, retryable: true },
+            provider_status: result.providerStatus || "accepted", erreur: null, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         } else if (channel === "sms") {
           const result = await sendSms(contact, rendered, providerDedupeKey);
@@ -617,8 +666,18 @@ async function deliver(args: {
         const outcomeUncertain = status >= 500 || /timeout|timed out|network|failed to fetch|connection reset|socket|econn|abort/i.test(message);
         // A provider timeout may happen after delivery. Do not retry automatically:
         // doing so could send a duplicate message to the same recipient.
+        const providerCode = String((error as any)?.code || "");
+        const unreachableRecipient = channel === "whatsapp" && providerCode === "RECIPIENT_NOT_REACHABLE";
+        const attemptedRecipient = String((error as any)?.recipient || deliveryPayload.recipient_phone || "");
         await admin.from("notification_deliveries").update({
           statut: outcomeUncertain ? "incertain" : "echoue",
+          recipient_phone: attemptedRecipient || deliveryPayload.recipient_phone,
+          metadata: {
+            ...deliveryPayload.metadata,
+            attempted_recipient: attemptedRecipient || null,
+            provider_code: providerCode || null,
+            retryable: !outcomeUncertain && !unreachableRecipient,
+          },
           provider_status: String((error as any)?.providerStatus || status || "error"),
           erreur: outcomeUncertain ? "Résultat fournisseur incertain ; vérification manuelle requise pour éviter un doublon. " + failureReason : failureReason,
         }).eq("id", delivery.id);
@@ -693,15 +752,24 @@ async function runCampaign(campaignId: string) {
       grouped.set(key, [...(grouped.get(key) || []), item.source_id]);
     }
     const [clients, leads, profiles] = await Promise.all([
-      grouped.has("clients") ? admin.from("clients").select("id,nom_complet,prenoms,nom_famille,email,telephone,telephone_secondaire,whatsapp,user_id,proprietaire_id,type_client").in("id", grouped.get("clients")!) : Promise.resolve({data:[],error:null}),
-      grouped.has("leads") ? admin.from("leads").select("id,nom,prenoms,email,telephone,telephone_secondaire,whatsapp").in("id", grouped.get("leads")!) : Promise.resolve({data:[],error:null}),
-      grouped.has("profiles") ? admin.from("profiles").select("id,user_id,nom_complet,email,telephone,telephone_secondaire,whatsapp,telephone_secondaire_whatsapp_numero,telephone_local,telephone_indicatif,whatsapp_local,whatsapp_indicatif,telephone_principal_whatsapp,telephone_secondaire_whatsapp,telephone_whatsapp").in("id", grouped.get("profiles")!) : Promise.resolve({data:[],error:null}),
+      grouped.has("clients") ? admin.from("clients").select("id,nom_complet,prenoms,nom_famille,email,telephone,telephone_indicatif,telephone_local,whatsapp,whatsapp_indicatif,whatsapp_local,telephone_secondaire,telephone_secondaire_indicatif,telephone_secondaire_local,telephone_principal_whatsapp,telephone_secondaire_whatsapp,user_id,proprietaire_id,type_client").in("id", grouped.get("clients")!) : Promise.resolve({data:[],error:null}),
+      grouped.has("leads") ? admin.from("leads").select("id,nom,prenoms,email,telephone,whatsapp,telephone_secondaire,telephone_principal_whatsapp,telephone_secondaire_whatsapp,telephone_secondaire_indicatif,telephone_secondaire_local").in("id", grouped.get("leads")!) : Promise.resolve({data:[],error:null}),
+      grouped.has("profiles") ? admin.from("profiles").select("id,user_id,nom_complet,email,telephone,telephone_secondaire,whatsapp,telephone_secondaire_whatsapp_numero,telephone_local,telephone_indicatif,whatsapp_local,whatsapp_indicatif,telephone_secondaire_local,telephone_secondaire_indicatif,telephone_principal_whatsapp,telephone_secondaire_whatsapp,telephone_whatsapp").in("id", grouped.get("profiles")!) : Promise.resolve({data:[],error:null}),
     ]);
     if (clients.error) throw clients.error; if (leads.error) throw leads.error; if (profiles.error) throw profiles.error;
     contacts = [
-      ...(clients.data || []).map((r:any):Contact => ({source_type:r.proprietaire_id && r.type_client === "beneficiaire_particulier" ? "proprietaire_foncier+beneficiaire_particulier" : r.proprietaire_id ? "proprietaire_foncier" : r.type_client === "beneficiaire_particulier" ? "beneficiaire_particulier" : "client",source_id:r.id,nom_complet:r.nom_complet || [r.prenoms,r.nom_famille].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,user_id:r.user_id})),
-      ...(leads.data || []).map((r:any):Contact => ({source_type:criteria.audience === "prospects" ? "prospect" : "lead",source_id:r.id,nom_complet:[r.prenoms,r.nom].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp})),
-      ...(profiles.data || []).map((r:any):Contact => ({source_type:"equipe",source_id:r.id,user_id:r.user_id,nom_complet:r.nom_complet,email:r.email,telephone:r.telephone || (r.telephone_local ? String(r.telephone_indicatif || "+225")+String(r.telephone_local) : null) || r.whatsapp || r.telephone_secondaire,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp || (r.whatsapp_local ? String(r.whatsapp_indicatif || "+225")+String(r.whatsapp_local) : null) || (r.telephone_principal_whatsapp ? r.telephone : null),telephone_secondaire_whatsapp_numero:r.telephone_secondaire_whatsapp_numero || (r.telephone_secondaire_whatsapp ? r.telephone_secondaire : null),role_code:r.role_code})),
+      ...(clients.data || []).map((r:any):Contact => {
+        const contact: Contact = {source_type:r.proprietaire_id && r.type_client === "beneficiaire_particulier" ? "proprietaire_foncier+beneficiaire_particulier" : r.proprietaire_id ? "proprietaire_foncier" : r.type_client === "beneficiaire_particulier" ? "beneficiaire_particulier" : "client",source_id:r.id,nom_complet:r.nom_complet || [r.prenoms,r.nom_famille].filter(Boolean).join(" "),email:r.email,telephone:r.telephone || (r.telephone_local ? String(r.telephone_indicatif || "+225")+String(r.telephone_local) : null),telephone_indicatif:r.telephone_indicatif,telephone_local:r.telephone_local,whatsapp:r.whatsapp,whatsapp_indicatif:r.whatsapp_indicatif,whatsapp_local:r.whatsapp_local,telephone_secondaire:r.telephone_secondaire,telephone_secondaire_indicatif:r.telephone_secondaire_indicatif,telephone_secondaire_local:r.telephone_secondaire_local,telephone_principal_whatsapp:r.telephone_principal_whatsapp,telephone_secondaire_whatsapp:r.telephone_secondaire_whatsapp,user_id:r.user_id};
+        contact.whatsapp_candidates=whatsappCandidates(contact); contact.whatsapp=contact.whatsapp_candidates[0]||null; return contact;
+      }),
+      ...(leads.data || []).map((r:any):Contact => {
+        const contact: Contact = {source_type:criteria.audience === "prospects" ? "prospect" : "lead",source_id:r.id,nom_complet:[r.prenoms,r.nom].filter(Boolean).join(" "),email:r.email,telephone:r.telephone,telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,telephone_principal_whatsapp:r.telephone_principal_whatsapp,telephone_secondaire_whatsapp:r.telephone_secondaire_whatsapp,telephone_secondaire_indicatif:r.telephone_secondaire_indicatif,telephone_secondaire_local:r.telephone_secondaire_local};
+        contact.whatsapp_candidates=whatsappCandidates(contact); contact.whatsapp=contact.whatsapp_candidates[0]||null; return contact;
+      }),
+      ...(profiles.data || []).map((r:any):Contact => {
+        const contact: Contact = {source_type:"equipe",source_id:r.id,user_id:r.user_id,nom_complet:r.nom_complet,email:r.email,telephone:r.telephone || (r.telephone_local ? String(r.telephone_indicatif || "+225")+String(r.telephone_local) : null),telephone_secondaire:r.telephone_secondaire,whatsapp:r.whatsapp,telephone_secondaire_whatsapp_numero:r.telephone_secondaire_whatsapp_numero,telephone_local:r.telephone_local,telephone_indicatif:r.telephone_indicatif,whatsapp_local:r.whatsapp_local,whatsapp_indicatif:r.whatsapp_indicatif,telephone_secondaire_local:r.telephone_secondaire_local,telephone_secondaire_indicatif:r.telephone_secondaire_indicatif,telephone_principal_whatsapp:r.telephone_principal_whatsapp,telephone_secondaire_whatsapp:r.telephone_secondaire_whatsapp,telephone_whatsapp:r.telephone_whatsapp};
+        contact.whatsapp_candidates=whatsappCandidates(contact); contact.whatsapp=contact.whatsapp_candidates[0]||null; return contact;
+      }),
     ];
     contacts = contacts.map((contact) => {
       // Each id was fetched from the table matching its selected type, so the id
@@ -757,14 +825,17 @@ async function retryFailedCampaign(campaignId: string, deliveryId?: string | nul
     if (activeError) throw activeError;
     if (!stale || (count || 0) > 0) throw new Error("Campagne encore en cours : attendez la fin des envois avant de relancer.");
   }
-  let query = admin.from("notification_deliveries").select("id,source_type,source_id,user_id,recipient_name,recipient_phone,recipient_email").eq("campaign_id", campaignId).eq("canal", "whatsapp").eq("statut", "echoue");
+  let query = admin.from("notification_deliveries").select("id,source_type,source_id,user_id,recipient_name,recipient_phone,recipient_email,metadata").eq("campaign_id", campaignId).eq("canal", "whatsapp").eq("statut", "echoue");
   if (deliveryId) query = query.eq("id", deliveryId);
   const { data: failedRows, error } = await query;
   if (error) throw error;
-  if (!failedRows?.length) return { sent: 0, failed: 0, skipped: 0, reason: "Aucun échec WhatsApp à relancer." };
-  // Source stricte : uniquement les lignes déjà marquées echoue. Les lignes envoyées,
-  // acceptées, en cours ou incertaines ne sont jamais incluses dans cette sélection.
-  const contacts: Contact[] = failedRows.filter((row:any) => Boolean(row.recipient_phone)).map((row:any) => ({
+  if (!failedRows?.length) return { sent: 0, failed: 0, skipped: 0, reason: "Aucun échec WhatsApp relançable." };
+  // Un refus explicite RECIPIENT_NOT_REACHABLE est définitif pour le numéro testé :
+  // ne pas le renvoyer en boucle. L'équipe doit corriger la fiche contact avant un nouvel envoi.
+  const retryableRows = failedRows.filter((row:any) => row.metadata?.provider_code !== "RECIPIENT_NOT_REACHABLE" && !String(row.erreur || "").includes("RECIPIENT_NOT_REACHABLE"));
+  // Source stricte : uniquement les échecs relançables. Les envois acceptés,
+  // en cours, incertains et les numéros refusés par Senndo sont exclus.
+  const contacts: Contact[] = retryableRows.filter((row:any) => Boolean(row.recipient_phone)).map((row:any) => ({
     source_type: row.source_type, source_id: row.source_id, user_id: row.user_id,
     nom_complet: row.recipient_name, telephone: row.recipient_phone, whatsapp: row.recipient_phone, email: row.recipient_email
   }));
@@ -1172,7 +1243,9 @@ serve(async (req) => {
           source_id: contact.source_id,
           nom_complet: contact.nom_complet || "",
           email: contact.email || null,
-          telephone: contact.whatsapp || contact.telephone || null,
+          telephone: contact.telephone || null,
+          whatsapp: selectedWhatsAppNumber(contact),
+          whatsapp_format_valid: Boolean(selectedWhatsAppNumber(contact)),
           role_code: contact.role_code || null,
         })),
       });
@@ -1269,8 +1342,8 @@ serve(async (req) => {
     if (mode === "preview") {
       const contacts = await resolveContacts(body.criteria || {});
       return json(req, { ok: true, count: contacts.length, sample: contacts.slice(0,20).map((c) => ({
-        nom_complet:c.nom_complet,email:c.email,telephone:c.telephone,offre_nom:c.offre_nom,role_code:c.role_code
-      }))});
+        nom_complet:c.nom_complet,email:c.email,telephone:c.telephone,whatsapp:selectedWhatsAppNumber(c),whatsapp_format_valid:Boolean(selectedWhatsAppNumber(c)),offre_nom:c.offre_nom,role_code:c.role_code
+      })), whatsapp_missing: contacts.filter((c) => !selectedWhatsAppNumber(c)).length, whatsapp_ready: contacts.filter((c) => Boolean(selectedWhatsAppNumber(c))).length });
     }
     if (mode === "event") {
       if (!body.event_code) return json(req, { error: "event_code requis" }, 400);
