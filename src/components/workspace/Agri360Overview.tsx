@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, CalendarDays, CheckSquare, Users, Video } from "lucide-react";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 
 type Meeting = { starts_at: string };
 type Tone = "good" | "warn" | "bad" | "neutral";
@@ -51,14 +51,7 @@ export default function Agri360Overview({ profileId, meetings }: { profileId?: s
     const today = open.filter(t => t.due_at && new Date(t.due_at).toDateString() === todayKey).length;
     const in7 = now.getTime() + 7 * 86400000;
     const weekMeetings = meetings.filter(m => { const d = new Date(m.starts_at).getTime(); return d >= now.getTime() && d <= in7; }).length;
-    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(now); d.setDate(d.getDate() + i); return d; });
-    const chart = days.map(d => {
-      const k = d.toDateString();
-      const count = [...events.map(e => e.starts_at), ...meetings.map(m => m.starts_at), ...open.map(t => t.due_at || "")]
-        .filter(v => v && new Date(v).toDateString() === k).length;
-      return { jour: new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(d), total: count };
-    });
-    return { overdue, today, weekMeetings, weekEvents: events.length, chart };
+      return { overdue, today, weekMeetings, weekEvents: events.length };
   }, [tasks, events, meetings]);
 
   const kpis: { label: string; value: number; icon: any; tone: Tone; hint: string }[] = [
@@ -71,36 +64,18 @@ export default function Agri360Overview({ profileId, meetings }: { profileId?: s
   if (clients !== null) kpis.push({ label: "Clients", value: clients, icon: Users, tone: "good", hint: "Dans votre secteur" });
 
   return (
-    <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3">
-        {kpis.map(k => (
-          <Card key={k.label} className={`border-l-4 ${TONE[k.tone]}`}>
-            <CardContent className="flex items-start justify-between gap-2 p-3">
-              <div className="min-w-0">
-                <p className="truncate text-xs text-muted-foreground">{k.label}</p>
-                <p className="text-2xl font-bold tabular-nums">{k.value}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{k.hint}</p>
-              </div>
-              <k.icon className="h-5 w-5 shrink-0 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Card>
-        <CardContent className="p-3">
-          <p className="mb-1 text-xs font-medium text-muted-foreground">Charge des 7 prochains jours</p>
-          <div className="h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.chart}>
-                <XAxis dataKey="jour" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis allowDecimals={false} width={24} tickLine={false} axisLine={false} fontSize={11} />
-                <Tooltip formatter={(v: number) => [v, "Éléments"]} />
-                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
+      {kpis.map(k => (
+        <Card key={k.label} className={k.tone === "bad" ? "border-destructive/40 bg-destructive/[0.03]" : "border-border/70"}>
+          <CardContent className="flex min-w-0 items-center gap-2 px-2.5 py-2 sm:px-3">
+            <k.icon className={`h-4 w-4 shrink-0 ${k.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`} />
+            <div className="min-w-0">
+              <p className="truncate text-[10px] leading-tight text-muted-foreground sm:text-[11px]">{k.label}</p>
+              <p className="text-base font-semibold leading-tight tabular-nums sm:text-lg">{k.value}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
