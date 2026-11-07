@@ -24,7 +24,7 @@ import { useKkiapay } from "@/hooks/useKkiapay";
 type Customer={id:string;customer_type:string;display_name:string;telephone:string;email?:string|null;locality?:string|null;details:any};
 type Catalog={id:string;code:string;designation:string;description?:string|null;default_unit:string};
 type Line={catalog_id:string;designation:string;quantity:string;unit:string;unit_price:string;hectares:string;annexe_active:boolean;annexe_qualite:string;annexe_prix:string};
-type Proforma={id:string;reference:string;title?:string|null;client_id:string;client_name:string;client_phone:string;status:string;version:number;total_amount:number;issued_at:string|null;valid_until:string|null;created_at:string;observations?:string|null};
+type Proforma={id:string;reference:string;title?:string|null;client_id:string;client_name:string;client_phone:string;client_email?:string|null;status:string;version:number;total_amount:number;issued_at:string|null;valid_until:string|null;created_at:string;observations?:string|null};
 type Invoice={id:string;proforma_id:string;invoice_number:string;status:string;currency:string;amount_due:number;amount_paid:number;created_at:string};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(v||0);
 const canWriteRoles=["pdg","dg","service_client","chef_equipe_service_client"];
