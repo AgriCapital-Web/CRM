@@ -40,7 +40,7 @@ begin
     case when coalesce(x.annexe_active,false) then coalesce(x.annexe_prix,0) else 0 end,x.sort_order
   from jsonb_to_recordset(p_items) as x(catalog_id text,designation text,quantity numeric,unit text,unit_price numeric,hectares numeric,annexe_active boolean,annexe_qualite text,annexe_prix numeric,sort_order integer);
   insert into public.independent_service_events(proforma_id,event_code,actor_type,actor_id,details)
-  values(p_quote_id,'updated','staff',v_uid,jsonb_build_object('total_amount',v_total,'line_count',v_item_count,'title',trim(p_title)));
+  values(p_quote_id,'reissued','staff',v_uid,jsonb_build_object('total_amount',v_total,'line_count',v_item_count,'title',trim(p_title)));
   return v_quote;
 end;
 $$;
