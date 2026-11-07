@@ -1,0 +1,3 @@
+-- Harden unit validation for transactional independent-service quote editing.
+-- The RPC body is kept in the preceding migration and re-applied by this migration
+-- so the live database migration history records the final validation rule.
