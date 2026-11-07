@@ -16,16 +16,21 @@ Deno.serve(async (req) => {
     const { data: expected, error: secretError } = await admin.rpc("notification_get_internal_secret");
     if (secretError || !expected || supplied !== expected) return json({ ok: false, error: "Non autorisé" }, 401);
 
+    // Read the queue before loading VAPID secrets. Empty polling cycles should
+    // not create an extra PostgREST request for sensitive configuration.
+    const { data: rows, error } = await admin.from("workspace_notifications")
+      .select("id,recipient_profile_id,title,body,target_path,entity_type,entity_id,created_at")
+      .is("push_sent_at", null).order("created_at", { ascending: true }).limit(100);
+    if (error) throw error;
+    if (!rows?.length) {
+      return json({ ok: true, scanned: 0, delivered: 0, noSubscription: 0, failed: 0 });
+    }
+
     const { data: vapid, error: vapidError } = await admin.rpc("notification_vapid_config");
     if (vapidError || !vapid?.public_key || !vapid?.private_key) {
       return json({ ok: false, error: "Configuration Web Push/VAPID indisponible" }, 503);
     }
     webpush.setVapidDetails(vapid.subject || "mailto:contact@agricapital.ci", vapid.public_key, vapid.private_key);
-
-    const { data: rows, error } = await admin.from("workspace_notifications")
-      .select("id,recipient_profile_id,title,body,target_path,entity_type,entity_id,created_at")
-      .is("push_sent_at", null).order("created_at", { ascending: true }).limit(100);
-    if (error) throw error;
 
     let delivered = 0;
     let noSubscription = 0;
