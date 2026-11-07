@@ -245,8 +245,8 @@ export default function Finance(){
 
   const savePlannedExpense=async()=>{
     const amount=Number(plannedExpense.amount);
-    if(!plannedExpense.category||!Number.isFinite(amount)||amount<=0||!plannedExpense.expenseDate){
-      toast({title:"Informations requises",description:"Indiquez une catégorie, une date et un montant positif.",variant:"destructive"});return;
+    if(!plannedExpense.category||!Number.isFinite(amount)||amount<=0||!plannedExpense.expenseDate||(plannedExpense.isInternalUser&&!plannedExpense.profileId)){
+      toast({title:"Informations requises",description:plannedExpense.isInternalUser&&!plannedExpense.profileId?"Sélectionnez un utilisateur interne dans la liste.":"Indiquez une catégorie, une date et un montant positif.",variant:"destructive"});return;
     }
     setSaving(true);
     let proofPath:string|null=null;
