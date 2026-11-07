@@ -116,8 +116,8 @@ export default function PrestationsIndependantes({embedded=false}:{embedded?:boo
  const printCommercialDocument=async(row:Proforma,kind:"devis"|"facture",invoice?:Invoice)=>{
   const {data:items,error}=await (supabase as any).from("independent_service_items").select("*").eq("proforma_id",row.id).order("sort_order");
   if(error){toast.error("Impossible de préparer le document : "+error.message);return;}
-  const w=window.open("","_blank","noopener,noreferrer,width=1000,height=800");
-  if(!w){toast.error("Autorisez l’ouverture de la fenêtre pour imprimer le document.");return;}
+  const w=window.open("","_blank","width=1000,height=800");
+  if(!w){toast.error("Autorisez l’ouverture de la fenêtre pour imprimer le document.");return;}w.opener=null;
   const date=new Date(kind==="facture"?(invoice?.created_at||row.created_at):(row.issued_at||row.created_at)).toLocaleDateString("fr-FR");
   const ref=kind==="facture"?(invoice?.invoice_number||"") : row.reference;
   const total=Number(kind==="facture"?(invoice?.amount_due??row.total_amount):row.total_amount);
