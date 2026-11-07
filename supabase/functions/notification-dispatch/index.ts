@@ -788,7 +788,7 @@ async function retryFailedCampaign(campaignId: string, deliveryId?: string | nul
   const { data: campaign, error: campaignError } = await admin.from("notification_campaigns")
     .select("id,canal,contenu,sujet,media_attachments,statut,demarre_le").eq("id", campaignId).single();
   if (campaignError || !campaign) throw campaignError || new Error("Campagne introuvable.");
-  if (campaign.canal !== "whatsapp") throw new Error("La relance ciblée est réservée aux campagnes WhatsApp.");
+  if (!["whatsapp", "auto"].includes(String(campaign.canal || ""))) throw new Error("La relance ciblée est réservée aux campagnes WhatsApp ou automatiques ayant généré des envois WhatsApp.");
   if (["annule","suspendue"].includes(campaign.statut)) throw new Error("Campagne annulée ou suspendue : réactivez-la avant la relance.");
   if (campaign.statut === "en_cours") {
     const startedAt = campaign.demarre_le ? new Date(campaign.demarre_le).getTime() : 0;
