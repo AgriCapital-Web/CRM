@@ -1,11 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type, x-acremap-signature","Access-Control-Allow-Methods":"POST, OPTIONS"};
+const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"content-type, x-acremap-signature, x-acremap-environment","Access-Control-Allow-Methods":"POST, OPTIONS"};
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS") return new Response("ok",{headers:cors});
  if(req.method!=="POST") return respond({error:"method_not_allowed"},405);
  const raw=await req.text(), admin=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
- const {data:settings,error}=await admin.from("acremap_integration_settings").select("webhook_secret,enabled").eq("id","default").maybeSingle();
- if(error||!settings?.enabled||!settings.webhook_secret) return respond({error:"webhook_not_configured"},503);
+ const environment=req.headers.get("x-acremap-environment")==="development"?"development":"default";
+ const dryRun=environment==="development";
+ const {data:settings,error}=await admin.from("acremap_integration_settings").select("webhook_secret,enabled").eq("id",environment).maybeSingle();
+ if(error||!settings?.webhook_secret||(!settings.enabled&&!dryRun)) return respond({error:"webhook_not_configured"},503);
  const provided=(req.headers.get("x-acremap-signature")??"").replace(/^sha256=/,"");
  const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(settings.webhook_secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
  const digest=new Uint8Array(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(raw)));
@@ -14,6 +16,7 @@ Deno.serve(async(req)=>{
  let body:any;try{body=JSON.parse(raw)}catch{return respond({error:"invalid_json"},400)}
  if(body?.event!=="morcellement.published"||typeof body.event_id!=="string"||!body.plan||!Array.isArray(body.lots)) return respond({error:"invalid_payload"},400);
  const plan=body.plan, planId=String(plan.id??"");if(!planId)return respond({error:"missing_plan_id"},400);
+ if(dryRun) return respond({ok:true,dry_run:true,event_id:body.event_id,plan_id:planId,lots_received:body.lots.length,persisted:false});
  const assignedOwnerIds=[...new Set((body.lots as any[]).map((lot:any)=>lot.assignee_owner_id?String(lot.assignee_owner_id):null).filter(Boolean))];
  const ownerId=body.owner_id?String(body.owner_id):(plan.owner_id?String(plan.owner_id):(assignedOwnerIds.length===1?assignedOwnerIds[0]:null));
  const {error:pe}=await admin.from("acremap_morcellements").upsert({id:planId,event_id:body.event_id,owner_id:ownerId,parcelle_id:plan.parcelle_id?String(plan.parcelle_id):null,reference:plan.reference??null,status:"received",payload:body,source_updated_at:plan.updated_at??new Date().toISOString()},{onConflict:"id"});
