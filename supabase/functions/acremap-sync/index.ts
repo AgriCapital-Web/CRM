@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
  if(settingsError||!settings?.enabled||!settings.api_base_url||!settings.api_key) return respond({error:"integration_not_configured"},400);
  const body=await req.json().catch(()=>({}));
  if(body?.action==="test"){
-  const response=await fetch(settings.api_base_url.replace(/\\/$/,"")+"/api/v1/integration?resource=health",{method:"GET",headers:{authorization:"Bearer "+settings.api_key},signal:AbortSignal.timeout(10000)});
+  const response=await fetch(settings.api_base_url.replace(/\/+$/, "")+"/api/v1/integration?resource=health",{method:"GET",headers:{authorization:"Bearer "+settings.api_key},signal:AbortSignal.timeout(10000)});
   const result=await response.json().catch(()=>({}));
   if(!response.ok) return respond({error:"acremap_connection_failed",status:response.status,detail:result.error??"API error"},502);
   return respond({ok:true,connected:true,service:result.service??"AcreMap",database:result.database??null,checked_at:result.checked_at??new Date().toISOString()});
