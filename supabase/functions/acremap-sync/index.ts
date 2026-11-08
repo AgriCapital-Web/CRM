@@ -13,6 +13,13 @@ Deno.serve(async (req) => {
  if(!(roles??[]).some((r:any)=>["admin","pdg","dg"].includes(String(r.role).toLowerCase()))) return respond({error:"forbidden"},403);
  const {data:settings,error:settingsError}=await admin.from("acremap_integration_settings").select("*").eq("id","default").maybeSingle();
  if(settingsError||!settings?.enabled||!settings.api_base_url||!settings.api_key) return respond({error:"integration_not_configured"},400);
+ const body=await req.json().catch(()=>({}));
+ if(body?.action==="test"){
+  const response=await fetch(settings.api_base_url.replace(/\\/$/,"")+"/api/v1/integration?resource=health",{method:"GET",headers:{authorization:"Bearer "+settings.api_key},signal:AbortSignal.timeout(10000)});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok) return respond({error:"acremap_connection_failed",status:response.status,detail:result.error??"API error"},502);
+  return respond({ok:true,connected:true,service:result.service??"AcreMap",database:result.database??null,checked_at:result.checked_at??new Date().toISOString()});
+ }
  const {data:owners,error:ownersError}=await admin.from("proprietaires_terres").select("id,type_proprietaire,nom,prenoms,denomination_sociale,nom_representant,telephone,updated_at");
  if(ownersError) return respond({error:"owners_query_failed",detail:ownersError.message},500);
  const payload=(owners??[]).map((o:any)=>({id:String(o.id),full_name:String(o.denomination_sociale||[o.nom,o.prenoms].filter(Boolean).join(" ")||o.nom_representant||"Propriétaire sans nom").trim(),phone:o.telephone??null,account_code:String(o.id),active:true,updated_at:o.updated_at??new Date().toISOString()}));
