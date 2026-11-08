@@ -112,7 +112,7 @@ serve(async (req) => {
     const result = await response.json();
     const status = String(result?.status || "").toUpperCase();
     const providerAmount = Number(result?.amount);
-    const due = Number(payment.montant);
+    const due = Number(payment.metadata?.kkiapay_widget_amount ?? payment.montant);
     if (status !== "SUCCESS") {
       return json({
         success: true,
@@ -121,8 +121,8 @@ serve(async (req) => {
       });
     }
     if (!Number.isFinite(due) || due <= 0 || !Number.isFinite(providerAmount) || Math.abs(providerAmount - due) > 1) {
-      console.warn("Kkiapay amount mismatch", { paiementId, due, providerAmount });
-      return json({ success: false, error: "Le montant confirmé par Kkiapay ne correspond pas au montant dû" }, 409);
+      console.warn("Kkiapay amount mismatch", { paiementId, expectedProviderAmount: due, providerAmount });
+      return json({ success: false, error: "Le montant confirmé par Kkiapay ne correspond pas au montant autorisé" }, 409);
     }
 
     const source = String(result?.source || "").toLowerCase();

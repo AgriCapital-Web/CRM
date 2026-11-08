@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-kkiapay-signature",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-kkiapay-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (body: Record<string, unknown>, status = 200) =>
@@ -28,7 +28,7 @@ serve(async (req) => {
   if (req.method !== "POST") return json({ success: false, error: "Méthode non autorisée" }, 405);
 
   try {
-    const webhookSecret = Deno.env.get("KKIAPAY_WEBHOOK_SECRET") || Deno.env.get("KKIAPAY_PRIVATE_KEY");
+    const webhookSecret = (Deno.env.get("KKIAPAY_WEBHOOK_SECRET") || "").trim();
     const privateKey = Deno.env.get("KKIAPAY_PRIVATE_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -37,27 +37,26 @@ serve(async (req) => {
       return json({ success: false, error: "Webhook indisponible" }, 503);
     }
 
-    const signature = (req.headers.get("x-kkiapay-signature") || "").toLowerCase().replace(/^sha256=/, "");
-    if (!signature) return json({ success: false, error: "Signature manquante" }, 401);
+    const signature = (req.headers.get("x-kkiapay-secret") || "").trim();
+    if (!signature) return json({ success: false, error: "Signature KKiaPay manquante" }, 401);
+    if (!constantTimeEqual(signature, webhookSecret)) return json({ success: false, error: "Signature KKiaPay invalide" }, 401);
     const rawBody = await req.text();
-    const key = await crypto.subtle.importKey(
-      "raw", new TextEncoder().encode(webhookSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-    );
-    const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
-    const expected = Array.from(new Uint8Array(signed)).map((b) => b.toString(16).padStart(2, "0")).join("");
-    if (!constantTimeEqual(signature, expected)) return json({ success: false, error: "Signature invalide" }, 401);
 
     let body: any;
     try { body = JSON.parse(rawBody); } catch { return json({ success: false, error: "Payload invalide" }, 400); }
     const transactionId = body?.transactionId;
-    const eventStatus = String(body?.status || "").toUpperCase();
+    const eventName = String(body?.event || "").toLowerCase();
+    const reportedStatus = String(body?.status || "").toUpperCase();
+    const isSuccessEvent = body?.isPaymentSucces === true || eventName === "transaction.success" || reportedStatus === "SUCCESS";
+    const isFailureEvent = body?.isPaymentSucces === false || eventName === "transaction.failed" || ["FAILED", "FAILURE", "CANCELED", "CANCELLED"].includes(reportedStatus);
+    const eventStatus = isSuccessEvent ? "SUCCESS" : isFailureEvent ? "FAILED" : reportedStatus || "UNKNOWN";
     if (typeof transactionId !== "string" || !transactionId.trim() || transactionId.length > 128) {
       return json({ success: false, error: "Identifiant de transaction invalide" }, 400);
     }
 
     const admin = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const reference = body?.data?.reference ?? body?.reference ?? null;
-    const paiementId = body?.data?.paiement_id ?? body?.paiement_id ?? null;
+    const reference = body?.partnerId ?? body?.stateData?.reference ?? body?.data?.reference ?? body?.reference ?? null;
+    const paiementId = body?.stateData?.paiement_id ?? body?.data?.paiement_id ?? body?.paiement_id ?? null;
     let payment: any = null;
 
     if (reference) {
@@ -83,7 +82,7 @@ serve(async (req) => {
       status: eventStatus || "UNKNOWN",
       amount: Number(body?.amount || 0),
       fees: Number(body?.fees || 0),
-      source: methodFromSource(body?.source ?? body?.data?.method),
+      source: methodFromSource(body?.method ?? body?.source ?? body?.data?.method ?? body?.stateData?.method),
       signature_valid: true,
       raw_payload: body,
       processed: false,
@@ -126,7 +125,7 @@ serve(async (req) => {
     const verified = await providerResponse.json();
     const verifiedStatus = String(verified?.status || "").toUpperCase();
     const providerAmount = Number(verified?.amount);
-    const expectedAmount = Number(payment.montant);
+    const expectedAmount = Number(payment.metadata?.kkiapay_widget_amount ?? payment.montant);
     if (verifiedStatus !== "SUCCESS") {
       await admin.from("kkiapay_events").insert({ ...eventBase, status: verifiedStatus || eventStatus, processed: true, processed_at: new Date().toISOString() });
       return json({ success: true, applied: false, status: verifiedStatus || eventStatus });
@@ -143,13 +142,13 @@ serve(async (req) => {
     if (reused) return json({ success: false, error: "Transaction déjà rattachée à un autre paiement" }, 409);
 
     const verifiedAt = new Date().toISOString();
-    const method = methodFromSource(verified?.source ?? body?.source ?? body?.data?.method);
+    const method = methodFromSource(verified?.source ?? body?.method ?? body?.source ?? body?.data?.method ?? body?.stateData?.method);
     const metadata = {
       ...(payment.metadata || {}),
       payment_provider: "kkiapay",
       kkiapay_transaction_id: transactionId,
       kkiapay_method: method,
-      kkiapay_source: verified?.source ?? body?.source ?? null,
+      kkiapay_source: verified?.source ?? body?.method ?? body?.source ?? null,
       kkiapay_fees: Number(verified?.fees || body?.fees || 0),
       provider_amount: providerAmount,
       webhook_received_at: verifiedAt,

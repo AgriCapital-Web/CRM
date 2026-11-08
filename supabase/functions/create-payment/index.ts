@@ -103,6 +103,21 @@ async function verifyKkiapayTransaction(transactionId: string): Promise<
   }
 }
 
+function calculateKkiapayPricing(amount: number, method: "momo" | "card", feeRate: number) {
+  const clientDebitAmount = Math.max(0, Math.round(amount || 0));
+  if (method === "card") return { clientDebitAmount, widgetAmount: clientDebitAmount, estimatedFees: 0, feeRate: 0 };
+  const rate = Math.max(0, feeRate);
+  const theoreticalAmount = Math.max(0, Math.round(clientDebitAmount / (1 + rate)));
+  let widgetAmount = theoreticalAmount;
+  for (let candidate = Math.max(0, theoreticalAmount - 20); candidate <= theoreticalAmount + 20; candidate += 1) {
+    if (candidate + Math.ceil(candidate * rate) === clientDebitAmount) { widgetAmount = candidate; break; }
+  }
+  if (widgetAmount + Math.ceil(widgetAmount * rate) !== clientDebitAmount) {
+    throw new Error("Le paramétrage des frais KKiaPay ne permet pas de calculer un montant exact.");
+  }
+  return { clientDebitAmount, widgetAmount, estimatedFees: Math.max(0, clientDebitAmount - widgetAmount), feeRate: rate };
+}
+
 async function sendConfirmationSms(phoneRaw: string | null | undefined, message: string) {
   if (!phoneRaw) return;
   const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
@@ -353,6 +368,22 @@ serve(async (req) => {
         throw new Error("Une plantation réelle est requise pour le Paiement initial de ce compte actif.");
       }
       const amount = requestedAmount;
+      const requestedMethod = String(body.mode_paiement || "").toLowerCase();
+      const paymentMethod = requestedMethod.includes("carte") ? "card" : requestedMethod.includes("mobile") ? "momo" : null;
+      if (!paymentMethod) throw new Error("Mode de paiement KKiaPay invalide.");
+
+      const { data: feeSetting, error: feeSettingError } = await supabase
+        .from("configurations_systeme")
+        .select("valeur")
+        .eq("cle", "paiement_kkiapay_mobile_money_fee_rate")
+        .maybeSingle();
+      if (feeSettingError) throw feeSettingError;
+      const configuredFeeRate = Number(feeSetting?.valeur ?? 0);
+      if (!Number.isFinite(configuredFeeRate) || configuredFeeRate < 0 || configuredFeeRate > 0.2) {
+        throw new Error("Le taux de frais KKiaPay configuré est invalide.");
+      }
+      const pricing = calculateKkiapayPricing(amount, paymentMethod, paymentMethod === "momo" ? configuredFeeRate : 0);
+      const kkiapayMethod = paymentMethod === "card" ? "Carte bancaire" : "Mobile Money";
 
       const { data: existing } = await supabase
         .from("paiements")
@@ -378,7 +409,12 @@ serve(async (req) => {
         est_paiement_initial: canonicalType === "PI",
         metadata: {
           payment_provider: "kkiapay",
-          kkiapay_method: null,
+          kkiapay_method: kkiapayMethod,
+          kkiapay_method_code: paymentMethod,
+          kkiapay_widget_amount: pricing.widgetAmount,
+          kkiapay_estimated_fees: pricing.estimatedFees,
+          client_debit_amount: pricing.clientDebitAmount,
+          fee_absorption_rate: pricing.feeRate,
           source: "client_portal",
           db_amount: amount,
           requested_payment_amount: amount,
@@ -410,6 +446,11 @@ serve(async (req) => {
         success:true,
         paiement,
         montant_reel:amount,
+        kkiapay_widget_amount:pricing.widgetAmount,
+        client_debit_amount:pricing.clientDebitAmount,
+        kkiapay_estimated_fees:pricing.estimatedFees,
+        fee_absorption_rate:pricing.feeRate,
+        kkiapay_method:kkiapayMethod,
         etat_financier:state
       }),{
         headers:{...corsHeaders,"Content-Type":"application/json"}
@@ -417,7 +458,7 @@ serve(async (req) => {
     }
 
     if (action === "confirm") {
-      const { reference, kkiapay_transaction_id, client_debit_amount, fee_absorption_rate } = body;
+      const { reference, kkiapay_transaction_id } = body;
       if (!reference) throw new Error("Reference requise");
 
       // SECURITY: A payment can ONLY be confirmed via server-side verification
@@ -451,27 +492,36 @@ serve(async (req) => {
       if (!paymentPhones.some((phone:any) => phoneMatches(phone, sessionPhone))) {
         return unauthorized("Accès refusé à ce paiement");
       }
-      // Idempotent retry: an already validated transaction is not a new financial action.
+      // Idempotent retry is accepted only for the exact transaction already attached to this payment.
       if (paiementData.statut === "valide") {
-        return new Response(JSON.stringify({success:true,alreadyConfirmed:true,reference}),{headers:{...corsHeaders,"Content-Type":"application/json"}});
+        if (paiementData.kkiapay_transaction_id === kkiapay_transaction_id) {
+          return new Response(JSON.stringify({success:true,alreadyConfirmed:true,reference}),{headers:{...corsHeaders,"Content-Type":"application/json"}});
+        }
+        return new Response(JSON.stringify({success:false,error:"Ce paiement est déjà validé avec une autre transaction"}),{status:409,headers:{...corsHeaders,"Content-Type":"application/json"}});
       }
       await assertFinancialEligibility(paiementData.client_id);
 
       const kkiapayAmount = verification.amount;
-      const trustedMontantPaye = typeof kkiapayAmount === "number" ? kkiapayAmount : paiementData.montant;
+      const expectedProviderAmount = Number(paiementData.metadata?.kkiapay_widget_amount ?? paiementData.montant);
+      if (!Number.isFinite(kkiapayAmount) || !Number.isFinite(expectedProviderAmount) || expectedProviderAmount <= 0 || Math.abs(kkiapayAmount - expectedProviderAmount) > 1) {
+        return new Response(JSON.stringify({success:false,error:"Le montant vérifié par KKiaPay ne correspond pas au montant autorisé"}),{status:409,headers:{...corsHeaders,"Content-Type":"application/json"}});
+      }
+      const trustedMontantPaye = Number(paiementData.montant);
 
       const { error: updateError } = await supabase.rpc("finalize_portal_payment", {
         _paiement_id: paiementData.id,
         _transaction_id: kkiapay_transaction_id,
-        _provider_amount: trustedMontantPaye,
+        _provider_amount: kkiapayAmount,
         _validated_at: new Date().toISOString(),
         _metadata: {
           ...(paiementData.metadata || {}),
           payment_provider: "kkiapay",
           kkiapay_transaction_id,
           kkiapay_amount: kkiapayAmount,
-          client_debit_amount: typeof client_debit_amount === "number" ? client_debit_amount : trustedMontantPaye,
-          fee_absorption_rate: typeof fee_absorption_rate === "number" ? fee_absorption_rate : (paiementData.metadata?.fee_absorption_rate ?? 0),
+          provider_amount: kkiapayAmount,
+          kkiapay_widget_amount: expectedProviderAmount,
+          client_debit_amount: trustedMontantPaye,
+          fee_absorption_rate: Number(paiementData.metadata?.fee_absorption_rate ?? 0),
           method: verification.method,
           fees: verification.fees,
           verified_at: new Date().toISOString(),
