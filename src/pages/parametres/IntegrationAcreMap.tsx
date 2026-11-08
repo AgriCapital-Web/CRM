@@ -24,7 +24,7 @@ export default function IntegrationAcreMap() {
   queryFn: async () => { const { data, error } = await supabase.functions.invoke("acremap-settings", { body: { action: "get" } }); if(error) throw error; if(data?.error) throw new Error(data.error); const value={...DEFAULTS,...(data??{})} as Settings; setDraft(value); return value; }
  });
  const save = useMutation({
-  mutationFn: async () => { const {data,error}=await supabase.functions.invoke("acremap-settings", { body: { action: "save", api_base_url: draft.api_base_url.trim().replace(/\/$/,""), api_key: apiKey, webhook_secret: webhookSecret, enabled: draft.enabled } }); if(error) throw error; if(data?.error) throw new Error(data.error); return data as Settings; },
+  mutationFn: async () => { const {data,error}=await supabase.functions.invoke("acremap-settings", { body: { action: "save", api_base_url: draft.api_base_url.trim().replace(/\/+$/, ""), api_key: apiKey, webhook_secret: webhookSecret, enabled: draft.enabled } }); if(error) throw error; if(data?.error) throw new Error(data.error); return data as Settings; },
   onSuccess: async (value) => { setDraft(value); setApiKey(""); setWebhookSecret(""); setSettingsOpen(false); await qc.invalidateQueries({queryKey:["acremap-integration-settings"]}); toast({title:"Configuration enregistrée"}); },
   onError: (e) => toast({title:"Enregistrement impossible",description:e instanceof Error?e.message:"Erreur",variant:"destructive"})
  });
@@ -39,7 +39,7 @@ export default function IntegrationAcreMap() {
   onSuccess: (r) => toast({title:"Connexion AcreMap réussie",description:r.service+" · base "+(r.database??"Neon")}),
   onError: (e) => toast({title:"Connexion AcreMap impossible",description:e instanceof Error?e.message:"Vérifiez l'URL et la clé API.",variant:"destructive"})
  });
- const webhookUrl=(import.meta.env.VITE_SUPABASE_URL||"").replace(/\/$/,"")+"/functions/v1/acremap-webhook";
+ const webhookUrl=(import.meta.env.VITE_SUPABASE_URL||"").replace(/\/+$/, "")+"/functions/v1/acremap-webhook";
  const set=(key:keyof Settings,value:string|boolean)=>setDraft(prev=>({...prev,[key]:value}));
  return <div className="space-y-4">
   <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogTrigger asChild><Button variant="outline" className="mb-2"><Cable className="mr-2 h-4 w-4"/>Modifier la connexion AcreMap</Button></DialogTrigger><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"><Card><CardHeader><div className="flex items-center gap-2"><Cable className="h-5 w-5"/><CardTitle>Connexion AcreMap</CardTitle></div><CardDescription>Le CRM est la référence des propriétaires fonciers. AcreMap fournit les levés GPS, géométries, lots et superficies calculées.</CardDescription></CardHeader>
