@@ -507,13 +507,13 @@ const Clients = () => {
                                       Activer
                                     </DropdownMenuItem>
                                   )}
-                                  {canEditClient && client.statut !== 'suspendu' && (
+                                  {canEditClient(client) && client.statut !== 'suspendu' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'suspendu')}>
                                       <Ban className="mr-2 h-4 w-4 text-orange-500" />
                                       Suspendre
                                     </DropdownMenuItem>
                                   )}
-                                  {canEditClient && client.statut !== 'archive' && (
+                                  {canEditClient(client) && client.statut !== 'archive' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'archive')}>
                                       <Archive className="mr-2 h-4 w-4 text-slate-500" />
                                       Archiver
