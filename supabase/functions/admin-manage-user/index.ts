@@ -68,11 +68,10 @@ serve(async (req) => {
       if (!/^[a-z0-9._-]{2,64}$/.test(cleanUsername)) return json({ error: "Identifiant invalide (2 à 64 caractères : lettres, chiffres, point, tiret et soulignement).", step }, 400);
       if (cleanName.length < 2) return json({ error: "Le nom complet est obligatoire.", step }, 400);
       if (!roleList.length || !primaryRole) return json({ error: "Sélectionnez au moins un rôle et un rôle principal.", step }, 400);
-      if (roleList.includes("pdg") && !isPdg) {
-        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer ce rôle.", step }, 403);
+      const privilegedRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
+      if (roleList.some((role) => privilegedRoles.has(role.toLowerCase())) && !isPdg) {
+        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer un rôle de gouvernance.", step }, 403);
       }
-      const forbiddenRoles = new Set(["dg", "super_admin", "admin", "administrateur", "president", "président"]);
-      if (roleList.some((r) => forbiddenRoles.has(r.toLowerCase()))) return json({ error: "Un rôle de gouvernance privilégiée ne peut pas être attribué par cette opération.", step }, 403);
       const { data: available, error: usernameError } = await admin.rpc("username_available", { _username: cleanUsername });
       if (usernameError) return json({ error: `Vérification de l'identifiant impossible : ${usernameError.message}`, step }, 400);
       if (available === false) return json({ error: "Cet identifiant est déjà utilisé.", step }, 409);
@@ -222,8 +221,9 @@ serve(async (req) => {
       step = "set_roles";
       const list: string[] = Array.isArray(roles) ? Array.from(new Set(roles.filter((r: unknown): r is string => typeof r === "string" && r.trim().length > 0))) : [];
       if (list.length === 0) return json({ error: "Au moins un rôle est requis", step }, 400);
-      if (list.includes("pdg") && !isPdg) {
-        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer ce rôle.", step }, 403);
+      const privilegedRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
+      if (list.some((role) => privilegedRoles.has(role.toLowerCase())) && !isPdg) {
+        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer un rôle de gouvernance.", step }, 403);
       }
       const primaryRole = typeof primary_role === "string" && list.includes(primary_role) ? primary_role : list[0];
       // Résout l'identifiant du compte de connexion (l'appelant peut envoyer l'id du profil).
