@@ -180,3 +180,152 @@ DROP TRIGGER IF EXISTS trg_audit_finance_expenses ON public.finance_expenses;
 CREATE TRIGGER trg_audit_finance_expenses
 AFTER INSERT OR UPDATE OR DELETE ON public.finance_expenses
 FOR EACH ROW EXECUTE FUNCTION public.audit_row_change();
+
+
+-- Création des entrées et sorties atomiques : les règles de cohérence multi-table
+-- ne sont pas réparties entre plusieurs requêtes navigateur.
+CREATE OR REPLACE FUNCTION public.finance_create_manual_entry(
+  p_source_type text,
+  p_source_name text,
+  p_amount numeric,
+  p_transaction_date date,
+  p_payment_method text DEFAULT NULL,
+  p_reference text DEFAULT NULL,
+  p_contact_phone text DEFAULT NULL,
+  p_notes text DEFAULT NULL,
+  p_proof_path text DEFAULT NULL,
+  p_proof_name text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_label text;
+  v_category text;
+  v_id uuid;
+BEGIN
+  IF (SELECT auth.uid()) IS NULL OR NOT public.finance_can_manage() THEN
+    RAISE EXCEPTION 'Vous ne disposez pas du droit de créer une entrée financière.'
+      USING errcode = '42501';
+  END IF;
+
+  IF p_source_type IS NULL
+     OR p_source_type NOT IN ('financement','pret','don','vente','autre')
+     OR NULLIF(trim(p_source_name), '') IS NULL
+     OR p_amount IS NULL OR p_amount <= 0
+     OR p_transaction_date IS NULL THEN
+    RAISE EXCEPTION 'Source, nature, montant positif et date sont obligatoires.'
+      USING errcode = '22023';
+  END IF;
+
+  v_label := CASE p_source_type
+    WHEN 'financement' THEN 'Financement'
+    WHEN 'pret' THEN 'Prêt reçu'
+    WHEN 'don' THEN 'Don reçu'
+    WHEN 'vente' THEN 'Vente'
+    ELSE 'Autre entrée'
+  END;
+  v_category := CASE p_source_type
+    WHEN 'financement' THEN 'FINANCEMENT'
+    WHEN 'pret' THEN 'PRET'
+    WHEN 'don' THEN 'DON'
+    WHEN 'vente' THEN 'VENTE'
+    ELSE 'AUTRE_ENTREE'
+  END;
+
+  INSERT INTO public.finance_transactions (
+    direction, category, label, amount, transaction_date, payment_method,
+    reference, contact_phone, source_type, notes, status, proof_path, proof_name
+  ) VALUES (
+    'entree', v_category, v_label || ' — ' || trim(p_source_name), p_amount,
+    p_transaction_date::timestamp AT TIME ZONE 'UTC',
+    NULLIF(trim(COALESCE(p_payment_method, '')), ''),
+    NULLIF(trim(COALESCE(p_reference, '')), ''),
+    NULLIF(trim(COALESCE(p_contact_phone, '')), ''),
+    p_source_type,
+    COALESCE(NULLIF(trim(COALESCE(p_notes, '')), ''), 'Source : ' || trim(p_source_name)),
+    'valide', p_proof_path, p_proof_name
+  )
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.finance_create_manual_entry(text,text,numeric,date,text,text,text,text,text,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.finance_create_manual_entry(text,text,numeric,date,text,text,text,text,text,text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.finance_create_expense(
+  p_category text,
+  p_amount numeric,
+  p_expense_date date,
+  p_description text DEFAULT NULL,
+  p_profile_id uuid DEFAULT NULL,
+  p_client_id uuid DEFAULT NULL,
+  p_plantation_id uuid DEFAULT NULL,
+  p_is_direct_cost boolean DEFAULT false,
+  p_proof_path text DEFAULT NULL,
+  p_proof_name text DEFAULT NULL,
+  p_proof_mime_type text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_transaction_id uuid;
+  v_expense_id uuid;
+  v_supplier_name text;
+BEGIN
+  IF (SELECT auth.uid()) IS NULL OR NOT public.finance_can_manage() THEN
+    RAISE EXCEPTION 'Vous ne disposez pas du droit de créer une sortie financière.'
+      USING errcode = '42501';
+  END IF;
+
+  IF NULLIF(trim(COALESCE(p_category, '')), '') IS NULL
+     OR p_amount IS NULL OR p_amount <= 0
+     OR p_expense_date IS NULL THEN
+    RAISE EXCEPTION 'Catégorie, montant positif et date sont obligatoires.'
+      USING errcode = '22023';
+  END IF;
+
+  IF p_profile_id IS NOT NULL THEN
+    SELECT p.nom_complet INTO v_supplier_name
+    FROM public.profiles p
+    WHERE p.id = p_profile_id;
+  END IF;
+
+  INSERT INTO public.finance_transactions (
+    direction, category, label, amount, transaction_date, status,
+    profile_id, client_id, plantation_id, notes, proof_path, proof_name
+  ) VALUES (
+    'sortie', 'DEPENSE', trim(p_category), p_amount,
+    p_expense_date::timestamp AT TIME ZONE 'UTC', 'valide',
+    p_profile_id, p_client_id, p_plantation_id,
+    NULLIF(trim(COALESCE(p_description, '')), ''),
+    p_proof_path, p_proof_name
+  )
+  RETURNING id INTO v_transaction_id;
+
+  INSERT INTO public.finance_expenses (
+    transaction_id, expense_category, profile_id, supplier_name, description,
+    client_id, plantation_id, is_direct_cost, expense_date, total_amount,
+    paid_amount, status, proof_path, proof_name, proof_mime_type
+  ) VALUES (
+    v_transaction_id, trim(p_category), p_profile_id, v_supplier_name,
+    NULLIF(trim(COALESCE(p_description, '')), ''),
+    p_client_id, p_plantation_id, COALESCE(p_is_direct_cost, false),
+    p_expense_date, p_amount, p_amount, 'paid',
+    p_proof_path, p_proof_name, p_proof_mime_type
+  )
+  RETURNING id INTO v_expense_id;
+
+  RETURN v_expense_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.finance_create_expense(text,numeric,date,text,uuid,uuid,uuid,boolean,text,text,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.finance_create_expense(text,numeric,date,text,uuid,uuid,uuid,boolean,text,text,text) TO authenticated;
