@@ -71,17 +71,23 @@ AS $function$
     UNION SELECT 'system.global_admin'
       WHERE private.is_global_admin((SELECT auth.uid()))
     UNION SELECT 'system.can_supervise_leads'
-      WHERE private.can_supervise_leads((SELECT auth.uid()))
+      WHERE private.is_global_admin((SELECT auth.uid()))
+         OR private.can_supervise_leads((SELECT auth.uid()))
     UNION SELECT 'system.service_client'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('service_client','chef_equipe_service_client'))
+      WHERE private.is_global_admin((SELECT auth.uid()))
+         OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('service_client','chef_equipe_service_client'))
     UNION SELECT 'system.commercial_assignable'
-      WHERE private.is_commercial_assignable((SELECT auth.uid()))
+      WHERE private.is_global_admin((SELECT auth.uid()))
+         OR private.is_commercial_assignable((SELECT auth.uid()))
     UNION SELECT 'system.commercial_manager'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('chef_equipe_commercial','responsable_commercial'))
+      WHERE private.is_global_admin((SELECT auth.uid()))
+         OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('chef_equipe_commercial','responsable_commercial'))
     UNION SELECT 'system.commercial_director'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'responsable_commercial')
+      WHERE private.is_global_admin((SELECT auth.uid()))
+         OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'responsable_commercial')
     UNION SELECT 'system.technical_manager'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'chef_equipe_technique')
+      WHERE private.is_global_admin((SELECT auth.uid()))
+         OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'chef_equipe_technique')
     UNION SELECT 'system.manage_account_requests'
       WHERE private.has_role_permission('parametres.manage_users')
     UNION SELECT 'system.manage_user_credentials'
