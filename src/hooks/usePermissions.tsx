@@ -99,16 +99,13 @@ export function usePermissions() {
   // These are capabilities returned by SQL, not role-name checks in React.
   const capabilities = useMemo(() => ({
     globalAdmin: permissions.has("system.global_admin"),
-    isDg: permissions.has("system.dg"),
     canSuperviseLeads: permissions.has("system.can_supervise_leads"),
     foncierRole: permissions.has("system.foncier_role"),
     serviceClient: permissions.has("system.service_client"),
     commercialAssignable: permissions.has("system.commercial_assignable"),
     commercialManager: permissions.has("system.commercial_manager"),
     commercialDirector: permissions.has("system.commercial_director"),
-    technicalRole: permissions.has("system.technical_role"),
     technicalManager: permissions.has("system.technical_manager"),
-    commissionFinance: permissions.has("system.commission_finance"),
     manageAccountRequests: permissions.has("system.manage_account_requests"),
     manageUserCredentials: permissions.has("system.manage_user_credentials"),
     clientOnly: permissions.has("system.client_only"),
@@ -122,7 +119,6 @@ export function usePermissions() {
     independentServiceWrite: permissions.has("system.independent_service_write"),
     independentServiceOperations: permissions.has("system.independent_service_operations"),
     manageHR: permissions.has("system.manage_hr"),
-    manageWorkspaceTasks: permissions.has("system.manage_workspace_tasks"),
   }), [permissions]);
 
   return {
