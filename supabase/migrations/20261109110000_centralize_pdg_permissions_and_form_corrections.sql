@@ -2,7 +2,7 @@
 -- Les applications AcreMap, Portail Client et Portail Prestataire restent indépendantes.
 -- Leurs tables de sessions/jetons et leurs tables AcreMap ne reçoivent pas la politique globale CRM.
 
-CREATE OR REPLACE FUNCTION private.is_global_admin(_user_id uuid)
+CREATE OR REPLACE FUNCTION private.crm_is_global_admin(_user_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -18,17 +18,17 @@ AS $function$
     );
 $function$;
 
-COMMENT ON FUNCTION private.is_global_admin(uuid) IS
+COMMENT ON FUNCTION private.crm_is_global_admin(uuid) IS
   'Administrateur global CRM : uniquement tout utilisateur auquel le rôle PDG est attribué, indépendamment du rôle principal.';
 
-CREATE OR REPLACE FUNCTION private.has_role_permission(p_permission_code text)
+CREATE OR REPLACE FUNCTION private.crm_has_role_permission(p_permission_code text)
 RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $function$
-  SELECT private.is_global_admin((SELECT auth.uid()))
+  SELECT private.crm_is_global_admin((SELECT auth.uid()))
     OR EXISTS (
       SELECT 1
       FROM public.user_roles ur
@@ -41,7 +41,7 @@ $function$;
 
 -- Liste effective calculée côté base : le navigateur ne reconstitue plus
 -- les droits en combinant des rôles ou des exceptions nominatives.
-CREATE OR REPLACE FUNCTION public.current_user_permissions()
+CREATE OR REPLACE FUNCTION public.crm_current_user_permissions()
 RETURNS text[]
 LANGUAGE sql
 STABLE
@@ -56,7 +56,7 @@ AS $function$
     SELECT ap.code AS permission_code
     FROM public.app_permissions ap
     WHERE ap.actif IS TRUE
-      AND private.is_global_admin((SELECT auth.uid()))
+      AND private.crm_is_global_admin((SELECT auth.uid()))
 
     UNION
 
@@ -69,30 +69,30 @@ AS $function$
     WHERE ur.user_id = (SELECT auth.uid())
 
     UNION SELECT 'system.global_admin'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
     UNION SELECT 'system.can_supervise_leads'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
          OR private.can_supervise_leads((SELECT auth.uid()))
     UNION SELECT 'system.service_client'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
          OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('service_client','chef_equipe_service_client'))
     UNION SELECT 'system.commercial_assignable'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
          OR private.is_commercial_assignable((SELECT auth.uid()))
     UNION SELECT 'system.commercial_manager'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
          OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('chef_equipe_commercial','responsable_commercial'))
     UNION SELECT 'system.commercial_director'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
          OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'responsable_commercial')
     UNION SELECT 'system.technical_manager'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
          OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'chef_equipe_technique')
     UNION SELECT 'system.manage_account_requests'
-      WHERE private.has_role_permission('parametres.manage_users')
+      WHERE private.crm_has_role_permission('parametres.manage_users')
     UNION SELECT 'system.manage_user_credentials'
-      WHERE private.has_role_permission('utilisateurs.update')
-         OR private.has_role_permission('utilisateurs.reset_password')
+      WHERE private.crm_has_role_permission('utilisateurs.update')
+         OR private.crm_has_role_permission('utilisateurs.reset_password')
     UNION SELECT 'system.client_only'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'user')
         AND NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role <> 'user')
@@ -109,7 +109,7 @@ AS $function$
     UNION SELECT 'system.commercial_role'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'commercial')
     UNION SELECT 'system.zone_scope_global'
-      WHERE private.is_global_admin((SELECT auth.uid()))
+      WHERE private.crm_is_global_admin((SELECT auth.uid()))
          OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('responsable_operations','manager_commercial_national','manager_technique_national'))
     UNION SELECT 'system.independent_service_write'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client'))
@@ -131,10 +131,10 @@ AS $function$
   WHERE (SELECT auth.uid()) IS NOT NULL;
 $function$;
 
-COMMENT ON FUNCTION public.current_user_permissions() IS
+COMMENT ON FUNCTION public.crm_current_user_permissions() IS
   'Retourne les permissions effectives et capacités de l''utilisateur connecté, calculées depuis les rôles et permissions en base. system.global_admin est exclusivement accordé au rôle PDG.';
 
-CREATE OR REPLACE FUNCTION public.current_user_has_app_permission(required_code text)
+CREATE OR REPLACE FUNCTION public.crm_current_user_has_app_permission(required_code text)
 RETURNS boolean
 LANGUAGE sql
 STABLE
@@ -142,13 +142,13 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
   SELECT (SELECT auth.uid()) IS NOT NULL
-    AND required_code = ANY(public.current_user_permissions());
+    AND required_code = ANY(public.crm_current_user_permissions());
 $function$;
 
-REVOKE ALL ON FUNCTION public.current_user_permissions() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.current_user_permissions() TO authenticated;
-REVOKE ALL ON FUNCTION public.current_user_has_app_permission(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.current_user_has_app_permission(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.crm_current_user_permissions() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.crm_current_user_permissions() TO authenticated;
+REVOKE ALL ON FUNCTION public.crm_current_user_has_app_permission(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.crm_current_user_has_app_permission(text) TO authenticated;
 
 -- Un PDG peut corriger les fiches de l'ensemble du CRM, y compris celles
 -- qui ne relèvent pas de son périmètre de création habituel.
@@ -189,7 +189,7 @@ BEGIN
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', policy_name, target_table.relname);
     EXECUTE format(
-      'CREATE POLICY %I ON public.%I AS PERMISSIVE FOR ALL TO authenticated USING (private.is_global_admin((SELECT auth.uid()))) WITH CHECK (private.is_global_admin((SELECT auth.uid())))',
+      'CREATE POLICY %I ON public.%I AS PERMISSIVE FOR ALL TO authenticated USING (private.crm_is_global_admin((SELECT auth.uid()))) WITH CHECK (private.crm_is_global_admin((SELECT auth.uid())))',
       policy_name,
       target_table.relname
     );
@@ -207,7 +207,7 @@ SET search_path = ''
 AS $function$
 BEGIN
   IF (SELECT auth.uid()) IS NULL
-     OR NOT private.is_global_admin((SELECT auth.uid())) THEN
+     OR NOT private.crm_is_global_admin((SELECT auth.uid())) THEN
     RAISE EXCEPTION 'Cette opération est réservée au PDG.'
       USING errcode = '42501';
   END IF;
