@@ -54,6 +54,13 @@ serve(async (req) => {
     if (!isAdmin && !isPdg && !isSuperAdmin) {
       return json({ error: "Accès réservé au PDG ou à un administrateur autorisé", step }, 403);
     }
+    const targetIsPdg = async (targetUserId: string) => {
+      const { data, error } = await admin.rpc("has_role", { _user_id: targetUserId, _role: "pdg" });
+      if (error) throw new Error("Vérification du rôle PDG impossible : " + error.message);
+      return data === true;
+    };
+    const denyNonPdgGovernanceTarget = async (targetUserId: string) =>
+      !isPdg && await targetIsPdg(targetUserId);
 
     if (action === "create_user") {
       step = "validate_create_user";
@@ -185,6 +192,7 @@ serve(async (req) => {
 
     if (action === "set_password") {
       step = "set_password";
+      if (await denyNonPdgGovernanceTarget(user_id)) return json({ error: "Seul le PDG peut modifier les accès d’un compte PDG.", step }, 403);
       if (typeof password !== "string" || password.length === 0) return json({ error: "Saisissez le nouveau mot de passe.", step }, 400);
       const { data: target, error: targetError } = await admin.auth.admin.getUserById(user_id);
       if (targetError || !target?.user) return json({ error: "Compte utilisateur introuvable.", step }, 404);
@@ -202,6 +210,7 @@ serve(async (req) => {
 
     if (action === "set_username") {
       step = "set_username";
+      if (await denyNonPdgGovernanceTarget(user_id)) return json({ error: "Seul le PDG peut modifier les accès d’un compte PDG.", step }, 403);
       const clean = String(username ?? "").trim().toLowerCase();
       if (!/^[a-zA-Z0-9._-]{3,30}$/.test(clean)) {
         return json({ error: "Identifiant invalide (3 à 30 caractères : lettres, chiffres, . _ -)", step }, 400);
@@ -272,6 +281,7 @@ serve(async (req) => {
 
     if (action === "delete_user") {
       step = "delete_user";
+      if (await denyNonPdgGovernanceTarget(user_id)) return json({ error: "Seul le PDG peut supprimer un compte PDG.", step }, 403);
       if (user_id === caller.user.id) {
         return json({ error: "Impossible de supprimer votre propre compte", step }, 400);
       }
