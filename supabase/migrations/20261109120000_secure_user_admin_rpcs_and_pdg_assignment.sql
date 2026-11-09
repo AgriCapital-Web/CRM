@@ -1,236 +1,164 @@
--- User administration: database-enforced caller checks and role-PDG assignment.
--- The Edge Function supplies the authenticated actor id; service-role RPCs do
--- not rely on auth.uid(), which is null in that server-to-server context.
+-- User administration: caller checks and role assignment are enforced in PostgreSQL.
+-- Service-role RPCs accept an actor id only after the Edge Function has validated the JWT.
+begin;
 
-CREATE OR REPLACE FUNCTION public.admin_set_user_roles_with_primary_authorized(
-  p_user_id uuid,
-  p_roles text[],
-  p_primary_role text,
-  p_actor_user_id uuid
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $function$
-BEGIN
-  IF p_actor_user_id IS NULL
-     OR (
-       NOT private.is_global_admin(p_actor_user_id)
-       AND NOT EXISTS (
-         SELECT 1
-         FROM public.user_roles ur
-         JOIN public.role_permissions rp ON rp.role_code = ur.role
-         JOIN public.app_permissions ap ON ap.code = rp.permission_code AND ap.actif IS TRUE
-         WHERE ur.user_id = p_actor_user_id
-           AND rp.permission_code IN ('roles.manage_permissions','utilisateurs.create')
-       )
-     ) THEN
-    RAISE EXCEPTION 'Permission insuffisante pour gérer les rôles ou créer un compte.'
-      USING errcode = '42501';
-  END IF;
+create or replace function public.admin_set_user_roles_with_primary_authorized(
+  p_user_id uuid, p_roles text[], p_primary_role text, p_actor_user_id uuid
+) returns void
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  if p_actor_user_id is null or (
+    not private.is_global_admin(p_actor_user_id)
+    and not exists (
+      select 1 from public.user_roles ur
+      join public.role_permissions rp on rp.role_code = ur.role
+      join public.app_permissions ap on ap.code = rp.permission_code and ap.actif is true
+      where ur.user_id = p_actor_user_id
+        and rp.permission_code in ('roles.manage_permissions','utilisateurs.create')
+    )
+  ) then
+    raise exception 'Permission insuffisante pour gérer les rôles ou créer un compte.' using errcode = '42501';
+  end if;
 
-  IF p_user_id IS NULL OR p_roles IS NULL OR cardinality(p_roles) = 0 THEN
-    RAISE EXCEPTION 'Utilisateur et au moins un rôle sont obligatoires.'
-      USING errcode = '22023';
-  END IF;
+  if p_user_id is null or p_roles is null or cardinality(p_roles) = 0 then
+    raise exception 'Utilisateur et au moins un rôle sont obligatoires.' using errcode = '22023';
+  end if;
 
-  IF EXISTS (
-    SELECT 1 FROM unnest(p_roles) AS requested(role_code)
-    WHERE lower(requested.role_code) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
-  ) AND NOT private.is_global_admin(p_actor_user_id) THEN
-    RAISE EXCEPTION 'Seul le rôle PDG peut attribuer un rôle de gouvernance.'
-      USING errcode = '42501';
-  END IF;
+  if exists (
+    select 1 from unnest(p_roles) as requested(role_code)
+    where lower(requested.role_code) in ('pdg','dg','super_admin','admin','administrateur','president','président')
+  ) and not private.is_global_admin(p_actor_user_id) then
+    raise exception 'Seul le PDG peut attribuer un rôle de gouvernance.' using errcode = '42501';
+  end if;
 
-  IF NOT private.is_global_admin(p_actor_user_id)
-     AND EXISTS (
-       SELECT 1 FROM public.user_roles ur
-       WHERE ur.user_id = p_user_id
-         AND lower(ur.role) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
-     ) THEN
-    RAISE EXCEPTION 'Seul le rôle PDG peut modifier les rôles d’un compte de gouvernance.'
-      USING errcode = '42501';
-  END IF;
+  if not private.is_global_admin(p_actor_user_id) and exists (
+    select 1 from public.user_roles ur
+    where ur.user_id = p_user_id
+      and lower(ur.role) in ('pdg','dg','super_admin','admin','administrateur','president','président')
+  ) then
+    raise exception 'Seul le PDG peut modifier les rôles d’un compte de gouvernance.' using errcode = '42501';
+  end if;
 
-  IF EXISTS (
-    SELECT 1
-    FROM unnest(p_roles) AS requested(role_code)
-    LEFT JOIN public.app_roles ar
-      ON ar.code = requested.role_code
-     AND ar.actif IS TRUE
-    WHERE ar.code IS NULL
-  ) THEN
-    RAISE EXCEPTION 'Un ou plusieurs rôles sont inconnus ou inactifs.'
-      USING errcode = '22023';
-  END IF;
+  if exists (
+    select 1 from unnest(p_roles) as requested(role_code)
+    left join public.app_roles ar on ar.code = requested.role_code and ar.actif is true
+    where ar.code is null
+  ) then
+    raise exception 'Un ou plusieurs rôles sont inconnus ou inactifs.' using errcode = '22023';
+  end if;
 
-  IF p_primary_role IS NULL OR NOT (p_primary_role = ANY(p_roles)) THEN
-    RAISE EXCEPTION 'Le rôle principal doit figurer parmi les rôles attribués.'
-      USING errcode = '22023';
-  END IF;
+  if p_primary_role is null or not (p_primary_role = any(p_roles)) then
+    raise exception 'Le rôle principal doit figurer parmi les rôles attribués.' using errcode = '22023';
+  end if;
 
-  PERFORM public.admin_set_user_roles_with_primary(
-    p_user_id,
-    p_roles,
-    p_primary_role
-  );
-
-  -- Keep the profile label aligned with the authoritative user_roles table.
-  PERFORM set_config('app.internal_account_link', 'true', true);
-  UPDATE public.profiles
-  SET relation_rh = CASE
-    WHEN 'pdg' = ANY(p_roles) THEN 'PDG'
-    WHEN 'dg' = ANY(p_roles) THEN 'DG'
-    WHEN relation_rh IN ('PDG','DG') THEN 'Employé'
-    ELSE relation_rh
-  END
-  WHERE user_id = p_user_id;
-  PERFORM set_config('app.internal_account_link', 'false', true);
-END;
+  perform public.admin_set_user_roles_with_primary(p_user_id, p_roles, p_primary_role);
+  perform set_config('app.internal_account_link', 'true', true);
+  update public.profiles
+  set relation_rh = case
+    when 'pdg' = any(p_roles) then 'PDG'
+    when 'dg' = any(p_roles) then 'DG'
+    when relation_rh in ('PDG','DG') then 'Employé'
+    else relation_rh
+  end
+  where user_id = p_user_id;
+  perform set_config('app.internal_account_link', 'false', true);
+end;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.admin_set_profile_active_authorized(
-  p_user_id uuid,
-  p_actif boolean,
-  p_actor_user_id uuid
-)
-RETURNS TABLE(profile_id uuid, user_id uuid, actif boolean)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $function$
-BEGIN
-  IF p_actor_user_id IS NULL
-     OR (
-       NOT private.is_global_admin(p_actor_user_id)
-       AND NOT EXISTS (
-         SELECT 1
-         FROM public.user_roles ur
-         JOIN public.role_permissions rp ON rp.role_code = ur.role
-         JOIN public.app_permissions ap ON ap.code = rp.permission_code AND ap.actif IS TRUE
-         WHERE ur.user_id = p_actor_user_id
-           AND rp.permission_code IN ('utilisateurs.update','utilisateurs.delete')
-       )
-     ) THEN
-    RAISE EXCEPTION 'Permission insuffisante pour modifier le statut de ce compte.'
-      USING errcode = '42501';
-  END IF;
+create or replace function public.admin_set_profile_active_authorized(
+  p_user_id uuid, p_actif boolean, p_actor_user_id uuid
+) returns table(profile_id uuid, user_id uuid, actif boolean)
+language plpgsql security definer set search_path = ''
+as $function$
+begin
+  if p_actor_user_id is null or (
+    not private.is_global_admin(p_actor_user_id)
+    and not exists (
+      select 1 from public.user_roles ur
+      join public.role_permissions rp on rp.role_code = ur.role
+      join public.app_permissions ap on ap.code = rp.permission_code and ap.actif is true
+      where ur.user_id = p_actor_user_id
+        and rp.permission_code in ('utilisateurs.update','utilisateurs.delete')
+    )
+  ) then
+    raise exception 'Permission insuffisante pour modifier le statut de ce compte.' using errcode = '42501';
+  end if;
 
-  IF p_user_id IS NULL OR p_actif IS NULL THEN
-    RAISE EXCEPTION 'Utilisateur et statut sont obligatoires.'
-      USING errcode = '22023';
-  END IF;
+  if p_user_id is null or p_actif is null then
+    raise exception 'Utilisateur et statut sont obligatoires.' using errcode = '22023';
+  end if;
 
-  IF NOT private.is_global_admin(p_actor_user_id)
-     AND EXISTS (
-       SELECT 1 FROM public.user_roles ur
-       WHERE ur.user_id = p_user_id AND lower(trim(ur.role)) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
-     ) THEN
-    RAISE EXCEPTION 'Seul le rôle PDG peut modifier le statut d’un compte PDG.'
-      USING errcode = '42501';
-  END IF;
+  if not private.is_global_admin(p_actor_user_id) and exists (
+    select 1 from public.user_roles ur
+    where ur.user_id = p_user_id
+      and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
+  ) then
+    raise exception 'Seul le PDG peut modifier le statut d’un compte de gouvernance.' using errcode = '42501';
+  end if;
 
-  RETURN QUERY
-  SELECT *
-  FROM public.admin_set_profile_active(p_user_id, p_actif);
-END;
+  return query select * from public.admin_set_profile_active(p_user_id, p_actif);
+end;
 $function$;
 
--- Username updates go through a scoped server-side RPC so profile guards are
--- bypassed only inside this validated transaction, never by the browser.
-CREATE OR REPLACE FUNCTION public.admin_update_username_authorized(
-  p_user_id uuid,
-  p_username text,
-  p_actor_user_id uuid
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $function$
-DECLARE
-  v_username text := lower(trim(COALESCE(p_username, '')));
+create or replace function public.admin_update_username_authorized(
+  p_user_id uuid, p_username text, p_actor_user_id uuid
+) returns void
+language plpgsql security definer set search_path = ''
+as $function$
+declare
+  v_username text := lower(trim(coalesce(p_username, '')));
   v_updated integer := 0;
-BEGIN
-  IF p_user_id IS NULL OR p_actor_user_id IS NULL
-     OR v_username !~ '^[a-z0-9._-]{3,30} Only the
--- authorized wrappers may be called by the server-side admin Edge Function.
-REVOKE ALL ON FUNCTION public.admin_set_user_roles_with_primary(uuid,text[],text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_user_roles_with_primary(uuid,text[],text) TO service_role;
+begin
+  if p_user_id is null or p_actor_user_id is null or length(v_username) < 3 or length(v_username) > 30 or v_username !~ '^[a-z0-9._-]+$' then
+    raise exception 'Compte et identifiant valide obligatoires.' using errcode = '22023';
+  end if;
 
-REVOKE ALL ON FUNCTION public.admin_set_profile_active(uuid,boolean) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_profile_active(uuid,boolean) TO service_role;
+  if not private.is_global_admin(p_actor_user_id) and not exists (
+    select 1 from public.user_roles ur
+    join public.role_permissions rp on rp.role_code = ur.role
+    join public.app_permissions ap on ap.code = rp.permission_code and ap.actif is true
+    where ur.user_id = p_actor_user_id and rp.permission_code = 'utilisateurs.update'
+  ) then
+    raise exception 'Permission insuffisante pour modifier cet identifiant.' using errcode = '42501';
+  end if;
 
-REVOKE ALL ON FUNCTION public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) TO service_role;
+  if not private.is_global_admin(p_actor_user_id) and exists (
+    select 1 from public.user_roles ur
+    where ur.user_id = p_user_id
+      and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
+  ) then
+    raise exception 'Seul le PDG peut modifier les identifiants d’un compte de gouvernance.' using errcode = '42501';
+  end if;
 
-REVOKE ALL ON FUNCTION public.admin_set_profile_active_authorized(uuid,boolean,uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_profile_active_authorized(uuid,boolean,uuid) TO service_role;
- THEN
-    RAISE EXCEPTION 'Compte et identifiant valide obligatoires.'
-      USING errcode = '22023';
-  END IF;
+  if exists (
+    select 1 from public.profiles p
+    where lower(p.username) = v_username and coalesce(p.user_id, p.id) <> p_user_id
+  ) then
+    raise exception 'Cet identifiant est déjà utilisé.' using errcode = '23505';
+  end if;
 
-  IF NOT private.is_global_admin(p_actor_user_id)
-     AND NOT EXISTS (
-       SELECT 1
-       FROM public.user_roles ur
-       JOIN public.role_permissions rp ON rp.role_code = ur.role
-       JOIN public.app_permissions ap ON ap.code = rp.permission_code AND ap.actif IS TRUE
-       WHERE ur.user_id = p_actor_user_id
-         AND rp.permission_code = 'utilisateurs.update'
-     ) THEN
-    RAISE EXCEPTION 'Permission insuffisante pour modifier cet identifiant.'
-      USING errcode = '42501';
-  END IF;
-
-  IF NOT private.is_global_admin(p_actor_user_id)
-     AND EXISTS (
-       SELECT 1 FROM public.user_roles ur
-       WHERE ur.user_id = p_user_id
-         AND lower(trim(ur.role)) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
-     ) THEN
-    RAISE EXCEPTION 'Seul le PDG peut modifier les identifiants d’un compte de gouvernance.'
-      USING errcode = '42501';
-  END IF;
-
-  IF EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE lower(p.username) = v_username
-      AND COALESCE(p.user_id, p.id) <> p_user_id
-  ) THEN
-    RAISE EXCEPTION 'Cet identifiant est déjà utilisé.'
-      USING errcode = '23505';
-  END IF;
-
-  PERFORM set_config('app.internal_account_link', 'true', true);
-  UPDATE public.profiles
-  SET username = v_username, updated_at = now()
-  WHERE user_id = p_user_id OR id = p_user_id;
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
-  PERFORM set_config('app.internal_account_link', 'false', true);
-
-  IF v_updated = 0 THEN
-    RAISE EXCEPTION 'Profil associé au compte introuvable.'
-      USING errcode = 'P0002';
-  END IF;
-END;
+  perform set_config('app.internal_account_link', 'true', true);
+  update public.profiles set username = v_username, updated_at = now()
+  where user_id = p_user_id or id = p_user_id;
+  get diagnostics v_updated = row_count;
+  perform set_config('app.internal_account_link', 'false', true);
+  if v_updated = 0 then
+    raise exception 'Profil associé au compte introuvable.' using errcode = 'P0002';
+  end if;
+end;
 $function$;
 
-REVOKE ALL ON FUNCTION public.admin_update_username_authorized(uuid,text,uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_update_username_authorized(uuid,text,uuid) TO service_role;
+revoke all on function public.admin_set_user_roles_with_primary(uuid,text[],text) from public, anon, authenticated;
+grant execute on function public.admin_set_user_roles_with_primary(uuid,text[],text) to service_role;
+revoke all on function public.admin_set_profile_active(uuid,boolean) from public, anon, authenticated;
+grant execute on function public.admin_set_profile_active(uuid,boolean) to service_role;
+revoke all on function public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) from public, anon, authenticated;
+grant execute on function public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) to service_role;
+revoke all on function public.admin_set_profile_active_authorized(uuid,boolean,uuid) from public, anon, authenticated;
+grant execute on function public.admin_set_profile_active_authorized(uuid,boolean,uuid) to service_role;
+revoke all on function public.admin_update_username_authorized(uuid,text,uuid) from public, anon, authenticated;
+grant execute on function public.admin_update_username_authorized(uuid,text,uuid) to service_role;
 
--- These legacy RPCs are now internal implementation details. Only the
--- authorized wrappers may be called by the server-side admin Edge Function.
-REVOKE ALL ON FUNCTION public.admin_set_user_roles_with_primary(uuid,text[],text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_user_roles_with_primary(uuid,text[],text) TO service_role;
-
-REVOKE ALL ON FUNCTION public.admin_set_profile_active(uuid,boolean) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_profile_active(uuid,boolean) TO service_role;
-
-REVOKE ALL ON FUNCTION public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) TO service_role;
-
-REVOKE ALL ON FUNCTION public.admin_set_profile_active_authorized(uuid,boolean,uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_profile_active_authorized(uuid,boolean,uuid) TO service_role;
+notify pgrst, 'reload schema';
+commit;
