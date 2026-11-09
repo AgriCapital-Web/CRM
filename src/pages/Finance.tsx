@@ -192,6 +192,44 @@ export default function Finance(){
     finally{setSaving(false);}
   };
 
+  const saveEntryUpdate=async()=>{
+    if(!selectedEntry||!entryForm.source.trim()||Number(entryForm.amount)<=0)return;
+    setSaving(true);
+    let uploadedProofPath:string|null=null;
+    try{
+      if(entryProof){
+        const uploaded=await uploadFile("documents",entryProof,"finance/entrees");
+        if(!uploaded?.path)throw new Error("Le justificatif de l’entrée n’a pas pu être téléversé.");
+        uploadedProofPath=uploaded.path;
+      }
+      const labels:Record<string,string>={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",vente:"Vente",autre:"Autre entrée"};
+      const {error}=await (supabase as any).rpc("finance_update_manual_entry",{
+        p_transaction_id:selectedEntry.id,
+        p_source_type:entryForm.type,
+        p_label:(labels[entryForm.type]||"Autre entrée")+" — "+entryForm.source.trim(),
+        p_amount:Number(entryForm.amount),
+        p_transaction_date:entryForm.date,
+        p_payment_method:entryForm.method||null,
+        p_reference:entryForm.reference.trim()||null,
+        p_contact_phone:entryForm.contactPhone.trim()||null,
+        p_notes:entryForm.notes.trim()||null,
+        p_proof_path:uploadedProofPath,
+        p_proof_name:entryProof?.name||null
+      });
+      if(error)throw error;
+      toast({title:"Entrée financière corrigée",description:"Les modifications ont été enregistrées et tracées."});
+      setEntryFormOpen(false);
+      setSelectedEntry(null);
+      setEntryFormMode("new");
+      setEntryProof(null);
+      await load();
+    }catch(error:any){
+      if(uploadedProofPath)await supabase.storage.from("documents").remove([uploadedProofPath]);
+      toast({title:"Correction impossible",description:error?.message||"Réessayez.",variant:"destructive"});
+    }finally{setSaving(false);}
+  };
+
+
   const saveExpense=async()=>{
     if(!expense.category||Number(expense.amount)<=0)return;
     setSaving(true);
@@ -227,6 +265,43 @@ export default function Finance(){
       toast({title:"Erreur",description:error?.message||"Impossible d'enregistrer la sortie",variant:"destructive"});
     } finally { setSaving(false); }
   };
+
+  const saveExpenseUpdate=async()=>{
+    if(!selectedExpense||!expense.category||Number(expense.amount)<=0)return;
+    setSaving(true);
+    let uploadedProofPath:string|null=null;
+    try{
+      if(expenseProof){
+        const uploaded=await uploadFile("documents",expenseProof,"finance/depenses");
+        if(!uploaded?.path)throw new Error("Le nouveau justificatif n’a pas pu être téléversé.");
+        uploadedProofPath=uploaded.path;
+      }
+      const {error}=await (supabase as any).rpc("finance_update_expense",{
+        p_expense_id:selectedExpense.id,
+        p_category:expense.category,
+        p_amount:Number(expense.amount),
+        p_expense_date:expense.date,
+        p_description:expense.description||null,
+        p_profile_id:expense.profileId||null,
+        p_client_id:expense.clientId||null,
+        p_plantation_id:expense.plantationId||null,
+        p_is_direct_cost:expense.direct,
+        p_proof_path:uploadedProofPath,
+        p_proof_name:expenseProof?.name||null,
+        p_proof_mime_type:expenseProof?.type||null
+      });
+      if(error)throw error;
+      toast({title:"Sortie financière corrigée",description:"La fiche et son écriture comptable ont été mises à jour."});
+      setExpenseFormMode(null);
+      setSelectedExpense(null);
+      setExpenseProof(null);
+      await load();
+    }catch(error:any){
+      if(uploadedProofPath)await supabase.storage.from("documents").remove([uploadedProofPath]);
+      toast({title:"Correction impossible",description:error?.message||"Réessayez.",variant:"destructive"});
+    }finally{setSaving(false);}
+  };
+
 
 
   const saveAssociateMovement=async()=>{
