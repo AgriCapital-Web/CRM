@@ -390,8 +390,6 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           .select("id").eq("user_id", result.user_id).single();
         if (newProfileError) throw newProfileError;
         if (canManagePayroll && baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
-          const { error: salaryError } = await (supabase as any).from("profiles").update({ salaire_base: baseSalary }).eq("id", newProfile.id);
-          if (salaryError) throw salaryError;
           const { error: salaryConfigError } = await (supabase as any).from("finance_salary_profiles")
             .upsert({ profile_id: newProfile.id, base_salary: baseSalary, pay_day: 28, active: true }, { onConflict: "profile_id" });
           if (salaryConfigError) throw salaryConfigError;
