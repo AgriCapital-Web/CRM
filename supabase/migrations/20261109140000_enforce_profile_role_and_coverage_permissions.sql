@@ -172,5 +172,60 @@ $function$;
 revoke all on function public.get_team_options_for_department(text) from public, anon;
 grant execute on function public.get_team_options_for_department(text) to authenticated, service_role;
 
+-- Autorisation d'une action d'administration utilisateur : la correspondance
+-- action -> permission et la protection des comptes de gouvernance restent en SQL.
+create or replace function public.user_can_manage_admin_action(
+  p_actor_user_id uuid,
+  p_target_user_id uuid,
+  p_action text
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $function$
+declare
+  v_allowed boolean := false;
+  v_governance_target boolean := false;
+begin
+  if p_actor_user_id is null then
+    return false;
+  end if;
+
+  v_allowed := case p_action
+    when 'create_user' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+    when 'set_active' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
+                                  or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.delete')
+    when 'set_password' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.reset_password')
+    when 'set_username' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
+    when 'set_roles' then private.user_has_role_permission(p_actor_user_id, 'roles.manage_permissions')
+    when 'delete_user' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.delete')
+    else false
+  end;
+
+  if not v_allowed then
+    return false;
+  end if;
+
+  if p_target_user_id is not null and p_action in ('set_active','set_password','set_username','set_roles','delete_user') then
+    select exists (
+      select 1 from public.user_roles ur
+      where ur.user_id = p_target_user_id
+        and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
+    ) into v_governance_target;
+
+    if v_governance_target and not private.is_global_admin(p_actor_user_id) then
+      return false;
+    end if;
+  end if;
+
+  return true;
+end;
+$function$;
+
+revoke all on function public.user_can_manage_admin_action(uuid,uuid,text) from public, anon, authenticated;
+grant execute on function public.user_can_manage_admin_action(uuid,uuid,text) to service_role;
+
 notify pgrst, 'reload schema';
 commit;
