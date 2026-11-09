@@ -14,7 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertCircle, Plus, Eye } from "lucide-react";
 import TicketForm from "@/components/forms/TicketForm";
 import { getSafeErrorMessage } from "@/lib/safeError";
-import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import TableSearchInput from "@/components/common/TableSearchInput";
 
@@ -25,7 +24,6 @@ const Tickets = () => {
   const [search, setSearch] = useState("");
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { userRoles } = useAuth();
   const { can } = usePermissions();
   const canCreate = can("tickets.create");
   const canUpdate = can("tickets.update");
