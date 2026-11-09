@@ -69,8 +69,6 @@ AS $function$
 
     UNION SELECT 'system.global_admin'
       WHERE private.is_global_admin((SELECT auth.uid()))
-    UNION SELECT 'system.dg'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'dg')
     UNION SELECT 'system.can_supervise_leads'
       WHERE private.can_supervise_leads((SELECT auth.uid()))
     UNION SELECT 'system.foncier_role'
@@ -83,12 +81,8 @@ AS $function$
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('chef_equipe_commercial','responsable_commercial'))
     UNION SELECT 'system.commercial_director'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'responsable_commercial')
-    UNION SELECT 'system.technical_role'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'technicien')
     UNION SELECT 'system.technical_manager'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'chef_equipe_technique')
-    UNION SELECT 'system.commission_finance'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('comptable','responsable_operations'))
     UNION SELECT 'system.manage_account_requests'
       WHERE public.is_admin((SELECT auth.uid()))
     UNION SELECT 'system.manage_user_credentials'
@@ -117,13 +111,6 @@ AS $function$
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations'))
     UNION SELECT 'system.manage_hr'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('rh','responsable_rh','ressources_humaines','admin','administrateur','pdg','dg','directeur_general','directeur général'))
-    UNION SELECT 'system.manage_workspace_tasks'
-      WHERE EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = (SELECT auth.uid())
-          AND (ur.role IN ('rh','responsable_rh','ressources_humaines','admin','administrateur','pdg','dg','directeur_general','directeur général')
-            OR ur.role LIKE '%manager%' OR ur.role LIKE '%responsable%' OR ur.role LIKE '%chef%')
-      )
   ) effective_permissions
   WHERE (SELECT auth.uid()) IS NOT NULL;
 $function$;
