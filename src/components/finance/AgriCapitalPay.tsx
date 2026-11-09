@@ -14,6 +14,7 @@ import { CheckCircle2, RefreshCw, Send, ShieldCheck, Users, Wallet } from "lucid
 
 type Profile = { id: string; prenoms?: string | null; nom?: string | null; nom_complet?: string | null; telephone?: string | null; email?: string | null; poste?: string | null; actif?: boolean | null };
 type Beneficiary = { id: string; profile_id?: string | null; beneficiary_type: string; first_names?: string | null; last_name?: string | null; display_name: string; phone?: string | null; email?: string | null; active: boolean };
+type PayoutBatch = { id: string; reference: string; status: string; total_amount: number; payout_count: number; created_at: string };
 type Payout = { id: string; reference: string; beneficiary_id: string; profile_id?: string | null; source_kind?: string | null; source_id?: string | null; category: string; amount: number; reason: string; payment_method: string; provider_code: string; provider_reference?: string | null; provider_transaction_id?: string | null; status: string; notification_status: string; created_at: string; paid_at?: string | null; failure_reason?: string | null };
 type SmsTemplate = { id: string; category: string; name: string; content: string; active: boolean; max_characters: number };
 
@@ -26,12 +27,12 @@ const categories = [
 const categoryLabel = (value: string) => categories.find(([key]) => key === value)?.[1] || value;
 const statusLabel: Record<string, string> = {
   draft: "Brouillon", pending_approval: "À approuver", approved: "Approuvé",
-  processing: "En traitement", succeeded: "Payé", failed: "Échec", cancelled: "Annulé",
+  processing: "En traitement", succeeded: "Payé", partially_succeeded: "Partiellement payé", failed: "Échec", cancelled: "Annulé",
 };
 const statusClass: Record<string, string> = {
   succeeded: "bg-emerald-100 text-emerald-800", failed: "bg-destructive/10 text-destructive",
   pending_approval: "bg-amber-100 text-amber-800", approved: "bg-blue-100 text-blue-800",
-  processing: "bg-blue-100 text-blue-800", cancelled: "bg-muted text-muted-foreground",
+  processing: "bg-blue-100 text-blue-800", partially_succeeded: "bg-amber-100 text-amber-800", cancelled: "bg-muted text-muted-foreground",
 };
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0)) + " FCFA";
 const normalizedName = (firstNames?: string | null, lastName?: string | null, fullName?: string | null) => {
@@ -61,6 +62,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [batches, setBatches] = useState<PayoutBatch[]>([]);
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [payrollItems, setPayrollItems] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
@@ -92,7 +94,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, b, pay, t, payroll, commission, commissionPayout, expense] = await Promise.all([
+      const [p, b, pay, t, payroll, commission, commissionPayout, expense, batch] = await Promise.all([
         (supabase as any).rpc("finance_payout_list_profiles"),
         (supabase as any).from("finance_payout_beneficiaries").select("*").order("display_name"),
         (supabase as any).from("finance_payouts").select("*").order("created_at", { ascending: false }).limit(150),
@@ -101,11 +103,13 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         (supabase as any).from("commissions").select("id,profile_id,montant_commission,type_commission,statut,periode").eq("statut","validee").not("profile_id","is",null).gt("montant_commission",0),
         (supabase as any).from("portefeuille_versements").select("id,profile_id,montant_brut,montant_paye,statut,periode_debut,periode_fin").in("statut",["valide","partiellement_paye"]),
         (supabase as any).from("finance_expenses").select("id,profile_id,beneficiary_name,supplier_name,beneficiary_phone,total_amount,paid_amount,status,expense_category,description").in("status",["unpaid","partial"]),
+        (supabase as any).from("finance_payout_batches").select("*").order("created_at",{ascending:false}).limit(50),
       ]);
-      for (const result of [p, b, pay, t]) if (result.error) throw result.error;
+      for (const result of [p, b, pay, t, batch]) if (result.error) throw result.error;
       setProfiles((p.data || []).filter((row: Profile) => row.actif !== false));
       setBeneficiaries(b.data || []);
       setPayouts(pay.data || []);
+      setBatches(batch.data || []);
       setTemplates(t.data || []);
       setPayrollItems(payroll.error ? [] : payroll.data || []);
       setCommissions(commission.error ? [] : commission.data || []);
@@ -351,6 +355,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
 
         <TabsContent value="historique" className="mt-3 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Décaissements récents</h3><Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-base">Lots de décaissement récents</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Référence</th><th className="p-2">Créé le</th><th className="p-2 text-right">Bénéficiaires</th><th className="p-2 text-right">Total</th><th className="p-2">Statut</th></tr></thead><tbody>{batches.map((batch) => <tr key={batch.id} className="border-b"><td className="p-2 font-medium">{batch.reference}</td><td className="p-2">{new Date(batch.created_at).toLocaleDateString("fr-FR")}</td><td className="p-2 text-right">{batch.payout_count}</td><td className="p-2 text-right font-semibold">{money(batch.total_amount)}</td><td className="p-2"><Badge className={statusClass[batch.status] || ""}>{statusLabel[batch.status] || batch.status}</Badge></td></tr>)}{!batches.length && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucun lot créé.</td></tr>}</tbody></table></div></CardContent></Card>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full min-w-[860px] text-sm"><thead className="bg-muted/60"><tr className="text-left"><th className="p-3">Bénéficiaire</th><th className="p-3">Motif</th><th className="p-3 text-right">Montant</th><th className="p-3">Référence</th><th className="p-3">Statut</th><th className="p-3">Action</th></tr></thead>
               <tbody>{payouts.map((p) => <tr key={p.id} className="border-t"><td className="p-3 font-medium">{getBeneficiaryName(p)}<span className="block text-xs text-muted-foreground">{categoryLabel(p.category)}</span></td><td className="max-w-[220px] p-3"><span className="block truncate">{p.reason}</span><span className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString("fr-FR")}</span></td><td className="p-3 text-right font-semibold tabular-nums">{money(p.amount)}</td><td className="p-3"><span className="block">{p.reference}</span><span className="text-xs text-muted-foreground">{p.provider_code === "kkiapay_push_up" ? "Kkiapay Push Up" : "Hors ligne"}{p.source_kind ? " · " + p.source_kind : ""}</span></td><td className="p-3"><Badge className={statusClass[p.status] || ""}>{statusLabel[p.status] || p.status}</Badge>{p.notification_status === "queued" && <span className="mt-1 block text-xs text-muted-foreground">SMS en file</span>}{p.notification_status === "blocked_too_long" && <span className="mt-1 block text-xs text-destructive">SMS bloqué (&gt;150)</span>}</td><td className="p-3"><div className="flex flex-wrap gap-1">{p.status === "pending_approval" && canManage && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approve(p)}>Approuver</Button>}{p.status === "approved" && canManage && <Button size="sm" disabled={saving} onClick={() => { setReconcilePayout(p); setProviderReference(""); setProviderTransactionId(""); setReconcileMethod(p.payment_method || "mobile_money"); }}>{p.provider_code === "kkiapay_push_up" ? "Rapprocher Push Up" : "Confirmer paiement"}</Button>}</div></td></tr>)}
