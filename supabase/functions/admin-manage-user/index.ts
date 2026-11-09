@@ -46,21 +46,39 @@ serve(async (req) => {
       return json({ success: true, action, password_change_required: false });
     }
 
-    const [{ data: isAdmin }, { data: isPdg }, { data: isSuperAdmin }] = await Promise.all([
+    const requiredPermissionByAction: Record<string, string> = {
+      create_user: "utilisateurs.create",
+      set_active: "utilisateurs.update",
+      set_password: "utilisateurs.reset_password",
+      set_username: "utilisateurs.update",
+      set_roles: "roles.manage_permissions",
+      delete_user: "utilisateurs.delete",
+    };
+    const requiredPermission = requiredPermissionByAction[action];
+    if (!requiredPermission) return json({ error: "Action inconnue.", step }, 400);
+
+    const [{ data: isPdg, error: pdgError }, { data: hasPermission, error: permissionError }] = await Promise.all([
       admin.rpc("is_admin", { _user_id: caller.user.id }),
-      admin.rpc("has_role", { _user_id: caller.user.id, _role: "pdg" }),
-      admin.rpc("has_role", { _user_id: caller.user.id, _role: "super_admin" }),
+      admin.rpc("user_has_app_permission", {
+        _user_id: caller.user.id,
+        _required_code: requiredPermission,
+      }),
     ]);
-    if (!isAdmin && !isPdg && !isSuperAdmin) {
-      return json({ error: "Accès réservé au PDG ou à un administrateur autorisé", step }, 403);
+    if (pdgError || permissionError) {
+      return json({ error: "Vérification des autorisations en base impossible.", step }, 500);
     }
-    const targetIsPdg = async (targetUserId: string) => {
-      const { data, error } = await admin.rpc("has_role", { _user_id: targetUserId, _role: "pdg" });
-      if (error) throw new Error("Vérification du rôle PDG impossible : " + error.message);
-      return data === true;
+    if (isPdg !== true && hasPermission !== true) {
+      return json({ error: "Permission insuffisante pour cette opération.", step }, 403);
+    }
+
+    const governanceRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
+    const targetHasGovernanceRole = async (targetUserId: string) => {
+      const { data, error } = await admin.from("user_roles").select("role").eq("user_id", targetUserId);
+      if (error) throw new Error("Vérification du compte de gouvernance impossible : " + error.message);
+      return (data || []).some((row: any) => governanceRoles.has(String(row.role || "").toLowerCase()));
     };
     const denyNonPdgGovernanceTarget = async (targetUserId: string) =>
-      !isPdg && await targetIsPdg(targetUserId);
+      isPdg !== true && await targetHasGovernanceRole(targetUserId);
 
     if (action === "create_user") {
       step = "validate_create_user";
@@ -224,7 +242,11 @@ serve(async (req) => {
       const { data: matches, error: duplicateError } = await admin.from("profiles").select("id,user_id,username").ilike("username", clean);
       if (duplicateError) return json({ error: duplicateError.message, step }, 400);
       if ((matches || []).some((p: any) => p.id !== targetProfile.id && p.user_id !== authId)) return json({ error: "Cet identifiant est déjà utilisé", step }, 409);
-      const { error: profileUpdateError } = await admin.from("profiles").update({ username: clean }).eq("id", targetProfile.id);
+      const { error: profileUpdateError } = await admin.rpc("admin_update_username_authorized", {
+        p_user_id: authId,
+        p_username: clean,
+        p_actor_user_id: caller.user.id,
+      });
       if (profileUpdateError) return json({ error: profileUpdateError.message, step }, 400);
       const { error: requestUpdateError } = await admin.from("account_requests").update({ username: clean }).eq("auth_user_id", authId);
       if (requestUpdateError) return json({ error: "Identifiant modifié dans le profil, mais synchronisation de la demande impossible: " + requestUpdateError.message, step }, 400);
