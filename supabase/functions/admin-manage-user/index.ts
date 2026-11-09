@@ -29,7 +29,7 @@ serve(async (req) => {
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step }, 401);
     step = "parse_body";
-    const { action, user_id, password, username, email, nom_complet, nom, prenoms, telephone, telephone_indicatif, telephone_local, telephone_principal_whatsapp, telephone_secondaire, telephone_secondaire_local, telephone_secondaire_indicatif, telephone_secondaire_whatsapp, whatsapp, whatsapp_indicatif, whatsapp_local, departement, relation_rh, district_id, region_id, equipe_id, photo_url, type_piece_identite, numero_piece_identite, piece_identite_url, piece_identite_recto_url, piece_identite_verso_url, piece_identite_page_principale_url, roles, actif, primary_role } = await req.json();
+    const { action, user_id, password, username, email, nom_complet, nom, prenoms, telephone, telephone_indicatif, telephone_local, telephone_principal_whatsapp, telephone_secondaire, telephone_secondaire_local, telephone_secondaire_indicatif, telephone_secondaire_whatsapp, whatsapp, whatsapp_indicatif, whatsapp_local, departement, relation_rh, equipe_id, photo_url, type_piece_identite, numero_piece_identite, piece_identite_url, piece_identite_recto_url, piece_identite_verso_url, piece_identite_page_principale_url, roles, actif, primary_role } = await req.json();
     if (!action || (action !== "create_user" && !user_id)) return json({ error: "action requis et user_id obligatoire sauf pour create_user", step }, 400);
 
     if (action === "complete_forced_password_change") {
@@ -133,8 +133,8 @@ serve(async (req) => {
           relation_rh: requestedRelationRh,
           taux_commission: null,
           salaire_base: null,
-          district_id: district_id ?? null,
-          region_id: region_id ?? null,
+          district_id: null,
+          region_id: null,
           equipe_id: equipe_id ?? null,
           photo_url: photo_url ?? null,
           type_piece_identite: type_piece_identite ?? null,
