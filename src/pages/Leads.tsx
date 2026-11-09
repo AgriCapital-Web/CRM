@@ -81,7 +81,6 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const canUpdateLeads = can("leads.update");
   const canAssignLeads = can("leads.assign");
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
-  const isFoncierRole = capabilities.foncierRole;
   const canSupervise = capabilities.canSuperviseLeads;
   const isServiceClient = capabilities.serviceClient;
   const hasCommercialAccess = capabilities.commercialAssignable;
@@ -710,7 +709,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "edit")}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
                               )}
                               <DropdownMenuItem onSelect={() => startContact(l)}><Contact className="mr-2 h-4 w-4" />Contacter</DropdownMenuItem>
-                              {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
+                              {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? can("proprietaires.create") : can("clients.create")) && (
                                 <DropdownMenuItem disabled={!canUpdateLeads} onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
                               )}
                               {view !== "leads" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && (
