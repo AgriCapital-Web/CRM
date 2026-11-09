@@ -104,7 +104,7 @@ AS $function$
     UNION SELECT 'system.independent_service_proformas'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client','comptable','manager_commercial_national','responsable_operations','technicien','chef_equipe_technique','manager_technique_national'))
     UNION SELECT 'system.independent_service_items'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client','comptable','manager_commercial_national','responsable_operations'))
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client','comptable','manager_commercial_national','responsable_operations','technicien','chef_equipe_technique','manager_technique_national'))
     UNION SELECT 'system.view_team_commissions'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','comptable','responsable_operations','responsable_commercial','chef_equipe_commercial','chef_equipe_technique'))
     UNION SELECT 'system.commercial_role'
