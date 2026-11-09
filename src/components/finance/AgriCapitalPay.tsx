@@ -14,7 +14,7 @@ import { CheckCircle2, RefreshCw, Send, ShieldCheck, Users, Wallet } from "lucid
 
 type Profile = { id: string; prenoms?: string | null; nom?: string | null; nom_complet?: string | null; telephone?: string | null; email?: string | null; poste?: string | null; actif?: boolean | null };
 type Beneficiary = { id: string; profile_id?: string | null; beneficiary_type: string; first_names?: string | null; last_name?: string | null; display_name: string; phone?: string | null; email?: string | null; active: boolean };
-type Payout = { id: string; reference: string; beneficiary_id: string; profile_id?: string | null; category: string; amount: number; reason: string; payment_method: string; provider_code: string; provider_reference?: string | null; provider_transaction_id?: string | null; status: string; notification_status: string; created_at: string; paid_at?: string | null; failure_reason?: string | null };
+type Payout = { id: string; reference: string; beneficiary_id: string; profile_id?: string | null; source_kind?: string | null; source_id?: string | null; category: string; amount: number; reason: string; payment_method: string; provider_code: string; provider_reference?: string | null; provider_transaction_id?: string | null; status: string; notification_status: string; created_at: string; paid_at?: string | null; failure_reason?: string | null };
 type SmsTemplate = { id: string; category: string; name: string; content: string; active: boolean; max_characters: number };
 
 const categories = [
@@ -62,6 +62,10 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
+  const [payrollItems, setPayrollItems] = useState<any[]>([]);
+  const [commissions, setCommissions] = useState<any[]>([]);
+  const [commissionPayouts, setCommissionPayouts] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<"single" | "batch">("single");
@@ -71,6 +75,8 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [paymentMethod, setPaymentMethod] = useState("mobile_money");
   const [providerCode, setProviderCode] = useState("manual");
   const [profileId, setProfileId] = useState("");
+  const [sourceKind, setSourceKind] = useState("none");
+  const [sourceId, setSourceId] = useState("");
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
   const [externalFirstNames, setExternalFirstNames] = useState("");
   const [externalLastName, setExternalLastName] = useState("");
@@ -86,17 +92,25 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, b, pay, t] = await Promise.all([
+      const [p, b, pay, t, payroll, commission, commissionPayout, expense] = await Promise.all([
         (supabase as any).rpc("finance_payout_list_profiles"),
         (supabase as any).from("finance_payout_beneficiaries").select("*").order("display_name"),
         (supabase as any).from("finance_payouts").select("*").order("created_at", { ascending: false }).limit(150),
         (supabase as any).from("finance_payout_sms_templates").select("*").order("category"),
+        (supabase as any).from("finance_payroll_items").select("id,profile_id,net_salary,status,transaction_id,payroll_run_id").eq("status","valide").is("transaction_id",null).gt("net_salary",0),
+        (supabase as any).from("commissions").select("id,profile_id,montant_commission,type_commission,statut,periode").eq("statut","validee").not("profile_id","is",null).gt("montant_commission",0),
+        (supabase as any).from("portefeuille_versements").select("id,profile_id,montant_brut,montant_paye,statut,periode_debut,periode_fin").in("statut",["valide","partiellement_paye"]),
+        (supabase as any).from("finance_expenses").select("id,profile_id,beneficiary_name,supplier_name,beneficiary_phone,total_amount,paid_amount,status,expense_category,description").in("status",["unpaid","partial"]),
       ]);
       for (const result of [p, b, pay, t]) if (result.error) throw result.error;
       setProfiles((p.data || []).filter((row: Profile) => row.actif !== false));
       setBeneficiaries(b.data || []);
       setPayouts(pay.data || []);
       setTemplates(t.data || []);
+      setPayrollItems(payroll.error ? [] : payroll.data || []);
+      setCommissions(commission.error ? [] : commission.data || []);
+      setCommissionPayouts(commissionPayout.error ? [] : commissionPayout.data || []);
+      setExpenses(expense.error ? [] : expense.data || []);
     } catch (error: any) {
       toast({ title: "AgriCapital PAY indisponible", description: error?.message || "Impossible de charger les données.", variant: "destructive" });
     } finally {
@@ -131,11 +145,24 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         if (error) throw error;
         toast({ title: "Lot de paiements créé", description: "Les " + selectedProfiles.length + " décaissements sont soumis à approbation. Référence du lot : " + data });
       } else {
+        if (sourceKind !== "none" && !sourceId) throw new Error("Sélectionnez l'opération financière à rapprocher.");
+        const sourceRows: Record<string, any[]> = { payroll_item: payrollItems, commission: commissions, commission_payout: commissionPayouts, finance_expense: expenses };
+        const source = sourceKind === "none" ? null : (sourceRows[sourceKind] || []).find((item) => item.id === sourceId);
+        if (sourceKind !== "none" && !source) throw new Error("L'opération financière sélectionnée n'est plus disponible.");
+        const remaining = sourceKind === "commission_payout"
+          ? Number(source.montant_brut || 0) - Number(source.montant_paye || 0)
+          : sourceKind === "finance_expense"
+            ? Number(source.total_amount || 0) - Number(source.paid_amount || 0)
+            : Number(source?.net_salary ?? source?.montant_commission ?? amount);
+        if (sourceKind === "payroll_item" && Math.abs(Number(amount) - Number(source.net_salary)) > 0.01) throw new Error("Le montant doit correspondre au net de la ligne de paie.");
+        if (sourceKind === "commission" && Math.abs(Number(amount) - Number(source.montant_commission)) > 0.01) throw new Error("Le montant doit correspondre à la commission validée.");
+        if ((sourceKind === "commission_payout" || sourceKind === "finance_expense") && Number(amount) > remaining + 0.01) throw new Error("Le montant dépasse le solde restant de l'opération.");
         let beneficiary: Beneficiary | null = null;
         let linkedProfile: Profile | null = null;
-        if (profileId) {
-          linkedProfile = profileById.get(profileId) || null;
-          if (!linkedProfile) throw new Error("Profil CRM introuvable.");
+        const sourceProfileId = source?.profile_id || profileId;
+        if (sourceProfileId) {
+          linkedProfile = profileById.get(sourceProfileId) || null;
+          if (!linkedProfile) throw new Error("Profil CRM introuvable pour l'opération sélectionnée.");
           const displayName = linkedProfile.nom_complet || [linkedProfile.prenoms, linkedProfile.nom].filter(Boolean).join(" ");
           const { data, error } = await (supabase as any).from("finance_payout_beneficiaries").upsert({
             profile_id: linkedProfile.id, beneficiary_type: category === "salary" ? "employee" : "crm_user",
@@ -144,12 +171,15 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
           if (error) throw error;
           beneficiary = data;
         } else {
-          const displayName = [externalFirstNames, externalLastName].filter(Boolean).join(" ").trim();
-          if (!displayName || !externalPhone.trim()) throw new Error("Renseignez le nom et le téléphone du bénéficiaire externe.");
+          const sourceName = sourceKind === "finance_expense" ? (source?.beneficiary_name || source?.supplier_name || "") : "";
+          const displayName = [externalFirstNames, externalLastName].filter(Boolean).join(" ").trim() || sourceName;
+          const phone = externalPhone.trim() || source?.beneficiary_phone || "";
+          if (!displayName || !phone) throw new Error("Renseignez le nom et le téléphone du bénéficiaire externe.");
           const { data, error } = await (supabase as any).from("finance_payout_beneficiaries").insert({
-            beneficiary_type: externalType, first_names: externalFirstNames.trim() || null,
+            beneficiary_type: sourceKind === "finance_expense" ? "supplier" : externalType,
+            first_names: externalFirstNames.trim() || sourceName || null,
             last_name: externalLastName.trim() || null, display_name: displayName,
-            phone: externalPhone.trim(), active: true,
+            phone, active: true,
           }).select("*").single();
           if (error) throw error;
           beneficiary = data;
@@ -157,13 +187,14 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         if (!beneficiary) throw new Error("Bénéficiaire non créé.");
         const { error } = await (supabase as any).from("finance_payouts").insert({
           beneficiary_id: beneficiary.id, profile_id: linkedProfile?.id || null,
+          source_kind: sourceKind === "none" ? null : sourceKind, source_id: source?.id || null,
           category, amount: Number(amount), reason: reason.trim(), payment_method: paymentMethod,
           provider_code: providerCode, status: "pending_approval",
         });
         if (error) throw error;
         toast({ title: "Décaissement soumis", description: "Le paiement attend l'approbation d'un second responsable." });
       }
-      setAmount(""); setReason(""); setProfileId(""); setSelectedProfiles([]);
+      setAmount(""); setReason(""); setProfileId(""); setSelectedProfiles([]); setSourceKind("none"); setSourceId("");
       setExternalFirstNames(""); setExternalLastName(""); setExternalPhone("");
       await load();
     } catch (error: any) {
@@ -262,7 +293,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 <Button type="button" size="sm" variant={mode === "single" ? "default" : "outline"} onClick={() => setMode("single")}>Paiement individuel</Button>
-                <Button type="button" size="sm" variant={mode === "batch" ? "default" : "outline"} onClick={() => setMode("batch")}>Lot d'utilisateurs internes</Button>
+                <Button type="button" size="sm" variant={mode === "batch" ? "default" : "outline"} onClick={() => { setMode("batch"); setSourceKind("none"); setSourceId(""); }}>Lot d'utilisateurs internes</Button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>Catégorie du paiement</Label><Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(([value,label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
@@ -274,7 +305,26 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
 
               {mode === "single" ? (
                 <div className="space-y-3 rounded-lg border p-3">
-                  <div className="space-y-1"><Label>Bénéficiaire interne (CRM)</Label><Select value={profileId || "external"} onValueChange={(v) => setProfileId(v === "external" ? "" : v)}><SelectTrigger><SelectValue placeholder="Choisir un utilisateur interne" /></SelectTrigger><SelectContent><SelectItem value="external">Bénéficiaire externe / prestataire</SelectItem>{profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.nom_complet || profileDisplay(p)}{p.poste ? " — " + p.poste : ""}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="space-y-1"><Label>Lier à une opération existante (facultatif)</Label><Select value={sourceKind} onValueChange={(v) => { setSourceKind(v); setSourceId(""); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Nouveau décaissement sans source</SelectItem><SelectItem value="payroll_item">Ligne de paie validée ({payrollItems.length})</SelectItem><SelectItem value="commission">Commission individuelle validée ({commissions.length})</SelectItem><SelectItem value="commission_payout">Versement groupé de commissions ({commissionPayouts.length})</SelectItem><SelectItem value="finance_expense">Dépense à payer ({expenses.length})</SelectItem></SelectContent></Select></div>
+                  {sourceKind !== "none" && <div className="space-y-1"><Label>Opération à payer</Label><Select value={sourceId} onValueChange={(id) => {
+                    setSourceId(id);
+                    const rows: Record<string, any[]> = { payroll_item: payrollItems, commission: commissions, commission_payout: commissionPayouts, finance_expense: expenses };
+                    const item = (rows[sourceKind] || []).find((row) => row.id === id);
+                    if (!item) return;
+                    const linked = item.profile_id ? profileById.get(item.profile_id) : null;
+                    if (linked) setProfileId(linked.id);
+                    else setProfileId("");
+                    if (sourceKind === "payroll_item") { setCategory("salary"); setAmount(String(item.net_salary)); setReason("Paie - " + (linked ? profileDisplay(linked) : "Collaborateur")); }
+                    if (sourceKind === "commission") { setCategory("commission"); setAmount(String(item.montant_commission)); setReason("Commission " + (item.type_commission || "") + " - " + (linked ? profileDisplay(linked) : "Collaborateur")); }
+                    if (sourceKind === "commission_payout") { const rest = Number(item.montant_brut || 0) - Number(item.montant_paye || 0); setCategory("commission"); setAmount(String(rest)); setReason("Versement de commissions - " + (linked ? profileDisplay(linked) : "Collaborateur")); }
+                    if (sourceKind === "finance_expense") { const rest = Number(item.total_amount || 0) - Number(item.paid_amount || 0); setCategory("supplier"); setAmount(String(rest)); setReason("Paiement " + (item.expense_category || "dépense") + " - " + (item.description || item.supplier_name || item.beneficiary_name || "")); if (!linked) { const n = String(item.beneficiary_name || item.supplier_name || ""); setExternalFirstNames(n); setExternalLastName(""); setExternalPhone(item.beneficiary_phone || ""); } }
+                  }}><SelectTrigger><SelectValue placeholder="Choisir une opération en attente" /></SelectTrigger><SelectContent>
+                    {sourceKind === "payroll_item" && payrollItems.map((item) => <SelectItem key={item.id} value={item.id}>{profileDisplay(profileById.get(item.profile_id) || {})} — {money(item.net_salary)}</SelectItem>)}
+                    {sourceKind === "commission" && commissions.map((item) => <SelectItem key={item.id} value={item.id}>{profileDisplay(profileById.get(item.profile_id) || {})} — {item.type_commission} — {money(item.montant_commission)}</SelectItem>)}
+                    {sourceKind === "commission_payout" && commissionPayouts.map((item) => <SelectItem key={item.id} value={item.id}>{profileDisplay(profileById.get(item.profile_id) || {})} — reste {money(Number(item.montant_brut || 0)-Number(item.montant_paye || 0))}</SelectItem>)}
+                    {sourceKind === "finance_expense" && expenses.map((item) => <SelectItem key={item.id} value={item.id}>{item.beneficiary_name || item.supplier_name || item.description || item.expense_category} — reste {money(Number(item.total_amount || 0)-Number(item.paid_amount || 0))}</SelectItem>)}
+                  </SelectContent></Select></div>}
+                                    <div className="space-y-1"><Label>Bénéficiaire interne (CRM)</Label><Select value={profileId || "external"} onValueChange={(v) => setProfileId(v === "external" ? "" : v)}><SelectTrigger><SelectValue placeholder="Choisir un utilisateur interne" /></SelectTrigger><SelectContent><SelectItem value="external">Bénéficiaire externe / prestataire</SelectItem>{profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.nom_complet || profileDisplay(p)}{p.poste ? " — " + p.poste : ""}</SelectItem>)}</SelectContent></Select></div>
                   {!profileId && <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1"><Label>Prénoms</Label><Input value={externalFirstNames} onChange={(e) => setExternalFirstNames(e.target.value)} /></div>
                     <div className="space-y-1"><Label>Nom</Label><Input value={externalLastName} onChange={(e) => setExternalLastName(e.target.value)} /></div>
