@@ -38,7 +38,7 @@ const CLIENT_COLUMNS = new Set([
 const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommercialAssignment = false }: ClientFormProps) => {
   const { user } = useAuth();
   const { can } = usePermissions();
-  const canEditClient = can("clients.update");
+  const canEditClient = can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
   const [isEditing, setIsEditing] = useState(!readOnly && canEditClient);
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
@@ -165,7 +165,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
 
   const onSubmit = async () => {
     if (!canEditClient) {
-      toast({ variant: "destructive", title: "Accès refusé", description: client?.type_client === "beneficiaire_particulier" ? "Seul le PDG peut modifier un bénéficiaire particulier." : "Seuls le PDG et les rôles Relation client & Support autorisés peuvent modifier un dossier client." });
+      toast({ variant: "destructive", title: "Accès refusé", description: "Votre compte ne dispose pas de la permission de modification de cette fiche." });
       return;
     }
     if (!user || !client?.id) return;
