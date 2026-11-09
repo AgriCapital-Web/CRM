@@ -291,5 +291,34 @@ $function$;
 revoke all on function public.user_can_assign_app_role(uuid,text) from public, anon, authenticated;
 grant execute on function public.user_can_assign_app_role(uuid,text) to service_role;
 
+create or replace function public.user_can_assign_team_to_department(
+  p_departement text,
+  p_equipe_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select case
+    when p_equipe_id is null then true
+    when lower(trim(coalesce(p_departement, ''))) = 'commercial' then exists (
+      select 1 from public.equipes e
+      where e.id = p_equipe_id and e.actif is true
+        and (e.type_equipe is null or e.type_equipe = 'commercial')
+    )
+    when lower(trim(coalesce(p_departement, ''))) = 'technique' then exists (
+      select 1 from public.equipes e
+      where e.id = p_equipe_id and e.actif is true
+        and (e.type_equipe is null or e.type_equipe = 'technique')
+    )
+    else false
+  end;
+$function$;
+
+revoke all on function public.user_can_assign_team_to_department(text,uuid) from public, anon, authenticated;
+grant execute on function public.user_can_assign_team_to_department(text,uuid) to service_role;
+
 notify pgrst, 'reload schema';
 commit;
