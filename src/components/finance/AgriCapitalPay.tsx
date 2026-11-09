@@ -65,12 +65,15 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [batches, setBatches] = useState<PayoutBatch[]>([]);
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [payrollItems, setPayrollItems] = useState<any[]>([]);
+  const [payrollRuns, setPayrollRuns] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
   const [commissionPayouts, setCommissionPayouts] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<"single" | "batch">("single");
+  const [batchMode, setBatchMode] = useState<"uniform" | "payroll">("uniform");
+  const [payrollRunId, setPayrollRunId] = useState("");
   const [category, setCategory] = useState("salary");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -94,7 +97,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, b, pay, t, payroll, commission, commissionPayout, expense, batch] = await Promise.all([
+      const [p, b, pay, t, payroll, commission, commissionPayout, expense, batch, runs] = await Promise.all([
         (supabase as any).rpc("finance_payout_list_profiles"),
         (supabase as any).from("finance_payout_beneficiaries").select("*").order("display_name"),
         (supabase as any).from("finance_payouts").select("*").order("created_at", { ascending: false }).limit(150),
@@ -104,6 +107,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         (supabase as any).from("portefeuille_versements").select("id,profile_id,montant_brut,montant_paye,statut,periode_debut,periode_fin").in("statut",["valide","partiellement_paye"]),
         (supabase as any).from("finance_expenses").select("id,profile_id,beneficiary_name,supplier_name,beneficiary_phone,total_amount,paid_amount,status,expense_category,description").in("status",["unpaid","partial"]),
         (supabase as any).from("finance_payout_batches").select("*").order("created_at",{ascending:false}).limit(50),
+        (supabase as any).from("finance_payroll_runs").select("id,period_start,period_end,status,paid_at").eq("status","valide").is("paid_at",null).order("period_end",{ascending:false}),
       ]);
       for (const result of [p, b, pay, t, batch]) if (result.error) throw result.error;
       setProfiles((p.data || []).filter((row: Profile) => row.actif !== false));
@@ -112,6 +116,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
       setBatches(batch.data || []);
       setTemplates(t.data || []);
       setPayrollItems(payroll.error ? [] : payroll.data || []);
+      setPayrollRuns(runs.error ? [] : runs.data || []);
       setCommissions(commission.error ? [] : commission.data || []);
       setCommissionPayouts(commissionPayout.error ? [] : commissionPayout.data || []);
       setExpenses(expense.error ? [] : expense.data || []);
@@ -134,20 +139,29 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
 
   const createPayout = async () => {
     if (!canManage) return;
-    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0 || !reason.trim()) {
-      toast({ title: "Informations manquantes", description: "Indiquez un montant positif et un motif.", variant: "destructive" }); return;
+    const payrollBatch = mode === "batch" && batchMode === "payroll";
+    if (payrollBatch ? !payrollRunId : (!Number.isFinite(Number(amount)) || Number(amount) <= 0 || !reason.trim())) {
+      toast({ title: "Informations manquantes", description: payrollBatch ? "Sélectionnez un cycle de paie validé." : "Indiquez un montant positif et un motif.", variant: "destructive" }); return;
     }
     setSaving(true);
     try {
       if (mode === "batch") {
-        if (!selectedProfiles.length) throw new Error("Sélectionnez au moins un bénéficiaire interne.");
-        if (providerCode === "kkiapay_push_up") throw new Error("La préparation d'un lot Push Up est disponible, mais son lancement API reste verrouillé jusqu'à validation de l'API officielle et de l'approvisionnement du compte Push Up.");
-        const { data, error } = await (supabase as any).rpc("finance_payout_create_batch", {
-          p_category: category, p_amount: Number(amount), p_reason: reason.trim(),
-          p_profile_ids: selectedProfiles, p_provider_code: providerCode, p_payment_method: paymentMethod,
-        });
-        if (error) throw error;
-        toast({ title: "Lot de paiements créé", description: "Les " + selectedProfiles.length + " décaissements sont soumis à approbation. Référence du lot : " + data });
+        if (providerCode === "kkiapay_push_up") throw new Error("La préparation Push Up est possible, mais l'envoi API reste verrouillé jusqu'à validation officielle.");
+        if (batchMode === "payroll") {
+          const { data, error } = await (supabase as any).rpc("finance_payout_create_payroll_batch", {
+            p_payroll_run_id: payrollRunId, p_provider_code: providerCode, p_payment_method: paymentMethod,
+          });
+          if (error) throw error;
+          toast({ title: "Lot de paie créé", description: "Les montants nets individuels du cycle sont soumis à approbation. Référence du lot : " + data });
+        } else {
+          if (!selectedProfiles.length) throw new Error("Sélectionnez au moins un bénéficiaire interne.");
+          const { data, error } = await (supabase as any).rpc("finance_payout_create_batch", {
+            p_category: category, p_amount: Number(amount), p_reason: reason.trim(),
+            p_profile_ids: selectedProfiles, p_provider_code: providerCode, p_payment_method: paymentMethod,
+          });
+          if (error) throw error;
+          toast({ title: "Lot de paiements créé", description: "Les " + selectedProfiles.length + " décaissements sont soumis à approbation. Référence du lot : " + data });
+        }
       } else {
         if (sourceKind !== "none" && !sourceId) throw new Error("Sélectionnez l'opération financière à rapprocher.");
         const sourceRows: Record<string, any[]> = { payroll_item: payrollItems, commission: commissions, commission_payout: commissionPayouts, finance_expense: expenses };
@@ -198,7 +212,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         if (error) throw error;
         toast({ title: "Décaissement soumis", description: "Le paiement attend l'approbation d'un second responsable." });
       }
-      setAmount(""); setReason(""); setProfileId(""); setSelectedProfiles([]); setSourceKind("none"); setSourceId("");
+      setAmount(""); setReason(""); setProfileId(""); setSelectedProfiles([]); setSourceKind("none"); setSourceId(""); setBatchMode("uniform"); setPayrollRunId("");
       setExternalFirstNames(""); setExternalLastName(""); setExternalPhone("");
       await load();
     } catch (error: any) {
@@ -312,12 +326,13 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
                 <Button type="button" size="sm" variant={mode === "single" ? "default" : "outline"} onClick={() => setMode("single")}>Paiement individuel</Button>
                 <Button type="button" size="sm" variant={mode === "batch" ? "default" : "outline"} onClick={() => { setMode("batch"); setSourceKind("none"); setSourceId(""); }}>Lot d'utilisateurs internes</Button>
               </div>
+              {mode === "batch" && <div className="space-y-1"><Label>Type de lot</Label><Select value={batchMode} onValueChange={(v) => { setBatchMode(v as "uniform" | "payroll"); setPayrollRunId(""); setSelectedProfiles([]); if (v === "payroll") { setCategory("salary"); setAmount(""); setReason(""); } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="uniform">Montant identique pour plusieurs utilisateurs</SelectItem><SelectItem value="payroll">Cycle de paie validé — montants individuels</SelectItem></SelectContent></Select></div>}
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>Catégorie du paiement</Label><Select value={category} onValueChange={setCategory} disabled={mode === "single" && sourceKind !== "none"}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(([value,label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-1"><Label>Montant par bénéficiaire (FCFA)</Label><Input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={mode === "single" && (sourceKind === "payroll_item" || sourceKind === "commission")} placeholder="Ex. 125000" /></div>
+                <div className="space-y-1"><Label>Catégorie du paiement</Label><Select value={category} onValueChange={setCategory} disabled={(mode === "single" && sourceKind !== "none") || (mode === "batch" && batchMode === "payroll")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(([value,label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1"><Label>Montant par bénéficiaire (FCFA)</Label><Input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} disabled={(mode === "single" && (sourceKind === "payroll_item" || sourceKind === "commission")) || (mode === "batch" && batchMode === "payroll")} placeholder={mode === "batch" && batchMode === "payroll" ? "Calculé par ligne de paie" : "Ex. 125000"} /></div>
                 <div className="space-y-1"><Label>Mode de paiement</Label><Select value={paymentMethod} onValueChange={setPaymentMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="bank_transfer">Virement bancaire</SelectItem><SelectItem value="cash">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="other">Autre</SelectItem></SelectContent></Select></div>
                 <div className="space-y-1"><Label>Canal de décaissement</Label><Select value={providerCode} onValueChange={setProviderCode}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="manual">Paiement hors ligne / manuel</SelectItem><SelectItem value="kkiapay_push_up">Kkiapay Push Up (préparation / rapprochement)</SelectItem><SelectItem value="other">Autre prestataire</SelectItem></SelectContent></Select></div>
-                <div className="space-y-1 sm:col-span-2"><Label>Motif détaillé</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Salaire novembre 2026, commission commerciale, facture fournisseur…" /></div>
+                <div className="space-y-1 sm:col-span-2"><Label>Motif détaillé</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} disabled={mode === "batch" && batchMode === "payroll"} placeholder={mode === "batch" && batchMode === "payroll" ? "Généré depuis le cycle de paie sélectionné" : "Salaire, commission, facture fournisseur…"} /></div>
               </div>
 
               {mode === "single" ? (
@@ -350,6 +365,13 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
                     <div className="space-y-1"><Label>Type de bénéficiaire</Label><Select value={externalType} onValueChange={setExternalType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="supplier">Fournisseur</SelectItem><SelectItem value="provider">Prestataire</SelectItem><SelectItem value="agent">Agent</SelectItem><SelectItem value="partner">Partenaire</SelectItem><SelectItem value="other">Autre</SelectItem></SelectContent></Select></div>
                   </div>}
                 </div>
+              ) : (batchMode === "payroll" ? (
+                <div className="space-y-2 rounded-lg border p-3">
+                  <Label>Cycle de paie à décaisser</Label>
+                  <Select value={payrollRunId} onValueChange={setPayrollRunId}><SelectTrigger><SelectValue placeholder="Choisir un cycle validé non payé" /></SelectTrigger><SelectContent>{payrollRuns.map((run) => <SelectItem key={run.id} value={run.id}>Du {new Date(run.period_start).toLocaleDateString("fr-FR")} au {new Date(run.period_end).toLocaleDateString("fr-FR")}</SelectItem>)}</SelectContent></Select>
+                  {!payrollRuns.length && <p className="text-xs text-muted-foreground">Aucun cycle de paie validé et non payé.</p>}
+                  <p className="text-xs text-muted-foreground">Chaque salarié recevra le montant net exact de sa ligne de paie. Le lot restera soumis à une approbation distincte.</p>
+                </div>
               ) : (
                 <div className="space-y-2 rounded-lg border p-3">
                   <div className="flex items-center justify-between"><Label>Utilisateurs internes à payer</Label><Badge variant="outline">{selectedProfiles.length} sélectionné(s)</Badge></div>
@@ -358,7 +380,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
                     {!profiles.length && <p className="text-sm text-muted-foreground">Aucun utilisateur interne actif trouvé.</p>}
                   </div>
                 </div>
-              )}
+              ))}
               {providerCode === "kkiapay_push_up" && <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">Le lot Push Up ne peut pas être envoyé depuis le CRM tant que Kkiapay n'a pas fourni et activé le contrat API de Push Up et confirmé l'approvisionnement automatique. Aucun transfert ne sera lancé par ce formulaire.</p>}
               <Button onClick={() => void createPayout()} disabled={!canManage || saving || loading || (providerCode === "kkiapay_push_up" && mode === "batch")}><Send className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : mode === "batch" ? "Créer le lot à approuver" : "Soumettre à approbation"}</Button>
             </CardContent>
