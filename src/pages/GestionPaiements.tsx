@@ -4,7 +4,6 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { PERMISSIONS } from "@/lib/roles";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtime } from "@/hooks/useRealtime";
 import { Button } from "@/components/ui/button";
@@ -63,12 +62,11 @@ interface Paiement {
 
 const GestionPaiements = () => {
   const { toast } = useToast();
-  const { hasRole } = useAuth();
   const { can } = usePermissions();
-  const canFinancialOverview = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("finance.view") || can("paiements.view");
+  const canFinancialOverview = can("finance.view") || can("paiements.view");
   const canViewClientMoney = canFinancialOverview;
-  const canTransferPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("paiements.update") || can("finance.manage");
-  const canRefundPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.cancel") || can("finance.manage");
+  const canTransferPayment = can("paiements.update") || can("finance.manage");
+  const canRefundPayment = can("paiements.cancel") || can("finance.manage");
   const canManage = canTransferPayment || canRefundPayment;
   const queryClient = useQueryClient();
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
