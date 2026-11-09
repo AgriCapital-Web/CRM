@@ -181,6 +181,102 @@ $$;
 revoke all on function public.current_user_permissions() from public, anon;
 grant execute on function public.current_user_permissions() to authenticated, service_role;
 
+-- Les candidats et responsables d'équipe sont sélectionnés côté serveur.
+create or replace function public.get_available_team_members(p_equipe_id uuid)
+returns table (
+  id uuid,
+  nom_complet text,
+  user_id uuid,
+  equipe_id uuid,
+  roles text[]
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $
+declare
+  v_team_type text;
+  v_member_role text;
+  v_leader_role text;
+begin
+  if auth.uid() is null or not private.has_role_permission('parametres.manage_teams') then
+    raise exception 'Permission insuffisante pour consulter les candidats de cette équipe'
+      using errcode = '42501';
+  end if;
+
+  select e.type_equipe into v_team_type
+  from public.equipes e
+  where e.id = p_equipe_id;
+
+  if v_team_type is null then
+    raise exception 'Équipe introuvable' using errcode = 'P0002';
+  end if;
+
+  v_member_role := case when v_team_type = 'technique' then 'technicien' else 'commercial' end;
+  v_leader_role := case when v_team_type = 'technique' then 'chef_equipe_technique' else 'chef_equipe_commercial' end;
+
+  return query
+  select p.id, p.nom_complet, p.user_id, p.equipe_id,
+         array_agg(distinct lower(btrim(ur.role)) order by lower(btrim(ur.role)))
+  from public.profiles p
+  join public.user_roles ur on ur.user_id = p.user_id
+  where p.actif is true
+    and p.user_id is not null
+    and (
+      lower(btrim(ur.role)) in (v_member_role, v_leader_role, 'pdg', 'dg')
+    )
+    and not exists (
+      select 1 from public.equipe_membres em
+      where em.equipe_id = p_equipe_id and em.profile_id = p.id
+    )
+  group by p.id, p.nom_complet, p.user_id, p.equipe_id
+  order by p.nom_complet;
+end;
+$;
+
+create or replace function public.get_team_responsible_candidates(p_team_type text)
+returns table (
+  id uuid,
+  nom_complet text,
+  user_id uuid,
+  roles text[]
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $
+declare
+  v_role text;
+begin
+  if auth.uid() is null or not private.has_role_permission('parametres.manage_teams') then
+    raise exception 'Permission insuffisante pour consulter les responsables d'équipe'
+      using errcode = '42501';
+  end if;
+  if p_team_type not in ('commercial','technique') then
+    raise exception 'Type d'équipe invalide' using errcode = '22023';
+  end if;
+  v_role := case when p_team_type = 'technique' then 'chef_equipe_technique' else 'chef_equipe_commercial' end;
+
+  return query
+  select p.id, p.nom_complet, p.user_id,
+         array_agg(distinct lower(btrim(ur.role)) order by lower(btrim(ur.role)))
+  from public.profiles p
+  join public.user_roles ur on ur.user_id = p.user_id
+  where p.actif is true
+    and p.user_id is not null
+    and lower(btrim(ur.role)) = v_role
+  group by p.id, p.nom_complet, p.user_id
+  order by p.nom_complet;
+end;
+$;
+
+revoke all on function public.get_available_team_members(uuid) from public, anon;
+revoke all on function public.get_team_responsible_candidates(text) from public, anon;
+grant execute on function public.get_available_team_members(uuid) to authenticated, service_role;
+grant execute on function public.get_team_responsible_candidates(text) to authenticated, service_role;
+
 -- La fonction centrale finance ne donne plus de privilège global au DG.
 create or replace function public.finance_can_manage()
 returns boolean
