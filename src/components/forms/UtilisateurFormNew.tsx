@@ -174,8 +174,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   };
 
   useEffect(() => {
-    if (!utilisateur?.user_id || !needsCoverage) return;
-    const field = requiredGeoLevel(effectivePrimaryRole);
+    if (!utilisateur?.user_id || !needsCoverage || roleCoverageLoading) return;
+    const field = requiredGeoLevel();
     const zoneType = field === "district_id" ? "district" : field === "region_id" ? "region" : field === "departement_geo_id" ? "departement" : field === "sous_prefecture_id" ? "sous_prefecture" : null;
     if (!field || !zoneType) return;
     void (async () => {
@@ -609,7 +609,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           </div>
           <div className="space-y-2">
             <Label>Rôle principal *</Label>
-            <Select value={primaryRole} onValueChange={setPrimaryRole}>
+            <Select value={primaryRole} onValueChange={setPrimaryRole} disabled={!canAssignRoles}>
               <SelectTrigger>
                 <SelectValue placeholder="Choisir le rôle principal" />
               </SelectTrigger>
@@ -621,7 +621,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             </Select>
             <p className="text-xs text-muted-foreground">Le rôle principal détermine le périmètre hiérarchique principal. Les autres rôles peuvent ajouter des permissions complémentaires.</p>
           </div>
-          {selectedRoles.length === 0 && (
+          {canAssignRoles && selectedRoles.length === 0 && (
             <p className="text-sm text-destructive">Au moins un rôle officiel doit être attribué.</p>
           )}
         </CardContent>
