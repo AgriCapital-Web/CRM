@@ -40,9 +40,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select private.is_pdg(_user_id);
-$;
+$$;
 
 create or replace function public.is_admin(_user_id uuid)
 returns boolean
@@ -50,9 +50,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select private.is_pdg(_user_id);
-$;
+$$;
 
 revoke all on function private.is_admin(uuid) from public, anon;
 revoke all on function public.is_admin(uuid) from public, anon;
@@ -235,7 +235,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $
+as $$
 declare
   v_team_type text;
   v_member_role text;
@@ -274,7 +274,7 @@ begin
   group by p.id, p.nom_complet, p.user_id, p.equipe_id
   order by p.nom_complet;
 end;
-$;
+$$;
 
 create or replace function public.get_team_responsible_candidates(p_team_type text)
 returns table (
@@ -287,7 +287,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $
+as $$
 declare
   v_role text;
 begin
@@ -311,7 +311,7 @@ begin
   group by p.id, p.nom_complet, p.user_id
   order by p.nom_complet;
 end;
-$;
+$$;
 
 revoke all on function public.get_available_team_members(uuid) from public, anon;
 revoke all on function public.get_team_responsible_candidates(text) from public, anon;
