@@ -92,19 +92,19 @@ begin
     end if;
 
     if p_zone_type = 'district' and not exists (
-      select 1 from public.v_geo_districts d where d.id = p_zone_id
+      select 1 from public.v_geo_districts d where d.id = p_zone_id and d.est_actif_effectif is true
     ) then
       raise exception 'District introuvable ou inactif.' using errcode = '22023';
     elsif p_zone_type = 'region' and not exists (
-      select 1 from public.v_geo_regions r where r.id = p_zone_id
+      select 1 from public.v_geo_regions r where r.id = p_zone_id and r.est_active_effectif is true
     ) then
       raise exception 'Région introuvable ou inactive.' using errcode = '22023';
     elsif p_zone_type = 'departement' and not exists (
-      select 1 from public.v_geo_departements d where d.id = p_zone_id
+      select 1 from public.v_geo_departements d where d.id = p_zone_id and d.est_actif_effectif is true
     ) then
       raise exception 'Département introuvable ou inactif.' using errcode = '22023';
     elsif p_zone_type = 'sous_prefecture' and not exists (
-      select 1 from public.v_geo_sous_prefectures sp where sp.id = p_zone_id
+      select 1 from public.v_geo_sous_prefectures sp where sp.id = p_zone_id and sp.est_active_effectif is true
     ) then
       raise exception 'Sous-préfecture introuvable ou inactive.' using errcode = '22023';
     elsif p_zone_type not in ('district','region','departement','sous_prefecture') then
