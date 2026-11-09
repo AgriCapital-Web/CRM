@@ -579,7 +579,7 @@ BEGIN
     'sortie', 'DEPENSE', v_expense.expense_category, p_amount, p_paid_at,
     NULLIF(trim(COALESCE(p_payment_method, '')), ''),
     NULLIF(trim(COALESCE(p_reference, '')), ''),
-    v_expense.profile_id, 'expense_payment', p_expense_id, 'valide',
+    v_expense.profile_id, 'finance_expense', p_expense_id, 'valide',
     COALESCE(v_expense.description, v_expense.notes),
     (SELECT auth.uid()), p_proof_path, p_proof_name,
     v_expense.client_id, v_expense.plantation_id
