@@ -385,27 +385,22 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           setCreatedAccount({ user_id: result.user_id, tempPassword });
         }
 
-        // La création initiale attribue déjà les rôles de manière transactionnelle.
-        // En cas de reprise après une étape secondaire échouée, resynchroniser les rôles du compte existant.
-        if (createdAccount) {
-          const { data: savedRoles, error: savedRolesError } = await supabase.functions.invoke("admin-manage-user", {
-            body: { action: "set_roles", user_id: result.user_id, roles: selectedRoles, primary_role: primaryRole },
-          });
-          if (savedRolesError || savedRoles?.error || savedRoles?.success !== true) {
-            throw new Error(savedRoles?.error || savedRolesError?.message || "L'enregistrement du rôle principal n'a pas été confirmé.");
-          }
-        }
-
         const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
         const { data: newProfile, error: newProfileError } = await (supabase as any).from("profiles")
           .select("id").eq("user_id", result.user_id).single();
         if (newProfileError) throw newProfileError;
-        if (baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
+        if (canManagePayroll && baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
           const { error: salaryError } = await (supabase as any).from("profiles").update({ salaire_base: baseSalary }).eq("id", newProfile.id);
           if (salaryError) throw salaryError;
           const { error: salaryConfigError } = await (supabase as any).from("finance_salary_profiles")
             .upsert({ profile_id: newProfile.id, base_salary: baseSalary, pay_day: 28, active: true }, { onConflict: "profile_id" });
           if (salaryConfigError) throw salaryConfigError;
+        }
+        if (can("system.global_admin") && data.taux_commission !== "" && data.taux_commission != null) {
+          const { error: commissionError } = await (supabase as any).from("profiles")
+            .update({ taux_commission: Number(data.taux_commission) })
+            .eq("id", newProfile.id);
+          if (commissionError) throw commissionError;
         }
 
         if (file && result.user_id) {
