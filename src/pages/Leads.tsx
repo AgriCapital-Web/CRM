@@ -81,7 +81,6 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const canUpdateLeads = can("leads.update");
   const canAssignLeads = can("leads.assign");
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
-  const isGlobalAdmin = capabilities.globalAdmin;
   const isFoncierRole = capabilities.foncierRole;
   const canSupervise = capabilities.canSuperviseLeads;
   const isServiceClient = capabilities.serviceClient;
