@@ -3,7 +3,6 @@ import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,8 +32,7 @@ export default function Finance(){
   const initialTab = requestedTab === "analytique" || requestedTab === "historique" ? "rapports" : requestedTab;
   const initialReportSection = requestedTab === "analytique" ? "analytique" : requestedTab === "historique" ? "historique" : "rapport";
   const { can } = usePermissions();
-  const { hasRole } = useAuth();
-  const canDeleteDraftPayroll = hasRole("pdg") || hasRole("super_admin") || hasRole("admin") || hasRole("dg");
+  const canDeleteDraftPayroll = can("system.global_admin");
   const { toast } = useToast();
   const [transactions,setTransactions]=useState<any[]>([]);
   const [independentProformas,setIndependentProformas]=useState<any[]>([]);
@@ -57,7 +55,7 @@ export default function Finance(){
   const [expenseProof,setExpenseProof]=useState<File|null>(null);
   const expenseProofPreview = useMemo(() => expenseProof && (expenseProof.type.startsWith("image/") || expenseProof.type === "application/pdf") ? URL.createObjectURL(expenseProof) : null, [expenseProof]);
   useEffect(() => () => { if (expenseProofPreview) URL.revokeObjectURL(expenseProofPreview); }, [expenseProofPreview]);
-  const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|null>(null);
+  const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|"edit"|null>(null);
   const [selectedExpense,setSelectedExpense]=useState<any|null>(null);
   const [expenseSearch,setExpenseSearch]=useState("");
   const [plannedExpense,setPlannedExpense]=useState({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",profileId:"",isInternalUser:false,expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
@@ -74,6 +72,8 @@ export default function Finance(){
   const entryProofPreview = useMemo(() => entryProof && (entryProof.type.startsWith("image/") || entryProof.type === "application/pdf") ? URL.createObjectURL(entryProof) : null, [entryProof]);
   useEffect(() => () => { if (entryProofPreview) URL.revokeObjectURL(entryProofPreview); }, [entryProofPreview]);
   const [entryFormOpen,setEntryFormOpen]=useState(false);
+  const [entryFormMode,setEntryFormMode]=useState<"new"|"view"|"edit">("new");
+  const [selectedEntry,setSelectedEntry]=useState<any|null>(null);
   const [salaryFormOpen,setSalaryFormOpen]=useState(false);
   const [payrollGenerateOpen,setPayrollGenerateOpen]=useState(false);
   const [salaryForm,setSalaryForm]=useState({profileId:"",baseSalary:"",payDay:"28"});
@@ -85,6 +85,7 @@ export default function Finance(){
 
   const canView=can("finance.view");
   const canManage=can("finance.manage");
+  const canEditExpense=can("finance.expenses")||can("finance.manage");
 
   const reportSources=useMemo(()=>{
     const map=new Map<string,{source:string;entrees:number;sorties:number;count:number}>();
