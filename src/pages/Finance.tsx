@@ -41,6 +41,8 @@ export default function Finance(){
   const [associates,setAssociates]=useState<any[]>([]);
   const [associateMovements,setAssociateMovements]=useState<any[]>([]);
   const [associateMovementOpen,setAssociateMovementOpen]=useState(false);
+  const [associateMovementMode,setAssociateMovementMode]=useState<"new"|"view"|"edit">("new");
+  const [selectedAssociateMovement,setSelectedAssociateMovement]=useState<any|null>(null);
   const [associateMovement,setAssociateMovement]=useState({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:""});
   const [plannedExpenseOpen,setPlannedExpenseOpen]=useState(false);
   const [plannedExpenseMode,setPlannedExpenseMode]=useState<"new"|"view"|"edit">("new");
@@ -89,6 +91,7 @@ export default function Finance(){
   const canManage=can("finance.manage");
   const canEditExpense=can("finance.expenses")||can("finance.manage");
   const canEditPlannedExpense=can("finance.expenses")||can("finance.manage");
+  const canManageAssociateMovements=can("finance.manage");
 
   const reportSources=useMemo(()=>{
     const map=new Map<string,{source:string;entrees:number;sorties:number;count:number}>();
@@ -329,13 +332,54 @@ export default function Finance(){
     if(!associateMovement.associateId||!Number.isFinite(amount)||amount<=0){toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;}
     setSaving(true);
     try{
-      const isRefund=associateMovement.type==="remboursement";
-      const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({direction:isRefund?"sortie":"entree",category:isRefund?"REMBOURSEMENT_ASSOCIE":"APPORT_ASSOCIE",label:(isRefund?"Remboursement associé — ":"Apport associé — ")+(associates.find(a=>a.id===associateMovement.associateId)?.full_name||""),amount,transaction_date:new Date(associateMovement.date+"T12:00:00").toISOString(),status:"valide",source_type:"associate",reference:associateMovement.reference.trim()||null,notes:associateMovement.notes.trim()||null}).select("id").single();
-      if(txError)throw txError;
-      const {error}=await (supabase as any).from("finance_associate_transactions").insert({associate_id:associateMovement.associateId,movement_type:associateMovement.type,contribution_status:"numeraire",estimated_value:amount,notes:associateMovement.notes.trim()||null,transaction_id:tx.id});
-      if(error){await (supabase as any).from("finance_transactions").delete().eq("id",tx.id);throw error;}
-      toast({title:"Mouvement associé enregistré"});setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:""});setAssociateMovementOpen(false);await load();
+      const {error}=await (supabase as any).rpc("finance_create_associate_movement",{
+        p_associate_id:associateMovement.associateId,
+        p_movement_type:associateMovement.type,
+        p_amount:amount,
+        p_movement_date:associateMovement.date,
+        p_reference:associateMovement.reference.trim()||null,
+        p_notes:associateMovement.notes.trim()||null
+      });
+      if(error)throw error;
+      toast({title:"Mouvement associé enregistré"});
+      setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:""});
+      setAssociateMovementMode("new");setSelectedAssociateMovement(null);setAssociateMovementOpen(false);await load();
     }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}finally{setSaving(false);}
+  };
+
+  const openAssociateMovementRecord=(movement:any)=>{
+    setSelectedAssociateMovement(movement);
+    setAssociateMovement({
+      associateId:movement.associate_id,
+      type:movement.movement_type==="remboursement"?"remboursement":"apport",
+      amount:String(movement.estimated_value??movement.finance_transactions?.amount??""),
+      date:movement.finance_transactions?.transaction_date?new Date(movement.finance_transactions.transaction_date).toISOString().slice(0,10):new Date(movement.created_at).toISOString().slice(0,10),
+      reference:movement.finance_transactions?.reference||"",
+      notes:movement.notes||movement.finance_transactions?.notes||""
+    });
+    setAssociateMovementMode("view");
+    setAssociateMovementOpen(true);
+  };
+
+  const saveAssociateMovementUpdate=async()=>{
+    if(!selectedAssociateMovement)return;
+    const amount=Number(associateMovement.amount);
+    if(!associateMovement.associateId||!Number.isFinite(amount)||amount<=0){toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;}
+    setSaving(true);
+    try{
+      const {error}=await (supabase as any).rpc("finance_update_associate_movement",{
+        p_movement_id:selectedAssociateMovement.id,
+        p_associate_id:associateMovement.associateId,
+        p_movement_type:associateMovement.type,
+        p_amount:amount,
+        p_movement_date:associateMovement.date,
+        p_reference:associateMovement.reference.trim()||null,
+        p_notes:associateMovement.notes.trim()||null
+      });
+      if(error)throw error;
+      toast({title:"Mouvement associé corrigé",description:"La fiche et l’écriture comptable ont été synchronisées."});
+      setAssociateMovementOpen(false);setAssociateMovementMode("new");setSelectedAssociateMovement(null);await load();
+    }catch(error:any){toast({title:"Correction impossible",description:error?.message||"Réessayez.",variant:"destructive"});}finally{setSaving(false);}
   };
 
   const savePlannedExpense=async()=>{
