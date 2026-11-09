@@ -72,6 +72,15 @@ serve(async (req) => {
       if (roleList.some((role) => privilegedRoles.has(role.toLowerCase())) && !isPdg) {
         return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer un rôle de gouvernance.", step }, 403);
       }
+      const requestedRelationRh = String(relation_rh ?? "Employé").trim();
+      const normalizedRelationRh = requestedRelationRh.toLocaleUpperCase("fr-FR");
+      if (normalizedRelationRh === "PDG" && !roleList.includes("pdg")) {
+        return json({ error: "La fonction PDG doit correspondre au rôle PDG attribué en base.", step }, 400);
+      }
+      if (normalizedRelationRh === "DG" && !roleList.includes("dg")) {
+        return json({ error: "La fonction DG doit correspondre au rôle DG attribué en base.", step }, 400);
+      }
+      const profileRelationRh = roleList.includes("pdg") ? "PDG" : roleList.includes("dg") ? "DG" : requestedRelationRh;
       const { data: available, error: usernameError } = await admin.rpc("username_available", { _username: cleanUsername });
       if (usernameError) return json({ error: `Vérification de l'identifiant impossible : ${usernameError.message}`, step }, 400);
       if (available === false) return json({ error: "Cet identifiant est déjà utilisé.", step }, 409);
@@ -111,7 +120,7 @@ serve(async (req) => {
           whatsapp_indicatif: whatsapp_indicatif ?? null,
           whatsapp_local: whatsapp_local ?? null,
           departement: departement ?? null,
-          relation_rh: relation_rh ?? "Employé",
+          relation_rh: profileRelationRh,
           taux_commission: taux_commission == null || taux_commission === "" ? null : Number(taux_commission),
           salaire_base: salaire_base == null || salaire_base === "" ? null : Number(salaire_base),
           district_id: district_id ?? null,
