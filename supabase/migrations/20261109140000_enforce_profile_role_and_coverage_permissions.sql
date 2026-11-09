@@ -50,6 +50,8 @@ set search_path = ''
 as $function$
 declare
   v_coverage text;
+  v_district_id uuid := null;
+  v_region_id uuid := null;
 begin
   if auth.uid() is null or p_user_id is null then
     raise exception 'Utilisateur cible et session authentifiée obligatoires.'
@@ -112,11 +114,38 @@ begin
     end if;
   end if;
 
+  if p_zone_type = 'district' then
+    v_district_id := p_zone_id;
+  elsif p_zone_type = 'region' then
+    v_region_id := p_zone_id;
+    select r.district_id into v_district_id
+    from public.v_geo_regions r where r.id = p_zone_id;
+  elsif p_zone_type = 'departement' then
+    select d.region_id into v_region_id
+    from public.v_geo_departements d where d.id = p_zone_id;
+    select r.district_id into v_district_id
+    from public.v_geo_regions r where r.id = v_region_id;
+  elsif p_zone_type = 'sous_prefecture' then
+    select d.region_id into v_region_id
+    from public.v_geo_sous_prefectures sp
+    join public.v_geo_departements d on d.id = sp.departement_id
+    where sp.id = p_zone_id;
+    select r.district_id into v_district_id
+    from public.v_geo_regions r where r.id = v_region_id;
+  end if;
+
   delete from public.zone_assignments where user_id = p_user_id;
   if p_zone_type is not null then
     insert into public.zone_assignments(user_id, zone_type, zone_id, created_by)
     values (p_user_id, p_zone_type, p_zone_id, auth.uid());
   end if;
+
+  perform set_config('app.internal_coverage_sync', 'true', true);
+  update public.profiles
+  set district_id = v_district_id,
+      region_id = v_region_id
+  where user_id = p_user_id;
+  perform set_config('app.internal_coverage_sync', 'false', true);
 end;
 $function$;
 
