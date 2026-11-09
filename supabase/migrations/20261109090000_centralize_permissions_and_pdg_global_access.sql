@@ -20,7 +20,7 @@ revoke all on function private.is_pdg(uuid) from public, anon;
 grant execute on function private.is_pdg(uuid) to authenticated, service_role;
 
 -- Aucun nom, email ou identifiant de personne n'entre dans la règle : le rôle attribué fait foi.
-create or replace function private.is_global_admin(_user_id uuid)
+create or replace function private.crm_is_global_admin(_user_id uuid)
 returns boolean
 language sql
 stable
@@ -30,13 +30,13 @@ as $$
   select private.is_pdg(_user_id);
 $$;
 
-revoke all on function private.is_global_admin(uuid) from public, anon;
-grant execute on function private.is_global_admin(uuid) to authenticated, service_role;
+revoke all on function private.crm_is_global_admin(uuid) from public, anon;
+grant execute on function private.crm_is_global_admin(uuid) to authenticated, service_role;
 
 -- Les fonctions historiques is_admin ne doivent plus assimiler DG ou Responsable des Opérations au PDG.
 -- Les fonctions historiques public.is_admin/private.is_admin restent inchangées
 -- afin de préserver les autres applications partageant cette base. Le CRM utilise
--- private.is_global_admin pour son accès global réservé au rôle PDG.
+-- private.crm_is_global_admin pour son accès global réservé au rôle PDG.
 
 -- La gestion des demandes de compte relève d'une permission dédiée, pas d'un statut global d'administrateur.
 drop policy if exists "Admins view account requests" on public.account_requests;
@@ -44,17 +44,17 @@ drop policy if exists "Admins update account requests" on public.account_request
 drop policy if exists "Admins delete account requests" on public.account_requests;
 create policy "Account requests view by permission"
   on public.account_requests for select to authenticated
-  using (private.has_role_permission('parametres.manage_users'));
+  using (private.crm_has_role_permission('parametres.manage_users'));
 create policy "Account requests update by permission"
   on public.account_requests for update to authenticated
-  using (private.has_role_permission('parametres.manage_users'))
-  with check (private.has_role_permission('parametres.manage_users'));
+  using (private.crm_has_role_permission('parametres.manage_users'))
+  with check (private.crm_has_role_permission('parametres.manage_users'));
 create policy "Account requests delete by permission"
   on public.account_requests for delete to authenticated
-  using (private.has_role_permission('parametres.manage_users'));
+  using (private.crm_has_role_permission('parametres.manage_users'));
 
 -- Les permissions de rôle sont résolues exclusivement côté base.
-create or replace function private.has_role_permission(p_permission_code text)
+create or replace function private.crm_has_role_permission(p_permission_code text)
 returns boolean
 language sql
 stable
@@ -72,10 +72,10 @@ as $$
     );
 $$;
 
-revoke all on function private.has_role_permission(text) from public, anon;
-grant execute on function private.has_role_permission(text) to authenticated, service_role;
+revoke all on function private.crm_has_role_permission(text) from public, anon;
+grant execute on function private.crm_has_role_permission(text) to authenticated, service_role;
 
-create or replace function public.current_user_has_app_permission(required_code text)
+create or replace function public.crm_current_user_has_app_permission(required_code text)
 returns boolean
 language sql
 stable
@@ -93,8 +93,8 @@ as $$
     );
 $$;
 
-revoke all on function public.current_user_has_app_permission(text) from public, anon;
-grant execute on function public.current_user_has_app_permission(text) to authenticated, service_role;
+revoke all on function public.crm_current_user_has_app_permission(text) from public, anon;
+grant execute on function public.crm_current_user_has_app_permission(text) to authenticated, service_role;
 
 -- Correction globale réservée au PDG pour les bénéficiaires particuliers.
 insert into public.app_permissions (code, module, action, libelle, description, actif)
@@ -112,7 +112,7 @@ on conflict (code) do update set
 
 -- API unique consommée par le frontend : elle ne renvoie que des permissions calculées en SQL.
 -- Les capacités system.* sont également résolues ici, jamais par comparaison de rôles dans React.
-create or replace function public.current_user_permissions()
+create or replace function public.crm_current_user_permissions()
 returns text[]
 language sql
 stable
@@ -159,9 +159,9 @@ as $$
     union all select 'system.technical_manager'
       where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('chef_equipe_technique','manager_technique_national','responsable_operations'))
     union all select 'system.manage_account_requests'
-      where (select is_pdg from actor) or private.has_role_permission('parametres.manage_users')
+      where (select is_pdg from actor) or private.crm_has_role_permission('parametres.manage_users')
     union all select 'system.manage_user_credentials'
-      where (select is_pdg from actor) or private.has_role_permission('utilisateurs.update') or private.has_role_permission('utilisateurs.reset_password')
+      where (select is_pdg from actor) or private.crm_has_role_permission('utilisateurs.update') or private.crm_has_role_permission('utilisateurs.reset_password')
     union all select 'system.client_only'
       where exists (select 1 from role_codes where role in ('client','client_portal'))
     union all select 'system.transfer_plantation'
@@ -198,8 +198,8 @@ as $$
   ) effective;
 $$;
 
-revoke all on function public.current_user_permissions() from public, anon;
-grant execute on function public.current_user_permissions() to authenticated, service_role;
+revoke all on function public.crm_current_user_permissions() from public, anon;
+grant execute on function public.crm_current_user_permissions() to authenticated, service_role;
 
 -- Les candidats et responsables d'équipe sont sélectionnés côté serveur.
 create or replace function public.get_available_team_members(p_equipe_id uuid)
@@ -220,7 +220,7 @@ declare
   v_member_role text;
   v_leader_role text;
 begin
-  if auth.uid() is null or not private.has_role_permission('parametres.manage_teams') then
+  if auth.uid() is null or not private.crm_has_role_permission('parametres.manage_teams') then
     raise exception 'Permission insuffisante pour consulter les candidats de cette équipe'
       using errcode = '42501';
   end if;
@@ -270,7 +270,7 @@ as $$
 declare
   v_role text;
 begin
-  if auth.uid() is null or not private.has_role_permission('parametres.manage_teams') then
+  if auth.uid() is null or not private.crm_has_role_permission('parametres.manage_teams') then
     raise exception 'Permission insuffisante pour consulter les responsables d'équipe'
       using errcode = '42501';
   end if;
@@ -306,10 +306,10 @@ security definer
 set search_path = ''
 as $$
   select private.is_pdg((select auth.uid()))
-    or private.has_role_permission('finance.manage')
-    or private.has_role_permission('finance.expenses')
-    or private.has_role_permission('finance.associates')
-    or private.has_role_permission('finance.payroll')
+    or private.crm_has_role_permission('finance.manage')
+    or private.crm_has_role_permission('finance.expenses')
+    or private.crm_has_role_permission('finance.associates')
+    or private.crm_has_role_permission('finance.payroll')
     or exists (
       select 1 from public.user_roles ur
       where ur.user_id = (select auth.uid())
@@ -325,7 +325,7 @@ security definer
 set search_path = ''
 as $$
   select private.is_pdg((select auth.uid()))
-    or private.has_role_permission('finance.view')
+    or private.crm_has_role_permission('finance.view')
     or exists (
       select 1 from public.user_roles ur
       where ur.user_id = (select auth.uid())
@@ -341,7 +341,7 @@ security definer
 set search_path = ''
 as $$
   select private.is_pdg((select auth.uid()))
-    or private.has_role_permission('finance.payroll')
+    or private.crm_has_role_permission('finance.payroll')
     or exists (
       select 1 from public.user_roles ur
       where ur.user_id = (select auth.uid())
@@ -357,9 +357,9 @@ security definer
 set search_path = ''
 as $$
   select private.is_pdg((select auth.uid()))
-    or private.has_role_permission('finance.manage')
-    or private.has_role_permission('finance.expenses')
-    or private.has_role_permission('finance.payroll')
+    or private.crm_has_role_permission('finance.manage')
+    or private.crm_has_role_permission('finance.expenses')
+    or private.crm_has_role_permission('finance.payroll')
     or exists (
       select 1 from public.user_roles ur
       where ur.user_id = (select auth.uid())
