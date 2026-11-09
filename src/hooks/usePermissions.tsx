@@ -2,7 +2,6 @@ import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { normalizeRoles } from "@/lib/roles";
 import { cachePermissionMatrix, getCachedPermissionMatrix } from "@/lib/offlineDb";
 
 type PermissionMatrix = Record<string, string[]>;
@@ -75,7 +74,7 @@ export function useRolePermissionMatrix() {
 
 /** Permissions effectives et capacités calculées côté base de données. */
 export function usePermissions() {
-  const { user, userRoles } = useAuth();
+  const { user } = useAuth();
   const { matrix, loading, fromDatabase, reload } = useRolePermissionMatrix();
 
   const permissions = useMemo(
@@ -124,7 +123,6 @@ export function usePermissions() {
     can,
     canAny,
     canAll,
-    roles: normalizeRoles(userRoles || []),
     permissions,
     capabilities,
     loading,
