@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Users, Plus, Search, Edit, Shield, MoreHorizontal, UserCheck, UserX, KeyRound, AtSign, Trash2, Eye, EyeOff } from "lucide-react";
 import UtilisateurFormNew from "@/components/forms/UtilisateurFormNew";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useAppRoles } from "@/hooks/useReferentiels";
 
 const Utilisateurs = () => {
