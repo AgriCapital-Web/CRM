@@ -46,39 +46,17 @@ serve(async (req) => {
       return json({ success: true, action, password_change_required: false });
     }
 
-    const requiredPermissionByAction: Record<string, string> = {
-      create_user: "utilisateurs.create",
-      set_active: "utilisateurs.update",
-      set_password: "utilisateurs.reset_password",
-      set_username: "utilisateurs.update",
-      set_roles: "roles.manage_permissions",
-      delete_user: "utilisateurs.delete",
-    };
-    const requiredPermission = requiredPermissionByAction[action];
-    if (!requiredPermission) return json({ error: "Action inconnue.", step }, 400);
-
-    const [{ data: isPdg, error: pdgError }, { data: hasPermission, error: permissionError }] = await Promise.all([
-      admin.rpc("is_admin", { _user_id: caller.user.id }),
-      admin.rpc("user_has_app_permission", {
-        _user_id: caller.user.id,
-        _required_code: requiredPermission,
-      }),
-    ]);
-    if (pdgError || permissionError) {
+    const { data: actionAllowed, error: authorizationError } = await admin.rpc("user_can_manage_admin_action", {
+      p_actor_user_id: caller.user.id,
+      p_target_user_id: user_id || null,
+      p_action: action,
+    });
+    if (authorizationError) {
       return json({ error: "Vérification des autorisations en base impossible.", step }, 500);
     }
-    if (isPdg !== true && hasPermission !== true) {
-      return json({ error: "Permission insuffisante pour cette opération.", step }, 403);
+    if (actionAllowed !== true) {
+      return json({ error: "Permission insuffisante pour cette opération ou ce compte cible.", step }, 403);
     }
-
-    const governanceRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
-    const targetHasGovernanceRole = async (targetUserId: string) => {
-      const { data, error } = await admin.from("user_roles").select("role").eq("user_id", targetUserId);
-      if (error) throw new Error("Vérification du compte de gouvernance impossible : " + error.message);
-      return (data || []).some((row: any) => governanceRoles.has(String(row.role || "").toLowerCase()));
-    };
-    const denyNonPdgGovernanceTarget = async (targetUserId: string) =>
-      isPdg !== true && await targetHasGovernanceRole(targetUserId);
 
     if (action === "create_user") {
       step = "validate_create_user";
@@ -93,10 +71,6 @@ serve(async (req) => {
       if (!/^[a-z0-9._-]{2,64}$/.test(cleanUsername)) return json({ error: "Identifiant invalide (2 à 64 caractères : lettres, chiffres, point, tiret et soulignement).", step }, 400);
       if (cleanName.length < 2) return json({ error: "Le nom complet est obligatoire.", step }, 400);
       if (!roleList.length || !primaryRole) return json({ error: "Sélectionnez au moins un rôle et un rôle principal.", step }, 400);
-      const privilegedRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
-      if (roleList.some((role) => privilegedRoles.has(role.toLowerCase())) && !isPdg) {
-        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer un rôle de gouvernance.", step }, 403);
-      }
       const requestedRelationRh = String(relation_rh ?? "Employé").trim();
       const normalizedRelationRh = requestedRelationRh.toLocaleUpperCase("fr-FR");
       if (normalizedRelationRh === "PDG" && !roleList.includes("pdg")) {
@@ -210,7 +184,6 @@ serve(async (req) => {
 
     if (action === "set_password") {
       step = "set_password";
-      if (await denyNonPdgGovernanceTarget(user_id)) return json({ error: "Seul le PDG peut modifier les accès d’un compte PDG.", step }, 403);
       if (typeof password !== "string" || password.length === 0) return json({ error: "Saisissez le nouveau mot de passe.", step }, 400);
       const { data: target, error: targetError } = await admin.auth.admin.getUserById(user_id);
       if (targetError || !target?.user) return json({ error: "Compte utilisateur introuvable.", step }, 404);
@@ -261,10 +234,6 @@ serve(async (req) => {
       step = "set_roles";
       const list: string[] = Array.isArray(roles) ? Array.from(new Set(roles.filter((r: unknown): r is string => typeof r === "string" && r.trim().length > 0))) : [];
       if (list.length === 0) return json({ error: "Au moins un rôle est requis", step }, 400);
-      const privilegedRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
-      if (list.some((role) => privilegedRoles.has(role.toLowerCase())) && !isPdg) {
-        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer un rôle de gouvernance.", step }, 403);
-      }
       const primaryRole = typeof primary_role === "string" && list.includes(primary_role) ? primary_role : list[0];
       // Résout l'identifiant du compte de connexion (l'appelant peut envoyer l'id du profil).
       step = "resolve_user";
@@ -310,7 +279,6 @@ serve(async (req) => {
 
     if (action === "delete_user") {
       step = "delete_user";
-      if (await denyNonPdgGovernanceTarget(user_id)) return json({ error: "Seul le PDG peut supprimer un compte PDG.", step }, 403);
       if (user_id === caller.user.id) {
         return json({ error: "Impossible de supprimer votre propre compte", step }, 400);
       }
