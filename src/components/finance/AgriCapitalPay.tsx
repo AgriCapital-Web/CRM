@@ -36,7 +36,7 @@ const statusClass: Record<string, string> = {
 const money = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0)) + " FCFA";
 const normalizedName = (firstNames?: string | null, lastName?: string | null, fullName?: string | null) => {
   const combined = [firstNames, lastName].filter(Boolean).join(" ").trim() || String(fullName || "").trim();
-  const parts = combined.split(/\\s+/).filter(Boolean);
+  const parts = combined.split(/\s+/).filter(Boolean);
   return parts.length > 1 ? parts.slice(-2).join(" ") : (parts[0] || "");
 };
 const renderSms = (content: string, name: string, amount = "125 000", reason = "salaire", date = "09/11/2026", reference = "AGP-EXEMPLE") => {
