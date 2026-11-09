@@ -19,7 +19,7 @@ const effectivePermissionsKey = (userId: string) => `__effective_permissions__:$
  */
 async function fetchEffectivePermissions(userId: string): Promise<PermissionMatrixResult> {
   try {
-    const { data, error } = await (supabase as any).rpc("current_user_permissions");
+    const { data, error } = await (supabase as any).rpc("crm_current_user_permissions");
     if (error) throw error;
 
     const permissions = Array.isArray(data)
