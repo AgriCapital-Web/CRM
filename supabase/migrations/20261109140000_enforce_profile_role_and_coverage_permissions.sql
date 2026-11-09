@@ -227,5 +227,40 @@ $function$;
 revoke all on function public.user_can_manage_admin_action(uuid,uuid,text) from public, anon, authenticated;
 grant execute on function public.user_can_manage_admin_action(uuid,uuid,text) to service_role;
 
+-- Contrôle centralisé avant création ou changement de rôle, pour éviter
+-- toute écriture partielle d'un compte lorsqu'un rôle est interdit.
+create or replace function public.user_can_assign_app_role(
+  p_actor_user_id uuid,
+  p_role_code text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select
+    p_actor_user_id is not null
+    and exists (
+      select 1 from public.app_roles ar
+      where ar.code = p_role_code and ar.actif is true
+    )
+    and (
+      private.is_global_admin(p_actor_user_id)
+      or (
+        private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+        or private.user_has_role_permission(p_actor_user_id, 'roles.manage_permissions')
+      )
+    )
+    and (
+      lower(trim(coalesce(p_role_code, ''))) not in
+        ('pdg','dg','super_admin','admin','administrateur','president','président')
+      or private.is_global_admin(p_actor_user_id)
+    );
+$function$;
+
+revoke all on function public.user_can_assign_app_role(uuid,text) from public, anon, authenticated;
+grant execute on function public.user_can_assign_app_role(uuid,text) to service_role;
+
 notify pgrst, 'reload schema';
 commit;
