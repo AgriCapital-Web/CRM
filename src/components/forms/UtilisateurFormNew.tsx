@@ -67,6 +67,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   const { can } = usePermissions();
   const canManageRoles = can("roles.manage_permissions");
   const canCreateUsers = can("utilisateurs.create");
+  const canManagePayroll = can("finance.payroll") || can("finance.manage");
   const canAssignRoles = canManageRoles || (!utilisateur && canCreateUsers);
   const [loading, setLoading] = useState(false);
   const [createdAccount, setCreatedAccount] = useState<{ user_id: string; tempPassword: string } | null>(null);
