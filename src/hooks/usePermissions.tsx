@@ -11,14 +11,14 @@ type PermissionMatrixResult = {
   fromDatabase: boolean;
 };
 
-const EFFECTIVE_PERMISSIONS_KEY = "__effective_permissions__";
+const effectivePermissionsKey = (userId: string) => `__effective_permissions__:${userId}`;
 
 /**
  * The database returns the effective permission set for the signed-in user.
  * The client does not combine role names, hard-coded exceptions, or a local
  * role-to-permission matrix to decide which actions are available.
  */
-async function fetchEffectivePermissions(): Promise<PermissionMatrixResult> {
+async function fetchEffectivePermissions(userId: string): Promise<PermissionMatrixResult> {
   try {
     const { data, error } = await (supabase as any).rpc("current_user_permissions");
     if (error) throw error;
@@ -27,7 +27,7 @@ async function fetchEffectivePermissions(): Promise<PermissionMatrixResult> {
       ? data.filter((value): value is string => typeof value === "string")
       : [];
 
-    const matrix = { [EFFECTIVE_PERMISSIONS_KEY]: permissions };
+    const matrix = { [effectivePermissionsKey(userId)]: permissions };
     try {
       await cachePermissionMatrix(matrix);
     } catch {
@@ -41,12 +41,12 @@ async function fetchEffectivePermissions(): Promise<PermissionMatrixResult> {
       const cached = await getCachedPermissionMatrix();
       return {
         matrix: {
-          [EFFECTIVE_PERMISSIONS_KEY]: cached?.[EFFECTIVE_PERMISSIONS_KEY] || [],
+          [effectivePermissionsKey(userId)]: cached?.[effectivePermissionsKey(userId)] || [],
         },
         fromDatabase: false,
       };
     } catch {
-      return { matrix: { [EFFECTIVE_PERMISSIONS_KEY]: [] }, fromDatabase: false };
+      return { matrix: { [effectivePermissionsKey(userId)]: [] }, fromDatabase: false };
     }
   }
 }
@@ -55,7 +55,7 @@ export function useRolePermissionMatrix() {
   const { user } = useAuth();
   const query = useQuery({
     queryKey: ["effective-permissions", user?.id || "anonymous"],
-    queryFn: fetchEffectivePermissions,
+    queryFn: () => fetchEffectivePermissions(user!.id),
     enabled: Boolean(user?.id),
     staleTime: 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -75,12 +75,12 @@ export function useRolePermissionMatrix() {
 
 /** Permissions effectives et capacités calculées côté base de données. */
 export function usePermissions() {
-  const { userRoles } = useAuth();
+  const { user, userRoles } = useAuth();
   const { matrix, loading, fromDatabase, reload } = useRolePermissionMatrix();
 
   const permissions = useMemo(
-    () => new Set<string>(matrix[EFFECTIVE_PERMISSIONS_KEY] || []),
-    [matrix],
+    () => new Set<string>(matrix[user?.id ? effectivePermissionsKey(user.id) : ""] || []),
+    [matrix, user?.id],
   );
 
   const can = useCallback(
