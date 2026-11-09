@@ -269,6 +269,23 @@ export default function Finance(){
     } finally { setSaving(false); }
   };
 
+  const openExpenseRecord=(item:any,transaction:any)=>{
+    setSelectedExpense({...item,transaction});
+    setExpense({
+      category:item.expense_category||"AUTRE",
+      amount:String(item.total_amount??transaction?.amount??""),
+      date:item.expense_date||new Date().toISOString().slice(0,10),
+      description:item.description||"",
+      profileId:item.profile_id||"",
+      clientId:item.client_id||"",
+      plantationId:item.plantation_id||"",
+      direct:Boolean(item.is_direct_cost),
+    });
+    setExpenseProof(null);
+    setExpenseFormMode("view");
+  };
+
+
   const saveExpenseUpdate=async()=>{
     if(!selectedExpense||!expense.category||Number(expense.amount)<=0)return;
     setSaving(true);
@@ -733,10 +750,10 @@ export default function Finance(){
         <Card>
           <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Sorties enregistrées</CardTitle><TableSearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Rechercher une sortie…"/></div></CardHeader>
           <CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[680px] text-sm">
-            <thead><tr className="border-b text-left"><th className="p-2">Date</th><th className="p-2">Catégorie</th><th className="p-2">Utilisateur</th><th className="p-2 text-right">Montant</th><th className="p-2">Statut</th><th className="p-2">Justificatif</th></tr></thead>
-            <tbody>{expenses.filter((e:any)=>{const t=transactions.find((x:any)=>x.id===e.transaction_id);return [e.expense_category,profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet,e.supplier_name,e.description,e.proof_name,t?.label,t?.status].some((v:any)=>matchesAccentInsensitive(v, expenseSearch));}).map((e:any)=>{const transaction=e.transaction||transactions.find((t:any)=>t.id===e.transaction_id);return <tr key={e.id} role="button" tabIndex={0} onClick={()=>{setSelectedExpense({...e,transaction});setExpense({category:e.expense_category||"AUTRE",amount:String(e.total_amount??transaction?.amount??""),date:e.expense_date||new Date().toISOString().slice(0,10),description:e.description||"",profileId:e.profile_id||"",clientId:e.client_id||"",plantationId:e.plantation_id||"",direct:Boolean(e.is_direct_cost)});setExpenseProof(null);setExpenseFormMode("view");}} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();setSelectedExpense({...e,transaction});setExpense({category:e.expense_category||"AUTRE",amount:String(transaction?.amount??e.total_amount??""),date:e.expense_date||new Date().toISOString().slice(0,10),description:e.description||"",profileId:e.profile_id||"",clientId:e.client_id||"",plantationId:e.plantation_id||"",direct:Boolean(e.is_direct_cost)});setExpenseProof(null);setExpenseFormMode("view");}}} className="cursor-pointer border-b transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <td className="whitespace-nowrap p-2">{e.expense_date?new Date(e.expense_date+"T12:00:00").toLocaleDateString("fr-FR"):e.created_at?new Date(e.created_at).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2 font-medium">{e.expense_category||"—"}{e.is_direct_cost&&<p className="text-xs text-muted-foreground">Coût direct</p>}</td><td className="max-w-[220px] truncate p-2">{profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet||e.supplier_name||"—"}</td><td className="whitespace-nowrap p-2 text-right font-semibold tabular-nums">{money(e.total_amount??transaction?.amount??0)}</td><td className="p-2"><Badge variant={e.status==="paid"?"default":"secondary"}>{e.status==="paid"?"Payée":e.status==="partial"?"Partiellement payée":e.status||"—"}</Badge></td><td className="p-2">{e.proof_path?<span className="inline-flex items-center gap-1 text-xs text-primary"><Paperclip className="h-3 w-3"/>{e.proof_name||"Joint"}</span>:"—"}</td>
-            </tr>;})}{!expenses.length&&!loading&&<tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune sortie enregistrée.</td></tr>}{expenses.length>0&&!expenses.some((e:any)=>[e.expense_category,profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet,e.supplier_name,e.description,e.proof_name,transactions.find((t:any)=>t.id===e.transaction_id)?.label,transactions.find((t:any)=>t.id===e.transaction_id)?.status].some((v:any)=>String(v||"").toLowerCase().includes(expenseSearch.trim().toLowerCase())))&&<tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Aucune sortie ne correspond à cette recherche.</td></tr>}</tbody>
+            <thead><tr className="border-b text-left"><th className="p-2">Date</th><th className="p-2">Catégorie</th><th className="p-2">Utilisateur</th><th className="p-2 text-right">Montant</th><th className="p-2">Statut</th><th className="p-2">Justificatif</th><th className="p-2">Fiche</th></tr></thead>
+            <tbody>{expenses.filter((e:any)=>{const t=transactions.find((x:any)=>x.id===e.transaction_id);return [e.expense_category,profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet,e.supplier_name,e.description,e.proof_name,t?.label,t?.status].some((v:any)=>matchesAccentInsensitive(v, expenseSearch));}).map((e:any)=>{const transaction=e.transaction||transactions.find((t:any)=>t.id===e.transaction_id);return <tr key={e.id} role="button" tabIndex={0} onClick={()=>openExpenseRecord(e,transaction)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openExpenseRecord(e,transaction);}}} className="cursor-pointer border-b transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <td className="whitespace-nowrap p-2">{e.expense_date?new Date(e.expense_date+"T12:00:00").toLocaleDateString("fr-FR"):e.created_at?new Date(e.created_at).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2 font-medium">{e.expense_category||"—"}{e.is_direct_cost&&<p className="text-xs text-muted-foreground">Coût direct</p>}</td><td className="max-w-[220px] truncate p-2">{profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet||e.supplier_name||"—"}</td><td className="whitespace-nowrap p-2 text-right font-semibold tabular-nums">{money(e.total_amount??transaction?.amount??0)}</td><td className="p-2"><Badge variant={e.status==="paid"?"default":"secondary"}>{e.status==="paid"?"Payée":e.status==="partial"?"Partiellement payée":e.status||"—"}</Badge></td><td className="p-2">{e.proof_path?<span className="inline-flex items-center gap-1 text-xs text-primary"><Paperclip className="h-3 w-3"/>{e.proof_name||"Joint"}</span>:"—"}</td><td className="p-2"><Button type="button" size="sm" variant="outline" onClick={event=>{event.stopPropagation();openExpenseRecord(e,transaction);}}>Consulter</Button></td>
+            </tr>;})}{!expenses.length&&!loading&&<tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Aucune sortie enregistrée.</td></tr>}{expenses.length>0&&!expenses.some((e:any)=>[e.expense_category,profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet,e.supplier_name,e.description,e.proof_name,transactions.find((t:any)=>t.id===e.transaction_id)?.label,transactions.find((t:any)=>t.id===e.transaction_id)?.status].some((v:any)=>String(v||"").toLowerCase().includes(expenseSearch.trim().toLowerCase())))&&<tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Aucune sortie ne correspond à cette recherche.</td></tr>}</tbody>
           </table></div></CardContent>
         </Card>
       </TabsContent>
