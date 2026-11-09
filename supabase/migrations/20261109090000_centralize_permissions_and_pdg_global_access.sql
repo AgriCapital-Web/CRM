@@ -34,30 +34,9 @@ revoke all on function private.is_global_admin(uuid) from public, anon;
 grant execute on function private.is_global_admin(uuid) to authenticated, service_role;
 
 -- Les fonctions historiques is_admin ne doivent plus assimiler DG ou Responsable des Opérations au PDG.
-create or replace function private.is_admin(_user_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select private.is_pdg(_user_id);
-$$;
-
-create or replace function public.is_admin(_user_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select private.is_pdg(_user_id);
-$$;
-
-revoke all on function private.is_admin(uuid) from public, anon;
-revoke all on function public.is_admin(uuid) from public, anon;
-grant execute on function private.is_admin(uuid) to authenticated, service_role;
-grant execute on function public.is_admin(uuid) to authenticated, service_role;
+-- Les fonctions historiques public.is_admin/private.is_admin restent inchangées
+-- afin de préserver les autres applications partageant cette base. Le CRM utilise
+-- private.is_global_admin pour son accès global réservé au rôle PDG.
 
 -- La gestion des demandes de compte relève d'une permission dédiée, pas d'un statut global d'administrateur.
 drop policy if exists "Admins view account requests" on public.account_requests;
