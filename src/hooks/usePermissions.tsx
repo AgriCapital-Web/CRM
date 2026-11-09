@@ -117,6 +117,10 @@ export function usePermissions() {
     independentServiceProformas: permissions.has("system.independent_service_proformas"),
     independentServiceItems: permissions.has("system.independent_service_items"),
     viewTeamCommissions: permissions.has("system.view_team_commissions"),
+    commercialRole: permissions.has("system.commercial_role"),
+    zoneScopeGlobal: permissions.has("system.zone_scope_global"),
+    independentServiceWrite: permissions.has("system.independent_service_write"),
+    independentServiceOperations: permissions.has("system.independent_service_operations"),
   }), [permissions]);
 
   return {
