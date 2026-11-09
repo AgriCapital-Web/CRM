@@ -34,7 +34,6 @@ import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
-import { COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
 import { formatUserShortName } from "@/lib/utils";
 import ContactLauncher from "@/components/common/ContactLauncher";
 
@@ -76,20 +75,17 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
-  const { user, userRoles, primaryRole, profile } = useAuth();
-  const { can } = usePermissions();
-  const isLarissaFormEditor = String(profile?.nom_complet || "").trim().toLocaleUpperCase("fr-FR") === "KONAN AMENAN LARISSA";
+  const { user } = useAuth();
+  const { can, capabilities } = usePermissions();
   const canCreateLeads = can("leads.create");
-  const canUpdateLeads = can("leads.update") || isLarissaFormEditor;
+  const canUpdateLeads = can("leads.update");
+  const canAssignLeads = can("leads.assign");
   const { byCategory: refs } = useSystemReferences(["oui_non","lead_delai","lead_disponibilite","lead_source","public_lead_delai"]);
-  const isGlobalAdmin = ["pdg", "dg", "admin", "super_admin"].includes(primaryRole || "") || isLarissaFormEditor;
-  const isFoncierRole = ["mobilisateur_foncier", "superviseur_mobilisation_fonciere"].includes(primaryRole || "");
-  // Le périmètre d'encadrement suit le rôle principal; les rôles secondaires
-  // continuent d'ajouter leurs permissions, sans élargir automatiquement le périmètre.
-  const canSupervise = isGlobalAdmin || ["responsable_operations", "responsable_commercial",
-    "chef_equipe_commercial", "service_client", "chef_equipe_service_client"].includes(primaryRole || "");
-  const isServiceClient = (userRoles || []).some((r: string) => ["service_client", "chef_equipe_service_client"].includes(r));
-  const hasCommercialAccess = (userRoles || []).some((r: string) => COMMERCIAL_ASSIGNABLE_ROLES.includes(r));
+  const isGlobalAdmin = capabilities.globalAdmin;
+  const isFoncierRole = capabilities.foncierRole;
+  const canSupervise = capabilities.canSuperviseLeads;
+  const isServiceClient = capabilities.serviceClient;
+  const hasCommercialAccess = capabilities.commercialAssignable;
   const { data: offers = [] } = useQuery({ queryKey: ["offres-actives"], queryFn: async () => { const { data, error } = await (supabase as any).from("offres").select("*").eq("actif", true).order("nom"); if (error) throw error; return (data || []).filter((offer: any) => Boolean(offer.code && offer.nom)); }, staleTime: 0, refetchOnMount: "always" });
   const [selected, setSelected] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -148,33 +144,22 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   })();
 
   useEffect(() => {
-    const hasOwnCommercialRole = (userRoles || []).some((r: string) =>
-      COMMERCIAL_ASSIGNABLE_ROLES.includes(r as any)
-    );
-    if (!hasOwnCommercialRole || !user?.id || leadForm.assigned_to) return;
+    if (!hasCommercialAccess || !user?.id || leadForm.assigned_to) return;
 
     let active = true;
     (async () => {
-      try {
-        const { data, error } = await (supabase as any).rpc("get_default_commercial_for_client", {
-          _current_user: user.id,
-        });
-        if (!error && data && active) {
-          setLeadForm((x) => x.assigned_to ? x : { ...x, assigned_to: data });
-          return;
-        }
-      } catch {
-        // Fallback local : le commercial connecté reste le responsable par défaut.
-      }
-      if (active) {
-        setLeadForm((x) => x.assigned_to ? x : { ...x, assigned_to: user.id });
+      const { data, error } = await (supabase as any).rpc("get_default_commercial_for_client", {
+        _current_user: user.id,
+      });
+      if (!error && data && active) {
+        setLeadForm((current) => current.assigned_to ? current : { ...current, assigned_to: data });
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [user?.id, userRoles, leadForm.assigned_to]);
+  }, [user?.id, hasCommercialAccess, leadForm.assigned_to]);
   const [relanceOpen, setRelanceOpen] = useState(false);
   const [relance, setRelance] = useState<any>({ canal: "appel", resultat: "interesse", commentaire: "", prochaine_relance: "" });
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -194,7 +179,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     setEditingLead(null);
     setConversionLeadId(null);
     setFormReadOnly(false);
-    setLeadForm({ ...emptyLead, statut: requestedType === "prospect" ? "qualifie" : "nouveau", etape_pipeline: requestedType, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
+    setLeadForm({ ...emptyLead, statut: requestedType === "prospect" ? "qualifie" : "nouveau", etape_pipeline: requestedType, assigned_to: "" });
     setCreateOpen(true);
   }, [searchParams]);
 
@@ -283,9 +268,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
        if (!canUpdateLeads) throw new Error("Votre rôle ne permet pas de modifier les leads.");
        const lead = leads.find((item: any) => item.id === (leadId || id));
        const prospect = prospectId ? prospects.find((item: any) => item.id === prospectId) : null;
-       const isOwner = (prospect?.assigned_to || lead?.assigned_to) === user?.id || (prospect?.created_by || lead?.created_by) === user?.id;
-       if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres dossiers.");
-       if (prospectId) {
+        if (prospectId) {
          const { error } = await offlineUpdate("prospects", prospectId, { statut });
          if (error) throw error;
          if (leadId) {
@@ -307,9 +290,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         throw new Error(editingLead ? "Votre rôle ne permet pas de modifier les leads." : "Votre rôle ne permet pas de créer des leads.");
       }
       if (editingLead) {
-        const isOwner = editingLead.assigned_to === user.id || editingLead.created_by === user.id;
-        if (!isOwner && !isGlobalAdmin && !canSupervise) throw new Error("Vous ne pouvez modifier que vos propres dossiers ou ceux de votre équipe autorisée.");
-        const num = (v: string) => (v === "" || v == null ? null : Number(v));
+         const num = (v: string) => (v === "" || v == null ? null : Number(v));
         // Un prospect autonome ne doit jamais déclencher une mise à jour de leads.
         if (editingLead._record_type === "prospect" && !editingLead.lead_id) {
           const { error } = await offlineUpdate("prospects", editingLead.prospect_id || editingLead.id, {
@@ -330,7 +311,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
             formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
             source: leadForm.source || editingLead.source,
-            assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
+            assigned_to: canAssignLeads && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
             updated_at: new Date().toISOString(),
           });
           if (error) throw error;
@@ -355,7 +336,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
           offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
           formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
           source: leadForm.source || editingLead.source,
-          assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
+          assigned_to: canAssignLeads && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
         });
         if (error) throw error;
         if (editingLead.prospect_id) {
@@ -377,7 +358,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             type_lead: leadForm.type_lead || "client", offre_code: leadForm.type_lead === "client" ? (leadForm.offre_code || null) : null,
             formule_code: leadForm.type_lead === "client" ? (leadForm.formule_code || null) : null,
             source: leadForm.source || editingLead.source,
-            assigned_to: (isGlobalAdmin || canSupervise) && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
+            assigned_to: canAssignLeads && leadForm.assigned_to ? leadForm.assigned_to : editingLead.assigned_to,
           });
           if (prospectError) throw prospectError;
         }
@@ -436,12 +417,12 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         setCreateOpen(false);
         setEditingLead(null);
         setConversionLeadId(null);
-        setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
+        setLeadForm({ ...emptyLead, assigned_to: "" });
         return;
       }
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["prospects"] });
-      setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" });
+      setLeadForm({ ...emptyLead, assigned_to: "" });
       setCreateOpen(false);
       setEditingLead(null);
       setConversionLeadId(null);
@@ -475,12 +456,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   });
 
   const convertToProspect = async (lead: any) => {
-    const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
-    if (!isOwner && !canSupervise && !isGlobalAdmin) {
-      toast({ variant: "destructive", title: "Accès refusé", description: "Ce lead appartient à un autre commercial." });
-      return;
-    }
-    // Préremplir les données connues du lead, sans créer le prospect avant
+     // Préremplir les données connues du lead, sans créer le prospect avant
     // que l'utilisateur ait complété puis enregistré le formulaire.
     setFormStage("prospect");
     setEditingLead(null);
@@ -493,7 +469,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       ).map(([key, value]) => [key, String(value)])),
       statut: lead.statut && !["nouveau", "contacte", "converti"].includes(lead.statut) ? lead.statut : "qualifie",
       etape_pipeline: "prospect",
-      assigned_to: lead.assigned_to || (hasCommercialAccess ? user?.id || "" : ""),
+      assigned_to: lead.assigned_to || "",
       source: lead.source || "commercial_terrain",
       telephone_local: lead.telephone || "",
       whatsapp_local: lead.whatsapp || "",
@@ -588,12 +564,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
       toast({ title: "Dossier déjà converti", description: "Ce dossier est déjà associé à un client." });
       return;
     }
-    const isOwner = lead.assigned_to === user?.id || lead.created_by === user?.id;
-    if (!isOwner && !canSupervise && !isGlobalAdmin) {
-      toast({ variant: "destructive", title: "Conversion refusée", description: "Vous n'avez pas accès à ce dossier." });
-      return;
-    }
-    const isProspect = lead._record_type === "prospect" || lead.etape_pipeline === "prospect" || !!lead.prospect_id;
+     const isProspect = lead._record_type === "prospect" || lead.etape_pipeline === "prospect" || !!lead.prospect_id;
     const params = new URLSearchParams({
       ...(lead.lead_id ? { lead_id: lead.lead_id } : (!isProspect ? { lead_id: lead.id } : {})),
       ...(lead.prospect_id || (isProspect ? lead.id : null) ? { prospect_id: lead.prospect_id || lead.id } : {}),
@@ -670,9 +641,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             <h1 className="text-2xl font-bold flex items-center gap-2"><Target className="h-6 w-6 text-primary" />Leads et prospects</h1>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
+            {canCreateLeads && <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setFormStage("lead"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "nouveau", etape_pipeline: "lead", assigned_to: "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau lead</Button>}
             <Button className="w-full sm:w-auto" variant="outline" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: "Lien copié", description: publicUrl }); }}><Copy className="h-4 w-4 mr-2" />Lien public</Button>
-            {canCreateLeads && <Button className="col-span-2 w-full sm:col-span-1 sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
+            {canCreateLeads && <Button className="col-span-2 w-full sm:col-span-1 sm:w-auto" onClick={() => { setFormStage("prospect"); setEditingLead(null); setConversionLeadId(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, statut: "qualifie", etape_pipeline: "prospect", assigned_to: "" }); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Nouveau prospect</Button>}
           </div>
         </div>
 
@@ -721,7 +692,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                       <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
                       <TableCell className="min-w-0" onClick={(event) => event.stopPropagation()}>
-                        <Select value={l.statut} disabled={!canUpdateLeads || !((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
+                        <Select value={l.statut} disabled={!canUpdateLeads} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
                           <SelectTrigger className="h-8 w-28 max-w-28 overflow-hidden px-2 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{(l.etape_pipeline === "prospect" ? [{v:"qualifie",l:"Qualifié"},{v:"interesse",l:"Intéressé"},{v:"tres_interesse",l:"Très intéressé"},{v:"en_discussion",l:"En discussion"},{v:"preparation_dossier",l:"Préparation dossier"},{v:"pret_souscrire",l:"Prêt à souscrire"},{v:"abandonne",l:"Abandonné"}] : STATUTS.filter(s => ["nouveau","contacte","abandonne"].includes(s.v))).map(s => <SelectItem key={s.v} value={s.v}>{s.l}</SelectItem>)}</SelectContent></Select>
                       </TableCell>
@@ -736,15 +707,15 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
                               <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "view")}><Eye className="mr-2 h-4 w-4" />Fiche</DropdownMenuItem>
-                              {canUpdateLeads && ((l.assigned_to === user?.id || l.created_by === user?.id) || isGlobalAdmin) && (
+                              {canUpdateLeads && (
                                 <DropdownMenuItem onSelect={() => openOfficialLeadForm(l, "edit")}><Pencil className="mr-2 h-4 w-4" />Modifier</DropdownMenuItem>
                               )}
                               <DropdownMenuItem onSelect={() => startContact(l)}><Contact className="mr-2 h-4 w-4" />Contacter</DropdownMenuItem>
                               {(l.etape_pipeline || "lead") === "lead" && l.statut !== "converti" && (l.type_lead === "proprietaire_foncier" ? (isFoncierRole || canSupervise) : !isFoncierRole) && (
-                                <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
+                                <DropdownMenuItem disabled={!canUpdateLeads} onSelect={() => { setConvertLead(l); setConvertOpen(true); }}><ArrowRight className="mr-2 h-4 w-4" />Convertir en prospect / client</DropdownMenuItem>
                               )}
                               {view !== "leads" && (l.etape_pipeline === "prospect" || (!l.etape_pipeline && ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"].includes(l.statut))) && l.statut !== "abandonne" && (
-                                <DropdownMenuItem disabled={!((l.assigned_to === user?.id || l.created_by === user?.id) || canSupervise || isGlobalAdmin)} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />{l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"}</DropdownMenuItem>
+                                <DropdownMenuItem disabled={!canUpdateLeads} onSelect={() => void convertToClient(l)}><ArrowRight className="mr-2 h-4 w-4" />{l.type_lead === "proprietaire_foncier" ? "Convertir en propriétaire foncier" : "Convertir en client"}</DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -994,7 +965,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             )}
             </fieldset>
             <DialogFooter>
-              {formReadOnly ? <><Button variant="outline" onClick={() => setCreateOpen(false)}>Fermer</Button>{canUpdateLeads && ((editingLead?.assigned_to === user?.id || editingLead?.created_by === user?.id) || isGlobalAdmin || canSupervise) && <Button onClick={() => setFormReadOnly(false)}>Modifier</Button>}</> : <><Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, assigned_to: hasCommercialAccess ? (user?.id || "") : "" }); }}>Annuler</Button><Button onClick={() => createLead.mutate()} disabled={createLead.isPending || (editingLead ? !canUpdateLeads : !canCreateLeads) || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim()}>{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button></>} 
+              {formReadOnly ? <><Button variant="outline" onClick={() => setCreateOpen(false)}>Fermer</Button>{canUpdateLeads && <Button onClick={() => setFormReadOnly(false)}>Modifier</Button>}</> : <><Button variant="outline" onClick={() => { setCreateOpen(false); setEditingLead(null); setFormReadOnly(false); setLeadForm({ ...emptyLead, assigned_to: "" }); }}>Annuler</Button><Button onClick={() => createLead.mutate()} disabled={createLead.isPending || (editingLead ? !canUpdateLeads : !canCreateLeads) || !leadForm.nom.trim() || !leadForm.prenoms.trim() || !leadForm.telephone.trim()}>{createLead.isPending ? "Enregistrement…" : editingLead ? "Enregistrer les modifications" : "Enregistrer"}</Button></>} 
             </DialogFooter>
           </DialogContent>
         </Dialog>
