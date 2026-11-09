@@ -313,7 +313,9 @@ as $function$
       where e.id = p_equipe_id and e.actif is true
         and (e.type_equipe is null or e.type_equipe = 'technique')
     )
-    else false
+    else exists (
+      select 1 from public.equipes e where e.id = p_equipe_id and e.actif is true
+    )
   end;
 $function$;
 
