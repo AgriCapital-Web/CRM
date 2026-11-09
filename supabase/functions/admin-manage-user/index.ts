@@ -86,6 +86,12 @@ serve(async (req) => {
       if (rolesLookupError) return json({ error: `Vérification des rôles impossible : ${rolesLookupError.message}`, step }, 400);
       const validRoles = new Set((rolesFound || []).filter((r: any) => r.actif === true).map((r: any) => String(r.code)));
       if (roleList.some((r) => !validRoles.has(r))) return json({ error: "Un ou plusieurs rôles sont inconnus ou inactifs.", step }, 400);
+      const roleChecks = await Promise.all(roleList.map((role) => admin.rpc("user_can_assign_app_role", {
+        p_actor_user_id: caller.user.id,
+        p_role_code: role,
+      })));
+      if (roleChecks.some((check) => check.error)) return json({ error: "Vérification des rôles attribuables impossible.", step }, 500);
+      if (roleChecks.some((check) => check.data !== true)) return json({ error: "Un des rôles sélectionnés ne peut pas être attribué par ce compte.", step }, 403);
       const tempPassword = generateTempPassword();
       step = "create_auth_user";
       const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -249,6 +255,12 @@ serve(async (req) => {
       if (!authId) {
         return json({ error: "Ce profil n'a pas de compte de connexion actif. Créez d'abord son accès.", step }, 404);
       }
+      const roleChecks = await Promise.all(list.map((role) => admin.rpc("user_can_assign_app_role", {
+        p_actor_user_id: caller.user.id,
+        p_role_code: role,
+      })));
+      if (roleChecks.some((check) => check.error)) return json({ error: "Vérification des rôles attribuables impossible.", step }, 500);
+      if (roleChecks.some((check) => check.data !== true)) return json({ error: "Un des rôles sélectionnés ne peut pas être attribué par ce compte.", step }, 403);
       step = "save_roles_transactionally";
       const { error: saveError } = await admin.rpc("admin_set_user_roles_with_primary_authorized", {
         p_user_id: authId,
