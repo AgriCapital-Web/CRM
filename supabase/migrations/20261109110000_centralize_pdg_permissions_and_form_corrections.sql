@@ -115,6 +115,15 @@ AS $function$
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client'))
     UNION SELECT 'system.independent_service_operations'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations'))
+    UNION SELECT 'system.manage_hr'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('rh','responsable_rh','ressources_humaines','admin','administrateur','pdg','dg','directeur_general','directeur général'))
+    UNION SELECT 'system.manage_workspace_tasks'
+      WHERE EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = (SELECT auth.uid())
+          AND (ur.role IN ('rh','responsable_rh','ressources_humaines','admin','administrateur','pdg','dg','directeur_general','directeur général')
+            OR ur.role LIKE '%manager%' OR ur.role LIKE '%responsable%' OR ur.role LIKE '%chef%')
+      )
   ) effective_permissions
   WHERE (SELECT auth.uid()) IS NOT NULL;
 $function$;
