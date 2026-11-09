@@ -81,7 +81,7 @@ begin
       join public.role_permissions rp on rp.role_code = ur.role
       join public.app_permissions ap on ap.code = rp.permission_code and ap.actif is true
       where ur.user_id = p_actor_user_id
-        and rp.permission_code in ('utilisateurs.update','utilisateurs.delete')
+        and rp.permission_code in ('utilisateurs.update','utilisateurs.delete','utilisateurs.create')
     )
   ) then
     raise exception 'Permission insuffisante pour modifier le statut de ce compte.' using errcode = '42501';
