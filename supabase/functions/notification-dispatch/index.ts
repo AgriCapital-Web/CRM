@@ -172,6 +172,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
     offre_code: contact.offre_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
     dernier_prenom_nom: displayName, dernierprenom_nom: displayName,
+    ...(context.finance_payout_sms === true ? { prenom: firstName, nom: familyName, nom_complet: displayName } : {}),
   };
   const greetingAdjusted = context.finance_payout_sms === true
     ? template.replace(/Bonjour\s+\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, displayName ? `Bonjour ${displayName}` : "Bonjour")
