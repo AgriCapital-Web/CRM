@@ -45,7 +45,7 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $crm_permission$
   select private.crm_is_global_admin((select auth.uid()))
     or exists (
       select 1
@@ -55,7 +55,7 @@ as $
       where ur.user_id = (select auth.uid())
         and rp.permission_code = p_permission_code
     );
-$;
+$crm_permission$;
 
 revoke all on function private.crm_has_role_permission(text) from public, anon;
 grant execute on function private.crm_has_role_permission(text) to authenticated, service_role;
@@ -67,9 +67,9 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $crm_immutable$
   select private.crm_is_global_admin(_user_id);
-$;
+$crm_immutable$;
 
 -- La gestion des demandes de compte relève d'une permission dédiée, pas d'un statut global d'administrateur.
 drop policy if exists "Admins view account requests" on public.account_requests;
