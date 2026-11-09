@@ -19,7 +19,7 @@ interface ZoneStats {
 
 export const RoleDashboard = () => {
   const { user } = useAuth();
-  const { capabilities } = usePermissions();
+  const { can, capabilities } = usePermissions();
   const [stats, setStats] = useState<ZoneStats>({
     totalClients: 0, totalPlantations: 0, totalHectares: 0,
     totalPaiements: 0, paiementsEnAttente: 0, plantationsEnProduction: 0,
@@ -28,10 +28,10 @@ export const RoleDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   const isAdmin = capabilities.globalAdmin;
-  const isResponsableCommercial = capabilities.commercialDirector;
-  const isChefEquipe = capabilities.commercialManager || capabilities.technicalManager || capabilities.serviceClient;
-  const isCommercial = capabilities.commercialRole;
-  const isTechnique = capabilities.technicalManager;
+  const isResponsableCommercial = can("system.role_responsable_commercial");
+  const isChefEquipe = can("system.role_chef_equipe");
+  const isCommercial = can("system.role_commercial");
+  const isTechnique = can("system.role_technique");
 
   useEffect(() => {
     if (!user) return;
