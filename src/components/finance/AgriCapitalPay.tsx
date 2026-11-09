@@ -140,6 +140,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const createPayout = async () => {
     if (!canManage) return;
     const payrollBatch = mode === "batch" && batchMode === "payroll";
+    if (providerCode === "kkiapay_push_up" && !["mobile_money","bank_transfer"].includes(paymentMethod)) { toast({ title: "Mode Push Up invalide", description: "Push Up prend en charge Mobile Money ou virement bancaire.", variant: "destructive" }); return; }
     if (payrollBatch ? !payrollRunId : (!Number.isFinite(Number(amount)) || Number(amount) <= 0 || !reason.trim())) {
       toast({ title: "Informations manquantes", description: payrollBatch ? "Sélectionnez un cycle de paie validé." : "Indiquez un montant positif et un motif.", variant: "destructive" }); return;
     }
