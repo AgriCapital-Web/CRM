@@ -196,14 +196,11 @@ async function staffAuthorized(req: Request, requiredPermission: "messagerie.vie
   if (!auth.startsWith("Bearer ")) return false;
   const { data, error: authError } = await admin.auth.getUser(auth.slice(7));
   if (authError || !data.user) return false;
-  const { data: roles, error: rolesError } = await admin.from("user_roles").select("role").eq("user_id", data.user.id);
-  if (rolesError || !roles?.length) return false;
-  const roleCodes = [...new Set(roles.map((item) => item.role).filter(Boolean))];
-  const { data: grants, error: grantsError } = await admin.from("role_permissions")
-    .select("role_code")
-    .in("role_code", roleCodes)
-    .eq("permission_code", requiredPermission);
-  return !grantsError && Boolean(grants?.length);
+  const { data: allowed, error: permissionError } = await admin.rpc("user_has_app_permission", {
+    _user_id: data.user.id,
+    _required_code: requiredPermission,
+  });
+  return !permissionError && allowed === true;
 }
 
 async function getSenndoClient() {
