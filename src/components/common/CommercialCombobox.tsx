@@ -13,9 +13,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn, formatUserShortName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeRole, roleLabel, COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
-import { getCachedItems, STORES } from "@/lib/offlineDb";
+import { normalizeRole, roleLabel } from "@/lib/roles";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface CommercialComboboxProps {
   value?: string | null;
@@ -35,7 +35,8 @@ const CommercialCombobox = ({
   disabled,
 }: CommercialComboboxProps) => {
   const [open, setOpen] = useState(false);
-  const { user, userRoles } = useAuth();
+  const { user } = useAuth();
+  const { capabilities } = usePermissions();
   const [options, setOptions] = useState<{ id: string; nom: string; roles: string[] }[]>([]);
 
   useEffect(() => {
@@ -52,40 +53,18 @@ const CommercialCombobox = ({
         if (active && list.length) { setOptions(list); return; }
         throw new Error("Répertoire commercial vide");
       } catch {
-        const [profiles, cachedRoles] = await Promise.all([
-          getCachedItems(STORES.PROFILES),
-          getCachedItems(STORES.USER_ROLES),
-        ]);
-        const rolesByUser = new Map<string, string[]>();
-        cachedRoles.forEach((r: any) => {
-          const code = normalizeRole(r.role);
-          rolesByUser.set(r.user_id, [...(rolesByUser.get(r.user_id) || []), code]);
-        });
-        const list = profiles
-          .filter((p: any) => p?.actif !== false)
-          .map((p: any) => {
-            const uid = p.user_id || p.id;
-            return {
-              id: uid,
-              nom: formatUserShortName(p.nom_complet || p.email || "Sans nom"),
-              roles: rolesByUser.get(uid) || [],
-            };
-          })
-          .filter((p: any) =>
-            p.roles.some((r: string) => COMMERCIAL_ASSIGNABLE_ROLES.includes(r as any))
-          );
-        if (active) setOptions(list);
+        if (active) setOptions([]);
       }
     })();
     return () => {
       active = false;
     };
-  }, [user?.id, userRoles]);
+  }, [user?.id]);
 
   const selected = useMemo(() => options.find((o) => o.id === value), [options, value]);
 
   useEffect(() => {
-    if (value || !user?.id || !(userRoles || []).some((r: string) => COMMERCIAL_ASSIGNABLE_ROLES.includes(r as any))) return;
+    if (value || !user?.id || !capabilities.commercialAssignable) return;
     let active = true;
     (async () => {
       try {
@@ -94,13 +73,13 @@ const CommercialCombobox = ({
         });
         if (!error && data && active) onChange(data);
       } catch {
-        if (active) onChange(user.id);
+        // L'affectation par défaut est décidée par la fonction SQL; aucun repli métier local.
       }
     })();
     return () => {
       active = false;
     };
-  }, [value, user?.id, userRoles, onChange]);
+  }, [value, user?.id, capabilities.commercialAssignable, onChange]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
