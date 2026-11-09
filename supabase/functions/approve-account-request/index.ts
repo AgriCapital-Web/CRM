@@ -108,6 +108,13 @@ serve(async (req) => {
     if (roleCatalogError) return json({ error: `Vérification du rôle impossible: ${roleCatalogError.message}`, step, logs }, 500);
     if (!roleRecord) return json({ error: `Le rôle choisi n'existe pas ou n'est pas actif: ${finalRole}`, step, logs }, 400);
 
+    const { data: canAssignRole, error: assignRolePermissionError } = await admin.rpc("user_can_assign_app_role", {
+      p_actor_user_id: caller.user.id,
+      p_role_code: finalRole,
+    });
+    if (assignRolePermissionError) return json({ error: "Vérification du rôle attribuable impossible.", step, logs }, 500);
+    if (canAssignRole !== true) return json({ error: "Ce rôle ne peut pas être attribué par votre compte.", step, logs }, 403);
+
     const { data: canCreateAccount, error: createPermissionError } = await admin.rpc("user_can_manage_admin_action", {
       p_actor_user_id: caller.user.id,
       p_target_user_id: reqRow.auth_user_id || null,
