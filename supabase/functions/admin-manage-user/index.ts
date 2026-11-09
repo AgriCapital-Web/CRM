@@ -68,7 +68,10 @@ serve(async (req) => {
       if (!/^[a-z0-9._-]{2,64}$/.test(cleanUsername)) return json({ error: "Identifiant invalide (2 à 64 caractères : lettres, chiffres, point, tiret et soulignement).", step }, 400);
       if (cleanName.length < 2) return json({ error: "Le nom complet est obligatoire.", step }, 400);
       if (!roleList.length || !primaryRole) return json({ error: "Sélectionnez au moins un rôle et un rôle principal.", step }, 400);
-      const forbiddenRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
+      if (roleList.includes("pdg") && !isPdg) {
+        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer ce rôle.", step }, 403);
+      }
+      const forbiddenRoles = new Set(["dg", "super_admin", "admin", "administrateur", "president", "président"]);
       if (roleList.some((r) => forbiddenRoles.has(r.toLowerCase()))) return json({ error: "Un rôle de gouvernance privilégiée ne peut pas être attribué par cette opération.", step }, 403);
       const { data: available, error: usernameError } = await admin.rpc("username_available", { _username: cleanUsername });
       if (usernameError) return json({ error: `Vérification de l'identifiant impossible : ${usernameError.message}`, step }, 400);
@@ -130,10 +133,11 @@ serve(async (req) => {
         const { error: profileError } = await admin.from("profiles").upsert(profilePayload, { onConflict: "id" });
         if (profileError) throw new Error("Profil : " + profileError.message);
         step = "assign_roles";
-        const { error: roleError } = await admin.rpc("admin_set_user_roles_with_primary", {
+        const { error: roleError } = await admin.rpc("admin_set_user_roles_with_primary_authorized", {
           p_user_id: authId,
           p_roles: roleList,
           p_primary_role: primaryRole,
+          p_actor_user_id: caller.user.id,
         });
         if (roleError) throw new Error("Attribution des rôles : " + roleError.message);
         step = "verify_created_account";
@@ -159,9 +163,10 @@ serve(async (req) => {
     if (action === "set_active") {
       step = "set_active";
       if (typeof actif !== "boolean") return json({ error: "Le statut actif doit être un booléen.", step }, 400);
-      const { data: updatedProfiles, error: updateError } = await admin.rpc("admin_set_profile_active", {
+      const { data: updatedProfiles, error: updateError } = await admin.rpc("admin_set_profile_active_authorized", {
         p_user_id: user_id,
         p_actif: actif,
+        p_actor_user_id: caller.user.id,
       });
       if (updateError) return json({ error: updateError.message, step }, 400);
       const persisted = (updatedProfiles ?? []).find((p: any) => p.user_id === user_id || p.profile_id === user_id);
@@ -217,6 +222,9 @@ serve(async (req) => {
       step = "set_roles";
       const list: string[] = Array.isArray(roles) ? Array.from(new Set(roles.filter((r: unknown): r is string => typeof r === "string" && r.trim().length > 0))) : [];
       if (list.length === 0) return json({ error: "Au moins un rôle est requis", step }, 400);
+      if (list.includes("pdg") && !isPdg) {
+        return json({ error: "Seul un utilisateur portant le rôle PDG peut attribuer ce rôle.", step }, 403);
+      }
       const primaryRole = typeof primary_role === "string" && list.includes(primary_role) ? primary_role : list[0];
       // Résout l'identifiant du compte de connexion (l'appelant peut envoyer l'id du profil).
       step = "resolve_user";
@@ -234,10 +242,11 @@ serve(async (req) => {
         return json({ error: "Ce profil n'a pas de compte de connexion actif. Créez d'abord son accès.", step }, 404);
       }
       step = "save_roles_transactionally";
-      const { error: saveError } = await admin.rpc("admin_set_user_roles_with_primary", {
+      const { error: saveError } = await admin.rpc("admin_set_user_roles_with_primary_authorized", {
         p_user_id: authId,
         p_roles: list,
         p_primary_role: primaryRole,
+        p_actor_user_id: caller.user.id,
       });
       if (saveError) return json({ error: saveError.message, step }, 400);
       step = "verify_roles";
