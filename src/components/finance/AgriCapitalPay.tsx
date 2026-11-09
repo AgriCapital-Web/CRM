@@ -93,7 +93,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         (supabase as any).from("finance_payout_sms_templates").select("*").order("category"),
       ]);
       for (const result of [p, b, pay, t]) if (result.error) throw result.error;
-      setProfiles((p.data || []).filter((row: Profile) => row.active !== false));
+      setProfiles((p.data || []).filter((row: Profile) => row.actif !== false));
       setBeneficiaries(b.data || []);
       setPayouts(pay.data || []);
       setTemplates(t.data || []);
