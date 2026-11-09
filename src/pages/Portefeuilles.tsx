@@ -44,11 +44,11 @@ async function fetchAllRows<T=any>(makeQuery:()=>any,pageSize=1000):Promise<T[]>
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
 
 export default function Portefeuilles(){
-  const { can,isSuperAdmin,isPdg }=usePermissions();
+  const { can }=usePermissions();
   const { user }=useAuth();
   const { toast }=useToast();
-  const canViewWallet=isSuperAdmin||isPdg||can("portefeuilles.view")||can("portefeuilles.manage_payouts")||can("commissions.manage_payouts");
-  const canManage=isSuperAdmin||isPdg||can("portefeuilles.manage_payouts")||can("commissions.manage_payouts");
+  const canViewWallet=can("portefeuilles.view")||can("portefeuilles.manage_payouts")||can("commissions.manage_payouts");
+  const canManage=can("portefeuilles.manage_payouts")||can("commissions.manage_payouts");
   const q=fortnight();
   const [profiles,setProfiles]=useState<any[]>([]);
   const [portefeuilles,setPortefeuilles]=useState<any[]>([]);
