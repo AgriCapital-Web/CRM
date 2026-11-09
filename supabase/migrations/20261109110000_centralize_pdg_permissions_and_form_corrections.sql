@@ -107,6 +107,14 @@ AS $function$
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client','comptable','manager_commercial_national','responsable_operations'))
     UNION SELECT 'system.view_team_commissions'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','comptable','responsable_operations','responsable_commercial','chef_equipe_commercial','chef_equipe_technique'))
+    UNION SELECT 'system.commercial_role'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'commercial')
+    UNION SELECT 'system.zone_scope_global'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('super_admin','pdg','dg','responsable_operations','responsable_commercial','chef_equipe_commercial','chef_equipe_technique','service_client','chef_equipe_service_client','comptable','assistant_administratif'))
+    UNION SELECT 'system.independent_service_write'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client'))
+    UNION SELECT 'system.independent_service_operations'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations'))
   ) effective_permissions
   WHERE (SELECT auth.uid()) IS NOT NULL;
 $function$;
