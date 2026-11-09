@@ -71,14 +71,18 @@ Deno.serve(async (req) => {
   const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const [{ data: staff }, { data: assignedRoles, error: rolesError }] = await Promise.all([
+  const [{ data: staff }, { data: reportPermission, error: permissionError }] = await Promise.all([
     adminClient.rpc("is_staff", { _user_id: user.id }),
-    adminClient.from("user_roles").select("role").eq("user_id", user.id),
+    adminClient.rpc("user_has_app_permission", {
+      _user_id: user.id,
+      _required_code: "rapports.view_technique",
+    }),
   ]);
-  if (rolesError) console.error("Impossible de vérifier les rôles du compte rendu technique", rolesError);
-  const roles = (assignedRoles || []).map((row: { role: string }) => String(row.role || "").trim().toLowerCase());
-  const executiveAccess = roles.some((role: string) => ["pdg", "dg", "admin", "super_admin"].includes(role));
-  if (!staff && !executiveAccess) return json({ error: "Accès réservé au personnel" }, 403);
+  if (permissionError) {
+    console.error("Impossible de vérifier la permission du compte rendu technique", permissionError);
+    return json({ error: "Vérification des permissions impossible." }, 500);
+  }
+  if (!staff && reportPermission !== true) return json({ error: "Accès réservé au personnel autorisé" }, 403);
 
   let description = "";
   let contexte = "";
