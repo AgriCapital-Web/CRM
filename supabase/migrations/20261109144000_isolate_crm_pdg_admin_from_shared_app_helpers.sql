@@ -15,17 +15,17 @@ begin
     return new;
   end if;
 
-  if private.is_global_admin((select auth.uid())) then
+  if private.crm_is_global_admin((select auth.uid())) then
     if exists (
       select 1 from public.user_roles ur
       where ur.user_id = coalesce(old.user_id, old.id) and lower(trim(ur.role)) = 'pdg'
-    ) and not private.is_global_admin((select auth.uid())) then
+    ) and not private.crm_is_global_admin((select auth.uid())) then
       raise exception 'Seul le PDG peut modifier le profil d’un compte PDG.' using errcode = '42501';
     end if;
     if (
       old.relation_rh in ('PDG','DG')
       or new.relation_rh in ('PDG','DG')
-    ) and not private.is_global_admin((select auth.uid())) then
+    ) and not private.crm_is_global_admin((select auth.uid())) then
       raise exception 'Seul le PDG peut modifier une fonction de gouvernance.' using errcode = '42501';
     end if;
     return new;
@@ -67,17 +67,17 @@ begin
     return new;
   end if;
 
-  if private.is_global_admin((select auth.uid())) then
+  if private.crm_is_global_admin((select auth.uid())) then
     if exists (
       select 1 from public.user_roles ur
       where ur.user_id = coalesce(old.user_id, old.id) and lower(trim(ur.role)) = 'pdg'
-    ) and not private.is_global_admin((select auth.uid())) then
+    ) and not private.crm_is_global_admin((select auth.uid())) then
       raise exception 'Seul le PDG peut modifier le profil d’un compte PDG.' using errcode = '42501';
     end if;
     if (
       old.relation_rh in ('PDG','DG')
       or new.relation_rh in ('PDG','DG')
-    ) and not private.is_global_admin((select auth.uid())) then
+    ) and not private.crm_is_global_admin((select auth.uid())) then
       raise exception 'Seul le PDG peut modifier une fonction de gouvernance.' using errcode = '42501';
     end if;
     return new;
@@ -108,9 +108,9 @@ begin
     return new;
   end if;
 
-  if private.is_global_admin((select auth.uid())) then
+  if private.crm_is_global_admin((select auth.uid())) then
     if new.relation_rh in ('PDG','DG')
-       and not private.is_global_admin((select auth.uid())) then
+       and not private.crm_is_global_admin((select auth.uid())) then
       raise exception 'Seul le PDG peut créer un profil de gouvernance.' using errcode = '42501';
     end if;
     return new;
@@ -134,7 +134,7 @@ create policy "Profiles insert by permission"
   on public.profiles for insert to authenticated
   with check (
     user_id = (select auth.uid())
-    or private.has_role_permission('utilisateurs.create')
+    or private.crm_has_role_permission('utilisateurs.create')
   );
 
 drop policy if exists "Profiles select self admin or hr staff" on public.profiles;
@@ -143,8 +143,8 @@ create policy "Profiles select by permission"
   on public.profiles for select to authenticated
   using (
     user_id = (select auth.uid())
-    or private.has_role_permission('utilisateurs.view')
-    or private.has_role_permission('utilisateurs.update')
+    or private.crm_has_role_permission('utilisateurs.view')
+    or private.crm_has_role_permission('utilisateurs.update')
   );
 
 notify pgrst, 'reload schema';
