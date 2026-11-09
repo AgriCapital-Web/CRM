@@ -33,6 +33,47 @@ $$;
 revoke all on function private.is_global_admin(uuid) from public, anon;
 grant execute on function private.is_global_admin(uuid) to authenticated, service_role;
 
+-- Les fonctions historiques is_admin ne doivent plus assimiler DG ou Responsable des Opérations au PDG.
+create or replace function private.is_admin(_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select private.is_pdg(_user_id);
+$;
+
+create or replace function public.is_admin(_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select private.is_pdg(_user_id);
+$;
+
+revoke all on function private.is_admin(uuid) from public, anon;
+revoke all on function public.is_admin(uuid) from public, anon;
+grant execute on function private.is_admin(uuid) to authenticated, service_role;
+grant execute on function public.is_admin(uuid) to authenticated, service_role;
+
+-- La gestion des demandes de compte relève d'une permission dédiée, pas d'un statut global d'administrateur.
+drop policy if exists "Admins view account requests" on public.account_requests;
+drop policy if exists "Admins update account requests" on public.account_requests;
+drop policy if exists "Admins delete account requests" on public.account_requests;
+create policy "Account requests view by permission"
+  on public.account_requests for select to authenticated
+  using (private.has_role_permission('parametres.manage_users'));
+create policy "Account requests update by permission"
+  on public.account_requests for update to authenticated
+  using (private.has_role_permission('parametres.manage_users'))
+  with check (private.has_role_permission('parametres.manage_users'));
+create policy "Account requests delete by permission"
+  on public.account_requests for delete to authenticated
+  using (private.has_role_permission('parametres.manage_users'));
+
 -- Les permissions de rôle sont résolues exclusivement côté base.
 create or replace function private.has_role_permission(p_permission_code text)
 returns boolean
@@ -139,9 +180,9 @@ as $$
     union all select 'system.technical_manager'
       where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('chef_equipe_technique','manager_technique_national','responsable_operations'))
     union all select 'system.manage_account_requests'
-      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('dg','service_client','chef_equipe_service_client'))
+      where (select is_pdg from actor) or private.has_role_permission('parametres.manage_users')
     union all select 'system.manage_user_credentials'
-      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('dg','responsable_operations'))
+      where (select is_pdg from actor) or private.has_role_permission('utilisateurs.update') or private.has_role_permission('utilisateurs.reset_password')
     union all select 'system.client_only'
       where exists (select 1 from role_codes where role in ('client','client_portal'))
     union all select 'system.transfer_plantation'
@@ -157,7 +198,7 @@ as $$
     union all select 'system.commercial_role'
       where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('commercial','chef_equipe_commercial','responsable_commercial','manager_commercial_national'))
     union all select 'system.zone_scope_global'
-      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('dg','responsable_operations','manager_commercial_national','manager_technique_national'))
+      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('responsable_operations','manager_commercial_national','manager_technique_national'))
     union all select 'system.independent_service_write'
       where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('dg','service_client','chef_equipe_service_client'))
     union all select 'system.independent_service_operations'
