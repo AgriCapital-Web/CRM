@@ -38,10 +38,11 @@ create policy "CRM roles select by permission"
 
 -- Le niveau de couverture est une donnée du référentiel app_roles.
 -- Aucune liste de rôles ou correspondance métier n'est maintenue dans React.
-create or replace function public.set_user_primary_zone_assignment(
+create or replace function private.set_user_primary_zone_assignment(
   p_user_id uuid,
   p_zone_type text,
-  p_zone_id uuid
+  p_zone_id uuid,
+  p_actor_user_id uuid
 )
 returns void
 language plpgsql
@@ -53,16 +54,16 @@ declare
   v_district_id uuid := null;
   v_region_id uuid := null;
 begin
-  if auth.uid() is null or p_user_id is null then
-    raise exception 'Utilisateur cible et session authentifiée obligatoires.'
+  if p_actor_user_id is null or p_user_id is null then
+    raise exception 'Utilisateur cible et acteur authentifié obligatoires.'
       using errcode = '42501';
   end if;
 
   if not (
-    private.is_global_admin((select auth.uid()))
-    or private.has_role_permission('parametres.manage_geo')
-    or private.has_role_permission('utilisateurs.create')
-    or private.has_role_permission('utilisateurs.update')
+    private.is_global_admin(p_actor_user_id)
+    or private.user_has_role_permission(p_actor_user_id, 'parametres.manage_geo')
+    or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+    or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
   ) then
     raise exception 'Permission insuffisante pour modifier la couverture géographique.'
       using errcode = '42501';
@@ -137,7 +138,7 @@ begin
   delete from public.zone_assignments where user_id = p_user_id;
   if p_zone_type is not null then
     insert into public.zone_assignments(user_id, zone_type, zone_id, created_by)
-    values (p_user_id, p_zone_type, p_zone_id, auth.uid());
+    values (p_user_id, p_zone_type, p_zone_id, p_actor_user_id);
   end if;
 
   perform set_config('app.internal_coverage_sync', 'true', true);
@@ -149,8 +150,79 @@ begin
 end;
 $function$;
 
+revoke all on function private.set_user_primary_zone_assignment(uuid,text,uuid,uuid) from public, anon, authenticated;
+grant execute on function private.set_user_primary_zone_assignment(uuid,text,uuid,uuid) to service_role;
+
+create or replace function public.set_user_primary_zone_assignment(
+  p_user_id uuid,
+  p_zone_type text,
+  p_zone_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  perform private.set_user_primary_zone_assignment(p_user_id, p_zone_type, p_zone_id, auth.uid());
+end;
+$function$;
+
 revoke all on function public.set_user_primary_zone_assignment(uuid,text,uuid) from public, anon;
 grant execute on function public.set_user_primary_zone_assignment(uuid,text,uuid) to authenticated, service_role;
+
+create or replace function public.admin_assign_requested_user_zone(
+  p_user_id uuid,
+  p_role_code text,
+  p_district_id uuid,
+  p_region_id uuid,
+  p_departement_geo_id uuid,
+  p_sous_prefecture_id uuid,
+  p_actor_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_coverage text;
+  v_zone_id uuid;
+begin
+  select ar.niveau_couverture into v_coverage
+  from public.app_roles ar
+  where ar.code = p_role_code and ar.actif is true;
+
+  if v_coverage is null then
+    raise exception 'Rôle principal introuvable ou inactif.' using errcode = '22023';
+  end if;
+
+  if not exists (
+    select 1 from public.user_roles ur
+    where ur.user_id = p_user_id and ur.role = p_role_code and ur.is_primary is true
+  ) then
+    raise exception 'Le rôle demandé ne correspond pas au rôle principal attribué.' using errcode = '42501';
+  end if;
+
+  v_zone_id := case v_coverage
+    when 'district' then p_district_id
+    when 'region' then p_region_id
+    when 'departement' then p_departement_geo_id
+    when 'sous_prefecture' then p_sous_prefecture_id
+    else null
+  end;
+
+  perform private.set_user_primary_zone_assignment(
+    p_user_id,
+    case when v_coverage = 'global' then null else v_coverage end,
+    v_zone_id,
+    p_actor_user_id
+  );
+end;
+$function$;
+
+revoke all on function public.admin_assign_requested_user_zone(uuid,text,uuid,uuid,uuid,uuid,uuid) from public, anon, authenticated;
+grant execute on function public.admin_assign_requested_user_zone(uuid,text,uuid,uuid,uuid,uuid,uuid) to service_role;
 
 -- La liste d'équipes compatible avec le département est calculée par PostgreSQL.
 create or replace function public.get_team_options_for_department(p_departement text)
