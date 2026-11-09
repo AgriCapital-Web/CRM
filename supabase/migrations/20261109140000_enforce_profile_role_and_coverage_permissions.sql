@@ -8,15 +8,15 @@ drop policy if exists "Profiles select by permission" on public.profiles;
 create policy "Profiles select by permission"
   on public.profiles for select to authenticated
   using (
-    private.has_role_permission('utilisateurs.view')
-    or private.has_role_permission('utilisateurs.update')
+    private.crm_has_role_permission('utilisateurs.view')
+    or private.crm_has_role_permission('utilisateurs.update')
   );
 
 drop policy if exists "Profiles update by permission" on public.profiles;
 create policy "Profiles update by permission"
   on public.profiles for update to authenticated
-  using (private.has_role_permission('utilisateurs.update'))
-  with check (private.has_role_permission('utilisateurs.update'));
+  using (private.crm_has_role_permission('utilisateurs.update'))
+  with check (private.crm_has_role_permission('utilisateurs.update'));
 
 -- Les rôles ne sont jamais écrits directement depuis le navigateur.
 -- Les écritures passent par admin-manage-user et ses RPC transactionnelles.
@@ -28,12 +28,12 @@ drop policy if exists "CRM roles select by permission" on public.user_roles;
 create policy "CRM roles select by permission"
   on public.user_roles for select to authenticated
   using (
-    private.is_global_admin((select auth.uid()))
+    private.crm_is_global_admin((select auth.uid()))
     or (
-      private.has_role_permission('roles.view')
+      private.crm_has_role_permission('roles.view')
       and user_id = (select auth.uid())
     )
-    or private.has_role_permission('roles.manage_permissions')
+    or private.crm_has_role_permission('roles.manage_permissions')
   );
 
 -- Le niveau de couverture est une donnée du référentiel app_roles.
@@ -60,10 +60,10 @@ begin
   end if;
 
   if not (
-    private.is_global_admin(p_actor_user_id)
-    or private.user_has_role_permission(p_actor_user_id, 'parametres.manage_geo')
-    or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
-    or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
+    private.crm_is_global_admin(p_actor_user_id)
+    or private.crm_user_has_role_permission(p_actor_user_id, 'parametres.manage_geo')
+    or private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+    or private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
   ) then
     raise exception 'Permission insuffisante pour modifier la couverture géographique.'
       using errcode = '42501';
@@ -238,9 +238,9 @@ declare
   v_teams jsonb;
 begin
   if auth.uid() is null or not (
-    private.is_global_admin((select auth.uid()))
-    or private.has_role_permission('utilisateurs.create')
-    or private.has_role_permission('utilisateurs.update')
+    private.crm_is_global_admin((select auth.uid()))
+    or private.crm_has_role_permission('utilisateurs.create')
+    or private.crm_has_role_permission('utilisateurs.update')
   ) then
     raise exception 'Permission insuffisante pour consulter les équipes.'
       using errcode = '42501';
@@ -295,13 +295,13 @@ begin
   end if;
 
   v_allowed := case p_action
-    when 'create_user' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
-    when 'set_active' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
-                                  or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.delete')
-    when 'set_password' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.reset_password')
-    when 'set_username' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
-    when 'set_roles' then private.user_has_role_permission(p_actor_user_id, 'roles.manage_permissions')
-    when 'delete_user' then private.user_has_role_permission(p_actor_user_id, 'utilisateurs.delete')
+    when 'create_user' then private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+    when 'set_active' then private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
+                                  or private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.delete')
+    when 'set_password' then private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.reset_password')
+    when 'set_username' then private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.update')
+    when 'set_roles' then private.crm_user_has_role_permission(p_actor_user_id, 'roles.manage_permissions')
+    when 'delete_user' then private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.delete')
     else false
   end;
 
@@ -316,7 +316,7 @@ begin
         and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
     ) into v_governance_target;
 
-    if v_governance_target and not private.is_global_admin(p_actor_user_id) then
+    if v_governance_target and not private.crm_is_global_admin(p_actor_user_id) then
       return false;
     end if;
   end if;
@@ -347,16 +347,16 @@ as $function$
       where ar.code = p_role_code and ar.actif is true
     )
     and (
-      private.is_global_admin(p_actor_user_id)
+      private.crm_is_global_admin(p_actor_user_id)
       or (
-        private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
-        or private.user_has_role_permission(p_actor_user_id, 'roles.manage_permissions')
+        private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+        or private.crm_user_has_role_permission(p_actor_user_id, 'roles.manage_permissions')
       )
     )
     and (
       lower(trim(coalesce(p_role_code, ''))) not in
         ('pdg','dg','super_admin','admin','administrateur','president','président')
-      or private.is_global_admin(p_actor_user_id)
+      or private.crm_is_global_admin(p_actor_user_id)
     );
 $function$;
 
@@ -418,14 +418,14 @@ begin
   end if;
 
   if not (
-    private.is_global_admin(p_actor_user_id)
-    or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
-    or private.user_has_role_permission(p_actor_user_id, 'parametres.manage_users')
+    private.crm_is_global_admin(p_actor_user_id)
+    or private.crm_user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+    or private.crm_user_has_role_permission(p_actor_user_id, 'parametres.manage_users')
   ) then
     raise exception 'Permission insuffisante pour approuver ce compte.' using errcode = '42501';
   end if;
 
-  if not private.is_global_admin(p_actor_user_id) and exists (
+  if not private.crm_is_global_admin(p_actor_user_id) and exists (
     select 1 from public.user_roles ur
     where ur.user_id = p_user_id
       and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
