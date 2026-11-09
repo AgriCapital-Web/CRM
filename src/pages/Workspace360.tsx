@@ -3,6 +3,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,8 @@ function OrganizationNode({node,items,ancestors}:{node:Row;items:Row[];ancestors
 }
 
 export default function Workspace360({ embedded = false }: { embedded?: boolean } = {}) {
- const {user,profile,userRoles}=useAuth();
+ const {user,profile}=useAuth();
+ const {capabilities}=usePermissions();
  const [tab,setTab]=useState<Tab>("org");
  const [eventOpen,setEventOpen]=useState(false);
  const [taskOpen,setTaskOpen]=useState(false);
@@ -84,9 +86,8 @@ export default function Workspace360({ embedded = false }: { embedded?: boolean 
  const [staff,setStaff]=useState<Row[]>([]);
  const [assignProfile,setAssignProfile]=useState("");
  const [assignJob,setAssignJob]=useState("");
- const roleSet=useMemo(()=>userRoles.map(r=>r.toLowerCase()),[userRoles]);
- const canManageHR=roleSet.some(r=>["rh","responsable_rh","ressources_humaines","admin","administrateur","pdg","dg","directeur_general","directeur général"].includes(r));
- const canManageTasks=canManageHR||roleSet.some(r=>r.includes("manager")||r.includes("responsable")||r.includes("chef"));
+ const canManageHR=capabilities.manageHR;
+ const canManageTasks=capabilities.manageWorkspaceTasks;
  const load=useCallback(async()=>{
    if(!user?.id)return;
    setLoading(true);
