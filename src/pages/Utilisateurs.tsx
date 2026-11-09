@@ -4,7 +4,6 @@ import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagina
 import { formatUserShortName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import ContactLauncher from "@/components/common/ContactLauncher";
 import { Button } from "@/components/ui/button";
@@ -46,11 +45,10 @@ const Utilisateurs = () => {
   const [newUsername, setNewUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const { hasRole } = useAuth();
+  const { capabilities } = usePermissions();
   const { toast } = useToast();
   const { roles: appRoles } = useAppRoles();
-  const isSuperAdmin = hasRole("super_admin");
-  const canManageUserCredentials = isSuperAdmin || hasRole("pdg") || hasRole("dg") || hasRole("responsable_operations");
+  const canManageUserCredentials = capabilities.manageUserCredentials;
 
   const fetchUtilisateurs = async () => {
     try {
