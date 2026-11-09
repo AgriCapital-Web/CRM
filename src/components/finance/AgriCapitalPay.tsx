@@ -381,8 +381,8 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
                   </div>
                 </div>
               ))}
-              {providerCode === "kkiapay_push_up" && <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">Le lot Push Up ne peut pas être envoyé depuis le CRM tant que Kkiapay n'a pas fourni et activé le contrat API de Push Up et confirmé l'approvisionnement automatique. Aucun transfert ne sera lancé par ce formulaire.</p>}
-              <Button onClick={() => void createPayout()} disabled={!canManage || saving || loading || (providerCode === "kkiapay_push_up" && mode === "batch")}><Send className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : mode === "batch" ? "Créer le lot à approuver" : "Soumettre à approbation"}</Button>
+              {providerCode === "kkiapay_push_up" && <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">Le décaissement Push Up est préparé et tracé dans AgriCapital PAY, mais son envoi API n'est pas activé. Exécutez le lot dans le portail Push Up, puis rapprochez chaque paiement confirmé dans le CRM. Aucun transfert ne sera lancé par ce formulaire.</p>}
+              <Button onClick={() => void createPayout()} disabled={!canManage || saving || loading}><Send className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : mode === "batch" ? "Créer le lot à approuver" : "Soumettre à approbation"}</Button>
             </CardContent>
           </Card>
         </TabsContent>
