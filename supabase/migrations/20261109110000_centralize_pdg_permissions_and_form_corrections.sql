@@ -71,8 +71,6 @@ AS $function$
       WHERE private.is_global_admin((SELECT auth.uid()))
     UNION SELECT 'system.can_supervise_leads'
       WHERE private.can_supervise_leads((SELECT auth.uid()))
-    UNION SELECT 'system.foncier_role'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('mobilisateur_foncier','superviseur_mobilisation_fonciere'))
     UNION SELECT 'system.service_client'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('service_client','chef_equipe_service_client'))
     UNION SELECT 'system.commercial_assignable'
