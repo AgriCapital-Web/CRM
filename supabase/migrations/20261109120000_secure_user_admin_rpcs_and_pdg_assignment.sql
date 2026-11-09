@@ -15,8 +15,18 @@ SET search_path = ''
 AS $function$
 BEGIN
   IF p_actor_user_id IS NULL
-     OR NOT (public.is_admin(p_actor_user_id) OR private.is_global_admin(p_actor_user_id)) THEN
-    RAISE EXCEPTION 'Action réservée à un administrateur autorisé.'
+     OR (
+       NOT private.is_global_admin(p_actor_user_id)
+       AND NOT EXISTS (
+         SELECT 1
+         FROM public.user_roles ur
+         JOIN public.role_permissions rp ON rp.role_code = ur.role
+         JOIN public.app_permissions ap ON ap.code = rp.permission_code AND ap.actif IS TRUE
+         WHERE ur.user_id = p_actor_user_id
+           AND rp.permission_code IN ('roles.manage_permissions','utilisateurs.create')
+       )
+     ) THEN
+    RAISE EXCEPTION 'Permission insuffisante pour gérer les rôles ou créer un compte.'
       USING errcode = '42501';
   END IF;
 
@@ -92,8 +102,18 @@ SET search_path = ''
 AS $function$
 BEGIN
   IF p_actor_user_id IS NULL
-     OR NOT (public.is_admin(p_actor_user_id) OR private.is_global_admin(p_actor_user_id)) THEN
-    RAISE EXCEPTION 'Action réservée à un administrateur autorisé.'
+     OR (
+       NOT private.is_global_admin(p_actor_user_id)
+       AND NOT EXISTS (
+         SELECT 1
+         FROM public.user_roles ur
+         JOIN public.role_permissions rp ON rp.role_code = ur.role
+         JOIN public.app_permissions ap ON ap.code = rp.permission_code AND ap.actif IS TRUE
+         WHERE ur.user_id = p_actor_user_id
+           AND rp.permission_code IN ('utilisateurs.update','utilisateurs.delete')
+       )
+     ) THEN
+    RAISE EXCEPTION 'Permission insuffisante pour modifier le statut de ce compte.'
       USING errcode = '42501';
   END IF;
 
@@ -105,7 +125,7 @@ BEGIN
   IF NOT private.is_global_admin(p_actor_user_id)
      AND EXISTS (
        SELECT 1 FROM public.user_roles ur
-       WHERE ur.user_id = p_user_id AND ur.role = 'pdg'
+       WHERE ur.user_id = p_user_id AND lower(trim(ur.role)) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
      ) THEN
     RAISE EXCEPTION 'Seul le rôle PDG peut modifier le statut d’un compte PDG.'
       USING errcode = '42501';
@@ -116,6 +136,88 @@ BEGIN
   FROM public.admin_set_profile_active(p_user_id, p_actif);
 END;
 $function$;
+
+-- Username updates go through a scoped server-side RPC so profile guards are
+-- bypassed only inside this validated transaction, never by the browser.
+CREATE OR REPLACE FUNCTION public.admin_update_username_authorized(
+  p_user_id uuid,
+  p_username text,
+  p_actor_user_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_username text := lower(trim(COALESCE(p_username, '')));
+BEGIN
+  IF p_user_id IS NULL OR p_actor_user_id IS NULL
+     OR v_username !~ '^[a-z0-9._-]{3,30} Only the
+-- authorized wrappers may be called by the server-side admin Edge Function.
+REVOKE ALL ON FUNCTION public.admin_set_user_roles_with_primary(uuid,text[],text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_roles_with_primary(uuid,text[],text) TO service_role;
+
+REVOKE ALL ON FUNCTION public.admin_set_profile_active(uuid,boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_profile_active(uuid,boolean) TO service_role;
+
+REVOKE ALL ON FUNCTION public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_roles_with_primary_authorized(uuid,text[],text,uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION public.admin_set_profile_active_authorized(uuid,boolean,uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_profile_active_authorized(uuid,boolean,uuid) TO service_role;
+ THEN
+    RAISE EXCEPTION 'Compte et identifiant valide obligatoires.'
+      USING errcode = '22023';
+  END IF;
+
+  IF NOT private.is_global_admin(p_actor_user_id)
+     AND NOT EXISTS (
+       SELECT 1
+       FROM public.user_roles ur
+       JOIN public.role_permissions rp ON rp.role_code = ur.role
+       JOIN public.app_permissions ap ON ap.code = rp.permission_code AND ap.actif IS TRUE
+       WHERE ur.user_id = p_actor_user_id
+         AND rp.permission_code = 'utilisateurs.update'
+     ) THEN
+    RAISE EXCEPTION 'Permission insuffisante pour modifier cet identifiant.'
+      USING errcode = '42501';
+  END IF;
+
+  IF NOT private.is_global_admin(p_actor_user_id)
+     AND EXISTS (
+       SELECT 1 FROM public.user_roles ur
+       WHERE ur.user_id = p_user_id
+         AND lower(trim(ur.role)) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
+     ) THEN
+    RAISE EXCEPTION 'Seul le PDG peut modifier les identifiants d’un compte de gouvernance.'
+      USING errcode = '42501';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE lower(p.username) = v_username
+      AND COALESCE(p.user_id, p.id) <> p_user_id
+  ) THEN
+    RAISE EXCEPTION 'Cet identifiant est déjà utilisé.'
+      USING errcode = '23505';
+  END IF;
+
+  PERFORM set_config('app.internal_account_link', 'true', true);
+  UPDATE public.profiles
+  SET username = v_username, updated_at = now()
+  WHERE user_id = p_user_id OR id = p_user_id;
+  PERFORM set_config('app.internal_account_link', 'false', true);
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Profil associé au compte introuvable.'
+      USING errcode = 'P0002';
+  END IF;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.admin_update_username_authorized(uuid,text,uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_username_authorized(uuid,text,uuid) TO service_role;
 
 -- These legacy RPCs are now internal implementation details. Only the
 -- authorized wrappers may be called by the server-side admin Edge Function.
