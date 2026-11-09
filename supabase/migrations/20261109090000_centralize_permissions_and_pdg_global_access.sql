@@ -388,27 +388,8 @@ as $$
     );
 $$;
 
--- Accès global PDG sur toutes les tables publiques déjà protégées par RLS.
--- Les autres rôles continuent d'être évalués par les politiques existantes.
-do $$
-declare r record;
-begin
-  for r in
-    select n.nspname as schema_name, c.relname as table_name
-    from pg_class c
-    join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public'
-      and c.relkind in ('r','p')
-      and c.relrowsecurity is true
-  loop
-    execute format('drop policy if exists pdg_global_all_access on %I.%I', r.schema_name, r.table_name);
-    execute format(
-      'create policy pdg_global_all_access on %I.%I for all to authenticated using (private.is_pdg((select auth.uid()))) with check (private.is_pdg((select auth.uid())))',
-      r.schema_name, r.table_name
-    );
-  end loop;
-end
-$$;
+-- La politique globale PDG CRM est créée dans la migration suivante avec exclusion explicite
+-- des tables AcreMap, des portails séparés, des jetons et des journaux immuables.
 
 notify pgrst, 'reload schema';
 commit;
