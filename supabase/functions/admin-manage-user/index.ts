@@ -92,6 +92,12 @@ serve(async (req) => {
       })));
       if (roleChecks.some((check) => check.error)) return json({ error: "Vérification des rôles attribuables impossible.", step }, 500);
       if (roleChecks.some((check) => check.data !== true)) return json({ error: "Un des rôles sélectionnés ne peut pas être attribué par ce compte.", step }, 403);
+      const { data: teamAllowed, error: teamValidationError } = await admin.rpc("user_can_assign_team_to_department", {
+        p_departement: departement || "",
+        p_equipe_id: equipe_id || null,
+      });
+      if (teamValidationError) return json({ error: "Vérification de l'équipe impossible.", step }, 500);
+      if (teamAllowed !== true) return json({ error: "L'équipe sélectionnée est inactive ou incompatible avec le département.", step }, 400);
       const tempPassword = generateTempPassword();
       step = "create_auth_user";
       const { data: created, error: createError } = await admin.auth.admin.createUser({
