@@ -197,6 +197,85 @@ BEGIN
 END;
 $policy$;
 
+-- Les anciennes politiques CRM qui utilisaient le helper global partagé
+-- sont basculées vers le helper CRM. Les politiques AcreMap et des portails
+-- restent strictement inchangées.
+DO $crm_policy_scope$
+DECLARE
+  p record;
+BEGIN
+  FOR p IN
+    SELECT schemaname, tablename, policyname, qual, with_check
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename NOT LIKE 'acremap_%'
+      AND tablename NOT LIKE 'client_portal_%'
+      AND tablename NOT LIKE 'independent_service_portal_%'
+      AND tablename NOT LIKE 'portail_%'
+      AND tablename NOT LIKE 'portal_%'
+      AND (
+        coalesce(qual, '') ILIKE '%private.is_global_admin%'
+        OR coalesce(with_check, '') ILIKE '%private.is_global_admin%'
+      )
+  LOOP
+    IF p.qual IS NOT NULL AND p.with_check IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER POLICY %I ON %I.%I USING (%s) WITH CHECK (%s)',
+        p.policyname, p.schemaname, p.tablename,
+        replace(p.qual, 'private.is_global_admin', 'private.crm_is_global_admin'),
+        replace(p.with_check, 'private.is_global_admin', 'private.crm_is_global_admin')
+      );
+    ELSIF p.qual IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER POLICY %I ON %I.%I USING (%s)',
+        p.policyname, p.schemaname, p.tablename,
+        replace(p.qual, 'private.is_global_admin', 'private.crm_is_global_admin')
+      );
+    ELSIF p.with_check IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER POLICY %I ON %I.%I WITH CHECK (%s)',
+        p.policyname, p.schemaname, p.tablename,
+        replace(p.with_check, 'private.is_global_admin', 'private.crm_is_global_admin')
+      );
+    END IF;
+  END LOOP;
+
+  -- Le bucket portail-messages appartient au portail client séparé.
+  FOR p IN
+    SELECT schemaname, tablename, policyname, qual, with_check
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname <> 'pdg_dg_storage_portail_messages_all'
+      AND (
+        coalesce(qual, '') ILIKE '%private.is_global_admin%'
+        OR coalesce(with_check, '') ILIKE '%private.is_global_admin%'
+      )
+  LOOP
+    IF p.qual IS NOT NULL AND p.with_check IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER POLICY %I ON %I.%I USING (%s) WITH CHECK (%s)',
+        p.policyname, p.schemaname, p.tablename,
+        replace(p.qual, 'private.is_global_admin', 'private.crm_is_global_admin'),
+        replace(p.with_check, 'private.is_global_admin', 'private.crm_is_global_admin')
+      );
+    ELSIF p.qual IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER POLICY %I ON %I.%I USING (%s)',
+        p.policyname, p.schemaname, p.tablename,
+        replace(p.qual, 'private.is_global_admin', 'private.crm_is_global_admin')
+      );
+    ELSIF p.with_check IS NOT NULL THEN
+      EXECUTE format(
+        'ALTER POLICY %I ON %I.%I WITH CHECK (%s)',
+        p.policyname, p.schemaname, p.tablename,
+        replace(p.with_check, 'private.is_global_admin', 'private.crm_is_global_admin')
+      );
+    END IF;
+  END LOOP;
+END;
+$crm_policy_scope$;
+
 -- La suppression d'un brouillon de paie est une opération de gouvernance :
 -- seul le rôle PDG peut l'exécuter, même si d'autres rôles gèrent la paie.
 CREATE OR REPLACE FUNCTION public.pdg_delete_payroll_draft(p_run_id uuid)
