@@ -274,8 +274,15 @@ serve(async (req) => {
       if (verifiedPrimary.length !== 1 || verifiedPrimary[0].role !== primaryRole) {
         return json({ error: "Le rôle principal n'a pas été enregistré correctement.", step }, 500);
       }
-      const { error: activeError } = await admin.from("profiles").update({ actif: true }).or(`id.eq.${authId},user_id.eq.${authId}`);
+      const { data: activatedProfiles, error: activeError } = await admin.rpc("admin_set_profile_active_authorized", {
+        p_user_id: authId,
+        p_actif: true,
+        p_actor_user_id: caller.user.id,
+      });
       if (activeError) return json({ error: activeError.message, step }, 400);
+      if (!(activatedProfiles ?? []).some((p: any) => p.actif === true)) {
+        return json({ error: "Le statut actif du compte n'a pas été confirmé.", step }, 500);
+      }
       return json({ success: true, action, primary_role: primaryRole, roles: (check ?? []).map((r: any) => r.role) });
     }
 
