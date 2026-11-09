@@ -9,7 +9,7 @@ language plpgsql security definer set search_path = ''
 as $function$
 begin
   if p_actor_user_id is null or (
-    not private.is_global_admin(p_actor_user_id)
+    not private.crm_is_global_admin(p_actor_user_id)
     and not exists (
       select 1 from public.user_roles ur
       join public.role_permissions rp on rp.role_code = ur.role
@@ -28,11 +28,11 @@ begin
   if exists (
     select 1 from unnest(p_roles) as requested(role_code)
     where lower(requested.role_code) in ('pdg','dg','super_admin','admin','administrateur','president','président')
-  ) and not private.is_global_admin(p_actor_user_id) then
+  ) and not private.crm_is_global_admin(p_actor_user_id) then
     raise exception 'Seul le PDG peut attribuer un rôle de gouvernance.' using errcode = '42501';
   end if;
 
-  if not private.is_global_admin(p_actor_user_id) and exists (
+  if not private.crm_is_global_admin(p_actor_user_id) and exists (
     select 1 from public.user_roles ur
     where ur.user_id = p_user_id
       and lower(ur.role) in ('pdg','dg','super_admin','admin','administrateur','president','président')
@@ -75,7 +75,7 @@ language plpgsql security definer set search_path = ''
 as $function$
 begin
   if p_actor_user_id is null or (
-    not private.is_global_admin(p_actor_user_id)
+    not private.crm_is_global_admin(p_actor_user_id)
     and not exists (
       select 1 from public.user_roles ur
       join public.role_permissions rp on rp.role_code = ur.role
@@ -91,7 +91,7 @@ begin
     raise exception 'Utilisateur et statut sont obligatoires.' using errcode = '22023';
   end if;
 
-  if not private.is_global_admin(p_actor_user_id) and exists (
+  if not private.crm_is_global_admin(p_actor_user_id) and exists (
     select 1 from public.user_roles ur
     where ur.user_id = p_user_id
       and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
@@ -116,7 +116,7 @@ begin
     raise exception 'Compte et identifiant valide obligatoires.' using errcode = '22023';
   end if;
 
-  if not private.is_global_admin(p_actor_user_id) and not exists (
+  if not private.crm_is_global_admin(p_actor_user_id) and not exists (
     select 1 from public.user_roles ur
     join public.role_permissions rp on rp.role_code = ur.role
     join public.app_permissions ap on ap.code = rp.permission_code and ap.actif is true
@@ -125,7 +125,7 @@ begin
     raise exception 'Permission insuffisante pour modifier cet identifiant.' using errcode = '42501';
   end if;
 
-  if not private.is_global_admin(p_actor_user_id) and exists (
+  if not private.crm_is_global_admin(p_actor_user_id) and exists (
     select 1 from public.user_roles ur
     where ur.user_id = p_user_id
       and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
