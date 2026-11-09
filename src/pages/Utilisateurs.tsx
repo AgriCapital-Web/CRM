@@ -46,7 +46,7 @@ const Utilisateurs = () => {
   const [newUsername, setNewUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const { can, capabilities } = usePermissions();
+  const { can } = usePermissions();
   const { toast } = useToast();
   const { roles: appRoles } = useAppRoles();
   const canCreateUsers = can("utilisateurs.create");
@@ -392,7 +392,7 @@ const Utilisateurs = () => {
                           <Edit className="h-4 w-4 mr-2" />
                           Modifier
                         </DropdownMenuItem>}
-                        {(!user.user_id && canCreateUsers || canManageRoles) && <DropdownMenuItem onClick={() => openAdminAction(user, "roles")}>
+                        {((!user.user_id && canCreateUsers) || (Boolean(user.user_id) && canManageRoles)) && <DropdownMenuItem onClick={() => openAdminAction(user, "roles")}>
                           <Shield className="h-4 w-4 mr-2" />
                           Gérer les rôles
                         </DropdownMenuItem>}
