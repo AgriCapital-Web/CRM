@@ -33,6 +33,7 @@ AS $function$
       SELECT 1
       FROM public.user_roles ur
       JOIN public.role_permissions rp ON rp.role_code = ur.role
+      JOIN public.app_permissions ap ON ap.code = rp.permission_code AND ap.actif IS TRUE
       WHERE ur.user_id = (SELECT auth.uid())
         AND rp.permission_code = p_permission_code
     );
