@@ -151,6 +151,7 @@ SET search_path = ''
 AS $function$
 DECLARE
   v_username text := lower(trim(COALESCE(p_username, '')));
+  v_updated integer := 0;
 BEGIN
   IF p_user_id IS NULL OR p_actor_user_id IS NULL
      OR v_username !~ '^[a-z0-9._-]{3,30} Only the
@@ -207,9 +208,10 @@ GRANT EXECUTE ON FUNCTION public.admin_set_profile_active_authorized(uuid,boolea
   UPDATE public.profiles
   SET username = v_username, updated_at = now()
   WHERE user_id = p_user_id OR id = p_user_id;
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
   PERFORM set_config('app.internal_account_link', 'false', true);
 
-  IF NOT FOUND THEN
+  IF v_updated = 0 THEN
     RAISE EXCEPTION 'Profil associé au compte introuvable.'
       USING errcode = 'P0002';
   END IF;
