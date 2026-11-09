@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Sprout, CreditCard, TrendingUp, MapPin, Target, Wrench, DollarSign } from "lucide-react";
@@ -17,7 +18,8 @@ interface ZoneStats {
 }
 
 export const RoleDashboard = () => {
-  const { userRoles, user } = useAuth();
+  const { user } = useAuth();
+  const { capabilities } = usePermissions();
   const [stats, setStats] = useState<ZoneStats>({
     totalClients: 0, totalPlantations: 0, totalHectares: 0,
     totalPaiements: 0, paiementsEnAttente: 0, plantationsEnProduction: 0,
@@ -25,16 +27,16 @@ export const RoleDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = userRoles.some(r => ["pdg", "dg", "responsable_operations"].includes(r));
-  const isResponsableCommercial = userRoles.includes("responsable_commercial");
-  const isChefEquipe = userRoles.some(r => ["chef_equipe_commercial", "chef_equipe_technique", "chef_equipe_service_client"].includes(r));
-  const isCommercial = userRoles.includes("commercial");
-  const isTechnique = userRoles.includes("chef_equipe_technique");
+  const isAdmin = capabilities.globalAdmin;
+  const isResponsableCommercial = capabilities.commercialDirector;
+  const isChefEquipe = capabilities.commercialManager || capabilities.technicalManager || capabilities.serviceClient;
+  const isCommercial = capabilities.commercialRole;
+  const isTechnique = capabilities.technicalManager;
 
   useEffect(() => {
     if (!user) return;
     fetchZoneStats();
-  }, [user, userRoles]);
+  }, [user?.id, isAdmin, isResponsableCommercial, isChefEquipe, isCommercial, isTechnique]);
 
   const fetchZoneStats = async () => {
     try {
