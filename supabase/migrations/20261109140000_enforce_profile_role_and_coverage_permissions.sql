@@ -394,5 +394,70 @@ $function$;
 revoke all on function public.user_can_assign_team_to_department(text,uuid) from public, anon, authenticated;
 grant execute on function public.user_can_assign_team_to_department(text,uuid) to service_role;
 
+create or replace function public.admin_update_profile_from_account_request(
+  p_user_id uuid,
+  p_actor_user_id uuid,
+  p_email text,
+  p_nom_complet text,
+  p_telephone text,
+  p_telephone_indicatif text,
+  p_telephone_local text,
+  p_username text,
+  p_poste text,
+  p_photo_url text,
+  p_password_change_required boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  if p_user_id is null or p_actor_user_id is null then
+    raise exception 'Compte cible et acteur obligatoires.' using errcode = '22023';
+  end if;
+
+  if not (
+    private.is_global_admin(p_actor_user_id)
+    or private.user_has_role_permission(p_actor_user_id, 'utilisateurs.create')
+    or private.user_has_role_permission(p_actor_user_id, 'parametres.manage_users')
+  ) then
+    raise exception 'Permission insuffisante pour approuver ce compte.' using errcode = '42501';
+  end if;
+
+  if not private.is_global_admin(p_actor_user_id) and exists (
+    select 1 from public.user_roles ur
+    where ur.user_id = p_user_id
+      and lower(trim(ur.role)) in ('pdg','dg','super_admin','admin','administrateur','president','président')
+  ) then
+    raise exception 'Seul le PDG peut modifier un compte de gouvernance.' using errcode = '42501';
+  end if;
+
+  perform set_config('app.internal_account_link', 'true', true);
+  update public.profiles
+  set email = p_email,
+      nom_complet = p_nom_complet,
+      telephone = p_telephone,
+      telephone_indicatif = p_telephone_indicatif,
+      telephone_local = p_telephone_local,
+      username = p_username,
+      poste = p_poste,
+      photo_url = coalesce(p_photo_url, photo_url),
+      actif = false,
+      password_change_required = coalesce(p_password_change_required, false),
+      updated_at = now()
+  where user_id = p_user_id or id = p_user_id;
+
+  if not found then
+    perform set_config('app.internal_account_link', 'false', true);
+    raise exception 'Profil cible introuvable.' using errcode = 'P0002';
+  end if;
+  perform set_config('app.internal_account_link', 'false', true);
+end;
+$function$;
+
+revoke all on function public.admin_update_profile_from_account_request(uuid,uuid,text,text,text,text,text,text,text,text,boolean) from public, anon, authenticated;
+grant execute on function public.admin_update_profile_from_account_request(uuid,uuid,text,text,text,text,text,text,text,text,boolean) to service_role;
+
 notify pgrst, 'reload schema';
 commit;
