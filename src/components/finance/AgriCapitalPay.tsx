@@ -21,7 +21,7 @@ const categories = [
   ["salary", "Salaire"], ["commission", "Commission"], ["remuneration", "Rémunération"],
   ["indemnity", "Indemnité"], ["bonus", "Prime"], ["supplier", "Fournisseur"],
   ["agricultural_labor", "Main-d’œuvre agricole"], ["partner", "Partenaire"],
-  ["reimbursement", "Remboursement"], ["advance", "Avance"], ["other", "Autre"],
+  ["reimbursement", "Remboursement"], ["refund", "Remboursement client"], ["advance", "Avance"], ["other", "Autre"],
 ] as const;
 const categoryLabel = (value: string) => categories.find(([key]) => key === value)?.[1] || value;
 const statusLabel: Record<string, string> = {
