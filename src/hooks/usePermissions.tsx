@@ -100,7 +100,6 @@ export function usePermissions() {
   const capabilities = useMemo(() => ({
     globalAdmin: permissions.has("system.global_admin"),
     canSuperviseLeads: permissions.has("system.can_supervise_leads"),
-    foncierRole: permissions.has("system.foncier_role"),
     serviceClient: permissions.has("system.service_client"),
     commercialAssignable: permissions.has("system.commercial_assignable"),
     commercialManager: permissions.has("system.commercial_manager"),
