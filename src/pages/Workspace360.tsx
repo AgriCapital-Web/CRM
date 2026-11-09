@@ -87,7 +87,6 @@ export default function Workspace360({ embedded = false }: { embedded?: boolean 
  const [assignProfile,setAssignProfile]=useState("");
  const [assignJob,setAssignJob]=useState("");
  const canManageHR=capabilities.manageHR;
- const canManageTasks=capabilities.manageWorkspaceTasks;
  const load=useCallback(async()=>{
    if(!user?.id)return;
    setLoading(true);
