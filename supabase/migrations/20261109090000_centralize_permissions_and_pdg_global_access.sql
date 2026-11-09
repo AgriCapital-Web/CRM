@@ -76,6 +76,20 @@ $$;
 revoke all on function public.current_user_has_app_permission(text) from public, anon;
 grant execute on function public.current_user_has_app_permission(text) to authenticated, service_role;
 
+-- Correction globale réservée au PDG pour les bénéficiaires particuliers.
+insert into public.app_permissions (code, module, action, libelle, description, actif)
+values ('clients.update_private_beneficiary', 'clients', 'update_private_beneficiary',
+        'Clients — Corriger les bénéficiaires particuliers',
+        'Modification corrective des fiches bénéficiaires particuliers réservée au rôle PDG.',
+        true)
+on conflict (code) do update set
+  module = excluded.module,
+  action = excluded.action,
+  libelle = excluded.libelle,
+  description = excluded.description,
+  actif = true,
+  updated_at = now();
+
 -- API unique consommée par le frontend : elle ne renvoie que des permissions calculées en SQL.
 -- Les capacités system.* sont également résolues ici, jamais par comparaison de rôles dans React.
 create or replace function public.current_user_permissions()
