@@ -46,10 +46,14 @@ const Utilisateurs = () => {
   const [newUsername, setNewUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const { capabilities } = usePermissions();
+  const { can, capabilities } = usePermissions();
   const { toast } = useToast();
   const { roles: appRoles } = useAppRoles();
-  const canManageUserCredentials = capabilities.manageUserCredentials;
+  const canCreateUsers = can("utilisateurs.create");
+  const canUpdateUsers = can("utilisateurs.update");
+  const canManageRoles = can("roles.manage_permissions");
+  const canResetPasswords = can("utilisateurs.reset_password");
+  const canDeleteUsers = can("utilisateurs.delete");
 
   const fetchUtilisateurs = async () => {
     try {
@@ -381,46 +385,36 @@ const Utilisateurs = () => {
                           <Eye className="h-4 w-4 mr-2" />
                           Voir la fiche
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
+                        {canUpdateUsers && <DropdownMenuItem onClick={() => {
                           setSelectedUser(user);
                           setDialogOpen(true);
                         }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Modifier
-                        </DropdownMenuItem>
-                        {canManageUserCredentials && (
-                          <>
-                            <DropdownMenuItem onClick={() => openAdminAction(user, "roles")}>
-                              <Shield className="h-4 w-4 mr-2" />
-                              Gérer les rôles
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openAdminAction(user, "password")}>
-                              <KeyRound className="h-4 w-4 mr-2" />
-                              Changer le mot de passe
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openAdminAction(user, "username")}>
-                              <AtSign className="h-4 w-4 mr-2" />
-                              Changer l'identifiant
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(user)}>
-                              <Trash2 className="h-4 w-4 mr-2" />Supprimer définitivement
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {canManageUserCredentials && (
+                        </DropdownMenuItem>}
+                        {(!user.user_id && canCreateUsers || canManageRoles) && <DropdownMenuItem onClick={() => openAdminAction(user, "roles")}>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Gérer les rôles
+                        </DropdownMenuItem>}
+                        {canResetPasswords && <DropdownMenuItem onClick={() => openAdminAction(user, "password")}>
+                          <KeyRound className="h-4 w-4 mr-2" />
+                          Changer le mot de passe
+                        </DropdownMenuItem>}
+                        {canUpdateUsers && <DropdownMenuItem onClick={() => openAdminAction(user, "username")}>
+                          <AtSign className="h-4 w-4 mr-2" />
+                          Changer l'identifiant
+                        </DropdownMenuItem>}
+                        {canDeleteUsers && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(user)}>
+                          <Trash2 className="h-4 w-4 mr-2" />Supprimer définitivement
+                        </DropdownMenuItem>}
+                        {(canUpdateUsers || canDeleteUsers) && (
                           user.actif ? (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(user.id, false)}
-                              className="text-orange-600"
-                            >
+                            <DropdownMenuItem onClick={() => handleStatusChange(user.id, false)} className="text-orange-600">
                               <UserX className="h-4 w-4 mr-2" />
                               Suspendre
                             </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(user.id, true)}
-                              className="text-green-600"
-                            >
+                            <DropdownMenuItem onClick={() => handleStatusChange(user.id, true)} className="text-green-600">
                               <UserCheck className="h-4 w-4 mr-2" />
                               Activer
                             </DropdownMenuItem>
