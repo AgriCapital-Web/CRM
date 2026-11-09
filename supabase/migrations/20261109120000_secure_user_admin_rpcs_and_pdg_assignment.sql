@@ -25,8 +25,11 @@ BEGIN
       USING errcode = '22023';
   END IF;
 
-  IF 'pdg' = ANY(p_roles) AND NOT private.is_global_admin(p_actor_user_id) THEN
-    RAISE EXCEPTION 'Seul le rôle PDG peut attribuer le rôle PDG.'
+  IF EXISTS (
+    SELECT 1 FROM unnest(p_roles) AS requested(role_code)
+    WHERE lower(requested.role_code) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
+  ) AND NOT private.is_global_admin(p_actor_user_id) THEN
+    RAISE EXCEPTION 'Seul le rôle PDG peut attribuer un rôle de gouvernance.'
       USING errcode = '42501';
   END IF;
 
