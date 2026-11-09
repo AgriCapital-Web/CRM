@@ -622,3 +622,182 @@ DROP TRIGGER IF EXISTS trg_audit_finance_expense_payments ON public.finance_expe
 CREATE TRIGGER trg_audit_finance_expense_payments
 AFTER INSERT OR UPDATE OR DELETE ON public.finance_expense_payments
 FOR EACH ROW EXECUTE FUNCTION public.audit_row_change();
+
+
+-- Associate movements are written and corrected atomically with their ledger entry.
+CREATE OR REPLACE FUNCTION public.finance_create_associate_movement(
+  p_associate_id uuid,
+  p_movement_type text,
+  p_amount numeric,
+  p_movement_date date,
+  p_reference text DEFAULT NULL,
+  p_notes text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_associate public.finance_associates%ROWTYPE;
+  v_transaction_id uuid;
+  v_movement_id uuid;
+  v_is_refund boolean;
+BEGIN
+  IF (SELECT auth.uid()) IS NULL OR NOT public.finance_can_manage() THEN
+    RAISE EXCEPTION 'Vous ne disposez pas du droit d’enregistrer ce mouvement associé.'
+      USING errcode = '42501';
+  END IF;
+
+  IF p_associate_id IS NULL
+     OR p_movement_type NOT IN ('apport','remboursement')
+     OR p_amount IS NULL OR p_amount <= 0
+     OR p_movement_date IS NULL THEN
+    RAISE EXCEPTION 'Associé, type, montant positif et date sont obligatoires.'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT * INTO v_associate
+  FROM public.finance_associates
+  WHERE id = p_associate_id AND active IS TRUE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Cet associé est introuvable ou inactif.'
+      USING errcode = '22023';
+  END IF;
+
+  v_is_refund := p_movement_type = 'remboursement';
+
+  INSERT INTO public.finance_transactions (
+    direction, category, label, amount, transaction_date, status,
+    source_type, reference, notes, created_by
+  ) VALUES (
+    CASE WHEN v_is_refund THEN 'sortie' ELSE 'entree' END,
+    CASE WHEN v_is_refund THEN 'REMBOURSEMENT_ASSOCIE' ELSE 'APPORT_ASSOCIE' END,
+    (CASE WHEN v_is_refund THEN 'Remboursement associé — ' ELSE 'Apport associé — ' END) || v_associate.full_name,
+    p_amount, p_movement_date::timestamp AT TIME ZONE 'UTC', 'valide',
+    'associate', NULLIF(trim(COALESCE(p_reference, '')), ''),
+    NULLIF(trim(COALESCE(p_notes, '')), ''),
+    (SELECT auth.uid())
+  )
+  RETURNING id INTO v_transaction_id;
+
+  INSERT INTO public.finance_associate_transactions (
+    associate_id, movement_type, contribution_status, estimated_value,
+    notes, transaction_id
+  ) VALUES (
+    p_associate_id, p_movement_type, 'numeraire', p_amount,
+    NULLIF(trim(COALESCE(p_notes, '')), ''), v_transaction_id
+  )
+  RETURNING id INTO v_movement_id;
+
+  RETURN v_movement_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.finance_create_associate_movement(uuid,text,numeric,date,text,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.finance_create_associate_movement(uuid,text,numeric,date,text,text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.finance_update_associate_movement(
+  p_movement_id uuid,
+  p_associate_id uuid,
+  p_movement_type text,
+  p_amount numeric,
+  p_movement_date date,
+  p_reference text DEFAULT NULL,
+  p_notes text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_associate public.finance_associates%ROWTYPE;
+  v_transaction_id uuid;
+  v_is_refund boolean;
+BEGIN
+  IF (SELECT auth.uid()) IS NULL OR NOT public.finance_can_manage() THEN
+    RAISE EXCEPTION 'Vous ne disposez pas du droit de corriger ce mouvement associé.'
+      USING errcode = '42501';
+  END IF;
+
+  IF p_movement_id IS NULL OR p_associate_id IS NULL
+     OR p_movement_type NOT IN ('apport','remboursement')
+     OR p_amount IS NULL OR p_amount <= 0
+     OR p_movement_date IS NULL THEN
+    RAISE EXCEPTION 'Les informations du mouvement associé sont invalides.'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT * INTO v_associate
+  FROM public.finance_associates
+  WHERE id = p_associate_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Cet associé est introuvable.'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT m.transaction_id INTO v_transaction_id
+  FROM public.finance_associate_transactions m
+  WHERE m.id = p_movement_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ce mouvement associé est introuvable.'
+      USING errcode = 'P0002';
+  END IF;
+
+  v_is_refund := p_movement_type = 'remboursement';
+
+  UPDATE public.finance_associate_transactions
+  SET associate_id = p_associate_id,
+      movement_type = p_movement_type,
+      contribution_status = 'numeraire',
+      estimated_value = p_amount,
+      notes = NULLIF(trim(COALESCE(p_notes, '')), '')
+  WHERE id = p_movement_id;
+
+  IF v_transaction_id IS NULL THEN
+    INSERT INTO public.finance_transactions (
+      direction, category, label, amount, transaction_date, status,
+      source_type, reference, notes, created_by
+    ) VALUES (
+      CASE WHEN v_is_refund THEN 'sortie' ELSE 'entree' END,
+      CASE WHEN v_is_refund THEN 'REMBOURSEMENT_ASSOCIE' ELSE 'APPORT_ASSOCIE' END,
+      (CASE WHEN v_is_refund THEN 'Remboursement associé — ' ELSE 'Apport associé — ' END) || v_associate.full_name,
+      p_amount, p_movement_date::timestamp AT TIME ZONE 'UTC', 'valide',
+      'associate', NULLIF(trim(COALESCE(p_reference, '')), ''),
+      NULLIF(trim(COALESCE(p_notes, '')), ''),
+      (SELECT auth.uid())
+    )
+    RETURNING id INTO v_transaction_id;
+
+    UPDATE public.finance_associate_transactions
+    SET transaction_id = v_transaction_id
+    WHERE id = p_movement_id;
+  ELSE
+    UPDATE public.finance_transactions
+    SET direction = CASE WHEN v_is_refund THEN 'sortie' ELSE 'entree' END,
+        category = CASE WHEN v_is_refund THEN 'REMBOURSEMENT_ASSOCIE' ELSE 'APPORT_ASSOCIE' END,
+        label = (CASE WHEN v_is_refund THEN 'Remboursement associé — ' ELSE 'Apport associé — ' END) || v_associate.full_name,
+        amount = p_amount,
+        transaction_date = p_movement_date::timestamp AT TIME ZONE 'UTC',
+        reference = NULLIF(trim(COALESCE(p_reference, '')), ''),
+        notes = NULLIF(trim(COALESCE(p_notes, '')), ''),
+        updated_at = now()
+    WHERE id = v_transaction_id;
+  END IF;
+
+  RETURN p_movement_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.finance_update_associate_movement(uuid,uuid,text,numeric,date,text,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.finance_update_associate_movement(uuid,uuid,text,numeric,date,text,text) TO authenticated;
+
+DROP TRIGGER IF EXISTS trg_audit_finance_associate_transactions ON public.finance_associate_transactions;
+CREATE TRIGGER trg_audit_finance_associate_transactions
+AFTER INSERT OR UPDATE OR DELETE ON public.finance_associate_transactions
+FOR EACH ROW EXECUTE FUNCTION public.audit_row_change();
