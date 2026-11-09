@@ -162,18 +162,22 @@ export default function Finance(){
     setSaving(true);
     let uploadedProofPath:string|null=null;
     try{
-      const labels:Record<string,string>={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",vente:"Vente",autre:"Autre entrée"};
       if(entryProof){
         const uploaded=await uploadFile("documents",entryProof,"finance/entrees");
         if(!uploaded?.path)throw new Error("Le justificatif de l’entrée n’a pas pu être téléversé.");
         uploadedProofPath=uploaded.path;
       }
-      const {error}=await (supabase as any).from("finance_transactions").insert({
-        direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
-        label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:Number(entryForm.amount),
-        transaction_date:new Date(entryForm.date+"T12:00:00").toISOString(),payment_method:entryForm.method||null,
-        reference:entryForm.reference.trim()||null,contact_phone:entryForm.contactPhone.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
-        proof_path:uploadedProofPath,proof_name:entryProof?.name||null
+      const {error}=await (supabase as any).rpc("finance_create_manual_entry",{
+        p_source_type:entryForm.type,
+        p_source_name:entryForm.source.trim(),
+        p_amount:Number(entryForm.amount),
+        p_transaction_date:entryForm.date,
+        p_payment_method:entryForm.method||null,
+        p_reference:entryForm.reference.trim()||null,
+        p_contact_phone:entryForm.contactPhone.trim()||null,
+        p_notes:entryForm.notes.trim()||null,
+        p_proof_path:uploadedProofPath,
+        p_proof_name:entryProof?.name||null
       });
       if(error)throw error;
       toast({title:"Entrée enregistrée"});
@@ -198,25 +202,20 @@ export default function Finance(){
         if (!uploaded?.path) throw new Error("Le justificatif n’a pas pu être téléversé.");
         proofPath = uploaded.path;
       }
-      const {data,error}=await (supabase as any).from("finance_transactions").insert({
-        direction:"sortie",category:"DEPENSE",label:expense.category,amount:Number(expense.amount),
-        transaction_date:new Date(expense.date+"T12:00:00").toISOString(),status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        notes:expense.description||null
-      }).select("id").single();
-      if(error) throw error;
-      const {error: expenseError}=await (supabase as any).from("finance_expenses").insert({
-        transaction_id:data.id,expense_category:expense.category,profile_id:expense.profileId||null,supplier_name:profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null,
-        description:expense.description||null,client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        is_direct_cost:expense.direct,expense_date:expense.date,
-        total_amount:Number(expense.amount),paid_amount:Number(expense.amount),status:"paid",
-        proof_path:proofPath,proof_name:expenseProof?.name||null,
-        proof_mime_type:expenseProof?.type||null
+      const {error}=await (supabase as any).rpc("finance_create_expense",{
+        p_category:expense.category,
+        p_amount:Number(expense.amount),
+        p_expense_date:expense.date,
+        p_description:expense.description||null,
+        p_profile_id:expense.profileId||null,
+        p_client_id:expense.clientId||null,
+        p_plantation_id:expense.plantationId||null,
+        p_is_direct_cost:expense.direct,
+        p_proof_path:proofPath,
+        p_proof_name:expenseProof?.name||null,
+        p_proof_mime_type:expenseProof?.type||null
       });
-      if(expenseError) {
-        const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",data.id);
-        if(rollbackError)throw new Error(`Le justificatif de sortie n’a pas pu être enregistré (${expenseError.message}) et la transaction financière ${data.id} n’a pas pu être annulée automatiquement (${rollbackError.message}).`);
-        throw expenseError;
-      }
+      if(error) throw error;
       toast({title:"Sortie enregistrée",description:proofPath ? "Justificatif joint à la sortie." : "Sortie enregistrée sans justificatif."});
       setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false});
       setExpenseUserPickerOpen(false);
