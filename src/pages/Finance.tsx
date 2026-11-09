@@ -353,6 +353,80 @@ export default function Finance(){
     finally{setSaving(false);}
   };
 
+  const openPlannedExpenseRecord=(item:any)=>{
+    setSelectedPlannedExpense(item);
+    setPlannedExpense({
+      category:item.expense_category||"PRESTATIONS",
+      amount:String(item.total_amount||""),
+      description:item.description||"",
+      beneficiary:item.beneficiary_name||item.supplier_name||"",
+      beneficiaryPhone:item.beneficiary_phone||"",
+      profileId:item.profile_id||"",
+      isInternalUser:Boolean(item.profile_id),
+      expenseDate:item.expense_date||new Date().toISOString().slice(0,10),
+      dueDate:item.due_date||"",
+      direct:Boolean(item.is_direct_cost),
+    });
+    setPlannedProof(null);
+    setPlannedExpenseMode("view");
+    setPlannedExpenseOpen(true);
+  };
+
+  const restorePlannedExpenseView=()=>{
+    if(selectedPlannedExpense){
+      setPlannedExpense({
+        category:selectedPlannedExpense.expense_category||"PRESTATIONS",
+        amount:String(selectedPlannedExpense.total_amount||""),
+        description:selectedPlannedExpense.description||"",
+        beneficiary:selectedPlannedExpense.beneficiary_name||selectedPlannedExpense.supplier_name||"",
+        beneficiaryPhone:selectedPlannedExpense.beneficiary_phone||"",
+        profileId:selectedPlannedExpense.profile_id||"",
+        isInternalUser:Boolean(selectedPlannedExpense.profile_id),
+        expenseDate:selectedPlannedExpense.expense_date||new Date().toISOString().slice(0,10),
+        dueDate:selectedPlannedExpense.due_date||"",
+        direct:Boolean(selectedPlannedExpense.is_direct_cost),
+      });
+    }
+    setPlannedProof(null);
+    setPlannedExpenseMode("view");
+  };
+
+  const savePlannedExpenseUpdate=async()=>{
+    if(!selectedPlannedExpense)return;
+    const amount=Number(plannedExpense.amount);
+    if(!plannedExpense.category||!Number.isFinite(amount)||amount<=0||!plannedExpense.expenseDate||(plannedExpense.isInternalUser&&!plannedExpense.profileId)){
+      toast({title:"Informations requises",description:"Vérifiez le bénéficiaire, la catégorie, la date et le montant.",variant:"destructive"});return;
+    }
+    setSaving(true);
+    let proofPath:string|null=null;
+    try{
+      if(plannedProof){const uploaded=await uploadFile("documents",plannedProof,"finance/depenses-a-payer");if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");proofPath=uploaded.path;}
+      const beneficiaryName=plannedExpense.isInternalUser?profiles.find((p:any)=>p.id===plannedExpense.profileId)?.nom_complet:plannedExpense.beneficiary.trim();
+      const {error}=await (supabase as any).rpc("finance_update_planned_expense",{
+        p_expense_id:selectedPlannedExpense.id,
+        p_category:plannedExpense.category,
+        p_amount:amount,
+        p_expense_date:plannedExpense.expenseDate,
+        p_due_date:plannedExpense.dueDate||null,
+        p_description:plannedExpense.description.trim()||null,
+        p_profile_id:plannedExpense.isInternalUser?plannedExpense.profileId||null:null,
+        p_beneficiary_name:beneficiaryName||null,
+        p_beneficiary_phone:plannedExpense.isInternalUser?null:plannedExpense.beneficiaryPhone.trim()||null,
+        p_is_direct_cost:plannedExpense.direct,
+        p_proof_path:proofPath,
+        p_proof_name:plannedProof?.name||null,
+        p_proof_mime_type:plannedProof?.type||null
+      });
+      if(error)throw error;
+      toast({title:"Dépense à payer corrigée",description:"La fiche a été mise à jour et la modification tracée."});
+      setPlannedExpenseOpen(false);setSelectedPlannedExpense(null);setPlannedExpenseMode("new");setPlannedProof(null);await load();
+    }catch(error:any){
+      if(proofPath)await supabase.storage.from("documents").remove([proofPath]);
+      toast({title:"Correction impossible",description:error?.message||"Réessayez.",variant:"destructive"});
+    }finally{setSaving(false);}
+  };
+
+
   const registerExpensePayment=async()=>{
     if(!paymentTarget)return;
     const amount=Number(paymentAmount);
