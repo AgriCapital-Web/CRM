@@ -14,6 +14,13 @@ BEGIN
   END IF;
 
   IF public.is_admin((SELECT auth.uid())) THEN
+    IF EXISTS (
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = COALESCE(OLD.user_id, OLD.id) AND ur.role = 'pdg'
+    ) AND NOT private.is_global_admin((SELECT auth.uid())) THEN
+      RAISE EXCEPTION 'Seul le rôle PDG peut modifier le profil d’un compte PDG.'
+        USING errcode = '42501';
+    END IF;
     IF (
       OLD.relation_rh IN ('PDG','DG')
       OR NEW.relation_rh IN ('PDG','DG')
@@ -61,6 +68,13 @@ BEGIN
   END IF;
 
   IF public.is_admin((SELECT auth.uid())) THEN
+    IF EXISTS (
+      SELECT 1 FROM public.user_roles ur
+      WHERE ur.user_id = COALESCE(OLD.user_id, OLD.id) AND ur.role = 'pdg'
+    ) AND NOT private.is_global_admin((SELECT auth.uid())) THEN
+      RAISE EXCEPTION 'Seul le rôle PDG peut modifier le profil d’un compte PDG.'
+        USING errcode = '42501';
+    END IF;
     IF (
       OLD.relation_rh IN ('PDG','DG')
       OR NEW.relation_rh IN ('PDG','DG')
