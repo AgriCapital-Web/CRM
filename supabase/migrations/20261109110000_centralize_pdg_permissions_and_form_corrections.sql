@@ -83,9 +83,9 @@ AS $function$
     UNION SELECT 'system.technical_manager'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'chef_equipe_technique')
     UNION SELECT 'system.manage_account_requests'
-      WHERE public.is_admin((SELECT auth.uid()))
+      WHERE private.has_role_permission('parametres.manage_users')
     UNION SELECT 'system.manage_user_credentials'
-      WHERE public.is_admin((SELECT auth.uid()))
+      WHERE private.has_role_permission('utilisateurs.update')
          OR private.has_role_permission('utilisateurs.reset_password')
     UNION SELECT 'system.client_only'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'user')
@@ -103,13 +103,24 @@ AS $function$
     UNION SELECT 'system.commercial_role'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role = 'commercial')
     UNION SELECT 'system.zone_scope_global'
-      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('super_admin','pdg','dg','responsable_operations','responsable_commercial','chef_equipe_commercial','chef_equipe_technique','service_client','chef_equipe_service_client','comptable','assistant_administratif'))
+      WHERE private.is_global_admin((SELECT auth.uid()))
+         OR EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('responsable_operations','manager_commercial_national','manager_technique_national'))
     UNION SELECT 'system.independent_service_write'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','service_client','chef_equipe_service_client'))
     UNION SELECT 'system.independent_service_operations'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('pdg','dg','technicien','chef_equipe_technique','manager_technique_national','responsable_operations'))
     UNION SELECT 'system.manage_hr'
       WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND ur.role IN ('rh','responsable_rh','ressources_humaines','admin','administrateur','pdg','dg','directeur_general','directeur général'))
+    UNION SELECT 'system.role_pdg'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND lower(trim(ur.role)) = 'pdg')
+    UNION SELECT 'system.role_responsable_commercial'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND lower(trim(ur.role)) = 'responsable_commercial')
+    UNION SELECT 'system.role_chef_equipe'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND lower(trim(ur.role)) IN ('chef_equipe_commercial','chef_equipe_technique','chef_equipe_service_client'))
+    UNION SELECT 'system.role_commercial'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND lower(trim(ur.role)) = 'commercial')
+    UNION SELECT 'system.role_technique'
+      WHERE EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = (SELECT auth.uid()) AND lower(trim(ur.role)) = 'chef_equipe_technique')
   ) effective_permissions
   WHERE (SELECT auth.uid()) IS NOT NULL;
 $function$;
