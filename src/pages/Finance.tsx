@@ -43,6 +43,8 @@ export default function Finance(){
   const [associateMovementOpen,setAssociateMovementOpen]=useState(false);
   const [associateMovement,setAssociateMovement]=useState({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:""});
   const [plannedExpenseOpen,setPlannedExpenseOpen]=useState(false);
+  const [plannedExpenseMode,setPlannedExpenseMode]=useState<"new"|"view"|"edit">("new");
+  const [selectedPlannedExpense,setSelectedPlannedExpense]=useState<any|null>(null);
   const [plannedInternalUserPickerOpen,setPlannedInternalUserPickerOpen]=useState(false);
   const [tableSearch,setTableSearch]=useState("");
   const [profiles,setProfiles]=useState<any[]>([]);
@@ -86,6 +88,7 @@ export default function Finance(){
   const canView=can("finance.view");
   const canManage=can("finance.manage");
   const canEditExpense=can("finance.expenses")||can("finance.manage");
+  const canEditPlannedExpense=can("finance.expenses")||can("finance.manage");
 
   const reportSources=useMemo(()=>{
     const map=new Map<string,{source:string;entrees:number;sorties:number;count:number}>();
@@ -327,15 +330,20 @@ export default function Finance(){
     let proofPath:string|null=null;
     try{
       if(plannedProof){const uploaded=await uploadFile("documents",plannedProof,"finance/depenses-a-payer");if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");proofPath=uploaded.path;}
-      const {error}=await (supabase as any).from("finance_expenses").insert({
-        transaction_id:null,expense_category:plannedExpense.category,description:plannedExpense.description.trim()||null,
-        profile_id:plannedExpense.isInternalUser?plannedExpense.profileId||null:null,
-        supplier_name:(plannedExpense.isInternalUser?profiles.find((p:any)=>p.id===plannedExpense.profileId)?.nom_complet:plannedExpense.beneficiary.trim())||null,
-        beneficiary_name:(plannedExpense.isInternalUser?profiles.find((p:any)=>p.id===plannedExpense.profileId)?.nom_complet:plannedExpense.beneficiary.trim())||null,
-        beneficiary_phone:plannedExpense.isInternalUser?null:plannedExpense.beneficiaryPhone.trim()||null,
-        is_direct_cost:plannedExpense.direct,expense_date:plannedExpense.expenseDate,due_date:plannedExpense.dueDate||null,
-        total_amount:amount,paid_amount:0,status:"unpaid",payment_method:null,notes:null,
-        proof_path:proofPath,proof_name:plannedProof?.name||null,proof_mime_type:plannedProof?.type||null
+      const beneficiaryName=plannedExpense.isInternalUser?profiles.find((p:any)=>p.id===plannedExpense.profileId)?.nom_complet:plannedExpense.beneficiary.trim();
+      const {error}=await (supabase as any).rpc("finance_create_planned_expense",{
+        p_category:plannedExpense.category,
+        p_amount:amount,
+        p_expense_date:plannedExpense.expenseDate,
+        p_due_date:plannedExpense.dueDate||null,
+        p_description:plannedExpense.description.trim()||null,
+        p_profile_id:plannedExpense.isInternalUser?plannedExpense.profileId||null:null,
+        p_beneficiary_name:beneficiaryName||null,
+        p_beneficiary_phone:plannedExpense.isInternalUser?null:plannedExpense.beneficiaryPhone.trim()||null,
+        p_is_direct_cost:plannedExpense.direct,
+        p_proof_path:proofPath,
+        p_proof_name:plannedProof?.name||null,
+        p_proof_mime_type:plannedProof?.type||null
       });
       if(error)throw error;
       toast({title:"Dépense à payer enregistrée",description:"Elle reste distincte des sorties jusqu’à l’enregistrement d’un paiement."});
@@ -350,29 +358,27 @@ export default function Finance(){
     const amount=Number(paymentAmount);
     const remaining=Number(paymentTarget.total_amount||0)-Number(paymentTarget.paid_amount||0);
     if(!Number.isFinite(amount)||amount<=0||amount>remaining){toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});return;}
-    setSaving(true);let proofPath:string|null=null;let transactionId:string|null=null;
+    setSaving(true);let proofPath:string|null=null;
     try{
       if(paymentProof){const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");proofPath=uploaded.path;}
+      const {error}=await (supabase as any).rpc("finance_register_expense_payment",{
+        p_expense_id:paymentTarget.id,
+        p_amount:amount,
+        p_paid_at:new Date(paymentDate+"T12:00:00").toISOString(),
+        p_payment_method:paymentMethod,
+        p_reference:paymentReference.trim()||null,
+        p_proof_path:proofPath,
+        p_proof_name:paymentProof?.name||null
+      });
+      if(error)throw error;
       const nextPaid=Number(paymentTarget.paid_amount||0)+amount;
       const status=nextPaid>=Number(paymentTarget.total_amount)?"paid":"partial";
-      const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({
-        direction:"sortie",category:paymentTarget.expense_category,label:paymentTarget.expense_category+(paymentTarget.description?" — "+paymentTarget.description:""),
-        amount,transaction_date:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
-        reference:paymentReference.trim()||null,source_type:"finance_expense",source_id:paymentTarget.id,status:"valide",
-        notes:paymentTarget.description||("Bénéficiaire : "+(paymentTarget.beneficiary_name||paymentTarget.supplier_name||"—")),
-        proof_path:proofPath,proof_name:paymentProof?.name||null
-      }).select("id").single();
-      if(txError)throw txError;transactionId=tx.id;
-      const {error:payError}=await (supabase as any).from("finance_expense_payments").insert({
-        expense_id:paymentTarget.id,transaction_id:transactionId,amount,paid_at:new Date(paymentDate+"T12:00:00").toISOString(),
-        payment_method:paymentMethod,proof_path:proofPath,proof_name:paymentProof?.name||null
-      });
-      if(payError)throw payError;
-      const {error:updateError}=await (supabase as any).from("finance_expenses").update({paid_amount:nextPaid,status,transaction_id:transactionId,payment_method:paymentMethod}).eq("id",paymentTarget.id);
-      if(updateError)throw updateError;
-      toast({title:"Paiement enregistré",description:status==="paid"?"Dépense entièrement payée et inscrite dans les sorties.":"Paiement partiel enregistré dans les sorties; le solde reste à payer."});
+      toast({title:"Paiement enregistré",description:status==="paid"?"Dépense entièrement payée et inscrite dans les sorties.":"Paiement partiel enregistré; le solde reste à payer."});
       setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);await load();
-    }catch(error:any){toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});}
+    }catch(error:any){
+      if(proofPath)await supabase.storage.from("documents").remove([proofPath]);
+      toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});
+    }
     finally{setSaving(false);}
   };
 
