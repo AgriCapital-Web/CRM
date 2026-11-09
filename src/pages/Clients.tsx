@@ -48,7 +48,7 @@ const Clients = () => {
   const navigate = useNavigate();
   const acquisitionsView = location.pathname === "/acquisitions";
   const { can } = usePermissions();
-  const canEditClient = can("clients.update");
+  const canEditClient = (client: any) => can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
   const canDeleteClient = can("clients.delete");
   const [clients, setClients] = useState<any[]>([]);
   const [salesPendingValidation, setSalesPendingValidation] = useState(0);
@@ -210,7 +210,7 @@ const Clients = () => {
   );
   const handleStatusChange = async (id: string, newStatus: string) => {
     const client = clients.find(s => s.id === id);
-    if (!canEditClient) { toast({variant:"destructive",title:"Action non autorisée",description:"Votre compte ne dispose pas de la permission de modification."}); return; }
+    if (!canEditClient(client)) { toast({variant:"destructive",title:"Action non autorisée",description:"Votre compte ne dispose pas de la permission de modification."}); return; }
     try {
       const { error } = await offlineUpdate("clients", id, { statut: newStatus, statut_global: newStatus });
       if (error) throw error;
@@ -499,9 +499,9 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {canEditClient && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
-                                  {canEditClient && <DropdownMenuSeparator />}
-                                  {canEditClient && client.statut !== 'actif' && (
+                                  {canEditClient(client) && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
+                                  {canEditClient(client) && <DropdownMenuSeparator />}
+                                  {canEditClient(client) && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
                                       <RotateCcw className="mr-2 h-4 w-4 text-green-500" />
                                       Activer
