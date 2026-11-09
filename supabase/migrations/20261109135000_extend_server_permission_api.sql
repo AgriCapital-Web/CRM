@@ -1,5 +1,5 @@
 -- Server-side consumers receive the same effective permission result as the CRM UI.
-CREATE OR REPLACE FUNCTION public.user_app_permissions(_user_id uuid)
+CREATE OR REPLACE FUNCTION public.crm_user_app_permissions(_user_id uuid)
 RETURNS text[]
 LANGUAGE sql
 STABLE
@@ -13,7 +13,7 @@ AS $function$
   FROM public.app_permissions ap
   WHERE ap.actif IS TRUE
     AND (
-      private.is_global_admin(_user_id)
+      private.crm_is_global_admin(_user_id)
       OR EXISTS (
         SELECT 1
         FROM public.user_roles ur
@@ -34,8 +34,8 @@ AS $function$
   SELECT private.can_supervise_leads(_user_id);
 $function$;
 
-REVOKE ALL ON FUNCTION public.user_app_permissions(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.user_app_permissions(uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.crm_user_app_permissions(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.crm_user_app_permissions(uuid) TO service_role;
 
 REVOKE ALL ON FUNCTION public.user_can_supervise_leads(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.user_can_supervise_leads(uuid) TO service_role;
