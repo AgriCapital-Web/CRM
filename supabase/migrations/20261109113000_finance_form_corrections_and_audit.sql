@@ -126,6 +126,7 @@ BEGIN
      OR p_amount IS NULL
      OR p_amount <= 0
      OR p_transaction_date IS NULL
+     OR p_source_type IS NULL
      OR p_source_type NOT IN ('financement','pret','don','vente','autre') THEN
     RAISE EXCEPTION 'Les informations de l’entrée financière sont invalides.'
       USING errcode = '22023';
