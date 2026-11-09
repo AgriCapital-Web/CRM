@@ -55,12 +55,14 @@ begin
   perform public.admin_set_user_roles_with_primary(p_user_id, p_roles, p_primary_role);
   perform set_config('app.internal_account_link', 'true', true);
   update public.profiles
-  set relation_rh = case
-    when 'pdg' = any(p_roles) then 'PDG'
-    when 'dg' = any(p_roles) then 'DG'
-    when relation_rh in ('PDG','DG') then 'Employé'
-    else relation_rh
-  end
+  set poste = p_primary_role,
+      relation_rh = case
+        when 'pdg' = any(p_roles) then 'PDG'
+        when 'dg' = any(p_roles) then 'DG'
+        when 'associe_actionnaire' = any(p_roles) then 'Associé / Actionnaire'
+        when relation_rh in ('PDG','DG','Associé / Actionnaire') then 'Employé'
+        else relation_rh
+      end
   where user_id = p_user_id;
   perform set_config('app.internal_account_link', 'false', true);
 end;
