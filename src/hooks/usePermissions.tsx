@@ -121,6 +121,8 @@ export function usePermissions() {
     zoneScopeGlobal: permissions.has("system.zone_scope_global"),
     independentServiceWrite: permissions.has("system.independent_service_write"),
     independentServiceOperations: permissions.has("system.independent_service_operations"),
+    manageHR: permissions.has("system.manage_hr"),
+    manageWorkspaceTasks: permissions.has("system.manage_workspace_tasks"),
   }), [permissions]);
 
   return {
