@@ -26,9 +26,6 @@ import KanbanPipeline from "@/components/acquisitions/KanbanPipeline";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
 
-// AgriCapital est un compte interne et ne doit jamais apparaître dans les listes commerciales.
-const isAgriCapitalInternal = (client: any) => /agricapital/i.test(String(client?.nom_complet || client?.nom || "").trim());
-
 const formatHectares = (value: unknown) => {
   const hectares = Number(value || 0);
   return Math.round(hectares).toLocaleString("fr-FR");
@@ -162,7 +159,7 @@ const Clients = () => {
       // Exclure uniquement l'entité interne AgriCapital et les propriétaires fonciers.
       // Les bénéficiaires particuliers sont affichés aussi dans Acquisition.
       setClients(enrichedData.filter((client: any) =>
-        !client.is_internal && !isAgriCapitalInternal(client) &&
+        !client.is_internal &&
         String(client.type_client || "").toLowerCase() !== "proprietaire_foncier"
       ));
     } catch (error: any) {
@@ -172,7 +169,7 @@ const Clients = () => {
           getCachedPlantations(),
         ]);
         const enrichedData = cachedClients
-          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) &&
+          .filter((client: any) => !client.is_internal &&
             String(client.type_client || "").toLowerCase() !== "proprietaire_foncier")
           .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
