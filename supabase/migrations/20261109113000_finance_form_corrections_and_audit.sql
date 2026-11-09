@@ -24,6 +24,7 @@ AS $function$
 DECLARE
   v_transaction_id uuid;
   v_paid_amount numeric;
+  v_has_payment_history boolean := false;
 BEGIN
   IF (SELECT auth.uid()) IS NULL OR NOT public.finance_can_manage() THEN
     RAISE EXCEPTION 'Vous ne disposez pas du droit de corriger cette sortie.'
@@ -50,8 +51,13 @@ BEGIN
       USING errcode = 'P0002';
   END IF;
 
-  IF p_amount < COALESCE(v_paid_amount, 0) THEN
-    RAISE EXCEPTION 'Le montant total ne peut pas être inférieur au montant déjà payé.'
+  SELECT EXISTS (
+    SELECT 1 FROM public.finance_expense_payments p
+    WHERE p.expense_id = p_expense_id
+  ) INTO v_has_payment_history;
+
+  IF v_has_payment_history AND p_amount < COALESCE(v_paid_amount, 0) THEN
+    RAISE EXCEPTION 'Le montant total ne peut pas être inférieur aux paiements réellement enregistrés.'
       USING errcode = '22023';
   END IF;
 
@@ -68,6 +74,9 @@ BEGIN
       is_direct_cost = COALESCE(p_is_direct_cost, false),
       expense_date = p_expense_date,
       total_amount = p_amount,
+      paid_amount = CASE WHEN v_has_payment_history THEN paid_amount ELSE p_amount END,
+      status = CASE WHEN v_has_payment_history AND paid_amount < p_amount THEN 'partial' ELSE 'paid' END,
+      transaction_id = CASE WHEN v_has_payment_history AND paid_amount < p_amount THEN NULL ELSE transaction_id END,
       proof_path = COALESCE(p_proof_path, proof_path),
       proof_name = COALESCE(p_proof_name, proof_name),
       proof_mime_type = COALESCE(p_proof_mime_type, proof_mime_type)
