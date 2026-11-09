@@ -32,20 +32,15 @@ serve(async (req) => {
     if (!token) return json({ error: "Non authentifié", step, logs }, 401);
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
-    const { data: isAdmin, error: adminCheckError } = await admin.rpc("is_admin", { _user_id: caller.user.id });
-    if (adminCheckError) {
-      log(`échec vérification is_admin: ${adminCheckError.message}`);
+    const { data: canManageRequests, error: permissionError } = await admin.rpc("user_has_app_permission", {
+      _user_id: caller.user.id,
+      _required_code: "parametres.manage_users",
+    });
+    if (permissionError) {
+      return json({ error: `Vérification des permissions impossible: ${permissionError.message}`, step, logs }, 500);
     }
-    const { data: callerRoles, error: rolesCheckError } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.user.id);
-    if (rolesCheckError) {
-      return json({ error: `Vérification des rôles impossible: ${rolesCheckError.message}`, step, logs }, 500);
-    }
-    const hasPdgRole = (callerRoles ?? []).some((r: any) => r.role === "pdg");
-    if (isAdmin !== true && !hasPdgRole) {
-      return json({ error: "Accès réservé au PDG ou aux administrateurs", step, logs }, 403);
+    if (canManageRequests !== true) {
+      return json({ error: "Accès réservé aux utilisateurs autorisés à gérer les comptes.", step, logs }, 403);
     }
     log(`caller=${caller.user.id}`);
 
