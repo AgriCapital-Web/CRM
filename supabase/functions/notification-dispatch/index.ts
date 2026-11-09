@@ -849,16 +849,16 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
       if (!beneficiary) throw new Error("Beneficiaire du decaissement introuvable.");
       let linkedProfile: any = null;
       if (payout.profile_id) {
-        const { data, error } = await admin.from("profiles").select("id,user_id,prenoms,nom,nom_complet,telephone,email")
+        const { data, error } = await admin.from("profiles").select("id,user_id,prenoms,nom,nom_complet,telephone,whatsapp,email")
           .eq("id", payout.profile_id).maybeSingle();
         if (error) throw error;
         linkedProfile = data;
       }
-      const firstNames = linkedProfile?.prenoms || beneficiary.first_names || "";
-      const lastName = linkedProfile?.nom || beneficiary.last_name || "";
+      const firstNames = linkedProfile ? (linkedProfile.prenoms || "") : (beneficiary.first_names || "");
+      const lastName = linkedProfile ? (linkedProfile.nom || "") : (beneficiary.last_name || "");
       const displayName = [firstNames, lastName].filter(Boolean).join(" ").trim()
-        || linkedProfile?.nom_complet || beneficiary.display_name || "";
-      const phone = linkedProfile?.telephone || beneficiary.phone || "";
+        || linkedProfile?.nom_complet || (linkedProfile ? "" : beneficiary.display_name || "");
+      const phone = linkedProfile?.telephone || linkedProfile?.whatsapp || beneficiary.phone || "";
       if (!phone) throw new Error("Telephone du beneficiaire absent.");
       contacts = [{
         source_type: "lead",
