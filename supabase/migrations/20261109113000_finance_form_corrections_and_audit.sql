@@ -650,6 +650,7 @@ BEGIN
   END IF;
 
   IF p_associate_id IS NULL
+     OR p_movement_type IS NULL
      OR p_movement_type NOT IN ('apport','remboursement')
      OR p_amount IS NULL OR p_amount <= 0
      OR p_movement_date IS NULL THEN
@@ -723,6 +724,7 @@ BEGIN
   END IF;
 
   IF p_movement_id IS NULL OR p_associate_id IS NULL
+     OR p_movement_type IS NULL
      OR p_movement_type NOT IN ('apport','remboursement')
      OR p_amount IS NULL OR p_amount <= 0
      OR p_movement_date IS NULL THEN
