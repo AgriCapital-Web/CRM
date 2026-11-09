@@ -33,6 +33,16 @@ BEGIN
       USING errcode = '42501';
   END IF;
 
+  IF NOT private.is_global_admin(p_actor_user_id)
+     AND EXISTS (
+       SELECT 1 FROM public.user_roles ur
+       WHERE ur.user_id = p_user_id
+         AND lower(ur.role) IN ('pdg','dg','super_admin','admin','administrateur','president','président')
+     ) THEN
+    RAISE EXCEPTION 'Seul le rôle PDG peut modifier les rôles d’un compte de gouvernance.'
+      USING errcode = '42501';
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM unnest(p_roles) AS requested(role_code)
@@ -55,6 +65,18 @@ BEGIN
     p_roles,
     p_primary_role
   );
+
+  -- Keep the profile label aligned with the authoritative user_roles table.
+  PERFORM set_config('app.internal_account_link', 'true', true);
+  UPDATE public.profiles
+  SET relation_rh = CASE
+    WHEN 'pdg' = ANY(p_roles) THEN 'PDG'
+    WHEN 'dg' = ANY(p_roles) THEN 'DG'
+    WHEN relation_rh IN ('PDG','DG') THEN 'Employé'
+    ELSE relation_rh
+  END
+  WHERE user_id = p_user_id;
+  PERFORM set_config('app.internal_account_link', 'false', true);
 END;
 $function$;
 
@@ -78,6 +100,15 @@ BEGIN
   IF p_user_id IS NULL OR p_actif IS NULL THEN
     RAISE EXCEPTION 'Utilisateur et statut sont obligatoires.'
       USING errcode = '22023';
+  END IF;
+
+  IF NOT private.is_global_admin(p_actor_user_id)
+     AND EXISTS (
+       SELECT 1 FROM public.user_roles ur
+       WHERE ur.user_id = p_user_id AND ur.role = 'pdg'
+     ) THEN
+    RAISE EXCEPTION 'Seul le rôle PDG peut modifier le statut d’un compte PDG.'
+      USING errcode = '42501';
   END IF;
 
   RETURN QUERY
