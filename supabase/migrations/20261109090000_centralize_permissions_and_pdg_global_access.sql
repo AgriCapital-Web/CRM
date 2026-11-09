@@ -133,9 +133,9 @@ as $$
     union all select 'system.commercial_assignable'
       where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('commercial','chef_equipe_commercial','responsable_commercial'))
     union all select 'system.commercial_manager'
-      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('responsable_commercial','manager_commercial_national','responsable_operations'))
+      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('chef_equipe_commercial','responsable_commercial','responsable_operations'))
     union all select 'system.commercial_director'
-      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('manager_commercial_national','responsable_operations'))
+      where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('responsable_commercial','manager_commercial_national','responsable_operations'))
     union all select 'system.technical_manager'
       where (select is_pdg from actor) or exists (select 1 from role_codes where role in ('chef_equipe_technique','manager_technique_national','responsable_operations'))
     union all select 'system.manage_account_requests'
@@ -168,7 +168,7 @@ as $$
     union all select 'system.role_responsable_commercial' where exists (select 1 from role_codes where role = 'responsable_commercial')
     union all select 'system.role_chef_equipe' where exists (select 1 from role_codes where role in ('chef_equipe_commercial','chef_equipe_technique','chef_equipe_service_client'))
     union all select 'system.role_commercial' where exists (select 1 from role_codes where role = 'commercial')
-    union all select 'system.role_technique' where exists (select 1 from role_codes where role in ('technicien','chef_equipe_technique','manager_technique_national'))
+    union all select 'system.role_technique' where exists (select 1 from role_codes where role = 'chef_equipe_technique')
   )
   select coalesce(array_agg(code order by code), array[]::text[])
   from (
