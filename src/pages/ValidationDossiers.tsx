@@ -3,7 +3,6 @@ import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import ClientForm from "@/components/forms/ClientForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,15 +20,14 @@ const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"X
 export default function ValidationDossiers(){
   const type: string = "ventes"; // Cette page est volontairement dédiée à la validation des ventes.
   const {can}=usePermissions();
-  const {userRoles=[]}=useAuth();
   const navigate=useNavigate();
   const {toast}=useToast();
-  const canValidateClients=can("clients.validate") || ["pdg","service_client","chef_equipe_service_client"].some((role) => (userRoles || []).includes(role));
-  const canValidateSales=can("acquisitions.validate") || ["pdg","service_client","chef_equipe_service_client"].some((role) => (userRoles || []).includes(role));
+  const canValidateClients=can("clients.validate");
+  const canValidateSales=can("acquisitions.validate");
   const [clients,setClients]=useState<any[]>([]);
   const [sales,setSales]=useState<any[]>([]);
   const [ownersPending,setOwnersPending]=useState<any[]>([]);
-  const canReviewOwners=can("proprietaires.validate") || ["pdg","service_client","chef_equipe_service_client"].some((role) => (userRoles || []).includes(role));
+  const canReviewOwners=can("proprietaires.validate");
   const [loading,setLoading]=useState(false);
   const [search,setSearch]=useState("");
   const [selectedSale,setSelectedSale]=useState<any|null>(null);
