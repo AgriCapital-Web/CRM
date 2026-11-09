@@ -38,6 +38,39 @@ grant execute on function private.crm_is_global_admin(uuid) to authenticated, se
 -- afin de préserver les autres applications partageant cette base. Le CRM utilise
 -- private.crm_is_global_admin pour son accès global réservé au rôle PDG.
 
+-- Le modèle d'autorisation CRM est isolé des helpers partagés avec les portails et AcreMap.
+create or replace function private.crm_has_role_permission(p_permission_code text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select private.crm_is_global_admin((select auth.uid()))
+    or exists (
+      select 1
+      from public.user_roles ur
+      join public.role_permissions rp on rp.role_code = ur.role
+      join public.app_permissions ap on ap.code = rp.permission_code and ap.actif is true
+      where ur.user_id = (select auth.uid())
+        and rp.permission_code = p_permission_code
+    );
+$;
+
+revoke all on function private.crm_has_role_permission(text) from public, anon;
+grant execute on function private.crm_has_role_permission(text) to authenticated, service_role;
+
+-- L'ancien helper nominatif ne repose plus sur une adresse e-mail.
+create or replace function private.is_immutable_admin_user(_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select private.crm_is_global_admin(_user_id);
+$;
+
 -- La gestion des demandes de compte relève d'une permission dédiée, pas d'un statut global d'administrateur.
 drop policy if exists "Admins view account requests" on public.account_requests;
 drop policy if exists "Admins update account requests" on public.account_requests;
