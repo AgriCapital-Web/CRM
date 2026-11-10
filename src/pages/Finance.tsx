@@ -12,10 +12,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, PlayCircle, CheckCircle2, Trash2, FileText, Paperclip, Upload, ChevronsUpDown, Check } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, PlayCircle, CheckCircle2, Trash2, FileText, Paperclip, Upload, ChevronsUpDown, Check, MoreHorizontal, Eye, Pencil } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { uploadFile } from "@/utils/storage";
@@ -26,6 +27,7 @@ import FinanceHistoryImport from "@/pages/FinanceHistoryImport";
 import { FINANCE_EXPENSE_CATEGORIES } from "@/lib/finance-categories";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
+const feeAmountFor=(amount:number)=>Math.round(amount*0.01);
 
 export default function Finance(){
   const [searchParams] = useSearchParams();
@@ -34,6 +36,7 @@ export default function Finance(){
   const initialReportSection = requestedTab === "analytique" ? "analytique" : requestedTab === "historique" ? "historique" : "rapport";
   const { can } = usePermissions();
   const { hasRole } = useAuth();
+  const isPdg = hasRole("pdg");
   const canDeleteDraftPayroll = hasRole("pdg") || hasRole("super_admin") || hasRole("admin") || hasRole("dg");
   const { toast } = useToast();
   const [transactions,setTransactions]=useState<any[]>([]);
@@ -43,7 +46,7 @@ export default function Finance(){
   const [associates,setAssociates]=useState<any[]>([]);
   const [associateMovements,setAssociateMovements]=useState<any[]>([]);
   const [associateMovementOpen,setAssociateMovementOpen]=useState(false);
-  const [associateMovement,setAssociateMovement]=useState({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:""});
+  const [associateMovement,setAssociateMovement]=useState({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:"",method:"mobile_money",withoutFees:false});
   const [plannedExpenseOpen,setPlannedExpenseOpen]=useState(false);
   const [plannedInternalUserPickerOpen,setPlannedInternalUserPickerOpen]=useState(false);
   const [tableSearch,setTableSearch]=useState("");
@@ -52,28 +55,34 @@ export default function Finance(){
   const [payrollRuns,setPayrollRuns]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
-  const [expense,setExpense]=useState({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false});
+  const [expense,setExpense]=useState({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:""});
   const [expenseUserPickerOpen,setExpenseUserPickerOpen]=useState(false);
   const [expenseProof,setExpenseProof]=useState<File|null>(null);
   const expenseProofPreview = useMemo(() => expenseProof && (expenseProof.type.startsWith("image/") || expenseProof.type === "application/pdf") ? URL.createObjectURL(expenseProof) : null, [expenseProof]);
   useEffect(() => () => { if (expenseProofPreview) URL.revokeObjectURL(expenseProofPreview); }, [expenseProofPreview]);
-  const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|null>(null);
+  const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|"edit"|null>(null);
   const [selectedExpense,setSelectedExpense]=useState<any|null>(null);
   const [expenseSearch,setExpenseSearch]=useState("");
-  const [plannedExpense,setPlannedExpense]=useState({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",profileId:"",isInternalUser:false,expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
+  const [plannedExpense,setPlannedExpense]=useState({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",profileId:"",isInternalUser:false,expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false,reference:"",referenceAsFile:false});
   const [plannedProof,setPlannedProof]=useState<File|null>(null);
+  const [plannedExpenseEditId,setPlannedExpenseEditId]=useState<string|null>(null);
+  const [plannedExpenseTarget,setPlannedExpenseTarget]=useState<any|null>(null);
   const [paymentTarget,setPaymentTarget]=useState<any|null>(null);
   const [paymentAmount,setPaymentAmount]=useState("");
   const [paymentDate,setPaymentDate]=useState(new Date().toISOString().slice(0,10));
   const [paymentMethod,setPaymentMethod]=useState("mobile_money");
   const [paymentReference,setPaymentReference]=useState("");
   const [paymentProof,setPaymentProof]=useState<File|null>(null);
+  const [paymentPartial,setPaymentPartial]=useState(false);
+  const [paymentWithFees,setPaymentWithFees]=useState(false);
 
-  const [entryForm,setEntryForm]=useState({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
+  const [entryForm,setEntryForm]=useState({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"mobile_money",reference:"",notes:"",withoutFees:false});
   const [entryProof,setEntryProof]=useState<File|null>(null);
   const entryProofPreview = useMemo(() => entryProof && (entryProof.type.startsWith("image/") || entryProof.type === "application/pdf") ? URL.createObjectURL(entryProof) : null, [entryProof]);
   useEffect(() => () => { if (entryProofPreview) URL.revokeObjectURL(entryProofPreview); }, [entryProofPreview]);
   const [entryFormOpen,setEntryFormOpen]=useState(false);
+  const [entryEditId,setEntryEditId]=useState<string|null>(null);
+  const [associateMovementEditId,setAssociateMovementEditId]=useState<string|null>(null);
   const [salaryFormOpen,setSalaryFormOpen]=useState(false);
   const [payrollGenerateOpen,setPayrollGenerateOpen]=useState(false);
   const [salaryForm,setSalaryForm]=useState({profileId:"",baseSalary:"",payDay:"28"});
@@ -157,7 +166,11 @@ export default function Finance(){
   },[transactions]);
 
   const saveEntry=async()=>{
-    if(!entryForm.source.trim()||Number(entryForm.amount)<=0){toast({title:"Informations requises",description:"Renseignez la source et un montant positif.",variant:"destructive"});return;}
+    const enteredAmount=Number(entryForm.amount);
+    const feeApplied=entryForm.method!=="especes"&&entryForm.withoutFees;
+    const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
+    const ledgerAmount=enteredAmount-feeAmount;
+    if(!entryForm.source.trim()||!Number.isFinite(enteredAmount)||enteredAmount<=0||ledgerAmount<=0){toast({title:"Informations requises",description:"Renseignez la source et un montant positif.",variant:"destructive"});return;}
     setSaving(true);
     let uploadedProofPath:string|null=null;
     try{
@@ -167,80 +180,131 @@ export default function Finance(){
         if(!uploaded?.path)throw new Error("Le justificatif de l’entrée n’a pas pu être téléversé.");
         uploadedProofPath=uploaded.path;
       }
-      const {error}=await (supabase as any).from("finance_transactions").insert({
+      const existing=entryEditId?transactions.find((t:any)=>t.id===entryEditId):null;
+      const payload={
         direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
-        label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:Number(entryForm.amount),
+        label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:ledgerAmount,gross_amount:enteredAmount,
+        fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
         transaction_date:new Date(entryForm.date+"T12:00:00").toISOString(),payment_method:entryForm.method||null,
-        reference:entryForm.reference.trim()||null,contact_phone:entryForm.contactPhone.trim()||null,source_type:entryForm.type,notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
-        proof_path:uploadedProofPath,proof_name:entryProof?.name||null
-      });
-      if(error)throw error;
-      toast({title:"Entrée enregistrée"});
-      setEntryForm({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"virement",reference:"",notes:""});
-      setEntryProof(null);
-      setEntryFormOpen(false);
+        reference:entryForm.reference.trim()||null,contact_phone:entryForm.contactPhone.trim()||null,source_type:entryForm.type,
+        notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
+        proof_path:uploadedProofPath||existing?.proof_path||null,proof_name:entryProof?.name||existing?.proof_name||null
+      };
+      const result=entryEditId
+        ? await (supabase as any).from("finance_transactions").update(payload).eq("id",entryEditId)
+        : await (supabase as any).from("finance_transactions").insert(payload);
+      if(result.error)throw result.error;
+      toast({title:entryEditId?"Entrée modifiée":"Entrée enregistrée",description:feeApplied?"La déduction de 1 % est intégrée au montant comptabilisé.":undefined});
+      setEntryForm({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"mobile_money",reference:"",notes:"",withoutFees:false});
+      setEntryProof(null);setEntryEditId(null);setEntryFormOpen(false);
       await load();
     }catch(error:any){
       if(uploadedProofPath) await supabase.storage.from("documents").remove([uploadedProofPath]);
       toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});
-    }
-    finally{setSaving(false);}
+    }finally{setSaving(false);}
   };
 
   const saveExpense=async()=>{
-    if(!expense.category||Number(expense.amount)<=0)return;
+    const enteredAmount=Number(expense.amount);
+    const feeApplied=expense.method!=="especes"&&expense.withFees;
+    const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
+    const ledgerAmount=enteredAmount+feeAmount;
+    if(!expense.category||!Number.isFinite(enteredAmount)||enteredAmount<=0){toast({title:"Informations requises",description:"Saisissez un montant positif.",variant:"destructive"});return;}
     setSaving(true);
+    let proofPath:string|null=null;
     try {
-      let proofPath: string | null = null;
-      if (expenseProof) {
-        const uploaded = await uploadFile("documents", expenseProof, "finance/depenses");
-        if (!uploaded?.path) throw new Error("Le justificatif n’a pas pu être téléversé.");
-        proofPath = uploaded.path;
+      if(expenseProof){
+        const uploaded=await uploadFile("documents",expenseProof,"finance/depenses");
+        if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");
+        proofPath=uploaded.path;
       }
-      const {data,error}=await (supabase as any).from("finance_transactions").insert({
-        direction:"sortie",category:"DEPENSE",label:expense.category,amount:Number(expense.amount),
-        transaction_date:new Date(expense.date+"T12:00:00").toISOString(),status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        notes:expense.description||null
-      }).select("id").single();
-      if(error) throw error;
-      const {error: expenseError}=await (supabase as any).from("finance_expenses").insert({
-        transaction_id:data.id,expense_category:expense.category,profile_id:expense.profileId||null,supplier_name:profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null,
+      const existing=expenseFormMode==="edit"?selectedExpense:null;
+      const existingTransaction=existing?.transaction||transactions.find((t:any)=>t.id===existing?.transaction_id);
+      const txPayload={
+        direction:"sortie",category:"DEPENSE",label:expense.category,amount:ledgerAmount,gross_amount:enteredAmount,
+        fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
+        transaction_date:new Date(expense.date+"T12:00:00").toISOString(),payment_method:expense.method,
+        reference:expense.reference.trim()||null,status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
+        notes:expense.description||null,proof_path:proofPath||existingTransaction?.proof_path||null,
+        proof_name:expenseProof?.name||existingTransaction?.proof_name||null
+      };
+      let transactionId:string;
+      if(existing?.transaction_id){
+        const {error}=await (supabase as any).from("finance_transactions").update(txPayload).eq("id",existing.transaction_id);
+        if(error)throw error;
+        transactionId=existing.transaction_id;
+      }else{
+        const {data,error}=await (supabase as any).from("finance_transactions").insert(txPayload).select("id").single();
+        if(error)throw error;
+        transactionId=data.id;
+      }
+      const expensePayload={
+        transaction_id:transactionId,expense_category:expense.category,profile_id:expense.profileId||null,
+        supplier_name:profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null,
         description:expense.description||null,client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        is_direct_cost:expense.direct,expense_date:expense.date,
-        total_amount:Number(expense.amount),paid_amount:Number(expense.amount),status:"paid",
-        proof_path:proofPath,proof_name:expenseProof?.name||null,
-        proof_mime_type:expenseProof?.type||null
-      });
-      if(expenseError) {
-        const {error:rollbackError}=await (supabase as any).from("finance_transactions").delete().eq("id",data.id);
-        if(rollbackError)throw new Error(`Le justificatif de sortie n’a pas pu être enregistré (${expenseError.message}) et la transaction financière ${data.id} n’a pas pu être annulée automatiquement (${rollbackError.message}).`);
-        throw expenseError;
+        is_direct_cost:expense.direct,expense_date:expense.date,total_amount:enteredAmount,paid_amount:enteredAmount,status:"paid",
+        payment_method:expense.method,reference:expense.reference.trim()||null,
+        proof_path:proofPath||existing?.proof_path||null,proof_name:expenseProof?.name||existing?.proof_name||null,
+        proof_mime_type:expenseProof?.type||existing?.proof_mime_type||null
+      };
+      const expenseResult=existing
+        ? await (supabase as any).from("finance_expenses").update(expensePayload).eq("id",existing.id)
+        : await (supabase as any).from("finance_expenses").insert(expensePayload);
+      if(expenseResult.error){
+        if(!existing)await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);
+        throw expenseResult.error;
       }
-      toast({title:"Sortie enregistrée",description:proofPath ? "Justificatif joint à la sortie." : "Sortie enregistrée sans justificatif."});
-      setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false});
-      setExpenseUserPickerOpen(false);
-      setExpenseProof(null);
-      setExpenseFormMode(null);
-      setSelectedExpense(null);
+      toast({title:existing?"Sortie modifiée":"Sortie enregistrée",description:feeApplied?"La majoration de 1 % est intégrée à la sortie comptabilisée.":proofPath?"Justificatif joint à la sortie.":undefined});
+      setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:""});
+      setExpenseUserPickerOpen(false);setExpenseProof(null);setExpenseFormMode(null);setSelectedExpense(null);
       await load();
-    } catch(error:any) {
+    }catch(error:any){
+      if(proofPath)await supabase.storage.from("documents").remove([proofPath]);
       toast({title:"Erreur",description:error?.message||"Impossible d'enregistrer la sortie",variant:"destructive"});
-    } finally { setSaving(false); }
+    }finally{setSaving(false);}
   };
 
-
   const saveAssociateMovement=async()=>{
-    const amount=Number(associateMovement.amount);
-    if(!associateMovement.associateId||!Number.isFinite(amount)||amount<=0){toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;}
+    const enteredAmount=Number(associateMovement.amount);
+    const feeApplied=associateMovement.method!=="especes"&&associateMovement.withoutFees;
+    const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
+    const ledgerAmount=enteredAmount-feeAmount;
+    if(!associateMovement.associateId||!Number.isFinite(enteredAmount)||enteredAmount<=0||ledgerAmount<=0){toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;}
     setSaving(true);
     try{
       const isRefund=associateMovement.type==="remboursement";
-      const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({direction:isRefund?"sortie":"entree",category:isRefund?"REMBOURSEMENT_ASSOCIE":"APPORT_ASSOCIE",label:(isRefund?"Remboursement associé — ":"Apport associé — ")+(associates.find(a=>a.id===associateMovement.associateId)?.full_name||""),amount,transaction_date:new Date(associateMovement.date+"T12:00:00").toISOString(),status:"valide",source_type:"associate",reference:associateMovement.reference.trim()||null,notes:associateMovement.notes.trim()||null}).select("id").single();
-      if(txError)throw txError;
-      const {error}=await (supabase as any).from("finance_associate_transactions").insert({associate_id:associateMovement.associateId,movement_type:associateMovement.type,contribution_status:"numeraire",estimated_value:amount,notes:associateMovement.notes.trim()||null,transaction_id:tx.id});
-      if(error){await (supabase as any).from("finance_transactions").delete().eq("id",tx.id);throw error;}
-      toast({title:"Mouvement associé enregistré"});setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:""});setAssociateMovementOpen(false);await load();
-    }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}finally{setSaving(false);}
+      const existing=associateMovementEditId?associateMovements.find((m:any)=>m.id===associateMovementEditId):null;
+      const txPayload={
+        direction:isRefund?"sortie":"entree",category:isRefund?"REMBOURSEMENT_ASSOCIE":"APPORT_ASSOCIE",
+        label:(isRefund?"Remboursement associé — ":"Apport associé — ")+(associates.find(a=>a.id===associateMovement.associateId)?.full_name||""),
+        amount:ledgerAmount,gross_amount:enteredAmount,fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
+        transaction_date:new Date(associateMovement.date+"T12:00:00").toISOString(),payment_method:associateMovement.method,
+        status:"valide",source_type:"associate",reference:associateMovement.reference.trim()||null,notes:associateMovement.notes.trim()||null
+      };
+      let txId:string;
+      if(existing?.transaction_id){
+        const {error}=await (supabase as any).from("finance_transactions").update(txPayload).eq("id",existing.transaction_id);
+        if(error)throw error;
+        txId=existing.transaction_id;
+        const {error:movementError}=await (supabase as any).from("finance_associate_transactions").update({
+          associate_id:associateMovement.associateId,movement_type:associateMovement.type,
+          contribution_status:"numeraire",estimated_value:ledgerAmount,notes:associateMovement.notes.trim()||null
+        }).eq("id",existing.id);
+        if(movementError)throw movementError;
+      }else{
+        const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert(txPayload).select("id").single();
+        if(txError)throw txError;txId=tx.id;
+        const {error}=await (supabase as any).from("finance_associate_transactions").insert({
+          associate_id:associateMovement.associateId,movement_type:associateMovement.type,
+          contribution_status:"numeraire",estimated_value:ledgerAmount,notes:associateMovement.notes.trim()||null,transaction_id:txId
+        });
+        if(error){await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",txId);throw error;}
+      }
+      toast({title:existing?"Mouvement associé modifié":"Mouvement associé enregistré",description:feeApplied?"La déduction de 1 % est prise en compte.":undefined});
+      setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:"",method:"mobile_money",withoutFees:false});
+      setAssociateMovementEditId(null);setAssociateMovementOpen(false);await load();
+    }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
+    finally{setSaving(false);}
   };
 
   const savePlannedExpense=async()=>{
@@ -251,29 +315,43 @@ export default function Finance(){
     setSaving(true);
     let proofPath:string|null=null;
     try{
-      if(plannedProof){const uploaded=await uploadFile("documents",plannedProof,"finance/depenses-a-payer");if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");proofPath=uploaded.path;}
-      const {error}=await (supabase as any).from("finance_expenses").insert({
+      if(plannedExpense.referenceAsFile&&plannedProof){
+        const uploaded=await uploadFile("documents",plannedProof,"finance/depenses-a-payer");
+        if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");
+        proofPath=uploaded.path;
+      }
+      const payload={
         transaction_id:null,expense_category:plannedExpense.category,description:plannedExpense.description.trim()||null,
         profile_id:plannedExpense.isInternalUser?plannedExpense.profileId||null:null,
         supplier_name:(plannedExpense.isInternalUser?profiles.find((p:any)=>p.id===plannedExpense.profileId)?.nom_complet:plannedExpense.beneficiary.trim())||null,
         beneficiary_name:(plannedExpense.isInternalUser?profiles.find((p:any)=>p.id===plannedExpense.profileId)?.nom_complet:plannedExpense.beneficiary.trim())||null,
         beneficiary_phone:plannedExpense.isInternalUser?null:plannedExpense.beneficiaryPhone.trim()||null,
         is_direct_cost:plannedExpense.direct,expense_date:plannedExpense.expenseDate,due_date:plannedExpense.dueDate||null,
-        total_amount:amount,paid_amount:0,status:"unpaid",payment_method:null,notes:null,
-        proof_path:proofPath,proof_name:plannedProof?.name||null,proof_mime_type:plannedProof?.type||null
-      });
-      if(error)throw error;
-      toast({title:"Dépense à payer enregistrée",description:"Elle reste distincte des sorties jusqu’à l’enregistrement d’un paiement."});
-      setPlannedExpense({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",profileId:"",isInternalUser:false,expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false});
-      setPlannedProof(null);await load();
+        total_amount:amount,paid_amount:plannedExpenseEditId?Number(plannedExpenseTarget?.paid_amount||0):0,
+        status:plannedExpenseEditId?(plannedExpenseTarget?.status||"unpaid"):"unpaid",payment_method:null,notes:null,
+        reference:plannedExpense.referenceAsFile?null:plannedExpense.reference.trim()||null,
+        proof_path:plannedExpense.referenceAsFile?(proofPath||plannedExpenseTarget?.proof_path||null):null,
+        proof_name:plannedExpense.referenceAsFile?(plannedProof?.name||plannedExpenseTarget?.proof_name||null):null,
+        proof_mime_type:plannedExpense.referenceAsFile?(plannedProof?.type||plannedExpenseTarget?.proof_mime_type||null):null
+      };
+      const result=plannedExpenseEditId
+        ? await (supabase as any).from("finance_expenses").update(payload).eq("id",plannedExpenseEditId)
+        : await (supabase as any).from("finance_expenses").insert(payload);
+      if(result.error)throw result.error;
+      toast({title:plannedExpenseEditId?"Dépense à payer modifiée":"Dépense à payer enregistrée",description:"Le solde dû est conservé; chaque paiement sera inscrit dans les sorties."});
+      setPlannedExpense({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",profileId:"",isInternalUser:false,expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false,reference:"",referenceAsFile:false});
+      setPlannedProof(null);setPlannedExpenseEditId(null);setPlannedExpenseTarget(null);setPlannedExpenseOpen(false);await load();
     }catch(error:any){if(proofPath)await supabase.storage.from("documents").remove([proofPath]);toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
     finally{setSaving(false);}
   };
 
   const registerExpensePayment=async()=>{
     if(!paymentTarget)return;
-    const amount=Number(paymentAmount);
     const remaining=Number(paymentTarget.total_amount||0)-Number(paymentTarget.paid_amount||0);
+    const amount=paymentPartial?Number(paymentAmount):remaining;
+    const feeApplied=paymentMethod!=="especes"&&paymentWithFees;
+    const feeAmount=feeApplied?feeAmountFor(amount):0;
+    const ledgerAmount=amount+feeAmount;
     if(!Number.isFinite(amount)||amount<=0||amount>remaining){toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});return;}
     setSaving(true);let proofPath:string|null=null;let transactionId:string|null=null;
     try{
@@ -282,21 +360,24 @@ export default function Finance(){
       const status=nextPaid>=Number(paymentTarget.total_amount)?"paid":"partial";
       const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({
         direction:"sortie",category:paymentTarget.expense_category,label:paymentTarget.expense_category+(paymentTarget.description?" — "+paymentTarget.description:""),
-        amount,transaction_date:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
+        amount:ledgerAmount,gross_amount:amount,fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
+        transaction_date:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
         reference:paymentReference.trim()||null,source_type:"finance_expense",source_id:paymentTarget.id,status:"valide",
         notes:paymentTarget.description||("Bénéficiaire : "+(paymentTarget.beneficiary_name||paymentTarget.supplier_name||"—")),
         proof_path:proofPath,proof_name:paymentProof?.name||null
       }).select("id").single();
       if(txError)throw txError;transactionId=tx.id;
       const {error:payError}=await (supabase as any).from("finance_expense_payments").insert({
-        expense_id:paymentTarget.id,transaction_id:transactionId,amount,paid_at:new Date(paymentDate+"T12:00:00").toISOString(),
-        payment_method:paymentMethod,proof_path:proofPath,proof_name:paymentProof?.name||null
+        expense_id:paymentTarget.id,transaction_id:transactionId,amount,gross_amount:ledgerAmount,
+        fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
+        paid_at:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
+        proof_path:proofPath,proof_name:paymentProof?.name||null
       });
-      if(payError)throw payError;
+      if(payError){await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);throw payError;}
       const {error:updateError}=await (supabase as any).from("finance_expenses").update({paid_amount:nextPaid,status,transaction_id:transactionId,payment_method:paymentMethod}).eq("id",paymentTarget.id);
       if(updateError)throw updateError;
       toast({title:"Paiement enregistré",description:status==="paid"?"Dépense entièrement payée et inscrite dans les sorties.":"Paiement partiel enregistré dans les sorties; le solde reste à payer."});
-      setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);await load();
+      setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);setPaymentPartial(false);setPaymentWithFees(false);await load();
     }catch(error:any){toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});}
     finally{setSaving(false);}
   };
