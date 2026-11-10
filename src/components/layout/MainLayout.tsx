@@ -46,7 +46,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
     { icon: Sprout, label: "Opérations techniques", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
     { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" as any },
-    { icon: CreditCard, label: "Paiements", path: "/paiements", permission: PERMISSIONS.VIEW_PAIEMENTS },
     { icon: Receipt, label: "Commissions", path: "/commissions", permission: PERMISSIONS.VIEW_COMMISSIONS },
     { icon: Wallet, label: "Portefeuilles", path: "/portefeuilles", permission: PERMISSIONS.VIEW_PORTEFEUILLES },
     { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_PARAMETRES },
@@ -86,22 +85,41 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         )}
         {visibleMenuItems.map((item) => {
           const active = location.pathname === (item.path.split("?")[0]);
+          const isFinance = item.path === "/finance";
+          const payActive = location.pathname === "/paiements";
           return (
-            <Button
-              key={item.path}
-              asChild
-              variant="ghost"
-              className={cn(
-                "!h-8 w-full min-w-0 shrink-0 justify-start gap-2 rounded-md px-2 mb-[2px] text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
-                active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
+            <div key={item.path} className="w-full shrink-0">
+              <Button
+                asChild
+                variant="ghost"
+                className={cn(
+                  "!h-8 w-full min-w-0 shrink-0 justify-start gap-2 rounded-md px-2 mb-[2px] text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
+                  (active || (isFinance && payActive)) && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
+                )}
+                title={item.label}
+              >
+                <Link to={item.path} onClick={() => { if (open) setOpen(false); }} aria-current={active ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2" aria-label={item.label}>
+                  <item.icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">{item.label}</span>
+                </Link>
+              </Button>
+              {isFinance && can(PERMISSIONS.VIEW_PAIEMENTS) && (
+                <Button
+                  asChild
+                  variant="ghost"
+                  className={cn(
+                    "ml-3 !h-8 w-[calc(100%-0.75rem)] min-w-0 justify-start gap-2 rounded-md px-2 mb-1 text-primary-foreground/75 hover:bg-primary-foreground/10 hover:text-primary-foreground",
+                    payActive && "bg-primary-foreground/15 text-primary-foreground font-semibold"
+                  )}
+                  title="AgriCapital Pay"
+                >
+                  <Link to="/paiements" onClick={() => { if (open) setOpen(false); }} aria-current={payActive ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2" aria-label="AgriCapital Pay">
+                    <CreditCard className="h-4 w-4 flex-shrink-0" />
+                    <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">AgriCapital Pay</span>
+                  </Link>
+                </Button>
               )}
-              title={item.label}
-            >
-              <Link to={item.path} onClick={() => { if (open) setOpen(false); }} aria-current={active ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2" aria-label={item.label}>
-                <item.icon className="h-4 w-4 flex-shrink-0" />
-                <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">{item.label}</span>
-              </Link>
-            </Button>
+            </div>
           );
         })}
       </nav>
