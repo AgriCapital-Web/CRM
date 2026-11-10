@@ -159,9 +159,9 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) =>
 );
 
 const render = (template: string, contact: Contact, context: Record<string, unknown> = {}) => {
-  const nameParts = String(contact.nom_complet || "Client").trim().split(/\s+/).filter(Boolean);
+  const nameParts = String(contact.nom_complet || (context.finance_payout_sms === true ? "" : "Client")).trim().split(/\s+/).filter(Boolean);
   const leadStyleName = contact.source_type === "lead" || contact.source_type === "prospect";
-  const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || "Client");
+  const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || (context.finance_payout_sms === true ? "" : "Client"));
   const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
   const displayName = nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName;
   // Seul le jeton {dernier_prenom_nom} est autorisé pour le nom du destinataire.
@@ -171,9 +171,13 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
     role: contact.role_code || "", offre: contact.offre_nom || contact.offre_code || "",
     offre_code: contact.offre_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
-    dernier_prenom_nom: displayName,
+    dernier_prenom_nom: displayName, dernierprenom_nom: displayName,
+    ...(context.finance_payout_sms === true ? { prenom: firstName, nom: familyName, nom_complet: displayName } : {}),
   };
-  return template.replace(/\{\s*dernier_prenom_nom\s*\}/gi, () => displayName)
+  const greetingAdjusted = context.finance_payout_sms === true
+    ? template.replace(/Bonjour\s+\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, displayName ? `Bonjour ${displayName}` : "Bonjour")
+    : template;
+  return greetingAdjusted.replace(/\{\s*dernier_prenom_nom\s*\}/gi, () => displayName)
     .replace(/\{\{\s*([a-zA-Z0-9_ ]+)\s*\}\}|\{\s*([a-zA-Z0-9_ ]+)\s*\}/g, (_match, doubleKey, singleKey) => {
       const key = String(doubleKey || singleKey || "").trim().replace(/\s+/g, "_");
       return key === "dernier_prenom_nom" ? displayName : vars[key] ?? "";
@@ -537,6 +541,7 @@ async function deliver(args: {
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
       const rendered = brandAutomatedMessage(render(args.content, contact, args.context || {}), channel);
+      if (channel === "sms" && args.context?.finance_payout_sms === true && Array.from(normalizeSms(rendered)).length > 150) throw new Error("SMS AgriCapital PAY bloque : " + Array.from(normalizeSms(rendered)).length + "/150 caracteres apres personnalisation.");
       const rawSubject = render(args.subject || "", contact, args.context || {});
       const renderedSubject = channel === "app" && rawSubject && !/^AgriCapital\\b/i.test(rawSubject) ? "AgriCapital · " + rawSubject : rawSubject;
       const attachments = args.mediaAttachments || [];
@@ -832,7 +837,39 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
   const results = [];
   for (const automation of automations || []) {
     let contacts: Contact[] = [];
-    if (context.independent_service_customer_id) {
+    if (context.finance_payout_id) {
+      const { data: payout, error: payoutError } = await admin.from("finance_payouts")
+        .select("id,status,profile_id,beneficiary_id,category,amount,reason,reference,paid_at")
+        .eq("id", String(context.finance_payout_id)).maybeSingle();
+      if (payoutError) throw payoutError;
+      if (!payout || payout.status !== "succeeded") throw new Error("Decaissement confirme introuvable.");
+      const { data: beneficiary, error: beneficiaryError } = await admin.from("finance_payout_beneficiaries")
+        .select("id,display_name,first_names,last_name,phone,email")
+        .eq("id", payout.beneficiary_id).maybeSingle();
+      if (beneficiaryError) throw beneficiaryError;
+      if (!beneficiary) throw new Error("Beneficiaire du decaissement introuvable.");
+      let linkedProfile: any = null;
+      if (payout.profile_id) {
+        const { data, error } = await admin.from("profiles").select("id,user_id,prenoms,nom,nom_complet,telephone,whatsapp,email")
+          .eq("id", payout.profile_id).maybeSingle();
+        if (error) throw error;
+        linkedProfile = data;
+      }
+      const firstNames = linkedProfile ? (linkedProfile.prenoms || "") : (beneficiary.first_names || "");
+      const lastName = linkedProfile ? (linkedProfile.nom || "") : (beneficiary.last_name || "");
+      const displayName = [firstNames, lastName].filter(Boolean).join(" ").trim()
+        || linkedProfile?.nom_complet || (linkedProfile ? "" : beneficiary.display_name || "");
+      const phone = linkedProfile?.telephone || linkedProfile?.whatsapp || beneficiary.phone || "";
+      if (!phone) throw new Error("Telephone du beneficiaire absent.");
+      contacts = [{
+        source_type: "lead",
+        source_id: beneficiary.id,
+        user_id: linkedProfile?.user_id || null,
+        nom_complet: displayName || "",
+        telephone: phone,
+        email: linkedProfile?.email || beneficiary.email || null,
+      }];
+    } else if (context.independent_service_customer_id) {
       const { data: independentCustomer, error: independentCustomerError } = await admin
         .from("independent_service_customers")
         .select("id,display_name,telephone,email")
