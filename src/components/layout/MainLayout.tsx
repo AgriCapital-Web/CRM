@@ -87,7 +87,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         {visibleMenuItems.map((item) => {
           const active = location.pathname === (item.path.split("?")[0]);
           const isFinance = item.path === "/finance";
-          const payActive = location.pathname === "/paiements";
           const agriCapitalPayActive = location.pathname === "/finance" && new URLSearchParams(location.search).get("tab") === "agricapital-pay";
           return (
             <div key={item.path} className="w-full shrink-0">
