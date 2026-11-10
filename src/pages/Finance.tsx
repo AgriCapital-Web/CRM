@@ -119,7 +119,7 @@ export default function Finance(){
         (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
         (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status)").order("created_at",{ascending:false}),
         (supabase as any).from("finance_associates").select("*").order("full_name"),
-        (supabase as any).from("finance_associate_transactions").select("id,associate_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name)").order("created_at",{ascending:false}),
+        (supabase as any).from("finance_associate_transactions").select("id,associate_id,transaction_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name)").order("created_at",{ascending:false}),
         (async () => {
           const result = await (supabase as any).rpc("workspace_list_finance_users");
           if (result.error) throw result.error;
