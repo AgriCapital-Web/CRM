@@ -40,6 +40,9 @@ REVOKE ALL ON FUNCTION private.finance_is_pdg() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION private.finance_is_pdg() TO authenticated;
 
 DROP POLICY IF EXISTS finance_transactions_manage ON public.finance_transactions;
+DROP POLICY IF EXISTS finance_transactions_insert_manage ON public.finance_transactions;
+DROP POLICY IF EXISTS finance_transactions_update_manage ON public.finance_transactions;
+DROP POLICY IF EXISTS finance_transactions_delete_pdg ON public.finance_transactions;
 CREATE POLICY finance_transactions_insert_manage ON public.finance_transactions
   FOR INSERT TO authenticated WITH CHECK ((SELECT public.finance_can_manage()));
 CREATE POLICY finance_transactions_update_manage ON public.finance_transactions
@@ -49,6 +52,9 @@ CREATE POLICY finance_transactions_delete_pdg ON public.finance_transactions
   FOR DELETE TO authenticated USING ((SELECT private.finance_is_pdg()));
 
 DROP POLICY IF EXISTS finance_expenses_manage ON public.finance_expenses;
+DROP POLICY IF EXISTS finance_expenses_insert_manage ON public.finance_expenses;
+DROP POLICY IF EXISTS finance_expenses_update_manage ON public.finance_expenses;
+DROP POLICY IF EXISTS finance_expenses_delete_pdg ON public.finance_expenses;
 CREATE POLICY finance_expenses_insert_manage ON public.finance_expenses
   FOR INSERT TO authenticated WITH CHECK ((SELECT public.finance_can_manage()));
 CREATE POLICY finance_expenses_update_manage ON public.finance_expenses
@@ -58,6 +64,9 @@ CREATE POLICY finance_expenses_delete_pdg ON public.finance_expenses
   FOR DELETE TO authenticated USING ((SELECT private.finance_is_pdg()));
 
 DROP POLICY IF EXISTS finance_associate_transactions_manage ON public.finance_associate_transactions;
+DROP POLICY IF EXISTS finance_associate_transactions_insert_manage ON public.finance_associate_transactions;
+DROP POLICY IF EXISTS finance_associate_transactions_update_manage ON public.finance_associate_transactions;
+DROP POLICY IF EXISTS finance_associate_transactions_delete_pdg ON public.finance_associate_transactions;
 CREATE POLICY finance_associate_transactions_insert_manage ON public.finance_associate_transactions
   FOR INSERT TO authenticated WITH CHECK ((SELECT public.finance_can_manage()));
 CREATE POLICY finance_associate_transactions_update_manage ON public.finance_associate_transactions
@@ -67,6 +76,9 @@ CREATE POLICY finance_associate_transactions_delete_pdg ON public.finance_associ
   FOR DELETE TO authenticated USING ((SELECT private.finance_is_pdg()));
 
 DROP POLICY IF EXISTS "Finance can manage expense payments" ON public.finance_expense_payments;
+DROP POLICY IF EXISTS finance_expense_payments_insert_manage ON public.finance_expense_payments;
+DROP POLICY IF EXISTS finance_expense_payments_update_manage ON public.finance_expense_payments;
+DROP POLICY IF EXISTS finance_expense_payments_delete_pdg ON public.finance_expense_payments;
 CREATE POLICY finance_expense_payments_insert_manage ON public.finance_expense_payments
   FOR INSERT TO authenticated WITH CHECK ((SELECT public.finance_can_manage()));
 CREATE POLICY finance_expense_payments_update_manage ON public.finance_expense_payments
