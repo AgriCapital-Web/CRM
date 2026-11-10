@@ -166,6 +166,7 @@ export default function Finance(){
   },[transactions]);
 
   const saveEntry=async()=>{
+    if(entryEditId&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
     const enteredAmount=Number(entryForm.amount);
     const feeApplied=entryForm.method!=="especes"&&entryForm.withoutFees;
     const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
@@ -205,6 +206,7 @@ export default function Finance(){
   };
 
   const saveExpense=async()=>{
+    if(expenseFormMode==="edit"&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
     const enteredAmount=Number(expense.amount);
     const feeApplied=expense.method!=="especes"&&expense.withFees;
     const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
@@ -265,6 +267,7 @@ export default function Finance(){
   };
 
   const saveAssociateMovement=async()=>{
+    if(associateMovementEditId&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
     const enteredAmount=Number(associateMovement.amount);
     const feeApplied=associateMovement.method!=="especes"&&associateMovement.withoutFees;
     const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
@@ -308,6 +311,7 @@ export default function Finance(){
   };
 
   const savePlannedExpense=async()=>{
+    if(plannedExpenseEditId&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
     const amount=Number(plannedExpense.amount);
     if(plannedExpense.referenceAsFile&&!plannedProof&&!plannedExpenseTarget?.proof_path){toast({title:"Fichier requis",description:"Sélectionnez un fichier ou désactivez l’option fichier pour saisir une référence.",variant:"destructive"});return;}
     if(plannedExpenseEditId&&amount<Number(plannedExpenseTarget?.paid_amount||0)){toast({title:"Montant inférieur au déjà payé",description:"Le montant prévu ne peut pas être inférieur au cumul des paiements déjà enregistrés.",variant:"destructive"});return;}
@@ -389,7 +393,7 @@ export default function Finance(){
   const deleteExpense=async(item:any)=>{if(!isPdg||!window.confirm("Supprimer définitivement cette sortie et ses écritures de paiement ?"))return;setSaving(true);try{const {data:payments,error:paymentsError}=await (supabase as any).from("finance_expense_payments").select("transaction_id").eq("expense_id",item.id);if(paymentsError)throw paymentsError;const relatedIds=Array.from(new Set([item.transaction_id,...(payments||[]).map((p:any)=>p.transaction_id)].filter(Boolean)));const {error:expenseError}=await (supabase as any).from("finance_expenses").delete().eq("id",item.id);if(expenseError)throw expenseError;for(const id of relatedIds){const {error:txError}=await (supabase as any).from("finance_transactions").delete().eq("id",id);if(txError)throw txError;}toast({title:"Sortie supprimée"});await load();}catch(error:any){toast({title:"Suppression incomplète",description:error?.message||"Vérifiez les écritures comptables.",variant:"destructive"});await load();}finally{setSaving(false);}};
 
   const deletePlannedExpense=async(item:any)=>{
-    if(item.status!=="unpaid"||Number(item.paid_amount||0)>0)return;
+    if(!isPdg||item.status!=="unpaid"||Number(item.paid_amount||0)>0)return;
     if(!window.confirm("Supprimer cette dépense à payer ?"))return;
     setSaving(true);const {error}=await (supabase as any).from("finance_expenses").delete().eq("id",item.id).is("transaction_id",null);
     if(error)toast({title:"Suppression impossible",description:error.message,variant:"destructive"});else toast({title:"Dépense supprimée"});
