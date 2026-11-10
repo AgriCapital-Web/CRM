@@ -330,7 +330,7 @@ export default function Finance(){
         beneficiary_phone:plannedExpense.isInternalUser?null:plannedExpense.beneficiaryPhone.trim()||null,
         is_direct_cost:plannedExpense.direct,expense_date:plannedExpense.expenseDate,due_date:plannedExpense.dueDate||null,
         total_amount:amount,paid_amount:plannedExpenseEditId?Number(plannedExpenseTarget?.paid_amount||0):0,
-        status:plannedExpenseEditId?(plannedExpenseTarget?.status||"unpaid"):"unpaid",payment_method:null,notes:null,
+        status:plannedExpenseEditId?(Number(plannedExpenseTarget?.paid_amount||0)>=amount?"paid":(plannedExpenseTarget?.status||"unpaid")):"unpaid",payment_method:null,notes:null,
         reference:plannedExpense.referenceAsFile?null:plannedExpense.reference.trim()||null,
         proof_path:plannedExpense.referenceAsFile?(proofPath||plannedExpenseTarget?.proof_path||null):null,
         proof_name:plannedExpense.referenceAsFile?(plannedProof?.name||plannedExpenseTarget?.proof_name||null):null,
@@ -377,10 +377,10 @@ export default function Finance(){
       });
       if(payError){await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);throw payError;}
       const {error:updateError}=await (supabase as any).from("finance_expenses").update({paid_amount:nextPaid,status,transaction_id:transactionId,payment_method:paymentMethod}).eq("id",paymentTarget.id);
-      if(updateError)throw updateError;
+      if(updateError){await (supabase as any).from("finance_expense_payments").delete().eq("transaction_id",transactionId);await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);throw updateError;}
       toast({title:"Paiement enregistré",description:status==="paid"?"Dépense entièrement payée et inscrite dans les sorties.":"Paiement partiel enregistré dans les sorties; le solde reste à payer."});
       setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);setPaymentPartial(false);setPaymentWithFees(false);await load();
-    }catch(error:any){toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});}
+    }catch(error:any){if(proofPath)await supabase.storage.from("documents").remove([proofPath]);toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});}
     finally{setSaving(false);}
   };
 
