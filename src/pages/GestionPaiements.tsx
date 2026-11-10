@@ -32,7 +32,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CreditCard,
-  Coins,
   ArrowRightLeft,
   CheckCircle,
   Loader2,
@@ -44,7 +43,6 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import ClientPaymentWorkspace from "@/components/finance/ClientPaymentWorkspace";
-import AgriCapitalPay from "@/components/finance/AgriCapitalPay";
 
 interface Paiement {
   id: string;
@@ -442,14 +440,10 @@ const GestionPaiements = () => {
 
           {/* Tabs */}
           <Tabs defaultValue="paiements" className="space-y-4">
-            <TabsList className="grid w-full sm:w-auto grid-cols-1 min-[420px]:grid-cols-3 gap-2">
+            <TabsList className="grid w-full sm:w-auto grid-cols-1 min-[420px]:grid-cols-2 gap-2">
               <TabsTrigger value="paiements" className="gap-2">
                 <CreditCard className="h-4 w-4" />
-                Paiements clients
-              </TabsTrigger>
-              <TabsTrigger value="agricapital-pay" className="gap-2">
-                <Coins className="h-4 w-4" />
-                AgriCapital Pay
+                Paiements
               </TabsTrigger>
 
               {canManage && <TabsTrigger value="operations" className="gap-2">
@@ -459,10 +453,6 @@ const GestionPaiements = () => {
             </TabsList>
 
             {/* Vue financière par client : les paiements se lancent depuis la fiche client via KKiaPay. */}
-            <TabsContent value="agricapital-pay" className="space-y-4">
-              <AgriCapitalPay canManage={canManage} />
-            </TabsContent>
-
             <TabsContent value="paiements" className="space-y-4">
               <ClientPaymentWorkspace
                 onTransfer={canTransferPayment ? (client: any) => {
