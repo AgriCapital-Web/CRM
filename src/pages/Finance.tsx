@@ -117,7 +117,7 @@ export default function Finance(){
     try {
       const [t,e,a,am,p,s,r,independent,independentInvoiceRows]=await Promise.all([
         (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
-        (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status)").order("created_at",{ascending:false}),
+        (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id)").order("created_at",{ascending:false}),
         (supabase as any).from("finance_associates").select("*").order("full_name"),
         (supabase as any).from("finance_associate_transactions").select("id,associate_id,transaction_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name)").order("created_at",{ascending:false}),
         (async () => {
@@ -396,6 +396,20 @@ export default function Finance(){
     await load();setSaving(false);
   };
 
+  const hasFinanceAction=(tx:any)=>tx.direction==="entree"&&tx.source_type!=="associate" || associateMovements.some((m:any)=>m.transaction_id===tx.id) || expenses.some((e:any)=>e.transaction_id===tx.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===tx.id));
+  const editFinanceTransaction=(tx:any)=>{
+    const movement=associateMovements.find((m:any)=>m.transaction_id===tx.id);
+    if(movement){setAssociateMovementEditId(movement.id);setAssociateMovement({associateId:movement.associate_id,type:movement.movement_type||"apport",amount:String(tx.gross_amount||tx.amount||movement.estimated_value||""),date:new Date(tx.transaction_date).toISOString().slice(0,10),reference:tx.reference||"",notes:tx.notes||movement.notes||"",method:tx.payment_method||"mobile_money",withoutFees:!!tx.fee_applied});setAssociateMovementOpen(true);return;}
+    const expenseRow=expenses.find((e:any)=>e.transaction_id===tx.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===tx.id));
+    if(expenseRow){
+      if(expenseRow.finance_expense_payments?.some((p:any)=>p.status==="valide")){setPlannedExpenseTarget(expenseRow);setPlannedExpenseEditId(expenseRow.id);setPlannedExpense({category:expenseRow.expense_category||"PRESTATIONS",amount:String(expenseRow.total_amount||""),description:expenseRow.description||"",beneficiary:expenseRow.beneficiary_name||expenseRow.supplier_name||"",beneficiaryPhone:expenseRow.beneficiary_phone||"",profileId:expenseRow.profile_id||"",isInternalUser:!!expenseRow.profile_id,expenseDate:expenseRow.expense_date||new Date().toISOString().slice(0,10),dueDate:expenseRow.due_date||"",direct:!!expenseRow.is_direct_cost,reference:expenseRow.reference||"",referenceAsFile:!!expenseRow.proof_path});setPlannedProof(null);setPlannedExpenseOpen(true);}
+      else{setSelectedExpense({...expenseRow,transaction:tx});setExpense({category:expenseRow.expense_category||"AUTRE",amount:String(tx.gross_amount||tx.amount||""),date:expenseRow.expense_date||new Date().toISOString().slice(0,10),description:expenseRow.description||"",profileId:expenseRow.profile_id||"",clientId:expenseRow.client_id||"",plantationId:expenseRow.plantation_id||"",direct:!!expenseRow.is_direct_cost,method:tx.payment_method||"mobile_money",withFees:!!tx.fee_applied,reference:tx.reference||""});setExpenseFormMode("edit");}
+      return;
+    }
+    if(tx.direction==="entree"&&tx.source_type!=="associate"){setEntryEditId(tx.id);setEntryForm({type:tx.source_type||"autre",source:String(tx.label||"").split(" — ").slice(1).join(" — "),contactPhone:tx.contact_phone||"",amount:String(tx.gross_amount||tx.amount||""),date:new Date(tx.transaction_date).toISOString().slice(0,10),method:tx.payment_method||"mobile_money",reference:tx.reference||"",notes:tx.notes||"",withoutFees:!!tx.fee_applied});setEntryFormOpen(true);}
+  };
+  const deleteFinanceTransaction=(tx:any)=>{const movement=associateMovements.find((m:any)=>m.transaction_id===tx.id);if(movement){void deleteAssociateMovement(movement);return;}const expenseRow=expenses.find((e:any)=>e.transaction_id===tx.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===tx.id));if(expenseRow){void deleteExpense(expenseRow);return;}if(tx.direction==="entree"&&tx.source_type!=="associate")void deleteEntry(tx);};
+
   const saveSalary=async()=>{
     const baseSalary=Number(salaryForm.baseSalary);
     const payDay=Number(salaryForm.payDay||28);
@@ -588,7 +602,7 @@ export default function Finance(){
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b"><th className="px-2 py-1.5 text-left">DATE</th><th className="px-2 py-1.5 text-left">TYPE</th><th className="px-2 py-1.5 text-left">LIBELLÉ</th><th className="px-2 py-1.5 text-right">MONTANT</th><th className="px-2 py-1.5 text-left">SOURCE</th></tr>
+                  <tr className="border-b"><th className="px-2 py-1.5 text-left">DATE</th><th className="px-2 py-1.5 text-left">TYPE</th><th className="px-2 py-1.5 text-left">LIBELLÉ</th><th className="px-2 py-1.5 text-right">MONTANT</th><th className="px-2 py-1.5 text-left">SOURCE</th>{isPdg&&<th className="px-2 py-1.5 text-right">ACTIONS</th>}</tr>
                 </thead>
                 <tbody>
                   {transactions.filter((t:any)=>JSON.stringify(t).toLowerCase().includes(tableSearch.trim().toLowerCase())).map((t:any)=>(
@@ -603,10 +617,11 @@ export default function Finance(){
                       <td className="px-2 py-1.5">{t.label}</td>
                       <td className="px-2 py-1.5 text-right font-semibold">{money(t.amount)}</td>
                       <td className="px-2 py-1.5 text-muted-foreground">{t.source_type||"MANUEL"}</td>
+                      {isPdg&&<td className="px-2 py-1.5 text-right">{hasFinanceAction(t)?<DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={()=>editFinanceTransaction(t)}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>deleteFinanceTransaction(t)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></DropdownMenuContent></DropdownMenu>:"—"}</td>}
                     </tr>
                   ))}
                   {!transactions.filter((t:any)=>JSON.stringify(t).toLowerCase().includes(tableSearch.trim().toLowerCase())).length&&!loading&&(
-                    <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Aucune écriture.</td></tr>
+                    <tr><td colSpan={isPdg?6:5} className="p-8 text-center text-muted-foreground">Aucune écriture.</td></tr>
                   )}
                 </tbody>
               </table>
