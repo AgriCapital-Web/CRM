@@ -234,7 +234,7 @@ $$;
 revoke all on function public.crm_current_user_permissions() from public, anon;
 grant execute on function public.crm_current_user_permissions() to authenticated, service_role;
 
--- Les candidats et responsables d'équipe sont sélectionnés côté serveur.
+-- Les candidats et responsables d''équipe sont sélectionnés côté serveur.
 create or replace function public.get_available_team_members(p_equipe_id uuid)
 returns table (
   id uuid,
