@@ -63,12 +63,11 @@ interface Paiement {
 
 const GestionPaiements = () => {
   const { toast } = useToast();
-  const { hasRole } = useAuth();
-  const { can } = usePermissions();
-  const canFinancialOverview = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("finance.view") || can("paiements.view");
+  const { can, capabilities } = usePermissions();
+  const canFinancialOverview = capabilities.globalAdmin || can("finance.view") || can("paiements.view");
   const canViewClientMoney = canFinancialOverview;
-  const canTransferPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || hasRole("responsable_operations") || can("paiements.update") || can("finance.manage");
-  const canRefundPayment = hasRole("pdg") || hasRole("dg") || hasRole("comptable") || can("paiements.cancel") || can("finance.manage");
+  const canTransferPayment = capabilities.globalAdmin || can("paiements.update") || can("finance.manage");
+  const canRefundPayment = capabilities.globalAdmin || can("paiements.cancel") || can("finance.manage");
   const canManage = canTransferPayment || canRefundPayment;
   const queryClient = useQueryClient();
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
