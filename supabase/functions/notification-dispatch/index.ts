@@ -200,7 +200,7 @@ async function staffAuthorized(req: Request, requiredPermission: "messagerie.vie
   if (!auth.startsWith("Bearer ")) return false;
   const { data, error: authError } = await admin.auth.getUser(auth.slice(7));
   if (authError || !data.user) return false;
-  const { data: allowed, error: permissionError } = await admin.rpc("user_has_app_permission", {
+  const { data: allowed, error: permissionError } = await admin.rpc("crm_user_has_app_permission", {
     _user_id: data.user.id,
     _required_code: requiredPermission,
   });
