@@ -52,20 +52,16 @@ serve(async (req) => {
     if (paymentError) throw paymentError;
     if (!payment) return json({ success: false, error: "Paiement introuvable" }, 404);
 
-    // The service-role client has no auth.uid() context, so staff roles must be
-    // resolved against the authenticated user's ID rather than calling is_staff(auth.uid()).
-    const { data: roleRows, error: rolesError } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
-    if (rolesError) throw rolesError;
-    const staffRoles = new Set([
-      "pdg", "dg", "responsable_operations", "comptable", "commercial", "service_client",
-      "responsable_commercial", "assistant_administratif", "chef_equipe_commercial",
-      "chef_equipe_technique", "technicien", "chef_equipe_service_client", "associe_actionnaire",
-      "mobilisateur_foncier", "superviseur_mobilisation_fonciere",
+    // The service-role client has no auth.uid() context; use the database permission
+    // resolver with the verified caller ID instead of a hardcoded staff-role list.
+    const permissionChecks = await Promise.all([
+      admin.rpc("user_has_app_permission", { _user_id: user.id, _required_code: "paiements.record" }),
+      admin.rpc("user_has_app_permission", { _user_id: user.id, _required_code: "paiements.validate" }),
+      admin.rpc("user_has_app_permission", { _user_id: user.id, _required_code: "paiements.execute" }),
     ]);
-    let allowed = (roleRows || []).some((row: any) => staffRoles.has(String(row.role)));
+    const permissionError = permissionChecks.find((result) => result.error)?.error;
+    if (permissionError) throw permissionError;
+    let allowed = permissionChecks.some((result) => result.data === true);
     if (!allowed) {
       const { data: client, error: clientError } = await admin
         .from("clients")
