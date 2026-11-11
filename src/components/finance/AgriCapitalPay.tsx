@@ -76,7 +76,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, b, pay, t, payroll, commission, commissionPayout, expense, batch, runs] = await Promise.all([
+      const [p, b, pay, payroll, commission, commissionPayout, expense, batch, runs] = await Promise.all([
         (supabase as any).rpc("finance_payout_list_profiles"),
         (supabase as any).from("finance_payout_beneficiaries").select("*").order("display_name"),
         (supabase as any).from("finance_payouts").select("*").order("created_at", { ascending: false }).limit(150),
