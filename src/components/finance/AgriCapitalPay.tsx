@@ -10,13 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { CheckCircle2, RefreshCw, Send, ShieldCheck, Users, Wallet } from "lucide-react";
+import { CheckCircle2, RefreshCw, Send, Users, Wallet } from "lucide-react";
 
 type Profile = { id: string; prenoms?: string | null; nom?: string | null; nom_complet?: string | null; telephone?: string | null; email?: string | null; poste?: string | null; actif?: boolean | null };
 type Beneficiary = { id: string; profile_id?: string | null; beneficiary_type: string; first_names?: string | null; last_name?: string | null; display_name: string; phone?: string | null; email?: string | null; active: boolean };
 type PayoutBatch = { id: string; reference: string; status: string; total_amount: number; payout_count: number; created_at: string };
 type Payout = { id: string; reference: string; beneficiary_id: string; profile_id?: string | null; source_kind?: string | null; source_id?: string | null; category: string; amount: number; reason: string; payment_method: string; provider_code: string; provider_reference?: string | null; provider_transaction_id?: string | null; status: string; notification_status: string; created_at: string; paid_at?: string | null; failure_reason?: string | null };
-type SmsTemplate = { id: string; category: string; name: string; content: string; active: boolean; max_characters: number };
 
 const categories = [
   ["salary", "Salaire"], ["commission", "Commission"], ["remuneration", "Rémunération"],
@@ -63,7 +62,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [batches, setBatches] = useState<PayoutBatch[]>([]);
-  const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [payrollItems, setPayrollItems] = useState<any[]>([]);
   const [payrollRuns, setPayrollRuns] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
@@ -91,7 +89,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [providerReference, setProviderReference] = useState("");
   const [providerTransactionId, setProviderTransactionId] = useState("");
   const [reconcileMethod, setReconcileMethod] = useState("mobile_money");
-  const [editingTemplate, setEditingTemplate] = useState<SmsTemplate | null>(null);
   const [templatePreviewName, setTemplatePreviewName] = useState("Koffi Inocent KOFFI");
 
   const load = useCallback(async () => {
@@ -101,7 +98,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         (supabase as any).rpc("finance_payout_list_profiles"),
         (supabase as any).from("finance_payout_beneficiaries").select("*").order("display_name"),
         (supabase as any).from("finance_payouts").select("*").order("created_at", { ascending: false }).limit(150),
-        (supabase as any).from("finance_payout_sms_templates").select("*").order("category"),
         (supabase as any).from("finance_payroll_items").select("id,profile_id,net_salary,status,transaction_id,payroll_run_id").eq("status","valide").is("transaction_id",null).gt("net_salary",0),
         (supabase as any).from("commissions").select("id,profile_id,montant_commission,type_commission,statut,periode").eq("statut","validee").not("profile_id","is",null).gt("montant_commission",0),
         (supabase as any).from("portefeuille_versements").select("id,profile_id,montant_brut,montant_paye,statut,periode_debut,periode_fin").in("statut",["valide","partiellement_paye"]),
@@ -109,12 +105,11 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         (supabase as any).from("finance_payout_batches").select("*").order("created_at",{ascending:false}).limit(50),
         (supabase as any).from("finance_payroll_runs").select("id,period_start,period_end,status,paid_at").eq("status","valide").is("paid_at",null).order("period_end",{ascending:false}),
       ]);
-      for (const result of [p, b, pay, t, batch]) if (result.error) throw result.error;
+      for (const result of [p, b, pay, batch]) if (result.error) throw result.error;
       setProfiles((p.data || []).filter((row: Profile) => row.actif !== false));
       setBeneficiaries(b.data || []);
       setPayouts(pay.data || []);
       setBatches(batch.data || []);
-      setTemplates(t.data || []);
       setPayrollItems(payroll.error ? [] : payroll.data || []);
       setPayrollRuns(runs.error ? [] : runs.data || []);
       setCommissions(commission.error ? [] : commission.data || []);
@@ -268,24 +263,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
     } finally { setSaving(false); }
   };
 
-  const saveTemplate = async () => {
-    if (!editingTemplate) return;
-    const content = editingTemplate.content || "";
-    if (!content.trim() || content.length > 150 || /[^\x20-\x7E]/.test(content)) {
-      toast({ title: "Modèle SMS invalide", description: "Le texte doit être en caractères GSM/ASCII et ne pas dépasser 150 caractères.", variant: "destructive" }); return;
-    }
-    setSaving(true);
-    try {
-      const { error } = await (supabase as any).from("finance_payout_sms_templates")
-        .update({ name: editingTemplate.name, content, active: editingTemplate.active }).eq("id", editingTemplate.id);
-      if (error) throw error;
-      toast({ title: "Modèle SMS enregistré", description: "La règle de notification correspondante est synchronisée automatiquement." });
-      setEditingTemplate(null); await load();
-    } catch (error: any) {
-      toast({ title: "Enregistrement impossible", description: error?.message || "Vérifiez le modèle.", variant: "destructive" });
-    } finally { setSaving(false); }
-  };
-
   const profileDisplay = (profile: Profile) => normalizedName(profile.prenoms, profile.nom, profile.nom_complet) || profile.nom_complet || "Utilisateur CRM";
   const profileDisplayById = (id?: string | null) => id ? profileDisplay(profileById.get(id) || { id }) : "Collaborateur";
   const getBeneficiaryName = (payout: Payout) => {
@@ -302,24 +279,14 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">DÉCAISSEMENTS CONFIRMÉS</p><p className="mt-1 text-xl font-bold">{money(totals.paid)}</p></CardContent></Card>
       </div>
 
-      <Card className="border-amber-300/70 bg-amber-50/50 dark:bg-amber-950/10">
-        <CardContent className="flex flex-col gap-2 p-4 text-sm">
-          <div className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4" />Sécurité des fonds et connexion Kkiapay</div>
-          <p>Les clés privées et le webhook Kkiapay existants sont réservés à la vérification des encaissements. Le solde encaissé n'est pas assimilé à un solde Push Up disponible : l'approvisionnement du compte Push Up est distinct. L'envoi automatique reste verrouillé tant que l'API de décaissement et le compte Push Up AgriCapital ne sont pas validés.</p>
-          <p className="text-xs text-muted-foreground">Les paiements Push Up peuvent être préparés et rapprochés à partir d'une référence et d'un identifiant confirmés dans le tableau de bord Kkiapay.</p>
-        </CardContent>
-      </Card>
-
       <Tabs defaultValue="operations">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3">
           <TabsTrigger value="operations">Nouveau décaissement</TabsTrigger>
           <TabsTrigger value="historique">Historique</TabsTrigger>
           <TabsTrigger value="beneficiaires">Bénéficiaires</TabsTrigger>
-          <TabsTrigger value="sms">Modèles SMS</TabsTrigger>
         </TabsList>
 
         <TabsContent value="operations" className="mt-3 space-y-4">
-          {!canManage && <p className="text-sm text-muted-foreground">Consultation seule : les droits Finance sont nécessaires pour créer ou modifier des décaissements.</p>}
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" />Préparer un paiement</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -358,7 +325,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
                     {sourceKind === "finance_expense" && expenses.map((item) => <SelectItem key={item.id} value={item.id}>{item.beneficiary_name || item.supplier_name || item.description || item.expense_category} — reste {money(Number(item.total_amount || 0)-Number(item.paid_amount || 0))}</SelectItem>)}
                   </SelectContent></Select></div>}
                                     <div className="space-y-1"><Label>Bénéficiaire interne (CRM)</Label><Select value={profileId || "external"} onValueChange={(v) => setProfileId(v === "external" ? "" : v)} disabled={sourceKind !== "none"}><SelectTrigger><SelectValue placeholder="Choisir un utilisateur interne" /></SelectTrigger><SelectContent><SelectItem value="external">Bénéficiaire externe / prestataire</SelectItem>{profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.nom_complet || profileDisplay(p)}{p.poste ? " — " + p.poste : ""}</SelectItem>)}</SelectContent></Select></div>
-                  {sourceKind !== "none" && <p className="text-xs text-muted-foreground">À la confirmation du paiement, AgriCapital PAY mettra à jour la ligne de paie, la commission ou la dépense liée et créera l’écriture comptable correspondante.</p>}
                   {!profileId && <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1"><Label>Prénoms</Label><Input value={externalFirstNames} onChange={(e) => setExternalFirstNames(e.target.value)} /></div>
                     <div className="space-y-1"><Label>Nom</Label><Input value={externalLastName} onChange={(e) => setExternalLastName(e.target.value)} /></div>
@@ -371,7 +337,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
                   <Label>Cycle de paie à décaisser</Label>
                   <Select value={payrollRunId} onValueChange={setPayrollRunId}><SelectTrigger><SelectValue placeholder="Choisir un cycle validé non payé" /></SelectTrigger><SelectContent>{payrollRuns.map((run) => <SelectItem key={run.id} value={run.id}>Du {new Date(run.period_start).toLocaleDateString("fr-FR")} au {new Date(run.period_end).toLocaleDateString("fr-FR")}</SelectItem>)}</SelectContent></Select>
                   {!payrollRuns.length && <p className="text-xs text-muted-foreground">Aucun cycle de paie validé et non payé.</p>}
-                  <p className="text-xs text-muted-foreground">Chaque salarié recevra le montant net exact de sa ligne de paie. Le lot restera soumis à une approbation distincte.</p>
                 </div>
               ) : (
                 <div className="space-y-2 rounded-lg border p-3">
@@ -382,7 +347,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
                   </div>
                 </div>
               ))}
-              {providerCode === "kkiapay_push_up" && <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">Le décaissement Push Up est préparé et tracé dans AgriCapital PAY, mais son envoi API n'est pas activé. Exécutez le lot dans le portail Push Up, puis rapprochez chaque paiement confirmé dans le CRM. Aucun transfert ne sera lancé par ce formulaire.</p>}
               <Button onClick={() => void createPayout()} disabled={!canManage || saving || loading}><Send className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : mode === "batch" ? "Créer le lot à approuver" : "Soumettre à approbation"}</Button>
             </CardContent>
           </Card>
@@ -404,14 +368,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
           <Card><CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Répertoire des bénéficiaires</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Nom</th><th className="p-2">Catégorie</th><th className="p-2">Téléphone</th><th className="p-2">Origine</th></tr></thead><tbody>{beneficiaries.map((b) => <tr key={b.id} className="border-b"><td className="p-2 font-medium">{b.display_name}</td><td className="p-2">{b.beneficiary_type}</td><td className="p-2">{b.phone || "—"}</td><td className="p-2">{b.profile_id ? "Profil CRM synchronisé" : "Externe"}</td></tr>)}{!beneficiaries.length && <tr><td colSpan={4} className="p-5 text-center text-muted-foreground">Aucun bénéficiaire enregistré.</td></tr>}</tbody></table></div></CardContent></Card>
         </TabsContent>
 
-        <TabsContent value="sms" className="mt-3 space-y-3">
-          <Card><CardHeader><CardTitle>Notifications automatiques de paiement</CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><p>Les SMS sont déclenchés uniquement après confirmation du statut « Payé ». Les modèles sont synchronisés avec le moteur de notifications existant. Le nom est résolu depuis le profil CRM : dernier prénom disponible + nom ; si aucun nom n'est disponible, le message commence par « Bonjour ».</p><p className="text-xs text-muted-foreground">Variables : {"{dernierprenom_nom}"}, {"{prenom}"}, {"{nom}"}, {"{nom_complet}"}, {"{montant}"}, {"{motif}"}, {"{date}"}, {"{reference}"}, {"{entreprise}"}. Limite stricte : 150 caractères après remplacement des variables. Les modèles restent en alphabet GSM/ASCII afin d'éviter un changement d'encodage.</p></CardContent></Card>
-          <div className="grid gap-3 md:grid-cols-2">{templates.map((template) => {
-            const preview = renderSms(template.content, normalizedName(null, null, templatePreviewName));
-            return <Card key={template.id}><CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-base">{template.name}</CardTitle><Badge variant={template.active ? "default" : "secondary"}>{template.active ? "Actif" : "Inactif"}</Badge></div><p className="text-xs text-muted-foreground">{categoryLabel(template.category)}</p></CardHeader><CardContent className="space-y-2"><p className="rounded-md bg-muted p-3 text-sm">{preview}</p><p className={"text-xs " + (preview.length > 150 ? "text-destructive" : "text-muted-foreground")}>{preview.length}/150 caractères · {preview.length > 150 ? "Envoi bloqué" : "Conforme"}</p>{canManage && <Button size="sm" variant="outline" onClick={() => setEditingTemplate({ ...template })}>Modifier le modèle</Button>}</CardContent></Card>;
-          })}</div>
-          <div className="space-y-1"><Label>Nom de test pour l'aperçu</Label><Input value={templatePreviewName} onChange={(e) => setTemplatePreviewName(e.target.value)} /></div>
-        </TabsContent>
+
       </Tabs>
 
       <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open && !saving) setEditingTemplate(null); }}>
