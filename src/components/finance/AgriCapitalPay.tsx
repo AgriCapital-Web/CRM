@@ -51,6 +51,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [commissionPayouts, setCommissionPayouts] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<"single" | "batch">("single");
   const [batchMode, setBatchMode] = useState<"uniform" | "payroll">("uniform");
@@ -193,6 +194,7 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
       setAmount(""); setReason(""); setProfileId(""); setSelectedProfiles([]); setSourceKind("none"); setSourceId(""); setBatchMode("uniform"); setPayrollRunId("");
       setExternalFirstNames(""); setExternalLastName(""); setExternalPhone("");
       await load();
+      setPayoutDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Création impossible", description: error?.message || "Vérifiez les données saisies.", variant: "destructive" });
     } finally { setSaving(false); }
@@ -268,7 +270,35 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
           <TabsTrigger value="beneficiaires">Bénéficiaires</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="operations" className="mt-3 space-y-4">
+        <TabsContent value="operations" className="mt-3">
+          <div className="flex justify-end">
+            <Button onClick={() => setPayoutDialogOpen(true)} disabled={!canManage || loading}>
+              <Send className="mr-2 h-4 w-4" />Nouveau décaissement
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="historique" className="mt-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Décaissements récents</h3><Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-base">Lots de décaissement récents</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Référence</th><th className="p-2">Créé le</th><th className="p-2 text-right">Bénéficiaires</th><th className="p-2 text-right">Total</th><th className="p-2">Statut</th><th className="p-2">Action</th></tr></thead><tbody>{batches.map((batch) => <tr key={batch.id} className="border-b"><td className="p-2 font-medium">{batch.reference}</td><td className="p-2">{new Date(batch.created_at).toLocaleDateString("fr-FR")}</td><td className="p-2 text-right">{batch.payout_count}</td><td className="p-2 text-right font-semibold">{money(batch.total_amount)}</td><td className="p-2"><Badge className={statusClass[batch.status] || ""}>{statusLabel[batch.status] || batch.status}</Badge></td><td className="p-2">{batch.status === "pending_approval" && canManage && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approveBatch(batch)}>Approuver le lot</Button>}</td></tr>)}{!batches.length && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Aucun lot créé.</td></tr>}</tbody></table></div></CardContent></Card>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full min-w-[860px] text-sm"><thead className="bg-muted/60"><tr className="text-left"><th className="p-3">Bénéficiaire</th><th className="p-3">Motif</th><th className="p-3 text-right">Montant</th><th className="p-3">Référence</th><th className="p-3">Statut</th><th className="p-3">Action</th></tr></thead>
+              <tbody>{payouts.map((p) => <tr key={p.id} className="border-t"><td className="p-3 font-medium">{getBeneficiaryName(p)}<span className="block text-xs text-muted-foreground">{categoryLabel(p.category)}</span></td><td className="max-w-[220px] p-3"><span className="block truncate">{p.reason}</span><span className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString("fr-FR")}</span></td><td className="p-3 text-right font-semibold tabular-nums">{money(p.amount)}</td><td className="p-3"><span className="block">{p.reference}</span><span className="text-xs text-muted-foreground">{p.provider_code === "kkiapay_push_up" ? "Kkiapay Push Up" : "Hors ligne"}{p.source_kind ? " · " + p.source_kind : ""}</span></td><td className="p-3"><Badge className={statusClass[p.status] || ""}>{statusLabel[p.status] || p.status}</Badge>{p.notification_status === "queued" && <span className="mt-1 block text-xs text-muted-foreground">SMS en file</span>}{p.notification_status === "blocked_too_long" && <span className="mt-1 block text-xs text-destructive">SMS bloqué (&gt;150)</span>}</td><td className="p-3"><div className="flex flex-wrap gap-1">{p.status === "pending_approval" && canManage && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approve(p)}>Approuver</Button>}{p.status === "approved" && canManage && <Button size="sm" disabled={saving} onClick={() => { setReconcilePayout(p); setProviderReference(""); setProviderTransactionId(""); setReconcileMethod(p.payment_method || "mobile_money"); }}>{p.provider_code === "kkiapay_push_up" ? "Rapprocher Push Up" : "Confirmer paiement"}</Button>}</div></td></tr>)}
+              {!payouts.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{loading ? "Chargement…" : "Aucun décaissement enregistré."}</td></tr>}</tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="beneficiaires" className="mt-3 space-y-3">
+          <Card><CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Répertoire des bénéficiaires</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Nom</th><th className="p-2">Catégorie</th><th className="p-2">Téléphone</th><th className="p-2">Origine</th></tr></thead><tbody>{beneficiaries.map((b) => <tr key={b.id} className="border-b"><td className="p-2 font-medium">{b.display_name}</td><td className="p-2">{b.beneficiary_type}</td><td className="p-2">{b.phone || "—"}</td><td className="p-2">{b.profile_id ? "Profil CRM synchronisé" : "Externe"}</td></tr>)}{!beneficiaries.length && <tr><td colSpan={4} className="p-5 text-center text-muted-foreground">Aucun bénéficiaire enregistré.</td></tr>}</tbody></table></div></CardContent></Card>
+        </TabsContent>
+
+
+      </Tabs>
+
+      <Dialog open={payoutDialogOpen} onOpenChange={(open) => { if (!saving) setPayoutDialogOpen(open); }}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader><DialogTitle>Nouveau décaissement</DialogTitle></DialogHeader>
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" />Préparer un paiement</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -332,26 +362,8 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
               <Button onClick={() => void createPayout()} disabled={!canManage || saving || loading}><Send className="mr-2 h-4 w-4" />{saving ? "Enregistrement…" : mode === "batch" ? "Créer le lot à approuver" : "Soumettre à approbation"}</Button>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="historique" className="mt-3 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Décaissements récents</h3><Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button></div>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-base">Lots de décaissement récents</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Référence</th><th className="p-2">Créé le</th><th className="p-2 text-right">Bénéficiaires</th><th className="p-2 text-right">Total</th><th className="p-2">Statut</th><th className="p-2">Action</th></tr></thead><tbody>{batches.map((batch) => <tr key={batch.id} className="border-b"><td className="p-2 font-medium">{batch.reference}</td><td className="p-2">{new Date(batch.created_at).toLocaleDateString("fr-FR")}</td><td className="p-2 text-right">{batch.payout_count}</td><td className="p-2 text-right font-semibold">{money(batch.total_amount)}</td><td className="p-2"><Badge className={statusClass[batch.status] || ""}>{statusLabel[batch.status] || batch.status}</Badge></td><td className="p-2">{batch.status === "pending_approval" && canManage && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approveBatch(batch)}>Approuver le lot</Button>}</td></tr>)}{!batches.length && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Aucun lot créé.</td></tr>}</tbody></table></div></CardContent></Card>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[860px] text-sm"><thead className="bg-muted/60"><tr className="text-left"><th className="p-3">Bénéficiaire</th><th className="p-3">Motif</th><th className="p-3 text-right">Montant</th><th className="p-3">Référence</th><th className="p-3">Statut</th><th className="p-3">Action</th></tr></thead>
-              <tbody>{payouts.map((p) => <tr key={p.id} className="border-t"><td className="p-3 font-medium">{getBeneficiaryName(p)}<span className="block text-xs text-muted-foreground">{categoryLabel(p.category)}</span></td><td className="max-w-[220px] p-3"><span className="block truncate">{p.reason}</span><span className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString("fr-FR")}</span></td><td className="p-3 text-right font-semibold tabular-nums">{money(p.amount)}</td><td className="p-3"><span className="block">{p.reference}</span><span className="text-xs text-muted-foreground">{p.provider_code === "kkiapay_push_up" ? "Kkiapay Push Up" : "Hors ligne"}{p.source_kind ? " · " + p.source_kind : ""}</span></td><td className="p-3"><Badge className={statusClass[p.status] || ""}>{statusLabel[p.status] || p.status}</Badge>{p.notification_status === "queued" && <span className="mt-1 block text-xs text-muted-foreground">SMS en file</span>}{p.notification_status === "blocked_too_long" && <span className="mt-1 block text-xs text-destructive">SMS bloqué (&gt;150)</span>}</td><td className="p-3"><div className="flex flex-wrap gap-1">{p.status === "pending_approval" && canManage && <Button size="sm" variant="outline" disabled={saving} onClick={() => void approve(p)}>Approuver</Button>}{p.status === "approved" && canManage && <Button size="sm" disabled={saving} onClick={() => { setReconcilePayout(p); setProviderReference(""); setProviderTransactionId(""); setReconcileMethod(p.payment_method || "mobile_money"); }}>{p.provider_code === "kkiapay_push_up" ? "Rapprocher Push Up" : "Confirmer paiement"}</Button>}</div></td></tr>)}
-              {!payouts.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{loading ? "Chargement…" : "Aucun décaissement enregistré."}</td></tr>}</tbody>
-            </table>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="beneficiaires" className="mt-3 space-y-3">
-          <Card><CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Répertoire des bénéficiaires</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b text-left"><th className="p-2">Nom</th><th className="p-2">Catégorie</th><th className="p-2">Téléphone</th><th className="p-2">Origine</th></tr></thead><tbody>{beneficiaries.map((b) => <tr key={b.id} className="border-b"><td className="p-2 font-medium">{b.display_name}</td><td className="p-2">{b.beneficiary_type}</td><td className="p-2">{b.phone || "—"}</td><td className="p-2">{b.profile_id ? "Profil CRM synchronisé" : "Externe"}</td></tr>)}{!beneficiaries.length && <tr><td colSpan={4} className="p-5 text-center text-muted-foreground">Aucun bénéficiaire enregistré.</td></tr>}</tbody></table></div></CardContent></Card>
-        </TabsContent>
-
-
-      </Tabs>
-
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!reconcilePayout} onOpenChange={(open) => { if (!open && !saving) setReconcilePayout(null); }}>
         <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{reconcilePayout?.provider_code === "kkiapay_push_up" ? "Rapprocher une opération Kkiapay Push Up" : "Confirmer un paiement effectué"}</DialogTitle></DialogHeader>
           {reconcilePayout && <div className="space-y-3"><div className="rounded-md bg-muted p-3 text-sm"><p className="font-medium">{getBeneficiaryName(reconcilePayout)}</p><p>{money(reconcilePayout.amount)} · {reconcilePayout.reference}</p><p className="text-xs text-muted-foreground">{reconcilePayout.reason}</p></div><div className="space-y-1"><Label>Référence de confirmation *</Label><Input value={providerReference} onChange={(e) => setProviderReference(e.target.value)} placeholder="Référence de transfert / lot" /></div>{reconcilePayout.provider_code === "kkiapay_push_up" && <div className="space-y-1"><Label>ID de transaction Push Up *</Label><Input value={providerTransactionId} onChange={(e) => setProviderTransactionId(e.target.value)} placeholder="Identifiant issu du rapport Push Up" /></div>}<div className="space-y-1"><Label>Mode de paiement</Label><Select value={reconcileMethod} onValueChange={setReconcileMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="bank_transfer">Virement bancaire</SelectItem><SelectItem value="cash">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="other">Autre</SelectItem></SelectContent></Select></div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setReconcilePayout(null)}>Annuler</Button><Button onClick={() => void reconcile()} disabled={saving}><CheckCircle2 className="mr-2 h-4 w-4" />Confirmer le rapprochement</Button></div></div>}
