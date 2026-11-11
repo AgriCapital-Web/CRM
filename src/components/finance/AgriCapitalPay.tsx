@@ -39,23 +39,6 @@ const normalizedName = (firstNames?: string | null, lastName?: string | null, fu
   const parts = combined.split(/\s+/).filter(Boolean);
   return parts.length > 1 ? parts.slice(-2).join(" ") : (parts[0] || "");
 };
-const renderSms = (content: string, name: string, amount = "125 000", reason = "salaire", date = "09/11/2026", reference = "AGP-EXEMPLE") => {
-  const greeting = name ? "Bonjour " + name : "Bonjour";
-  return content
-    .replaceAll("Bonjour {dernier_prenom_nom}", greeting)
-    .replaceAll("Bonjour {dernierprenom_nom}", greeting)
-    .replaceAll("{dernier_prenom_nom}", name)
-    .replaceAll("{dernierprenom_nom}", name)
-    .replaceAll("{prenom}", name.split(" ")[0] || "")
-    .replaceAll("{nom}", name.split(" ").slice(-1)[0] || "")
-    .replaceAll("{nom_complet}", name)
-    .replaceAll("{montant}", amount)
-    .replaceAll("{motif}", reason)
-    .replaceAll("{date}", date)
-    .replaceAll("{reference}", reference)
-    .replaceAll("{entreprise}", "AgriCapital");
-};
-
 export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -89,7 +72,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
   const [providerReference, setProviderReference] = useState("");
   const [providerTransactionId, setProviderTransactionId] = useState("");
   const [reconcileMethod, setReconcileMethod] = useState("mobile_money");
-  const [templatePreviewName, setTemplatePreviewName] = useState("Koffi Inocent KOFFI");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -361,7 +343,6 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
               {!payouts.length && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{loading ? "Chargement…" : "Aucun décaissement enregistré."}</td></tr>}</tbody>
             </table>
           </div>
-          <p className="text-xs text-muted-foreground">Une approbation est effectuée par un responsable différent du créateur. La confirmation finale exige une référence réelle. Les lignes Push Up sont rapprochées depuis le rapport du tableau de bord Kkiapay ; aucun transfert n'est simulé.</p>
         </TabsContent>
 
         <TabsContent value="beneficiaires" className="mt-3 space-y-3">
@@ -371,15 +352,9 @@ export default function AgriCapitalPay({ canManage }: { canManage: boolean }) {
 
       </Tabs>
 
-      <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open && !saving) setEditingTemplate(null); }}>
-        <DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Modifier le modèle SMS</DialogTitle></DialogHeader>
-          {editingTemplate && <div className="space-y-3"><div className="space-y-1"><Label>Nom du modèle</Label><Input value={editingTemplate.name} onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })} /></div><div className="space-y-1"><Label>Contenu (150 caractères maximum)</Label><Textarea rows={4} value={editingTemplate.content} onChange={(e) => setEditingTemplate({ ...editingTemplate, content: e.target.value })} /></div><div className="flex items-center justify-between text-xs"><span>{editingTemplate.content.length}/150 caractères</span><span className={/[^\x20-\x7E]/.test(editingTemplate.content) ? "text-destructive" : "text-muted-foreground"}>{/[^\x20-\x7E]/.test(editingTemplate.content) ? "Caractères non GSM/ASCII" : "Alphabet GSM/ASCII"}</span></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editingTemplate.active} onChange={(e) => setEditingTemplate({ ...editingTemplate, active: e.target.checked })} />Activer cette notification</label><div className="rounded-md bg-muted p-3 text-sm">{renderSms(editingTemplate.content, normalizedName(null, null, templatePreviewName))}</div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEditingTemplate(null)}>Annuler</Button><Button onClick={() => void saveTemplate()} disabled={saving || editingTemplate.content.length > 150 || /[^\x20-\x7E]/.test(editingTemplate.content)}>Enregistrer</Button></div></div>}
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={!!reconcilePayout} onOpenChange={(open) => { if (!open && !saving) setReconcilePayout(null); }}>
         <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{reconcilePayout?.provider_code === "kkiapay_push_up" ? "Rapprocher une opération Kkiapay Push Up" : "Confirmer un paiement effectué"}</DialogTitle></DialogHeader>
-          {reconcilePayout && <div className="space-y-3"><div className="rounded-md bg-muted p-3 text-sm"><p className="font-medium">{getBeneficiaryName(reconcilePayout)}</p><p>{money(reconcilePayout.amount)} · {reconcilePayout.reference}</p><p className="text-xs text-muted-foreground">{reconcilePayout.reason}</p></div><div className="space-y-1"><Label>Référence de confirmation *</Label><Input value={providerReference} onChange={(e) => setProviderReference(e.target.value)} placeholder="Référence de transfert / lot" /></div>{reconcilePayout.provider_code === "kkiapay_push_up" && <div className="space-y-1"><Label>ID de transaction Push Up *</Label><Input value={providerTransactionId} onChange={(e) => setProviderTransactionId(e.target.value)} placeholder="Identifiant issu du rapport Push Up" /></div>}<div className="space-y-1"><Label>Mode de paiement</Label><Select value={reconcileMethod} onValueChange={setReconcileMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="bank_transfer">Virement bancaire</SelectItem><SelectItem value="cash">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="other">Autre</SelectItem></SelectContent></Select></div><p className="text-xs text-muted-foreground">Ne confirmez qu'après vérification effective du débit ou du rapport fournisseur. Cette action déclenche le SMS au bénéficiaire si le modèle est actif et respecte 150 caractères.</p><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setReconcilePayout(null)}>Annuler</Button><Button onClick={() => void reconcile()} disabled={saving}><CheckCircle2 className="mr-2 h-4 w-4" />Confirmer le rapprochement</Button></div></div>}
+          {reconcilePayout && <div className="space-y-3"><div className="rounded-md bg-muted p-3 text-sm"><p className="font-medium">{getBeneficiaryName(reconcilePayout)}</p><p>{money(reconcilePayout.amount)} · {reconcilePayout.reference}</p><p className="text-xs text-muted-foreground">{reconcilePayout.reason}</p></div><div className="space-y-1"><Label>Référence de confirmation *</Label><Input value={providerReference} onChange={(e) => setProviderReference(e.target.value)} placeholder="Référence de transfert / lot" /></div>{reconcilePayout.provider_code === "kkiapay_push_up" && <div className="space-y-1"><Label>ID de transaction Push Up *</Label><Input value={providerTransactionId} onChange={(e) => setProviderTransactionId(e.target.value)} placeholder="Identifiant issu du rapport Push Up" /></div>}<div className="space-y-1"><Label>Mode de paiement</Label><Select value={reconcileMethod} onValueChange={setReconcileMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="bank_transfer">Virement bancaire</SelectItem><SelectItem value="cash">Espèces</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="other">Autre</SelectItem></SelectContent></Select></div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setReconcilePayout(null)}>Annuler</Button><Button onClick={() => void reconcile()} disabled={saving}><CheckCircle2 className="mr-2 h-4 w-4" />Confirmer le rapprochement</Button></div></div>}
         </DialogContent>
       </Dialog>
       {loading && <p className="text-xs text-muted-foreground">Chargement des données AgriCapital PAY…</p>}
