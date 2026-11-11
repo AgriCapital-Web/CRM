@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Sprout, CreditCard, TrendingUp, MapPin, Target, Wrench, DollarSign } from "lucide-react";
@@ -17,7 +18,8 @@ interface ZoneStats {
 }
 
 export const RoleDashboard = () => {
-  const { userRoles, user } = useAuth();
+  const { user } = useAuth();
+  const { can, capabilities } = usePermissions();
   const [stats, setStats] = useState<ZoneStats>({
     totalClients: 0, totalPlantations: 0, totalHectares: 0,
     totalPaiements: 0, paiementsEnAttente: 0, plantationsEnProduction: 0,
@@ -25,20 +27,20 @@ export const RoleDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = userRoles.some(r => ["pdg", "dg", "responsable_operations"].includes(r));
-  const isResponsableCommercial = userRoles.includes("responsable_commercial");
-  const isChefEquipe = userRoles.some(r => ["chef_equipe_commercial", "chef_equipe_technique", "chef_equipe_service_client"].includes(r));
-  const isCommercial = userRoles.includes("commercial");
-  const isTechnique = userRoles.includes("chef_equipe_technique");
+  const isPdg = capabilities.globalAdmin;
+  const isResponsableCommercial = can("system.role_responsable_commercial");
+  const isChefEquipe = can("system.role_chef_equipe");
+  const isCommercial = can("system.role_commercial");
+  const isTechnique = can("system.role_technique");
 
   useEffect(() => {
     if (!user) return;
     fetchZoneStats();
-  }, [user, userRoles]);
+  }, [user?.id, isPdg, isResponsableCommercial, isChefEquipe, isCommercial, isTechnique]);
 
   const fetchZoneStats = async () => {
     try {
-      if (isAdmin) {
+      if (isPdg) {
         const [{ count: sc }, { data: pl }, { data: pa }, { count: eq }] = await Promise.all([
           (supabase as any).from("clients").select("*", { count: "exact", head: true }),
           (supabase as any).from("plantations").select("superficie_ha, statut_global"),
@@ -114,8 +116,8 @@ export const RoleDashboard = () => {
 
   if (loading) return null;
 
-  const roleLabel = isAdmin ? "Administrateur" : isResponsableCommercial ? "Responsable Commercial" : isChefEquipe ? "Chef d'Équipe" : isTechnique ? "Technique" : "Commercial";
-  const zoneLevel = isAdmin ? "Global" : isResponsableCommercial ? "Régions" : isChefEquipe ? "Départements" : "Sous-préfectures";
+  const roleLabel = isPdg ? "PDG" : isResponsableCommercial ? "Responsable Commercial" : isChefEquipe ? "Chef d'Équipe" : isTechnique ? "Technique" : "Commercial";
+  const zoneLevel = isPdg ? "Global" : isResponsableCommercial ? "Régions" : isChefEquipe ? "Départements" : "Sous-préfectures";
 
   const showCommercialKPIs = isCommercial || isResponsableCommercial;
   const showTechKPIs = isTechnique || isResponsableCommercial;
