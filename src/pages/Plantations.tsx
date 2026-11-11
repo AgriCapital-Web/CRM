@@ -36,7 +36,11 @@ const Plantations = () => {
   const [plantationToDelete, setPlantationToDelete] = useState<any>(null);
   const { toast } = useToast();
   const { can, capabilities } = usePermissions();
-  const canTransferPlantation = capabilities.transferPlantation;
+  const canTransferPlantation = capabilities.transferPlantation && !capabilities.globalAdmin;
+  const canUpdatePlantation = can("plantations.update") && !capabilities.globalAdmin;
+  const canArchivePlantation = can("plantations.archive") && !capabilities.globalAdmin;
+  const canDeletePlantation = can("plantations.delete") && !capabilities.globalAdmin;
+  const hasPlantationActions = canUpdatePlantation || canArchivePlantation || canDeletePlantation;
   const [clients, setClients] = useState<any[]>([]);
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferPlantationId, setTransferPlantationId] = useState("");
@@ -86,7 +90,7 @@ const Plantations = () => {
   };
 
   const handleTransferPlantation = async () => {
-    if (!canTransferPlantation) {
+    if (!canTransferPlantation || capabilities.globalAdmin) {
       toast({ variant: "destructive", title: "Accès refusé", description: "Votre compte ne dispose pas de l’autorisation de transfert." });
       return;
     }
@@ -141,7 +145,7 @@ const Plantations = () => {
   const nombreEnProduction = visiblePlantations.filter(p => p.statut_global === "en_production" || p.statut === "en_production").length;
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    if (!can("plantations.update") && !(newStatus === "archive" && can("plantations.archive"))) {
+    if (!canUpdatePlantation && !(newStatus === "archive" && canArchivePlantation)) {
       toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de modifier ce statut de plantation." });
       return;
     }
@@ -156,7 +160,7 @@ const Plantations = () => {
   };
 
   const handleDelete = async () => {
-    if (!can("plantations.delete")) {
+    if (!canDeletePlantation) {
       toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de supprimer une plantation." });
       return;
     }
@@ -271,16 +275,16 @@ const Plantations = () => {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" asChild><Link to={`/plantations/${plantation.id}`} title="Voir la fiche"><Eye className="h-4 w-4" /></Link></Button>
-                        <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                        {hasPlantationActions && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {can("plantations.update") && (plantation.statut_global || plantation.statut) !== "en_production" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "en_production")}><RotateCcw className="mr-2 h-4 w-4 text-green-500" />En production</DropdownMenuItem>}
-                            {can("plantations.update") && (plantation.statut_global || plantation.statut) !== "en_cours" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "en_cours")}><RotateCcw className="mr-2 h-4 w-4 text-purple-500" />En cours</DropdownMenuItem>}
-                            {can("plantations.update") && (plantation.statut_global || plantation.statut) !== "suspendu" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "suspendu")}><Ban className="mr-2 h-4 w-4 text-orange-500" />Suspendre</DropdownMenuItem>}
-                            {can("plantations.archive") && (plantation.statut_global || plantation.statut) !== "archive" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "archive")}><Archive className="mr-2 h-4 w-4 text-slate-500" />Archiver</DropdownMenuItem>}
+                            {canUpdatePlantation && (plantation.statut_global || plantation.statut) !== "en_production" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "en_production")}><RotateCcw className="mr-2 h-4 w-4 text-green-500" />En production</DropdownMenuItem>}
+                            {canUpdatePlantation && (plantation.statut_global || plantation.statut) !== "en_cours" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "en_cours")}><RotateCcw className="mr-2 h-4 w-4 text-purple-500" />En cours</DropdownMenuItem>}
+                            {canUpdatePlantation && (plantation.statut_global || plantation.statut) !== "suspendu" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "suspendu")}><Ban className="mr-2 h-4 w-4 text-orange-500" />Suspendre</DropdownMenuItem>}
+                            {canArchivePlantation && (plantation.statut_global || plantation.statut) !== "archive" && <DropdownMenuItem onClick={() => handleStatusChange(plantation.id, "archive")}><Archive className="mr-2 h-4 w-4 text-slate-500" />Archiver</DropdownMenuItem>}
                             <DropdownMenuSeparator />
-                            {can("plantations.delete") && <DropdownMenuItem className="text-destructive" onClick={() => { setPlantationToDelete(plantation); setDeleteDialogOpen(true); }}><Trash2 className="mr-2 h-4 w-4" />Supprimer</DropdownMenuItem>}
+                            {canDeletePlantation && <DropdownMenuItem className="text-destructive" onClick={() => { setPlantationToDelete(plantation); setDeleteDialogOpen(true); }}><Trash2 className="mr-2 h-4 w-4" />Supprimer</DropdownMenuItem>}
                           </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DropdownMenu>}
                       </div>
                     </TableCell>
                   </TableRow>
