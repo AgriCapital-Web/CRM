@@ -23,8 +23,8 @@ const Parcelles = () => {
   const [plantations, setPlantations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const { can } = usePermissions();
-  const canEditParcel = can("parcelles.update");
+  const { can, capabilities } = usePermissions();
+  const canEditParcel = can("parcelles.update") && !capabilities.globalAdmin;
   const { toast } = useToast();
   const [selectedParcel, setSelectedParcel] = useState<any | null>(null);
   const [editParcel, setEditParcel] = useState(false);
