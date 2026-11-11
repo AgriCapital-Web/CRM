@@ -25,10 +25,6 @@ import ContactLauncher from "@/components/common/ContactLauncher";
 import KanbanPipeline from "@/components/acquisitions/KanbanPipeline";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
-
-// AgriCapital est un compte interne et ne doit jamais apparaître dans les listes commerciales.
-const isAgriCapitalInternal = (client: any) => /agricapital/i.test(String(client?.nom_complet || client?.nom || "").trim());
 
 const formatHectares = (value: unknown) => {
   const hectares = Number(value || 0);
@@ -52,10 +48,8 @@ const Clients = () => {
   const navigate = useNavigate();
   const acquisitionsView = location.pathname === "/acquisitions";
   const { can } = usePermissions();
-  const { profile, userRoles } = useAuth();
-  const serviceClient = (userRoles || []).some((role:string) => ["service_client","chef_equipe_service_client"].includes(role)) || String(profile?.poste || "").toLowerCase().includes("service client") || String(profile?.relation_rh || "").toLowerCase().includes("service client");
-  const canEditClient = (userRoles || []).some((role:string) => ["pdg","relation_client","support"].includes(role));
-  const canDeleteClient = can("clients.delete") && !serviceClient;
+  const canEditClient = (client: any) => can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
+  const canDeleteClient = can("clients.delete");
   const [clients, setClients] = useState<any[]>([]);
   const [salesPendingValidation, setSalesPendingValidation] = useState(0);
   const [attributions, setAttributions] = useState<any[]>([]);
@@ -164,11 +158,9 @@ const Clients = () => {
       setAttributions(attributionsData);
       // Exclure uniquement l'entité interne AgriCapital et les propriétaires fonciers.
       // Les bénéficiaires particuliers sont affichés aussi dans Acquisition.
-      const isPdg = (userRoles || []).includes("pdg");
       setClients(enrichedData.filter((client: any) =>
-        !client.is_internal && !isAgriCapitalInternal(client) &&
-        String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" &&
-        (isPdg || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier")
+        !client.is_internal &&
+        String(client.type_client || "").toLowerCase() !== "proprietaire_foncier"
       ));
     } catch (error: any) {
       if (!navigator.onLine) {
@@ -176,11 +168,9 @@ const Clients = () => {
           getCachedClients(),
           getCachedPlantations(),
         ]);
-        const isPdg = (userRoles || []).includes("pdg");
         const enrichedData = cachedClients
-          .filter((client: any) => !client.is_internal && !isAgriCapitalInternal(client) &&
-            String(client.type_client || "").toLowerCase() !== "proprietaire_foncier" &&
-            (isPdg || String(client.type_client || "").toLowerCase() !== "beneficiaire_particulier"))
+          .filter((client: any) => !client.is_internal &&
+            String(client.type_client || "").toLowerCase() !== "proprietaire_foncier")
           .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
@@ -208,7 +198,7 @@ const Clients = () => {
   useEffect(() => {
     const timer = window.setTimeout(() => { void fetchData(); }, searchTerm ? 250 : 0);
     return () => window.clearTimeout(timer);
-  }, [searchTerm, acquisitionsView, userRoles]);
+  }, [searchTerm, acquisitionsView]);
 
   useRealtime({ table: "clients", onChange: fetchData });
   useRealtime({ table: "plantations", onChange: fetchData });
@@ -220,8 +210,7 @@ const Clients = () => {
   );
   const handleStatusChange = async (id: string, newStatus: string) => {
     const client = clients.find(s => s.id === id);
-    const canEditThisClient = canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && (client?.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg"));
-    if (!canEditThisClient) { toast({variant:"destructive",title:"Action non autorisée",description:client?.type_client === "beneficiaire_particulier" ? "Seul le PDG peut modifier un bénéficiaire particulier." : "Votre rôle ne permet pas de modifier ce dossier client."}); return; }
+    if (!canEditClient(client)) { toast({variant:"destructive",title:"Action non autorisée",description:"Votre compte ne dispose pas de la permission de modification."}); return; }
     try {
       const { error } = await offlineUpdate("clients", id, { statut: newStatus, statut_global: newStatus });
       if (error) throw error;
@@ -510,21 +499,21 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
-                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && <DropdownMenuSeparator />}
-                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && client.statut !== 'actif' && (
+                                  {canEditClient(client) && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
+                                  {canEditClient(client) && <DropdownMenuSeparator />}
+                                  {canEditClient(client) && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
                                       <RotateCcw className="mr-2 h-4 w-4 text-green-500" />
                                       Activer
                                     </DropdownMenuItem>
                                   )}
-                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && client.statut !== 'suspendu' && (
+                                  {canEditClient(client) && client.statut !== 'suspendu' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'suspendu')}>
                                       <Ban className="mr-2 h-4 w-4 text-orange-500" />
                                       Suspendre
                                     </DropdownMenuItem>
                                   )}
-                                  {canEditClient && (client.type_client !== "beneficiaire_particulier" || (userRoles || []).includes("pdg")) && client.statut !== 'archive' && (
+                                  {canEditClient(client) && client.statut !== 'archive' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'archive')}>
                                       <Archive className="mr-2 h-4 w-4 text-slate-500" />
                                       Archiver
