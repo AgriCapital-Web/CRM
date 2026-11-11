@@ -102,7 +102,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                   <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">{item.label}</span>
                 </Link>
               </Button>
-}
             </div>
           );
         })}
