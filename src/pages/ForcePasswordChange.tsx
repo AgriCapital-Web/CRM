@@ -88,7 +88,7 @@ const ForcePasswordChange = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Aucune règle de composition personnalisée : utilisez le mot de passe que vous souhaitez, dans les limites techniques du service de connexion.</p>
+              
             </div>
             <Button type="submit" className="w-full h-12" disabled={saving || password.length === 0}>
               <KeyRound className="mr-2 h-4 w-4" />
