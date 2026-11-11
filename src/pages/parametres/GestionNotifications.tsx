@@ -231,7 +231,7 @@ const GestionNotifications = () => {
 
   const saveFinancePayoutTemplate = async (template: FinancePayoutSmsTemplate) => {
     const content = template.content || "";
-    if (!content.trim() || content.length > 150 || /[^\\x20-\\x7E]/.test(content)) {
+    if (!content.trim() || content.length > 150 || /[^\x20-\x7E]/.test(content)) {
       toast.error("Le SMS doit contenir uniquement des caractères GSM/ASCII et respecter 150 caractères.");
       return;
     }
@@ -645,14 +645,14 @@ const GestionNotifications = () => {
               {financePayoutTemplates.map((template) => (
                 <div key={template.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(180px,0.8fr)_minmax(280px,2fr)_auto] md:items-center">
                   <div className="space-y-1">
-                    <Label>Catégorie</Label>
+                    <Label>Nom du modèle</Label>
                     <Input value={template.name} onChange={(e) => setFinancePayoutTemplates(rows => rows.map(row => row.id === template.id ? { ...row, name: e.target.value } : row))} />
                     <Badge variant="outline">{template.category}</Badge>
                   </div>
                   <div className="space-y-1">
                     <Label>Message SMS</Label>
                     <Textarea rows={3} maxLength={150} value={template.content} onChange={(e) => setFinancePayoutTemplates(rows => rows.map(row => row.id === template.id ? { ...row, content: e.target.value } : row))} />
-                    <div className={template.content.length > 150 || /[^\\x20-\\x7E]/.test(template.content) ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{template.content.length}/150</div>
+                    <div className={template.content.length > 150 || /[^\x20-\x7E]/.test(template.content) ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{template.content.length}/150</div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Switch checked={template.active} onCheckedChange={(active) => setFinancePayoutTemplates(rows => rows.map(row => row.id === template.id ? { ...row, active } : row))} />
