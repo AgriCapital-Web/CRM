@@ -304,11 +304,11 @@ declare
   v_role text;
 begin
   if auth.uid() is null or not private.crm_has_role_permission('parametres.manage_teams') then
-    raise exception 'Permission insuffisante pour consulter les responsables d'équipe'
+    raise exception 'Permission insuffisante pour consulter les responsables d''équipe'
       using errcode = '42501';
   end if;
   if p_team_type not in ('commercial','technique') then
-    raise exception 'Type d'équipe invalide' using errcode = '22023';
+    raise exception 'Type d''équipe invalide' using errcode = '22023';
   end if;
   v_role := case when p_team_type = 'technique' then 'chef_equipe_technique' else 'chef_equipe_commercial' end;
 
