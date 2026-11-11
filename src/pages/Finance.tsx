@@ -74,6 +74,7 @@ export default function Finance(){
   const [paymentProof,setPaymentProof]=useState<File|null>(null);
   const [paymentPartial,setPaymentPartial]=useState(false);
   const [paymentWithFees,setPaymentWithFees]=useState(false);
+  const [paymentRequestId,setPaymentRequestId]=useState("");
 
   const [entryForm,setEntryForm]=useState({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"mobile_money",reference:"",notes:"",withoutFees:false});
   const [entryProof,setEntryProof]=useState<File|null>(null);
@@ -116,7 +117,7 @@ export default function Finance(){
     try {
       const [t,e,a,am,p,s,r,independent,independentInvoiceRows]=await Promise.all([
         (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
-        (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id)").order("created_at",{ascending:false}),
+        (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id,amount,gross_amount,paid_at,payment_method,proof_path,proof_name)").order("created_at",{ascending:false}),
         (supabase as any).from("finance_associates").select("*").order("full_name"),
         (supabase as any).from("finance_associate_transactions").select("id,associate_id,transaction_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name)").order("created_at",{ascending:false}),
         (async () => {
@@ -163,6 +164,21 @@ export default function Finance(){
     const out=valid.filter(t=>t.direction==="sortie").reduce((s,t)=>s+Number(t.amount||0),0);
     return {income,out,balance:income-out};
   },[transactions]);
+
+  const outgoingTransactions=useMemo(
+    ()=>transactions.filter((t:any)=>t.direction==="sortie"&&t.status!=="annule"),
+    [transactions]
+  );
+  const filteredOutgoingTransactions=useMemo(()=>outgoingTransactions.filter((t:any)=>{
+    const expenseRow=expenses.find((e:any)=>e.transaction_id===t.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===t.id));
+    const profileName=profiles.find((p:any)=>p.id===(expenseRow?.profile_id||t.profile_id))?.nom_complet;
+    const query=expenseSearch.trim();
+    return !query||[
+      t.label,t.category,t.reference,t.status,t.payment_method,
+      expenseRow?.expense_category,expenseRow?.description,expenseRow?.beneficiary_name,
+      expenseRow?.supplier_name,expenseRow?.proof_name,profileName
+    ].some((value:any)=>matchesAccentInsensitive(value,query));
+  }),[outgoingTransactions,expenses,profiles,expenseSearch]);
 
   const saveEntry=async()=>{
     if(entryEditId&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
@@ -355,36 +371,47 @@ export default function Finance(){
     const remaining=Number(paymentTarget.total_amount||0)-Number(paymentTarget.paid_amount||0);
     const amount=paymentPartial?Number(paymentAmount):remaining;
     const feeApplied=paymentMethod!=="especes"&&paymentWithFees;
-    const feeAmount=feeApplied?feeAmountFor(amount):0;
-    const ledgerAmount=amount+feeAmount;
-    if(!Number.isFinite(amount)||amount<=0||amount>remaining){toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});return;}
-    setSaving(true);let proofPath:string|null=null;let transactionId:string|null=null;
+    if(!Number.isFinite(amount)||amount<=0||amount>remaining){
+      toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});
+      return;
+    }
+    const requestId=paymentRequestId||crypto.randomUUID();
+    if(!paymentRequestId)setPaymentRequestId(requestId);
+    setSaving(true);
+    let proofPath:string|null=null;
     try{
-      if(paymentProof){const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");proofPath=uploaded.path;}
-      const nextPaid=Number(paymentTarget.paid_amount||0)+amount;
-      const status=nextPaid>=Number(paymentTarget.total_amount)?"paid":"partial";
-      const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({
-        direction:"sortie",category:paymentTarget.expense_category,label:paymentTarget.expense_category+(paymentTarget.description?" — "+paymentTarget.description:""),
-        amount:ledgerAmount,gross_amount:amount,fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
-        transaction_date:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
-        reference:paymentReference.trim()||null,source_type:"finance_expense",source_id:paymentTarget.id,status:"valide",
-        notes:paymentTarget.description||("Bénéficiaire : "+(paymentTarget.beneficiary_name||paymentTarget.supplier_name||"—")),
-        proof_path:proofPath,proof_name:paymentProof?.name||null
-      }).select("id").single();
-      if(txError)throw txError;transactionId=tx.id;
-      const {error:payError}=await (supabase as any).from("finance_expense_payments").insert({
-        expense_id:paymentTarget.id,transaction_id:transactionId,amount,gross_amount:amount,status:"valide",
-        fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
-        paid_at:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
-        proof_path:proofPath,proof_name:paymentProof?.name||null
+      if(paymentProof){
+        const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");
+        if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");
+        proofPath=uploaded.path;
+      }
+      const {data,error}=await (supabase as any).rpc("finance_register_expense_payment",{
+        p_expense_id:paymentTarget.id,
+        p_amount:amount,
+        p_payment_date:paymentDate,
+        p_payment_method:paymentMethod,
+        p_reference:paymentReference.trim()||null,
+        p_proof_path:proofPath,
+        p_proof_name:paymentProof?.name||null,
+        p_fee_applied:feeApplied,
+        p_request_id:requestId
       });
-      if(payError){await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);throw payError;}
-      const {error:updateError}=await (supabase as any).from("finance_expenses").update({paid_amount:nextPaid,status,transaction_id:transactionId,payment_method:paymentMethod}).eq("id",paymentTarget.id);
-      if(updateError){const {error:rollbackError}=await (supabase as any).from("finance_expense_payments").update({status:"annule"}).eq("transaction_id",transactionId);const {data:validPayments}=await (supabase as any).from("finance_expense_payments").select("amount,transaction_id,paid_at").eq("expense_id",paymentTarget.id).eq("status","valide").order("paid_at",{ascending:false});const restoredPaid=(validPayments||[]).reduce((sum:number,p:any)=>sum+Number(p.amount||0),0);const restoredStatus=restoredPaid>=Number(paymentTarget.total_amount)?"paid":restoredPaid>0?"partial":"unpaid";await (supabase as any).from("finance_expenses").update({paid_amount:restoredPaid,status:restoredStatus,transaction_id:validPayments?.[0]?.transaction_id||null}).eq("id",paymentTarget.id);await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);if(rollbackError)throw new Error(updateError.message+" — annulation du paiement impossible : "+rollbackError.message);throw updateError;}
-      toast({title:"Paiement enregistré",description:status==="paid"?"Dépense entièrement payée et inscrite dans les sorties.":"Paiement partiel enregistré dans les sorties; le solde reste à payer."});
-      setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);setPaymentPartial(false);setPaymentWithFees(false);await load();
-    }catch(error:any){if(proofPath)await supabase.storage.from("documents").remove([proofPath]);toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});}
-    finally{setSaving(false);}
+      if(error)throw error;
+      if(!data?.transaction_id)throw new Error("La base n’a pas confirmé l’écriture de sortie.");
+      toast({
+        title:"Paiement enregistré",
+        description:data.status==="paid"
+          ?"Dépense soldée. Le règlement est inscrit comme sortie validée."
+          :"Paiement partiel inscrit comme sortie validée. Le reliquat reste dans les dépenses à payer."
+      });
+      setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);
+      setPaymentPartial(false);setPaymentWithFees(false);setPaymentRequestId("");
+      await load();
+    }catch(error:any){
+      toast({title:"Paiement non confirmé",description:error?.message||"Réessayez avec le même paiement pour éviter un doublon.",variant:"destructive"});
+    }finally{
+      setSaving(false);
+    }
   };
 
   const deleteEntry=async(item:any)=>{if(!isPdg||!window.confirm("Supprimer définitivement cette entrée financière ?"))return;setSaving(true);const {error}=await (supabase as any).from("finance_transactions").delete().eq("id",item.id);if(error)toast({title:"Suppression impossible",description:error.message,variant:"destructive"});else toast({title:"Entrée supprimée"});await load();setSaving(false);};
@@ -643,7 +670,7 @@ export default function Finance(){
           <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Description</Label><Textarea value={plannedExpense.description} onChange={e=>setPlannedExpense({...plannedExpense,description:e.target.value})} rows={2}/></div><div className="flex items-center gap-2"><input type="checkbox" checked={plannedExpense.direct} onChange={e=>setPlannedExpense({...plannedExpense,direct:e.target.checked})} className="h-4 w-4"/><Label>Coût direct</Label></div><div className="flex gap-2 sm:col-span-2 lg:col-span-3"><Button onClick={()=>void savePlannedExpense()} disabled={saving}>{saving?"Enregistrement…":plannedExpenseEditId?"Enregistrer les modifications":"Enregistrer"}</Button><Button variant="outline" onClick={()=>setPlannedExpenseOpen(false)} disabled={saving}>Annuler</Button></div>
         </div></DialogContent></Dialog>
         <Card><CardHeader><CardTitle>Dépenses à payer / soldes en cours</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[820px] text-sm"><thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Motif</th><th className="px-2 py-1.5">Bénéficiaire</th><th className="px-2 py-1.5 text-right">Montant prévu</th><th className="px-2 py-1.5 text-right">Payé</th><th className="px-2 py-1.5 text-right">Reste</th><th className="px-2 py-1.5">Statut</th><th className="px-2 py-1.5 text-right">Actions</th></tr></thead><tbody>
-          {expenses.filter((e:any)=>["unpaid","partial"].includes(String(e.status||""))&&e.status!=="cancelled").map((e:any)=><tr key={e.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{e.expense_date?new Date(e.expense_date+"T12:00:00").toLocaleDateString("fr-FR"):"—"}{e.due_date&&<p className="text-xs text-muted-foreground">Échéance {new Date(e.due_date+"T12:00:00").toLocaleDateString("fr-FR")}</p>}</td><td className="px-2 py-1.5">{e.expense_category}<p className="text-xs text-muted-foreground">{e.description||""}</p></td><td className="px-2 py-1.5">{e.beneficiary_name||e.supplier_name||"—"}</td><td className="px-2 py-1.5 text-right">{money(e.total_amount)}</td><td className="px-2 py-1.5 text-right">{money(e.paid_amount)}</td><td className="px-2 py-1.5 text-right font-semibold">{money(Number(e.total_amount)-Number(e.paid_amount||0))}</td><td className="px-2 py-1.5"><Badge variant="secondary">{e.status==="partial"?"Partiel":"À payer"}</Badge></td><td className="px-2 py-1.5 text-right"><div className="flex justify-end gap-1">{isPdg&&<DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={()=>{setPlannedExpenseTarget(e);setPlannedExpenseEditId(e.id);setPlannedExpense({category:e.expense_category||"PRESTATIONS",amount:String(e.total_amount||""),description:e.description||"",beneficiary:e.beneficiary_name||e.supplier_name||"",beneficiaryPhone:e.beneficiary_phone||"",profileId:e.profile_id||"",isInternalUser:!!e.profile_id,expenseDate:e.expense_date||new Date().toISOString().slice(0,10),dueDate:e.due_date||"",direct:!!e.is_direct_cost,reference:e.reference||"",referenceAsFile:!!e.proof_path});setPlannedProof(null);setPlannedExpenseOpen(true);}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>{e.status==="unpaid"&&Number(e.paid_amount||0)===0&&<><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deletePlannedExpense(e)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>}<Button type="button" size="sm" onClick={()=>{setPaymentTarget(e);setPaymentAmount(String(Math.max(0,Number(e.total_amount)-Number(e.paid_amount||0))));setPaymentPartial(false);setPaymentWithFees(false);setPaymentDate(new Date().toISOString().slice(0,10));setPaymentMethod("mobile_money");setPaymentReference("");setPaymentProof(null);}} disabled={saving||Number(e.total_amount)-Number(e.paid_amount||0)<=0}>Payer</Button></div></td></tr>)}
+          {expenses.filter((e:any)=>["unpaid","partial"].includes(String(e.status||""))&&e.status!=="cancelled").map((e:any)=><tr key={e.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{e.expense_date?new Date(e.expense_date+"T12:00:00").toLocaleDateString("fr-FR"):"—"}{e.due_date&&<p className="text-xs text-muted-foreground">Échéance {new Date(e.due_date+"T12:00:00").toLocaleDateString("fr-FR")}</p>}</td><td className="px-2 py-1.5">{e.expense_category}<p className="text-xs text-muted-foreground">{e.description||""}</p></td><td className="px-2 py-1.5">{e.beneficiary_name||e.supplier_name||"—"}</td><td className="px-2 py-1.5 text-right">{money(e.total_amount)}</td><td className="px-2 py-1.5 text-right">{money(e.paid_amount)}</td><td className="px-2 py-1.5 text-right font-semibold">{money(Number(e.total_amount)-Number(e.paid_amount||0))}</td><td className="px-2 py-1.5"><Badge variant="secondary">{e.status==="partial"?"Partiel":"À payer"}</Badge></td><td className="px-2 py-1.5 text-right"><div className="flex justify-end gap-1">{isPdg&&<DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={()=>{setPlannedExpenseTarget(e);setPlannedExpenseEditId(e.id);setPlannedExpense({category:e.expense_category||"PRESTATIONS",amount:String(e.total_amount||""),description:e.description||"",beneficiary:e.beneficiary_name||e.supplier_name||"",beneficiaryPhone:e.beneficiary_phone||"",profileId:e.profile_id||"",isInternalUser:!!e.profile_id,expenseDate:e.expense_date||new Date().toISOString().slice(0,10),dueDate:e.due_date||"",direct:!!e.is_direct_cost,reference:e.reference||"",referenceAsFile:!!e.proof_path});setPlannedProof(null);setPlannedExpenseOpen(true);}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>{e.status==="unpaid"&&Number(e.paid_amount||0)===0&&<><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deletePlannedExpense(e)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>}<Button type="button" size="sm" onClick={()=>{setPaymentTarget(e);setPaymentRequestId(crypto.randomUUID());setPaymentAmount(String(Math.max(0,Number(e.total_amount)-Number(e.paid_amount||0))));setPaymentPartial(false);setPaymentWithFees(false);setPaymentDate(new Date().toISOString().slice(0,10));setPaymentMethod("mobile_money");setPaymentReference("");setPaymentProof(null);}} disabled={saving||Number(e.total_amount)-Number(e.paid_amount||0)<=0}>Payer</Button></div></td></tr>)}
           {!expenses.some((e:any)=>["unpaid","partial"].includes(String(e.status||""))&&e.status!=="cancelled")&&<tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Aucune dépense à payer en attente.</td></tr>}
         </tbody></table></div></CardContent></Card>
         {paymentTarget&&<Dialog open={!!paymentTarget} onOpenChange={open=>{if(!open&&!saving)setPaymentTarget(null);}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Enregistrer un paiement</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2 rounded-md bg-muted p-3"><p className="text-sm">{paymentTarget.expense_category} · {paymentTarget.beneficiary_name||paymentTarget.supplier_name||"Bénéficiaire non renseigné"}</p><p className="font-semibold">Solde : {money(Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))}</p></div><div className="flex items-center gap-2 sm:col-span-2"><input id="payment-partial" type="checkbox" checked={paymentPartial} onChange={e=>{setPaymentPartial(e.target.checked);if(!e.target.checked)setPaymentAmount(String(Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))));}} className="h-4 w-4"/><Label htmlFor="payment-partial" className="cursor-pointer">Paiement partiel</Label></div><div className="space-y-1"><Label>Montant payé (FCFA)</Label><Input type="number" min="1" max={Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)} value={paymentPartial?paymentAmount:String(Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)))} readOnly={!paymentPartial} disabled={!paymentPartial} onChange={e=>setPaymentAmount(e.target.value)}/></div><div className="space-y-1"><Label>Date de paiement</Label><Input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select value={paymentMethod} onValueChange={v=>{setPaymentMethod(v);if(v==="especes")setPaymentWithFees(false);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>{paymentMethod!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3"><input id="payment-with-fees" type="checkbox" checked={paymentWithFees} onChange={e=>setPaymentWithFees(e.target.checked)} className="h-4 w-4"/><Label htmlFor="payment-with-fees" className="cursor-pointer">Avec les frais (+ 1 %)</Label></div>}<div className="rounded-md bg-muted p-3 text-sm sm:col-span-2"><div className="flex justify-between"><span>Montant du règlement</span><b>{money(paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)))}</b></div><div className="flex justify-between"><span>Frais 1 %</span><b>{money(paymentMethod!=="especes"&&paymentWithFees?feeAmountFor(paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))):0)}</b></div><div className="mt-1 flex justify-between border-t pt-2"><span>Sortie comptabilisée</span><b>{money((paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)))+(paymentMethod!=="especes"&&paymentWithFees?feeAmountFor(paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))):0))}</b></div></div><div className="space-y-1"><Label>Référence (facultative)</Label><Input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)}/></div><div className="space-y-1 sm:col-span-2"><Label>Preuve de paiement / reçu</Label><Input type="file" accept="image/*,.pdf" onChange={e=>setPaymentProof(e.target.files?.[0]||null)}/></div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void registerExpensePayment()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement"}</Button><Button variant="outline" onClick={()=>setPaymentTarget(null)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>}
@@ -675,11 +702,34 @@ export default function Finance(){
         </Card></DialogContent></Dialog>}
         <Card>
           <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Sorties enregistrées</CardTitle><TableSearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Rechercher une sortie…"/></div></CardHeader>
-          <CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[680px] text-sm">
-            <thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Catégorie</th><th className="px-2 py-1.5">Utilisateur</th><th className="px-2 py-1.5 text-right">Montant</th><th className="px-2 py-1.5">Statut</th><th className="px-2 py-1.5">Justificatif</th>{isPdg&&<th className="px-2 py-1.5 text-right">Actions</th>}</tr></thead>
-            <tbody>{expenses.filter((e:any)=>{const t=transactions.find((x:any)=>x.id===e.transaction_id);return [e.expense_category,profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet,e.supplier_name,e.description,e.proof_name,t?.label,t?.status].some((v:any)=>matchesAccentInsensitive(v,expenseSearch));}).map((e:any)=>{const transaction=e.transaction||transactions.find((t:any)=>t.id===e.transaction_id);return <tr key={e.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{transaction?.transaction_date?new Date(transaction.transaction_date).toLocaleDateString("fr-FR"):e.created_at?new Date(e.created_at).toLocaleDateString("fr-FR"):"—"}</td><td className="px-2 py-1.5 font-medium">{e.expense_category||"—"}</td><td className="max-w-[220px] truncate px-2 py-1.5">{profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet||e.supplier_name||"—"}</td><td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(transaction?.amount??0)}</td><td className="px-2 py-1.5"><Badge variant={transaction?.status==="valide"?"default":"secondary"}>{transaction?.status||"—"}</Badge></td><td className="px-2 py-1.5">{e.proof_path?<span className="inline-flex items-center gap-1 text-xs text-primary"><Paperclip className="h-3 w-3"/>{e.proof_name||"Joint"}</span>:"—"}</td>{isPdg&&<td className="px-2 py-1.5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{!e.finance_expense_payments?.some((p:any)=>p.status==="valide")&&<DropdownMenuItem onClick={()=>{setSelectedExpense({...e,transaction});setExpense({category:e.expense_category||"AUTRE",amount:String(transaction?.gross_amount||transaction?.amount||""),date:e.expense_date||new Date().toISOString().slice(0,10),description:e.description||"",profileId:e.profile_id||"",clientId:e.client_id||"",plantationId:e.plantation_id||"",direct:!!e.is_direct_cost,method:transaction?.payment_method||"mobile_money",withFees:!!transaction?.fee_applied,reference:transaction?.reference||""});setExpenseFormMode("edit");}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>}<DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deleteExpense(e)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td>}</tr>;})}{!expenses.length&&!loading&&<tr><td colSpan={isPdg?7:6} className="p-8 text-center text-muted-foreground">Aucune sortie enregistrée.</td></tr>}</tbody>
-
-
+          <CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[760px] text-sm">
+            <thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Catégorie / libellé</th><th className="px-2 py-1.5">Bénéficiaire</th><th className="px-2 py-1.5 text-right">Montant sorti</th><th className="px-2 py-1.5">Statut</th><th className="px-2 py-1.5">Justificatif</th>{isPdg&&<th className="px-2 py-1.5 text-right">Actions</th>}</tr></thead>
+            <tbody>{filteredOutgoingTransactions.map((t:any)=>{
+              const expenseRow=expenses.find((e:any)=>e.transaction_id===t.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===t.id));
+              const paymentRow=expenseRow?.finance_expense_payments?.find((p:any)=>p.transaction_id===t.id);
+              const profileName=profiles.find((p:any)=>p.id===(expenseRow?.profile_id||t.profile_id))?.nom_complet;
+              const beneficiary=profileName||expenseRow?.beneficiary_name||expenseRow?.supplier_name||"—";
+              const proofPath=t.proof_path||paymentRow?.proof_path||expenseRow?.proof_path;
+              const proofName=t.proof_name||paymentRow?.proof_name||expenseRow?.proof_name;
+              return <tr key={t.id} className="border-b last:border-0">
+                <td className="whitespace-nowrap px-2 py-1.5">{t.transaction_date?new Date(t.transaction_date).toLocaleDateString("fr-FR"):"—"}</td>
+                <td className="px-2 py-1.5 font-medium">{expenseRow?.expense_category||t.category||"—"}{t.label&&t.label!==(expenseRow?.expense_category||t.category)&&<p className="max-w-[320px] truncate text-xs text-muted-foreground">{t.label}</p>}{paymentRow&&<p className="text-xs text-muted-foreground">Règlement de dépense · {paymentRow.paid_at?new Date(paymentRow.paid_at).toLocaleDateString("fr-FR"):""}</p>}</td>
+                <td className="max-w-[220px] truncate px-2 py-1.5">{beneficiary}</td>
+                <td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(t.amount)}</td>
+                <td className="px-2 py-1.5"><Badge variant={t.status==="valide"?"default":"secondary"}>{t.status||"—"}</Badge></td>
+                <td className="px-2 py-1.5">{proofPath?<Button type="button" variant="ghost" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(proofPath,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",description:error?.message,variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-1 h-3.5 w-3.5"/>{proofName||"Ouvrir"}</Button>:"—"}</td>
+                {isPdg&&<td className="px-2 py-1.5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+                  {paymentRow&&expenseRow&&<DropdownMenuItem onClick={()=>{setSelectedExpense({...expenseRow,transaction:t});setExpenseForm({category:expenseRow.expense_category||"AUTRE",amount:String(paymentRow.gross_amount||paymentRow.amount||t.gross_amount||t.amount||""),date:t.transaction_date?new Date(t.transaction_date).toISOString().slice(0,10):new Date().toISOString().slice(0,10),description:expenseRow.description||"",profileId:expenseRow.profile_id||"",clientId:expenseRow.client_id||"",plantationId:expenseRow.plantation_id||"",direct:!!expenseRow.is_direct_cost,method:t.payment_method||"mobile_money",withFees:!!t.fee_applied,reference:t.reference||""});setExpenseFormMode("view");}}><Eye className="mr-2 h-4 w-4"/>Consulter le règlement</DropdownMenuItem>}
+                  {expenseRow&&!paymentRow&&!expenseRow.finance_expense_payments?.some((p:any)=>p.status==="valide")&&<DropdownMenuItem onClick={()=>{setSelectedExpense({...expenseRow,transaction:t});setExpense({category:expenseRow.expense_category||"AUTRE",amount:String(t.gross_amount||t.amount||""),date:expenseRow.expense_date||new Date().toISOString().slice(0,10),description:expenseRow.description||"",profileId:expenseRow.profile_id||"",clientId:expenseRow.client_id||"",plantationId:expenseRow.plantation_id||"",direct:!!expenseRow.is_direct_cost,method:t.payment_method||"mobile_money",withFees:!!t.fee_applied,reference:t.reference||""});setExpenseFormMode("edit");}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>}
+                  {expenseRow&&!paymentRow&&<DropdownMenuItem className="text-destructive" onClick={()=>void deleteExpense(expenseRow)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer la dépense</DropdownMenuItem>}
+                  {!expenseRow&&hasFinanceAction(t)&&<DropdownMenuItem onClick={()=>editFinanceTransaction(t)}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>}
+                  {!expenseRow&&hasFinanceAction(t)&&<DropdownMenuItem className="text-destructive" onClick={()=>void deleteFinanceTransaction(t)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem>}
+                  {!expenseRow&&!hasFinanceAction(t)&&<DropdownMenuItem disabled>Aucune action disponible</DropdownMenuItem>}
+                </DropdownMenuContent></DropdownMenu></td>}
+              </tr>;
+            })}
+            {!filteredOutgoingTransactions.length&&!loading&&<tr><td colSpan={isPdg?7:6} className="p-8 text-center text-muted-foreground">Aucune sortie enregistrée.</td></tr>}
+            </tbody>
           </table></div></CardContent>
         </Card>
       </TabsContent>
