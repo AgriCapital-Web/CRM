@@ -44,8 +44,8 @@ const FileField = ({ label, onPick, current, bucket }: { label: string; onPick: 
 
 const Profil = () => {
   const { user, refreshProfile } = useAuth();
-  const { isPdg, isDg } = usePermissions();
-  const isAdmin = isPdg || isDg;
+  const { can } = usePermissions();
+  const isAdmin = can("utilisateurs.update") || can("parametres.manage_users");
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>({});
   const [saving, setSaving] = useState(false);
