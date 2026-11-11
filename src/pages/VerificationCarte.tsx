@@ -80,7 +80,7 @@ const VerificationCarte = () => {
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary-foreground/75">Sécurité & authenticité</p>
             <h1 className="text-xl font-extrabold tracking-tight text-primary-foreground sm:text-3xl">Vérification de carte professionnelle</h1>
-            <p className="mx-auto max-w-lg text-sm leading-relaxed text-primary-foreground/80">Contrôlez l’identité du titulaire et le statut de sa carte depuis le registre AgriCapital.</p>
+            
           </div>
         </header>
 
