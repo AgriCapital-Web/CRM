@@ -42,14 +42,13 @@ const today = () => {
 
 const Dashboard = () => {
   const { profile, userRoles } = useAuth();
-  const { can, isPdg, isDg } = usePermissions();
+  const { can, capabilities } = usePermissions();
   const profilePhotoUrl = useSignedUrl("photos-profils", profile?.photo_url);
 
-  const isClientOnly = userRoles.length > 0 && userRoles.every((r) => r === "user");
-  const globalAdmin = isPdg || isDg;
-  const canDashboardExecutiveFinance = globalAdmin || can("finance.view");
-  const canCommercialTeamPerformance = globalAdmin || can("parametres.manage_teams");
-  const canTechnicalTeamPerformance = globalAdmin || can("parametres.manage_teams");
+  const isClientOnly = capabilities.clientOnly;
+  const canDashboardExecutiveFinance = can("finance.view");
+  const canCommercialTeamPerformance = can("parametres.manage_teams");
+  const canTechnicalTeamPerformance = can("parametres.manage_teams");
 
   const canClients = can(PERMISSIONS.VIEW_CLIENTS);
   const canLeads = can(PERMISSIONS.VIEW_LEADS);
@@ -64,13 +63,10 @@ const Dashboard = () => {
   const canPortfolios = can(PERMISSIONS.VIEW_PORTEFEUILLES);
   const canTickets = can(PERMISSIONS.VIEW_TICKETS);
   const canCreateAcquisition = can(PERMISSIONS.CREATE_ACQUISITION);
-  const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate") || userRoles.some((role) => ["pdg", "service_client", "chef_equipe_service_client"].includes(role));
-  const canViewIndependentServiceCustomers = globalAdmin || userRoles.some((role) => ["service_client", "chef_equipe_service_client", "comptable", "manager_commercial_national", "responsable_operations"].includes(role));
-  const canViewIndependentServiceProformas = canViewIndependentServiceCustomers || userRoles.some((role) => ["technicien", "chef_equipe_technique", "manager_technique_national"].includes(role));
-  const canViewIndependentServiceItems = globalAdmin || userRoles.some((role) => [
-    "service_client","chef_equipe_service_client","comptable","manager_commercial_national",
-    "responsable_operations","technicien","chef_equipe_technique","manager_technique_national"
-  ].includes(role));
+  const canValidateDocuments = can(PERMISSIONS.VALIDATE_PAYMENTS) || can("acquisitions.validate") || can("clients.validate");
+  const canViewIndependentServiceCustomers = capabilities.independentServiceCustomers;
+  const canViewIndependentServiceProformas = capabilities.independentServiceProformas;
+  const canViewIndependentServiceItems = capabilities.independentServiceItems;
 
   const [connectionTime] = useState(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
   const [loading, setLoading] = useState(true);
@@ -183,7 +179,7 @@ const Dashboard = () => {
         teamsRes,
         teamMembersRes
       ] = await Promise.all([
-        canClients || canTechnical || canPlantations || globalAdmin
+        canClients || canTechnical || canPlantations
           ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canViewIndependentServiceCustomers
@@ -195,49 +191,49 @@ const Dashboard = () => {
         canViewIndependentServiceItems
           ? (supabase as any).from("independent_service_items").select("proforma_id,hectares")
           : Promise.resolve({ data: [] }),
-        canClients || globalAdmin
+        canClients
           ? (supabase as any).from("clients").select("id,validation_statut")
           : Promise.resolve({ data: [] }),
-        canClients || canPlantations || globalAdmin
+        canClients || canPlantations
           ? (supabase as any).from("acquisitions").select("id,client_id,statut,statut_technique,superficie_ha,parcelle_id,created_at")
           : Promise.resolve({ data: [] }),
-        canPlantations || globalAdmin
+        canPlantations
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,acquisition_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
           : Promise.resolve({ data: [] }),
-        canPayments || globalAdmin
+        canPayments
           ? (supabase as any).from("paiements").select("id,client_id,plantation_id,montant,montant_paye,statut,date_paiement,date_echeance,type_paiement,mode_paiement,reference,est_paiement_initial,created_at").order("date_paiement", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
           : Promise.resolve({ data: [] }),
-        canLeads || globalAdmin
+        canLeads
           ? (supabase as any).from("leads").select("id,statut,created_at,converti_at,prochaine_relance_at,assigned_to,type_lead,etape_pipeline,etape_conversion")
           : Promise.resolve({ data: [] }),
-        canClients || globalAdmin
+        canClients
           ? (supabase as any).from("documents_acquisition").select("id,client_id,statut,obligatoire,created_at")
           : Promise.resolve({ data: [] }),
-        canOwners || canPlantations || canClients || globalAdmin
+        canOwners || canPlantations || canClients
           ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut,validation_statut")
           : Promise.resolve({ data: [] }),
-        canParcelles || canPlantations || canClients || globalAdmin
+        canParcelles || canPlantations || canClients
           ? (supabase as any).from("parcelles").select("id,proprietaire_id,surface_totale_ha,surface_proprietaire_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
           : Promise.resolve({ data: [] }),
-        canOwners || canParcelles || canPlantations || globalAdmin
+        canOwners || canParcelles || canPlantations
           ? (supabase as any).from("conventions_foncieres").select("id,parcelle_id,proprietaire_id,statut,surface_totale_ha,part_proprietaire_ha,part_agricapital_ha")
           : Promise.resolve({ data: [] }),
-        canPlantations || canClients || globalAdmin
+        canPlantations || canClients
           ? (supabase as any).from("beneficiaire_attributions").select("id,client_id,statut,surface_attribuee_ha")
           : Promise.resolve({ data: [] }),
-        canTechnical || canPlantations || globalAdmin
+        canTechnical || canPlantations
           ? (supabase as any).from("interventions_techniques").select("id,type_intervention,statut,date_intervention,plantation_id,client_id,agent_technique_id")
           : Promise.resolve({ data: [] }),
-        canCommissions || canFinance || globalAdmin
+        canCommissions || canFinance
           ? (supabase as any).from("commissions").select("montant_commission,statut")
           : Promise.resolve({ data: [] }),
-        canPortfolios || canFinance || globalAdmin
+        canPortfolios || canFinance
           ? (supabase as any).from("portefeuilles").select("solde_commissions,total_gagne,total_verse")
           : Promise.resolve({ data: [] }),
-        canPlantations || globalAdmin
+        canPlantations
           ? (supabase as any).from("regions").select("id,nom")
           : Promise.resolve({ data: [] }),
-        canClients || canPayments || globalAdmin
+        canClients || canPayments
           ? (supabase as any).from("v_monnaie_clients").select("client_id,monnaie_client")
           : Promise.resolve({ data: [] }),
         canCommercialTeamPerformance || canTechnicalTeamPerformance
@@ -713,7 +709,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [canClients, canLeads, canOwners, canParcelles, canPlantations, canPayments, canFinance, canTechnical, canCommissions, canPortfolios, globalAdmin, canCommercialTeamPerformance, canTechnicalTeamPerformance]);
+  }, [canClients, canLeads, canOwners, canParcelles, canPlantations, canPayments, canFinance, canTechnical, canCommissions, canPortfolios, canCommercialTeamPerformance, canTechnicalTeamPerformance]);
 
   useEffect(() => { void fetchStats(false); }, [fetchStats]);
   const refreshSilently = useCallback(() => { void fetchStats(true); }, [fetchStats]);

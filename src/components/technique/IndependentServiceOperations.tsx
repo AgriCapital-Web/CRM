@@ -1,6 +1,7 @@
 import { useCallback,useEffect,useMemo,useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +16,11 @@ import InteractiveMap from "@/components/maps/InteractiveMap";
 
 type Quote={id:string;reference:string;title:string|null;client_id:string;client_name:string;client_phone:string;client_locality:string|null;status:string};
 type Event={id:string;proforma_id:string;details:any;created_at:string;proforma?:{reference?:string;client_name?:string;client_phone?:string}|null};
-const roles=["pdg","dg","technicien","chef_equipe_technique","manager_technique_national","responsable_operations"];
 const labels:Record<string,string>={acceptee:"Acceptée",en_cours:"En cours",planifiee:"Planifiée",terminee:"Terminée",bloquee:"Bloquée"};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(v)||0);
 
 export default function IndependentServiceOperations(){
- const {user,userRoles}=useAuth();const allowed=userRoles.some(r=>roles.includes(r));
+ const {user}=useAuth();const {capabilities}=usePermissions();const allowed=capabilities.independentServiceOperations;
  const [quotes,setQuotes]=useState<Quote[]>([]);const [events,setEvents]=useState<Event[]>([]);const [loading,setLoading]=useState(true);
  const [open,setOpen]=useState(false);const [saving,setSaving]=useState(false);const [quoteId,setQuoteId]=useState("");
  const [date,setDate]=useState(new Date().toISOString().slice(0,10));const [type,setType]=useState("suivi");const [status,setStatus]=useState("en_cours");

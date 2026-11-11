@@ -35,8 +35,8 @@ const Plantations = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [plantationToDelete, setPlantationToDelete] = useState<any>(null);
   const { toast } = useToast();
-  const { can, roles } = usePermissions();
-  const canTransferPlantation = roles.includes("pdg") || roles.includes("service_client") || roles.includes("chef_equipe_service_client");
+  const { can, capabilities } = usePermissions();
+  const canTransferPlantation = capabilities.transferPlantation;
   const [clients, setClients] = useState<any[]>([]);
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferPlantationId, setTransferPlantationId] = useState("");
@@ -87,7 +87,7 @@ const Plantations = () => {
 
   const handleTransferPlantation = async () => {
     if (!canTransferPlantation) {
-      toast({ variant: "destructive", title: "Accès refusé", description: "Seuls le PDG et Relation client peuvent transférer une plantation." });
+      toast({ variant: "destructive", title: "Accès refusé", description: "Votre compte ne dispose pas de l’autorisation de transfert." });
       return;
     }
     if (!transferPlantationId || !transferClientId) {

@@ -4,7 +4,6 @@ import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagina
 import { formatUserShortName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import ContactLauncher from "@/components/common/ContactLauncher";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Users, Plus, Search, Edit, Shield, MoreHorizontal, UserCheck, UserX, KeyRound, AtSign, Trash2, Eye, EyeOff } from "lucide-react";
 import UtilisateurFormNew from "@/components/forms/UtilisateurFormNew";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useAppRoles } from "@/hooks/useReferentiels";
 
 const Utilisateurs = () => {
@@ -46,11 +46,14 @@ const Utilisateurs = () => {
   const [newUsername, setNewUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const { hasRole } = useAuth();
+  const { can } = usePermissions();
   const { toast } = useToast();
   const { roles: appRoles } = useAppRoles();
-  const isSuperAdmin = hasRole("super_admin");
-  const canManageUserCredentials = isSuperAdmin || hasRole("pdg") || hasRole("dg") || hasRole("responsable_operations");
+  const canCreateUsers = can("utilisateurs.create");
+  const canUpdateUsers = can("utilisateurs.update");
+  const canManageRoles = can("roles.manage_permissions");
+  const canResetPasswords = can("utilisateurs.reset_password");
+  const canDeleteUsers = can("utilisateurs.delete");
 
   const fetchUtilisateurs = async () => {
     try {
@@ -262,15 +265,8 @@ const Utilisateurs = () => {
     }
   };
 
-  const isImmutableAdmin = (user: any) =>
-    ['innocentkoffi1@gmail.com', 'admin@agricapital.ci'].includes(String(user?.email || '').toLowerCase());
-
   const deleteUser = async () => {
     if (!deleteTarget) return;
-    if (isImmutableAdmin(deleteTarget)) {
-      toast({ variant: "destructive", title: "Compte protégé", description: "Ce compte administratif permanent ne peut pas être supprimé." });
-      return;
-    }
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-manage-user", { body: { action: "delete_user", user_id: deleteTarget.user_id || deleteTarget.id } });
@@ -389,46 +385,36 @@ const Utilisateurs = () => {
                           <Eye className="h-4 w-4 mr-2" />
                           Voir la fiche
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
+                        {canUpdateUsers && <DropdownMenuItem onClick={() => {
                           setSelectedUser(user);
                           setDialogOpen(true);
                         }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Modifier
-                        </DropdownMenuItem>
-                        {canManageUserCredentials && !['8d616fdc-6f25-43e9-baaa-51ead746222e','bd9579fd-1d07-4431-9cc4-b57dfeeab593'].includes(user.user_id || user.id) && (
-                          <>
-                            <DropdownMenuItem onClick={() => openAdminAction(user, "roles")}>
-                              <Shield className="h-4 w-4 mr-2" />
-                              Gérer les rôles
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openAdminAction(user, "password")}>
-                              <KeyRound className="h-4 w-4 mr-2" />
-                              Changer le mot de passe
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openAdminAction(user, "username")}>
-                              <AtSign className="h-4 w-4 mr-2" />
-                              Changer l'identifiant
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(user)}>
-                              <Trash2 className="h-4 w-4 mr-2" />Supprimer définitivement
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {!['8d616fdc-6f25-43e9-baaa-51ead746222e','bd9579fd-1d07-4431-9cc4-b57dfeeab593'].includes(user.user_id || user.id) && (
+                        </DropdownMenuItem>}
+                        {((!user.user_id && canCreateUsers) || (Boolean(user.user_id) && canManageRoles)) && <DropdownMenuItem onClick={() => openAdminAction(user, "roles")}>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Gérer les rôles
+                        </DropdownMenuItem>}
+                        {canResetPasswords && <DropdownMenuItem onClick={() => openAdminAction(user, "password")}>
+                          <KeyRound className="h-4 w-4 mr-2" />
+                          Changer le mot de passe
+                        </DropdownMenuItem>}
+                        {canUpdateUsers && <DropdownMenuItem onClick={() => openAdminAction(user, "username")}>
+                          <AtSign className="h-4 w-4 mr-2" />
+                          Changer l'identifiant
+                        </DropdownMenuItem>}
+                        {canDeleteUsers && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(user)}>
+                          <Trash2 className="h-4 w-4 mr-2" />Supprimer définitivement
+                        </DropdownMenuItem>}
+                        {(canUpdateUsers || canDeleteUsers) && (
                           user.actif ? (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(user.id, false)}
-                              className="text-orange-600"
-                            >
+                            <DropdownMenuItem onClick={() => handleStatusChange(user.id, false)} className="text-orange-600">
                               <UserX className="h-4 w-4 mr-2" />
                               Suspendre
                             </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(user.id, true)}
-                              className="text-green-600"
-                            >
+                            <DropdownMenuItem onClick={() => handleStatusChange(user.id, true)} className="text-green-600">
                               <UserCheck className="h-4 w-4 mr-2" />
                               Activer
                             </DropdownMenuItem>

@@ -36,11 +36,10 @@ const CLIENT_COLUMNS = new Set([
 ]);
 
 const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommercialAssignment = false }: ClientFormProps) => {
-  const { user, userRoles } = useAuth();
+  const { user } = useAuth();
   const { can } = usePermissions();
-  const roleCanEditClient = (userRoles || []).some((role: string) => ["pdg","service_client","chef_equipe_service_client","support","relation_client"].includes(role));
-  const canEditClient = roleCanEditClient && (client?.type_client === "beneficiaire_particulier" ? (userRoles || []).includes("pdg") : true);
-  const [isEditing, setIsEditing] = useState(!readOnly && roleCanEditClient);
+  const canEditClient = can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
+  const [isEditing, setIsEditing] = useState(!readOnly && canEditClient);
   const { toast } = useToast();
   const [form, setForm] = useState<any>(() => ({ ...client }));
   const [loading, setLoading] = useState(false);
@@ -65,7 +64,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   // valeurs ou les médias du client précédent lorsque l'identifiant change.
   useEffect(() => {
     setForm({ ...(client || {}) });
-    setIsEditing(!readOnly && roleCanEditClient);
+    setIsEditing(!readOnly && canEditClient);
     setPhotoFile(null);
     setPieceRectoFile(null);
     setPieceVersoFile(null);
@@ -78,7 +77,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     setContractFile(null);
     setContractPreview("");
     setStoredContractPreview("");
-    setContractDocument(null);  }, [client?.id, readOnly, roleCanEditClient]);
+    setContractDocument(null);  }, [client?.id, readOnly, canEditClient]);
 
   useEffect(() => {
     let active = true;
@@ -166,7 +165,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
 
   const onSubmit = async () => {
     if (!canEditClient) {
-      toast({ variant: "destructive", title: "Accès refusé", description: client?.type_client === "beneficiaire_particulier" ? "Seul le PDG peut modifier un bénéficiaire particulier." : "Seuls le PDG et les rôles Relation client & Support autorisés peuvent modifier un dossier client." });
+      toast({ variant: "destructive", title: "Accès refusé", description: "Votre compte ne dispose pas de la permission de modification de cette fiche." });
       return;
     }
     if (!user || !client?.id) return;

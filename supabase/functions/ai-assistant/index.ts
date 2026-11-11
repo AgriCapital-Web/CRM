@@ -63,11 +63,11 @@ serve(async (req) => {
     ]);
     if (roleError) throw new Error("Impossible de vérifier les rôles du compte.");
     const roleCodes = Array.from(new Set((roleRows || []).map((row: any) => String(row.role || "").trim().toLowerCase()).filter(Boolean)));
-    const { data: permissionRows, error: permissionError } = roleCodes.length
-      ? await authClient.from("role_permissions").select("permission_code").in("role_code", roleCodes)
-      : { data: [], error: null };
+    const { data: effectivePermissions, error: permissionError } = await authClient.rpc("user_app_permissions", {
+      _user_id: caller.id,
+    });
     if (permissionError) throw new Error("Impossible de vérifier les permissions du compte.");
-    const permissionCodes = Array.from(new Set((permissionRows || []).map((row: any) => String(row.permission_code || "").trim()).filter(Boolean)));
+    const permissionCodes = Array.from(new Set((effectivePermissions || []).map((code: unknown) => String(code || "").trim()).filter(Boolean)));
     const { data: teamRows, error: teamError } = profile?.id
       ? await authClient.from("equipe_membres")
           .select("equipe_id, equipe:equipes!equipe_membres_equipe_id_fkey(nom, type_equipe, region_id)")
@@ -78,9 +78,13 @@ serve(async (req) => {
       const team = Array.isArray(row.equipe) ? row.equipe[0] : row.equipe;
       return team ? `${team.nom} (${team.type_equipe || "équipe"})` : row.equipe_id;
     });
-    const isGlobalAdmin = roleCodes.some((role: string) => ["pdg", "dg"].includes(role));
-    if (mode === "admin" && !isGlobalAdmin) {
-      return new Response(JSON.stringify({ error: "Accès réservé au PDG/DG." }), {
+    const { data: canUseAdminMode, error: adminModeError } = await authClient.rpc("user_has_app_permission", {
+      _user_id: caller.id,
+      _required_code: "parametres.manage_system",
+    });
+    if (adminModeError) throw new Error("Impossible de vérifier l'accès au mode administrateur.");
+    if (mode === "admin" && canUseAdminMode !== true) {
+      return new Response(JSON.stringify({ error: "Accès réservé aux utilisateurs autorisés par les permissions de l'application." }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

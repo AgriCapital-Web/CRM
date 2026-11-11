@@ -50,6 +50,7 @@ const Equipes = () => {
   const [membersEquipe, setMembersEquipe] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [availableMembers, setAvailableMembers] = useState<any[]>([]);
+  const [responsablesDisponibles, setResponsablesDisponibles] = useState<any[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState("");
@@ -57,9 +58,9 @@ const Equipes = () => {
   const [tablePage, setTablePage] = useState(1);
   const pageSize = useResponsivePageSize();
   const { toast } = useToast();
-  const { can, roles } = usePermissions();
+  const { can } = usePermissions();
   const { roles: appRoles } = useAppRoles();
-  const canManageTeams = roles.some((role: string) => ["pdg", "dg"].includes(role)) || can("parametres.manage_teams");
+  const canManageTeams = can("parametres.manage_teams");
 
   const [formData, setFormData] = useState({
     nom: "",
@@ -108,13 +109,26 @@ const Equipes = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    let active = true;
+    if (!canManageTeams) {
+      setResponsablesDisponibles([]);
+      return () => { active = false; };
+    }
+    void (async () => {
+      const { data, error } = await (supabase as any).rpc("get_team_responsible_candidates", {
+        p_team_type: formData.type_equipe,
+      });
+      if (!active) return;
+      setResponsablesDisponibles(error ? [] : (data || []));
+    })();
+    return () => { active = false; };
+  }, [formData.type_equipe, canManageTeams]);
   useEffect(() => setTablePage(1), [searchTerm, activeTab, pageSize]);
   useRealtime({ table: "equipes", onChange: fetchData });
 
   const fetchMembers = async (equipe: any) => {
     setMembersEquipe(equipe);
-    const targetRole = equipe.type_equipe === "technique" ? "technicien" : "commercial";
-
     const { data: membershipRows, error: membershipError } = await (supabase as any)
       .from("equipe_membres")
       .select("profile_id, profile:profiles!equipe_membres_profile_id_fkey(id, nom_complet, telephone, user_id, actif)")
@@ -131,35 +145,15 @@ const Equipes = () => {
     (memberRoles || []).forEach((r:any) => { (memberRoleMap[r.user_id] ||= []).push(r.role); });
     setMembers((teamMembers || []).map((m:any) => ({ ...m, roles: memberRoleMap[m.user_id] || [] })));
 
-    const { data: alreadyAssignedRows, error: alreadyAssignedError } = await (supabase as any)
-      .from("equipe_membres")
-      .select("profile_id")
-      .eq("equipe_id", equipe.id);
-    if (alreadyAssignedError) throw alreadyAssignedError;
-    const alreadyAssigned = new Set((alreadyAssignedRows || []).map((row: any) => row.profile_id));
-    const { data: available, error: availableError } = await (supabase as any)
-      .from("profiles")
-      .select("id, nom_complet, user_id, equipe_id")
-      .eq("actif", true)
-      .not("user_id", "is", null);
-    if (availableError) throw availableError;
-
-    const availableIds = (available || []).map((p:any) => p.user_id).filter(Boolean);
-    const { data: availableRoles } = availableIds.length
-      ? await (supabase as any).from("user_roles").select("user_id, role").in("user_id", availableIds)
-      : { data: [] };
-
-    const availableRoleMap: Record<string,string[]> = {};
-    (availableRoles || []).forEach((r:any) => { (availableRoleMap[r.user_id] ||= []).push(r.role); });
-
-    setAvailableMembers(
-      (available || [])
-        .filter((p: any) => !alreadyAssigned.has(p.id))
-        .map((p:any) => ({ ...p, roles: availableRoleMap[p.user_id] || [] }))
-        .filter((p:any) => p.roles.some((role: string) => ["pdg", "dg"].includes(role.toLowerCase())) || p.roles.includes(targetRole) || p.roles.includes(
-          equipe.type_equipe === "technique" ? "chef_equipe_technique" : "chef_equipe_commercial"
-        ))
+    const { data: available, error: availableError } = await (supabase as any).rpc(
+      "get_available_team_members",
+      { p_equipe_id: equipe.id }
     );
+    if (availableError) throw availableError;
+    setAvailableMembers((available || []).map((p: any) => ({
+      ...p,
+      roles: Array.isArray(p.roles) ? p.roles : [],
+    })));
     setIsMembersOpen(true);
   };
 
@@ -311,12 +305,7 @@ const Equipes = () => {
     }
   };
 
-  const responsablesDisponibles = profiles.filter((p: any) => {
-    const roles = (p.roles || []) as string[];
-    const isChef = roles.includes("chef_equipe_commercial") || roles.includes("chef_equipe_technique") || roles.includes("chef_equipe");
-    const sameTeamRole = formData.type_equipe === "technique" ? roles.includes("chef_equipe_technique") : roles.includes("chef_equipe_commercial");
-    return isChef && sameTeamRole;
-  });
+
 
   const filteredEquipes = equipes.filter((e) => {
     const matchesSearch = e.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||

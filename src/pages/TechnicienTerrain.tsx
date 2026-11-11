@@ -29,10 +29,10 @@ const spacingForPlants = (surfaceHa:number, plants:number) => { if (!(surfaceHa 
 const TechnicienTerrain=()=>{
   const {user}=useAuth();
   const {toast}=useToast();
-  const {can,roles}=usePermissions();
+  const {can,capabilities}=usePermissions();
   const allowed=can("rapports.view_technique");
   const manager=can("rapports.manage_technique");
-  const canReassignTechnician=roles.includes("pdg");
+  const canReassignTechnician=capabilities.globalAdmin;
   const { byCategory: systemRefs } = useSystemReferences(["etape_plantation","intervention_statut","rapport_type_visite","etat_plantation"]);
   const stageRefs=systemRefs("etape_plantation");
   const reportTypeRefs=systemRefs("rapport_type_visite");

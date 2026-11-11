@@ -29,7 +29,7 @@ serve(async (req) => {
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step }, 401);
     step = "parse_body";
-    const { action, user_id, password, username, email, nom_complet, nom, prenoms, telephone, telephone_indicatif, telephone_local, telephone_principal_whatsapp, telephone_secondaire, telephone_secondaire_local, telephone_secondaire_indicatif, telephone_secondaire_whatsapp, whatsapp, whatsapp_indicatif, whatsapp_local, departement, relation_rh, taux_commission, salaire_base, district_id, region_id, equipe_id, photo_url, type_piece_identite, numero_piece_identite, piece_identite_url, piece_identite_recto_url, piece_identite_verso_url, piece_identite_page_principale_url, roles, actif, primary_role } = await req.json();
+    const { action, user_id, password, username, email, nom_complet, nom, prenoms, telephone, telephone_indicatif, telephone_local, telephone_principal_whatsapp, telephone_secondaire, telephone_secondaire_local, telephone_secondaire_indicatif, telephone_secondaire_whatsapp, whatsapp, whatsapp_indicatif, whatsapp_local, departement, relation_rh, equipe_id, photo_url, type_piece_identite, numero_piece_identite, piece_identite_url, piece_identite_recto_url, piece_identite_verso_url, piece_identite_page_principale_url, roles, actif, primary_role } = await req.json();
     if (!action || (action !== "create_user" && !user_id)) return json({ error: "action requis et user_id obligatoire sauf pour create_user", step }, 400);
 
     if (action === "complete_forced_password_change") {
@@ -46,13 +46,16 @@ serve(async (req) => {
       return json({ success: true, action, password_change_required: false });
     }
 
-    const [{ data: isAdmin }, { data: isPdg }, { data: isSuperAdmin }] = await Promise.all([
-      admin.rpc("is_admin", { _user_id: caller.user.id }),
-      admin.rpc("has_role", { _user_id: caller.user.id, _role: "pdg" }),
-      admin.rpc("has_role", { _user_id: caller.user.id, _role: "super_admin" }),
-    ]);
-    if (!isAdmin && !isPdg && !isSuperAdmin) {
-      return json({ error: "Accès réservé au PDG ou à un administrateur autorisé", step }, 403);
+    const { data: actionAllowed, error: authorizationError } = await admin.rpc("user_can_manage_admin_action", {
+      p_actor_user_id: caller.user.id,
+      p_target_user_id: user_id || null,
+      p_action: action,
+    });
+    if (authorizationError) {
+      return json({ error: "Vérification des autorisations en base impossible.", step }, 500);
+    }
+    if (actionAllowed !== true) {
+      return json({ error: "Permission insuffisante pour cette opération ou ce compte cible.", step }, 403);
     }
 
     if (action === "create_user") {
@@ -68,8 +71,14 @@ serve(async (req) => {
       if (!/^[a-z0-9._-]{2,64}$/.test(cleanUsername)) return json({ error: "Identifiant invalide (2 à 64 caractères : lettres, chiffres, point, tiret et soulignement).", step }, 400);
       if (cleanName.length < 2) return json({ error: "Le nom complet est obligatoire.", step }, 400);
       if (!roleList.length || !primaryRole) return json({ error: "Sélectionnez au moins un rôle et un rôle principal.", step }, 400);
-      const forbiddenRoles = new Set(["pdg", "dg", "super_admin", "admin", "administrateur", "president", "président"]);
-      if (roleList.some((r) => forbiddenRoles.has(r.toLowerCase()))) return json({ error: "Un rôle de gouvernance privilégiée ne peut pas être attribué par cette opération.", step }, 403);
+      const requestedRelationRh = String(relation_rh ?? "Employé").trim();
+      const normalizedRelationRh = requestedRelationRh.toLocaleUpperCase("fr-FR");
+      if (normalizedRelationRh === "PDG" && !roleList.includes("pdg")) {
+        return json({ error: "La fonction PDG doit correspondre au rôle PDG attribué en base.", step }, 400);
+      }
+      if (normalizedRelationRh === "DG" && !roleList.includes("dg")) {
+        return json({ error: "La fonction DG doit correspondre au rôle DG attribué en base.", step }, 400);
+      }
       const { data: available, error: usernameError } = await admin.rpc("username_available", { _username: cleanUsername });
       if (usernameError) return json({ error: `Vérification de l'identifiant impossible : ${usernameError.message}`, step }, 400);
       if (available === false) return json({ error: "Cet identifiant est déjà utilisé.", step }, 409);
@@ -77,6 +86,18 @@ serve(async (req) => {
       if (rolesLookupError) return json({ error: `Vérification des rôles impossible : ${rolesLookupError.message}`, step }, 400);
       const validRoles = new Set((rolesFound || []).filter((r: any) => r.actif === true).map((r: any) => String(r.code)));
       if (roleList.some((r) => !validRoles.has(r))) return json({ error: "Un ou plusieurs rôles sont inconnus ou inactifs.", step }, 400);
+      const roleChecks = await Promise.all(roleList.map((role) => admin.rpc("user_can_assign_app_role", {
+        p_actor_user_id: caller.user.id,
+        p_role_code: role,
+      })));
+      if (roleChecks.some((check) => check.error)) return json({ error: "Vérification des rôles attribuables impossible.", step }, 500);
+      if (roleChecks.some((check) => check.data !== true)) return json({ error: "Un des rôles sélectionnés ne peut pas être attribué par ce compte.", step }, 403);
+      const { data: teamAllowed, error: teamValidationError } = await admin.rpc("user_can_assign_team_to_department", {
+        p_departement: departement || "",
+        p_equipe_id: equipe_id || null,
+      });
+      if (teamValidationError) return json({ error: "Vérification de l'équipe impossible.", step }, 500);
+      if (teamAllowed !== true) return json({ error: "L'équipe sélectionnée est inactive ou incompatible avec le département.", step }, 400);
       const tempPassword = generateTempPassword();
       step = "create_auth_user";
       const { data: created, error: createError } = await admin.auth.admin.createUser({
@@ -109,11 +130,11 @@ serve(async (req) => {
           whatsapp_indicatif: whatsapp_indicatif ?? null,
           whatsapp_local: whatsapp_local ?? null,
           departement: departement ?? null,
-          relation_rh: relation_rh ?? "Employé",
-          taux_commission: taux_commission == null || taux_commission === "" ? null : Number(taux_commission),
-          salaire_base: salaire_base == null || salaire_base === "" ? null : Number(salaire_base),
-          district_id: district_id ?? null,
-          region_id: region_id ?? null,
+          relation_rh: requestedRelationRh,
+          taux_commission: null,
+          salaire_base: null,
+          district_id: null,
+          region_id: null,
           equipe_id: equipe_id ?? null,
           photo_url: photo_url ?? null,
           type_piece_identite: type_piece_identite ?? null,
@@ -130,10 +151,11 @@ serve(async (req) => {
         const { error: profileError } = await admin.from("profiles").upsert(profilePayload, { onConflict: "id" });
         if (profileError) throw new Error("Profil : " + profileError.message);
         step = "assign_roles";
-        const { error: roleError } = await admin.rpc("admin_set_user_roles_with_primary", {
+        const { error: roleError } = await admin.rpc("admin_set_user_roles_with_primary_authorized", {
           p_user_id: authId,
           p_roles: roleList,
           p_primary_role: primaryRole,
+          p_actor_user_id: caller.user.id,
         });
         if (roleError) throw new Error("Attribution des rôles : " + roleError.message);
         step = "verify_created_account";
@@ -159,9 +181,10 @@ serve(async (req) => {
     if (action === "set_active") {
       step = "set_active";
       if (typeof actif !== "boolean") return json({ error: "Le statut actif doit être un booléen.", step }, 400);
-      const { data: updatedProfiles, error: updateError } = await admin.rpc("admin_set_profile_active", {
+      const { data: updatedProfiles, error: updateError } = await admin.rpc("admin_set_profile_active_authorized", {
         p_user_id: user_id,
         p_actif: actif,
+        p_actor_user_id: caller.user.id,
       });
       if (updateError) return json({ error: updateError.message, step }, 400);
       const persisted = (updatedProfiles ?? []).find((p: any) => p.user_id === user_id || p.profile_id === user_id);
@@ -189,6 +212,7 @@ serve(async (req) => {
 
     if (action === "set_username") {
       step = "set_username";
+      if (await denyNonPdgGovernanceTarget(user_id)) return json({ error: "Seul le PDG peut modifier les accès d’un compte PDG.", step }, 403);
       const clean = String(username ?? "").trim().toLowerCase();
       if (!/^[a-zA-Z0-9._-]{3,30}$/.test(clean)) {
         return json({ error: "Identifiant invalide (3 à 30 caractères : lettres, chiffres, . _ -)", step }, 400);
@@ -202,7 +226,11 @@ serve(async (req) => {
       const { data: matches, error: duplicateError } = await admin.from("profiles").select("id,user_id,username").ilike("username", clean);
       if (duplicateError) return json({ error: duplicateError.message, step }, 400);
       if ((matches || []).some((p: any) => p.id !== targetProfile.id && p.user_id !== authId)) return json({ error: "Cet identifiant est déjà utilisé", step }, 409);
-      const { error: profileUpdateError } = await admin.from("profiles").update({ username: clean }).eq("id", targetProfile.id);
+      const { error: profileUpdateError } = await admin.rpc("admin_update_username_authorized", {
+        p_user_id: authId,
+        p_username: clean,
+        p_actor_user_id: caller.user.id,
+      });
       if (profileUpdateError) return json({ error: profileUpdateError.message, step }, 400);
       const { error: requestUpdateError } = await admin.from("account_requests").update({ username: clean }).eq("auth_user_id", authId);
       if (requestUpdateError) return json({ error: "Identifiant modifié dans le profil, mais synchronisation de la demande impossible: " + requestUpdateError.message, step }, 400);
@@ -233,11 +261,18 @@ serve(async (req) => {
       if (!authId) {
         return json({ error: "Ce profil n'a pas de compte de connexion actif. Créez d'abord son accès.", step }, 404);
       }
+      const roleChecks = await Promise.all(list.map((role) => admin.rpc("user_can_assign_app_role", {
+        p_actor_user_id: caller.user.id,
+        p_role_code: role,
+      })));
+      if (roleChecks.some((check) => check.error)) return json({ error: "Vérification des rôles attribuables impossible.", step }, 500);
+      if (roleChecks.some((check) => check.data !== true)) return json({ error: "Un des rôles sélectionnés ne peut pas être attribué par ce compte.", step }, 403);
       step = "save_roles_transactionally";
-      const { error: saveError } = await admin.rpc("admin_set_user_roles_with_primary", {
+      const { error: saveError } = await admin.rpc("admin_set_user_roles_with_primary_authorized", {
         p_user_id: authId,
         p_roles: list,
         p_primary_role: primaryRole,
+        p_actor_user_id: caller.user.id,
       });
       if (saveError) return json({ error: saveError.message, step }, 400);
       step = "verify_roles";
@@ -247,8 +282,15 @@ serve(async (req) => {
       if (verifiedPrimary.length !== 1 || verifiedPrimary[0].role !== primaryRole) {
         return json({ error: "Le rôle principal n'a pas été enregistré correctement.", step }, 500);
       }
-      const { error: activeError } = await admin.from("profiles").update({ actif: true }).or(`id.eq.${authId},user_id.eq.${authId}`);
+      const { data: activatedProfiles, error: activeError } = await admin.rpc("admin_set_profile_active_authorized", {
+        p_user_id: authId,
+        p_actif: true,
+        p_actor_user_id: caller.user.id,
+      });
       if (activeError) return json({ error: activeError.message, step }, 400);
+      if (!(activatedProfiles ?? []).some((p: any) => p.actif === true)) {
+        return json({ error: "Le statut actif du compte n'a pas été confirmé.", step }, 500);
+      }
       return json({ success: true, action, primary_role: primaryRole, roles: (check ?? []).map((r: any) => r.role) });
     }
 

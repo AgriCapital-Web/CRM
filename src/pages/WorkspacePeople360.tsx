@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,13 +17,12 @@ import { CalendarCheck, Target, ClipboardList, RefreshCw, Plus, Check, X } from 
 
 type Row = Record<string, any>;
 type Tab = "leave" | "objectives" | "reviews" | "audit";
-const hrRoles = ["rh","responsable_rh","ressources_humaines","admin","administrateur","pdg","dg","directeur_general","directeur général"];
 const fmt = (v?: string|null) => v ? new Date(v).toLocaleDateString("fr-FR") : "—";
 
 export default function WorkspacePeople360({ embedded = false }: { embedded?: boolean } = {}) {
- const { user, profile, userRoles } = useAuth();
- const roles = userRoles.map(r => r.toLowerCase());
- const canHR = roles.some(r => hrRoles.includes(r));
+ const { user, profile } = useAuth();
+ const { capabilities } = usePermissions();
+ const canHR = capabilities.manageHR;
  const [tab,setTab] = useState<Tab>("leave");
  const [leaveDialogOpen,setLeaveDialogOpen] = useState(false);
  const [objectiveDialogOpen,setObjectiveDialogOpen] = useState(false);

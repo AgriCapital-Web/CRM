@@ -138,10 +138,9 @@ const NouvelleAcquisition = () => {
   const queuedMutationCountRef = useRef(0);
   const {toast}=useToast();
   const navigate=useNavigate();
-  const { user, userRoles=[] } = useAuth();
+  const { user } = useAuth();
   const { can } = usePermissions();
-  const canEditExistingRole = (userRoles || []).some((role:string)=>["pdg","relation_client","support"].includes(role));
-  const canEditExisting = Boolean(existingRecord?.client) && canEditExistingRole && (existingRecord.client.type_client === "beneficiaire_particulier" ? (userRoles || []).includes("pdg") : true);
+  const canEditExisting = Boolean(existingRecord?.client) && can("clients.update");
   const [searchParams]=useSearchParams();
   const {data:promotionActive}=usePromotionActive(formData.offre_id, undefined, !recordId);
 
@@ -249,9 +248,6 @@ const NouvelleAcquisition = () => {
         }
         const clientId=client?.id||acquisition?.client_id||recordId;
         if(!client) throw new Error("Dossier client introuvable.");
-        if(client.type_client==="beneficiaire_particulier" && !(userRoles||[]).includes("pdg")) {
-          throw new Error("L’accès aux bénéficiaires particuliers est réservé au PDG.");
-        }
         if(!acquisition){
           const result=await (supabase as any).from("acquisitions").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
           if(result.error) throw result.error;
@@ -307,7 +303,7 @@ const NouvelleAcquisition = () => {
       finally{if(active)setDraftLoading(false);}
     })();
     return()=>{active=false;};
-  },[recordId, userRoles]);
+  },[recordId]);
 
   // Restaurer le brouillon avant d'autoriser la saisie : un chargement réseau tardif
   // ne doit jamais interférer avec les premières modifications de l'utilisateur.

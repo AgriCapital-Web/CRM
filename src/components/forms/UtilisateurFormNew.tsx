@@ -16,10 +16,10 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { useAppRoles, useDepartementsEntreprise } from "@/hooks/useReferentiels";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
-import { ROLES as APP_ROLES, normalizeRoles } from "@/lib/roles";
 import { logAdminAction } from "@/lib/audit";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 import RoleGeographyFields from "@/components/common/RoleGeographyFields";
+import { usePermissions } from "@/hooks/usePermissions";
 
 
 const userFormSchema = z.object({
@@ -64,6 +64,11 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
     defaultValues: utilisateur ? { ...utilisateur, nom: utilisateur.nom || String(utilisateur.nom_complet || "").trim().split(/\\s+/).slice(-1)[0] || "", prenoms: utilisateur.prenoms || String(utilisateur.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || "" } : {},
   });
   const { toast } = useToast();
+  const { can } = usePermissions();
+  const canManageRoles = can("roles.manage_permissions");
+  const canCreateUsers = can("utilisateurs.create");
+  const canManagePayroll = can("finance.payroll") || can("finance.manage");
+  const canAssignRoles = canManageRoles || (!utilisateur && canCreateUsers);
   const [loading, setLoading] = useState(false);
   const [createdAccount, setCreatedAccount] = useState<{ user_id: string; tempPassword: string } | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(
@@ -73,6 +78,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
     utilisateur?.user_roles?.find((r: any) => r.is_primary === true)?.role || "",
   );
   const [equipes, setEquipes] = useState<any[]>([]);
+  const [showEquipe, setShowEquipe] = useState(false);
+  const [roleCoverage, setRoleCoverage] = useState<string | null>(null);
+  const [roleCoverageLoading, setRoleCoverageLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string>(utilisateur?.photo_url || "");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [pieceRectoFile, setPieceRectoFile] = useState<File | null>(null);
@@ -99,37 +107,63 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
     setPrimaryRole((current) => current && officialCodes.has(current) ? current : "");
   }, [rolesDisponibles]);
 
-  // La couverture territoriale dépend du rôle principal, pas seulement du département RH.
-  const governanceOnly = relationRH === "PDG" || relationRH === "Associé / Actionnaire";
-  const GEO_ROLES = ["responsable_district","responsable_zone","responsable_commercial","chef_equipe_commercial","commercial","technicien","mobilisateur_foncier","chef_equipe_technique","superviseur_mobilisation_fonciere","responsable_technique_agronomique"];
+  // Les règles de couverture et les équipes compatibles viennent des référentiels SQL.
   const effectivePrimaryRole = primaryRole || selectedRoles[0] || "";
-  const needsCoverage = useMemo(() => !governanceOnly && GEO_ROLES.includes(effectivePrimaryRole), [effectivePrimaryRole, governanceOnly]);
-  const isCommercialProfile = departementSelectionne === "Commercial";
-  const isTechniqueProfile = departementSelectionne === "Technique";
-  const showEquipe = isCommercialProfile || isTechniqueProfile;
-  const equipesFiltrees = useMemo(() => {
-    if (isCommercialProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "commercial");
-    if (isTechniqueProfile) return equipes.filter((e) => !e.type_equipe || e.type_equipe === "technique");
-    return equipes;
-  }, [equipes, isCommercialProfile, isTechniqueProfile]);
-
-  useEffect(() => { fetchEquipes(); }, []);
-
-  const fetchEquipes = async () => {
-    const { data } = await (supabase as any).from("equipes").select("*").eq("actif", true).order("nom");
-    if (data) setEquipes(data);
+  const needsCoverage = useMemo(
+    () => Boolean(roleCoverage && roleCoverage !== "global"),
+    [roleCoverage],
+  );
+  const requiredGeoLevel = (): "district_id" | "region_id" | "departement_geo_id" | "sous_prefecture_id" | null => {
+    switch (roleCoverage) {
+      case "district": return "district_id";
+      case "region": return "region_id";
+      case "departement": return "departement_geo_id";
+      case "sous_prefecture": return "sous_prefecture_id";
+      default: return null;
+    }
   };
 
-  const requiredGeoLevel = (role: string): "district_id" | "region_id" | "departement_geo_id" | "sous_prefecture_id" | null => {
-    const code = role === "responsable_zone" ? "responsable_district" : role;
-    if (code === "responsable_district") return "district_id";
-    if (code === "responsable_commercial" || code === "superviseur_mobilisation_fonciere" || code === "responsable_technique_agronomique") return "region_id";
-    if (code === "chef_equipe_commercial" || code === "chef_equipe_technique" || code === "technicien" || code === "commercial" || code === "mobilisateur_foncier") return "departement_geo_id";
-    return null;
+  useEffect(() => {
+    let active = true;
+    setRoleCoverage(null);
+    if (!effectivePrimaryRole) {
+      setRoleCoverageLoading(false);
+      return () => { active = false; };
+    }
+    setRoleCoverageLoading(true);
+    void (async () => {
+      const { data, error } = await (supabase as any)
+        .from("app_roles")
+        .select("niveau_couverture")
+        .eq("code", effectivePrimaryRole)
+        .eq("actif", true)
+        .maybeSingle();
+      if (!active) return;
+      setRoleCoverage(error ? null : (data?.niveau_couverture || "global"));
+      setRoleCoverageLoading(false);
+    })();
+    return () => { active = false; };
+  }, [effectivePrimaryRole]);
+
+  useEffect(() => {
+    void fetchEquipes(departementSelectionne);
+  }, [departementSelectionne]);
+
+  const fetchEquipes = async (department?: string) => {
+    const { data, error } = await (supabase as any).rpc("get_team_options_for_department", {
+      p_departement: department || "",
+    });
+    if (error) {
+      setEquipes([]);
+      setShowEquipe(false);
+      return;
+    }
+    setEquipes(data?.equipes || []);
+    setShowEquipe(data?.requires_team === true);
   };
 
   const savePrimaryZoneAssignment = async (userId: string, data: any) => {
-    const field = needsCoverage ? requiredGeoLevel(effectivePrimaryRole) : null;
+    const field = needsCoverage ? requiredGeoLevel() : null;
     const zoneId = field ? (data[field] || utilisateur?.[field] || null) : null;
     const zoneType = field === "district_id" ? "district" : field === "region_id" ? "region" : field === "departement_geo_id" ? "departement" : field === "sous_prefecture_id" ? "sous_prefecture" : null;
     const { error } = await (supabase as any).rpc("set_user_primary_zone_assignment", {
@@ -141,28 +175,36 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   };
 
   useEffect(() => {
-    if (!utilisateur?.user_id || !needsCoverage) return;
-    const field = requiredGeoLevel(effectivePrimaryRole);
+    if (!utilisateur?.user_id || !needsCoverage || roleCoverageLoading) return;
+    const field = requiredGeoLevel();
     const zoneType = field === "district_id" ? "district" : field === "region_id" ? "region" : field === "departement_geo_id" ? "departement" : field === "sous_prefecture_id" ? "sous_prefecture" : null;
     if (!field || !zoneType) return;
     void (async () => {
       const { data, error } = await (supabase as any).from("zone_assignments").select("zone_id").eq("user_id", utilisateur.user_id).eq("zone_type", zoneType).limit(1).maybeSingle();
       if (!error && data?.zone_id) setValue(field, data.zone_id);
     })();
-  }, [utilisateur?.user_id, primaryRole, needsCoverage, setValue]);
+  }, [utilisateur?.user_id, primaryRole, needsCoverage, roleCoverage, roleCoverageLoading, setValue]);
 
 
 
   const onSubmit = async (data: any) => {
-    if (selectedRoles.length === 0) {
+    if (canAssignRoles && selectedRoles.length === 0) {
       toast({ variant: "destructive", title: "Rôle requis", description: "Sélectionnez au moins un rôle officiel." });
       return;
     }
-    if (!primaryRole || !selectedRoles.includes(primaryRole)) {
+    if (canAssignRoles && (!primaryRole || !selectedRoles.includes(primaryRole))) {
       toast({ variant: "destructive", title: "Rôle principal requis", description: "Choisissez un rôle principal parmi les rôles attribués." });
       return;
     }
-    const requiredGeo = needsCoverage ? requiredGeoLevel(primaryRole) : null;
+    if (effectivePrimaryRole && roleCoverageLoading) {
+      toast({ variant: "destructive", title: "Référentiel en chargement", description: "La couverture du rôle principal est en cours de vérification. Réessayez dans un instant." });
+      return;
+    }
+    if (effectivePrimaryRole && roleCoverage === null) {
+      toast({ variant: "destructive", title: "Couverture indisponible", description: "Impossible de vérifier le niveau de couverture du rôle dans le référentiel." });
+      return;
+    }
+    const requiredGeo = needsCoverage ? requiredGeoLevel() : null;
     const existingGeoValue = requiredGeo ? (utilisateur?.[requiredGeo] || (requiredGeo === "departement_geo_id" ? utilisateur?.departement_geo_id : null)) : null;
     if (requiredGeo && !data[requiredGeo] && !existingGeoValue) {
       toast({ variant: "destructive", title: "Couverture requise", description: "Sélectionnez la zone géographique exigée par le rôle principal." });
@@ -262,14 +304,19 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         // Les rôles sont liés au compte Auth. Un ancien profil sans compte de connexion
         // ne doit jamais provoquer une erreur de clé étrangère.
         const uid = utilisateur.user_id;
-        const anciensRoles = (utilisateur?.user_roles?.map((r: any) => String(r.role)).filter(Boolean) || []).filter((role: string) => rolesDisponibles.some((r) => String(r.code) === role));
+        const anciensRoles = (utilisateur?.user_roles?.map((r: any) => String(r.role)).filter(Boolean) || []);
         if (uid) {
-          const { error: deleteRolesError } = await (supabase as any).from("user_roles").delete().eq("user_id", uid);
-          if (deleteRolesError) throw deleteRolesError;
-          const { error: insertRolesError } = await (supabase as any).from("user_roles").insert(
-            selectedRoles.map((role) => ({ user_id: uid, role, is_primary: role === primaryRole }))
-          );
-          if (insertRolesError) throw insertRolesError;
+          const rolesChanged = selectedRoles.length !== anciensRoles.length
+            || selectedRoles.some((role) => !anciensRoles.includes(role))
+            || (utilisateur?.user_roles?.find((r: any) => r.is_primary === true)?.role || "") !== primaryRole;
+          if (canManageRoles && rolesChanged) {
+            const { data: roleResult, error: roleError } = await supabase.functions.invoke("admin-manage-user", {
+              body: { action: "set_roles", user_id: uid, roles: selectedRoles, primary_role: primaryRole },
+            });
+            if (roleError || roleResult?.error || roleResult?.success !== true) {
+              throw new Error(roleResult?.error || roleError?.message || "L'enregistrement des rôles n'a pas été confirmé.");
+            }
+          }
 
           await savePrimaryZoneAssignment(uid, data);
 
@@ -338,27 +385,20 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           setCreatedAccount({ user_id: result.user_id, tempPassword });
         }
 
-        // La création initiale attribue déjà les rôles de manière transactionnelle.
-        // En cas de reprise après une étape secondaire échouée, resynchroniser les rôles du compte existant.
-        if (createdAccount) {
-          const { data: savedRoles, error: savedRolesError } = await supabase.functions.invoke("admin-manage-user", {
-            body: { action: "set_roles", user_id: result.user_id, roles: selectedRoles, primary_role: primaryRole },
-          });
-          if (savedRolesError || savedRoles?.error || savedRoles?.success !== true) {
-            throw new Error(savedRoles?.error || savedRolesError?.message || "L'enregistrement du rôle principal n'a pas été confirmé.");
-          }
-        }
-
         const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
         const { data: newProfile, error: newProfileError } = await (supabase as any).from("profiles")
           .select("id").eq("user_id", result.user_id).single();
         if (newProfileError) throw newProfileError;
-        if (baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
-          const { error: salaryError } = await (supabase as any).from("profiles").update({ salaire_base: baseSalary }).eq("id", newProfile.id);
-          if (salaryError) throw salaryError;
+        if (canManagePayroll && baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
           const { error: salaryConfigError } = await (supabase as any).from("finance_salary_profiles")
             .upsert({ profile_id: newProfile.id, base_salary: baseSalary, pay_day: 28, active: true }, { onConflict: "profile_id" });
           if (salaryConfigError) throw salaryConfigError;
+        }
+        if (can("system.global_admin") && data.taux_commission !== "" && data.taux_commission != null) {
+          const { error: commissionError } = await (supabase as any).from("profiles")
+            .update({ taux_commission: Number(data.taux_commission) })
+            .eq("id", newProfile.id);
+          if (commissionError) throw commissionError;
         }
 
         if (file && result.user_id) {
@@ -548,8 +588,8 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
                 <Checkbox
                   id={role.code}
                   checked={selectedRoles.includes(role.code)}
-                  onCheckedChange={() => !governanceOnly && toggleRole(role.code)}
-                  disabled={governanceOnly}
+                  onCheckedChange={() => canAssignRoles && toggleRole(role.code)}
+                  disabled={!canAssignRoles}
                 />
                 <label htmlFor={role.code} className="text-sm cursor-pointer leading-tight">
                   <span className="font-medium">{role.nom}</span>
@@ -563,7 +603,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           </div>
           <div className="space-y-2">
             <Label>Rôle principal *</Label>
-            <Select value={primaryRole} onValueChange={setPrimaryRole}>
+            <Select value={primaryRole} onValueChange={setPrimaryRole} disabled={!canAssignRoles}>
               <SelectTrigger>
                 <SelectValue placeholder="Choisir le rôle principal" />
               </SelectTrigger>
@@ -575,7 +615,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             </Select>
             <p className="text-xs text-muted-foreground">Le rôle principal détermine le périmètre hiérarchique principal. Les autres rôles peuvent ajouter des permissions complémentaires.</p>
           </div>
-          {selectedRoles.length === 0 && (
+          {canAssignRoles && selectedRoles.length === 0 && (
             <p className="text-sm text-destructive">Au moins un rôle officiel doit être attribué.</p>
           )}
         </CardContent>
@@ -592,15 +632,14 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
               defaultValue={utilisateur?.relation_rh}
               onValueChange={(value) => {
                 setValue("relation_rh", value);
-                if (value === "PDG") setSelectedRoles((current) => current.includes(APP_ROLES.PDG) ? current : [...current, APP_ROLES.PDG]);
-                else if (value === "Associé / Actionnaire") setSelectedRoles((current) => current.includes(APP_ROLES.ASSOCIE_ACTIONNAIRE) ? current : [...current, APP_ROLES.ASSOCIE_ACTIONNAIRE]);
+                
               }}
             >
               <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
               <SelectContent>{refs("relation_rh").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
             </Select>
           </div>}
-          {utilisateur && !governanceOnly && <div className="space-y-2">
+          {utilisateur && <div className="space-y-2">
             <Label>Département *</Label>
             <Select defaultValue={utilisateur?.departement} onValueChange={(value) => {
               setValue("departement", value);
@@ -614,14 +653,14 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <Label>Salaire de base mensuel (FCFA)</Label>
             <Input type="number" min="0" step="1" {...register("salaire_base")} defaultValue={utilisateur?.salaire_base ?? ""} placeholder="Laisser vide si non salarié" />
           </div>}
-          {utilisateur && !governanceOnly && showEquipe && <div className="space-y-2">
+          {utilisateur && showEquipe && <div className="space-y-2">
             <Label>Équipe</Label>
             <Select defaultValue={utilisateur?.equipe_id} onValueChange={(value) => setValue("equipe_id", value)}>
               <SelectTrigger><SelectValue placeholder="Sélectionner une équipe" /></SelectTrigger>
-              <SelectContent>{equipesFiltrees.map((eq) => <SelectItem key={eq.id} value={eq.id}>{eq.nom}</SelectItem>)}</SelectContent>
+              <SelectContent>{equipes.map((eq) => <SelectItem key={eq.id} value={eq.id}>{eq.nom}</SelectItem>)}</SelectContent>
             </Select>
           </div>}
-          {utilisateur && relationRH === "Prestataire" && !governanceOnly && <div className="space-y-2">
+          {utilisateur && relationRH === "Prestataire" && <div className="space-y-2">
             <Label>Taux Commission (FCFA par ha)</Label>
             <Input type="number" step="1" {...register("taux_commission")} placeholder="Ex: 2500" />
           </div>}

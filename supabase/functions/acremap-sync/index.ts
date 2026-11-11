@@ -9,8 +9,9 @@ Deno.serve(async (req) => {
  const {data:authData,error:authError}=await userClient.auth.getUser();
  if(authError||!authData.user) return respond({error:"unauthorized"},401);
  const admin=createClient(url,serviceKey);
- const {data:roles}=await admin.from("user_roles").select("role").eq("user_id",authData.user.id);
- if(!(roles??[]).some((r:any)=>["admin","pdg","dg"].includes(String(r.role).toLowerCase()))) return respond({error:"forbidden"},403);
+ const {data:allowed,error:permissionError}=await admin.rpc("user_has_app_permission",{_user_id:authData.user.id,_required_code:"parametres.manage_system"});
+ if(permissionError) return respond({error:"permission_check_failed"},500);
+ if(allowed!==true) return respond({error:"forbidden"},403);
  const {data:settings,error:settingsError}=await admin.from("acremap_integration_settings").select("*").eq("id","default").maybeSingle();
  const body=await req.json().catch(()=>({}));
  if(settingsError||!settings?.api_base_url||!settings.api_key) return respond({error:"integration_not_configured"},400);

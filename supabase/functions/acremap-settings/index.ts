@@ -20,12 +20,12 @@ Deno.serve(async (req) => {
   if (authError || !auth.user) return respond({ error: "unauthorized" }, 401);
 
   const admin = createClient(url, serviceKey);
-  const { data: roles, error: rolesError } = await admin.from("user_roles").select("role").eq("user_id", auth.user.id);
-  if (rolesError) return respond({ error: "role_check_failed" }, 500);
-  const allowed = (roles ?? []).some((row: { role: string }) =>
-    ["admin", "super_admin", "pdg", "dg"].includes(String(row.role).toLowerCase())
-  );
-  if (!allowed) return respond({ error: "forbidden" }, 403);
+  const { data: allowed, error: permissionError } = await admin.rpc("user_has_app_permission", {
+    _user_id: auth.user.id,
+    _required_code: "parametres.manage_system",
+  });
+  if (permissionError) return respond({ error: "permission_check_failed" }, 500);
+  if (allowed !== true) return respond({ error: "forbidden" }, 403);
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return respond({ error: "invalid_json" }, 400); }

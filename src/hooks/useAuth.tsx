@@ -15,7 +15,6 @@ interface AuthContextType {
   loading: boolean;
   signIn: (usernameOrEmail: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  hasRole: (role: string) => boolean;
   refreshProfile: () => Promise<void>;
 }
 
@@ -314,10 +313,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const hasRole = (role: string) => {
-    return userRoles.includes(role);
-  };
-
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
@@ -339,7 +334,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signIn,
       signOut,
-      hasRole,
       refreshProfile
     }}>
       {children}
