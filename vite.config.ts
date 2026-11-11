@@ -16,31 +16,19 @@ export default defineConfig(() => ({
   },
   build: {
     outDir: "dist",
-    // Manifest utilisé par le service worker pour précharger aussi les chunks lazy
-    // (routes/pages ouvertes pour la première fois avant une coupure réseau).
+    // Manifest utilisé par le service worker pour précharger aussi les chunks lazy.
     manifest: "asset-manifest.json",
     sourcemap: false,
     minify: "esbuild" as const,
     rollupOptions: {
       output: {
-        // Cache-busting: content hash in filenames
+        // Cache-busting: content hash in filenames.
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash].[ext]",
-        manualChunks(id) {
-          if (
-            id.includes("/node_modules/react/") ||
-            id.includes("/node_modules/react-dom/") ||
-            id.includes("/node_modules/react-router-dom/")
-          ) return "vendor";
-          if (id.includes("/node_modules/@supabase/supabase-js/")) return "supabase";
-          if (
-            id.includes("/node_modules/@radix-ui/react-dialog/") ||
-            id.includes("/node_modules/@radix-ui/react-select/") ||
-            id.includes("/node_modules/@radix-ui/react-tabs/")
-          ) return "ui";
-          return undefined;
-        },
+        // Laisser Vite/Rolldown répartir les dépendances automatiquement.
+        // Le découpage manuel de React/React Router/Radix peut créer des
+        // dépendances circulaires entre chunks et casser l'initialisation.
       },
     },
     chunkSizeWarningLimit: 1000,
