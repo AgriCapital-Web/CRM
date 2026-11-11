@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { usePermissions } from "@/hooks/usePermissions";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
@@ -7,6 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Eye, Pencil } from "lucide-react";
 import { Search, Layers, MapPin, Sprout } from "lucide-react";
 
 const Parcelles = () => {
@@ -16,6 +23,13 @@ const Parcelles = () => {
   const [plantations, setPlantations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const { can } = usePermissions();
+  const canEditParcel = can("parcelles.update");
+  const { toast } = useToast();
+  const [selectedParcel, setSelectedParcel] = useState<any | null>(null);
+  const [editParcel, setEditParcel] = useState(false);
+  const [parcelSaving, setParcelSaving] = useState(false);
+  const [parcelForm, setParcelForm] = useState({ nom: "", village: "", surface_totale_ha: "", surface_agricapital_ha: "", statut: "disponible" });
 
   const fetchData = async () => {
     setLoading(true);
@@ -94,6 +108,31 @@ const Parcelles = () => {
     return haystack.includes(searchTerm.toLowerCase());
   });
 
+  const openParcel = (parcel: any) => {
+    setSelectedParcel(parcel);
+    setParcelForm({ nom: parcel.nom || "", village: parcel.village || "", surface_totale_ha: String(parcel.surface_totale_ha ?? ""), surface_agricapital_ha: String(parcel.surface_agricapital_ha ?? ""), statut: parcel.statut || "disponible" });
+    setEditParcel(false);
+  };
+  const saveParcel = async () => {
+    if (!selectedParcel || !canEditParcel || parcelSaving) return;
+    const total = Number(parcelForm.surface_totale_ha), share = Number(parcelForm.surface_agricapital_ha);
+    if (!Number.isFinite(total) || total < 0 || !Number.isFinite(share) || share < 0 || share > total) {
+      toast({ title: "Surfaces invalides", variant: "destructive" }); return;
+    }
+    setParcelSaving(true);
+    try {
+      const { data, error } = await (supabase as any).from("parcelles").update({
+        nom: parcelForm.nom.trim() || null, village: parcelForm.village.trim() || null,
+        surface_totale_ha: total, surface_agricapital_ha: share, statut: parcelForm.statut,
+      }).eq("id", selectedParcel.id).select("*, proprietaires_terres(id,id_unique,nom_complet), districts(nom), regions(nom), departements(nom), sous_prefectures(nom)").single();
+      if (error) throw error;
+      setParcelles(current => current.map(row => row.id === data.id ? data : row));
+      setSelectedParcel(data); setEditParcel(false); toast({ title: "Parcelle modifiée" });
+    } catch (error: any) {
+      toast({ title: "Modification impossible", description: error?.message || "Erreur d’enregistrement.", variant: "destructive" });
+    } finally { setParcelSaving(false); }
+  };
+
   const totalSurface = parcelles.reduce((s, p) => s + Number(p.surface_totale_ha || 0), 0);
   // Part AgriCapital réellement non cédée : part contractuelle moins les hectares déjà attribués.
   // Les parcelles appartenant directement aux clients et les dossiers fonciers non validés sont exclues.
@@ -144,17 +183,17 @@ const Parcelles = () => {
                 <TableHead>Part AgriCapital</TableHead>
                 <TableHead>Lots</TableHead>
                 <TableHead>Clients / plantations</TableHead>
-                <TableHead>Statut</TableHead>
+                <TableHead>Statut</TableHead><TableHead className="text-right">Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {loading ? <TableRow><TableCell colSpan={9} className="text-center py-8">Chargement…</TableCell></TableRow> :
-                filtered.length === 0 ? <TableRow><TableCell colSpan={9} className="text-center py-8">Aucune parcelle</TableCell></TableRow> :
+                filtered.length === 0 ? <TableRow><TableCell colSpan={10} className="text-center py-8">Aucune parcelle</TableCell></TableRow> :
                 filtered.map((p) => {
                   const parcelClients = clientsByParcel.get(p.id) || [];
                   const parcelLots = lotsByParcel.get(p.id) || [];
                   const parcelPlantations = plantationsByParcel.get(p.id) || [];
                   const ownClient = String(p.mode_surface || "").toLowerCase() === "propriete_client";
-                  return <TableRow key={p.id}>
+                  return <TableRow key={p.id} role="button" tabIndex={0} aria-label={"Consulter la parcelle " + (p.nom || p.id_unique || "")} onClick={() => openParcel(p)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openParcel(p); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <TableCell className="font-medium">{p.nom || p.village || "Parcelle"}</TableCell>
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
@@ -165,12 +204,36 @@ const Parcelles = () => {
                     <TableCell className="max-w-[280px] text-xs">
                       {parcelClients.length ? parcelClients.map(c => <div key={c.id}>{c.nom_complet} · {c.total_hectares} ha</div>) : "—"}
                     </TableCell>
-                    <TableCell><Badge>{statusLabel(p, parcelClients, parcelPlantations)}</Badge></TableCell>
+                    <TableCell><Badge>{statusLabel(p, parcelClients, parcelPlantations)}</Badge></TableCell><TableCell className="text-right"><div className="inline-flex gap-1" onClick={event => event.stopPropagation()}><Button type="button" size="icon" variant="ghost" aria-label="Consulter" onClick={() => openParcel(p)}><Eye className="h-4 w-4" /></Button>{canEditParcel && <Button type="button" size="icon" variant="ghost" aria-label="Modifier" onClick={() => { openParcel(p); setEditParcel(true); }}><Pencil className="h-4 w-4" /></Button>}</div></TableCell>
                   </TableRow>;
                 })}
               </TableBody>
             </Table>
           </div>
+
+          <Dialog open={!!selectedParcel} onOpenChange={open => { if (!open && !parcelSaving) { setSelectedParcel(null); setEditParcel(false); } }}>
+            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+              <DialogHeader><DialogTitle>{editParcel ? "Modifier la parcelle" : selectedParcel?.nom || selectedParcel?.id_unique || "Fiche parcelle"}</DialogTitle></DialogHeader>
+              {selectedParcel && <div className="space-y-4">
+                {editParcel ? <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1"><Label>Nom de la parcelle</Label><Input value={parcelForm.nom} onChange={e => setParcelForm(v => ({ ...v, nom: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Village</Label><Input value={parcelForm.village} onChange={e => setParcelForm(v => ({ ...v, village: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Superficie totale (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_totale_ha} onChange={e => setParcelForm(v => ({ ...v, surface_totale_ha: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Part AgriCapital (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_agricapital_ha} onChange={e => setParcelForm(v => ({ ...v, surface_agricapital_ha: e.target.value }))} /></div>
+                  <div className="space-y-1 sm:col-span-2"><Label>Statut</Label><Select value={parcelForm.statut} onValueChange={statut => setParcelForm(v => ({ ...v, statut }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="disponible">Disponible</SelectItem><SelectItem value="partiellement_attribuee">Partiellement attribuée</SelectItem><SelectItem value="saturee">Saturée</SelectItem><SelectItem value="validee">Validée</SelectItem><SelectItem value="a_valider">À valider</SelectItem></SelectContent></Select></div>
+                </div> : <div className="grid gap-3 sm:grid-cols-2">
+                  <div><Label>Identifiant</Label><p className="font-medium">{selectedParcel.id_unique || "—"}</p></div>
+                  <div><Label>Propriétaire</Label><p className="font-medium">{selectedParcel.proprietaires_terres?.nom_complet || "—"}</p></div>
+                  <div><Label>Village</Label><p className="font-medium">{selectedParcel.village || "—"}</p></div>
+                  <div><Label>Localisation</Label><p className="font-medium">{[selectedParcel.departements?.nom, selectedParcel.sous_prefectures?.nom, selectedParcel.districts?.nom, selectedParcel.regions?.nom].filter(Boolean).join(" · ") || "—"}</p></div>
+                  <div><Label>Superficie totale</Label><p className="font-medium">{Number(selectedParcel.surface_totale_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                  <div><Label>Part AgriCapital</Label><p className="font-medium">{Number(selectedParcel.surface_agricapital_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                  <div><Label>Statut</Label><p className="font-medium">{statusLabel(selectedParcel, clientsByParcel.get(selectedParcel.id) || [], plantationsByParcel.get(selectedParcel.id) || [])}</p></div>
+                </div>}
+                <div className="flex justify-end gap-2">{editParcel ? <><Button type="button" variant="outline" onClick={() => setEditParcel(false)} disabled={parcelSaving}>Annuler</Button><Button type="button" onClick={() => void saveParcel()} disabled={parcelSaving}>{parcelSaving ? "Enregistrement…" : "Enregistrer"}</Button></> : <><Button type="button" variant="outline" onClick={() => setSelectedParcel(null)}>Fermer</Button>{canEditParcel && <Button type="button" onClick={() => setEditParcel(true)}>Modifier</Button>}</>}</div>
+              </div>}
+            </DialogContent>
+          </Dialog>
         </div>
       </MainLayout>
     </ProtectedRoute>
