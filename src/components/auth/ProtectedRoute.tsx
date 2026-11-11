@@ -7,13 +7,12 @@ import { Button } from '@/components/ui/button';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: string;
   requiredPermission?: string;
   requiredPermissionCode?: string;
 }
 
-const ProtectedRoute = ({ children, requiredRole, requiredPermission, requiredPermissionCode }: ProtectedRouteProps) => {
-  const { user, profile, loading, hasRole } = useAuth();
+const ProtectedRoute = ({ children, requiredPermission, requiredPermissionCode }: ProtectedRouteProps) => {
+  const { user, profile, loading } = useAuth();
   const { can, loading: permissionsLoading } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,7 +25,7 @@ const ProtectedRoute = ({ children, requiredRole, requiredPermission, requiredPe
         navigate('/change-password-required', { replace: true });
       }
     }
-  }, [user, profile?.password_change_required, location.pathname, loading, permissionsLoading, requiredRole, requiredPermission, requiredPermissionCode, navigate, hasRole, can ]);
+  }, [user, profile?.password_change_required, location.pathname, loading, permissionsLoading, requiredPermission, requiredPermissionCode, navigate, can ]);
 
   if (loading) {
     return (
@@ -42,7 +41,6 @@ const ProtectedRoute = ({ children, requiredRole, requiredPermission, requiredPe
     return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" /></div>;
   }
   const accessDenied = Boolean(
-    (requiredRole && !hasRole(requiredRole)) ||
     (requiredPermissionCode ? !can(requiredPermissionCode) : requiredPermission && !can(requiredPermission))
   );
   if (accessDenied) {
