@@ -1,8 +1,7 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { normalizeRoles } from "@/lib/roles";
 import { cachePermissionMatrix, getCachedPermissionMatrix } from "@/lib/offlineDb";
 
 type PermissionMatrix = Record<string, string[]>;
@@ -11,90 +10,123 @@ type PermissionMatrixResult = {
   fromDatabase: boolean;
 };
 
-async function fetchRolePermissionMatrix(): Promise<PermissionMatrixResult> {
+const effectivePermissionsKey = (userId: string) => `__effective_permissions__:${userId}`;
+
+/**
+ * The database returns the effective permission set for the signed-in user.
+ * The client does not combine role names, hard-coded exceptions, or a local
+ * role-to-permission matrix to decide which actions are available.
+ */
+async function fetchEffectivePermissions(userId: string): Promise<PermissionMatrixResult> {
   try {
-    const { data, error } = await (supabase as any)
-      .from("role_permissions")
-      .select("role_code, permission_code");
+    const { data, error } = await (supabase as any).rpc("crm_current_user_permissions");
+    if (error) throw error;
 
-    if (!error && data && data.length > 0) {
-      const matrix: PermissionMatrix = {};
-      for (const row of data as any[]) {
-        (matrix[row.role_code] ||= []).push(row.permission_code);
-      }
+    const permissions = Array.isArray(data)
+      ? data.filter((value): value is string => typeof value === "string")
+      : [];
 
-      // Persist for offline use, but a local cache failure must not discard a
-      // valid response from the database.
-      try {
-        await cachePermissionMatrix(matrix);
-      } catch {
-        // Best-effort offline cache.
-      }
-      return { matrix, fromDatabase: true };
+    const matrix = { [effectivePermissionsKey(userId)]: permissions };
+    try {
+      await cachePermissionMatrix(matrix);
+    } catch {
+      // The database response remains authoritative even if offline caching fails.
     }
+    return { matrix, fromDatabase: true };
   } catch {
-    // Fall back to the last known permission matrix below.
-  }
-
-  try {
-    const cached = await getCachedPermissionMatrix();
-    return { matrix: cached || {}, fromDatabase: false };
-  } catch {
-    return { matrix: {}, fromDatabase: false };
+    // Offline mode may use only the last effective set returned by the database.
+    // The previous role matrix is deliberately not reconstructed in the browser.
+    try {
+      const cached = await getCachedPermissionMatrix();
+      return {
+        matrix: {
+          [effectivePermissionsKey(userId)]: cached?.[effectivePermissionsKey(userId)] || [],
+        },
+        fromDatabase: false,
+      };
+    } catch {
+      return { matrix: { [effectivePermissionsKey(userId)]: [] }, fromDatabase: false };
+    }
   }
 }
 
-/**
- * Shared, cached role -> permissions matrix. Reusing the QueryClient cache
- * prevents every route mount from reloading the same 438-row matrix and
- * briefly blanking protected pages during navigation.
- */
 export function useRolePermissionMatrix() {
+  const { user } = useAuth();
   const query = useQuery({
-    queryKey: ["role-permission-matrix"],
-    queryFn: fetchRolePermissionMatrix,
-    staleTime: 5 * 60 * 1000,
+    queryKey: ["effective-permissions", user?.id || "anonymous"],
+    queryFn: () => fetchEffectivePermissions(user!.id),
+    enabled: Boolean(user?.id),
+    staleTime: 60 * 1000,
     gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
 
   return {
     matrix: query.data?.matrix || {},
-    loading: query.isPending,
+    loading: Boolean(user?.id) && query.isPending,
     fromDatabase: query.data?.fromDatabase || false,
     reload: async () => {
-      await query.refetch();
+      if (user?.id) await query.refetch();
     },
   };
 }
 
-/** Permissions effectives de l'utilisateur connecté */
+/** Permissions effectives et capacités calculées côté base de données. */
 export function usePermissions() {
-  const { userRoles, primaryRole, profile } = useAuth();
+  const { user } = useAuth();
   const { matrix, loading, fromDatabase, reload } = useRolePermissionMatrix();
 
-  const roles = useMemo(() => normalizeRoles(userRoles || []), [userRoles]);
-  // super_admin a été supprimé du catalogue officiel. Aucun bypass statique.
-  const isSuperAdmin = false;
-  // Le contournement administrateur dépend du rôle explicitement principal.
-  const isPdg = primaryRole === "pdg";
-  const isDg = primaryRole === "dg";
-  // Exception nominative, limitée aux droits de modification des formulaires.
-  // Ne confère ni suppression, ni gestion des rôles, ni opérations financières.
-  const isLarissaFormEditor = String(profile?.nom_complet || "").trim().toLocaleUpperCase("fr-FR") === "KONAN AMENAN LARISSA";
+  const permissions = useMemo(
+    () => new Set<string>(matrix[user?.id ? effectivePermissionsKey(user.id) : ""] || []),
+    [matrix, user?.id],
+  );
 
-  const granted = useMemo(() => {
-    const set = new Set<string>();
-    roles.forEach((role) => (matrix[role] || []).forEach((p) => set.add(p)));
-    return set;
-  }, [roles, matrix]);
+  const can = useCallback(
+    (permission: string) => permissions.has(permission),
+    [permissions],
+  );
+  const canAny = useCallback(
+    (...requested: string[]) => requested.some((permission) => permissions.has(permission)),
+    [permissions],
+  );
+  const canAll = useCallback(
+    (...requested: string[]) => requested.every((permission) => permissions.has(permission)),
+    [permissions],
+  );
 
-  // PDG/DG sont administrateurs globaux en DB. Le frontend ne maintient donc
-  // aucune seconde liste de droits pour décider ce qu'un global admin peut voir.
-  const can = (permission: string) => (isPdg || isDg) ? true : (isLarissaFormEditor && /\.update$/.test(permission)) || granted.has(permission);
-  const canAny = (...permissions: string[]) => permissions.some(can);
-  const canAll = (...permissions: string[]) => permissions.every(can);
+  // These are capabilities returned by SQL, not role-name checks in React.
+  const capabilities = useMemo(() => ({
+    globalAdmin: permissions.has("system.global_admin"),
+    canSuperviseLeads: permissions.has("system.can_supervise_leads"),
+    serviceClient: permissions.has("system.service_client"),
+    commercialAssignable: permissions.has("system.commercial_assignable"),
+    commercialManager: permissions.has("system.commercial_manager"),
+    commercialDirector: permissions.has("system.commercial_director"),
+    technicalManager: permissions.has("system.technical_manager"),
+    manageAccountRequests: permissions.has("system.manage_account_requests"),
+    manageUserCredentials: permissions.has("system.manage_user_credentials"),
+    clientOnly: permissions.has("system.client_only"),
+    transferPlantation: permissions.has("system.transfer_plantation"),
+    independentServiceCustomers: permissions.has("system.independent_service_customers"),
+    independentServiceProformas: permissions.has("system.independent_service_proformas"),
+    independentServiceItems: permissions.has("system.independent_service_items"),
+    viewTeamCommissions: permissions.has("system.view_team_commissions"),
+    commercialRole: permissions.has("system.commercial_role"),
+    zoneScopeGlobal: permissions.has("system.zone_scope_global"),
+    independentServiceWrite: permissions.has("system.independent_service_write"),
+    independentServiceOperations: permissions.has("system.independent_service_operations"),
+    manageHR: permissions.has("system.manage_hr"),
+  }), [permissions]);
 
-  return { can, canAny, canAll, roles, isSuperAdmin, isPdg, isDg, permissions: granted, loading, fromDatabase, reload };
+  return {
+    can,
+    canAny,
+    canAll,
+    permissions,
+    capabilities,
+    loading,
+    fromDatabase,
+    reload,
+  };
 }
