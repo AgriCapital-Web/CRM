@@ -5,7 +5,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +15,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, DollarSign, TrendingUp, CheckCircle, Clock3, RefreshCw, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { COMMERCIAL_ASSIGNABLE_ROLES } from "@/lib/roles";
 
 const money = (n: any) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
 const typeLabel = (t: string) => t === "acquisition" ? "Vente commerciale" : t === "recouvrement_mensuel" ? "Recouvrement mensuel" : t === "technique" ? "Commission technique" : t === "mobilisation_fonciere" ? "Mobilisation foncière" : t || "—";
@@ -24,7 +23,7 @@ const statusVariant = (s: string) => s === "payee" ? "default" : s === "validee"
 
 export default function Commissions() {
   const { toast } = useToast();
-  const { profile, userRoles } = useAuth();
+  const { can, capabilities } = usePermissions();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -81,31 +80,9 @@ export default function Commissions() {
           profile.equipe || null;
         return { ...row, commissionTeam: team };
       });
-      const global = userRoles.some((r: string) => ["pdg", "dg"].includes(r));
-      const isTech = userRoles.includes("technicien");
-      const isTechManager = userRoles.includes("chef_equipe_technique");
-      const isCommercial = userRoles.some((r: string) => COMMERCIAL_ASSIGNABLE_ROLES.includes(r as any));
-      const isCommercialManager = userRoles.includes("chef_equipe_commercial") || userRoles.includes("responsable_commercial");
-      const isCommercialDirector = userRoles.includes("responsable_commercial");
-      const isFinance = userRoles.includes("comptable") || userRoles.includes("responsable_operations");
-      let scopedRows = withCommissionTeam;
-
-      if (!global && !isFinance && profile?.id) {
-        if (isCommercialDirector) {
-          scopedRows = withCommissionTeam.filter((row: any) => ["acquisition", "recouvrement_mensuel"].includes(row.type_commission));
-        } else if (isTechManager || isCommercialManager) {
-          const myMemberships = membershipsByProfile.get(profile.id) || [];
-          const myTeamIds = new Set<string>([profile.equipe_id, ...myMemberships.map((membership: any) => membership.equipe_id)].filter(Boolean));
-          const requiredTeamTypes = [isTechManager ? "technique" : null, isCommercialManager ? "commercial" : null].filter(Boolean) as string[];
-          scopedRows = withCommissionTeam.filter((row: any) =>
-            row.commissionTeam?.id && myTeamIds.has(row.commissionTeam.id) &&
-            requiredTeamTypes.some((teamType) => String(row.commissionTeam.type_equipe || "").toLowerCase().includes(teamType))
-          );
-        } else if (isTech || isCommercial) {
-          scopedRows = withCommissionTeam.filter((row: any) => row.profile_id === profile.id);
-        }
-      }
-      setRows(scopedRows);
+      // La RLS applique le périmètre de chaque utilisateur. Le frontend ne filtre
+      // plus les commissions par rôle, équipe ou identité.
+      setRows(withCommissionTeam);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Commissions indisponibles", description: e?.message || "Erreur." });
     } finally {
@@ -113,8 +90,8 @@ export default function Commissions() {
     }
   };
 
-  const canValidate = userRoles.some((r: string) => ["pdg","dg","comptable","responsable_operations","super_admin","admin"].includes(r));
-  const canRecordPayment = userRoles.some((r: string) => ["pdg","dg","comptable","super_admin","admin"].includes(r));
+  const canValidate = can("commissions.validate");
+  const canRecordPayment = can("commissions.manage_payouts");
   const validateCommission = async (commissionId: string) => {
     if (validatingId) return;
     setValidatingId(commissionId);
@@ -157,7 +134,7 @@ export default function Commissions() {
     return Array.from(map.values()).map((g: any) => ({ ...g, equipe: Array.from(g.equipes).join(" / ") || "Sans équipe" })).sort((a, b) => b.total - a.total);
   }, [rows]);
 
-  const canSeeTeamCommission = userRoles.some((r: string) => ["pdg","dg","comptable","responsable_operations","responsable_commercial","chef_equipe_commercial","chef_equipe_technique"].includes(r));
+  const canSeeTeamCommission = capabilities.viewTeamCommissions;
   const openPaymentDialog = () => {
     if (!selected) return;
     const eligible = selected.details.filter((d: any) => Number(d.remainingAmount || 0) > 0 && ["validee", "payee"].includes(d.statut));
