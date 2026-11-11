@@ -49,7 +49,7 @@ const RelancesLeadsProspects = () => {
   }), [rows, search, scope]);
   return <ProtectedRoute><MainLayout><div className="space-y-5 p-1 sm:p-2">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><Button variant="ghost" size="sm" onClick={() => navigate("/leads")} className="-ml-2 mb-2"><ArrowLeft className="mr-2 h-4 w-4"/>Retour aux leads et prospects</Button><h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarClock className="h-6 w-6 text-primary"/>Relances à effectuer</h1><p className="mt-1 text-sm text-muted-foreground">Vue opérationnelle des leads et prospects dont la date de relance est arrivée ou dépassée.</p></div>
+      <div><Button variant="ghost" size="sm" onClick={() => navigate("/leads")} className="-ml-2 mb-2"><ArrowLeft className="mr-2 h-4 w-4"/>Retour aux leads et prospects</Button><h1 className="flex items-center gap-2 text-2xl font-bold"><CalendarClock className="h-6 w-6 text-primary"/>Relances à effectuer</h1></div>
       <Button variant="outline" onClick={() => refetch()}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
     </div>
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -64,7 +64,7 @@ const RelancesLeadsProspects = () => {
       </div>
       <div className="overflow-x-auto rounded-md border"><Table><TableHeader><TableRow><TableHead>Contact</TableHead><TableHead>Type</TableHead><TableHead>Téléphone</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Échéance</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
         <TableBody>{isLoading?<TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Chargement des relances…</TableCell></TableRow>:isError?<TableRow><TableCell colSpan={7} className="py-10 text-center text-destructive">Impossible de charger les relances. Actualise pour réessayer.</TableCell></TableRow>:visible.length===0?<TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Aucune relance correspondant aux critères.</TableCell></TableRow>:visible.map((r:any)=><TableRow key={r._key} className="cursor-pointer hover:bg-muted/50" onClick={()=>navigate("/leads")}><TableCell><div className="flex items-center gap-2"><UserRound className="h-4 w-4 text-muted-foreground"/><div><p className="font-medium">{nameOf(r)}</p><p className="text-xs text-muted-foreground">{r.email||"Aucun e-mail"}</p></div></div></TableCell><TableCell><Badge variant={r._type==="Prospect"?"default":"secondary"}>{r._type}</Badge></TableCell><TableCell className="whitespace-nowrap">{r.telephone||r.whatsapp||"—"}</TableCell><TableCell>{r.region_residence||"—"}</TableCell><TableCell>{r.statut||"—"}</TableCell><TableCell className="whitespace-nowrap"><span className="flex items-center gap-2"><CalendarClock className="h-4 w-4 text-muted-foreground"/>{dateLabel(r.prochaine_relance)}</span></TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();navigate("/leads");}}><PhoneCall className="mr-2 h-4 w-4"/>Ouvrir le suivi</Button></TableCell></TableRow>)}</TableBody>
-      </Table></div><p className="text-xs text-muted-foreground">{visible.length} résultat(s) affiché(s). Cette vue n’ajoute aucun lien au menu principal.</p>
+      </Table></div><p className="text-xs text-muted-foreground">{visible.length} résultat(s) affiché(s).</p>
     </CardContent></Card>
   </div></MainLayout></ProtectedRoute>;
 };
