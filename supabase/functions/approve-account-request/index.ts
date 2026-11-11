@@ -32,7 +32,7 @@ serve(async (req) => {
     if (!token) return json({ error: "Non authentifié", step, logs }, 401);
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
-    const { data: canManageRequests, error: permissionError } = await admin.rpc("user_has_app_permission", {
+    const { data: canManageRequests, error: permissionError } = await admin.rpc("crm_user_has_app_permission", {
       _user_id: caller.user.id,
       _required_code: "parametres.manage_users",
     });
