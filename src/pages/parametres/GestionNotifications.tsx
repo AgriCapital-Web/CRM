@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, X, MoreHorizontal, Pencil, Play, Pause, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -151,6 +151,7 @@ const GestionNotifications = () => {
   const [deliveryDateFilter, setDeliveryDateFilter] = useState("");
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [financePayoutTemplates, setFinancePayoutTemplates] = useState<FinancePayoutSmsTemplate[]>([]);
+  const [editingFinancePayoutTemplate, setEditingFinancePayoutTemplate] = useState<FinancePayoutSmsTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState<Record<string, boolean | string | null>>({});
   const [campaign, setCampaign] = useState({
@@ -242,6 +243,7 @@ const GestionNotifications = () => {
       return;
     }
     toast.success("Modèle enregistré.");
+    setEditingFinancePayoutTemplate(null);
     await load();
   };
 
@@ -641,23 +643,14 @@ const GestionNotifications = () => {
         <TabsContent value="payout-sms" className="space-y-3">
           <Card>
             <CardHeader><CardTitle>Modèles SMS AgriCapital Pay</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {financePayoutTemplates.map((template) => (
-                <div key={template.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(180px,0.8fr)_minmax(280px,2fr)_auto] md:items-center">
-                  <div className="space-y-1">
-                    <Label>Nom du modèle</Label>
-                    <Input value={template.name} onChange={(e) => setFinancePayoutTemplates(rows => rows.map(row => row.id === template.id ? { ...row, name: e.target.value } : row))} />
-                    <Badge variant="outline">{template.category}</Badge>
+                <div key={template.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{template.name}</span><Badge variant="outline">{template.category}</Badge><Badge variant={template.active ? "default" : "secondary"}>{template.active ? "Actif" : "Inactif"}</Badge></div>
+                    <p className="mt-1 break-words text-sm">{template.content}</p>
                   </div>
-                  <div className="space-y-1">
-                    <Label>Message SMS</Label>
-                    <Textarea rows={3} maxLength={150} value={template.content} onChange={(e) => setFinancePayoutTemplates(rows => rows.map(row => row.id === template.id ? { ...row, content: e.target.value } : row))} />
-                    <div className={template.content.length > 150 || /[^\x20-\x7E]/.test(template.content) ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{template.content.length}/150</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Switch checked={template.active} onCheckedChange={(active) => setFinancePayoutTemplates(rows => rows.map(row => row.id === template.id ? { ...row, active } : row))} />
-                    <Button size="sm" onClick={() => void saveFinancePayoutTemplate(template)}>Enregistrer</Button>
-                  </div>
+                  <Button type="button" variant="outline" onClick={() => setEditingFinancePayoutTemplate({ ...template })}>Modifier</Button>
                 </div>
               ))}
               {!financePayoutTemplates.length && !loading && <p className="py-6 text-center text-muted-foreground">Aucun modèle SMS configuré.</p>}
@@ -669,6 +662,19 @@ const GestionNotifications = () => {
           <Card><CardHeader><CardTitle>Segments disponibles</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{segments.map((s) => <div key={s.id} className="rounded-lg border p-4"><div className="flex items-start justify-between gap-2"><div><p className="font-medium">{s.nom}</p><p className="text-xs text-muted-foreground">{s.description}</p></div><Badge variant={s.actif ? "default" : "outline"}>{s.actif ? "Actif" : "Inactif"}</Badge></div><Button className="mt-3 w-full" variant="outline" onClick={() => { setCampaign({ ...campaign, audience: String(s.criteres?.audience || "tous"), segment_id: s.id }); void previewAudience(String(s.criteres?.audience || "tous")); }}>Utiliser ce segment</Button></div>)}</div></CardContent></Card>
         </TabsContent>
       </Tabs>
+      <Dialog open={!!editingFinancePayoutTemplate} onOpenChange={(open) => { if (!open) setEditingFinancePayoutTemplate(null); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>Modifier le modèle SMS</DialogTitle></DialogHeader>
+          {editingFinancePayoutTemplate && (
+            <div className="space-y-4">
+              <div className="space-y-1"><Label>Nom du modèle</Label><Input value={editingFinancePayoutTemplate.name} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, name: e.target.value } : row)} /></div>
+              <div className="space-y-1"><Label>Message SMS</Label><Textarea rows={3} maxLength={150} value={editingFinancePayoutTemplate.content} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, content: e.target.value } : row)} /><div className={editingFinancePayoutTemplate.content.length > 150 || /[^\\x20-\\x7E]/.test(editingFinancePayoutTemplate.content) ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{editingFinancePayoutTemplate.content.length}/150</div></div>
+              <div className="flex items-center justify-between"><Label>Actif</Label><Switch checked={editingFinancePayoutTemplate.active} onCheckedChange={(active) => setEditingFinancePayoutTemplate(row => row ? { ...row, active } : row)} /></div>
+              <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditingFinancePayoutTemplate(null)}>Annuler</Button><Button type="button" onClick={() => void saveFinancePayoutTemplate(editingFinancePayoutTemplate)}>Enregistrer</Button></div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
