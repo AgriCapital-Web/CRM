@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ZoneAssignment { zone_type: string; zone_id: string; }
 
 const toStringIds = (values: unknown[]): string[] => Array.from(new Set(values.filter((value): value is string => typeof value === "string" && value.length > 0)));
 
 export function useUserZones() {
-  const { user, primaryRole } = useAuth();
+  const { user } = useAuth();
+  const { capabilities } = usePermissions();
   const [assignments, setAssignments] = useState<ZoneAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const isAdmin = Boolean(primaryRole && ["super_admin", "pdg", "dg", "responsable_operations", "responsable_commercial", "chef_equipe_commercial", "chef_equipe_technique", "service_client", "chef_equipe_service_client", "comptable", "assistant_administratif"].includes(primaryRole));
+  const isAdmin = capabilities.zoneScopeGlobal;
 
   useEffect(() => {
     if (!user?.id) { setAssignments([]); setLoading(false); return; }
