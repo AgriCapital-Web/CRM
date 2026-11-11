@@ -73,7 +73,7 @@ export default function Finance(){
   const [paymentMethod,setPaymentMethod]=useState("mobile_money");
   const [paymentReference,setPaymentReference]=useState("");
   const [paymentProof,setPaymentProof]=useState<File|null>(null);
-  const [paymentPartial,setPaymentPartial]=useState(false);
+  
   const [paymentWithFees,setPaymentWithFees]=useState(false);
   const [paymentReferenceAsFile,setPaymentReferenceAsFile]=useState(false);
 
@@ -363,7 +363,7 @@ export default function Finance(){
     if(!Number.isFinite(amount)||amount<=0||amount>remaining){toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});return;}
     setSaving(true);let proofPath:string|null=null;let transactionId:string|null=null;
     try{
-      if(paymentProof){const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");proofPath=uploaded.path;}
+      if(paymentReferenceAsFile&&paymentProof){const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");proofPath=uploaded.path;}
       const nextPaid=Number(paymentTarget.paid_amount||0)+amount;
       const status=nextPaid>=Number(paymentTarget.total_amount)?"paid":"partial";
       const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({
