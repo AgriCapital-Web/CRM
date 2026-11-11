@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,14 +23,15 @@ const AccountRequests = () => {
   const [actionType, setActionType] = useState<"approve" | "reject" | "delete" | null>(null);
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
-  const { hasRole, user } = useAuth();
+  const { user } = useAuth();
+  const { capabilities } = usePermissions();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (hasRole('pdg') || hasRole('dg') || hasRole('responsable_operations')) {
+    if (capabilities.manageAccountRequests) {
       fetchRequests();
     }
-  }, [hasRole]);
+  }, [capabilities.manageAccountRequests]);
 
   const fetchRequests = async () => {
     const { data, error } = await (supabase as any)
@@ -111,7 +113,7 @@ const AccountRequests = () => {
     }
   };
 
-  if (!(hasRole('pdg') || hasRole('dg') || hasRole('responsable_operations'))) {
+  if (!capabilities.manageAccountRequests) {
     return (
       <div className="p-8 text-center">
         
