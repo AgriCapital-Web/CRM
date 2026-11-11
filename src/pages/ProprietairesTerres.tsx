@@ -50,10 +50,10 @@ const createInitialAnnexStatuses = (): Record<string, "joint" | "a_fournir"> =>
 
 const ProprietairesTerres = () => {
   const navigate = useNavigate();
-  const { user, userRoles = [] } = useAuth();
+  const { user } = useAuth();
   const { can } = usePermissions();
   const canCreateProprietaire = can("proprietaires.create");
-  const canEditProprietaire = (userRoles || []).some((role:string) => ["pdg","relation_client","support"].includes(role));
+  const canEditProprietaire = can("proprietaires.update");
   const canValidateOwners = can("proprietaires.validate");
   const [searchParams] = useSearchParams();
   const conversionLeadId = searchParams.get("lead_id");
