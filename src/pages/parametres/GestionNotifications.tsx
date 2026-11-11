@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Bell, Mail, MessageSquare, Send, Users, Zap, RefreshCw, Plus, Eye, Smartphone, CheckCircle2, AlertTriangle, PhoneCall, Paperclip, FileText, Image as ImageIcon, X, MoreHorizontal, Pencil, Play, Pause, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ type Campaign = {
 };
 type MediaAttachment = { bucket: string; path: string; name: string; mimeType: string; size: number };
 type NotificationTemplate = { id: string; code: string; nom: string; canal: string; evenement: string; sujet: string | null; contenu: string; actif: boolean; parcours: string | null; media_attachments?: MediaAttachment[] };
+type FinancePayoutSmsTemplate = { id: string; category: string; name: string; content: string; active: boolean; max_characters: number };
 type Automation = {
   id: string; code: string; nom: string; description: string | null; evenement: string; canal: string;
   sujet: string | null; contenu: string; criteres: Record<string, unknown>; actif: boolean; cooldown_minutes: number; media_attachments?: MediaAttachment[];
@@ -149,6 +150,8 @@ const GestionNotifications = () => {
   const [deliveryTypeFilter, setDeliveryTypeFilter] = useState("all");
   const [deliveryDateFilter, setDeliveryDateFilter] = useState("");
   const [automations, setAutomations] = useState<Automation[]>([]);
+  const [financePayoutTemplates, setFinancePayoutTemplates] = useState<FinancePayoutSmsTemplate[]>([]);
+  const [editingFinancePayoutTemplate, setEditingFinancePayoutTemplate] = useState<FinancePayoutSmsTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState<Record<string, boolean | string | null>>({});
   const [campaign, setCampaign] = useState({
@@ -176,12 +179,13 @@ const GestionNotifications = () => {
 
   const load = async () => {
     setLoading(true);
-    const [s, c, a, t, d] = await Promise.all([
+    const [s, c, a, t, d, payoutSms] = await Promise.all([
       supabase.from("notification_segments").select("*").order("nom"),
       (supabase as any).from("notification_campaigns").select("*").order("created_at", { ascending: false }).limit(100),
       (supabase as any).from("notification_automations").select("*").order("nom"),
       (supabase as any).from("notification_templates").select("id,code,nom,canal,evenement,sujet,contenu,actif,parcours,media_attachments").order("evenement").order("canal"),
       (supabase as any).from("notification_deliveries").select("id,campaign_id,automation_id,recipient_name,recipient_phone,recipient_email,canal,statut,fournisseur,provider_message_id,erreur,sent_at,created_at,source_type,contenu").order("created_at", {ascending:false}).limit(1000),
+      (supabase as any).from("finance_payout_sms_templates").select("*").order("category"),
     ]);
     if (s.error || c.error || a.error) toast.error("Impossible de charger la communication");
     setSegments((s.data || []) as Segment[]);
@@ -220,10 +224,28 @@ const GestionNotifications = () => {
     setDeliveries(d.data || []);
     setAutomations((a.data || []) as Automation[]);
     setTemplates((t.data || []) as NotificationTemplate[]);
+    setFinancePayoutTemplates((payoutSms.data || []) as FinancePayoutSmsTemplate[]);
     setLoading(false);
   };
 
   useEffect(() => { void load(); }, []);
+
+  const saveFinancePayoutTemplate = async (template: FinancePayoutSmsTemplate) => {
+    const content = template.content || "";
+    if (!content.trim() || content.length > 150 || /[^\x20-\x7E]/.test(content)) {
+      toast.error("Le SMS doit contenir uniquement des caractères GSM/ASCII et respecter 150 caractères.");
+      return;
+    }
+    const { error } = await (supabase as any).from("finance_payout_sms_templates")
+      .update({ name: template.name, content, active: template.active }).eq("id", template.id);
+    if (error) {
+      toast.error(error.message || "Enregistrement impossible.");
+      return;
+    }
+    toast.success("Modèle enregistré.");
+    setEditingFinancePayoutTemplate(null);
+    await load();
+  };
 
   const callDispatch = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("notification-dispatch", { body });
@@ -544,7 +566,7 @@ const GestionNotifications = () => {
           <TabsList className="inline-flex min-w-max">
             <TabsTrigger value="campaigns"><Send className="mr-2 h-4 w-4" />Campagnes</TabsTrigger><TabsTrigger value="deliveries"><CheckCircle2 className="mr-2 h-4 w-4"/>Journal des envois</TabsTrigger>
             <TabsTrigger value="automations"><Zap className="mr-2 h-4 w-4" />Automatisations</TabsTrigger>
-            <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger><TabsTrigger value="templates"><FileText className="mr-2 h-4 w-4" />Modèles</TabsTrigger>
+            <TabsTrigger value="segments"><Users className="mr-2 h-4 w-4" />Destinataires</TabsTrigger><TabsTrigger value="templates"><FileText className="mr-2 h-4 w-4" />Modèles</TabsTrigger><TabsTrigger value="payout-sms"><Smartphone className="mr-2 h-4 w-4" />AgriCapital Pay</TabsTrigger>
             <TabsTrigger value="senndo"><MessageSquare className="mr-2 h-4 w-4" />Passerelle Senndo</TabsTrigger>
           </TabsList>
         </div>
@@ -618,10 +640,41 @@ const GestionNotifications = () => {
 
         <TabsContent value="templates"><Card><CardHeader><CardTitle>Modèles de messages</CardTitle></CardHeader><CardContent className="space-y-3">{templates.map(t=><div key={t.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.nom}</span><Badge variant="outline">{t.canal}</Badge><Badge variant={t.actif?"default":"secondary"}>{t.actif?"Actif":"Inactif"}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t.evenement} · {t.code}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{t.contenu.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim()}</p></div><Button type="button" variant="outline" onClick={()=>applyTemplate(t)}>Utiliser</Button></div>)}{!templates.length&&<p className="py-8 text-center text-muted-foreground">Aucun modèle enregistré en base.</p>}</CardContent></Card></TabsContent>
 
+        <TabsContent value="payout-sms" className="space-y-3">
+          <Card>
+            <CardHeader><CardTitle>Modèles SMS AgriCapital Pay</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {financePayoutTemplates.map((template) => (
+                <div key={template.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{template.name}</span><Badge variant="outline">{template.category}</Badge><Badge variant={template.active ? "default" : "secondary"}>{template.active ? "Actif" : "Inactif"}</Badge></div>
+                    <p className="mt-1 break-words text-sm">{template.content}</p>
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => setEditingFinancePayoutTemplate({ ...template })}>Modifier</Button>
+                </div>
+              ))}
+              {!financePayoutTemplates.length && !loading && <p className="py-6 text-center text-muted-foreground">Aucun modèle SMS configuré.</p>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="segments">
           <Card><CardHeader><CardTitle>Segments disponibles</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{segments.map((s) => <div key={s.id} className="rounded-lg border p-4"><div className="flex items-start justify-between gap-2"><div><p className="font-medium">{s.nom}</p><p className="text-xs text-muted-foreground">{s.description}</p></div><Badge variant={s.actif ? "default" : "outline"}>{s.actif ? "Actif" : "Inactif"}</Badge></div><Button className="mt-3 w-full" variant="outline" onClick={() => { setCampaign({ ...campaign, audience: String(s.criteres?.audience || "tous"), segment_id: s.id }); void previewAudience(String(s.criteres?.audience || "tous")); }}>Utiliser ce segment</Button></div>)}</div></CardContent></Card>
         </TabsContent>
       </Tabs>
+      <Dialog open={!!editingFinancePayoutTemplate} onOpenChange={(open) => { if (!open) setEditingFinancePayoutTemplate(null); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>Modifier le modèle SMS</DialogTitle></DialogHeader>
+          {editingFinancePayoutTemplate && (
+            <div className="space-y-4">
+              <div className="space-y-1"><Label>Nom du modèle</Label><Input value={editingFinancePayoutTemplate.name} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, name: e.target.value } : row)} /></div>
+              <div className="space-y-1"><Label>Message SMS</Label><Textarea rows={3} maxLength={150} value={editingFinancePayoutTemplate.content} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, content: e.target.value } : row)} /><div className={editingFinancePayoutTemplate.content.length > 150 || /[^\\x20-\\x7E]/.test(editingFinancePayoutTemplate.content) ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{editingFinancePayoutTemplate.content.length}/150</div></div>
+              <div className="flex items-center justify-between"><Label>Actif</Label><Switch checked={editingFinancePayoutTemplate.active} onCheckedChange={(active) => setEditingFinancePayoutTemplate(row => row ? { ...row, active } : row)} /></div>
+              <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditingFinancePayoutTemplate(null)}>Annuler</Button><Button type="button" onClick={() => void saveFinancePayoutTemplate(editingFinancePayoutTemplate)}>Enregistrer</Button></div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
