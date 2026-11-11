@@ -35,7 +35,7 @@ const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(Math.
 
 const ClientDetail = () => {
   const { can } = usePermissions();
-  const { user, userRoles } = useAuth();
+  const { user } = useAuth();
   const canViewClientMoney = can("clients.view_money");
   const canValidateClient = can("clients.validate");
   const canUploadDocuments = can("documents.upload");
@@ -45,7 +45,7 @@ const ClientDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [client, setClient] = useState<any>(null);
-  const canCorrectReturnedClient = Boolean(user?.id && client?.validation_statut === "modification_demandee" && (client?.created_by === user.id || client?.commercial_id === user.id || (userRoles || []).some((role: string) => ["chef_equipe_commercial", "responsable_commercial"].includes(role))));
+  const canCorrectReturnedClient = Boolean(client?.validation_statut === "modification_demandee" && can("clients.update"));
   const [validationComment,setValidationComment]=useState("");
   const [annexType,setAnnexType]=useState("convention_fonciere");
   const [annexFile,setAnnexFile]=useState<File|null>(null);
