@@ -26,3 +26,4 @@ Ces règles s'appliquent à toutes les pages existantes, aux refontes et à tout
 - Une action métier doit être visible et accessible selon les permissions ; ne jamais simuler une opération réussie.
 - Les notifications et modèles de messages se configurent dans Paramètres → Notifications, pas dans les modules opérationnels.
 - Avant de livrer une nouvelle page, vérifier son rendu mobile, ses permissions, ses états de chargement/erreur/vide, la recherche et l'export des tableaux.
+- Parcelles et plantations sont alimentées par les workflows automatiques : le PDG peut les consulter, mais aucune action manuelle de création, modification, suppression, changement de statut ou transfert ne doit lui être proposée. Les automatisations et RPC métier autorisés restent responsables de leur évolution.
