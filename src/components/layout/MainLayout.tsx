@@ -86,6 +86,8 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         )}
         {visibleMenuItems.map((item) => {
           const active = location.pathname === (item.path.split("?")[0]);
+          const isFinance = item.path === "/finance";
+          const agriCapitalPayActive = location.pathname === "/finance" && new URLSearchParams(location.search).get("tab") === "agricapital-pay";
           return (
             <div key={item.path} className="w-full shrink-0">
               <Button
@@ -93,15 +95,31 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 variant="ghost"
                 className={cn(
                   "!h-8 w-full min-w-0 shrink-0 justify-start gap-2 rounded-md px-2 mb-[2px] text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors duration-150",
-                  active && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
+                  (active && !agriCapitalPayActive) && "bg-primary-foreground text-primary shadow-sm hover:bg-primary-foreground hover:text-primary"
                 )}
                 title={item.label}
               >
-                <Link to={item.path} onClick={() => { if (open) setOpen(false); }} aria-current={active ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2" aria-label={item.label}>
+                <Link to={item.path} onClick={() => { if (open) setOpen(false); }} aria-current={active && !agriCapitalPayActive ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2" aria-label={item.label}>
                   <item.icon className="h-4 w-4 flex-shrink-0" />
                   <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">{item.label}</span>
                 </Link>
               </Button>
+              {isFinance && can("finance.view") && (
+                <Button
+                  asChild
+                  variant="ghost"
+                  className={cn(
+                    "ml-3 !h-8 w-[calc(100%-0.75rem)] min-w-0 justify-start gap-2 rounded-md px-2 mb-1 text-primary-foreground/75 hover:bg-primary-foreground/10 hover:text-primary-foreground",
+                    agriCapitalPayActive && "bg-primary-foreground/15 text-primary-foreground font-semibold"
+                  )}
+                  title="AgriCapital Pay"
+                >
+                  <Link to="/finance?tab=agricapital-pay" onClick={() => { if (open) setOpen(false); }} aria-current={agriCapitalPayActive ? "page" : undefined} className="flex h-8 w-full min-w-0 items-center gap-2" aria-label="AgriCapital Pay">
+                    <CreditCard className="h-4 w-4 flex-shrink-0" />
+                    <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium">AgriCapital Pay</span>
+                  </Link>
+                </Button>
+              )}
             </div>
           );
         })}
