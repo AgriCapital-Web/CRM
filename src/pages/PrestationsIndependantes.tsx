@@ -2,6 +2,7 @@ import { useCallback,useEffect,useMemo,useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card,CardContent,CardHeader,CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,12 +27,11 @@ type Line={catalog_id:string;designation:string;quantity:string;unit:string;unit
 type Proforma={id:string;reference:string;title?:string|null;client_id:string;client_name:string;client_phone:string;status:string;version:number;total_amount:number;issued_at:string|null;valid_until:string|null;created_at:string;observations?:string|null};
 type Invoice={id:string;proforma_id:string;invoice_number:string;status:string;currency:string;amount_due:number;amount_paid:number;created_at:string};
 const money=(v:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(v||0);
-const canWriteRoles=["pdg","dg","service_client","chef_equipe_service_client"];
 const statusLabels:Record<string,string>={brouillon:"Brouillon",emise:"Émise",acceptee:"Acceptée",modification_demandee:"Modification demandée",refusee:"Refusée",en_cours:"En cours",terminee:"Terminée",annulee:"Annulée",expiree:"Expirée"};
 const emptyLine=():Line=>({catalog_id:"",designation:"",quantity:"1",unit:"forfait",unit_price:"0",hectares:"",annexe_active:false,annexe_qualite:"",annexe_prix:"0"});
 const initialCustomer=()=>({customer_type:"particulier",nom:"",prenoms:"",civilite:"",nationalite:"",type_piece:"",numero_piece:"",denomination_sociale:"",nature_organisation_code:"",forme_juridique_code:"",numero_enregistrement:"",responsable_legal_nom:"",responsable_legal_prenoms:"",nombre_membres:"",telephone:"",telephone_indicatif:"+225",telephone_local:"",email:"",district_id:"",region_id:"",departement_id:"",sous_prefecture_id:"",village_id:"",locality:"",domicile:"",has_representant:false,representant_nom:"",representant_prenoms:"",representant_telephone:"",representant_telephone_indicatif:"+225",representant_telephone_local:"",representant_lien:""});
 export default function PrestationsIndependantes({embedded=false}:{embedded?:boolean}){
- const {user,userRoles}=useAuth(); const canWrite=userRoles.some(role=>canWriteRoles.includes(role));
+ const {user}=useAuth(); const {capabilities}=usePermissions(); const canWrite=capabilities.independentServiceWrite;
  const [rows,setRows]=useState<Proforma[]>([]); const [customers,setCustomers]=useState<Customer[]>([]); const [catalog,setCatalog]=useState<Catalog[]>([]); const [techEvents,setTechEvents]=useState<any[]>([]); const [invoices,setInvoices]=useState<Invoice[]>([]);
  const [loading,setLoading]=useState(true); const [search,setSearch]=useState(""); const [dialogOpen,setDialogOpen]=useState(false); const [saving,setSaving]=useState(false);
  const [customerMode,setCustomerMode]=useState<"new"|"existing">("new"); const [customerId,setCustomerId]=useState(""); const [customer,setCustomer]=useState<any>(initialCustomer());
