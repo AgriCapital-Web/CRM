@@ -32,20 +32,15 @@ serve(async (req) => {
     if (!token) return json({ error: "Non authentifié", step, logs }, 401);
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
-    const { data: isAdmin, error: adminCheckError } = await admin.rpc("is_admin", { _user_id: caller.user.id });
-    if (adminCheckError) {
-      log(`échec vérification is_admin: ${adminCheckError.message}`);
+    const { data: canManageRequests, error: permissionError } = await admin.rpc("user_has_app_permission", {
+      _user_id: caller.user.id,
+      _required_code: "parametres.manage_users",
+    });
+    if (permissionError) {
+      return json({ error: `Vérification des permissions impossible: ${permissionError.message}`, step, logs }, 500);
     }
-    const { data: callerRoles, error: rolesCheckError } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.user.id);
-    if (rolesCheckError) {
-      return json({ error: `Vérification des rôles impossible: ${rolesCheckError.message}`, step, logs }, 500);
-    }
-    const hasPdgRole = (callerRoles ?? []).some((r: any) => r.role === "pdg");
-    if (isAdmin !== true && !hasPdgRole) {
-      return json({ error: "Accès réservé au PDG ou aux administrateurs", step, logs }, 403);
+    if (canManageRequests !== true) {
+      return json({ error: "Accès réservé aux utilisateurs autorisés à gérer les comptes.", step, logs }, 403);
     }
     log(`caller=${caller.user.id}`);
 
@@ -103,9 +98,6 @@ serve(async (req) => {
     const requested = String(role || reqRow.role_souhaite || "").trim();
     const finalRole = LEGACY_ROLE_MAP[requested] ?? requested;
     if (!finalRole) return json({ error: "Aucun rôle à attribuer", step: "resolve_role", logs }, 400);
-    if (["super_admin", "pdg", "dg"].includes(finalRole)) {
-      return json({ error: "Ce rôle de gouvernance ne peut pas être attribué via une demande de compte.", step: "resolve_role", logs }, 403);
-    }
     step = "validate_role_catalog";
     const { data: roleRecord, error: roleCatalogError } = await admin
       .from("app_roles")
@@ -115,6 +107,21 @@ serve(async (req) => {
       .maybeSingle();
     if (roleCatalogError) return json({ error: `Vérification du rôle impossible: ${roleCatalogError.message}`, step, logs }, 500);
     if (!roleRecord) return json({ error: `Le rôle choisi n'existe pas ou n'est pas actif: ${finalRole}`, step, logs }, 400);
+
+    const { data: canAssignRole, error: assignRolePermissionError } = await admin.rpc("user_can_assign_app_role", {
+      p_actor_user_id: caller.user.id,
+      p_role_code: finalRole,
+    });
+    if (assignRolePermissionError) return json({ error: "Vérification du rôle attribuable impossible.", step, logs }, 500);
+    if (canAssignRole !== true) return json({ error: "Ce rôle ne peut pas être attribué par votre compte.", step, logs }, 403);
+
+    const { data: canCreateAccount, error: createPermissionError } = await admin.rpc("user_can_manage_admin_action", {
+      p_actor_user_id: caller.user.id,
+      p_target_user_id: reqRow.auth_user_id || null,
+      p_action: "create_user",
+    });
+    if (createPermissionError) return json({ error: "Vérification de la permission de création impossible.", step, logs }, 500);
+    if (canCreateAccount !== true) return json({ error: "Permission de création de compte insuffisante.", step, logs }, 403);
 
     let userId: string | null = reqRow.auth_user_id;
     let tempPassword: string | null = null;
@@ -204,9 +211,10 @@ serve(async (req) => {
       if (profileInsertError) return json({ error: `Profil: ${profileInsertError.message}`, step, logs }, 400);
     }
     step = "activate_profile";
-    const { data: activationRows, error: activationError } = await admin.rpc("admin_set_profile_active", {
+    const { data: activationRows, error: activationError } = await admin.rpc("admin_set_profile_active_authorized", {
       p_user_id: userId,
       p_actif: true,
+      p_actor_user_id: caller.user.id,
     });
     if (activationError) return json({ error: `Activation du profil: ${activationError.message}`, step, logs }, 400);
     const activeProfile = (activationRows ?? []).find((p: any) => p.user_id === userId || p.profile_id === userId);
@@ -215,17 +223,12 @@ serve(async (req) => {
     }
 
     step = "assign_role";
-    // Le rôle choisi à l'approbation devient le rôle principal.
-    const { error: clearPrimaryError } = await admin
-      .from("user_roles")
-      .update({ is_primary: false })
-      .eq("user_id", userId)
-      .eq("is_primary", true);
-    if (clearPrimaryError) return json({ error: `Réinitialisation du rôle principal impossible: ${clearPrimaryError.message}`, step, logs }, 400);
-
-    const { error: roleErr } = await admin
-      .from("user_roles")
-      .upsert({ user_id: userId, role: finalRole, is_primary: true }, { onConflict: "user_id,role" });
+    const { error: roleErr } = await admin.rpc("admin_set_user_roles_with_primary_authorized", {
+      p_user_id: userId,
+      p_roles: [finalRole],
+      p_primary_role: finalRole,
+      p_actor_user_id: caller.user.id,
+    });
     if (roleErr) return json({ error: `Attribution du rôle impossible: ${roleErr.message}`, step, logs }, 400);
 
     step = "verify_role";
