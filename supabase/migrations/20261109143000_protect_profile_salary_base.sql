@@ -9,9 +9,9 @@ set search_path = ''
 as $function$
 begin
   if not (
-    private.is_global_admin((select auth.uid()))
-    or private.has_role_permission('finance.payroll')
-    or private.has_role_permission('finance.manage')
+    private.crm_is_global_admin((select auth.uid()))
+    or private.crm_has_role_permission('finance.payroll')
+    or private.crm_has_role_permission('finance.manage')
   ) then
     if tg_op = 'INSERT' then
       new.salaire_base := null;
