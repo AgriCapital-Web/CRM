@@ -27,7 +27,8 @@ import AgriCapitalPay from "@/components/finance/AgriCapitalPay";
 import { FINANCE_EXPENSE_CATEGORIES } from "@/lib/finance-categories";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
-const feeAmountFor=(amount:number)=>Math.round(amount*0.01);
+
+const changeDisplayedAmount=(value:string,enabled:boolean,kind:"deduct"|"add")=>{const amount=Number(value);if(!Number.isFinite(amount)||amount<=0)return value;const factor=kind==="deduct"?0.99:1.01;return String(Math.max(0,Math.round(enabled?amount*factor:amount/factor)));};
 
 export default function Finance(){
   const [searchParams] = useSearchParams();
@@ -54,7 +55,7 @@ export default function Finance(){
   const [payrollRuns,setPayrollRuns]=useState<any[]>([]);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
-  const [expense,setExpense]=useState({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:""});
+  const [expense,setExpense]=useState({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:"",referenceAsFile:false});
   const [expenseUserPickerOpen,setExpenseUserPickerOpen]=useState(false);
   const [expenseProof,setExpenseProof]=useState<File|null>(null);
   const expenseProofPreview = useMemo(() => expenseProof && (expenseProof.type.startsWith("image/") || expenseProof.type === "application/pdf") ? URL.createObjectURL(expenseProof) : null, [expenseProof]);
@@ -72,10 +73,12 @@ export default function Finance(){
   const [paymentMethod,setPaymentMethod]=useState("mobile_money");
   const [paymentReference,setPaymentReference]=useState("");
   const [paymentProof,setPaymentProof]=useState<File|null>(null);
-  const [paymentPartial,setPaymentPartial]=useState(false);
+  
   const [paymentWithFees,setPaymentWithFees]=useState(false);
+  const [paymentRequestId,setPaymentRequestId]=useState("");
+  const [paymentReferenceAsFile,setPaymentReferenceAsFile]=useState(false);
 
-  const [entryForm,setEntryForm]=useState({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"mobile_money",reference:"",notes:"",withoutFees:false});
+  const [entryForm,setEntryForm]=useState({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"mobile_money",reference:"",referenceAsFile:false,notes:"",withoutFees:false});
   const [entryProof,setEntryProof]=useState<File|null>(null);
   const entryProofPreview = useMemo(() => entryProof && (entryProof.type.startsWith("image/") || entryProof.type === "application/pdf") ? URL.createObjectURL(entryProof) : null, [entryProof]);
   useEffect(() => () => { if (entryProofPreview) URL.revokeObjectURL(entryProofPreview); }, [entryProofPreview]);
@@ -116,7 +119,7 @@ export default function Finance(){
     try {
       const [t,e,a,am,p,s,r,independent,independentInvoiceRows]=await Promise.all([
         (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
-        (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id)").order("created_at",{ascending:false}),
+        (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id,amount,gross_amount,paid_at,payment_method,proof_path,proof_name)").order("created_at",{ascending:false}),
         (supabase as any).from("finance_associates").select("*").order("full_name"),
         (supabase as any).from("finance_associate_transactions").select("id,associate_id,transaction_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name)").order("created_at",{ascending:false}),
         (async () => {
@@ -164,18 +167,33 @@ export default function Finance(){
     return {income,out,balance:income-out};
   },[transactions]);
 
+  const outgoingTransactions=useMemo(
+    ()=>transactions.filter((t:any)=>t.direction==="sortie"&&t.status!=="annule"),
+    [transactions]
+  );
+  const filteredOutgoingTransactions=useMemo(()=>outgoingTransactions.filter((t:any)=>{
+    const expenseRow=expenses.find((e:any)=>e.transaction_id===t.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===t.id));
+    const profileName=profiles.find((p:any)=>p.id===(expenseRow?.profile_id||t.profile_id))?.nom_complet;
+    const query=expenseSearch.trim();
+    return !query||[
+      t.label,t.category,t.reference,t.status,t.payment_method,
+      expenseRow?.expense_category,expenseRow?.description,expenseRow?.beneficiary_name,
+      expenseRow?.supplier_name,expenseRow?.proof_name,profileName
+    ].some((value:any)=>matchesAccentInsensitive(value,query));
+  }),[outgoingTransactions,expenses,profiles,expenseSearch]);
+
   const saveEntry=async()=>{
     if(entryEditId&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
-    const enteredAmount=Number(entryForm.amount);
+    const ledgerAmount=Number(entryForm.amount);
     const feeApplied=entryForm.method!=="especes"&&entryForm.withoutFees;
-    const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
-    const ledgerAmount=enteredAmount-feeAmount;
-    if(!entryForm.source.trim()||!Number.isFinite(enteredAmount)||enteredAmount<=0||ledgerAmount<=0){toast({title:"Informations requises",description:"Renseignez la source et un montant positif.",variant:"destructive"});return;}
+    const grossAmount=feeApplied?Math.round(ledgerAmount/0.99):ledgerAmount;
+    const feeAmount=Math.max(0,grossAmount-ledgerAmount);
+    if(!entryForm.source.trim()||!Number.isFinite(ledgerAmount)||ledgerAmount<=0){toast({title:"Informations requises",description:"Renseignez la source et un montant positif.",variant:"destructive"});return;}
     setSaving(true);
     let uploadedProofPath:string|null=null;
     try{
       const labels:Record<string,string>={financement:"Financement",pret:"Prêt reçu",don:"Don reçu",vente:"Vente",autre:"Autre entrée"};
-      if(entryProof){
+      if(entryForm.referenceAsFile&&entryProof){
         const uploaded=await uploadFile("documents",entryProof,"finance/entrees");
         if(!uploaded?.path)throw new Error("Le justificatif de l’entrée n’a pas pu être téléversé.");
         uploadedProofPath=uploaded.path;
@@ -183,19 +201,19 @@ export default function Finance(){
       const existing=entryEditId?transactions.find((t:any)=>t.id===entryEditId):null;
       const payload={
         direction:"entree",category:entryForm.type==="don"?"DON":entryForm.type==="pret"?"PRET":entryForm.type==="financement"?"FINANCEMENT":entryForm.type==="vente"?"VENTE":"AUTRE_ENTREE",
-        label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:ledgerAmount,gross_amount:enteredAmount,
+        label:labels[entryForm.type]+" — "+entryForm.source.trim(),amount:ledgerAmount,gross_amount:grossAmount,
         fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
         transaction_date:new Date(entryForm.date+"T12:00:00").toISOString(),payment_method:entryForm.method||null,
-        reference:entryForm.reference.trim()||null,contact_phone:entryForm.contactPhone.trim()||null,source_type:entryForm.type,
+        reference:entryForm.referenceAsFile?null:entryForm.reference.trim()||null,contact_phone:entryForm.contactPhone.trim()||null,source_type:entryForm.type,
         notes:entryForm.notes.trim()||("Source : "+entryForm.source.trim()),status:"valide",
-        proof_path:uploadedProofPath||existing?.proof_path||null,proof_name:entryProof?.name||existing?.proof_name||null
+        proof_path:entryForm.referenceAsFile?(uploadedProofPath||existing?.proof_path||null):null,proof_name:entryForm.referenceAsFile?(entryProof?.name||existing?.proof_name||null):null
       };
       const result=entryEditId
         ? await (supabase as any).from("finance_transactions").update(payload).eq("id",entryEditId)
         : await (supabase as any).from("finance_transactions").insert(payload);
       if(result.error)throw result.error;
-      toast({title:entryEditId?"Entrée modifiée":"Entrée enregistrée",description:feeApplied?"La déduction de 1 % est intégrée au montant comptabilisé.":undefined});
-      setEntryForm({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"mobile_money",reference:"",notes:"",withoutFees:false});
+      toast({title:entryEditId?"Entrée modifiée":"Entrée enregistrée"});
+      setEntryForm({type:"financement",source:"",contactPhone:"",amount:"",date:new Date().toISOString().slice(0,10),method:"mobile_money",reference:"",referenceAsFile:false,notes:"",withoutFees:false});
       setEntryProof(null);setEntryEditId(null);setEntryFormOpen(false);
       await load();
     }catch(error:any){
@@ -206,72 +224,63 @@ export default function Finance(){
 
   const saveExpense=async()=>{
     if(expenseFormMode==="edit"&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
-    const enteredAmount=Number(expense.amount);
+    const ledgerAmount=Number(expense.amount);
     const feeApplied=expense.method!=="especes"&&expense.withFees;
-    const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
-    const ledgerAmount=enteredAmount+feeAmount;
-    if(!expense.category||!Number.isFinite(enteredAmount)||enteredAmount<=0){toast({title:"Informations requises",description:"Saisissez un montant positif.",variant:"destructive"});return;}
+    const grossAmount=feeApplied?Math.round(ledgerAmount/1.01):ledgerAmount;
+    const feeAmount=Math.max(0,ledgerAmount-grossAmount);
+    if(!expense.category||!Number.isFinite(ledgerAmount)||ledgerAmount<=0){
+      toast({title:"Informations requises",description:"Saisissez un montant positif.",variant:"destructive"});
+      return;
+    }
     setSaving(true);
     let proofPath:string|null=null;
-    try {
-      if(expenseProof){
+    try{
+      if(expense.referenceAsFile&&expenseProof){
         const uploaded=await uploadFile("documents",expenseProof,"finance/depenses");
         if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");
         proofPath=uploaded.path;
       }
       const existing=expenseFormMode==="edit"?selectedExpense:null;
       const existingTransaction=existing?.transaction||transactions.find((t:any)=>t.id===existing?.transaction_id);
-      const txPayload={
-        direction:"sortie",category:"DEPENSE",label:expense.category,amount:ledgerAmount,gross_amount:enteredAmount,
-        fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
-        transaction_date:new Date(expense.date+"T12:00:00").toISOString(),payment_method:expense.method,
-        reference:expense.reference.trim()||null,status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        notes:expense.description||null,proof_path:proofPath||existingTransaction?.proof_path||null,
-        proof_name:expenseProof?.name||existingTransaction?.proof_name||null
-      };
-      let transactionId:string;
-      if(existing?.transaction_id){
-        const {error}=await (supabase as any).from("finance_transactions").update(txPayload).eq("id",existing.transaction_id);
-        if(error)throw error;
-        transactionId=existing.transaction_id;
-      }else{
-        const {data,error}=await (supabase as any).from("finance_transactions").insert(txPayload).select("id").single();
-        if(error)throw error;
-        transactionId=data.id;
-      }
-      const expensePayload={
-        transaction_id:transactionId,expense_category:expense.category,profile_id:expense.profileId||null,
-        supplier_name:profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null,
-        description:expense.description||null,client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        is_direct_cost:expense.direct,expense_date:expense.date,total_amount:enteredAmount,paid_amount:enteredAmount,status:"paid",
-        payment_method:expense.method,reference:expense.reference.trim()||null,
-        proof_path:proofPath||existing?.proof_path||null,proof_name:expenseProof?.name||existing?.proof_name||null,
-        proof_mime_type:expenseProof?.type||existing?.proof_mime_type||null
-      };
-      const expenseResult=existing
-        ? await (supabase as any).from("finance_expenses").update(expensePayload).eq("id",existing.id)
-        : await (supabase as any).from("finance_expenses").insert(expensePayload);
-      if(expenseResult.error){
-        if(!existing)await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);
-        throw expenseResult.error;
-      }
-      toast({title:existing?"Sortie modifiée":"Sortie enregistrée",description:feeApplied?"La majoration de 1 % est intégrée à la sortie comptabilisée.":proofPath?"Justificatif joint à la sortie.":undefined});
-      setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:""});
+      const supplierName=profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null;
+      const {data,error}=await (supabase as any).rpc("finance_save_paid_expense",{
+        p_expense_id:existing?.id||null,
+        p_expense_category:expense.category,
+        p_amount:ledgerAmount,
+        p_gross_amount:grossAmount,
+        p_fee_amount:feeAmount,
+        p_fee_applied:feeApplied,
+        p_expense_date:expense.date,
+        p_payment_method:expense.method,
+        p_reference:expense.referenceAsFile?null:expense.reference.trim()||null,
+        p_profile_id:expense.profileId||null,
+        p_supplier_name:supplierName,
+        p_client_id:expense.clientId||null,
+        p_plantation_id:expense.plantationId||null,
+        p_is_direct_cost:expense.direct,
+        p_description:expense.description||null,
+        p_proof_path:expense.referenceAsFile?(proofPath||existing?.proof_path||existingTransaction?.proof_path||null):null,
+        p_proof_name:expense.referenceAsFile?(expenseProof?.name||existing?.proof_name||existingTransaction?.proof_name||null):null,
+        p_proof_mime_type:expense.referenceAsFile?(expenseProof?.type||existing?.proof_mime_type||null):null
+      });
+      if(error)throw error;
+      if(!data?.expense_id||!data?.transaction_id)throw new Error("La base n’a pas confirmé l’enregistrement de la sortie.");
+      toast({title:existing?"Sortie modifiée":"Sortie enregistrée",description:proofPath?"Justificatif joint à la sortie.":undefined});
+      setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:"",referenceAsFile:false});
       setExpenseUserPickerOpen(false);setExpenseProof(null);setExpenseFormMode(null);setSelectedExpense(null);
       await load();
     }catch(error:any){
-      if(proofPath)await supabase.storage.from("documents").remove([proofPath]);
       toast({title:"Erreur",description:error?.message||"Impossible d'enregistrer la sortie",variant:"destructive"});
     }finally{setSaving(false);}
   };
 
   const saveAssociateMovement=async()=>{
     if(associateMovementEditId&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
-    const enteredAmount=Number(associateMovement.amount);
+    const ledgerAmount=Number(associateMovement.amount);
     const feeApplied=associateMovement.method!=="especes"&&associateMovement.withoutFees;
-    const feeAmount=feeApplied?feeAmountFor(enteredAmount):0;
-    const ledgerAmount=enteredAmount-feeAmount;
-    if(!associateMovement.associateId||!Number.isFinite(enteredAmount)||enteredAmount<=0||ledgerAmount<=0){toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;}
+    const grossAmount=feeApplied?Math.round(ledgerAmount/0.99):ledgerAmount;
+    const feeAmount=Math.max(0,grossAmount-ledgerAmount);
+    if(!associateMovement.associateId||!Number.isFinite(ledgerAmount)||ledgerAmount<=0){toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;}
     setSaving(true);
     try{
       const isRefund=associateMovement.type==="remboursement";
@@ -279,7 +288,7 @@ export default function Finance(){
       const txPayload={
         direction:isRefund?"sortie":"entree",category:isRefund?"REMBOURSEMENT_ASSOCIE":"APPORT_ASSOCIE",
         label:(isRefund?"Remboursement associé — ":"Apport associé — ")+(associates.find(a=>a.id===associateMovement.associateId)?.full_name||""),
-        amount:ledgerAmount,gross_amount:enteredAmount,fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
+        amount:ledgerAmount,gross_amount:grossAmount,fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
         transaction_date:new Date(associateMovement.date+"T12:00:00").toISOString(),payment_method:associateMovement.method,
         status:"valide",source_type:"associate",reference:associateMovement.reference.trim()||null,notes:associateMovement.notes.trim()||null
       };
@@ -302,7 +311,7 @@ export default function Finance(){
         });
         if(error){await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",txId);throw error;}
       }
-      toast({title:existing?"Mouvement associé modifié":"Mouvement associé enregistré",description:feeApplied?"La déduction de 1 % est prise en compte.":undefined});
+      toast({title:existing?"Mouvement associé modifié":"Mouvement associé enregistré"});
       setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:"",method:"mobile_money",withoutFees:false});
       setAssociateMovementEditId(null);setAssociateMovementOpen(false);await load();
     }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
@@ -353,38 +362,41 @@ export default function Finance(){
   const registerExpensePayment=async()=>{
     if(!paymentTarget)return;
     const remaining=Number(paymentTarget.total_amount||0)-Number(paymentTarget.paid_amount||0);
-    const amount=paymentPartial?Number(paymentAmount):remaining;
+    const displayedAmount=Number(paymentAmount);
     const feeApplied=paymentMethod!=="especes"&&paymentWithFees;
-    const feeAmount=feeApplied?feeAmountFor(amount):0;
-    const ledgerAmount=amount+feeAmount;
-    if(!Number.isFinite(amount)||amount<=0||amount>remaining){toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});return;}
-    setSaving(true);let proofPath:string|null=null;let transactionId:string|null=null;
+    const amount=feeApplied?Math.round(displayedAmount/1.01):displayedAmount;
+    if(!Number.isFinite(amount)||amount<=0||amount>remaining){
+      toast({title:"Montant invalide",description:"Le paiement doit être positif et ne peut pas dépasser le solde restant.",variant:"destructive"});
+      return;
+    }
+    const requestId=paymentRequestId||crypto.randomUUID();
+    if(!paymentRequestId)setPaymentRequestId(requestId);
+    setSaving(true);
+    let proofPath:string|null=null;
     try{
-      if(paymentProof){const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");proofPath=uploaded.path;}
-      const nextPaid=Number(paymentTarget.paid_amount||0)+amount;
-      const status=nextPaid>=Number(paymentTarget.total_amount)?"paid":"partial";
-      const {data:tx,error:txError}=await (supabase as any).from("finance_transactions").insert({
-        direction:"sortie",category:paymentTarget.expense_category,label:paymentTarget.expense_category+(paymentTarget.description?" — "+paymentTarget.description:""),
-        amount:ledgerAmount,gross_amount:amount,fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
-        transaction_date:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
-        reference:paymentReference.trim()||null,source_type:"finance_expense",source_id:paymentTarget.id,status:"valide",
-        notes:paymentTarget.description||("Bénéficiaire : "+(paymentTarget.beneficiary_name||paymentTarget.supplier_name||"—")),
-        proof_path:proofPath,proof_name:paymentProof?.name||null
-      }).select("id").single();
-      if(txError)throw txError;transactionId=tx.id;
-      const {error:payError}=await (supabase as any).from("finance_expense_payments").insert({
-        expense_id:paymentTarget.id,transaction_id:transactionId,amount,gross_amount:amount,status:"valide",
-        fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
-        paid_at:new Date(paymentDate+"T12:00:00").toISOString(),payment_method:paymentMethod,
-        proof_path:proofPath,proof_name:paymentProof?.name||null
+      if(paymentReferenceAsFile&&paymentProof){
+        const uploaded=await uploadFile("documents",paymentProof,"finance/depenses-payees");
+        if(!uploaded?.path)throw new Error("Le justificatif du paiement n’a pas pu être téléversé.");
+        proofPath=uploaded.path;
+      }
+      const {data,error}=await (supabase as any).rpc("finance_register_expense_payment",{
+        p_expense_id:paymentTarget.id,p_amount:amount,p_payment_date:paymentDate,
+        p_payment_method:paymentMethod,p_reference:paymentReferenceAsFile?null:paymentReference.trim()||null,
+        p_proof_path:paymentReferenceAsFile?proofPath:null,
+        p_proof_name:paymentReferenceAsFile?paymentProof?.name||null:null,
+        p_fee_applied:feeApplied,p_request_id:requestId
       });
-      if(payError){await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);throw payError;}
-      const {error:updateError}=await (supabase as any).from("finance_expenses").update({paid_amount:nextPaid,status,transaction_id:transactionId,payment_method:paymentMethod}).eq("id",paymentTarget.id);
-      if(updateError){const {error:rollbackError}=await (supabase as any).from("finance_expense_payments").update({status:"annule"}).eq("transaction_id",transactionId);const {data:validPayments}=await (supabase as any).from("finance_expense_payments").select("amount,transaction_id,paid_at").eq("expense_id",paymentTarget.id).eq("status","valide").order("paid_at",{ascending:false});const restoredPaid=(validPayments||[]).reduce((sum:number,p:any)=>sum+Number(p.amount||0),0);const restoredStatus=restoredPaid>=Number(paymentTarget.total_amount)?"paid":restoredPaid>0?"partial":"unpaid";await (supabase as any).from("finance_expenses").update({paid_amount:restoredPaid,status:restoredStatus,transaction_id:validPayments?.[0]?.transaction_id||null}).eq("id",paymentTarget.id);await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);if(rollbackError)throw new Error(updateError.message+" — annulation du paiement impossible : "+rollbackError.message);throw updateError;}
-      toast({title:"Paiement enregistré",description:status==="paid"?"Dépense entièrement payée et inscrite dans les sorties.":"Paiement partiel enregistré dans les sorties; le solde reste à payer."});
-      setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);setPaymentPartial(false);setPaymentWithFees(false);await load();
-    }catch(error:any){if(proofPath)await supabase.storage.from("documents").remove([proofPath]);toast({title:"Paiement non confirmé",description:error?.message||"Vérifiez l’écriture avant de réessayer.",variant:"destructive"});}
-    finally{setSaving(false);}
+      if(error)throw error;
+      if(!data?.transaction_id)throw new Error("La base n’a pas confirmé l’écriture de sortie.");
+      toast({title:"Paiement enregistré",description:data.status==="paid"
+        ?"Dépense soldée. Le règlement est inscrit comme sortie validée."
+        :"Paiement partiel inscrit comme sortie validée. Le reliquat reste dans les dépenses à payer."});
+      setPaymentTarget(null);setPaymentAmount("");setPaymentReference("");setPaymentProof(null);
+      setPaymentWithFees(false);setPaymentReferenceAsFile(false);setPaymentRequestId("");
+      await load();
+    }catch(error:any){
+      toast({title:"Paiement non confirmé",description:error?.message||"Réessayez avec le même paiement pour éviter un doublon.",variant:"destructive"});
+    }finally{setSaving(false);}
   };
 
   const deleteEntry=async(item:any)=>{if(!isPdg||!window.confirm("Supprimer définitivement cette entrée financière ?"))return;setSaving(true);const {error}=await (supabase as any).from("finance_transactions").delete().eq("id",item.id);if(error)toast({title:"Suppression impossible",description:error.message,variant:"destructive"});else toast({title:"Entrée supprimée"});await load();setSaving(false);};
@@ -407,10 +419,10 @@ export default function Finance(){
     const expenseRow=expenses.find((e:any)=>e.transaction_id===tx.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===tx.id));
     if(expenseRow){
       if(expenseRow.finance_expense_payments?.some((p:any)=>p.status==="valide")){setPlannedExpenseTarget(expenseRow);setPlannedExpenseEditId(expenseRow.id);setPlannedExpense({category:expenseRow.expense_category||"PRESTATIONS",amount:String(expenseRow.total_amount||""),description:expenseRow.description||"",beneficiary:expenseRow.beneficiary_name||expenseRow.supplier_name||"",beneficiaryPhone:expenseRow.beneficiary_phone||"",profileId:expenseRow.profile_id||"",isInternalUser:!!expenseRow.profile_id,expenseDate:expenseRow.expense_date||new Date().toISOString().slice(0,10),dueDate:expenseRow.due_date||"",direct:!!expenseRow.is_direct_cost,reference:expenseRow.reference||"",referenceAsFile:!!expenseRow.proof_path});setPlannedProof(null);setPlannedExpenseOpen(true);}
-      else{setSelectedExpense({...expenseRow,transaction:tx});setExpense({category:expenseRow.expense_category||"AUTRE",amount:String(tx.gross_amount||tx.amount||""),date:expenseRow.expense_date||new Date().toISOString().slice(0,10),description:expenseRow.description||"",profileId:expenseRow.profile_id||"",clientId:expenseRow.client_id||"",plantationId:expenseRow.plantation_id||"",direct:!!expenseRow.is_direct_cost,method:tx.payment_method||"mobile_money",withFees:!!tx.fee_applied,reference:tx.reference||""});setExpenseFormMode("edit");}
+      else{setSelectedExpense({...expenseRow,transaction:tx});setExpense({category:expenseRow.expense_category||"AUTRE",amount:String(tx.amount||""),date:expenseRow.expense_date||new Date().toISOString().slice(0,10),description:expenseRow.description||"",profileId:expenseRow.profile_id||"",clientId:expenseRow.client_id||"",plantationId:expenseRow.plantation_id||"",direct:!!expenseRow.is_direct_cost,method:tx.payment_method||"mobile_money",withFees:!!tx.fee_applied,reference:tx.reference||"",referenceAsFile:!!tx.proof_path});setExpenseFormMode("edit");}
       return;
     }
-    if(tx.direction==="entree"&&manualEntryTypes.includes(tx.source_type)){setEntryEditId(tx.id);setEntryForm({type:tx.source_type||"autre",source:String(tx.label||"").split(" — ").slice(1).join(" — "),contactPhone:tx.contact_phone||"",amount:String(tx.gross_amount||tx.amount||""),date:new Date(tx.transaction_date).toISOString().slice(0,10),method:tx.payment_method||"mobile_money",reference:tx.reference||"",notes:tx.notes||"",withoutFees:!!tx.fee_applied});setEntryFormOpen(true);}
+    if(tx.direction==="entree"&&manualEntryTypes.includes(tx.source_type)){setEntryEditId(tx.id);setEntryForm({type:tx.source_type||"autre",source:String(tx.label||"").split(" — ").slice(1).join(" — "),contactPhone:tx.contact_phone||"",amount:String(tx.amount||""),date:new Date(tx.transaction_date).toISOString().slice(0,10),method:tx.payment_method||"mobile_money",reference:tx.reference||"",referenceAsFile:!!tx.proof_path,notes:tx.notes||"",withoutFees:!!tx.fee_applied});setEntryFormOpen(true);}
   };
   const deleteFinanceTransaction=(tx:any)=>{const movement=associateMovements.find((m:any)=>m.transaction_id===tx.id);if(movement){void deleteAssociateMovement(movement);return;}const expenseRow=expenses.find((e:any)=>e.transaction_id===tx.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===tx.id));if(expenseRow){void deleteExpense(expenseRow);return;}if(tx.direction==="entree"&&manualEntryTypes.includes(tx.source_type))void deleteEntry(tx);};
 
@@ -584,15 +596,15 @@ export default function Finance(){
           <div className="space-y-1"><Label>Source / raison sociale / nom</Label><Input value={entryForm.source} onChange={e=>setEntryForm({...entryForm,source:e.target.value})} placeholder="Nom du financeur ou organisme"/></div><div className="space-y-1"><Label>Téléphone du contact</Label><Input type="tel" value={entryForm.contactPhone} onChange={e=>setEntryForm({...entryForm,contactPhone:e.target.value})} placeholder="+225 07 00 00 00 00"/></div>
           <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={entryForm.amount} onChange={e=>setEntryForm({...entryForm,amount:e.target.value})} placeholder="Montant reçu"/></div>
           <div className="space-y-1"><Label>Date de réception</Label><Input type="date" value={entryForm.date} onChange={e=>setEntryForm({...entryForm,date:e.target.value})}/></div>
-          <div className="space-y-1"><Label>Moyen de paiement</Label><Select value={entryForm.method} onValueChange={v=>setEntryForm({...entryForm,method:v,withoutFees:v==="especes"?false:entryForm.withoutFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>
-          <div className="space-y-1"><Label>Référence</Label><Input value={entryForm.reference} onChange={e=>setEntryForm({...entryForm,reference:e.target.value})} placeholder="N° de pièce ou transaction"/></div>
-          {entryForm.method!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3"><input id="entry-without-fees" type="checkbox" checked={entryForm.withoutFees} onChange={e=>setEntryForm({...entryForm,withoutFees:e.target.checked})} className="h-4 w-4"/><Label htmlFor="entry-without-fees" className="cursor-pointer">Sans les frais (déduction de 1 %)</Label></div>}
-          <div className="rounded-md bg-muted p-3 text-sm sm:col-span-2 lg:col-span-3"><div className="flex justify-between"><span>Montant saisi</span><b>{money(Number(entryForm.amount)||0)}</b></div><div className="flex justify-between"><span>Déduction 1 %</span><b>{money(entryForm.method!=="especes"&&entryForm.withoutFees?feeAmountFor(Number(entryForm.amount)||0):0)}</b></div><div className="mt-1 flex justify-between border-t pt-2"><span>Montant comptabilisé</span><b>{money(Math.max(0,(Number(entryForm.amount)||0)-(entryForm.method!=="especes"&&entryForm.withoutFees?feeAmountFor(Number(entryForm.amount)||0):0)))}</b></div></div>
-          <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label htmlFor="entry-proof" className="flex items-center gap-2"><Paperclip className="h-4 w-4"/>Justificatif / reçu / facture</Label><Input id="entry-proof" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setEntryProof(e.target.files?.[0]||null)} className="text-sm"/>{entryProof&&<p className="text-xs text-muted-foreground">{entryProof.name}</p>}</div>
+          <div className="space-y-1"><Label>Moyen de paiement</Label><Select value={entryForm.method} onValueChange={v=>setEntryForm({...entryForm,amount:entryForm.method!=="especes"&&entryForm.withoutFees&&v==="especes"?changeDisplayedAmount(entryForm.amount,false,"deduct"):entryForm.amount,method:v,withoutFees:v==="especes"?false:entryForm.withoutFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>
+          
+          {entryForm.method!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3"><input id="entry-without-fees" type="checkbox" checked={entryForm.withoutFees} onChange={e=>setEntryForm({...entryForm,amount:changeDisplayedAmount(entryForm.amount,e.target.checked,"deduct"),withoutFees:e.target.checked})} className="h-4 w-4"/><Label htmlFor="entry-without-fees" className="cursor-pointer">Sans frais</Label></div>}
+          
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3"><div className="flex items-center gap-2"><input id="entry-reference-file" type="checkbox" checked={entryForm.referenceAsFile} onChange={e=>{setEntryForm({...entryForm,referenceAsFile:e.target.checked,reference:""});setEntryProof(null);}} className="h-4 w-4"/><Label htmlFor="entry-reference-file" className="cursor-pointer">Joindre un justificatif</Label></div>{entryForm.referenceAsFile?<div className="space-y-1"><Label>Fichier justificatif</Label><Input id="entry-proof" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setEntryProof(e.target.files?.[0]||null)} className="text-sm"/>{entryProof&&<p className="text-xs text-muted-foreground">{entryProof.name}</p>}</div>:<div className="space-y-1"><Label>Référence</Label><Input value={entryForm.reference} onChange={e=>setEntryForm({...entryForm,reference:e.target.value})} placeholder="N° de pièce ou transaction"/></div>}</div>
           <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Notes / affectation</Label><Textarea rows={2} value={entryForm.notes} onChange={e=>setEntryForm({...entryForm,notes:e.target.value})} placeholder="Objet, conditions du prêt, projet financé…"/></div>
           <div className="sm:col-span-2 lg:col-span-3"><Button className="w-full sm:w-auto" onClick={()=>void saveEntry()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>{entryEditId?"Enregistrer les modifications":"Enregistrer l’entrée"}</Button></div>
         </div></DialogContent></Dialog>
-        <Card><CardHeader className="pb-2"><CardTitle>Historique des entrées</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Nature / source</th><th className="px-2 py-1.5">Mode</th><th className="px-2 py-1.5">Justificatif</th><th className="px-2 py-1.5 text-right">Montant net</th>{isPdg&&<th className="px-2 py-1.5 text-right">Actions</th>}</tr></thead><tbody>{transactions.filter(t=>t.direction==="entree"&&manualEntryTypes.includes(t.source_type)).map(t=><tr key={t.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{new Date(t.transaction_date).toLocaleDateString("fr-FR")}</td><td className="px-2 py-1.5">{t.label}</td><td className="px-2 py-1.5">{t.payment_method||"—"}</td><td className="px-2 py-1.5">{t.proof_path?<Button variant="ghost" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(t.proof_path,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-1 h-3.5 w-3.5"/>{t.proof_name||"Ouvrir"}</Button>:"—"}</td><td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(Number(t.amount||0))}</td>{isPdg&&<td className="px-2 py-1.5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={()=>{setEntryEditId(t.id);setEntryForm({type:t.source_type||"autre",source:String(t.label||"").split(" — ").slice(1).join(" — "),contactPhone:t.contact_phone||"",amount:String(t.gross_amount||t.amount||""),date:new Date(t.transaction_date).toISOString().slice(0,10),method:t.payment_method||"mobile_money",reference:t.reference||"",notes:t.notes||"",withoutFees:!!t.fee_applied});setEntryFormOpen(true);}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deleteEntry(t)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td>}</tr>)}{!transactions.some(t=>t.direction==="entree"&&manualEntryTypes.includes(t.source_type))&&<tr><td colSpan={isPdg?6:5} className="p-4 text-center text-muted-foreground">Aucune entrée enregistrée</td></tr>}</tbody></table></div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle>Historique des entrées</CardTitle></CardHeader><CardContent><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Nature / source</th><th className="px-2 py-1.5">Mode</th><th className="px-2 py-1.5">Justificatif</th><th className="px-2 py-1.5 text-right">Montant net</th>{isPdg&&<th className="px-2 py-1.5 text-right">Actions</th>}</tr></thead><tbody>{transactions.filter(t=>t.direction==="entree"&&manualEntryTypes.includes(t.source_type)).map(t=><tr key={t.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{new Date(t.transaction_date).toLocaleDateString("fr-FR")}</td><td className="px-2 py-1.5">{t.label}</td><td className="px-2 py-1.5">{t.payment_method||"—"}</td><td className="px-2 py-1.5">{t.proof_path?<Button variant="ghost" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(t.proof_path,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-1 h-3.5 w-3.5"/>{t.proof_name||"Ouvrir"}</Button>:"—"}</td><td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(Number(t.amount||0))}</td>{isPdg&&<td className="px-2 py-1.5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={()=>{setEntryEditId(t.id);setEntryForm({type:t.source_type||"autre",source:String(t.label||"").split(" — ").slice(1).join(" — "),contactPhone:t.contact_phone||"",amount:String(t.gross_amount||t.amount||""),date:new Date(t.transaction_date).toISOString().slice(0,10),method:t.payment_method||"mobile_money",reference:t.reference||"",referenceAsFile:!!t.proof_path,notes:t.notes||"",withoutFees:!!t.fee_applied});setEntryFormOpen(true);}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deleteEntry(t)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td>}</tr>)}{!transactions.some(t=>t.direction==="entree"&&manualEntryTypes.includes(t.source_type))&&<tr><td colSpan={isPdg?6:5} className="p-4 text-center text-muted-foreground">Aucune entrée enregistrée</td></tr>}</tbody></table></div></CardContent></Card>
       </TabsContent>
       <TabsContent value="journal" className="mt-4 min-w-0 space-y-4">
         
@@ -643,22 +655,22 @@ export default function Finance(){
           <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Description</Label><Textarea value={plannedExpense.description} onChange={e=>setPlannedExpense({...plannedExpense,description:e.target.value})} rows={2}/></div><div className="flex items-center gap-2"><input type="checkbox" checked={plannedExpense.direct} onChange={e=>setPlannedExpense({...plannedExpense,direct:e.target.checked})} className="h-4 w-4"/><Label>Coût direct</Label></div><div className="flex gap-2 sm:col-span-2 lg:col-span-3"><Button onClick={()=>void savePlannedExpense()} disabled={saving}>{saving?"Enregistrement…":plannedExpenseEditId?"Enregistrer les modifications":"Enregistrer"}</Button><Button variant="outline" onClick={()=>setPlannedExpenseOpen(false)} disabled={saving}>Annuler</Button></div>
         </div></DialogContent></Dialog>
         <Card><CardHeader><CardTitle>Dépenses à payer / soldes en cours</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[820px] text-sm"><thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Motif</th><th className="px-2 py-1.5">Bénéficiaire</th><th className="px-2 py-1.5 text-right">Montant prévu</th><th className="px-2 py-1.5 text-right">Payé</th><th className="px-2 py-1.5 text-right">Reste</th><th className="px-2 py-1.5">Statut</th><th className="px-2 py-1.5 text-right">Actions</th></tr></thead><tbody>
-          {expenses.filter((e:any)=>["unpaid","partial"].includes(String(e.status||""))&&e.status!=="cancelled").map((e:any)=><tr key={e.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{e.expense_date?new Date(e.expense_date+"T12:00:00").toLocaleDateString("fr-FR"):"—"}{e.due_date&&<p className="text-xs text-muted-foreground">Échéance {new Date(e.due_date+"T12:00:00").toLocaleDateString("fr-FR")}</p>}</td><td className="px-2 py-1.5">{e.expense_category}<p className="text-xs text-muted-foreground">{e.description||""}</p></td><td className="px-2 py-1.5">{e.beneficiary_name||e.supplier_name||"—"}</td><td className="px-2 py-1.5 text-right">{money(e.total_amount)}</td><td className="px-2 py-1.5 text-right">{money(e.paid_amount)}</td><td className="px-2 py-1.5 text-right font-semibold">{money(Number(e.total_amount)-Number(e.paid_amount||0))}</td><td className="px-2 py-1.5"><Badge variant="secondary">{e.status==="partial"?"Partiel":"À payer"}</Badge></td><td className="px-2 py-1.5 text-right"><div className="flex justify-end gap-1">{isPdg&&<DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={()=>{setPlannedExpenseTarget(e);setPlannedExpenseEditId(e.id);setPlannedExpense({category:e.expense_category||"PRESTATIONS",amount:String(e.total_amount||""),description:e.description||"",beneficiary:e.beneficiary_name||e.supplier_name||"",beneficiaryPhone:e.beneficiary_phone||"",profileId:e.profile_id||"",isInternalUser:!!e.profile_id,expenseDate:e.expense_date||new Date().toISOString().slice(0,10),dueDate:e.due_date||"",direct:!!e.is_direct_cost,reference:e.reference||"",referenceAsFile:!!e.proof_path});setPlannedProof(null);setPlannedExpenseOpen(true);}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>{e.status==="unpaid"&&Number(e.paid_amount||0)===0&&<><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deletePlannedExpense(e)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>}<Button type="button" size="sm" onClick={()=>{setPaymentTarget(e);setPaymentAmount(String(Math.max(0,Number(e.total_amount)-Number(e.paid_amount||0))));setPaymentPartial(false);setPaymentWithFees(false);setPaymentDate(new Date().toISOString().slice(0,10));setPaymentMethod("mobile_money");setPaymentReference("");setPaymentProof(null);}} disabled={saving||Number(e.total_amount)-Number(e.paid_amount||0)<=0}>Payer</Button></div></td></tr>)}
+          {expenses.filter((e:any)=>["unpaid","partial"].includes(String(e.status||""))&&e.status!=="cancelled").map((e:any)=><tr key={e.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{e.expense_date?new Date(e.expense_date+"T12:00:00").toLocaleDateString("fr-FR"):"—"}{e.due_date&&<p className="text-xs text-muted-foreground">Échéance {new Date(e.due_date+"T12:00:00").toLocaleDateString("fr-FR")}</p>}</td><td className="px-2 py-1.5">{e.expense_category}<p className="text-xs text-muted-foreground">{e.description||""}</p></td><td className="px-2 py-1.5">{e.beneficiary_name||e.supplier_name||"—"}</td><td className="px-2 py-1.5 text-right">{money(e.total_amount)}</td><td className="px-2 py-1.5 text-right">{money(e.paid_amount)}</td><td className="px-2 py-1.5 text-right font-semibold">{money(Number(e.total_amount)-Number(e.paid_amount||0))}</td><td className="px-2 py-1.5"><Badge variant="secondary">{e.status==="partial"?"Partiel":"À payer"}</Badge></td><td className="px-2 py-1.5 text-right"><div className="flex justify-end gap-1">{isPdg&&<DropdownMenu><DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={()=>{setPlannedExpenseTarget(e);setPlannedExpenseEditId(e.id);setPlannedExpense({category:e.expense_category||"PRESTATIONS",amount:String(e.total_amount||""),description:e.description||"",beneficiary:e.beneficiary_name||e.supplier_name||"",beneficiaryPhone:e.beneficiary_phone||"",profileId:e.profile_id||"",isInternalUser:!!e.profile_id,expenseDate:e.expense_date||new Date().toISOString().slice(0,10),dueDate:e.due_date||"",direct:!!e.is_direct_cost,reference:e.reference||"",referenceAsFile:!!e.proof_path});setPlannedProof(null);setPlannedExpenseOpen(true);}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>{e.status==="unpaid"&&Number(e.paid_amount||0)===0&&<><DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deletePlannedExpense(e)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>}<Button type="button" size="sm" onClick={()=>{setPaymentTarget(e);setPaymentRequestId(crypto.randomUUID());setPaymentAmount(String(Math.max(0,Number(e.total_amount)-Number(e.paid_amount||0))));setPaymentWithFees(false);setPaymentDate(new Date().toISOString().slice(0,10));setPaymentReferenceAsFile(false);setPaymentMethod("mobile_money");setPaymentReference("");setPaymentProof(null);}} disabled={saving||Number(e.total_amount)-Number(e.paid_amount||0)<=0}>Payer</Button></div></td></tr>)}
           {!expenses.some((e:any)=>["unpaid","partial"].includes(String(e.status||""))&&e.status!=="cancelled")&&<tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Aucune dépense à payer en attente.</td></tr>}
         </tbody></table></div></CardContent></Card>
-        {paymentTarget&&<Dialog open={!!paymentTarget} onOpenChange={open=>{if(!open&&!saving)setPaymentTarget(null);}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Enregistrer un paiement</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2 rounded-md bg-muted p-3"><p className="text-sm">{paymentTarget.expense_category} · {paymentTarget.beneficiary_name||paymentTarget.supplier_name||"Bénéficiaire non renseigné"}</p><p className="font-semibold">Solde : {money(Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))}</p></div><div className="flex items-center gap-2 sm:col-span-2"><input id="payment-partial" type="checkbox" checked={paymentPartial} onChange={e=>{setPaymentPartial(e.target.checked);if(!e.target.checked)setPaymentAmount(String(Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))));}} className="h-4 w-4"/><Label htmlFor="payment-partial" className="cursor-pointer">Paiement partiel</Label></div><div className="space-y-1"><Label>Montant payé (FCFA)</Label><Input type="number" min="1" max={Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)} value={paymentPartial?paymentAmount:String(Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)))} readOnly={!paymentPartial} disabled={!paymentPartial} onChange={e=>setPaymentAmount(e.target.value)}/></div><div className="space-y-1"><Label>Date de paiement</Label><Input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select value={paymentMethod} onValueChange={v=>{setPaymentMethod(v);if(v==="especes")setPaymentWithFees(false);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>{paymentMethod!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3"><input id="payment-with-fees" type="checkbox" checked={paymentWithFees} onChange={e=>setPaymentWithFees(e.target.checked)} className="h-4 w-4"/><Label htmlFor="payment-with-fees" className="cursor-pointer">Avec les frais (+ 1 %)</Label></div>}<div className="rounded-md bg-muted p-3 text-sm sm:col-span-2"><div className="flex justify-between"><span>Montant du règlement</span><b>{money(paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)))}</b></div><div className="flex justify-between"><span>Frais 1 %</span><b>{money(paymentMethod!=="especes"&&paymentWithFees?feeAmountFor(paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))):0)}</b></div><div className="mt-1 flex justify-between border-t pt-2"><span>Sortie comptabilisée</span><b>{money((paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0)))+(paymentMethod!=="especes"&&paymentWithFees?feeAmountFor(paymentPartial?Number(paymentAmount)||0:Math.max(0,Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))):0))}</b></div></div><div className="space-y-1"><Label>Référence (facultative)</Label><Input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)}/></div><div className="space-y-1 sm:col-span-2"><Label>Preuve de paiement / reçu</Label><Input type="file" accept="image/*,.pdf" onChange={e=>setPaymentProof(e.target.files?.[0]||null)}/></div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void registerExpensePayment()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement"}</Button><Button variant="outline" onClick={()=>setPaymentTarget(null)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>}
+        {paymentTarget&&<Dialog open={!!paymentTarget} onOpenChange={open=>{if(!open&&!saving)setPaymentTarget(null);}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Enregistrer un paiement</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2 rounded-md bg-muted p-3"><p className="text-sm">{paymentTarget.expense_category} · {paymentTarget.beneficiary_name||paymentTarget.supplier_name||"Bénéficiaire non renseigné"}</p><p className="font-semibold">Solde : {money(Number(paymentTarget.total_amount)-Number(paymentTarget.paid_amount||0))}</p></div><div className="space-y-1"><Label>Montant payé (FCFA)</Label><Input type="number" min="1" value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)}/></div><div className="space-y-1"><Label>Date de paiement</Label><Input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select value={paymentMethod} onValueChange={v=>{if(v==="especes"&&paymentWithFees){setPaymentAmount(changeDisplayedAmount(paymentAmount,false,"add"));setPaymentWithFees(false);}setPaymentMethod(v);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>{paymentMethod!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3"><input id="payment-with-fees" type="checkbox" checked={paymentWithFees} onChange={e=>{setPaymentAmount(changeDisplayedAmount(paymentAmount,e.target.checked,"add"));setPaymentWithFees(e.target.checked);}} className="h-4 w-4"/><Label htmlFor="payment-with-fees" className="cursor-pointer">Avec les frais</Label></div>}<div className="space-y-2 sm:col-span-2"><div className="flex items-center gap-2"><input id="payment-reference-file" type="checkbox" checked={paymentReferenceAsFile} onChange={e=>{setPaymentReferenceAsFile(e.target.checked);setPaymentReference("");setPaymentProof(null);}} className="h-4 w-4"/><Label htmlFor="payment-reference-file" className="cursor-pointer">Joindre un justificatif</Label></div>{paymentReferenceAsFile?<div className="space-y-1"><Label>Preuve de paiement / reçu</Label><Input type="file" accept="image/*,.pdf" onChange={e=>setPaymentProof(e.target.files?.[0]||null)}/></div>:<div className="space-y-1"><Label>Référence (facultative)</Label><Input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)}/></div>}</div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void registerExpensePayment()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement"}</Button><Button variant="outline" onClick={()=>setPaymentTarget(null)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>}
       </TabsContent>
       <TabsContent value="depenses" className="mt-3 min-w-0 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
           <h2 className="font-semibold">Sorties enregistrées</h2>
-          {can("finance.expenses")&&<Button onClick={()=>{setSelectedExpense(null);setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:""});setExpenseProof(null);setExpenseFormMode("new");}}><Plus className="mr-2 h-4 w-4"/>Nouvelle sortie</Button>}
+          {can("finance.expenses")&&<Button onClick={()=>{setSelectedExpense(null);setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:"",referenceAsFile:false});setExpenseProof(null);setExpenseFormMode("new");}}><Plus className="mr-2 h-4 w-4"/>Nouvelle sortie</Button>}
         </div>
         {expenseFormMode!==null&&<Dialog open={expenseFormMode!==null} onOpenChange={open=>{if(!open&&!saving){setExpenseFormMode(null);setSelectedExpense(null);setExpenseProof(null);}}}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><Card>
           <CardHeader><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><CardTitle>{expenseFormMode==="new"?"Nouvelle sortie":expenseFormMode==="edit"?"Modifier la sortie":"Détail de la sortie"}</CardTitle>{expenseFormMode==="view"&&<Badge variant="secondary">Lecture seule</Badge>}</div></CardHeader>
           <CardContent className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1"><Label>Catégorie</Label><Select disabled={expenseFormMode==="view"} value={expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{FINANCE_EXPENSE_CATEGORIES.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
-            <div className="space-y-1"><Label>Montant saisi (FCFA)</Label><Input type="number" min="1" value={expenseFormMode==="view"?String(selectedExpense?.transaction?.gross_amount??selectedExpense?.transaction?.amount??""):expense.amount} onChange={e=>setExpense({...expense,amount:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div>
-            <div className="space-y-1"><Label>Date de sortie</Label><Input type="date" value={expenseFormMode==="view"?(selectedExpense?.expense_date||""):expense.date} onChange={e=>setExpense({...expense,date:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select disabled={expenseFormMode==="view"} value={expense.method} onValueChange={v=>setExpense({...expense,method:v,withFees:v==="especes"?false:expense.withFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>
+            <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={expenseFormMode==="view"?String(selectedExpense?.transaction?.amount??""):expense.amount} onChange={e=>setExpense({...expense,amount:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div>
+            <div className="space-y-1"><Label>Date de sortie</Label><Input type="date" value={expenseFormMode==="view"?(selectedExpense?.expense_date||""):expense.date} onChange={e=>setExpense({...expense,date:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select disabled={expenseFormMode==="view"} value={expense.method} onValueChange={v=>setExpense({...expense,amount:expense.method!=="especes"&&expense.withFees&&v==="especes"?changeDisplayedAmount(expense.amount,false,"add"):expense.amount,method:v,withFees:v==="especes"?false:expense.withFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>
             <div className="space-y-1"><Label>Utilisateur</Label>
               {expenseFormMode==="view"?<Input value={profiles.find((p:any)=>p.id===selectedExpense?.profile_id)?.nom_complet||selectedExpense?.supplier_name||"Utilisateur non renseigné"} disabled readOnly/>:
                 <Popover open={expenseUserPickerOpen} onOpenChange={setExpenseUserPickerOpen}>
@@ -666,8 +678,8 @@ export default function Finance(){
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start"><Command><CommandInput placeholder="Rechercher par nom, poste ou e-mail…"/><CommandList><CommandEmpty>Aucun utilisateur trouvé.</CommandEmpty><CommandGroup>{profiles.map((p:any)=><CommandItem key={p.id} value={[p.nom_complet,p.poste,p.email].filter(Boolean).join(" ")} onSelect={()=>{setExpense({...expense,profileId:p.id});setExpenseUserPickerOpen(false);}}><Check className={"mr-2 h-4 w-4 "+(expense.profileId===p.id?"opacity-100":"opacity-0")}/><span className="min-w-0"><span className="block truncate">{p.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{[p.poste,p.email].filter(Boolean).join(" · ")||"Collaborateur"}</span></span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent>
                 </Popover>}</div>
             <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Description</Label><Textarea rows={3} value={expenseFormMode==="view"?(selectedExpense?.description||""):expense.description} onChange={e=>setExpense({...expense,description:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div>
-<div className="flex min-w-0 items-center gap-2 sm:col-span-2 lg:col-span-3"><input id="expense-direct-cost" type="checkbox" checked={expense.direct} disabled={expenseFormMode==="view"} onChange={e=>setExpense({...expense,direct:e.target.checked})} className="h-4 w-4 shrink-0 rounded border-input" /><Label htmlFor="expense-direct-cost" className="cursor-pointer text-sm leading-tight">Coût direct</Label>{expenseFormMode!=="view"&&expense.method!=="especes"&&<label className="ml-4 flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={expense.withFees} onChange={e=>setExpense({...expense,withFees:e.target.checked})} className="h-4 w-4"/>Avec les frais (+ 1 %)</label>}</div>{expenseFormMode!=="view"&&<div className="rounded-md bg-muted p-3 text-sm sm:col-span-2 lg:col-span-3"><div className="flex justify-between"><span>Montant saisi</span><b>{money(Number(expense.amount)||0)}</b></div><div className="flex justify-between"><span>Frais 1 %</span><b>{money(expense.method!=="especes"&&expense.withFees?feeAmountFor(Number(expense.amount)||0):0)}</b></div><div className="mt-1 flex justify-between border-t pt-2"><span>Sortie comptabilisée</span><b>{money((Number(expense.amount)||0)+(expense.method!=="especes"&&expense.withFees?feeAmountFor(Number(expense.amount)||0):0))}</b></div></div>}
-                        {expenseFormMode!=="view"?<div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label htmlFor="expense-proof" className="flex items-center gap-2"><Paperclip className="h-4 w-4"/>Justificatif / reçu / facture</Label><Input id="expense-proof" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setExpenseProof(e.target.files?.[0]||null)} className="text-sm"/>{expenseProof&&<div className="space-y-2 rounded-md border p-2"><p className="break-all text-xs text-muted-foreground">{expenseProof.name} · {Math.max(1,Math.round(expenseProof.size/1024))} Ko</p>{expenseProof.type.startsWith("image/")&&<img src={expenseProofPreview || undefined} alt="Aperçu du justificatif de sortie" className="max-h-64 max-w-full rounded-md border object-contain"/>}{expenseProof.type==="application/pdf"&&expenseProofPreview&&<iframe title="Aperçu PDF du justificatif de sortie" src={expenseProofPreview} className="h-64 w-full rounded-md border"/>}</div>}</div>:<div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Justificatif</Label>{selectedExpense?.proof_path?<Button type="button" variant="outline" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(selectedExpense.proof_path,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",description:error?.message||"Impossible d’ouvrir le fichier.",variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-2 h-4 w-4"/>{selectedExpense.proof_name||"Ouvrir le justificatif"}</Button>:<p className="text-sm text-muted-foreground">Aucun justificatif joint.</p>}</div>}
+<div className="flex min-w-0 items-center gap-2 sm:col-span-2 lg:col-span-3"><input id="expense-direct-cost" type="checkbox" checked={expense.direct} disabled={expenseFormMode==="view"} onChange={e=>setExpense({...expense,direct:e.target.checked})} className="h-4 w-4 shrink-0 rounded border-input" /><Label htmlFor="expense-direct-cost" className="cursor-pointer text-sm leading-tight">Coût direct</Label>{expenseFormMode!=="view"&&expense.method!=="especes"&&<label className="ml-4 flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" checked={expense.withFees} onChange={e=>setExpense({...expense,amount:changeDisplayedAmount(expense.amount,e.target.checked,"add"),withFees:e.target.checked})} className="h-4 w-4"/>Avec les frais</label>}</div>
+                        {expenseFormMode!=="view"?<div className="space-y-2 sm:col-span-2 lg:col-span-3"><div className="flex items-center gap-2"><input id="expense-reference-file" type="checkbox" checked={expense.referenceAsFile} onChange={e=>{setExpense({...expense,referenceAsFile:e.target.checked,reference:""});setExpenseProof(null);}} className="h-4 w-4"/><Label htmlFor="expense-reference-file" className="cursor-pointer">Joindre un justificatif</Label></div>{expense.referenceAsFile?<div className="space-y-1"><Label>Fichier justificatif</Label><Input id="expense-proof" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setExpenseProof(e.target.files?.[0]||null)} className="text-sm"/>{expenseProof&&<div className="space-y-2 rounded-md border p-2"><p className="break-all text-xs text-muted-foreground">{expenseProof.name} · {Math.max(1,Math.round(expenseProof.size/1024))} Ko</p>{expenseProof.type.startsWith("image/")&&<img src={expenseProofPreview || undefined} alt="Aperçu du justificatif de sortie" className="max-h-64 max-w-full rounded-md border object-contain"/>}{expenseProof.type==="application/pdf"&&expenseProofPreview&&<iframe title="Aperçu PDF du justificatif de sortie" src={expenseProofPreview} className="h-64 w-full rounded-md border"/>}</div>}</div>:<div className="space-y-1"><Label>Référence</Label><Input value={expense.reference} onChange={e=>setExpense({...expense,reference:e.target.value})}/></div>}</div>:<div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Justificatif</Label>{selectedExpense?.proof_path?<Button type="button" variant="outline" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(selectedExpense.proof_path,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",description:error?.message||"Impossible d’ouvrir le fichier.",variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-2 h-4 w-4"/>{selectedExpense.proof_name||"Ouvrir le justificatif"}</Button>:<p className="text-sm text-muted-foreground">Aucun justificatif joint.</p>}</div>}
             {expenseFormMode==="view"&&<div className="space-y-1"><Label>Statut de l’écriture</Label><Input value={selectedExpense?.transaction?.status||transactions.find(t=>t.id===selectedExpense?.transaction_id)?.status||"—"} disabled readOnly/></div>}
             {expenseFormMode!=="view"&&<div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3"><Button className="w-full sm:w-auto" onClick={()=>void saveExpense()} disabled={saving}><Plus className="mr-2 h-4 w-4"/>{saving?"Enregistrement…":expenseFormMode==="edit"?"Enregistrer les modifications":"Enregistrer la sortie"}</Button><Button type="button" variant="outline" onClick={()=>{setExpenseFormMode(null);setExpenseProof(null);}} disabled={saving}>Annuler</Button></div>}
             {expenseFormMode==="view"&&<div className="sm:col-span-2 lg:col-span-3"><Button type="button" variant="outline" onClick={()=>{setExpenseFormMode(null);setSelectedExpense(null);}}>Fermer le détail</Button></div>}
@@ -675,11 +687,34 @@ export default function Finance(){
         </Card></DialogContent></Dialog>}
         <Card>
           <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Sorties enregistrées</CardTitle><TableSearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Rechercher une sortie…"/></div></CardHeader>
-          <CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[680px] text-sm">
-            <thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Catégorie</th><th className="px-2 py-1.5">Utilisateur</th><th className="px-2 py-1.5 text-right">Montant</th><th className="px-2 py-1.5">Statut</th><th className="px-2 py-1.5">Justificatif</th>{isPdg&&<th className="px-2 py-1.5 text-right">Actions</th>}</tr></thead>
-            <tbody>{expenses.filter((e:any)=>{const t=transactions.find((x:any)=>x.id===e.transaction_id);return [e.expense_category,profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet,e.supplier_name,e.description,e.proof_name,t?.label,t?.status].some((v:any)=>matchesAccentInsensitive(v,expenseSearch));}).map((e:any)=>{const transaction=e.transaction||transactions.find((t:any)=>t.id===e.transaction_id);return <tr key={e.id} className="border-b last:border-0"><td className="whitespace-nowrap px-2 py-1.5">{transaction?.transaction_date?new Date(transaction.transaction_date).toLocaleDateString("fr-FR"):e.created_at?new Date(e.created_at).toLocaleDateString("fr-FR"):"—"}</td><td className="px-2 py-1.5 font-medium">{e.expense_category||"—"}</td><td className="max-w-[220px] truncate px-2 py-1.5">{profiles.find((p:any)=>p.id===e.profile_id)?.nom_complet||e.supplier_name||"—"}</td><td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(transaction?.amount??0)}</td><td className="px-2 py-1.5"><Badge variant={transaction?.status==="valide"?"default":"secondary"}>{transaction?.status||"—"}</Badge></td><td className="px-2 py-1.5">{e.proof_path?<span className="inline-flex items-center gap-1 text-xs text-primary"><Paperclip className="h-3 w-3"/>{e.proof_name||"Joint"}</span>:"—"}</td>{isPdg&&<td className="px-2 py-1.5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{!e.finance_expense_payments?.some((p:any)=>p.status==="valide")&&<DropdownMenuItem onClick={()=>{setSelectedExpense({...e,transaction});setExpense({category:e.expense_category||"AUTRE",amount:String(transaction?.gross_amount||transaction?.amount||""),date:e.expense_date||new Date().toISOString().slice(0,10),description:e.description||"",profileId:e.profile_id||"",clientId:e.client_id||"",plantationId:e.plantation_id||"",direct:!!e.is_direct_cost,method:transaction?.payment_method||"mobile_money",withFees:!!transaction?.fee_applied,reference:transaction?.reference||""});setExpenseFormMode("edit");}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>}<DropdownMenuSeparator/><DropdownMenuItem className="text-destructive" onClick={()=>void deleteExpense(e)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem></DropdownMenuContent></DropdownMenu></td>}</tr>;})}{!expenses.length&&!loading&&<tr><td colSpan={isPdg?7:6} className="p-8 text-center text-muted-foreground">Aucune sortie enregistrée.</td></tr>}</tbody>
-
-
+          <CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[760px] text-sm">
+            <thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Catégorie / libellé</th><th className="px-2 py-1.5">Bénéficiaire</th><th className="px-2 py-1.5 text-right">Montant sorti</th><th className="px-2 py-1.5">Statut</th><th className="px-2 py-1.5">Justificatif</th>{isPdg&&<th className="px-2 py-1.5 text-right">Actions</th>}</tr></thead>
+            <tbody>{filteredOutgoingTransactions.map((t:any)=>{
+              const expenseRow=expenses.find((e:any)=>e.transaction_id===t.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===t.id));
+              const paymentRow=expenseRow?.finance_expense_payments?.find((p:any)=>p.transaction_id===t.id);
+              const profileName=profiles.find((p:any)=>p.id===(expenseRow?.profile_id||t.profile_id))?.nom_complet;
+              const beneficiary=profileName||expenseRow?.beneficiary_name||expenseRow?.supplier_name||"—";
+              const proofPath=t.proof_path||paymentRow?.proof_path||expenseRow?.proof_path;
+              const proofName=t.proof_name||paymentRow?.proof_name||expenseRow?.proof_name;
+              return <tr key={t.id} className="border-b last:border-0">
+                <td className="whitespace-nowrap px-2 py-1.5">{t.transaction_date?new Date(t.transaction_date).toLocaleDateString("fr-FR"):"—"}</td>
+                <td className="px-2 py-1.5 font-medium">{expenseRow?.expense_category||t.category||"—"}{t.label&&t.label!==(expenseRow?.expense_category||t.category)&&<p className="max-w-[320px] truncate text-xs text-muted-foreground">{t.label}</p>}{paymentRow&&<p className="text-xs text-muted-foreground">Règlement de dépense · {paymentRow.paid_at?new Date(paymentRow.paid_at).toLocaleDateString("fr-FR"):""}</p>}</td>
+                <td className="max-w-[220px] truncate px-2 py-1.5">{beneficiary}</td>
+                <td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(t.amount)}</td>
+                <td className="px-2 py-1.5"><Badge variant={t.status==="valide"?"default":"secondary"}>{t.status||"—"}</Badge></td>
+                <td className="px-2 py-1.5">{proofPath?<Button type="button" variant="ghost" size="sm" onClick={async()=>{const {data,error}=await supabase.storage.from("documents").createSignedUrl(proofPath,3600);if(error||!data?.signedUrl){toast({title:"Justificatif indisponible",description:error?.message,variant:"destructive"});return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}}><Paperclip className="mr-1 h-3.5 w-3.5"/>{proofName||"Ouvrir"}</Button>:"—"}</td>
+                {isPdg&&<td className="px-2 py-1.5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+                  {paymentRow&&expenseRow&&<DropdownMenuItem onClick={()=>{setSelectedExpense({...expenseRow,transaction:t});setExpense({category:expenseRow.expense_category||"AUTRE",amount:String(paymentRow.gross_amount||paymentRow.amount||t.gross_amount||t.amount||""),date:t.transaction_date?new Date(t.transaction_date).toISOString().slice(0,10):new Date().toISOString().slice(0,10),description:expenseRow.description||"",profileId:expenseRow.profile_id||"",clientId:expenseRow.client_id||"",plantationId:expenseRow.plantation_id||"",direct:!!expenseRow.is_direct_cost,method:t.payment_method||"mobile_money",withFees:!!t.fee_applied,reference:t.reference||"",referenceAsFile:!!(paymentRow.proof_path||t.proof_path)});setExpenseFormMode("view");}}><Eye className="mr-2 h-4 w-4"/>Consulter le règlement</DropdownMenuItem>}
+                  {expenseRow&&!paymentRow&&!expenseRow.finance_expense_payments?.some((p:any)=>p.status==="valide")&&<DropdownMenuItem onClick={()=>{setSelectedExpense({...expenseRow,transaction:t});setExpense({category:expenseRow.expense_category||"AUTRE",amount:String(t.gross_amount||t.amount||""),date:expenseRow.expense_date||new Date().toISOString().slice(0,10),description:expenseRow.description||"",profileId:expenseRow.profile_id||"",clientId:expenseRow.client_id||"",plantationId:expenseRow.plantation_id||"",direct:!!expenseRow.is_direct_cost,method:t.payment_method||"mobile_money",withFees:!!t.fee_applied,reference:t.reference||"",referenceAsFile:!!(expenseRow.proof_path||t.proof_path)});setExpenseFormMode("edit");}}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>}
+                  {expenseRow&&!paymentRow&&<DropdownMenuItem className="text-destructive" onClick={()=>void deleteExpense(expenseRow)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer la dépense</DropdownMenuItem>}
+                  {!expenseRow&&hasFinanceAction(t)&&<DropdownMenuItem onClick={()=>editFinanceTransaction(t)}><Pencil className="mr-2 h-4 w-4"/>Modifier</DropdownMenuItem>}
+                  {!expenseRow&&hasFinanceAction(t)&&<DropdownMenuItem className="text-destructive" onClick={()=>void deleteFinanceTransaction(t)}><Trash2 className="mr-2 h-4 w-4"/>Supprimer</DropdownMenuItem>}
+                  {!expenseRow&&!hasFinanceAction(t)&&<DropdownMenuItem disabled>Aucune action disponible</DropdownMenuItem>}
+                </DropdownMenuContent></DropdownMenu></td>}
+              </tr>;
+            })}
+            {!filteredOutgoingTransactions.length&&!loading&&<tr><td colSpan={isPdg?7:6} className="p-8 text-center text-muted-foreground">Aucune sortie enregistrée.</td></tr>}
+            </tbody>
           </table></div></CardContent>
         </Card>
       </TabsContent>
@@ -695,7 +730,7 @@ export default function Finance(){
       </div></TabsContent>
       
       <TabsContent value="associes" className="mt-3 min-w-0 space-y-3">
-        <Dialog open={associateMovementOpen} onOpenChange={open=>{if(!open&&!saving){setAssociateMovementOpen(false);setAssociateMovementEditId(null);}}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{associateMovementEditId?"Modifier le mouvement associé":"Nouveau mouvement associé"}</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1 sm:col-span-2"><Label>Associé</Label><Select value={associateMovement.associateId} onValueChange={v=>setAssociateMovement({...associateMovement,associateId:v})}><SelectTrigger><SelectValue placeholder="Sélectionner un associé"/></SelectTrigger><SelectContent>{associates.filter(a=>a.active).map(a=><SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Type de mouvement</Label><Select value={associateMovement.type} onValueChange={v=>setAssociateMovement({...associateMovement,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">Apport</SelectItem><SelectItem value="remboursement">Remboursement</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Montant saisi (FCFA)</Label><Input type="number" min="1" value={associateMovement.amount} onChange={e=>setAssociateMovement({...associateMovement,amount:e.target.value})}/></div><div className="space-y-1"><Label>Date du mouvement</Label><Input type="date" value={associateMovement.date} onChange={e=>setAssociateMovement({...associateMovement,date:e.target.value})}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select value={associateMovement.method} onValueChange={v=>setAssociateMovement({...associateMovement,method:v,withoutFees:v==="especes"?false:associateMovement.withoutFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>{associateMovement.method!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3 sm:col-span-2"><input id="associate-without-fees" type="checkbox" checked={associateMovement.withoutFees} onChange={e=>setAssociateMovement({...associateMovement,withoutFees:e.target.checked})} className="h-4 w-4"/><Label htmlFor="associate-without-fees" className="cursor-pointer">Sans les frais (déduction de 1 %)</Label></div>}<div className="rounded-md bg-muted p-3 text-sm sm:col-span-2"><div className="flex justify-between"><span>Montant saisi</span><b>{money(Number(associateMovement.amount)||0)}</b></div><div className="flex justify-between"><span>Déduction 1 %</span><b>{money(associateMovement.method!=="especes"&&associateMovement.withoutFees?feeAmountFor(Number(associateMovement.amount)||0):0)}</b></div><div className="mt-1 flex justify-between border-t pt-2"><span>Montant comptabilisé</span><b>{money(Math.max(0,(Number(associateMovement.amount)||0)-(associateMovement.method!=="especes"&&associateMovement.withoutFees?feeAmountFor(Number(associateMovement.amount)||0):0)))}</b></div></div><div className="space-y-1"><Label>Référence</Label><Input value={associateMovement.reference} onChange={e=>setAssociateMovement({...associateMovement,reference:e.target.value})}/></div><div className="space-y-1 sm:col-span-2"><Label>Notes</Label><Textarea value={associateMovement.notes} onChange={e=>setAssociateMovement({...associateMovement,notes:e.target.value})}/></div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void saveAssociateMovement()} disabled={saving}>{saving?"Enregistrement…":associateMovementEditId?"Enregistrer les modifications":"Enregistrer le mouvement"}</Button><Button variant="outline" onClick={()=>setAssociateMovementOpen(false)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>
+        <Dialog open={associateMovementOpen} onOpenChange={open=>{if(!open&&!saving){setAssociateMovementOpen(false);setAssociateMovementEditId(null);}}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{associateMovementEditId?"Modifier le mouvement associé":"Nouveau mouvement associé"}</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1 sm:col-span-2"><Label>Associé</Label><Select value={associateMovement.associateId} onValueChange={v=>setAssociateMovement({...associateMovement,associateId:v})}><SelectTrigger><SelectValue placeholder="Sélectionner un associé"/></SelectTrigger><SelectContent>{associates.filter(a=>a.active).map(a=><SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Type de mouvement</Label><Select value={associateMovement.type} onValueChange={v=>setAssociateMovement({...associateMovement,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">Apport</SelectItem><SelectItem value="remboursement">Remboursement</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={associateMovement.amount} onChange={e=>setAssociateMovement({...associateMovement,amount:e.target.value})}/></div><div className="space-y-1"><Label>Date du mouvement</Label><Input type="date" value={associateMovement.date} onChange={e=>setAssociateMovement({...associateMovement,date:e.target.value})}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select value={associateMovement.method} onValueChange={v=>setAssociateMovement({...associateMovement,amount:associateMovement.method!=="especes"&&associateMovement.withoutFees&&v==="especes"?changeDisplayedAmount(associateMovement.amount,false,"deduct"):associateMovement.amount,method:v,withoutFees:v==="especes"?false:associateMovement.withoutFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>{associateMovement.method!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3 sm:col-span-2"><input id="associate-without-fees" type="checkbox" checked={associateMovement.withoutFees} onChange={e=>setAssociateMovement({...associateMovement,amount:changeDisplayedAmount(associateMovement.amount,e.target.checked,"deduct"),withoutFees:e.target.checked})} className="h-4 w-4"/><Label htmlFor="associate-without-fees" className="cursor-pointer">Sans frais</Label></div>}<div className="space-y-1"><Label>Référence</Label><Input value={associateMovement.reference} onChange={e=>setAssociateMovement({...associateMovement,reference:e.target.value})}/></div><div className="space-y-1 sm:col-span-2"><Label>Notes</Label><Textarea value={associateMovement.notes} onChange={e=>setAssociateMovement({...associateMovement,notes:e.target.value})}/></div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void saveAssociateMovement()} disabled={saving}>{saving?"Enregistrement…":associateMovementEditId?"Enregistrer les modifications":"Enregistrer le mouvement"}</Button><Button variant="outline" onClick={()=>setAssociateMovementOpen(false)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
             <div><CardTitle className="text-base">Associés et répartition des apports</CardTitle></div>{canManage&&<Button size="sm" onClick={()=>{setAssociateMovementEditId(null);setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:"",method:"mobile_money",withoutFees:false});setAssociateMovementOpen(true);}}><Plus className="mr-2 h-4 w-4"/>Nouveau mouvement</Button>}
