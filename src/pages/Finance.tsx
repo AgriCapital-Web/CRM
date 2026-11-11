@@ -228,10 +228,13 @@ export default function Finance(){
     const feeApplied=expense.method!=="especes"&&expense.withFees;
     const grossAmount=feeApplied?Math.round(ledgerAmount/1.01):ledgerAmount;
     const feeAmount=Math.max(0,ledgerAmount-grossAmount);
-    if(!expense.category||!Number.isFinite(ledgerAmount)||ledgerAmount<=0){toast({title:"Informations requises",description:"Saisissez un montant positif.",variant:"destructive"});return;}
+    if(!expense.category||!Number.isFinite(ledgerAmount)||ledgerAmount<=0){
+      toast({title:"Informations requises",description:"Saisissez un montant positif.",variant:"destructive"});
+      return;
+    }
     setSaving(true);
     let proofPath:string|null=null;
-    try {
+    try{
       if(expense.referenceAsFile&&expenseProof){
         const uploaded=await uploadFile("documents",expenseProof,"finance/depenses");
         if(!uploaded?.path)throw new Error("Le justificatif n’a pas pu être téléversé.");
@@ -239,46 +242,34 @@ export default function Finance(){
       }
       const existing=expenseFormMode==="edit"?selectedExpense:null;
       const existingTransaction=existing?.transaction||transactions.find((t:any)=>t.id===existing?.transaction_id);
-      const txPayload={
-        direction:"sortie",category:"DEPENSE",label:expense.category,amount:ledgerAmount,gross_amount:grossAmount,
-        fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
-        transaction_date:new Date(expense.date+"T12:00:00").toISOString(),payment_method:expense.method,
-        reference:expense.referenceAsFile?null:expense.reference.trim()||null,status:"valide",client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        notes:expense.description||null,proof_path:expense.referenceAsFile?(proofPath||existingTransaction?.proof_path||null):null,
-        proof_name:expense.referenceAsFile?(expenseProof?.name||existingTransaction?.proof_name||null):null
-      };
-      let transactionId:string;
-      if(existing?.transaction_id){
-        const {error}=await (supabase as any).from("finance_transactions").update(txPayload).eq("id",existing.transaction_id);
-        if(error)throw error;
-        transactionId=existing.transaction_id;
-      }else{
-        const {data,error}=await (supabase as any).from("finance_transactions").insert(txPayload).select("id").single();
-        if(error)throw error;
-        transactionId=data.id;
-      }
-      const expensePayload={
-        transaction_id:transactionId,expense_category:expense.category,profile_id:expense.profileId||null,
-        supplier_name:profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null,
-        description:expense.description||null,client_id:expense.clientId||null,plantation_id:expense.plantationId||null,
-        is_direct_cost:expense.direct,expense_date:expense.date,total_amount:ledgerAmount,paid_amount:ledgerAmount,status:"paid",
-        payment_method:expense.method,reference:expense.referenceAsFile?null:expense.reference.trim()||null,
-        proof_path:expense.referenceAsFile?(proofPath||existing?.proof_path||null):null,proof_name:expense.referenceAsFile?(expenseProof?.name||existing?.proof_name||null):null,
-        proof_mime_type:expense.referenceAsFile?(expenseProof?.type||existing?.proof_mime_type||null):null
-      };
-      const expenseResult=existing
-        ? await (supabase as any).from("finance_expenses").update(expensePayload).eq("id",existing.id)
-        : await (supabase as any).from("finance_expenses").insert(expensePayload);
-      if(expenseResult.error){
-        if(!existing)await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",transactionId);
-        throw expenseResult.error;
-      }
+      const supplierName=profiles.find((p:any)=>p.id===expense.profileId)?.nom_complet||null;
+      const {data,error}=await (supabase as any).rpc("finance_save_paid_expense",{
+        p_expense_id:existing?.id||null,
+        p_expense_category:expense.category,
+        p_amount:ledgerAmount,
+        p_gross_amount:grossAmount,
+        p_fee_amount:feeAmount,
+        p_fee_applied:feeApplied,
+        p_expense_date:expense.date,
+        p_payment_method:expense.method,
+        p_reference:expense.referenceAsFile?null:expense.reference.trim()||null,
+        p_profile_id:expense.profileId||null,
+        p_supplier_name:supplierName,
+        p_client_id:expense.clientId||null,
+        p_plantation_id:expense.plantationId||null,
+        p_is_direct_cost:expense.direct,
+        p_description:expense.description||null,
+        p_proof_path:expense.referenceAsFile?(proofPath||existing?.proof_path||existingTransaction?.proof_path||null):null,
+        p_proof_name:expense.referenceAsFile?(expenseProof?.name||existing?.proof_name||existingTransaction?.proof_name||null):null,
+        p_proof_mime_type:expense.referenceAsFile?(expenseProof?.type||existing?.proof_mime_type||null):null
+      });
+      if(error)throw error;
+      if(!data?.expense_id||!data?.transaction_id)throw new Error("La base n’a pas confirmé l’enregistrement de la sortie.");
       toast({title:existing?"Sortie modifiée":"Sortie enregistrée",description:proofPath?"Justificatif joint à la sortie.":undefined});
       setExpense({category:"AUTRE",amount:"",date:new Date().toISOString().slice(0,10),description:"",profileId:"",clientId:"",plantationId:"",direct:false,method:"mobile_money",withFees:false,reference:"",referenceAsFile:false});
       setExpenseUserPickerOpen(false);setExpenseProof(null);setExpenseFormMode(null);setSelectedExpense(null);
       await load();
     }catch(error:any){
-      if(proofPath)await supabase.storage.from("documents").remove([proofPath]);
       toast({title:"Erreur",description:error?.message||"Impossible d'enregistrer la sortie",variant:"destructive"});
     }finally{setSaving(false);}
   };
