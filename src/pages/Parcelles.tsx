@@ -116,8 +116,12 @@ const Parcelles = () => {
   const saveParcel = async () => {
     if (!selectedParcel || !canEditParcel || parcelSaving) return;
     const total = Number(parcelForm.surface_totale_ha), share = Number(parcelForm.surface_agricapital_ha);
-    if (!Number.isFinite(total) || total < 0 || !Number.isFinite(share) || share < 0 || share > total) {
-      toast({ title: "Surfaces invalides", variant: "destructive" }); return;
+    const conventionParcel = Boolean(selectedParcel.convention_id) || ["plante_partage", "achat"].includes(String(selectedParcel.mode_surface || "").toLowerCase());
+    const validTotal = conventionParcel
+      ? Number.isFinite(total) && total >= 2 && Math.abs(total / 2 - Math.round(total / 2)) <= 0.000001
+      : Number.isFinite(total) && total >= 0.5 && Math.abs(total * 2 - Math.round(total * 2)) <= 0.000001;
+    if (!validTotal || !Number.isFinite(share) || share < 0 || share > total) {
+      toast({ title: "Surfaces invalides", description: conventionParcel ? "Une parcelle conventionnée doit respecter 2 ha minimum par tranches de 2 ha." : "Une parcelle client doit respecter 0,50 ha minimum par pas de 0,50 ha.", variant: "destructive" }); return;
     }
     setParcelSaving(true);
     try {
@@ -162,8 +166,8 @@ const Parcelles = () => {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{parcelles.length}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">Parcelles</div></div></CardContent></Card>
-            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><MapPin className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalSurface).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha référencés</div></div></CardContent></Card>
-            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Sprout className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalAgri).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha AgriCapital non cédés</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><MapPin className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Number(totalSurface).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha référencés</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Sprout className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Number(totalAgri).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha AgriCapital non cédés</div></div></CardContent></Card>
             <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{totalLots}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">lots AgriCapital disponibles</div></div></CardContent></Card>
           </div>
 
@@ -197,9 +201,9 @@ const Parcelles = () => {
                     <TableCell className="font-medium">{p.nom || p.village || "Parcelle"}</TableCell>
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
-                    <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
+                    <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</TableCell>
                     <TableCell>{p.proprietaires_terres?.nom_complet ? p.proprietaires_terres.nom_complet : (ownClient ? parcelClients[0]?.nom_complet || "Client" : "—")}</TableCell>
-                    <TableCell>{Math.round(Number(p.surface_agricapital_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
+                    <TableCell>{Number(p.surface_agricapital_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</TableCell>
                     <TableCell>{parcelLots.length || "—"}</TableCell>
                     <TableCell className="max-w-[280px] text-xs">
                       {parcelClients.length ? parcelClients.map(c => <div key={c.id}>{c.nom_complet} · {c.total_hectares} ha</div>) : "—"}
@@ -218,7 +222,7 @@ const Parcelles = () => {
                 {editParcel ? <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1"><Label>Nom de la parcelle</Label><Input value={parcelForm.nom} onChange={e => setParcelForm(v => ({ ...v, nom: e.target.value }))} /></div>
                   <div className="space-y-1"><Label>Village</Label><Input value={parcelForm.village} onChange={e => setParcelForm(v => ({ ...v, village: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Superficie totale (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_totale_ha} onChange={e => setParcelForm(v => ({ ...v, surface_totale_ha: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Superficie totale (ha)</Label><Input type="number" min={selectedParcel.convention_id || ["plante_partage","achat"].includes(String(selectedParcel.mode_surface||"").toLowerCase()) ? "2" : "0.5"} step={selectedParcel.convention_id || ["plante_partage","achat"].includes(String(selectedParcel.mode_surface||"").toLowerCase()) ? "2" : "0.5"} value={parcelForm.surface_totale_ha} onChange={e => setParcelForm(v => ({ ...v, surface_totale_ha: e.target.value }))} /></div>
                   <div className="space-y-1"><Label>Part AgriCapital (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_agricapital_ha} onChange={e => setParcelForm(v => ({ ...v, surface_agricapital_ha: e.target.value }))} /></div>
                   <div className="space-y-1 sm:col-span-2"><Label>Statut</Label><Select value={parcelForm.statut} onValueChange={statut => setParcelForm(v => ({ ...v, statut }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="disponible">Disponible</SelectItem><SelectItem value="partiellement_attribuee">Partiellement attribuée</SelectItem><SelectItem value="saturee">Saturée</SelectItem><SelectItem value="validee">Validée</SelectItem><SelectItem value="a_valider">À valider</SelectItem></SelectContent></Select></div>
                 </div> : <div className="grid gap-3 sm:grid-cols-2">
