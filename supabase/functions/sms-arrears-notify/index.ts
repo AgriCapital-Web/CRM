@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const formatMontant = (m:number) => new Intl.NumberFormat("fr-FR").format(Math.round(m));
-const sendRoutedNotification = async (client: any, contact: any, text: string, eventKey: string) => {
+const sendRoutedNotification = async (_db: any, client: any, contact: any, text: string, eventKey: string) => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const response = await fetch(url + "/functions/v1/notification-dispatch", {
