@@ -986,14 +986,9 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
       }
       contacts = eligible;
     }
-    let selectedChannel = automation.canal;
-    if (selectedChannel === "auto" && context.client_id) {
-      const preferenceColumn = eventCode === "solde_regle" ? "canal_finalisation" : "canal_rappel";
-      const { data: preference } = await admin.from("notification_client_preferences")
-        .select(preferenceColumn).eq("client_id", String(context.client_id)).maybeSingle();
-      const preferred = preference?.[preferenceColumn];
-      if (typeof preferred === "string" && preferred !== "auto") selectedChannel = preferred;
-    }
+    // La règle nationale/internationale prévaut sur les anciennes préférences de canal client.
+    // Les notifications automatiques sont routées par l'indicatif du numéro dans deliver().
+    const selectedChannel = automation.canal;
     const result = await deliver({
       automationId: automation.id, canal: selectedChannel, subject: automation.sujet,
       content: automation.contenu, contacts, context, mediaAttachments: automation.media_attachments || [],
