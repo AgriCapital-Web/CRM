@@ -137,7 +137,6 @@ const ClientDetail = () => {
   const selectedOfferNeedsClientLand = newAcquisitionFormData.offre
     ? !!newAcquisitionFormData.offre.necessite_foncier_client
     : false;
-  const returnedAcquisition = clientAcquisitions.find((item:any) => item.created_by === user?.id && item.validation_statut === "modification_demandee") || null;
   const updateNewAcquisitionFormData = (patch: any) => {
     if (patch.offre_id && patch.offre_id !== newAcquisitionFormData.offre_id) {
       setNewPlantationLotId("");
