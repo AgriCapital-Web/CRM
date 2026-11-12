@@ -92,8 +92,8 @@ const BeneficiaireParticulier = () => {
       return;
     }
     const proprietaireNomComplet = [proprietaire.nom, proprietaire.prenoms].filter(Boolean).join(" ").trim();
-    if (!proprietaire.nom.trim() || !proprietaire.prenoms.trim() || !parcelle.code_parc.trim()) {
-      toast({ variant: "destructive", title: "Rattachement incomplet", description: "Le nom, les prénoms du propriétaire foncier et la référence de parcelle sont obligatoires." });
+    if (!proprietaire.nom.trim() || !proprietaire.prenoms.trim() || !parcelle.code_parc.trim() || !String(proprietaire.village || "").trim() || !String(parcelle.village || "").trim()) {
+      toast({ variant: "destructive", title: "Rattachement incomplet", description: "Le nom, les prénoms, la référence de parcelle et les localités du propriétaire et de la parcelle sont obligatoires. Le district reste facultatif." });
       return;
     }
 
