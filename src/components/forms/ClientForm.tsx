@@ -169,6 +169,10 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       return;
     }
     if (!user || !client?.id) return;
+    if (!String(form.localite || "").trim()) {
+      toast({ variant: "destructive", title: "Localité requise", description: "Saisissez le village ou la localité. Le choix du district reste facultatif." });
+      return;
+    }
     setLoading(true);
     try {
       let photo_profil_url = form.photo_profil_url || null;
