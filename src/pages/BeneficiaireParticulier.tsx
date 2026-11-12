@@ -84,9 +84,16 @@ const BeneficiaireParticulier = () => {
       toast({ variant: "destructive", title: "Informations manquantes", description: "Le nom, le prénom et le numéro de pièce sont obligatoires." });
       return;
     }
+    const parcelArea = Number(parcelle.surface_totale_ha);
+    const beneficiaryArea = Number(plantation.superficie_ha);
+    const validHalfArea = (area: number) => Number.isFinite(area) && area >= 0.5 && Math.abs(area * 2 - Math.round(area * 2)) <= 0.000001;
+    if (!validHalfArea(parcelArea) || !validHalfArea(beneficiaryArea) || beneficiaryArea > parcelArea) {
+      toast({ variant: "destructive", title: "Superficie invalide", description: "La parcelle doit mesurer au moins 0,50 ha et la quote-part de plantation doit être d’au moins 0,50 ha, par pas de 0,50 ha, sans dépasser la parcelle." });
+      return;
+    }
     const proprietaireNomComplet = [proprietaire.nom, proprietaire.prenoms].filter(Boolean).join(" ").trim();
-    if (!proprietaire.nom.trim() || !proprietaire.prenoms.trim() || !parcelle.code_parc.trim()) {
-      toast({ variant: "destructive", title: "Rattachement incomplet", description: "Le nom, les prénoms du propriétaire foncier et la référence de parcelle sont obligatoires." });
+    if (!proprietaire.nom.trim() || !proprietaire.prenoms.trim() || !parcelle.code_parc.trim() || !String(proprietaire.village || "").trim() || !String(parcelle.village || "").trim()) {
+      toast({ variant: "destructive", title: "Rattachement incomplet", description: "Le nom, les prénoms, la référence de parcelle et les localités du propriétaire et de la parcelle sont obligatoires. Le district reste facultatif." });
       return;
     }
 
@@ -228,7 +235,7 @@ const BeneficiaireParticulier = () => {
             <div><Label>Nom</Label><Input value={proprietaire.nom} onChange={e=>setProprietaire({...proprietaire,nom:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <div><Label>Prénom</Label><Input value={proprietaire.prenoms} onChange={e=>setProprietaire({...proprietaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <CountryPhoneInput label="Téléphone du propriétaire" countryCode={proprietaire.telephone_indicatif||""} localValue={proprietaire.telephone_local||""} onChange={v=>setProprietaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
-            <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={proprietaire.district_id} regionId={proprietaire.region_id} departementId={proprietaire.departement_id} sousPrefectureId={proprietaire.sous_prefecture_id} villageId={proprietaire.village_id} required onChange={(g)=>setProprietaire((x:any)=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",village:g.villageName||""}))}/></div>
+            <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={proprietaire.district_id} regionId={proprietaire.region_id} departementId={proprietaire.departement_id} sousPrefectureId={proprietaire.sous_prefecture_id} villageId={proprietaire.village_id} villageName={proprietaire.village||""} required onChange={(g)=>setProprietaire((x:any)=>({...x,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{village:g.villageName??""}:{})}))}/></div>
             <div><Label>Statut foncier</Label><Input value={proprietaire.statut_foncier} onChange={e=>setProprietaire({...proprietaire,statut_foncier:e.target.value})}/></div>
           </CardContent>
         </Card>
@@ -237,8 +244,8 @@ const BeneficiaireParticulier = () => {
           <CardHeader><CardTitle className="flex items-center gap-2"><LandPlot className="h-5 w-5" /> Parcelle</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div><Label>Référence parcelle *</Label><Input value={parcelle.code_parc} onChange={e=>setParcelle({...parcelle,code_parc:e.target.value})}/></div>
-            <div><Label>Superficie physique de la parcelle (ha) *</Label><Input type="number" step="0.01" min="0" value={parcelle.surface_totale_ha} onChange={e=>setParcelle({...parcelle,surface_totale_ha:e.target.value})}/></div>
-            <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={parcelle.district_id} regionId={parcelle.region_id} departementId={parcelle.departement_id} sousPrefectureId={parcelle.sous_prefecture_id} villageId={parcelle.village_id} required onChange={(g)=>{const next={...parcelle,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",village:g.villageName||""};setParcelle(next);setProprietaire((x:any)=>({...x,district_id:next.district_id,region_id:next.region_id,departement_id:next.departement_id,sous_prefecture_id:next.sous_prefecture_id,village_id:next.village_id,village:next.village}));}}/></div>
+            <div><Label>Superficie physique de la parcelle (ha) *</Label><Input type="number" step="0.5" min="0.5" value={parcelle.surface_totale_ha} onChange={e=>setParcelle({...parcelle,surface_totale_ha:e.target.value})} onBlur={e=>{const raw=Number(e.currentTarget.value);if(Number.isFinite(raw)&&raw>0){const minimumPhysical=Math.max(0.5,2*Number(plantation.superficie_ha||0.5));const normalized=Math.max(minimumPhysical,Math.ceil((raw-0.000000001)*2)/2);if(Math.abs(normalized-raw)>0.000001||Math.abs(normalized-Number(parcelle.surface_totale_ha))>0.000001)setParcelle(current=>({...current,surface_totale_ha:String(normalized)}));}}}/></div>
+            <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={parcelle.district_id} regionId={parcelle.region_id} departementId={parcelle.departement_id} sousPrefectureId={parcelle.sous_prefecture_id} villageId={parcelle.village_id} villageName={parcelle.village||""} required onChange={(g)=>{const next={...parcelle,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{village:g.villageName??""}:{})};setParcelle(next);setProprietaire((x:any)=>({...x,district_id:next.district_id,region_id:next.region_id,departement_id:next.departement_id,sous_prefecture_id:next.sous_prefecture_id,village_id:next.village_id,village:next.village}));}}/></div>
             
           </CardContent>
         </Card>
@@ -246,7 +253,7 @@ const BeneficiaireParticulier = () => {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Sprout className="h-5 w-5" /> Actif agricole</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><Label>Quote-part du bénéficiaire (ha)</Label><Input type="number" step="0.01" value={plantation.superficie_ha} onChange={e=>setPlantation({...plantation,superficie_ha:e.target.value})}/></div>
+            <div><Label>Quote-part du bénéficiaire (ha)</Label><Input type="number" step="0.5" min="0.5" value={plantation.superficie_ha} onChange={e=>setPlantation({...plantation,superficie_ha:e.target.value})} onBlur={e=>{const raw=Number(e.currentTarget.value);if(Number.isFinite(raw)&&raw>0){const normalized=Math.max(0.5,Math.ceil((raw-0.000000001)*2)/2);setPlantation(current=>({...current,superficie_ha:String(normalized),superficie_activee:String(normalized)}));setParcelle(current=>{const physical=Number(current.surface_totale_ha||0);const minimumPhysical=2*normalized;const normalizedPhysical=Math.max(minimumPhysical,Math.ceil((physical-0.000000001)*2)/2);return Math.abs(normalizedPhysical-physical)>0.000001?{...current,surface_totale_ha:String(normalizedPhysical)}:current;});}}}/></div>
             <div><Label>Date de plantation / engagement</Label><Input type="date" value={plantation.date_plantation} onChange={e=>setPlantation({...plantation,date_plantation:e.target.value})}/></div>
             <div><Label>Date d’activation</Label><Input type="date" value={plantation.date_activation} onChange={e=>setPlantation({...plantation,date_activation:e.target.value})}/></div>
           </CardContent>

@@ -41,7 +41,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const canEditClient = can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
   const [isEditing, setIsEditing] = useState(!readOnly && canEditClient);
   const { toast } = useToast();
-  const [form, setForm] = useState<any>(() => ({ ...client }));
+  const [form, setForm] = useState<any>(() => ({ ...(client || {}), localite: client?.localite || client?.village || client?.village_nom || "" }));
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [pieceRectoFile, setPieceRectoFile] = useState<File | null>(null);
@@ -63,7 +63,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   // Reuse du composant d'édition entre deux clients : ne jamais conserver les
   // valeurs ou les médias du client précédent lorsque l'identifiant change.
   useEffect(() => {
-    setForm({ ...(client || {}) });
+    setForm({ ...(client || {}), localite: client?.localite || client?.village || client?.village_nom || "" });
     setIsEditing(!readOnly && canEditClient);
     setPhotoFile(null);
     setPieceRectoFile(null);
@@ -274,7 +274,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     <FileUploadVisual
       label={label}
       field={field}
-      accept="image/*,.pdf"
+      accept={field === "photo_profil" ? "image/*" : "image/*,.pdf"}
       currentFile={file}
       currentPreview={currentPreview}
       existingPreview={field === "photo_profil" ? storedPhotoPreview : field === "piece_recto" ? storedRectoPreview : storedVersoPreview}
@@ -332,7 +332,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
           <div className="space-y-1"><CountryPhoneInput compact label="Téléphone principal" required countryCode={form.telephone_indicatif || undefined} localValue={form.telephone_local || form.telephone || ""} onChange={v=>{setField("telephone_indicatif",v.callingCode);setField("telephone_local",v.localValue);setField("telephone",v.internationalValue)}}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!form.telephone_principal_whatsapp} onCheckedChange={v=>{setField("telephone_principal_whatsapp",v===true);if(v===true)setField("telephone_secondaire_whatsapp",false);}}/>Dispose d'un compte WhatsApp !</label></div>
           <div className="space-y-1"><CountryPhoneInput compact label="Téléphone secondaire" countryCode={form.telephone_secondaire_indicatif || undefined} localValue={form.telephone_secondaire_local || form.telephone_secondaire || ""} onChange={v=>{setField("telephone_secondaire_indicatif",v.callingCode);setField("telephone_secondaire_local",v.localValue);setField("telephone_secondaire",v.internationalValue)}}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!form.telephone_secondaire_whatsapp} onCheckedChange={v=>{setField("telephone_secondaire_whatsapp",v===true);if(v===true)setField("telephone_principal_whatsapp",false);}}/>Dispose d'un compte WhatsApp !</label></div>
           <div><Label className="text-xs">Email</Label><Input className="h-8" type="email" value={form.email || ""} onChange={e=>setField("email",e.target.value)}/></div>
-          <div className="md:col-span-2 min-w-0"><GeographieCascade className="grid grid-cols-1 md:grid-cols-3 gap-2" districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} villageId={form.village_id} required extraField={<div className="space-y-1 min-w-0"><Label className="text-xs">Lieu de résidence</Label><Input className="h-8" value={form.domicile_residence || form.domicile || ""} onChange={e=>{setField("domicile_residence",e.target.value);setField("domicile",e.target.value);}} /></div>} onChange={(g)=>setForm((x:any)=>({...x,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{localite:g.villageName??x.localite??""}:{})}))}/></div>
+          <div className="md:col-span-2 min-w-0"><GeographieCascade className="grid grid-cols-1 md:grid-cols-3 gap-2" districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} villageId={form.village_id} villageName={form.localite || ""} required extraField={<div className="space-y-1 min-w-0"><Label className="text-xs">Lieu de résidence</Label><Input className="h-8" value={form.domicile_residence || form.domicile || ""} onChange={e=>{setField("domicile_residence",e.target.value);setField("domicile",e.target.value);}} /></div>} onChange={(g)=>setForm((x:any)=>({...x,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{localite:g.villageName??""}:{})}))}/></div>
           <div className="md:col-span-2 rounded-md border p-3 space-y-2">
             <p className="text-xs font-semibold">Coordonnées GPS du site client</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

@@ -29,7 +29,7 @@ import {
 const money = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
 
-const num = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(Number(n || 0)));
+const formatHa = (n: number) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(n || 0));
 
 // AgriCapital est un compte interne, jamais un client commercial, même si un ancien enregistrement est mal catégorisé.
 const isAgriCapitalInternal = (client: any) => /agricapital/i.test(String(client?.nom_complet || client?.nom || "").trim());
@@ -299,7 +299,7 @@ const Dashboard = () => {
         const byParcel = new Map<string, number>();
         let withoutParcel = 0;
         rows.forEach((row: any) => {
-          const amount = Math.max(0, Number(row.surface_reellement_plantee ?? row.superficie_activee ?? 0));
+          const amount = Math.max(0, Number(row.superficie_activee ?? row.superficie_ha ?? row.surface_reellement_plantee ?? 0));
           if (row.parcelle_id) byParcel.set(row.parcelle_id, (byParcel.get(row.parcelle_id) || 0) + amount);
           else withoutParcel += amount;
         });
@@ -325,7 +325,7 @@ const Dashboard = () => {
       let engagedHa = commercialClients.reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const scopedPlantations = plantations.filter((p: any) => p.client_id && dashboardClientIds.has(p.client_id));
       let plantedHa = scopedPlantations.reduce((s: number, p: any) =>
-        s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+        s + Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0), 0);
       let remainingHa = Math.max(0, engagedHa - plantedHa);
       const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
       const productionHa = sumPlantedArea(productionRows);
@@ -368,7 +368,7 @@ const Dashboard = () => {
       const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
       const plantedByPartnershipParcel = new Map<string, number>();
       plantations.filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id)).forEach((p: any) => {
-        const amount = Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0);
+        const amount = Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0);
         plantedByPartnershipParcel.set(p.parcelle_id, (plantedByPartnershipParcel.get(p.parcelle_id) || 0) + amount);
       });
       const partnershipMetrics = validatedPartnershipParcels.reduce((acc: any, p: any) => {
@@ -665,7 +665,7 @@ const Dashboard = () => {
         const mPlant = scopedPlantations.filter((p: any) => {
           const dt = new Date(p.date_plantation || p.date_activation || p.created_at);
           return dt >= d && dt <= end;
-        }).reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+        }).reduce((s: number, p: any) => s + Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0), 0);
         const mPay = commercialValidPayments.filter((p: any) => {
           const dt = new Date(p.date_paiement || p.created_at);
           return dt >= d && dt <= end;
@@ -685,10 +685,11 @@ const Dashboard = () => {
       setAlerts(newAlerts);
 
       const superficieGroups = [
-        { label: "1 ha", min: 1, max: 1 },
-        { label: "2 ha", min: 2, max: 2 },
-        { label: "3–5 ha", min: 3, max: 5 },
-        { label: "5–10 ha", min: 5, max: 10 },
+        { label: "0,5–1 ha", min: 0.5, max: 1 },
+        { label: "1–2 ha", min: 1, max: 2 },
+        { label: "2–4 ha", min: 2, max: 4 },
+        { label: "4–6 ha", min: 4, max: 6 },
+        { label: "6–10 ha", min: 6, max: 10 },
         { label: "10–50 ha", min: 10, max: 50 },
         { label: "50–100 ha", min: 50, max: 100 },
         { label: "100+ ha", min: 100, max: Number.POSITIVE_INFINITY },
@@ -754,17 +755,17 @@ const Dashboard = () => {
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
       ...(canParcelles || canPlantations ? [
         {label:"Parcelles partenaires",value:stats.proprietaireParcelles,href:"/parcelles"},
-        {label:"Surface partenaire",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
-        {label:"Surface plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
-        {label:"Surface restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},
+        {label:"Surface partenaire",value:formatHa(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
+        {label:"Surface plantée",value:formatHa(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
+        {label:"Surface restante",value:formatHa(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},
       ] : []),
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations",value:stats.plantations,href:"/plantations"},
-      {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
-      {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
-      {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
-      ...(canViewIndependentServiceItems ? [{label:"Superficie indép.",value:num(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
+      {label:"Surface engagée",value:formatHa(stats.engagedHa)+" ha",href:"/acquisitions"},
+      {label:"Surface plantée",value:formatHa(stats.plantedHa)+" ha",href:"/plantations"},
+      {label:"Surface restante",value:formatHa(stats.remainingHa)+" ha",href:"/plantations"},
+      ...(canViewIndependentServiceItems ? [{label:"Superficie indép.",value:formatHa(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
     ]},
   ];
 
@@ -894,7 +895,7 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader className="px-3 pb-1 pt-3"><CardTitle className="text-sm flex items-center gap-2"><Award className="h-4 w-4 text-primary" />Équipes</CardTitle></CardHeader>
                   <CardContent className="p-3 pt-1"><div className="responsive-auto-grid">{teamPerformance.map((team) => (
-                    <div key={team.key} className="rounded-lg border p-2"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" client(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-1 text-xs text-muted-foreground">{num(team.hectares)} ha</p>}<div className="my-2 border-t border-border" role="separator" /><div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">Membres de l’équipe</span><span className="font-semibold tabular-nums">{team.members}</span></div></div>
+                    <div key={team.key} className="rounded-lg border p-2"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{team.nom}</p><p className="text-xs text-muted-foreground">{team.type === "commercial" ? "Équipe commerciale" : "Équipe technique"}</p></div><Badge variant="secondary">{team.type === "commercial" ? team.clients+" client(s)" : team.interventions+" intervention(s)"}</Badge></div>{team.type === "commercial" && <p className="mt-1 text-xs text-muted-foreground">{formatHa(team.hectares)} ha</p>}<div className="my-2 border-t border-border" role="separator" /><div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">Membres de l’équipe</span><span className="font-semibold tabular-nums">{team.members}</span></div></div>
                   ))}</div></CardContent>
                 </Card>
               )}

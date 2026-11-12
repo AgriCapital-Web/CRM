@@ -104,34 +104,57 @@ const ClientDetail = () => {
   const paginatedPaiements=filteredPaiements.slice((paymentPage-1)*pageSize,paymentPage*pageSize);
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
+  const returnedAcquisition = clientAcquisitions.find((item:any) => item.created_by === user?.id && item.validation_statut === "modification_demandee") || null;
   const selectedOfferFamily = String(newAcquisitionFormData.offre?.famille_offre || newAcquisitionFormData.offre?.code || newAcquisitionFormData.famille_offre || newAcquisitionFormData.offre_code || "").toUpperCase().replace(/[-_\s]/g, "");
   const isPalmInvestOffer = selectedOfferFamily === "PALMINVEST";
+  const newAcquisitionArea = Number(newAcquisitionFormData.superficie_prevue || 0);
+  const validNewAcquisitionArea = isPalmInvestOffer
+    ? Number.isInteger(newAcquisitionArea) && newAcquisitionArea >= 1
+    : Number.isFinite(newAcquisitionArea) && newAcquisitionArea >= 0.5 && Math.abs(newAcquisitionArea * 2 - Math.round(newAcquisitionArea * 2)) <= 0.000001;
+  const returnedOfferFamily = String(returnedAcquisition?.offre_snapshot?.offer?.famille_offre || returnedAcquisition?.offre_snapshot?.offer?.code || returnedAcquisition?.offre_code || "").toUpperCase().replace(/[-_\s]/g, "");
+  const isReturnedPalmInvest = returnedOfferFamily === "PALMINVEST" || /PALMINVEST/i.test(JSON.stringify(returnedAcquisition?.offre_snapshot || {}));
   const requestedPalmInvestLots = Math.round(Number(newAcquisitionFormData.superficie_prevue || 0));
   const lotsForSelectedParcel = availableLots.filter((lot: any) =>
     lot.parcelle_id === newPlantationParcelId &&
     (isPalmInvestOffer
-      ? Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001
-      : (!Number(newAcquisitionFormData.superficie_prevue) || Math.abs(Number(lot.surface_ha || 0) - Number(newAcquisitionFormData.superficie_prevue)) < 0.0001))
+      ? Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001 && Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0) >= 1
+      : Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0) > 0)
   ).sort((a: any, b: any) => Number(a.numero_h || 0) - Number(b.numero_h || 0));
   const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
-  const selectedLotSeries = selectedNewLot && isPalmInvestOffer
-    ? lotsForSelectedParcel.filter((lot: any) => Number(lot.numero_h) >= Number(selectedNewLot.numero_h)).slice(0, Math.max(1, requestedPalmInvestLots))
-    : selectedNewLot ? [selectedNewLot] : [];
-  const selectedLotSeriesReady = !isPalmInvestOffer || (
-    requestedPalmInvestLots >= 1 &&
-    selectedLotSeries.length === requestedPalmInvestLots &&
-    selectedLotSeries[0]?.id === selectedNewLot?.id &&
-    selectedLotSeries.every((lot: any, index: number) => index === 0 || Number(lot.numero_h) === Number(selectedLotSeries[index - 1].numero_h) + 1)
+  const selectedLotSeries = selectedNewLot ? (() => {
+    const requested = isPalmInvestOffer ? requestedPalmInvestLots : newAcquisitionArea;
+    const candidates = lotsForSelectedParcel.filter((lot: any) => lot.convention_id === selectedNewLot.convention_id && Number(lot.numero_h) >= Number(selectedNewLot.numero_h));
+    const series: any[] = [];
+    let remaining = requested;
+    for (const lot of candidates) {
+      if (series.length && Number(lot.numero_h) !== Number(series[series.length - 1].numero_h) + 1) break;
+      if (remaining <= 0.000001) break;
+      const available = isPalmInvestOffer ? 1 : Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0);
+      const allocated = Math.min(remaining, available);
+      if (allocated <= 0) continue;
+      series.push({ ...lot, allocated_surface_ha: allocated });
+      remaining = Math.max(0, remaining - allocated);
+    }
+    return series;
+  })() : [];
+  const selectedLotSeriesSurface = selectedLotSeries.reduce((sum: number, lot: any) => sum + Number(lot.allocated_surface_ha ?? (isPalmInvestOffer ? 1 : 0)), 0);
+  const selectedLotSeriesContiguous = selectedLotSeries.length > 0 && selectedLotSeries[0]?.id === selectedNewLot?.id &&
+    selectedLotSeries.every((lot: any, index: number) => index === 0 || Number(lot.numero_h) === Number(selectedLotSeries[index - 1].numero_h) + 1);
+  const selectedLotSeriesReady = !!selectedNewLot && selectedLotSeriesContiguous && (
+    isPalmInvestOffer
+      ? requestedPalmInvestLots >= 1 && selectedLotSeries.length === requestedPalmInvestLots && selectedLotSeries.every((lot: any) => Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001)
+      : newAcquisitionArea >= 0.5 && selectedLotSeriesSurface + 0.000001 >= newAcquisitionArea
   );
   const selectedLotGroupReference = selectedNewLot
-    ? isPalmInvestOffer && selectedLotSeries.length > 1
-      ? `${availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.id_unique || "PARCELLE"}-L${String(selectedLotSeries[0]?.numero_h || "").padStart(2, "0")}-${String(selectedLotSeries[selectedLotSeries.length - 1]?.numero_h || "").padStart(2, "0")}`
+    ? selectedLotSeries.length > 1
+      ? isPalmInvestOffer
+        ? `${availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.id_unique || "PARCELLE"}-L${String(selectedLotSeries[0]?.numero_h || "").padStart(2, "0")}-${String(selectedLotSeries[selectedLotSeries.length - 1]?.numero_h || "").padStart(2, "0")}`
+        : selectedLotSeries.map((lot: any) => lot.reference || `L${String(lot.numero_h || "").padStart(2, "0")}`).join(" + ")
       : selectedNewLot.reference || `${availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.id_unique || "PARCELLE"}-L${String(selectedNewLot.numero_h || "").padStart(2, "0")}`
     : "";
   const selectedOfferNeedsClientLand = newAcquisitionFormData.offre
     ? !!newAcquisitionFormData.offre.necessite_foncier_client
     : false;
-  const returnedAcquisition = clientAcquisitions.find((item:any) => item.created_by === user?.id && item.validation_statut === "modification_demandee") || null;
   const updateNewAcquisitionFormData = (patch: any) => {
     if (patch.offre_id && patch.offre_id !== newAcquisitionFormData.offre_id) {
       setNewPlantationLotId("");
@@ -201,8 +224,8 @@ const ClientDetail = () => {
   const resubmitSaleCorrection = async () => {
     if (!returnedAcquisition || savingSaleCorrection) return;
     const surface = Number(saleCorrectionSurface);
-    if (!Number.isFinite(surface) || surface <= 0) {
-      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie doit être supérieure à zéro." });
+    if (!Number.isFinite(surface) || (isReturnedPalmInvest ? (!Number.isInteger(surface) || surface < 1) : (surface < 0.5 || Math.abs(surface * 2 - Math.round(surface * 2)) > 0.000001))) {
+      toast({ variant: "destructive", title: "Superficie invalide", description: isReturnedPalmInvest ? "PalmInvest exige des lots entiers de 1 ha minimum." : "La superficie minimale est de 0,50 ha, par pas de 0,50 ha." });
       return;
     }
     setSavingSaleCorrection(true);
@@ -427,11 +450,11 @@ const ClientDetail = () => {
             .select("id,id_unique,nom,village,proprietaire_id,mode_surface,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
             .order("id_unique", { ascending: true }),
           (supabase as any).from("lots_hectares")
-            .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id,part_type")
+            .select("id,reference,numero_h,surface_ha,surface_attribuee_ha,surface_disponible_ha,parcelle_id,convention_id,statut,client_id,acquisition_id,part_type")
             .eq("part_type", "agricapital")
             .is("client_id", null)
             .is("acquisition_id", null)
-            .in("statut", ["disponible", "libre"])
+            .in("statut", ["disponible", "libre", "partiellement_attribue"])
             .order("numero_h", { ascending: false }),
           (supabase as any).from("conventions_foncieres")
             .select("id,parcelle_id,proprietaire_id,statut")
@@ -501,8 +524,8 @@ const ClientDetail = () => {
       return;
     }
     const area = Number(newAcquisitionFormData.superficie_prevue);
-    if (!newAcquisitionFormData.offre_id || !newAcquisitionFormData.formule_code || area <= 0) {
-      toast({ variant: "destructive", title: "Acquisition incomplète", description: "Choisissez une offre, une formule et une superficie valide." });
+    if (!newAcquisitionFormData.offre_id || !newAcquisitionFormData.formule_code || !validNewAcquisitionArea) {
+      toast({ variant: "destructive", title: "Acquisition incomplète", description: isPalmInvestOffer ? "Choisissez une offre, une formule et un nombre entier de lots de 1 ha minimum." : "Choisissez une offre, une formule et une superficie d’au moins 0,50 ha, par pas de 0,50 ha." });
       return;
     }
     if (!selectedOfferNeedsClientLand && (!newPlantationLotId || !selectedLotSeriesReady)) {
@@ -670,7 +693,7 @@ const ClientDetail = () => {
             <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>Fiche officielle du client</DialogTitle><DialogDescription>Modifiez les données et pièces d’identité dans le formulaire officiel.</DialogDescription></DialogHeader>{client && <ClientForm client={client} readOnly lockCommercialAssignment onCancel={()=>setIsClientFormOpen(false)} onSuccess={()=>{setIsClientFormOpen(false);void fetchData();}} />}</DialogContent></Dialog>
       <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Ajouter un document au dossier</DialogTitle><DialogDescription>Le fichier est téléversé dans le stockage privé puis rattaché au dossier du client.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Libellé du document</Label><Input placeholder="Contrat, annexe…" value={documentLabel} onChange={e=>setDocumentLabel(e.target.value)} /></div><div className="space-y-1"><Label>Fichier</Label><Input type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>setDocumentFile(e.target.files?.[0]||null)} /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>{setIsDocumentDialogOpen(false);setDocumentFile(null);setDocumentLabel("");}}>Annuler</Button><Button type="button" onClick={()=>void uploadClientDocument()} disabled={!documentFile}>Enregistrer le document</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isValidationDialogOpen} onOpenChange={setIsValidationDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Contrôle du dossier client</DialogTitle><DialogDescription>La décision et le commentaire sont enregistrés dans Supabase.</DialogDescription></DialogHeader>{isPalmInvestClient && <div className="space-y-3 rounded-lg border p-3"><div><h3 className="font-semibold">Annexes PalmInvest (facultatif)</h3><p className="text-xs text-muted-foreground">Ajoutez une ou plusieurs pièces pendant la validation du compte.</p></div><div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><Select value={annexType} onValueChange={setAnnexType}><SelectTrigger><SelectValue placeholder="Type d’annexe"/></SelectTrigger><SelectContent><SelectItem value="convention_fonciere">Convention foncière</SelectItem><SelectItem value="fiche_identification_parcelle">Fiche d’identification de la parcelle</SelectItem><SelectItem value="pv_consentement_familial">PV de consentement familial</SelectItem></SelectContent></Select><Input type="file" accept=".pdf,image/*" onChange={e=>setAnnexFile(e.target.files?.[0]||null)}/><Button type="button" variant="outline" disabled={!annexFile||savingValidation} onClick={()=>{if(annexFile){setPendingAnnexes(current=>[...current,{type:annexType,file:annexFile}]);setAnnexFile(null);}}}><Plus className="mr-1 h-4 w-4"/>Ajouter</Button></div>{pendingAnnexes.length>0 && <ul className="space-y-1 text-sm">{pendingAnnexes.map((a,i)=><li key={i} className="flex items-center justify-between gap-2"><span>{annexLabels[a.type]} — {a.file.name}</span><Button type="button" variant="ghost" size="sm" onClick={()=>setPendingAnnexes(current=>current.filter((_,j)=>j!==i))}>Retirer</Button></li>)}</ul>}</div>}<div className="space-y-2"><Label>Commentaire de contrôle</Label><Textarea rows={3} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction" /></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsValidationDialogOpen(false)}>Annuler</Button>{client?.validation_statut === "modification_demandee" && <Button type="button" variant="outline" onClick={()=>{setIsValidationDialogOpen(false);setIsClientFormOpen(true);}}>Modifier le dossier</Button>}<Button type="button" variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button type="button" onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></DialogFooter></DialogContent></Dialog>
-      <Dialog open={isSaleCorrectionDialogOpen} onOpenChange={setIsSaleCorrectionDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Correction de la vente</DialogTitle><DialogDescription>Montants recalculés au prorata du contrat, sans nouvel échéancier.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Superficie corrigée (ha)</Label><Input type="number" min="0.01" step="0.01" value={saleCorrectionSurface} onChange={e=>setSaleCorrectionSurface(e.target.value)} /></div><div className="space-y-1"><Label>Note de correction (facultatif)</Label><Textarea rows={3} value={saleCorrectionNotes} onChange={e=>setSaleCorrectionNotes(e.target.value)} placeholder="Précision transmise au validateur" /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsSaleCorrectionDialogOpen(false)}>Annuler</Button><Button type="button" onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer"}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isSaleCorrectionDialogOpen} onOpenChange={setIsSaleCorrectionDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Correction de la vente</DialogTitle><DialogDescription>Montants recalculés au prorata du contrat, sans nouvel échéancier.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Superficie corrigée (ha)</Label><Input type="number" min={isReturnedPalmInvest ? "1" : "0.5"} step={isReturnedPalmInvest ? "1" : "0.5"} value={saleCorrectionSurface} onChange={e=>setSaleCorrectionSurface(e.target.value)} onBlur={e=>{const raw=Number(e.currentTarget.value);if(!Number.isFinite(raw)||raw<=0)return;const normalized=isReturnedPalmInvest?Math.max(1,Math.ceil(raw-0.000000001)):Math.max(0.5,Math.ceil((raw-0.000000001)*2)/2);if(Math.abs(normalized-raw)>0.000001)setSaleCorrectionSurface(String(normalized));}} /></div><div className="space-y-1"><Label>Note de correction (facultatif)</Label><Textarea rows={3} value={saleCorrectionNotes} onChange={e=>setSaleCorrectionNotes(e.target.value)} placeholder="Précision transmise au validateur" /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsSaleCorrectionDialogOpen(false)}>Annuler</Button><Button type="button" onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer"}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Racheter la monnaie client</DialogTitle></DialogHeader>
@@ -744,7 +767,7 @@ const ClientDetail = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold">
-                  {Math.round(Number(client.total_hectares || 0)).toLocaleString("fr-FR")} ha
+                  {Number(client.total_hectares || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha
                 </p>
               </CardContent>
             </Card>
@@ -792,7 +815,7 @@ const ClientDetail = () => {
                   formData={newAcquisitionFormData}
                   updateFormData={updateNewAcquisitionFormData}
                   showCommercial={false}
-                  surfaceReadOnly={!!newPlantationLotId}
+                  surfaceReadOnly={false}
                 />
 
                 <div className="space-y-2 rounded-lg border p-3">
@@ -849,7 +872,7 @@ const ClientDetail = () => {
                       <p className="text-sm text-muted-foreground">
                         {isPalmInvestOffer
                           ? "PalmInvest : 1 lot = 1 ha. Choisissez le lot de départ; le CRM réservera automatiquement autant de lots contigus que d’hectares souscrits."
-                          : "Cette offre utilise une parcelle partenaire. Choisissez une parcelle puis un lot dont la superficie correspond exactement à celle de la souscription."}
+                          : "Cette offre utilise une parcelle partenaire. Choisissez un lot de départ ; le CRM réserve la superficie demandée sur les lots contigus disponibles et fractionne le dernier lot si nécessaire."}
                         {" "}Les lots ne sont réservés qu’après confirmation par la base.
                       </p>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -867,17 +890,13 @@ const ClientDetail = () => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>{isPalmInvestOffer ? "Lot de départ (1 ha) *" : "Lot disponible correspondant à la superficie *"}</Label>
-                          <Select value={newPlantationLotId} onValueChange={(value) => {
-                            const lot = availableLots.find((item: any) => item.id === value);
-                            setNewPlantationLotId(value);
-                            if (lot && !isPalmInvestOffer) setNewAcquisitionFormData((current: any) => ({ ...current, superficie_prevue: String(lot.surface_ha || "") }));
-                          }} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
+                          <Label>{isPalmInvestOffer ? "Lot de départ (1 ha) *" : "Lot de départ *"}</Label>
+                          <Select value={newPlantationLotId} onValueChange={(value) => { setNewPlantationLotId(value); }} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
                             <SelectTrigger><SelectValue placeholder={!newPlantationParcelId ? "Choisir d’abord une parcelle" : "Choisir un lot"} /></SelectTrigger>
                             <SelectContent>
                               {lotsForSelectedParcel.map((lot: any) => (
                                 <SelectItem key={lot.id} value={lot.id}>
-                                  {lot.reference || (lot.numero_h != null ? "H" + String(lot.numero_h).padStart(2, "0") : "Lot")} · {Number(lot.surface_ha || 0).toLocaleString("fr-FR")} ha
+                                  {lot.reference || (lot.numero_h != null ? "H" + String(lot.numero_h).padStart(2, "0") : "Lot")} · {Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha disponibles
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -886,10 +905,10 @@ const ClientDetail = () => {
                       </div>
                       {selectedNewLot && (
                         <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-3">
-                          <div><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? "Lots qui seront réservés" : "Superficie réservée"}</p><p className="font-semibold">{isPalmInvestOffer ? selectedLotGroupReference : `${Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR")} ha`}</p><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? `${selectedLotSeries.length} / ${requestedPalmInvestLots} lot(s) contigus` : ""}</p></div>
+                          <div><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? "Lots qui seront réservés" : "Superficie réservée"}</p><p className="font-semibold">{selectedLotGroupReference}</p><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? `${selectedLotSeries.length} / ${requestedPalmInvestLots} lot(s) contigus` : `${selectedLotSeries.length} lot(s) mobilisé(s) · ${selectedLotSeriesSurface.toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha réservés`}</p></div>
                           <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "À confirmer"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Propriétaire partenaire</p><p className="font-semibold">Enregistré sur la parcelle</p></div>
-                          {isPalmInvestOffer && !selectedLotSeriesReady && <p className="text-sm text-destructive sm:col-span-3">Lots contigus insuffisants. Choisissez un autre lot ou une autre parcelle.</p>}
+                          {!selectedLotSeriesReady && <p className="text-sm text-destructive sm:col-span-3">Lots contigus insuffisants pour la superficie demandée. Choisissez un autre lot de départ ou une autre parcelle.</p>}
                         </div>
                       )}
                       {!loadingPlantationOptions && availableParcelles.length === 0 && (
@@ -898,7 +917,7 @@ const ClientDetail = () => {
                         </p>
                       )}
                       {!!newAcquisitionFormData.superficie_prevue && !newPlantationLotId && (
-                        <p className="text-xs text-muted-foreground">Lots affichés : {Number(newAcquisitionFormData.superficie_prevue).toLocaleString("fr-FR")} ha exactement.</p>
+                        <p className="text-xs text-muted-foreground">Lots affichés : {Number(newAcquisitionFormData.superficie_prevue).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha exactement.</p>
                       )}
                     </CardContent>
                   </Card>
@@ -914,7 +933,7 @@ const ClientDetail = () => {
                 <Button onClick={() => void saveAdditionalPlantation()} disabled={
                   savingNewPlantation || loadingPlantationOptions ||
                   !newAcquisitionFormData.offre_id || !newAcquisitionFormData.formule_code ||
-                  Number(newAcquisitionFormData.superficie_prevue) <= 0 ||
+                  !validNewAcquisitionArea ||
                   (!selectedOfferNeedsClientLand && !newPlantationLotId)
                 }>
                   {savingNewPlantation ? "Enregistrement…" : "Confirmer la acquisition"}
@@ -1004,7 +1023,7 @@ const ClientDetail = () => {
                               </Badge>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                              <div><p className="text-xs text-muted-foreground">Superficie</p><p className="font-semibold">{Number(acquisition.superficie_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                              <div><p className="text-xs text-muted-foreground">Superficie</p><p className="font-semibold">{Number(acquisition.superficie_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</p></div>
                               <div><p className="text-xs text-muted-foreground">Coût contractuel</p><p className="font-semibold">{formatMontant(Number(acquisition.montant_total_contrat || 0))} F</p></div>
                               <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="font-semibold">{formatMontant(Number(acquisition.montant_pi_total || 0))} F</p></div>
                             </div>
@@ -1060,7 +1079,7 @@ const ClientDetail = () => {
                             <TableCell>{plantation.nom_plantation}</TableCell>
                             <TableCell>{plantation.lot_reference_group || "—"}</TableCell>
                             <TableCell>{plantation.regions?.nom}</TableCell>
-                            <TableCell>{plantation.superficie_ha} ha</TableCell>
+                            <TableCell>{Number(plantation.superficie_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</TableCell>
                             <TableCell>
                               <Badge className={getStatutBadge(plantation.statut || plantation.statut_global)}>
                                 {formatStatusLabel(plantation.statut || plantation.statut_global)}
@@ -1218,7 +1237,7 @@ const ClientDetail = () => {
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <p className="font-mono text-sm">{parcelle?.nom || parcelle?.village || "Parcelle"}</p>
-                      <p><span className="font-medium">{Math.round(Number(parcelle?.surface_totale_ha || 0)).toLocaleString("fr-FR")} ha</span> · {parcelle?.village || "—"}</p>
+                      <p><span className="font-medium">{Number(parcelle?.surface_totale_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</span> · {parcelle?.village || "—"}</p>
                       <p className="text-sm text-muted-foreground">Mode : {parcelle?.mode_surface === "actif_agricole" ? "Actif agricole" : "Foncier"}</p>
                       
                     </CardContent>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +7,8 @@ import { getAllItems, putItems, STORES } from "@/lib/offlineDb";
 interface Props {
   extraField?: ReactNode;
   districtId?: string | null; regionId?: string | null; departementId?: string | null;
-  sousPrefectureId?: string | null; villageId?: string | null;
+  sousPrefectureId?: string | null; villageId?: string | null; villageName?: string | null;
+  includeInactive?: boolean;
   onChange: (values: {
     districtId?: string | null; districtName?: string | null; regionId?: string | null;
     departementId?: string | null; sousPrefectureId?: string | null; villageId?: string | null;
@@ -17,6 +18,13 @@ interface Props {
   required?: boolean; showDistrict?: boolean; showDepartement?: boolean; showSousPrefecture?: boolean; showVillage?: boolean; className?: string;
 }
 type GeoRow = { id: string; nom: string; [key: string]: any };
+const cachedRowsForScope = (rows: GeoRow[], includeInactive: boolean, activeKeys: string[]) => {
+  if (includeInactive) return rows;
+  return rows.filter((row) => {
+    const key = activeKeys.find((candidate) => typeof row[candidate] === "boolean");
+    return key ? row[key] === true : false;
+  });
+};
 const normalizeGeo = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr-FR").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 function geoNameMatches(name: string, search: string): boolean {
   const a = normalizeGeo(name), b = normalizeGeo(search);
@@ -29,7 +37,7 @@ function geoNameMatches(name: string, search: string): boolean {
 }
 
 export default function GeographieCascade({
-  districtId, regionId, departementId, sousPrefectureId, villageId, onChange,
+  districtId, regionId, departementId, sousPrefectureId, villageId, villageName, includeInactive = false, onChange,
   required = false, showDistrict = true, showDepartement = true, showSousPrefecture = true, showVillage = true,
   className = "grid md:grid-cols-2 gap-4", extraField,
 }: Props) {
@@ -45,183 +53,273 @@ export default function GeographieCascade({
   const [tick, setTick] = useState(0);
   const selectedDistrict = districts.find((d) => d.id === districtId);
   const offline = typeof navigator !== "undefined" && !navigator.onLine;
-  useEffect(() => {
-    let active = true;
-    Promise.all([getAllItems(STORES.DISTRICTS), getAllItems(STORES.REGIONS), getAllItems(STORES.DEPARTEMENTS), getAllItems(STORES.SOUS_PREFECTURES), getAllItems(STORES.VILLAGES)])
-      .then(([d,r,de,sp,v]) => { if(!active)return; const ad=d, ar=r, ade=de, asp=sp, av=v; if(ad.length)setDistricts(ad); if(ar.length)setRegions(ar); if(ade.length)setDepartements(ade); if(asp.length)setSousPrefectures(asp); if(av.length){setVillages(av);setVillageMatches(av);} })
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
 
   useEffect(() => {
+    if (typeof villageName === "string" && villageName !== villageSearch) setVillageSearch(villageName);
+  }, [villageName]);
+  useEffect(() => {
+    let active = true;
+    // En ligne, les vues v_geo_* sont la source d’autorité. Le cache n’est
+    // utilisé qu’hors ligne afin de ne pas réafficher un district désactivé
+    // à partir d’un ancien état local.
+    if (!offline) return () => { active = false; };
+    Promise.all([getAllItems(STORES.DISTRICTS), getAllItems(STORES.REGIONS), getAllItems(STORES.DEPARTEMENTS), getAllItems(STORES.SOUS_PREFECTURES), getAllItems(STORES.VILLAGES)])
+      .then(([d,r,de,sp,v]) => {
+        if(!active)return;
+        const ad=cachedRowsForScope(d,includeInactive,["est_actif_effectif","est_actif"]);
+        const activeDistrictIds=new Set(ad.map((row:any)=>String(row.id)));
+        const ar=cachedRowsForScope(r,includeInactive,["est_active_effectif","est_active","est_actif"])
+          .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id)));
+        const activeRegionIds=new Set(ar.map((row:any)=>String(row.id)));
+        const ade=cachedRowsForScope(de,includeInactive,["est_actif_effectif","est_actif"])
+          .filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id)));
+        const activeDepartementIds=new Set(ade.map((row:any)=>String(row.id)));
+        const asp=cachedRowsForScope(sp,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"])
+          .filter((row:any)=>includeInactive||activeDepartementIds.has(String(row.departement_id)));
+        const activeSousPrefectureIds=new Set(asp.map((row:any)=>String(row.id)));
+        const av=cachedRowsForScope(v,includeInactive,["est_actif_effectif","est_actif"])
+          .filter((row:any)=>includeInactive||activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
+        setDistricts(ad);
+        setRegions(ar);
+        setDepartements(ade);
+        setSousPrefectures(asp);
+        setVillages(av);
+        setVillageMatches(av);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [includeInactive, offline]);
+
+  useEffect(() => {
+    const refreshGeo = () => setTick((value) => value + 1);
+    window.addEventListener("online", refreshGeo);
+    window.addEventListener("offline", refreshGeo);
     const channel = supabase.channel(`geo-cascade-${Math.random().toString(36).slice(2)}`);
     for (const table of ["districts", "regions", "departements", "sous_prefectures", "villages"]) {
       channel.on("postgres_changes" as any, { event: "*", schema: "public", table }, () => setTick((v) => v + 1));
     }
     channel.subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      window.removeEventListener("online", refreshGeo);
+      window.removeEventListener("offline", refreshGeo);
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
     let active = true;
     void (async () => {
       const [{ data, error }, { data: regionRows }] = await Promise.all([
-        (supabase as any).from("v_geo_districts").select("id,nom").order("nom"),
-        (supabase as any).from("regions").select("district_id"),
+        (supabase as any).from("v_geo_districts").select("id,nom,est_actif_effectif").order("nom").then((result:any) => {
+          if (!includeInactive && !result.error) result.data = (result.data || []).filter((row:any) => row.est_actif_effectif === true);
+          return result;
+        }),
+        (supabase as any).from("v_geo_regions").select("district_id,est_active_effectif").then((result:any) => {
+          if (!includeInactive && !result.error) result.data = (result.data || []).filter((row:any) => row.est_active_effectif === true);
+          return result;
+        }),
       ]);
       const withChildren = new Set((regionRows || []).map((r: any) => r.district_id));
       const sorted = (error ? [] : (data || [])).sort((a: any, b: any) =>
         Number(withChildren.has(a.id)) - Number(withChildren.has(b.id)) || String(a.nom).localeCompare(String(b.nom), "fr"));
-      if (active) setDistricts(error ? (await getAllItems(STORES.DISTRICTS).catch(() => [])) : sorted);
-      if (!error && data?.length) void putItems(STORES.DISTRICTS, data.map((x:any)=>({...x,est_actif_effectif:true}))).catch(() => {});
+      const cached = error ? cachedRowsForScope(await getAllItems(STORES.DISTRICTS).catch(() => []),includeInactive,["est_actif_effectif","est_actif"]) : [];
+      if (active) setDistricts(error ? (offline ? cached : []) : sorted);
+      if (!error && data?.length) void putItems(STORES.DISTRICTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(() => {});
     })();
     return () => { active = false; };
-  }, [tick]);
+  }, [tick, includeInactive]);
 
   useEffect(() => {
     let active = true;
-    if (!districtId) { setRegions([]); return () => { active = false; }; }
     void (async () => {
-      const { data, error } = await (supabase as any).from("v_geo_regions").select("id,nom")
-        .eq("district_id", districtId).order("nom");
-      const cached = error ? (await getAllItems(STORES.REGIONS).catch(() => [])).filter((x:any) => x.district_id === districtId) : [];
-      if (active) setRegions(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.REGIONS, data.map((x:any)=>({...x,district_id:districtId,est_actif_effectif:true}))).catch(()=>{});
+      let query = (supabase as any).from("v_geo_regions").select("id,nom,district_id,est_active_effectif");
+      if (districtId) query = query.eq("district_id", districtId);
+      if (!includeInactive) query = query.eq("est_active_effectif", true);
+      const { data, error } = await query.order("nom");
+      const cachedRows = await getAllItems(STORES.REGIONS).catch(() => []);
+      const scopedRows = districtId ? cachedRows.filter((x:any) => x.district_id === districtId) : cachedRows;
+      const cachedDistrictRows = await getAllItems(STORES.DISTRICTS).catch(() => []);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? scopedRows : scopedRows.filter((row:any)=>activeDistrictIds.has(String(row.district_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif"]) : [];
+      if (active) setRegions(error ? (offline ? cached : []) : (data || []));
+      if (!error && data?.length) void putItems(STORES.REGIONS, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
-  }, [districtId, tick]);
+  }, [districtId, tick, includeInactive]);
 
   useEffect(() => {
     let active = true;
     if (!regionId) { setDepartements([]); return () => { active = false; }; }
     void (async () => {
-      const { data, error } = await (supabase as any).from("v_geo_departements").select("id,nom")
-        .eq("region_id", regionId).order("nom");
-      const cached = error ? (await getAllItems(STORES.DEPARTEMENTS).catch(() => [])).filter((x:any) => x.region_id === regionId) : [];
-      if (active) setDepartements(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((x:any)=>({...x,region_id:regionId,est_actif_effectif:true}))).catch(()=>{});
+      let query = (supabase as any).from("v_geo_departements").select("id,nom,region_id,est_actif_effectif").eq("region_id", regionId);
+      if (!includeInactive) query = query.eq("est_actif_effectif", true);
+      const { data, error } = await query.order("nom");
+      const cachedRows = (await getAllItems(STORES.DEPARTEMENTS).catch(() => [])).filter((x:any) => x.region_id === regionId);
+      const [cachedRegions,cachedDistrictRows] = await Promise.all([getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)]);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+      const activeRegionIds = new Set(cachedRowsForScope(cachedRegions,includeInactive,["est_active_effectif","est_active","est_actif"])
+        .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeRegionIds.has(String(row.region_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
+      if (active) setDepartements(error ? (offline ? cached : []) : (data || []));
+      if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
-  }, [regionId, tick]);
+  }, [regionId, tick, includeInactive]);
 
   useEffect(() => {
     let active = true;
     if (!departementId) { setSousPrefectures([]); return () => { active = false; }; }
     void (async () => {
-      const { data, error } = await (supabase as any).from("v_geo_sous_prefectures").select("id,nom")
-        .eq("departement_id", departementId).order("nom");
-      const cached = error ? (await getAllItems(STORES.SOUS_PREFECTURES).catch(() => [])).filter((x:any) => x.departement_id === departementId) : [];
-      if (active) setSousPrefectures(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((x:any)=>({...x,departement_id:departementId,est_actif_effectif:true}))).catch(()=>{});
+      let query = (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id,est_active_effectif").eq("departement_id", departementId);
+      if (!includeInactive) query = query.eq("est_active_effectif", true);
+      const { data, error } = await query.order("nom");
+      const cachedRows = (await getAllItems(STORES.SOUS_PREFECTURES).catch(() => [])).filter((x:any) => x.departement_id === departementId);
+      const [cachedDepartements,cachedRegions,cachedDistrictRows] = await Promise.all([getAllItems(STORES.DEPARTEMENTS),getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)]);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+      const activeRegionIds = new Set(cachedRowsForScope(cachedRegions,includeInactive,["est_active_effectif","est_active","est_actif"])
+        .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
+      const activeDepartementIds = new Set(cachedRowsForScope(cachedDepartements,includeInactive,["est_actif_effectif","est_actif"])
+        .filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id))).map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeDepartementIds.has(String(row.departement_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"]) : [];
+      if (active) setSousPrefectures(error ? (offline ? cached : []) : (data || []));
+      if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
-  }, [departementId, tick]);
+  }, [departementId, tick, includeInactive]);
 
   useEffect(() => {
     let active = true;
     if (!sousPrefectureId) { setVillages([]); return () => { active = false; }; }
     void (async () => {
-      const { data, error } = await (supabase as any).from("v_geo_villages").select("id,nom")
-        .eq("sous_prefecture_id", sousPrefectureId).order("nom");
-      const cached = error ? (await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId) : [];
-      if (active) setVillages(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((x:any)=>({...x,sous_prefecture_id:sousPrefectureId,est_actif_effectif:true}))).catch(()=>{});
+      let query = (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id,est_actif_effectif").eq("sous_prefecture_id", sousPrefectureId);
+      if (!includeInactive) query = query.eq("est_actif_effectif", true);
+      const { data, error } = await query.order("nom");
+      const cachedRows = (await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId);
+      const [cachedSp,cachedDepartements,cachedRegions,cachedDistrictRows] = await Promise.all([getAllItems(STORES.SOUS_PREFECTURES),getAllItems(STORES.DEPARTEMENTS),getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)]);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+      const activeRegionIds = new Set(cachedRowsForScope(cachedRegions,includeInactive,["est_active_effectif","est_active","est_actif"])
+        .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
+      const activeDepartementIds = new Set(cachedRowsForScope(cachedDepartements,includeInactive,["est_actif_effectif","est_actif"])
+        .filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id))).map((row:any)=>String(row.id)));
+      const activeSousPrefectureIds = new Set(cachedRowsForScope(cachedSp,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"])
+        .filter((row:any)=>includeInactive||activeDepartementIds.has(String(row.departement_id))).map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
+      if (active) setVillages(error ? (offline ? cached : []) : (data || []));
+      if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
-  }, [sousPrefectureId, tick]);
+  }, [sousPrefectureId, tick, includeInactive]);
 
   useEffect(() => {
     let active = true;
     const term = villageSearch.trim();
-    if (term.length < 2 && !(villageDropdownOpen && districtId)) {
+    if (term.length < 2) {
       setVillageMatches([]);
       setSearchingVillages(false);
       return () => { active = false; };
     }
     setSearchingVillages(true);
-    const timer = setTimeout(async () => {
+    const timer = window.setTimeout(async () => {
       try {
-        let candidates:any[] = (await getAllItems(STORES.VILLAGES).catch(()=>[]));
-        if (!offline) {
-          const PAGE=1000; let offset=0; const fresh:any[]=[];
-          for(let page=0;page<50;page++){
-            const {data,error}=await (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id").order("nom").range(offset,offset+PAGE-1);
-            if(error||!data?.length)break;
-            fresh.push(...data.map((x:any)=>({...x,est_actif_effectif:true}))); if(data.length<PAGE)break; offset+=PAGE;
-          }
+        let candidates: any[] = [];
+        if (offline) {
+          const [cachedVillages,cachedSp,cachedDe,cachedReg,cachedDistricts]=await Promise.all([
+            getAllItems(STORES.VILLAGES),getAllItems(STORES.SOUS_PREFECTURES),getAllItems(STORES.DEPARTEMENTS),getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)
+          ]);
+          const activeDistrictIds=new Set(cachedRowsForScope(cachedDistricts,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+          const activeRegionIds=new Set(cachedRowsForScope(cachedReg,includeInactive,["est_active_effectif","est_active","est_actif"]).filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
+          const activeDepartementIds=new Set(cachedRowsForScope(cachedDe,includeInactive,["est_actif_effectif","est_actif"]).filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id))).map((row:any)=>String(row.id)));
+          const activeSousPrefectureIds=new Set(cachedRowsForScope(cachedSp,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"]).filter((row:any)=>includeInactive||activeDepartementIds.has(String(row.departement_id))).map((row:any)=>String(row.id)));
+          candidates = cachedRowsForScope(cachedVillages, includeInactive, ["est_actif_effectif","est_actif"])
+            .filter((row:any)=>includeInactive||activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
+        } else {
+          let query = (supabase as any).from("v_geo_villages")
+            .select("id,nom,sous_prefecture_id,est_actif_effectif")
+            .ilike("nom", `%${term}%`).order("nom").limit(100);
+          if (!includeInactive) query = query.eq("est_actif_effectif", true);
+          const { data, error } = await query;
+          if (error) throw error;
+          const fresh = data || [];
           if (fresh.length) {
-            const [spRows,depRows,regRows]=await Promise.all([
+            const [spRows, depRows, regRows] = await Promise.all([
               (supabase as any).from("sous_prefectures").select("id,departement_id"),
               (supabase as any).from("departements").select("id,region_id"),
-              (supabase as any).from("regions").select("id,district_id")
+              (supabase as any).from("regions").select("id,district_id"),
             ]);
-            const spById=new Map((spRows.data||[]).map((x:any)=>[String(x.id),x]));
-            const depById=new Map((depRows.data||[]).map((x:any)=>[String(x.id),x]));
-            const regById=new Map((regRows.data||[]).map((x:any)=>[String(x.id),x]));
-            candidates.push(...fresh.map((v:any)=>{
-              const sp:any=spById.get(String(v.sous_prefecture_id));
-              const dep:any=sp?.departement_id?depById.get(String(sp.departement_id)):undefined;
-              const reg:any=dep?.region_id?regById.get(String(dep.region_id)):undefined;
-              return {...v,departement_id:sp?.departement_id||null,region_id:dep?.region_id||null,district_id:reg?.district_id||null};
-            }));
+            if (spRows.error || depRows.error || regRows.error) throw spRows.error || depRows.error || regRows.error;
+            const spById = new Map((spRows.data || []).map((x: any) => [String(x.id), x]));
+            const depById = new Map((depRows.data || []).map((x: any) => [String(x.id), x]));
+            const regById = new Map((regRows.data || []).map((x: any) => [String(x.id), x]));
+            candidates = fresh.map((v: any) => {
+              const sp: any = spById.get(String(v.sous_prefecture_id));
+              const dep: any = sp?.departement_id ? depById.get(String(sp.departement_id)) : undefined;
+              const reg: any = dep?.region_id ? regById.get(String(dep.region_id)) : undefined;
+              return { ...v, departement_id: sp?.departement_id || null, region_id: dep?.region_id || null, district_id: reg?.district_id || null };
+            });
+            void putItems(STORES.VILLAGES, candidates.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(() => {});
           }
-          const unique=new Map<string,any>(); for(const row of candidates)if(row?.id)unique.set(String(row.id),row);
-          candidates=[...unique.values()]; if(candidates.length)void putItems(STORES.VILLAGES,candidates).catch(()=>{});
         }
-        let matches=candidates.filter(v=>v?.id&&v?.nom&&geoNameMatches(v.nom,term));
-        if(sousPrefectureId)matches=matches.filter(v=>v.sous_prefecture_id===sousPrefectureId);
-        else if(departementId){
-          const sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
-          const ids=new Set(sps.filter((x:any)=>x.departement_id===departementId).map((x:any)=>x.id));
-          matches=matches.filter(v=>v.departement_id===departementId || ids.has(v.sous_prefecture_id));
-        } else if(regionId){
-          const deps=await getAllItems(STORES.DEPARTEMENTS).catch(()=>[]), sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
-          const depIds=new Set(deps.filter((x:any)=>x.region_id===regionId).map((x:any)=>x.id));
-          const spIds=new Set(sps.filter((x:any)=>depIds.has(x.departement_id)).map((x:any)=>x.id));
-          matches=matches.filter(v=>v.region_id===regionId || v.district_id===districtId || spIds.has(v.sous_prefecture_id));
-        } else if(districtId){
-          const regs=await getAllItems(STORES.REGIONS).catch(()=>[]), deps=await getAllItems(STORES.DEPARTEMENTS).catch(()=>[]), sps=await getAllItems(STORES.SOUS_PREFECTURES).catch(()=>[]);
-          const regIds=new Set(regs.filter((x:any)=>x.district_id===districtId).map((x:any)=>x.id));
-          const depIds=new Set(deps.filter((x:any)=>regIds.has(x.region_id)).map((x:any)=>x.id));
-          const spIds=new Set(sps.filter((x:any)=>depIds.has(x.departement_id)).map((x:any)=>x.id));
-          matches=matches.filter(v=>spIds.has(v.sous_prefecture_id));
+        let matches = candidates.filter((v: any) => v?.id && v?.nom && geoNameMatches(v.nom, term));
+        if (sousPrefectureId) matches = matches.filter((v: any) => v.sous_prefecture_id === sousPrefectureId);
+        else if (departementId) matches = matches.filter((v: any) => v.departement_id === departementId);
+        else if (regionId) matches = matches.filter((v: any) => v.region_id === regionId);
+        else if (districtId) matches = matches.filter((v: any) => v.district_id === districtId);
+        const q = normalizeGeo(term);
+        matches.sort((x, y) =>
+          ((normalizeGeo(x.nom) === q ? 0 : normalizeGeo(x.nom).startsWith(q) ? 1 : 2) -
+            (normalizeGeo(y.nom) === q ? 0 : normalizeGeo(y.nom).startsWith(q) ? 1 : 2)) ||
+          String(x.nom).localeCompare(String(y.nom), "fr")
+        );
+        if (active) {
+          setVillageMatches(matches.slice(0, 30));
+          setSearchingVillages(false);
         }
-        const q=normalizeGeo(term); matches.sort((x,y)=>((normalizeGeo(x.nom)===q?0:normalizeGeo(x.nom).startsWith(q)?1:2)-(normalizeGeo(y.nom)===q?0:normalizeGeo(y.nom).startsWith(q)?1:2))||String(x.nom).localeCompare(String(y.nom),"fr"));
-        if(active){setVillageMatches(matches.slice(0,30));setSearchingVillages(false);}
-      }catch{if(active){setVillageMatches([]);setSearchingVillages(false);}}
-    },180);
-    return()=>{active=false;clearTimeout(timer);};
-  }, [villageSearch,villageDropdownOpen,districtId,regionId,departementId,sousPrefectureId,tick,offline]);
-
-  const villageOptions = useMemo(() => {
-    const source = sousPrefectureId ? villages : villageMatches;
-    return source.map((v) => ({ value: v.id, label: v.nom }));
-  }, [villages, villageMatches, sousPrefectureId]);
+      } catch {
+        if (active) {
+          setVillageMatches([]);
+          setSearchingVillages(false);
+        }
+      }
+    }, 180);
+    return () => { active = false; clearTimeout(timer); };
+  }, [villageSearch, districtId, regionId, departementId, sousPrefectureId, tick, offline, includeInactive]);
 
   const selectVillage = async (id: string, name?: string) => {
     const match = [...villages, ...villageMatches].find((v) => v.id === id);
     const spId = match?.sous_prefecture_id || sousPrefectureId || null;
     let sp: any = sousPrefectures.find((x) => x.id === spId);
     if (spId && !sp) {
-      const { data } = await (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id").eq("id", spId).maybeSingle();
+      let query = (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id,est_active_effectif").eq("id", spId);
+      if (!includeInactive) query = query.eq("est_active_effectif", true);
+      const { data } = await query.maybeSingle();
       sp = data;
     }
     const depId = sp?.departement_id || departementId || null;
     let dep: any = departements.find((x) => x.id === depId);
     if (depId && !dep) {
-      const { data } = await (supabase as any).from("v_geo_departements").select("id,nom,region_id").eq("id", depId).maybeSingle();
+      let query = (supabase as any).from("v_geo_departements").select("id,nom,region_id,est_actif_effectif").eq("id", depId);
+      if (!includeInactive) query = query.eq("est_actif_effectif", true);
+      const { data } = await query.maybeSingle();
       dep = data;
     }
     const regId = dep?.region_id || regionId || null;
     let reg: any = regions.find((x) => x.id === regId);
     if (regId && !reg) {
-      const { data } = await (supabase as any).from("v_geo_regions").select("id,nom,district_id").eq("id", regId).maybeSingle();
+      let query = (supabase as any).from("v_geo_regions").select("id,nom,district_id,est_active_effectif").eq("id", regId);
+      if (!includeInactive) query = query.eq("est_active_effectif", true);
+      const { data } = await query.maybeSingle();
       reg = data;
     }
     const distId = reg?.district_id || districtId || null;
     let dist: any = districts.find((x) => x.id === distId);
     if (distId && !dist) {
-      const { data } = await (supabase as any).from("v_geo_districts").select("id,nom").eq("id", distId).maybeSingle();
+      let query = (supabase as any).from("v_geo_districts").select("id,nom,est_actif_effectif").eq("id", distId);
+      if (!includeInactive) query = query.eq("est_actif_effectif", true);
+      const { data } = await query.maybeSingle();
       dist = data;
     }
     onChange({
@@ -236,61 +334,92 @@ export default function GeographieCascade({
     setVillageMatches([]);
   };
 
-  const hasChildren = Boolean(districtId) && !/diaspora/i.test(selectedDistrict?.nom || "");
+  const hasChildren = !/diaspora/i.test(selectedDistrict?.nom || "");
+  const selectedVillageName = [...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || "";
   return <div className={className}>
-    {showDistrict && <div className="space-y-2"><Label>District{required ? " *" : ""}</Label>
+    {showDistrict && <div className="space-y-2"><Label>District</Label>
       <SearchableSelect value={districtId || ""} onValueChange={(value) => onChange({
         districtId: value, districtName: districts.find((d) => d.id === value)?.nom || null,
-        regionId: null, departementId: null, sousPrefectureId: null, villageId: null,
+        regionId: null, departementId: null, sousPrefectureId: null, villageId: null, villageName: villageId ? null : (villageName || null),
       })} options={districts.map((x) => ({ value: x.id, label: x.nom }))}
         placeholder="Sélectionner le district" searchPlaceholder="Rechercher un district" />
     </div>}
     {hasChildren && <>
-      <div className="space-y-2"><Label>Région{required ? " *" : ""}</Label>
-        <SearchableSelect value={regionId || ""} disabled={!districtId} options={regions.map((x) => ({ value: x.id, label: x.nom }))}
+      <div className="space-y-2"><Label>Région</Label>
+        <SearchableSelect value={regionId || ""} options={regions.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner la région" searchPlaceholder="Rechercher une région"
-          onValueChange={(value) => { const x = regions.find((r) => r.id === value); onChange({
-            districtId: districtId || null, districtName: selectedDistrict?.nom || null, regionId: value,
-            departementId: null, sousPrefectureId: null, villageId: null, regionName: x?.nom || null
+          onValueChange={(value) => { const x = regions.find((r) => r.id === value); const nextDistrictId = x?.district_id || districtId || null; onChange({
+            districtId: nextDistrictId, districtName: districts.find((d) => d.id === nextDistrictId)?.nom || selectedDistrict?.nom || null, regionId: value,
+            departementId: null, sousPrefectureId: null, villageId: null, villageName: villageId ? null : (villageName || null), regionName: x?.nom || null
           }); }} />
       </div>
-      {showDepartement && <div className="space-y-2"><Label>Département{required ? " *" : ""}</Label>
+      {showDepartement && <div className="space-y-2"><Label>Département</Label>
         <SearchableSelect value={departementId || ""} disabled={!regionId} options={departements.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner le département" searchPlaceholder="Rechercher un département"
           onValueChange={(value) => { const x = departements.find((d) => d.id === value); onChange({
-            districtId: districtId || null, regionId: regionId || null, departementId: value, sousPrefectureId: null, villageId: null,
-            regionName: regions.find((r) => r.id === regionId)?.nom || null, departementName: x?.nom || null, sousPrefectureName: null, villageName: null
+            districtId: districtId || null, regionId: regionId || null, departementId: value, sousPrefectureId: null, villageId: null, villageName: villageId ? null : (villageName || null),
+            regionName: regions.find((r) => r.id === regionId)?.nom || null, departementName: x?.nom || null
           }); }} />
       </div>}
-      {showSousPrefecture && <div className="space-y-2"><Label>Sous-préfecture{required ? " *" : ""}</Label>
+      {showSousPrefecture && <div className="space-y-2"><Label>Sous-préfecture</Label>
         <SearchableSelect value={sousPrefectureId || ""} disabled={!departementId} options={sousPrefectures.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner la sous-préfecture" searchPlaceholder="Rechercher une sous-préfecture"
           onValueChange={(value) => { const x = sousPrefectures.find((s) => s.id === value); onChange({
-            districtId: districtId || null, regionId: regionId || null, departementId: departementId || null, sousPrefectureId: value, villageId: null,
+            districtId: districtId || null, regionId: regionId || null, departementId: departementId || null, sousPrefectureId: value, villageId: null, villageName: villageId ? null : (villageName || null),
             regionName: regions.find((r) => r.id === regionId)?.nom || null, departementName: departements.find((d) => d.id === departementId)?.nom || null,
-            sousPrefectureName: x?.nom || null, villageName: null
+            sousPrefectureName: x?.nom || null
           }); }} />
       </div>}
-      {showVillage && <div className="space-y-2 relative"><Label>Village / localité{required ? " *" : ""}</Label>
-        <input value={villageSearch || ([...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || "")}
-          onChange={(e) => { const value=e.target.value; setVillageSearch(value); setVillageDropdownOpen(true); onChange({ villageId:null, villageName:value }); }}
-          onClick={() => { setVillageDropdownOpen(true); if (villageId) setVillageSearch(""); }}
-          onBlur={() => { window.setTimeout(() => setVillageDropdownOpen(false), 160); }}
-          autoComplete="off" role="combobox" aria-expanded={villageDropdownOpen && villageMatches.length > 0}
-          aria-autocomplete="list"
-          placeholder={sousPrefectureId ? "Cliquer puis rechercher un village" : "Cliquer pour rechercher ou saisir une localité"}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-        {searchingVillages && <p className="text-xs text-muted-foreground mt-1">Recherche des localités…</p>}
-        {villageSearch.trim().length >= 2 && !searchingVillages && villageMatches.length === 0 && !villageId &&
-          <p className="text-xs text-muted-foreground mt-1">Aucun village correspondant dans les localités accessibles.</p>}
-        {villageDropdownOpen && villageMatches.length > 0 && <div className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-lg">
-          {villageMatches.map((v) => <button type="button" key={v.id} className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
-            onMouseDown={(e) => e.preventDefault()} onClick={() => void selectVillage(v.id, v.nom)}>
-            <span>{v.nom}</span>{v.sous_prefecture_id && <span className="ml-2 text-xs text-muted-foreground">Sélectionner pour renseigner la hiérarchie</span>}
-          </button>)}
-        </div>}
-      </div>}
     </>}
+    {showVillage && <div className="space-y-2 relative"><Label>Village / localité{required ? " *" : ""}</Label>
+      <input value={villageSearch || villageName || selectedVillageName}
+        onChange={(e) => {
+          const value=e.target.value;
+          setVillageSearch(value);
+          setVillageDropdownOpen(true);
+          onChange({
+            districtId: districtId || null,
+            districtName: selectedDistrict?.nom || null,
+            regionId: regionId || null,
+            regionName: regions.find((item) => item.id === regionId)?.nom || null,
+            departementId: departementId || null,
+            departementName: departements.find((item) => item.id === departementId)?.nom || null,
+            sousPrefectureId: sousPrefectureId || null,
+            sousPrefectureName: sousPrefectures.find((item) => item.id === sousPrefectureId)?.nom || null,
+            villageId: null,
+            villageName: value
+          });
+        }}
+        onClick={() => { setVillageDropdownOpen(true); }}
+        onBlur={() => { window.setTimeout(() => {
+          const term = normalizeGeo(villageSearch);
+          const exact = villageMatches.filter((item) => normalizeGeo(item.nom) === term);
+          if (term && exact.length === 1) void selectVillage(exact[0].id, exact[0].nom);
+          else setVillageDropdownOpen(false);
+        }, 260); }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          const term = normalizeGeo(villageSearch);
+          const exact = villageMatches.filter((item) => normalizeGeo(item.nom) === term);
+          if (exact.length === 1) {
+            event.preventDefault();
+            void selectVillage(exact[0].id, exact[0].nom);
+          }
+        }}
+        autoComplete="off" role="combobox" aria-expanded={villageDropdownOpen && villageMatches.length > 0}
+        aria-autocomplete="list"
+        placeholder="Saisir une localité ou rechercher un village (sans choisir de district)"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
+      {searchingVillages && <p className="text-xs text-muted-foreground mt-1">Recherche des localités…</p>}
+      {villageSearch.trim().length >= 2 && !searchingVillages && villageMatches.length === 0 && !villageId &&
+        <p className="text-xs text-muted-foreground mt-1">Aucun village correspondant dans les localités accessibles. La saisie libre reste possible.</p>}
+      {villageDropdownOpen && villageMatches.length > 0 && <div className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-lg">
+        {villageMatches.map((v) => <button type="button" key={v.id} className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
+          onMouseDown={(e) => e.preventDefault()} onClick={() => void selectVillage(v.id, v.nom)}>
+          <span>{v.nom}</span>{v.sous_prefecture_id && <span className="ml-2 text-xs text-muted-foreground">Sélectionner pour renseigner la hiérarchie</span>}
+        </button>)}
+      </div>}
+    </div>}
     {extraField}
   </div>;
 }
