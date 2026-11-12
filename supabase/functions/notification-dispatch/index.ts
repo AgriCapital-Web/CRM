@@ -85,7 +85,7 @@ type Contact = {
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const assertSmsLength = (value: string, maxCharacters = 155) => {
   const length = Array.from(value).length;
-  if (length > maxCharacters) throw new Error(\`SMS trop long : \${length}/\${maxCharacters} caractères, espaces et signes compris.\`);
+  if (length > maxCharacters) throw new Error(`SMS trop long : ${length}/${maxCharacters} caractères, espaces et signes compris.`);
   if (!length) throw new Error("Le SMS ne peut pas être vide.");
   return value;
 };
@@ -1414,7 +1414,7 @@ serve(async (req) => {
         effectiveLength = Array.from(normalizedContent).length;
         limit = channel === "sms" ? routingPolicy.sms_max_characters : 4096;
         if (!normalizedContent || effectiveLength > limit) {
-          return json(req, { error: \`Le message doit contenir entre 1 et \${limit} caractères (actuellement \${effectiveLength}).\` }, 400);
+          return json(req, { error: `Le message doit contenir entre 1 et ${limit} caractères (actuellement ${effectiveLength}).` }, 400);
         }
       }
       if (channel === "sms" && rawAttachments.length) return json(req, { error: "Les SMS ne prennent pas en charge les pièces jointes." }, 400);
