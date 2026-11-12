@@ -315,6 +315,7 @@ const NouvelleAcquisition = () => {
       // A conversion always starts at the first official step. Never restore an unrelated
       // draft's step index into a lead/prospect conversion.
       setBrouillonId(null);
+      window.localStorage.removeItem(`agricapital:client-draft-step:${user?.id}`);
       setCurrent(0);
       setDraftLoading(false);
       return () => { mounted = false; };
@@ -342,7 +343,10 @@ const NouvelleAcquisition = () => {
         setBrouillonId(key);
         const restoredDraft = restoreDraftFiles(draft.donnees || {});
         setFormData((current:any)=>({...restoredDraft,...current}));
-        setCurrent((current:number)=>current===0?Math.max(0,Number(draft.etape_actuelle||0)):current);
+        const storedStep = window.localStorage.getItem(`agricapital:client-draft-step:${currentUser.id}`);
+        const rawStep = Number(storedStep ?? draft.etape_actuelle ?? 0);
+        const restoredStep = Number(draft.step_schema_version || 0) < 2 && rawStep >= 3 ? rawStep + 1 : rawStep;
+        setCurrent((current:number)=>current===0?Math.max(0,restoredStep):current);
       } catch (error) {
         console.warn("[Client] Brouillon local illisible; aucun brouillon serveur n'est créé.",error);
       } finally {
@@ -356,7 +360,7 @@ const NouvelleAcquisition = () => {
     if(recordId){
       const savedSteps = Array.isArray(formData.offre_snapshot?.workflow?.steps) ? formData.offre_snapshot.workflow.steps : [];
       const configuredSteps = savedSteps
-        .filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()))
+        .filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()))
         .map((item:any)=>({code:item.code,titre:item.titre,description:item.description,ordre:item.ordre,obligatoire:item.obligatoire}));
       setSteps(configuredSteps);
       if (configuredSteps.length) setCurrent(v=>Math.min(v,configuredSteps.length-1));
@@ -373,7 +377,7 @@ const NouvelleAcquisition = () => {
       if(error)toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
       // Le foncier relève exclusivement de la première intervention technique, jamais du parcours commercial.
       // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
-      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()));
+      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()));
       setSteps(configuredSteps);
       if (configuredSteps.length) setCurrent(v=>Math.min(v,configuredSteps.length-1));
       setLoadingSteps(false);
@@ -485,11 +489,22 @@ const NouvelleAcquisition = () => {
       if (!payload[field + "_preview"] && formData["doc_" + code + "_preview"]) payload[field + "_preview"] = formData["doc_" + code + "_preview"];
     }
     const key = `agricapital:client-draft:${currentUser.id}`;
-    window.localStorage.setItem(key, JSON.stringify({id:key,created_by:currentUser.id,etape_actuelle:index,donnees:payload,updated_at:new Date().toISOString()}));
+    window.localStorage.setItem(key, JSON.stringify({id:key,created_by:currentUser.id,etape_actuelle:index,step_schema_version:2,donnees:payload,updated_at:new Date().toISOString()}));
+    window.localStorage.setItem(`agricapital:client-draft-step:${currentUser.id}`, String(index));
     setBrouillonId(key);
     setSyncState("draft");
     return key;
   };
+
+  // L’index de l’étape est persisté séparément du brouillon et des aperçus
+  // de fichiers : un téléversement volumineux ou un rechargement ne ramène
+  // jamais le formulaire au premier écran.
+  useEffect(() => {
+    if (!user || draftLoading || recordId) return;
+    try {
+      window.localStorage.setItem(`agricapital:client-draft-step:${user.id}`, String(current));
+    } catch { /* l’étape reste conservée dans l’état React courant */ }
+  }, [current, user, draftLoading, recordId]);
 
   // Sauvegarde automatique après une courte pause de saisie. Le brouillon reste
   // conservé même si l’étape finale échoue; aucune actualisation n’est requise.
@@ -766,6 +781,7 @@ const NouvelleAcquisition = () => {
       }
 
       window.localStorage.removeItem(`agricapital:client-draft:${currentUser.id}`);
+      window.localStorage.removeItem(`agricapital:client-draft-step:${currentUser.id}`);
       setBrouillonId(null);
       pendingSubmitRetryRef.current = false;
       const savedOffline = !navigator.onLine || queuedMutationCountRef.current > queuedBeforeSubmit;
@@ -911,7 +927,7 @@ toast({title:"Dossier mis à jour",description:"Les informations du client et de
       case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
       case "client":return <EtapeClientDynamique formData={formData} updateFormData={updateFormData}/>;
       case "cotitulaire":return <EtapeRepresentantDynamique formData={formData} updateFormData={updateFormData}/>;
-      case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={false} showSignedContract={true} showAdditionalDocuments={true}/>;
+      case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={false} showSignedContract={false} showAdditionalDocuments={true}/>;
       case "confirmation":return <EtapeConfirmationDossier formData={formData} updateFormData={updateFormData}/>;
       default:return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
     }
