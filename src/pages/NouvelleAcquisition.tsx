@@ -414,8 +414,13 @@ const NouvelleAcquisition = () => {
     }
     if(step.code==="offre"&&!recordId){
       const hectares=Number(formData.superficie_prevue);
-      if(!Number.isFinite(hectares)||hectares<0.5||Math.abs(hectares*2-Math.round(hectares*2))>0.000001){
-        toast({variant:"destructive",title:"Superficie invalide",description:"La superficie minimale est de 0,50 ha et doit avancer par pas de 0,50 ha."});
+      const family=String(formData.offre?.famille_offre||formData.offre?.code||formData.offre_code||"").toUpperCase().replace(/[-_\s]/g,"");
+      const palmInvest=family==="PALMINVEST";
+      const validArea=palmInvest
+        ? Number.isInteger(hectares)&&hectares>=1
+        : Number.isFinite(hectares)&&hectares>=0.5&&Math.abs(hectares*2-Math.round(hectares*2))<=0.000001;
+      if(!validArea){
+        toast({variant:"destructive",title:"Superficie invalide",description:palmInvest?"PalmInvest exige des lots entiers de 1 ha minimum.":"La superficie minimale est de 0,50 ha et doit avancer par pas de 0,50 ha."});
         return false;
       }
     }
