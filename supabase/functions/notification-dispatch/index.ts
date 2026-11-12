@@ -396,7 +396,8 @@ function normalizeWhatsAppRecipient(value: unknown, indicatif?: unknown): string
   else if (indicatif && digits.length >= 8 && digits.length <= 12) {
     let dial = String(indicatif).replace(/\D/g, "");
     if (dial.startsWith("00")) dial = dial.slice(2);
-    if (dial) normalized = "+" + (digits.startsWith(dial) ? digits : dial + digits);
+    const national = dial === "225" ? digits : digits.replace(/^0+/, "");
+    if (dial) normalized = "+" + (digits.startsWith(dial) ? digits : dial + national);
   } else if (digits.length === 10 && /^0[157]\d{8}$/.test(digits)) normalized = "+225" + digits;
   else if (digits.length === 8) normalized = "+225" + digits;
   else return null;
