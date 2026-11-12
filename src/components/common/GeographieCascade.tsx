@@ -63,10 +63,18 @@ export default function GeographieCascade({
       .then(([d,r,de,sp,v]) => {
         if(!active)return;
         const ad=cachedRowsForScope(d,includeInactive,["est_actif"]);
-        const ar=cachedRowsForScope(r,includeInactive,["est_active","est_actif"]);
-        const ade=cachedRowsForScope(de,includeInactive,["est_actif"]);
-        const asp=cachedRowsForScope(sp,includeInactive,["est_active","est_actif"]);
-        const av=cachedRowsForScope(v,includeInactive,["est_actif"]);
+        const activeDistrictIds=new Set(ad.map((row:any)=>String(row.id)));
+        const ar=cachedRowsForScope(r,includeInactive,["est_active_effectif","est_active","est_actif"])
+          .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id)));
+        const activeRegionIds=new Set(ar.map((row:any)=>String(row.id)));
+        const ade=cachedRowsForScope(de,includeInactive,["est_actif_effectif","est_actif"])
+          .filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id)));
+        const activeDepartementIds=new Set(ade.map((row:any)=>String(row.id)));
+        const asp=cachedRowsForScope(sp,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"])
+          .filter((row:any)=>includeInactive||activeDepartementIds.has(String(row.departement_id)));
+        const activeSousPrefectureIds=new Set(asp.map((row:any)=>String(row.id)));
+        const av=cachedRowsForScope(v,includeInactive,["est_actif_effectif","est_actif"])
+          .filter((row:any)=>includeInactive||activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
         if(ad.length)setDistricts(ad);
         if(ar.length)setRegions(ar);
         if(ade.length)setDepartements(ade);
@@ -115,7 +123,9 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cachedRows = await getAllItems(STORES.REGIONS).catch(() => []);
       const scopedRows = districtId ? cachedRows.filter((x:any) => x.district_id === districtId) : cachedRows;
-      const cached = error ? cachedRowsForScope(scopedRows,includeInactive,["est_active_effectif","est_active","est_actif"]) : [];
+      const activeDistrictIds = new Set(districts.map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? scopedRows : scopedRows.filter((row:any)=>activeDistrictIds.has(String(row.district_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif"]) : [];
       if (active) setRegions(error ? cached : (data || []));
       if (!error && data?.length) void putItems(STORES.REGIONS, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
@@ -129,7 +139,10 @@ export default function GeographieCascade({
       let query = (supabase as any).from("v_geo_departements").select("id,nom,region_id,est_actif_effectif").eq("region_id", regionId);
       if (!includeInactive) query = query.eq("est_actif_effectif", true);
       const { data, error } = await query.order("nom");
-      const cached = error ? cachedRowsForScope((await getAllItems(STORES.DEPARTEMENTS).catch(() => [])).filter((x:any) => x.region_id === regionId),includeInactive,["est_actif"]) : [];
+      const cachedRows = (await getAllItems(STORES.DEPARTEMENTS).catch(() => [])).filter((x:any) => x.region_id === regionId);
+      const activeRegionIds = new Set(regions.map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeRegionIds.has(String(row.region_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
       if (active) setDepartements(error ? cached : (data || []));
       if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
@@ -143,7 +156,10 @@ export default function GeographieCascade({
       let query = (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id,est_active_effectif").eq("departement_id", departementId);
       if (!includeInactive) query = query.eq("est_active_effectif", true);
       const { data, error } = await query.order("nom");
-      const cached = error ? cachedRowsForScope((await getAllItems(STORES.SOUS_PREFECTURES).catch(() => [])).filter((x:any) => x.departement_id === departementId),includeInactive,["est_active","est_actif"]) : [];
+      const cachedRows = (await getAllItems(STORES.SOUS_PREFECTURES).catch(() => [])).filter((x:any) => x.departement_id === departementId);
+      const activeDepartementIds = new Set(departements.map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeDepartementIds.has(String(row.departement_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"]) : [];
       if (active) setSousPrefectures(error ? cached : (data || []));
       if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
@@ -157,7 +173,10 @@ export default function GeographieCascade({
       let query = (supabase as any).from("v_geo_villages").select("id,nom,sous_prefecture_id,est_actif_effectif").eq("sous_prefecture_id", sousPrefectureId);
       if (!includeInactive) query = query.eq("est_actif_effectif", true);
       const { data, error } = await query.order("nom");
-      const cached = error ? cachedRowsForScope((await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId),includeInactive,["est_actif"]) : [];
+      const cachedRows = (await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId);
+      const activeSousPrefectureIds = new Set(sousPrefectures.map((row:any)=>String(row.id)));
+      const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
+      const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
       if (active) setVillages(error ? cached : (data || []));
       if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
@@ -177,7 +196,15 @@ export default function GeographieCascade({
       try {
         let candidates: any[] = [];
         if (offline) {
-          candidates = cachedRowsForScope(await getAllItems(STORES.VILLAGES).catch(() => []), includeInactive, ["est_actif"]);
+          const [cachedVillages,cachedSp,cachedDe,cachedReg,cachedDistricts]=await Promise.all([
+            getAllItems(STORES.VILLAGES),getAllItems(STORES.SOUS_PREFECTURES),getAllItems(STORES.DEPARTEMENTS),getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)
+          ]);
+          const activeDistrictIds=new Set(cachedRowsForScope(cachedDistricts,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+          const activeRegionIds=new Set(cachedRowsForScope(cachedReg,includeInactive,["est_active_effectif","est_active","est_actif"]).filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
+          const activeDepartementIds=new Set(cachedRowsForScope(cachedDe,includeInactive,["est_actif_effectif","est_actif"]).filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id))).map((row:any)=>String(row.id)));
+          const activeSousPrefectureIds=new Set(cachedRowsForScope(cachedSp,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"]).filter((row:any)=>includeInactive||activeDepartementIds.has(String(row.departement_id))).map((row:any)=>String(row.id)));
+          candidates = cachedRowsForScope(cachedVillages, includeInactive, ["est_actif_effectif","est_actif"])
+            .filter((row:any)=>includeInactive||activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
         } else {
           let query = (supabase as any).from("v_geo_villages")
             .select("id,nom,sous_prefecture_id,est_actif_effectif")
@@ -299,7 +326,7 @@ export default function GeographieCascade({
         <SearchableSelect value={departementId || ""} disabled={!regionId} options={departements.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner le département" searchPlaceholder="Rechercher un département"
           onValueChange={(value) => { const x = departements.find((d) => d.id === value); onChange({
-            districtId: districtId || null, regionId: regionId || null, departementId: value, sousPrefectureId: null, villageId: null,
+            districtId: districtId || null, regionId: regionId || null, departementId: value, sousPrefectureId: null, villageId: null, villageName: null,
             regionName: regions.find((r) => r.id === regionId)?.nom || null, departementName: x?.nom || null
           }); }} />
       </div>}
