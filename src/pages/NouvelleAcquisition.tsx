@@ -429,7 +429,7 @@ const NouvelleAcquisition = () => {
     }
     if(step.code==="client"){
       const typePersonne=formData.type_personne||"personne_physique";
-      const commonMissing=["telephone","domicile"].filter(f=>!formData[f]);
+      const commonMissing=["telephone","domicile","localite"].filter(f=>!formData[f]);
       const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
