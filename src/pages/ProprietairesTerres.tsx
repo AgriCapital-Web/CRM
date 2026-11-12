@@ -462,7 +462,7 @@ const ProprietairesTerres = () => {
       date_delivrance_piece: "", lieu_residence: "", district_id: "", region_id: "",
       departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
       surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
-      type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "",
+      type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "", surface_unitaire_lot_ha: "0.5",
       statut_foncier: "coutumier", reference_cadastrale: "",
       limites_nord: "", limites_sud: "", limites_est: "", limites_ouest: "",
       servitudes: "", croquis_joint: false,
