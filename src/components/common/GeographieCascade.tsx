@@ -91,12 +91,19 @@ export default function GeographieCascade({
   }, [includeInactive, offline]);
 
   useEffect(() => {
+    const refreshGeo = () => setTick((value) => value + 1);
+    window.addEventListener("online", refreshGeo);
+    window.addEventListener("offline", refreshGeo);
     const channel = supabase.channel(`geo-cascade-${Math.random().toString(36).slice(2)}`);
     for (const table of ["districts", "regions", "departements", "sous_prefectures", "villages"]) {
       channel.on("postgres_changes" as any, { event: "*", schema: "public", table }, () => setTick((v) => v + 1));
     }
     channel.subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    return () => {
+      window.removeEventListener("online", refreshGeo);
+      window.removeEventListener("offline", refreshGeo);
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -358,7 +365,7 @@ export default function GeographieCascade({
         <SearchableSelect value={sousPrefectureId || ""} disabled={!departementId} options={sousPrefectures.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner la sous-préfecture" searchPlaceholder="Rechercher une sous-préfecture"
           onValueChange={(value) => { const x = sousPrefectures.find((s) => s.id === value); onChange({
-            districtId: districtId || null, regionId: regionId || null, departementId: departementId || null, sousPrefectureId: value, villageId: null, villageName: null,
+            districtId: districtId || null, regionId: regionId || null, departementId: departementId || null, sousPrefectureId: value, villageId: null, villageName: villageId ? null : (villageName || null),
             regionName: regions.find((r) => r.id === regionId)?.nom || null, departementName: departements.find((d) => d.id === departementId)?.nom || null,
             sousPrefectureName: x?.nom || null
           }); }} />
@@ -373,7 +380,7 @@ export default function GeographieCascade({
           const exact = villageMatches.filter((item) => normalizeGeo(item.nom) === term);
           if (term && exact.length === 1) void selectVillage(exact[0].id, exact[0].nom);
           else setVillageDropdownOpen(false);
-        }, 160); }}
+        }, 260); }}
         onKeyDown={(event) => {
           if (event.key !== "Enter") return;
           const term = normalizeGeo(villageSearch);
