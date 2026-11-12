@@ -54,6 +54,7 @@ const Plantations = () => {
         .select(`
           *,
           clients (nom, prenoms, nom_complet, id, id_unique, is_internal, type_client, type_client_foncier, proprietaire_id),
+          beneficiaire_attributions (id, client_id, surface_attribuee_ha, statut, clients (id, id_unique, nom_complet, nom, prenoms)),
           parcelles (id_unique, nom, village),
           lots_hectares (id, reference, numero_h, surface_ha, client_id, parcelle_id, parcelles (id_unique, nom, village)),
           regions (nom),
@@ -128,7 +129,8 @@ const Plantations = () => {
       p.id_unique?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.nom_plantation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.clients?.nom_complet || (p.clients?.nom + ' ' + p.clients?.prenoms))?.toLowerCase().includes(searchTerm.toLowerCase())
+      (p.clients?.nom_complet || (p.clients?.nom + ' ' + p.clients?.prenoms))?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.beneficiaire_attributions || []).some((a:any) => (a.clients?.nom_complet || [a.clients?.nom,a.clients?.prenoms].filter(Boolean).join(" "))?.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   );
 
@@ -260,6 +262,15 @@ const Plantations = () => {
                           <span className="block max-w-[12rem] truncate">{plantation.clients.nom_complet || [plantation.clients.nom, plantation.clients.prenoms].filter(Boolean).join(" ") || "Client"}</span>
                           <span className="text-[10px] text-muted-foreground">{plantation.clients.id_unique || "Dossier"}</span>
                         </Link>
+                      ) : (plantation.beneficiaire_attributions || []).filter((a:any)=>a.statut==="active").length ? (
+                        <div className="space-y-1">
+                          {(plantation.beneficiaire_attributions || []).filter((a:any)=>a.statut==="active").map((a:any)=>(
+                            <Link key={a.id} to={`/clients/${a.client_id}`} className="block hover:underline" title={a.clients?.nom_complet || [a.clients?.nom,a.clients?.prenoms].filter(Boolean).join(" ")}>
+                              <span className="block max-w-[12rem] truncate">{a.clients?.nom_complet || [a.clients?.nom,a.clients?.prenoms].filter(Boolean).join(" ") || "Bénéficiaire"}</span>
+                              <span className="text-[10px] text-muted-foreground">Quote-part · {Number(a.surface_attribuee_ha||0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</span>
+                            </Link>
+                          ))}
+                        </div>
                       ) : "—"}
                     </TableCell>
                     <TableCell title={plantation.parcelles?.nom || plantation.parcelles?.id_unique || plantation.lots_hectares?.parcelles?.nom || ""}>
@@ -270,7 +281,10 @@ const Plantations = () => {
                         ? (plantation.lots_hectares?.reference || (plantation.lots_hectares?.numero_h != null ? `Lot ${plantation.lots_hectares.numero_h}` : "—"))
                         : "—"}
                     </TableCell>
-                    <TableCell className="font-semibold tabular-nums">{Number(plantation.superficie_ha ?? plantation.superficie_activee ?? plantation.surface_reellement_plantee ?? 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</TableCell>
+                    <TableCell className="font-semibold tabular-nums">
+                      {Number(plantation.superficie_ha ?? plantation.superficie_activee ?? plantation.surface_reellement_plantee ?? 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha
+                      {(plantation.beneficiaire_attributions || []).some((a:any)=>a.statut==="active") && <span className="block text-[10px] font-normal text-muted-foreground">Part bénéficiaire : {(plantation.beneficiaire_attributions || []).filter((a:any)=>a.statut==="active").reduce((sum:number,a:any)=>sum+Number(a.surface_attribuee_ha||0),0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</span>}
+                    </TableCell>
                     <TableCell><div className="flex items-center gap-1 whitespace-nowrap"><MapPin className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="text-xs">{plantation.regions?.nom || "—"}</span></div></TableCell>
                     <TableCell><Badge className={"whitespace-nowrap text-[10px] px-1.5 py-0 " + getStatutBadge(plantation.statut_global || plantation.statut)}>{formatStatut(plantation.statut_global || plantation.statut || "actif")}</Badge></TableCell>
                     <TableCell>
