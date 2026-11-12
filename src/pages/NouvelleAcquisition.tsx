@@ -139,6 +139,8 @@ const NouvelleAcquisition = () => {
   const {toast}=useToast();
   const navigate=useNavigate();
   const { user } = useAuth();
+  const stepStorageKey = user ? `agricapital:client-draft-step:${user.id}:${recordId || "new"}` : null;
+  const stepStorageKeyRef = useRef<string | null>(null);
   const { can } = usePermissions();
   const canEditExisting = Boolean(existingRecord?.client) && can("clients.update");
   const [searchParams]=useSearchParams();
@@ -315,7 +317,7 @@ const NouvelleAcquisition = () => {
       // A conversion always starts at the first official step. Never restore an unrelated
       // draft's step index into a lead/prospect conversion.
       setBrouillonId(null);
-      window.localStorage.removeItem(`agricapital:client-draft-step:${user?.id}`);
+      window.localStorage.removeItem(`agricapital:client-draft-step:${user?.id}:new`);
       setCurrent(0);
       setDraftLoading(false);
       return () => { mounted = false; };
@@ -343,7 +345,7 @@ const NouvelleAcquisition = () => {
         setBrouillonId(key);
         const restoredDraft = restoreDraftFiles(draft.donnees || {});
         setFormData((current:any)=>({...restoredDraft,...current}));
-        const storedStep = window.localStorage.getItem(`agricapital:client-draft-step:${currentUser.id}`);
+        const storedStep = window.localStorage.getItem(`agricapital:client-draft-step:${currentUser.id}:${recordId || "new"}`);
         const rawStep = Number(storedStep ?? draft.etape_actuelle ?? 0);
         const restoredStep = Number(draft.step_schema_version || 0) < 2 && rawStep >= 3 ? rawStep + 1 : rawStep;
         setCurrent((current:number)=>current===0?Math.max(0,restoredStep):current);
@@ -490,7 +492,7 @@ const NouvelleAcquisition = () => {
     }
     const key = `agricapital:client-draft:${currentUser.id}`;
     window.localStorage.setItem(key, JSON.stringify({id:key,created_by:currentUser.id,etape_actuelle:index,step_schema_version:2,donnees:payload,updated_at:new Date().toISOString()}));
-    window.localStorage.setItem(`agricapital:client-draft-step:${currentUser.id}`, String(index));
+    window.localStorage.setItem(`agricapital:client-draft-step:${currentUser.id}:${recordId || "new"}`, String(index));
     setBrouillonId(key);
     setSyncState("draft");
     return key;
@@ -500,11 +502,22 @@ const NouvelleAcquisition = () => {
   // de fichiers : un téléversement volumineux ou un rechargement ne ramène
   // jamais le formulaire au premier écran.
   useEffect(() => {
-    if (!user || draftLoading || recordId) return;
+    if (!stepStorageKey || draftLoading || stepStorageKeyRef.current === stepStorageKey) return;
+    const stored = window.localStorage.getItem(stepStorageKey);
+    const restored = stored === null ? current : Math.max(0, Number(stored) || 0);
+    if (stored !== null && restored !== current) {
+      setCurrent(restored);
+      return;
+    }
+    stepStorageKeyRef.current = stepStorageKey;
+  }, [stepStorageKey, draftLoading, current]);
+
+  useEffect(() => {
+    if (!stepStorageKey || draftLoading || stepStorageKeyRef.current !== stepStorageKey) return;
     try {
-      window.localStorage.setItem(`agricapital:client-draft-step:${user.id}`, String(current));
+      window.localStorage.setItem(stepStorageKey, String(current));
     } catch { /* l’étape reste conservée dans l’état React courant */ }
-  }, [current, user, draftLoading, recordId]);
+  }, [current, stepStorageKey, draftLoading]);
 
   // Sauvegarde automatique après une courte pause de saisie. Le brouillon reste
   // conservé même si l’étape finale échoue; aucune actualisation n’est requise.
@@ -781,7 +794,7 @@ const NouvelleAcquisition = () => {
       }
 
       window.localStorage.removeItem(`agricapital:client-draft:${currentUser.id}`);
-      window.localStorage.removeItem(`agricapital:client-draft-step:${currentUser.id}`);
+      window.localStorage.removeItem(`agricapital:client-draft-step:${currentUser.id}:${recordId || "new"}`);
       setBrouillonId(null);
       pendingSubmitRetryRef.current = false;
       const savedOffline = !navigator.onLine || queuedMutationCountRef.current > queuedBeforeSubmit;
