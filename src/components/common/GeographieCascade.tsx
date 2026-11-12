@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { supabase } from "@/integrations/supabase/client";
@@ -115,7 +115,7 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cached = error ? cachedRowsForScope((await getAllItems(STORES.REGIONS).catch(() => [])).filter((x:any) => x.district_id === districtId),includeInactive,["est_active","est_actif"]) : [];
       if (active) setRegions(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.REGIONS, data).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.REGIONS, data.map((row:any)=>({...row,est_active:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [districtId, tick, includeInactive]);
@@ -129,7 +129,7 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cached = error ? cachedRowsForScope((await getAllItems(STORES.DEPARTEMENTS).catch(() => [])).filter((x:any) => x.region_id === regionId),includeInactive,["est_actif"]) : [];
       if (active) setDepartements(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [regionId, tick, includeInactive]);
@@ -143,7 +143,7 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cached = error ? cachedRowsForScope((await getAllItems(STORES.SOUS_PREFECTURES).catch(() => [])).filter((x:any) => x.departement_id === departementId),includeInactive,["est_active","est_actif"]) : [];
       if (active) setSousPrefectures(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((row:any)=>({...row,est_active:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [departementId, tick, includeInactive]);
@@ -157,7 +157,7 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cached = error ? cachedRowsForScope((await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId),includeInactive,["est_actif"]) : [];
       if (active) setVillages(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.VILLAGES, data).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [sousPrefectureId, tick, includeInactive]);
@@ -200,7 +200,7 @@ export default function GeographieCascade({
               const reg: any = dep?.region_id ? regById.get(String(dep.region_id)) : undefined;
               return { ...v, departement_id: sp?.departement_id || null, region_id: dep?.region_id || null, district_id: reg?.district_id || null };
             });
-            void putItems(STORES.VILLAGES, candidates).catch(() => {});
+            void putItems(STORES.VILLAGES, candidates.map((row:any)=>({...row,est_actif:row.est_actif_effectif}))).catch(() => {});
           }
         }
         let matches = candidates.filter((v: any) => v?.id && v?.nom && geoNameMatches(v.nom, term));
@@ -227,11 +227,6 @@ export default function GeographieCascade({
     }, 180);
     return () => { active = false; clearTimeout(timer); };
   }, [villageSearch, districtId, regionId, departementId, sousPrefectureId, tick, offline, includeInactive]);
-
-  const villageOptions = useMemo(() => {
-    const source = sousPrefectureId ? villages : villageMatches;
-    return source.map((v) => ({ value: v.id, label: v.nom }));
-  }, [villages, villageMatches, sousPrefectureId]);
 
   const selectVillage = async (id: string, name?: string) => {
     const match = [...villages, ...villageMatches].find((v) => v.id === id);
