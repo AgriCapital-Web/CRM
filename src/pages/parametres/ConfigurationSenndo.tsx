@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Save, Webhook, MessageSquare, Mail, PhoneCall, CheckCircle2, Send } from "lucide-react";
 import { toast } from "sonner";
 
-type Status = { apiKey: boolean; apiValid: boolean; smsSenderId: boolean; smsMaxCharacters: number; smsContentMaxCharacters: number; webhookSecret: boolean; emailSenderId: boolean; whatsappSenderPhone: boolean; whatsappSession: "unknown" | "connected" | "disconnected"; statusErrors?: Record<string, string>; apiError?: string | null };
+type AccountBalance = { currency: string; balanceUsd: string; consumedUsd: string; ledgerEntries: number; ledgerComplete: boolean; updatedAt: string };
+type Status = { apiKey: boolean; apiValid: boolean; smsSenderId: boolean; smsMaxCharacters: number; smsContentMaxCharacters: number; webhookSecret: boolean; emailSenderId: boolean; whatsappSenderPhone: boolean; whatsappSession: "unknown" | "connected" | "disconnected"; accountBalance?: AccountBalance | null; balanceError?: string | null; statusErrors?: Record<string, string>; apiError?: string | null };
 
 const webhookUrl = "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook";
 
@@ -19,7 +20,7 @@ export default function ConfigurationSenndo() {
   const [webhookSecret, setWebhookSecret] = useState("");
   const [emailSenderId, setEmailSenderId] = useState("");
   const [whatsappSenderPhone, setWhatsappSenderPhone] = useState("+22564551717");
-  const [status, setStatus] = useState<Status>({ apiKey: false, apiValid: false, smsSenderId: false, smsMaxCharacters: 155, smsContentMaxCharacters: 130, webhookSecret: false, emailSenderId: false, whatsappSenderPhone: false, whatsappSession: "unknown" });
+  const [status, setStatus] = useState<Status>({ apiKey: false, apiValid: false, smsSenderId: false, smsMaxCharacters: 155, smsContentMaxCharacters: 130, webhookSecret: false, emailSenderId: false, whatsappSenderPhone: false, whatsappSession: "unknown", accountBalance: null, balanceError: null });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -40,7 +41,7 @@ export default function ConfigurationSenndo() {
       setStatus((current) => ({ ...current, apiError: data?.error || error?.message || "Impossible de lire le statut Senndo. Vérifiez les droits administrateur." }));
       toast.error(data?.error || error?.message || "Impossible de vérifier la configuration Senndo.");
     } else {
-      setStatus({ apiKey: Boolean(data.configured?.apiKey), apiValid: Boolean(data.configured?.apiValid), smsSenderId: Boolean(data.configured?.smsSenderId), smsMaxCharacters: Number(data.smsMaxCharacters || 155), smsContentMaxCharacters: Number(data.smsContentMaxCharacters || 130), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId), whatsappSenderPhone: Boolean(data.configured?.whatsappSenderPhone), whatsappSession: data.configured?.whatsappSession || "unknown", statusErrors: data.statusErrors || {}, apiError: data.apiError || null });
+      setStatus({ apiKey: Boolean(data.configured?.apiKey), apiValid: Boolean(data.configured?.apiValid), smsSenderId: Boolean(data.configured?.smsSenderId), smsMaxCharacters: Number(data.smsMaxCharacters || 155), smsContentMaxCharacters: Number(data.smsContentMaxCharacters || 130), webhookSecret: Boolean(data.configured?.webhookSecret), emailSenderId: Boolean(data.configured?.emailSenderId), whatsappSenderPhone: Boolean(data.configured?.whatsappSenderPhone), whatsappSession: data.configured?.whatsappSession || "unknown", accountBalance: data.accountBalance || null, balanceError: data.balanceError || null, statusErrors: data.statusErrors || {}, apiError: data.apiError || null });
       setEmailSenderId(typeof data.emailSenderId === "string" ? data.emailSenderId : "");
       setWhatsappSenderPhone(typeof data.whatsappSenderPhone === "string" && data.whatsappSenderPhone ? data.whatsappSenderPhone : "+22564551717");
     }
@@ -48,6 +49,10 @@ export default function ConfigurationSenndo() {
   }, []);
 
   useEffect(() => { void refreshStatus(); }, [refreshStatus]);
+  useEffect(() => {
+    const interval = window.setInterval(() => { void refreshStatus(); }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [refreshStatus]);
 
   const testConnection = async () => {
     setTesting(true);
@@ -191,8 +196,9 @@ export default function ConfigurationSenndo() {
           <p className="text-muted-foreground">{whatsappDiagnostics.pairedSessionApi || "Le CRM utilise l’API REST Senndo pour les sessions WhatsApp appairées."}</p>
         </CardContent>
       </Card>}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <Card><CardHeader className="pb-2"><CardDescription>Senndo API</CardDescription><CardTitle className="flex items-center gap-2 text-base"><CheckCircle2 className="h-4 w-4" />Connectivité</CardTitle></CardHeader><CardContent><Badge variant={status.apiValid ? "default" : "secondary"}>{status.apiValid ? "Prête" : status.apiKey ? "À vérifier" : "À configurer"}</Badge></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardDescription>Solde réel Senndo</CardDescription><CardTitle className="flex items-center gap-2 text-base"><span>{status.accountBalance ? `${status.accountBalance.balanceUsd} ${status.accountBalance.currency}` : "Indisponible"}</span></CardTitle></CardHeader><CardContent><p className="text-xs text-muted-foreground">Solde disponible communiqué par Senndo.</p><p className="mt-2 text-sm">Consommation nette : <strong>{status.accountBalance ? `${status.accountBalance.consumedUsd} ${status.accountBalance.currency}` : "—"}</strong></p><p className="mt-1 text-xs text-muted-foreground">{status.accountBalance ? `${status.accountBalance.ledgerEntries} écritures lues · ${status.accountBalance.ledgerComplete ? "journal complet" : "journal partiel"}` : status.balanceError || "Lecture du solde indisponible"}</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>SMS</CardDescription><CardTitle className="flex items-center gap-2 text-base"><MessageSquare className="h-4 w-4" />AgriCapital</CardTitle></CardHeader><CardContent><Badge variant={status.smsSenderId ? "default" : "secondary"}>{status.smsSenderId ? "Sender ID validé" : status.apiValid ? "Sender ID à confirmer" : status.apiKey ? "Clé enregistrée · test requis" : "Clé à configurer"}</Badge><p className="mt-2 text-xs text-muted-foreground">Texte hors prénom/nom : {status.smsContentMaxCharacters} caractères max. SMS personnalisé : {status.smsMaxCharacters} caractères max. +225 → SMS ; international → WhatsApp.</p></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Webhook</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Webhook className="h-4 w-4" />Réception Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.webhookSecret ? "default" : "secondary"}>{status.webhookSecret ? "Prêt" : "À configurer"}</Badge></CardContent></Card>
          <Card><CardHeader className="pb-2"><CardDescription>E-mail</CardDescription><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" />Senndo</CardTitle></CardHeader><CardContent><Badge variant={status.emailSenderId ? "default" : "secondary"}>{status.emailSenderId ? "Expéditeur enregistré" : "Expéditeur à renseigner"}</Badge></CardContent></Card>
