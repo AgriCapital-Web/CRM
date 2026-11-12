@@ -123,7 +123,8 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cachedRows = await getAllItems(STORES.REGIONS).catch(() => []);
       const scopedRows = districtId ? cachedRows.filter((x:any) => x.district_id === districtId) : cachedRows;
-      const activeDistrictIds = new Set(districts.map((row:any)=>String(row.id)));
+      const cachedDistrictRows = await getAllItems(STORES.DISTRICTS).catch(() => []);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? scopedRows : scopedRows.filter((row:any)=>activeDistrictIds.has(String(row.district_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif"]) : [];
       if (active) setRegions(error ? cached : (data || []));
@@ -140,7 +141,10 @@ export default function GeographieCascade({
       if (!includeInactive) query = query.eq("est_actif_effectif", true);
       const { data, error } = await query.order("nom");
       const cachedRows = (await getAllItems(STORES.DEPARTEMENTS).catch(() => [])).filter((x:any) => x.region_id === regionId);
-      const activeRegionIds = new Set(regions.map((row:any)=>String(row.id)));
+      const [cachedRegions,cachedDistrictRows] = await Promise.all([getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)]);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+      const activeRegionIds = new Set(cachedRowsForScope(cachedRegions,includeInactive,["est_active_effectif","est_active","est_actif"])
+        .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeRegionIds.has(String(row.region_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
       if (active) setDepartements(error ? cached : (data || []));
@@ -157,7 +161,12 @@ export default function GeographieCascade({
       if (!includeInactive) query = query.eq("est_active_effectif", true);
       const { data, error } = await query.order("nom");
       const cachedRows = (await getAllItems(STORES.SOUS_PREFECTURES).catch(() => [])).filter((x:any) => x.departement_id === departementId);
-      const activeDepartementIds = new Set(departements.map((row:any)=>String(row.id)));
+      const [cachedDepartements,cachedRegions,cachedDistrictRows] = await Promise.all([getAllItems(STORES.DEPARTEMENTS),getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)]);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+      const activeRegionIds = new Set(cachedRowsForScope(cachedRegions,includeInactive,["est_active_effectif","est_active","est_actif"])
+        .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
+      const activeDepartementIds = new Set(cachedRowsForScope(cachedDepartements,includeInactive,["est_actif_effectif","est_actif"])
+        .filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id))).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeDepartementIds.has(String(row.departement_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"]) : [];
       if (active) setSousPrefectures(error ? cached : (data || []));
@@ -174,7 +183,14 @@ export default function GeographieCascade({
       if (!includeInactive) query = query.eq("est_actif_effectif", true);
       const { data, error } = await query.order("nom");
       const cachedRows = (await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId);
-      const activeSousPrefectureIds = new Set(sousPrefectures.map((row:any)=>String(row.id)));
+      const [cachedSp,cachedDepartements,cachedRegions,cachedDistrictRows] = await Promise.all([getAllItems(STORES.SOUS_PREFECTURES),getAllItems(STORES.DEPARTEMENTS),getAllItems(STORES.REGIONS),getAllItems(STORES.DISTRICTS)]);
+      const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
+      const activeRegionIds = new Set(cachedRowsForScope(cachedRegions,includeInactive,["est_active_effectif","est_active","est_actif"])
+        .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
+      const activeDepartementIds = new Set(cachedRowsForScope(cachedDepartements,includeInactive,["est_actif_effectif","est_actif"])
+        .filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id))).map((row:any)=>String(row.id)));
+      const activeSousPrefectureIds = new Set(cachedRowsForScope(cachedSp,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"])
+        .filter((row:any)=>includeInactive||activeDepartementIds.has(String(row.departement_id))).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
       if (active) setVillages(error ? cached : (data || []));
