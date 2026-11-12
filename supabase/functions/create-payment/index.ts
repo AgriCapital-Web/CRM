@@ -118,22 +118,24 @@ function calculateKkiapayPricing(amount: number, method: "momo" | "card", feeRat
   return { clientDebitAmount, widgetAmount, estimatedFees: Math.max(0, clientDebitAmount - widgetAmount), feeRate: rate };
 }
 
-async function sendConfirmationSms(phoneRaw: string | null | undefined, message: string) {
-  if (!phoneRaw) return;
-  const INFOBIP_API_KEY = Deno.env.get("INFOBIP_API_KEY");
-  const INFOBIP_BASE_URL = Deno.env.get("INFOBIP_BASE_URL");
-  if (!INFOBIP_API_KEY || !INFOBIP_BASE_URL) {
-    return;
-  }
-  let phone = String(phoneRaw).replace(/\D/g, "");
-  if (!phone.startsWith("225")) phone = "225" + phone;
-  try {
-    await fetch(`${INFOBIP_BASE_URL}/sms/2/text/advanced`, {
-      method: "POST",
-      headers: { "Authorization": `App ${INFOBIP_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ destinations: [{ to: phone }], from: "AgriCapital", text: message }] }),
-    });
-  } catch (e) { console.error("SMS confirmation error:", e); }
+async function sendConfirmationNotification(clientId: string, phoneRaw: string | null | undefined, message: string, eventKey: string) {
+  if (!clientId || !phoneRaw) return;
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const response = await fetch(url + "/functions/v1/notification-dispatch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": serviceKey },
+    body: JSON.stringify({
+      mode: "internal_routed_message",
+      contact: { source_type: "client", source_id: clientId, telephone: phoneRaw },
+      content: message,
+      event_key: eventKey,
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "Échec de la notification de confirmation.");
+  return payload.result || null;
 }
 
 serve(async (req) => {
@@ -286,9 +288,11 @@ serve(async (req) => {
       if (finalizeError) throw finalizeError;
 
       try {
-        await sendConfirmationSms(
+        await sendConfirmationNotification(
+          client_id,
           client.telephone,
-          `AgriCapital: Votre Paiement initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`
+          `AgriCapital: Votre Paiement initial est offert (0 F). Votre plantation est activee. Suivi: client.agricapital.ci`,
+          `payment-initial-promo:${client_id}:${plantation_id}`
         );
       } catch (_e) { /* ignore */ }
 
@@ -535,9 +539,13 @@ serve(async (req) => {
       // Server-side confirmation SMS (replaces the removed `send_custom` action).
       try {
         const fmt = new Intl.NumberFormat("fr-FR").format(trustedMontantPaye);
-        await sendConfirmationSms(
-          paiementData.clients?.telephone,
-          `AgriCapital: Paiement de ${fmt} F CFA recu (Ref: ${reference}). Merci! Votre recu est disponible sur client.agricapital.ci`
+        const paymentPhone = paiementData.clients?.telephone || paiementData.clients?.whatsapp ||
+          paiementData.clients?.telephone_local || paiementData.clients?.whatsapp_local;
+        await sendConfirmationNotification(
+          paiementData.clients?.id,
+          paymentPhone,
+          `AgriCapital: Paiement de ${fmt} F CFA recu (Ref: ${reference}). Merci! Votre recu est disponible sur client.agricapital.ci`,
+          `payment-confirmed:${reference}`
         );
       } catch (e) { console.error("SMS post-confirm error:", e); }
 
