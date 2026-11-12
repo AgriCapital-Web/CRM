@@ -414,7 +414,7 @@ const NouvelleAcquisition = () => {
       if(!formData.commercial_id||!formData.offre_id||Number(formData.superficie_prevue)<=0){
         toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez la superficie."}); return false;
       }
-      const offerFamily=String(formData.offre?.famille_offre||formData.offre?.code||formData.offre_code||"").toUpperCase().replace(/[-_\\s]/g,"");
+      const offerFamily=String(formData.offre?.famille_offre||formData.offre?.code||formData.offre_code||"").toUpperCase().replace(/[-_\s]/g,"");
       const palmInvest=offerFamily==="PALMINVEST";
       const hectares=Number(formData.superficie_prevue);
       const validArea=palmInvest
