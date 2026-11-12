@@ -387,8 +387,8 @@ const NouvelleAcquisition = () => {
   const validateStep=async()=>{
     if(!step)return false;
     if(step.code==="offre" && !recordId){
-      if(!formData.commercial_id||!formData.offre_id||Number(formData.superficie_prevue)<=0){
-        toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez la superficie."}); return false;
+      if(!formData.commercial_id||!formData.offre_id||Number(formData.superficie_prevue)<0.5){
+        toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez une superficie d’au moins 0,5 ha."}); return false;
       }
       const configuredFormulas = Array.isArray(formData.offre?.formules_configuration) ? formData.offre.formules_configuration : [];
       if(configuredFormulas.length === 0){
