@@ -164,7 +164,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const leadStyleName = contact.source_type === "lead" || contact.source_type === "prospect";
   const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || (context.finance_payout_sms === true ? "" : "Client"));
   const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
-  const titleCaseNames = (value: string) => value.toLocaleLowerCase("fr-FR").replace(/(^|[\\s'-])(\\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  const titleCaseNames = (value: string) => value.toLocaleLowerCase("fr-FR").replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
   const structuredDisplayName = contact.prenoms?.trim() && contact.nom?.trim()
     ? titleCaseNames(contact.prenoms.trim()) + " " + contact.nom.trim().toLocaleUpperCase("fr-FR")
     : null;
@@ -835,7 +835,7 @@ async function runCampaign(campaignId: string) {
     const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
     const bodyCharacters = Array.from(bodyWithoutRecipientName).length;
     if (bodyCharacters > routingPolicy.sms_content_max_characters) {
-      throw new Error(\`Message de campagne trop long : \${bodyCharacters}/\${routingPolicy.sms_content_max_characters} caractères hors nom/prénom. Utilisez « Restructurer » avant l'envoi.\`);
+      throw new Error(`Message de campagne trop long : ${bodyCharacters}/${routingPolicy.sms_content_max_characters} caractères hors nom/prénom. Utilisez « Restructurer » avant l'envoi.`);
     }
   }
   const hasExplicitSelection = Array.isArray(criteria.selected_recipients);
