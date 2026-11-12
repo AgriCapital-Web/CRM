@@ -85,7 +85,7 @@ const ProprietairesTerres = () => {
     lieu_residence: "",
     district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
     surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
-    type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "",
+    type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "", surface_unitaire_lot_ha: "0.5",
     statut_foncier: "coutumier", reference_cadastrale: "",
     limites_nord: "", limites_sud: "", limites_est: "", limites_ouest: "",
     servitudes: "", croquis_joint: false,
@@ -251,9 +251,11 @@ const ProprietairesTerres = () => {
       const partAgriHa = surfaceTotale ? (surfaceTotale * agriPct) / 100 : null;
       const partProprietaireHa = surfaceTotale ? (surfaceTotale * ownerPct) / 100 : null;
       const nombreLots = Math.max(0, parseInt(formData.nombre_lots_agricapital || "0", 10) || 0);
-      const maxLots = Math.floor((partAgriHa || 0) / 0.5);
+      const lotUnitHa = Number(formData.surface_unitaire_lot_ha || 0.5);
+      if (!Number.isFinite(lotUnitHa) || lotUnitHa < 0.5 || Math.abs(lotUnitHa / 0.5 - Math.round(lotUnitHa / 0.5)) > 0.0001) throw new Error("La surface unitaire d’un lot doit être un multiple de 0,5 ha, avec un minimum de 0,5 ha.");
+      const maxLots = Math.floor((typeConvention === "plante_partage" ? Math.min(partAgriHa || 0, partProprietaireHa || 0) : (partAgriHa || 0)) / lotUnitHa);
       if (surfaceTotale && nombreLots > maxLots) {
-        throw new Error(`Le nombre de lots AgriCapital ne peut pas dépasser ${maxLots} lot(s) de 1 ha pour cette répartition (0,5 ha minimum par lot).`);
+        throw new Error(`Le nombre de lots AgriCapital ne peut pas dépasser ${maxLots} lot(s) de ${lotUnitHa.toLocaleString("fr-FR")} ha pour cette répartition.`);
       }
       const cautionTotale = typeConvention === "plante_partage" && partAgriHa ? partAgriHa * 50000 : 0;
       const gps = String(formData.coordonnees_gps || "").split(/[,;\s]+/).map(Number).filter(Number.isFinite);
@@ -298,6 +300,7 @@ const ProprietairesTerres = () => {
         part_proprietaire_pct: ownerPct,
         part_agricapital_pct: agriPct,
         nombre_lots_agricapital: nombreLots,
+        surface_unitaire_lot_ha: lotUnitHa,
         part_proprietaire_ha: partProprietaireHa,
         part_agricapital_ha: partAgriHa,
         caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
@@ -397,6 +400,7 @@ const ProprietairesTerres = () => {
         part_proprietaire_pct: ownerPct,
         part_agricapital_pct: agriPct,
         nombre_lots_agricapital: nombreLots,
+        surface_unitaire_lot_ha: lotUnitHa,
         part_proprietaire_ha: partProprietaireHa,
         part_agricapital_ha: partAgriHa,
         caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
@@ -739,6 +743,10 @@ const ProprietairesTerres = () => {
                           <Input type="number" min="0" max="100" step="1" disabled={formData.type_convention === "achat"} value={formData.type_convention === "achat" ? "100" : formData.part_agricapital_pct} onChange={e => update('part_agricapital_pct', e.target.value)} />
                         </div>
                         <div className="space-y-2">
+                          <Label>Surface d’un lot (ha)</Label>
+                          <Input type="number" min="0.5" step="0.5" value={formData.surface_unitaire_lot_ha ?? "0.5"} onChange={e => update('surface_unitaire_lot_ha', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
                           <Label>Nombre de lots AgriCapital</Label>
                           <Input type="number" min="0" step="1" value={formData.nombre_lots_agricapital ?? ""} onChange={e => update('nombre_lots_agricapital', e.target.value)} />
                         </div>
@@ -777,7 +785,7 @@ const ProprietairesTerres = () => {
                         return <div className="p-3 rounded-md bg-primary/10 text-sm space-y-1">
                           <p>Part propriétaire : <strong>{ownerHa.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</strong> ({ownerPct}%)</p>
                           <p>Part AgriCapital : <strong>{agriHa.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</strong> ({agriPct}%)</p>
-                          <p>Lots AgriCapital : <strong>{lots}</strong> · {lots>0?(agriHa/lots).toLocaleString("fr-FR",{maximumFractionDigits:2})+" ha par lot":"aucun lot"}</p>
+                          <p>Lots AgriCapital : <strong>{lots}</strong> × {Number(formData.surface_unitaire_lot_ha||0.5).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha = {(lots*Number(formData.surface_unitaire_lot_ha||0.5)).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</p>
                           {formData.type_convention === "plante_partage" && <p>Caution foncière : <strong>{(agriHa * 50000).toLocaleString('fr-FR')} FCFA</strong></p>}
                         </div>;
                       })()}
