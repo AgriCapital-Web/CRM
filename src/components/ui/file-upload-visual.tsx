@@ -155,8 +155,6 @@ export const FileUploadVisual = ({
 
       {/* Keep every picker mounted after a preview exists, so replacing a file works. */}
       <Input ref={inputRef} type="file" accept={accept} onChange={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
         handleFileSelect(e.currentTarget.files?.[0] || null);
         e.currentTarget.value = "";
       }} className="hidden" id={`upload-${field}`} />
