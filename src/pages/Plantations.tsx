@@ -265,7 +265,7 @@ const Plantations = () => {
                       ) : (plantation.beneficiaire_attributions || []).filter((a:any)=>a.statut==="active").length ? (
                         <div className="space-y-1">
                           {(plantation.beneficiaire_attributions || []).filter((a:any)=>a.statut==="active").map((a:any)=>(
-                            <Link key={a.id} to={`/clients/${a.client_id}`} className="block hover:underline" title={a.clients?.nom_complet || [a.clients?.nom,a.clients?.prenoms].filter(Boolean).join(" ")}>
+                            <Link key={a.id} to={`/clients/${a.client_id}`} onClick={(event)=>event.stopPropagation()} className="block hover:underline" title={a.clients?.nom_complet || [a.clients?.nom,a.clients?.prenoms].filter(Boolean).join(" ")}>
                               <span className="block max-w-[12rem] truncate">{a.clients?.nom_complet || [a.clients?.nom,a.clients?.prenoms].filter(Boolean).join(" ") || "Bénéficiaire"}</span>
                               <span className="text-[10px] text-muted-foreground">Quote-part · {Number(a.surface_attribuee_ha||0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</span>
                             </Link>
