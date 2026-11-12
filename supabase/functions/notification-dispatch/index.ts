@@ -550,7 +550,7 @@ async function hydrateContacts(rows: Contact[]): Promise<Contact[]> {
  const c:Contact={...original,...record,source_type:original.source_type,source_id:original.source_id,user_id:original.user_id||record.user_id||null,
  nom:record.nom||null, prenoms:record.prenoms||null,
  nom_complet:record.nom_complet||record.display_name||[record.prenoms,record.nom].filter(Boolean).join(" ")||record.denomination_sociale||original.nom_complet||null,
- email:original.email||record.email||null,telephone:record.telephone||(record.telephone_local?String(record.telephone_indicatif||"+225")+record.telephone_local:null)||record.phone||null,
+ email:original.email||record.email||null,telephone:record.telephone||(record.telephone_local?String(record.telephone_indicatif||"+225")+record.telephone_local:null)||record.phone||original.telephone||record.whatsapp||null,
  telephone_secondaire:record.telephone_secondaire||record.secondary_phone||null,whatsapp:record.whatsapp||null,
  telephone_principal_whatsapp:record.telephone_principal_whatsapp??record.whatsapp_primary??false,telephone_secondaire_whatsapp:record.telephone_secondaire_whatsapp??record.whatsapp_secondary??false,
  telephone_indicatif:record.telephone_indicatif||null,telephone_local:record.telephone_local||null,whatsapp_indicatif:record.whatsapp_indicatif||null,whatsapp_local:record.whatsapp_local||null,
