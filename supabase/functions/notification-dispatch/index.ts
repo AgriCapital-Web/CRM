@@ -1289,6 +1289,31 @@ serve(async (req) => {
       if (!(await internalAuthorized(req))) return json(req, { error: "Non autorise" }, 401);
       return json(req, { ok: true, results: await runScheduledCampaigns() });
     }
+    if (mode === "internal_routed_message") {
+      if (!(await internalAuthorized(req))) return json(req, { error: "Non autorise" }, 401);
+      const raw = body.contact || {};
+      const contact: Contact = {
+        source_type: String(raw.source_type || "client"),
+        source_id: String(raw.source_id || ""),
+        user_id: raw.user_id ? String(raw.user_id) : null,
+        nom_complet: raw.nom_complet ? String(raw.nom_complet) : null,
+        telephone: raw.telephone ? String(raw.telephone) : null,
+        telephone_secondaire: raw.telephone_secondaire ? String(raw.telephone_secondaire) : null,
+        whatsapp: raw.whatsapp ? String(raw.whatsapp) : null,
+      };
+      const content = typeof body.content === "string" ? body.content.trim() : "";
+      if (!contact.source_id || !content || !contact.telephone) {
+        return json(req, { error: "Contact, téléphone et contenu sont obligatoires." }, 400);
+      }
+      const result = await deliver({
+        canal: "auto",
+        content,
+        contacts: [contact],
+        eventKey: String(body.event_key || body.idempotency_key || crypto.randomUUID()),
+        context: { source: "internal_routed_message" },
+      });
+      return json(req, { ok: true, result });
+    }
     if (mode === "events") {
       // Les événements déclenchés depuis le CRM peuvent venir d'un utilisateur du personnel.
       // Les appels cron restent protégés par le secret interne ; un appel manuel exige une session
