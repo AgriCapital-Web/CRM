@@ -41,7 +41,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const canEditClient = can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
   const [isEditing, setIsEditing] = useState(!readOnly && canEditClient);
   const { toast } = useToast();
-  const [form, setForm] = useState<any>(() => ({ ...client }));
+  const [form, setForm] = useState<any>(() => ({ ...(client || {}), localite: client?.localite || client?.village || client?.village_nom || "" }));
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [pieceRectoFile, setPieceRectoFile] = useState<File | null>(null);
@@ -63,7 +63,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   // Reuse du composant d'édition entre deux clients : ne jamais conserver les
   // valeurs ou les médias du client précédent lorsque l'identifiant change.
   useEffect(() => {
-    setForm({ ...(client || {}) });
+    setForm({ ...(client || {}), localite: client?.localite || client?.village || client?.village_nom || "" });
     setIsEditing(!readOnly && canEditClient);
     setPhotoFile(null);
     setPieceRectoFile(null);
