@@ -117,8 +117,8 @@ const ClientDetail = () => {
   const lotsForSelectedParcel = availableLots.filter((lot: any) =>
     lot.parcelle_id === newPlantationParcelId &&
     (isPalmInvestOffer
-      ? Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001
-      : Number(lot.surface_ha || 0) > 0)
+      ? Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001 && Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0) >= 1
+      : Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0) > 0)
   ).sort((a: any, b: any) => Number(a.numero_h || 0) - Number(b.numero_h || 0));
   const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
   const selectedLotSeries = selectedNewLot ? (() => {
@@ -127,16 +127,19 @@ const ClientDetail = () => {
     const series: any[] = [];
     let remaining = requested;
     for (const lot of candidates) {
-      if (series.length && isPalmInvestOffer && Number(lot.numero_h) !== Number(series[series.length - 1].numero_h) + 1) break;
+      if (series.length && Number(lot.numero_h) !== Number(series[series.length - 1].numero_h) + 1) break;
       if (remaining <= 0.000001) break;
-      series.push(lot);
-      remaining -= isPalmInvestOffer ? 1 : Number(lot.surface_ha || 0);
+      const available = isPalmInvestOffer ? 1 : Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0);
+      const allocated = Math.min(remaining, available);
+      if (allocated <= 0) continue;
+      series.push({ ...lot, allocated_surface_ha: allocated });
+      remaining = Math.max(0, remaining - allocated);
     }
     return series;
   })() : [];
-  const selectedLotSeriesSurface = selectedLotSeries.reduce((sum: number, lot: any) => sum + (isPalmInvestOffer ? 1 : Number(lot.surface_ha || 0)), 0);
+  const selectedLotSeriesSurface = selectedLotSeries.reduce((sum: number, lot: any) => sum + Number(lot.allocated_surface_ha ?? (isPalmInvestOffer ? 1 : 0)), 0);
   const selectedLotSeriesContiguous = selectedLotSeries.length > 0 && selectedLotSeries[0]?.id === selectedNewLot?.id &&
-    (!isPalmInvestOffer || selectedLotSeries.every((lot: any, index: number) => index === 0 || Number(lot.numero_h) === Number(selectedLotSeries[index - 1].numero_h) + 1));
+    selectedLotSeries.every((lot: any, index: number) => index === 0 || Number(lot.numero_h) === Number(selectedLotSeries[index - 1].numero_h) + 1);
   const selectedLotSeriesReady = !!selectedNewLot && selectedLotSeriesContiguous && (
     isPalmInvestOffer
       ? requestedPalmInvestLots >= 1 && selectedLotSeries.length === requestedPalmInvestLots && selectedLotSeries.every((lot: any) => Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001)
@@ -447,11 +450,11 @@ const ClientDetail = () => {
             .select("id,id_unique,nom,village,proprietaire_id,mode_surface,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
             .order("id_unique", { ascending: true }),
           (supabase as any).from("lots_hectares")
-            .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id,part_type")
+            .select("id,reference,numero_h,surface_ha,surface_attribuee_ha,surface_disponible_ha,parcelle_id,convention_id,statut,client_id,acquisition_id,part_type")
             .eq("part_type", "agricapital")
             .is("client_id", null)
             .is("acquisition_id", null)
-            .in("statut", ["disponible", "libre"])
+            .in("statut", ["disponible", "libre", "partiellement_attribue"])
             .order("numero_h", { ascending: false }),
           (supabase as any).from("conventions_foncieres")
             .select("id,parcelle_id,proprietaire_id,statut")
@@ -893,7 +896,7 @@ const ClientDetail = () => {
                             <SelectContent>
                               {lotsForSelectedParcel.map((lot: any) => (
                                 <SelectItem key={lot.id} value={lot.id}>
-                                  {lot.reference || (lot.numero_h != null ? "H" + String(lot.numero_h).padStart(2, "0") : "Lot")} · {Number(lot.surface_ha || 0).toLocaleString("fr-FR")} ha
+                                  {lot.reference || (lot.numero_h != null ? "H" + String(lot.numero_h).padStart(2, "0") : "Lot")} · {Number(lot.surface_disponible_ha ?? lot.surface_ha ?? 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha disponibles
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -902,7 +905,7 @@ const ClientDetail = () => {
                       </div>
                       {selectedNewLot && (
                         <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-3">
-                          <div><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? "Lots qui seront réservés" : "Superficie réservée"}</p><p className="font-semibold">{selectedLotGroupReference}</p><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? `${selectedLotSeries.length} / ${requestedPalmInvestLots} lot(s) contigus` : `${selectedLotSeries.length} lot(s) mobilisé(s) · ${selectedLotSeriesSurface.toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha disponibles`}</p></div>
+                          <div><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? "Lots qui seront réservés" : "Superficie réservée"}</p><p className="font-semibold">{selectedLotGroupReference}</p><p className="text-xs text-muted-foreground">{isPalmInvestOffer ? `${selectedLotSeries.length} / ${requestedPalmInvestLots} lot(s) contigus` : `${selectedLotSeries.length} lot(s) mobilisé(s) · ${selectedLotSeriesSurface.toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha réservés`}</p></div>
                           <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "À confirmer"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Propriétaire partenaire</p><p className="font-semibold">Enregistré sur la parcelle</p></div>
                           {!selectedLotSeriesReady && <p className="text-sm text-destructive sm:col-span-3">Lots contigus insuffisants pour la superficie demandée. Choisissez un autre lot de départ ou une autre parcelle.</p>}
