@@ -212,9 +212,9 @@ const ProprietairesTerres = () => {
       toast({ variant: "destructive", title: "Téléphone obligatoire", description: "Renseignez le numéro de téléphone du propriétaire." });
       return;
     }
-    if (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0) {
+    if (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) < 0.5) {
       setActiveFormTab("parcelle");
-      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro." });
+      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie d’au moins 0,5 ha." });
       return;
     }
     setUploading(true);
@@ -251,11 +251,9 @@ const ProprietairesTerres = () => {
       const partAgriHa = surfaceTotale ? (surfaceTotale * agriPct) / 100 : null;
       const partProprietaireHa = surfaceTotale ? (surfaceTotale * ownerPct) / 100 : null;
       const nombreLots = Math.max(0, parseInt(formData.nombre_lots_agricapital || "0", 10) || 0);
-      const maxLots = typeConvention === "plante_partage"
-        ? Math.min(Math.floor(partAgriHa || 0), Math.floor(partProprietaireHa || 0))
-        : Math.floor(partAgriHa || 0);
+      const maxLots = Math.floor((partAgriHa || 0) / 0.5);
       if (surfaceTotale && nombreLots > maxLots) {
-        throw new Error(`Le nombre de lots AgriCapital ne peut pas dépasser ${maxLots} lot(s) de 1 ha pour cette répartition.`);
+        throw new Error(`Le nombre de lots AgriCapital ne peut pas dépasser ${maxLots} lot(s) de 1 ha pour cette répartition (0,5 ha minimum par lot).`);
       }
       const cautionTotale = typeConvention === "plante_partage" && partAgriHa ? partAgriHa * 50000 : 0;
       const gps = String(formData.coordonnees_gps || "").split(/[,;\s]+/).map(Number).filter(Number.isFinite);
@@ -516,8 +514,8 @@ const ProprietairesTerres = () => {
         return false;
       }
     }
-    if (activeFormTab === "parcelle" && (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0)) {
-      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro hectare." });
+    if (activeFormTab === "parcelle" && (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) < 0.5)) {
+      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie d’au moins 0,5 ha." });
       return false;
     }
     return true;
@@ -734,14 +732,14 @@ const ProprietairesTerres = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Superficie totale de la parcelle (ha) *</Label>
-                          <Input type="number" min="0.1" step="0.1" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
+                          <Input type="number" min="0.5" step="0.01" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
                         </div>
                         <div className="space-y-2">
                           <Label>Part AgriCapital (%)</Label>
                           <Input type="number" min="0" max="100" step="1" disabled={formData.type_convention === "achat"} value={formData.type_convention === "achat" ? "100" : formData.part_agricapital_pct} onChange={e => update('part_agricapital_pct', e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                          <Label>Nombre de lots AgriCapital (1 ha / lot)</Label>
+                          <Label>Nombre de lots AgriCapital</Label>
                           <Input type="number" min="0" step="1" value={formData.nombre_lots_agricapital ?? ""} onChange={e => update('nombre_lots_agricapital', e.target.value)} />
                         </div>
                         <div className="space-y-2">
@@ -777,9 +775,9 @@ const ProprietairesTerres = () => {
                         const ownerHa = total * ownerPct / 100;
                         const lots = Number(formData.nombre_lots_agricapital || 0);
                         return <div className="p-3 rounded-md bg-primary/10 text-sm space-y-1">
-                          <p>Part propriétaire : <strong>{Math.round(ownerHa).toLocaleString("fr-FR")} ha</strong> ({ownerPct}%)</p>
-                          <p>Part AgriCapital : <strong>{Math.round(agriHa).toLocaleString("fr-FR")} ha</strong> ({agriPct}%)</p>
-                          <p>Lots AgriCapital : <strong>{lots}</strong> × 1 ha</p>
+                          <p>Part propriétaire : <strong>{ownerHa.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</strong> ({ownerPct}%)</p>
+                          <p>Part AgriCapital : <strong>{agriHa.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</strong> ({agriPct}%)</p>
+                          <p>Lots AgriCapital : <strong>{lots}</strong> · {lots>0?(agriHa/lots).toLocaleString("fr-FR",{maximumFractionDigits:2})+" ha par lot":"aucun lot"}</p>
                           {formData.type_convention === "plante_partage" && <p>Caution foncière : <strong>{(agriHa * 50000).toLocaleString('fr-FR')} FCFA</strong></p>}
                         </div>;
                       })()}
@@ -974,7 +972,7 @@ const ProprietairesTerres = () => {
                     <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ")} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
-                    <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")}</TableCell>
+                    <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR",{maximumFractionDigits:2})}</TableCell>
                     <TableCell><Badge className={p.statut === "actif" ? "bg-green-500" : "bg-red-500"}>{p.statut}</Badge></TableCell>
                     <TableCell><Badge variant={p.validation_statut === "valide" ? "default" : p.validation_statut === "refuse" ? "destructive" : "outline"}>{p.validation_statut === "valide" ? "Validé" : p.validation_statut === "refuse" ? "Refusé" : "À valider"}</Badge></TableCell>
                   </TableRow>
