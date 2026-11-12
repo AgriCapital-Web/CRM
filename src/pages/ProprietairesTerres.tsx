@@ -212,9 +212,10 @@ const ProprietairesTerres = () => {
       toast({ variant: "destructive", title: "Téléphone obligatoire", description: "Renseignez le numéro de téléphone du propriétaire." });
       return;
     }
-    if (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0) {
+    const conventionSurface = Number(formData.surface_totale_declaree_ha);
+    if (!Number.isFinite(conventionSurface) || conventionSurface < 2 || Math.abs(conventionSurface / 2 - Math.round(conventionSurface / 2)) > 0.000001) {
       setActiveFormTab("parcelle");
-      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro." });
+      toast({ variant: "destructive", title: "Superficie de convention invalide", description: "Une convention foncière doit porter sur au moins 2 ha, par tranches exactes de 2 ha (2, 4, 6, 8, 10 ha…). Aucun arrondi automatique n’est appliqué à une superficie foncière." });
       return;
     }
     setUploading(true);
@@ -516,8 +517,9 @@ const ProprietairesTerres = () => {
         return false;
       }
     }
-    if (activeFormTab === "parcelle" && (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0)) {
-      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro hectare." });
+    const surfaceTabValue = Number(formData.surface_totale_declaree_ha);
+    if (activeFormTab === "parcelle" && (!Number.isFinite(surfaceTabValue) || surfaceTabValue < 2 || Math.abs(surfaceTabValue / 2 - Math.round(surfaceTabValue / 2)) > 0.000001)) {
+      toast({ variant: "destructive", title: "Superficie de convention invalide", description: "Une convention foncière doit porter sur au moins 2 ha, par tranches exactes de 2 ha (2, 4, 6, 8, 10 ha…). Aucun arrondi automatique n’est appliqué à une superficie foncière." });
       return false;
     }
     return true;
@@ -716,7 +718,7 @@ const ProprietairesTerres = () => {
                     {/* TAB 2: LOCALISATION */}
                     <TabsContent value="localisation" className="space-y-4">
                       <h4 className="font-semibold">Localisation géographique</h4>
-                      <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} required onChange={(g)=>setFormData((x:any)=>({...x,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{village:g.villageName??x.village}:{})}))}/></TabsContent>
+                      <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} villageName={formData.village||""} required onChange={(g)=>setFormData((x:any)=>({...x,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{village:g.villageName??x.village}:{})}))}/></TabsContent>
 
                     {/* TAB 3: PARCELLE */}
                     <TabsContent value="parcelle" className="space-y-4">
@@ -734,7 +736,7 @@ const ProprietairesTerres = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Superficie totale de la parcelle (ha) *</Label>
-                          <Input type="number" min="0.1" step="0.1" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
+                          <Input type="number" min="2" step="2" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
                         </div>
                         <div className="space-y-2">
                           <Label>Part AgriCapital (%)</Label>
@@ -777,8 +779,8 @@ const ProprietairesTerres = () => {
                         const ownerHa = total * ownerPct / 100;
                         const lots = Number(formData.nombre_lots_agricapital || 0);
                         return <div className="p-3 rounded-md bg-primary/10 text-sm space-y-1">
-                          <p>Part propriétaire : <strong>{Math.round(ownerHa).toLocaleString("fr-FR")} ha</strong> ({ownerPct}%)</p>
-                          <p>Part AgriCapital : <strong>{Math.round(agriHa).toLocaleString("fr-FR")} ha</strong> ({agriPct}%)</p>
+                          <p>Part propriétaire : <strong>{Number(ownerHa).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</strong> ({ownerPct}%)</p>
+                          <p>Part AgriCapital : <strong>{Number(agriHa).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</strong> ({agriPct}%)</p>
                           <p>Lots AgriCapital : <strong>{lots}</strong> × 1 ha</p>
                           {formData.type_convention === "plante_partage" && <p>Caution foncière : <strong>{(agriHa * 50000).toLocaleString('fr-FR')} FCFA</strong></p>}
                         </div>;
@@ -974,7 +976,7 @@ const ProprietairesTerres = () => {
                     <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ")} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
-                    <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")}</TableCell>
+                    <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})}</TableCell>
                     <TableCell><Badge className={p.statut === "actif" ? "bg-green-500" : "bg-red-500"}>{p.statut}</Badge></TableCell>
                     <TableCell><Badge variant={p.validation_statut === "valide" ? "default" : p.validation_statut === "refuse" ? "destructive" : "outline"}>{p.validation_statut === "valide" ? "Validé" : p.validation_statut === "refuse" ? "Refusé" : "À valider"}</Badge></TableCell>
                   </TableRow>
