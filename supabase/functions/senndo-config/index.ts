@@ -49,15 +49,19 @@ Deno.serve(async (req) => {
       }
       let apiValid = false;
       let apiError: string | null = null;
+      let senderIds: any[] = [];
       if (values.senndo_api_key) {
         try {
           const client = new SenndoClient({ apiKey: values.senndo_api_key, baseUrl: "https://api.senndo.com", timeoutMs: 12000, maxRetries: 0, userAgent: "AgriCapital-CRM/1.0" });
-          await client.listSenderIds();
+          const senderResult = await client.listSenderIds();
+          senderIds = Array.isArray(senderResult?.senderIds) ? senderResult.senderIds : [];
           apiValid = true;
         } catch {
           apiError = "La clé est enregistrée, mais Senndo n'a pas confirmé son accès API.";
         }
       }
+      const smsSenderIdActive = senderIds.some((item: any) => String(item?.value || "") === "AgriCapital" &&
+        !/reject|inactive|pending|blocked/i.test(String(item?.lifecycleStatus || "")));
       let whatsappSessionStatus: "unknown" | "connected" | "disconnected" = "unknown";
       if (values.senndo_api_key) {
         try {
@@ -131,6 +135,8 @@ Deno.serve(async (req) => {
         configured: {
           apiKey: Boolean(values.senndo_api_key),
           apiValid,
+          sms: smsSenderIdActive,
+          smsSenderId: smsSenderIdActive,
           webhookSecret: Boolean(values.senndo_webhook_secret),
           emailSenderId: Boolean(values.senndo_email_sender_id),
           whatsappSenderPhone: Boolean(values.senndo_whatsapp_sender_phone),
@@ -140,7 +146,9 @@ Deno.serve(async (req) => {
         apiError,
         emailSenderId: values.senndo_email_sender_id || "",
         whatsappSenderPhone: values.senndo_whatsapp_sender_phone || "+22564551717",
-        senderId: "AgriCapital", whatsappNumber: values.senndo_whatsapp_sender_phone || "+22564551717", provider: "Senndo",
+        senderId: "AgriCapital", smsSenderId: "AgriCapital", smsSenderIdActive, smsMaxCharacters: 155,
+        routing: { domestic: "+225=>sms", international: "whatsapp" },
+        whatsappNumber: values.senndo_whatsapp_sender_phone || "+22564551717", provider: "Senndo",
         webhookUrl: "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook",
       });
     }
