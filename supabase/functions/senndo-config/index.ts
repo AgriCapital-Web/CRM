@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
               let consumedMicros = 0;
               let ledgerEntries = 0;
               let ledgerComplete = false;
+              let ledgerAvailable = true;
               try {
                 const pageSize = 100;
                 const maxPages = 50;
@@ -82,12 +83,13 @@ Deno.serve(async (req) => {
                   if (rows.length < pageSize) { ledgerComplete = true; break; }
                 }
               } catch (ledgerReadError: any) {
+                ledgerAvailable = false;
                 balanceError = "Solde Senndo lu ; lecture du journal de consommation indisponible : " + String(ledgerReadError?.code || ledgerReadError?.message || "erreur API");
               }
               accountBalance = {
                 currency: "USD",
                 balanceUsd: String(rawBalance),
-                consumedUsd: (consumedMicros / 1_000_000).toFixed(6),
+                consumedUsd: ledgerAvailable ? (consumedMicros / 1_000_000).toFixed(6) : null,
                 ledgerEntries,
                 ledgerComplete,
                 updatedAt: new Date().toISOString(),
