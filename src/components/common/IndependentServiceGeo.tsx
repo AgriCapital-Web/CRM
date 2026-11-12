@@ -9,6 +9,8 @@ type Values={departement_id:string};
 export default function IndependentServiceGeo({values,onChange}:{values:Partial<Values>;onChange:(v:Partial<Values>)=>void}){
  const [departments,setDepartments]=useState<Department[]>([]);
  useEffect(()=>{
+  // Exception Prestations indépendantes : le module charge tous les départements,
+  // sans dépendre des indicateurs actifs configurés dans Paramètres.
   let active=true;
   void (supabase as any).from("v_geo_departements").select("id,nom").order("nom").then(({data,error}:any)=>{
    if(active&&!error)setDepartments(data||[]);
