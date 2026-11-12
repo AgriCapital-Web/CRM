@@ -240,48 +240,34 @@ serve(async (req) => {
         console.log("Resend API key not configured or no email for admin");
       }
 
-      // Send WhatsApp notification (if configured)
-      const whatsappToken = Deno.env.get('WHATSAPP_TOKEN');
-      const whatsappPhoneId = Deno.env.get('WHATSAPP_PHONE_ID');
-      if (whatsappToken && whatsappPhoneId && adminProfile.telephone) {
+      // Route the administrator alert through the same country policy as every other notification.
+      if (adminProfile.telephone) {
         try {
-          // Format phone number for WhatsApp (remove leading 0, add country code)
-          let phoneNumber = adminProfile.telephone.replace(/\D/g, '');
-          if (phoneNumber.startsWith('0')) {
-            phoneNumber = '225' + phoneNumber.substring(1);
-          }
-          
-          console.log("Sending WhatsApp notification to administrator");
-          
-          const whatsappResponse = await fetch(`https://graph.facebook.com/v17.0/${whatsappPhoneId}/messages`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${whatsappToken}`,
-              'Content-Type': 'application/json',
-            },
+          const dispatchUrl = Deno.env.get("SUPABASE_URL") ?? "";
+          const internalSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+          const message =
+            `AgriCapital - Nouvelle demande de compte\nNom: ${requestData.nom_complet}\nEmail: ${requestData.email}\nTel: ${requestData.telephone}\n${requestData.poste ? `Poste: ${requestData.poste}\n` : ""}Consultez app.agricapital.ci pour traiter la demande.`;
+          const routed = await fetch(dispatchUrl + "/functions/v1/notification-dispatch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": internalSecret },
             body: JSON.stringify({
-              messaging_product: 'whatsapp',
-              to: phoneNumber,
-              type: 'text',
-              text: {
-                body: `🌱 *AgriCapital · Notification automatique à l’équipe*\nNouvelle demande de compte\n\n` +
-                      `Nom: ${requestData.nom_complet}\n` +
-                      `Email: ${requestData.email}\n` +
-                      `Tél: ${requestData.telephone}\n` +
-                      `${requestData.poste ? `Poste: ${requestData.poste}\n` : ''}` +
-                      `\nConnectez-vous à app.agricapital.ci pour traiter cette demande.`
-              }
-            })
+              mode: "internal_routed_message",
+              contact: {
+                source_type: "equipe",
+                source_id: String(adminProfile.id),
+                user_id: String(adminProfile.id),
+                nom_complet: adminProfile.nom_complet || null,
+                telephone: adminProfile.telephone,
+              },
+              content: message,
+              event_key: `account-request:${String(requestData.auth_user_id || requestData.email).toLowerCase()}:${adminProfile.id}`,
+            }),
+            signal: AbortSignal.timeout(45000),
           });
-
-          if (whatsappResponse.ok) {
-            console.log("WhatsApp message sent successfully");
-          } else {
-            const errorText = await whatsappResponse.text();
-            console.error("WhatsApp send failed:", errorText);
-          }
-        } catch (whatsappError: any) {
-          console.error("Error sending WhatsApp:", whatsappError);
+          const routedResult = await routed.json().catch(() => ({}));
+          if (!routed.ok || !routedResult.ok) throw new Error(routedResult.error || "Routage notification refusé");
+        } catch {
+          console.error("Administrator notification dispatch failed.");
         }
       }
     }
