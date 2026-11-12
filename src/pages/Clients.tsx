@@ -28,7 +28,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 const formatHectares = (value: unknown) => {
   const hectares = Number(value || 0);
-  return Math.round(hectares).toLocaleString("fr-FR");
+  return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(hectares);
 };
 
 const getOfferDisplayName = (client: any) => {
@@ -137,9 +137,12 @@ const Clients = () => {
       const enrichedData = (baseClients || []).map((client: any) => {
         const clientPlantations = plantations.filter((p: any) => p.client_id === client.id);
         const clientAttributions = attributionsData.filter((a: any) => a.client_id === client.id);
-        const totalHectares = clientAttributions.length
-          ? clientAttributions.reduce((sum: number, a: any) => sum + Number(a.surface_attribuee_ha || 0), 0)
-          : clientPlantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0);
+        const attributedPlantationIds = new Set(clientAttributions.map((a: any) => a.plantation_id).filter(Boolean));
+        const plantationHectares = clientPlantations
+          .filter((p: any) => !attributedPlantationIds.has(p.id))
+          .reduce((sum: number, p: any) => sum + Number(p.superficie_ha ?? p.superficie_activee ?? p.surface_reellement_plantee ?? 0), 0);
+        const attributedHectares = clientAttributions.reduce((sum: number, a: any) => sum + Number(a.surface_attribuee_ha || 0), 0);
+        const totalHectares = plantationHectares + attributedHectares;
 
         return {
           ...client,
@@ -147,9 +150,10 @@ const Clients = () => {
           regions: regionsMap.get(client.region_id) || null,
           plantations: clientPlantations,
           beneficiaire_attributions: clientAttributions,
-          nombre_plantations: clientAttributions.length
-            ? new Set(clientAttributions.map((a: any) => a.plantation_id).filter(Boolean)).size || clientAttributions.length
-            : clientPlantations.length,
+          nombre_plantations: new Set([
+            ...clientPlantations.map((p: any) => p.id),
+            ...clientAttributions.map((a: any) => a.plantation_id).filter(Boolean),
+          ]).size || clientPlantations.length + clientAttributions.length,
           total_hectares: totalHectares,
         };
       });
@@ -177,7 +181,7 @@ const Clients = () => {
             return {
               ...s,
               nombre_plantations: plantations.length,
-              total_hectares: plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0),
+              total_hectares: Number(s.total_hectares || s.superficie_ha || plantations.reduce((sum: number, p: any) => sum + Number(p.superficie_ha ?? p.superficie_activee ?? p.surface_reellement_plantee ?? 0), 0)),
             };
           });
         setClients(enrichedData);
