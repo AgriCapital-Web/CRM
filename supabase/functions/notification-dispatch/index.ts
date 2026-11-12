@@ -781,8 +781,22 @@ async function deliver(args: {
 
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
-      const rendered = brandAutomatedMessage(render(args.content, contact, args.context || {}), channel, routingPolicy.sms_max_characters);
-      if (channel === "sms") assertSmsLength(normalizeSms(rendered), routingPolicy.sms_max_characters);
+      const rawRendered = render(args.content, contact, args.context || {});
+      let rendered: string;
+      if (channel === "sms") {
+        const greetingName = rawRendered.match(/Bonjour\s+([^,;:]+)[,;:]/i)?.[1]?.trim() || "";
+        const templateForSms = greetingName
+          ? rawRendered.replace(/Bonjour\s+[^,;:]+([,;:])/i, "Bonjour {dernierprenom_nom}$1")
+          : rawRendered;
+        const bodyFitted = restructureSmsTemplateWithinLimit(templateForSms, routingPolicy.sms_content_max_characters);
+        const personalized = greetingName
+          ? bodyFitted.replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/i, greetingName)
+          : bodyFitted;
+        rendered = brandAutomatedMessage(personalized, channel, routingPolicy.sms_max_characters);
+        assertSmsLength(normalizeSms(rendered), routingPolicy.sms_max_characters);
+      } else {
+        rendered = brandAutomatedMessage(rawRendered, channel, routingPolicy.sms_max_characters);
+      }
       const rawSubject = render(args.subject || "", contact, args.context || {});
       const renderedSubject = channel === "app" && rawSubject && !/^AgriCapital\\b/i.test(rawSubject) ? "AgriCapital · " + rawSubject : rawSubject;
       const attachments = args.mediaAttachments || [];
