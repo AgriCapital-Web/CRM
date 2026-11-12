@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
               accountBalance = {
                 currency: "USD",
                 balanceUsd: String(rawBalance),
-                consumedUsd: ledgerAvailable ? (consumedMicros / 1_000_000).toFixed(6) : null,
+                consumedUsd: ledgerAvailable ? (consumedMicros / 1_000_000).toFixed(6) : "Indisponible",
                 ledgerEntries,
                 ledgerComplete,
                 updatedAt: new Date().toISOString(),
