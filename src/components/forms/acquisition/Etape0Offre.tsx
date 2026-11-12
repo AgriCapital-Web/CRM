@@ -92,7 +92,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
         formules_configuration: Array.isArray(snapshotOffer.formules_configuration) ? snapshotOffer.formules_configuration : [] } as Offre] : [])
     : (catalogueOffres || []);
   const selectedOffer = offres.find((item: any) => item.id === formData.offre_id) || snapshotOffer;
-  const selectedOfferFamily = String(selectedOffer?.famille_offre || selectedOffer?.code || formData.offre_code || "").toUpperCase().replace(/[-_\\s]/g, "");
+  const selectedOfferFamily = String(selectedOffer?.famille_offre || selectedOffer?.code || formData.offre_code || "").toUpperCase().replace(/[-_\s]/g, "");
   const isPalmInvestOffer = selectedOfferFamily === "PALMINVEST";
   const normalizeSurfaceInput = (value: unknown) => {
     const area = Number(value);
