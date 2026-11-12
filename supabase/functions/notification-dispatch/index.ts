@@ -82,7 +82,7 @@ type Contact = {
   role_code?: string | null; offre_id?: string | null; offre_code?: string | null; offre_nom?: string | null;
 };
 
-const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
 const assertSmsLength = (value: string, maxCharacters = 155) => {
   const length = Array.from(value).length;
   if (length > maxCharacters) throw new Error(`SMS trop long : ${length}/${maxCharacters} caractères, espaces et signes compris.`);
