@@ -50,12 +50,54 @@ Deno.serve(async (req) => {
       let apiValid = false;
       let apiError: string | null = null;
       let senderIds: any[] = [];
+      let accountBalance: any = null;
+      let balanceError: string | null = null;
       if (values.senndo_api_key) {
         try {
           const client = new SenndoClient({ apiKey: values.senndo_api_key, baseUrl: "https://api.senndo.com", timeoutMs: 12000, maxRetries: 0, userAgent: "AgriCapital-CRM/1.0" });
           const senderResult = await client.listSenderIds();
           senderIds = Array.isArray(senderResult?.senderIds) ? senderResult.senderIds : [];
           apiValid = true;
+          try {
+            const balanceResult: any = await client.getBalance({ currency: "USD" });
+            const rawBalance = balanceResult?.balanceUsd ?? balanceResult?.balance_usd;
+            if (rawBalance !== undefined && rawBalance !== null && Number.isFinite(Number(rawBalance))) {
+              let consumedMicros = 0;
+              let ledgerEntries = 0;
+              let ledgerComplete = false;
+              try {
+                const pageSize = 100;
+                const maxPages = 50;
+                for (let page = 1; page <= maxPages; page++) {
+                  const ledger: any = await client.listLedger({ page, pageSize });
+                  const rows = Array.isArray(ledger?.rows) ? ledger.rows : [];
+                  for (const row of rows) {
+                    const billed = Number(row?.billedAmountUsd ?? row?.amountUsd ?? 0);
+                    const reversed = Number(row?.reversedAmountUsd ?? 0);
+                    if (Number.isFinite(billed) && Number.isFinite(reversed)) {
+                      consumedMicros += Math.round((billed - reversed) * 1_000_000);
+                    }
+                  }
+                  ledgerEntries += rows.length;
+                  if (rows.length < pageSize) { ledgerComplete = true; break; }
+                }
+              } catch (ledgerReadError: any) {
+                balanceError = "Solde Senndo lu ; lecture du journal de consommation indisponible : " + String(ledgerReadError?.code || ledgerReadError?.message || "erreur API");
+              }
+              accountBalance = {
+                currency: "USD",
+                balanceUsd: String(rawBalance),
+                consumedUsd: (consumedMicros / 1_000_000).toFixed(6),
+                ledgerEntries,
+                ledgerComplete,
+                updatedAt: new Date().toISOString(),
+              };
+            } else {
+              balanceError = "Senndo n'a pas renvoyé un solde USD exploitable.";
+            }
+          } catch (error: any) {
+            balanceError = String(error?.code || error?.message || "Lecture du solde indisponible");
+          }
         } catch {
           apiError = "La clé est enregistrée, mais Senndo n'a pas confirmé son accès API.";
         }
