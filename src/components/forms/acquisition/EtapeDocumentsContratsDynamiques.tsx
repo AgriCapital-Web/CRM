@@ -36,12 +36,14 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
     let mounted = true;
     const load = async () => {
       if (!formData.offre_id) return;
+      updateFormData({ offre_formulaire_contrats_loaded: false });
       setLoading(true);
       const [{ data: docs }, { data: ctrs }] = await Promise.all([
         (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id", formData.offre_id).eq("actif", true).order("ordre"),
         (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id", formData.offre_id).eq("actif", true),
       ]);
       if (mounted) {
+        updateFormData({ offre_formulaire_contrats_loaded: true });
         setDocuments(docs || []);
         setContracts(ctrs || []);
         updateFormData({
