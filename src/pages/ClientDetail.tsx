@@ -105,13 +105,30 @@ const ClientDetail = () => {
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
   const requestedSurface = Number(newAcquisitionFormData.superficie_prevue || 0);
-  const lotsForSelectedParcel = availableLots.filter((lot: any) =>
-    lot.parcelle_id === newPlantationParcelId &&
-    (requestedSurface < 0.5 || Math.abs(Number(lot.surface_ha || 0) - requestedSurface) < 0.0001)
-  ).sort((a: any, b: any) => Number(a.numero_h || 0) - Number(b.numero_h || 0));
+  const lotsForSelectedParcel = availableLots.filter((lot: any) => lot.parcelle_id === newPlantationParcelId)
+    .sort((a: any, b: any) => Number(a.numero_h || 0) - Number(b.numero_h || 0));
   const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
-  const selectedLotSeriesReady = !selectedNewLot || Math.abs(Number(selectedNewLot.surface_ha || 0) - requestedSurface) < 0.0001;
-  const selectedLotGroupReference = selectedNewLot?.reference || (selectedNewLot?.numero_h != null ? `H${String(selectedNewLot.numero_h).padStart(2, "0")}` : "");
+  const selectedLotSeries = (() => {
+    if (!selectedNewLot || requestedSurface < 0.5) return [];
+    const series: any[] = [];
+    let accumulatedSurface = 0;
+    let previousNumber: number | null = null;
+    for (const lot of lotsForSelectedParcel) {
+      const number = Number(lot.numero_h || 0);
+      if (number < Number(selectedNewLot.numero_h || 0)) continue;
+      if (series.length > 0 && number !== (previousNumber as number) + 1) break;
+      series.push(lot);
+      accumulatedSurface += Number(lot.surface_ha || 0);
+      if (Math.abs(accumulatedSurface - requestedSurface) < 0.0001) return series;
+      if (accumulatedSurface > requestedSurface + 0.0001) return [];
+      previousNumber = number;
+    }
+    return [];
+  })();
+  const selectedLotSeriesReady = selectedLotSeries.length > 0;
+  const selectedLotGroupReference = selectedLotSeries.length > 1
+    ? `${selectedLotSeries[0].reference || `L${String(selectedLotSeries[0].numero_h).padStart(2,"0")}`} — ${selectedLotSeries[selectedLotSeries.length-1].reference || `L${String(selectedLotSeries[selectedLotSeries.length-1].numero_h).padStart(2,"0")}`}`
+    : selectedLotSeries[0]?.reference || "";
   const selectedOfferNeedsClientLand = newAcquisitionFormData.offre
     ? !!newAcquisitionFormData.offre.necessite_foncier_client
     : false;
@@ -776,7 +793,7 @@ const ClientDetail = () => {
                   formData={newAcquisitionFormData}
                   updateFormData={updateNewAcquisitionFormData}
                   showCommercial={false}
-                  surfaceReadOnly={!!newPlantationLotId}
+                  surfaceReadOnly={false}
                 />
 
                 <div className="space-y-2 rounded-lg border p-3">
@@ -831,8 +848,7 @@ const ClientDetail = () => {
                     <CardHeader className="pb-2"><CardTitle className="text-base">Parcelle partenaire et lot disponible</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm text-muted-foreground">
-                        Choisissez une parcelle puis un lot dont la superficie correspond exactement à celle de la souscription.
-                        {" "}Les lots ne sont réservés qu’après confirmation par la base.
+                        Choisissez le premier lot d’une série contiguë dont la superficie cumulée correspond exactement à la souscription. Les lots ne sont réservés qu’après confirmation par la base.
                       </p>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div className="space-y-2">
@@ -849,11 +865,10 @@ const ClientDetail = () => {
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>{"Lot disponible correspondant à la superficie *"}</Label>
+                          <Label>Lot de départ *</Label>
                           <Select value={newPlantationLotId} onValueChange={(value) => {
                             const lot = availableLots.find((item: any) => item.id === value);
                             setNewPlantationLotId(value);
-                            if (lot) setNewAcquisitionFormData((current: any) => ({ ...current, superficie_prevue: String(lot.surface_ha || "") }));
                           }} disabled={!newPlantationParcelId || loadingPlantationOptions || lotsForSelectedParcel.length === 0}>
                             <SelectTrigger><SelectValue placeholder={!newPlantationParcelId ? "Choisir d’abord une parcelle" : "Choisir un lot"} /></SelectTrigger>
                             <SelectContent>
@@ -868,10 +883,10 @@ const ClientDetail = () => {
                       </div>
                       {selectedNewLot && (
                         <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-3">
-                          <div><p className="text-xs text-muted-foreground">{"Superficie réservée"}</p><p className="font-semibold">{`${selectedLotGroupReference} · ${Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha`}</p></div>
+                          <div><p className="text-xs text-muted-foreground">{"Lots réservés"}</p><p className="font-semibold">{`${selectedLotGroupReference} · ${Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha`}</p></div>
                           <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "À confirmer"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Propriétaire partenaire</p><p className="font-semibold">Enregistré sur la parcelle</p></div>
-                          {!selectedLotSeriesReady && <p className="text-sm text-destructive sm:col-span-3">Le lot choisi ne correspond pas à la superficie demandée.</p>}
+                          {!selectedLotSeriesReady && <p className="text-sm text-destructive sm:col-span-3">La série de lots contigus ne couvre pas exactement la superficie demandée.</p>}
                         </div>
                       )}
                       {!loadingPlantationOptions && availableParcelles.length === 0 && (
