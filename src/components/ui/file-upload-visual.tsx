@@ -155,6 +155,7 @@ export const FileUploadVisual = ({
 
       {/* Keep every picker mounted after a preview exists, so replacing a file works. */}
       <Input ref={inputRef} type="file" accept={accept} onChange={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         handleFileSelect(e.currentTarget.files?.[0] || null);
         e.currentTarget.value = "";
@@ -186,7 +187,7 @@ export const FileUploadVisual = ({
           {ocrLoading && <p className="mt-2 text-xs text-muted-foreground flex items-center justify-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />{ocrMessage}</p>}
           {!ocrLoading && ocrMessage && <p className="mt-2 text-xs text-muted-foreground flex items-center justify-center gap-2"><ScanText className="h-3 w-3" />{ocrMessage}</p>}
           <div className={`flex gap-1 ${compact ? "mt-1" : "mt-3"} justify-center`}>
-            <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 hover:bg-emerald-50" aria-label="Remplacer le fichier" title="Remplacer le fichier" onClick={openPicker}><Upload className="h-4 w-4" /></button>
+            <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 hover:bg-emerald-50" aria-label="Remplacer le fichier" title="Remplacer le fichier" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPicker(); }}><Upload className="h-4 w-4" /></button>
             <Button type="button" variant="outline" size="sm" className={compact ? "h-7 w-7 p-0" : ""} aria-label="Visualiser" title="Visualiser" onClick={() => window.open(preview, "_blank", "noopener,noreferrer")}>
               <Eye className="h-4 w-4" />{!compact && "Visualiser"}
             </Button>
