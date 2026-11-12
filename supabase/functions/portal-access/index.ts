@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,11 +70,25 @@ function smsDestination(client: any) {
   if (!raw) return null;
   return "+" + (raw.length <= 10 ? "225" + raw : raw);
 }
-async function sendOtpSms(supabase: any, to: string, code: string) {
-  const { data: apiKey } = await supabase.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
-  if (typeof apiKey !== "string" || !apiKey) throw new Error("SMS provider not configured");
-  const senndo = new SenndoClient({ apiKey, baseUrl: "https://api.senndo.com", timeoutMs: 30000, maxRetries: 1, userAgent: "AgriCapital-Portal/1.0" });
-  await senndo.sendMessage({ channel: "sms", to, senderId: "AgriCapital", text: "AgriCapital : votre code de verification portail est " + code + ". Valable 10 minutes. Ne le partagez pas.", idempotencyKey: crypto.randomUUID() });
+async function sendOtpNotification(supabase: any, client: any, to: string, code: string) {
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const response = await fetch(url + "/functions/v1/notification-dispatch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": serviceKey },
+    body: JSON.stringify({
+      mode: "internal_routed_message",
+      contact: { source_type: "client", source_id: client.id, telephone: to, nom_complet: client.nom_complet || null },
+      content: "AgriCapital: votre code de verification portail est " + code + ". Valable 10 minutes. Ne le partagez pas.",
+      event_key: "portal-otp:" + client.id + ":" + Date.now(),
+    }),
+    signal: AbortSignal.timeout(45000),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.ok || Number(payload.result?.sent || 0) < 1) {
+    throw new Error(payload.error || "Impossible d'envoyer le code de vérification.");
+  }
+  return payload.result;
 }
 
 serve(async (req: Request) => {
@@ -120,16 +133,16 @@ serve(async (req: Request) => {
       const { error: otpErr } = await supabase.from("otp_codes").insert({ telephone: phone, code: await codeHash(otp, "otp:" + phone),
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), verified: false, attempts: 0 });
       if (otpErr) throw otpErr;
-      await sendOtpSms(supabase, dest, otp);
+      await sendOtpNotification(supabase, client, dest, otp);
       return json({ success: true, otp_sent: true, telephone_masque: maskPhone(dest) });
     }
     if (action === "setup") {
       if (access) return json({ success: false, error: "Un code d'accès existe déjà pour ce compte. Utilisez-le pour vous connecter.", needs_access_code_setup: false }, 409);
       const code = String(body?.code || ""), confirm = String(body?.confirm_code || "");
       if (!/^\d{4}$/.test(code) || code !== confirm) return json({ success: false, error: "Le code doit contenir exactement 4 chiffres et les deux champs doivent être identiques." }, 400);
-      // Proof of phone ownership: a one-time SMS code sent to the client's registered number.
+      // Proof of phone ownership: a one-time code sent through the country-based notification channel.
       const otp = String(body?.otp || "");
-      if (!/^\d{6}$/.test(otp)) return json({ success: false, code: "OTP_REQUIRED", error: "Saisissez le code de vérification reçu par SMS." }, 400);
+      if (!/^\d{6}$/.test(otp)) return json({ success: false, code: "OTP_REQUIRED", error: "Saisissez le code de vérification reçu par SMS ou WhatsApp." }, 400);
       const { data: otpRow } = await supabase.from("otp_codes").select("id,code,expires_at,attempts").eq("telephone", phone)
         .eq("verified", false).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (!otpRow || new Date(otpRow.expires_at).getTime() < Date.now() || Number(otpRow.attempts || 0) >= 5) {
