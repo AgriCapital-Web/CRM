@@ -108,14 +108,16 @@ export default function GeographieCascade({
 
   useEffect(() => {
     let active = true;
-    if (!districtId) { setRegions([]); return () => { active = false; }; }
     void (async () => {
-      let query = (supabase as any).from("v_geo_regions").select("id,nom,district_id,est_active_effectif").eq("district_id", districtId);
+      let query = (supabase as any).from("v_geo_regions").select("id,nom,district_id,est_active_effectif");
+      if (districtId) query = query.eq("district_id", districtId);
       if (!includeInactive) query = query.eq("est_active_effectif", true);
       const { data, error } = await query.order("nom");
-      const cached = error ? cachedRowsForScope((await getAllItems(STORES.REGIONS).catch(() => [])).filter((x:any) => x.district_id === districtId),includeInactive,["est_active","est_actif"]) : [];
+      const cachedRows = await getAllItems(STORES.REGIONS).catch(() => []);
+      const scopedRows = districtId ? cachedRows.filter((x:any) => x.district_id === districtId) : cachedRows;
+      const cached = error ? cachedRowsForScope(scopedRows,includeInactive,["est_active_effectif","est_active","est_actif"]) : [];
       if (active) setRegions(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.REGIONS, data.map((row:any)=>({...row,est_active:row.est_active_effectif}))).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.REGIONS, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [districtId, tick, includeInactive]);
@@ -129,7 +131,7 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cached = error ? cachedRowsForScope((await getAllItems(STORES.DEPARTEMENTS).catch(() => [])).filter((x:any) => x.region_id === regionId),includeInactive,["est_actif"]) : [];
       if (active) setDepartements(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif}))).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [regionId, tick, includeInactive]);
@@ -143,7 +145,7 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cached = error ? cachedRowsForScope((await getAllItems(STORES.SOUS_PREFECTURES).catch(() => [])).filter((x:any) => x.departement_id === departementId),includeInactive,["est_active","est_actif"]) : [];
       if (active) setSousPrefectures(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((row:any)=>({...row,est_active:row.est_active_effectif}))).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [departementId, tick, includeInactive]);
@@ -157,7 +159,7 @@ export default function GeographieCascade({
       const { data, error } = await query.order("nom");
       const cached = error ? cachedRowsForScope((await getAllItems(STORES.VILLAGES).catch(() => [])).filter((x:any) => x.sous_prefecture_id === sousPrefectureId),includeInactive,["est_actif"]) : [];
       if (active) setVillages(error ? cached : (data || []));
-      if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif}))).catch(()=>{});
+      if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
   }, [sousPrefectureId, tick, includeInactive]);
@@ -200,7 +202,7 @@ export default function GeographieCascade({
               const reg: any = dep?.region_id ? regById.get(String(dep.region_id)) : undefined;
               return { ...v, departement_id: sp?.departement_id || null, region_id: dep?.region_id || null, district_id: reg?.district_id || null };
             });
-            void putItems(STORES.VILLAGES, candidates.map((row:any)=>({...row,est_actif:row.est_actif_effectif}))).catch(() => {});
+            void putItems(STORES.VILLAGES, candidates.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(() => {});
           }
         }
         let matches = candidates.filter((v: any) => v?.id && v?.nom && geoNameMatches(v.nom, term));
@@ -274,23 +276,23 @@ export default function GeographieCascade({
     setVillageMatches([]);
   };
 
-  const hasChildren = Boolean(districtId) && !/diaspora/i.test(selectedDistrict?.nom || "");
+  const hasChildren = !/diaspora/i.test(selectedDistrict?.nom || "");
   const selectedVillageName = [...villages, ...villageMatches].find((v) => v.id === villageId)?.nom || "";
   return <div className={className}>
     {showDistrict && <div className="space-y-2"><Label>District</Label>
       <SearchableSelect value={districtId || ""} onValueChange={(value) => onChange({
         districtId: value, districtName: districts.find((d) => d.id === value)?.nom || null,
-        regionId: null, departementId: null, sousPrefectureId: null, villageId: null,
+        regionId: null, departementId: null, sousPrefectureId: null, villageId: null, villageName: null,
       })} options={districts.map((x) => ({ value: x.id, label: x.nom }))}
         placeholder="Sélectionner le district" searchPlaceholder="Rechercher un district" />
     </div>}
     {hasChildren && <>
       <div className="space-y-2"><Label>Région</Label>
-        <SearchableSelect value={regionId || ""} disabled={!districtId} options={regions.map((x) => ({ value: x.id, label: x.nom }))}
+        <SearchableSelect value={regionId || ""} options={regions.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner la région" searchPlaceholder="Rechercher une région"
-          onValueChange={(value) => { const x = regions.find((r) => r.id === value); onChange({
-            districtId: districtId || null, districtName: selectedDistrict?.nom || null, regionId: value,
-            departementId: null, sousPrefectureId: null, villageId: null, regionName: x?.nom || null
+          onValueChange={(value) => { const x = regions.find((r) => r.id === value); const nextDistrictId = x?.district_id || districtId || null; onChange({
+            districtId: nextDistrictId, districtName: districts.find((d) => d.id === nextDistrictId)?.nom || selectedDistrict?.nom || null, regionId: value,
+            departementId: null, sousPrefectureId: null, villageId: null, villageName: null, regionName: x?.nom || null
           }); }} />
       </div>
       {showDepartement && <div className="space-y-2"><Label>Département</Label>
@@ -305,7 +307,7 @@ export default function GeographieCascade({
         <SearchableSelect value={sousPrefectureId || ""} disabled={!departementId} options={sousPrefectures.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner la sous-préfecture" searchPlaceholder="Rechercher une sous-préfecture"
           onValueChange={(value) => { const x = sousPrefectures.find((s) => s.id === value); onChange({
-            districtId: districtId || null, regionId: regionId || null, departementId: departementId || null, sousPrefectureId: value, villageId: null,
+            districtId: districtId || null, regionId: regionId || null, departementId: departementId || null, sousPrefectureId: value, villageId: null, villageName: null,
             regionName: regions.find((r) => r.id === regionId)?.nom || null, departementName: departements.find((d) => d.id === departementId)?.nom || null,
             sousPrefectureName: x?.nom || null
           }); }} />
