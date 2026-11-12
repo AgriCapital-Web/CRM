@@ -142,7 +142,7 @@ const ClientDetail = () => {
     ? !!newAcquisitionFormData.offre.necessite_foncier_client
     : false;
   const returnedAcquisition = clientAcquisitions.find((item:any) => item.created_by === user?.id && item.validation_statut === "modification_demandee") || null;
-  const returnedOfferFamily = String(returnedAcquisition?.offre_snapshot?.offer?.famille_offre || returnedAcquisition?.offre_snapshot?.offer?.code || returnedAcquisition?.offre_code || "").toUpperCase().replace(/[-_\\s]/g, "");
+  const returnedOfferFamily = String(returnedAcquisition?.offre_snapshot?.offer?.famille_offre || returnedAcquisition?.offre_snapshot?.offer?.code || returnedAcquisition?.offre_code || "").toUpperCase().replace(/[-_\s]/g, "");
   const isReturnedPalmInvest = returnedOfferFamily === "PALMINVEST" || /PALMINVEST/i.test(JSON.stringify(returnedAcquisition?.offre_snapshot || {}));
   const updateNewAcquisitionFormData = (patch: any) => {
     if (patch.offre_id && patch.offre_id !== newAcquisitionFormData.offre_id) {
