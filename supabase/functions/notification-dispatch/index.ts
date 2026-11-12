@@ -250,7 +250,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const leadStyleName = contact.source_type === "lead" || contact.source_type === "prospect";
   const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || (context.finance_payout_sms === true ? "" : "Client"));
   const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
-  const titleCaseNames = (value: string) => value.toLocaleLowerCase("fr-FR").replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  const titleCaseNames = (value: string) => value.trim().replace(/^[\s.,;:]+|[\s.,;:]+$/g, "").toLocaleLowerCase("fr-FR").replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
   const structuredFirstNames = contact.prenoms?.trim();
   const structuredLastName = contact.nom?.trim();
   const structuredDisplayName = structuredFirstNames && structuredLastName
@@ -260,7 +260,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
         return titleCaseNames(lastGivenName) + " " + titleCaseNames(structuredLastName);
       })()
     : null;
-  const displayName = structuredDisplayName || (nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName);
+  const displayName = structuredDisplayName || (nameParts.length > 1 ? `${titleCaseNames(firstName)} ${titleCaseNames(familyName)}` : titleCaseNames(familyName));
   // Seul le jeton {dernier_prenom_nom} est autorisé pour le nom du destinataire.
   // Les anciens alias nom/prenom/nom_complet ne sont volontairement pas exposés.
   const vars: Record<string, string> = {
