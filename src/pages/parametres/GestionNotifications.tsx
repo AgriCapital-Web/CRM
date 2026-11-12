@@ -102,7 +102,7 @@ const restructureSms = (value: string) => {
     if (token === marker) { output += token; continue; }
     if (/^\s+$/.test(token)) { if (output && !output.endsWith(" ")) output += " "; continue; }
     const length = smsLength(token);
-    if (count + length > 130) { truncated = true; break; }
+    if (count + length > 129) { truncated = true; break; }
     output += token;
     count += length;
   }
