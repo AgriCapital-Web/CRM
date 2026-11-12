@@ -282,6 +282,8 @@ export default function GeographieCascade({
     if (exactMatches.length === 1 && exactMatches[0].id !== villageId) {
       void selectVillage(exactMatches[0].id, exactMatches[0].nom);
     }
+  // selectVillage is intentionally used with the current matching values; parent state supplies the selected id.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [villageSearch, villageMatches, villageId]);
 
   const hasChildren = !/diaspora/i.test(selectedDistrict?.nom || "");
