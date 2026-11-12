@@ -62,7 +62,7 @@ export default function GeographieCascade({
     Promise.all([getAllItems(STORES.DISTRICTS), getAllItems(STORES.REGIONS), getAllItems(STORES.DEPARTEMENTS), getAllItems(STORES.SOUS_PREFECTURES), getAllItems(STORES.VILLAGES)])
       .then(([d,r,de,sp,v]) => {
         if(!active)return;
-        const ad=cachedRowsForScope(d,includeInactive,["est_actif"]);
+        const ad=cachedRowsForScope(d,includeInactive,["est_actif_effectif","est_actif"]);
         const activeDistrictIds=new Set(ad.map((row:any)=>String(row.id)));
         const ar=cachedRowsForScope(r,includeInactive,["est_active_effectif","est_active","est_actif"])
           .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id)));
@@ -98,18 +98,21 @@ export default function GeographieCascade({
     let active = true;
     void (async () => {
       const [{ data, error }, { data: regionRows }] = await Promise.all([
-        (supabase as any).from("v_geo_districts").select("id,nom,est_actif").order("nom").then((result:any) => {
-          if (!includeInactive && !result.error) result.data = (result.data || []).filter((row:any) => row.est_actif === true);
+        (supabase as any).from("v_geo_districts").select("id,nom,est_actif_effectif").order("nom").then((result:any) => {
+          if (!includeInactive && !result.error) result.data = (result.data || []).filter((row:any) => row.est_actif_effectif === true);
           return result;
         }),
-        (supabase as any).from("regions").select("district_id"),
+        (supabase as any).from("v_geo_regions").select("district_id,est_active_effectif").then((result:any) => {
+          if (!includeInactive && !result.error) result.data = (result.data || []).filter((row:any) => row.est_active_effectif === true);
+          return result;
+        }),
       ]);
       const withChildren = new Set((regionRows || []).map((r: any) => r.district_id));
       const sorted = (error ? [] : (data || [])).sort((a: any, b: any) =>
         Number(withChildren.has(a.id)) - Number(withChildren.has(b.id)) || String(a.nom).localeCompare(String(b.nom), "fr"));
-      const cached = error ? cachedRowsForScope(await getAllItems(STORES.DISTRICTS).catch(() => []),includeInactive,["est_actif"]) : [];
+      const cached = error ? cachedRowsForScope(await getAllItems(STORES.DISTRICTS).catch(() => []),includeInactive,["est_actif_effectif","est_actif"]) : [];
       if (active) setDistricts(error ? cached : sorted);
-      if (!error && data?.length) void putItems(STORES.DISTRICTS, data).catch(() => {});
+      if (!error && data?.length) void putItems(STORES.DISTRICTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(() => {});
     })();
     return () => { active = false; };
   }, [tick, includeInactive]);
@@ -302,8 +305,8 @@ export default function GeographieCascade({
     const distId = reg?.district_id || districtId || null;
     let dist: any = districts.find((x) => x.id === distId);
     if (distId && !dist) {
-      let query = (supabase as any).from("v_geo_districts").select("id,nom,est_actif").eq("id", distId);
-      if (!includeInactive) query = query.eq("est_actif", true);
+      let query = (supabase as any).from("v_geo_districts").select("id,nom,est_actif_effectif").eq("id", distId);
+      if (!includeInactive) query = query.eq("est_actif_effectif", true);
       const { data } = await query.maybeSingle();
       dist = data;
     }
