@@ -299,9 +299,15 @@ const Clients = () => {
 
   const clientSurface = (client: any) => Number(client.total_hectares || client.superficie_ha || 0);
   const surfaceBands = [
-    { key: "1", label: "1 ha", matches: (ha: number) => ha === 1 },
-    { key: "2", label: "2 ha", matches: (ha: number) => ha === 2 },
-    { key: "3", label: "3 ha", matches: (ha: number) => ha === 3 },
+    { key: "0.5", label: "0,5 ha", matches: (ha: number) => Math.abs(ha - 0.5) < 0.000001 },
+    { key: "1", label: "1 ha", matches: (ha: number) => Math.abs(ha - 1) < 0.000001 },
+    { key: "1.5", label: "1,5 ha", matches: (ha: number) => Math.abs(ha - 1.5) < 0.000001 },
+    { key: "2", label: "2 ha", matches: (ha: number) => Math.abs(ha - 2) < 0.000001 },
+    { key: "2.5", label: "2,5 ha", matches: (ha: number) => Math.abs(ha - 2.5) < 0.000001 },
+    { key: "3", label: "3 ha", matches: (ha: number) => Math.abs(ha - 3) < 0.000001 },
+    { key: "3.5", label: "3,5 ha", matches: (ha: number) => Math.abs(ha - 3.5) < 0.000001 },
+    { key: "4", label: "4 ha", matches: (ha: number) => Math.abs(ha - 4) < 0.000001 },
+    { key: "4.5", label: "4,5 ha", matches: (ha: number) => Math.abs(ha - 4.5) < 0.000001 },
     { key: "5-10", label: "5–10 ha", matches: (ha: number) => ha >= 5 && ha < 10 },
     { key: "10-50", label: "10–50 ha", matches: (ha: number) => ha >= 10 && ha < 50 },
     { key: "50-100", label: "50–100 ha", matches: (ha: number) => ha >= 50 && ha < 100 },
