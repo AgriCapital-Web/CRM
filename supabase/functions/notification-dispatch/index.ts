@@ -115,18 +115,104 @@ function normalizeWhatsAppMessage(value: string): string {
   }).join("\\n").replace(/\\n{3,}/g, "\\n\\n").trim();
   return header ? uniqueBody ? header + "\\n\\n" + uniqueBody : header : uniqueBody;
 }
+function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): string {
+  let text = normalizeSms(value).replace(/\s+/g, " ").trim();
+  if (!/AgriCapital/i.test(text)) text = "AgriCapital: " + text;
+  if (Array.from(text).length <= maxSmsCharacters) return text;
+
+  const rules: Array<[RegExp, string]> = [
+    [/AgriCapital\s*\(notification automatique\)\s*:/gi, "AgriCapital:"],
+    [/Votre dossier de prospection a bien ete enregistre/gi, "Dossier de prospection enregistre"],
+    [/Votre solde PalmTerroir restant est de/gi, "Solde PalmTerroir restant :"],
+    [/votre solde restant est de/gi, "Solde restant :"],
+    [/Merci de prevoir son reglement/gi, "Merci de regler"],
+    [/Merci de prevoir le reglement/gi, "Merci de regler"],
+    [/Appelez le fondateur au/gi, "Appelez au"],
+    [/pour confirmer votre statut/gi, "pour confirmer"],
+    [/votre compte AgriCapital est active/gi, "compte AgriCapital actif"],
+    [/a bien ete enregistre/gi, "enregistre"],
+    [/est maintenant active/gi, "est actif"],
+    [/Contactez AgriCapital/gi, "Contact: 0564551717"],
+    [/Pour toute question/gi, "Questions:"],
+    [/Merci pour votre accompagnement spirituel/gi, "Merci pour votre soutien"],
+  ];
+  for (const [pattern, replacement] of rules) {
+    text = text.replace(pattern, replacement);
+    if (Array.from(text).length <= maxSmsCharacters) return text;
+  }
+
+  // Retirer d'abord les signatures et les formules secondaires, jamais le nom du destinataire.
+  text = text.replace(/\s*(?:Direction|Investir la terre[^.]*|AgriCapital\.?|Merci\.)\s*$/i, "").trim();
+  if (Array.from(text).length <= maxSmsCharacters) return text;
+
+  const greeting = text.match(/^(.*?Bonjour\s+[^,;:]+[,;:]\s*)(.*)$/i);
+  if (greeting) {
+    const head = greeting[1];
+    let body = greeting[2].trim();
+    const available = maxSmsCharacters - Array.from(head).length;
+    if (available <= 0) throw new Error("Le nom complet du destinataire dépasse la limite SMS autorisée.");
+    body = body.replace(/\s*[-–—]\s*AgriCapital\.?$/i, "").trim();
+    const words = body.split(/\s+/).filter(Boolean);
+    while (words.length && Array.from(words.join(" ")).length > available) words.pop();
+    const compactBody = words.join(" ").replace(/[ ,;:]+$/g, "");
+    const fitted = head + (compactBody.length < body.length ? compactBody.replace(/[.!?]?$/, "") + "…" : compactBody);
+    return assertSmsLength(fitted, maxSmsCharacters);
+  }
+
+  const chars = Array.from(text);
+  return assertSmsLength(chars.slice(0, Math.max(0, maxSmsCharacters - 1)).join("").trimEnd() + "…", maxSmsCharacters);
+}
+
+function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 130): string {
+  const tokenPattern = /\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
+  const marker = "__AGRICAPITAL_LAST_GIVEN_NAME_AND_SURNAME__";
+  let text = normalizeSms(value).replace(tokenPattern, marker);
+  if (!text) throw new Error("Le message est vide.");
+  if (!/AgriCapital/i.test(text)) text = "AgriCapital: " + text;
+  const rules: Array<[RegExp, string]> = [
+    [/nous vous prions de bien vouloir/gi, "Merci de"],
+    [/nous vous invitons à/gi, "Merci de"],
+    [/veuillez/gi, "Merci de"],
+    [/afin de/gi, "pour"],
+    [/au sujet de/gi, "sur"],
+    [/en raison de/gi, "car"],
+    [/dans les meilleurs délais/gi, "rapidement"],
+    [/nous vous remercions/gi, "Merci"],
+    [/à votre disposition/gi, "disponible"],
+    [/s'il vous plaît/gi, "svp"],
+    [/votre dossier de prospection a bien été enregistré/gi, "dossier de prospection enregistré"],
+    [/votre solde restant est de/gi, "solde restant :"],
+    [/merci de prévoir son règlement/gi, "merci de régler"],
+    [/appelez le fondateur au/gi, "appelez au"],
+    [/pour confirmer votre statut/gi, "pour confirmer"],
+  ];
+  for (const [pattern, replacement] of rules) text = text.replace(pattern, replacement);
+  text = text.replace(/\s*(?:Direction|Investir la terre[^.]*|Merci pour votre confiance\.?|AgriCapital\.? )\s*$/i, "").trim();
+  const nameIndex = text.indexOf(marker);
+  const bodyText = text.replaceAll(marker, "");
+  if (Array.from(bodyText).length <= maxBodyCharacters) return text.replaceAll(marker, "{dernierprenom_nom}");
+  if (nameIndex >= 0) {
+    const beforeName = text.slice(0, nameIndex);
+    const afterName = text.slice(nameIndex + marker.length).trim();
+    const remaining = maxBodyCharacters - Array.from(beforeName).length;
+    if (remaining < 1) throw new Error("Le texte avant le nom dépasse déjà 130 caractères.");
+    const words = afterName.split(/\s+/).filter(Boolean);
+    let kept = words;
+    while (kept.length && Array.from(kept.join(" ")).length > remaining - 1) kept.pop();
+    const suffix = kept.length ? " " + kept.join(" ") : "";
+    const fitted = beforeName + marker + suffix + (kept.length < words.length ? "…" : "");
+    return fitted.replaceAll(marker, "{dernierprenom_nom}");
+  }
+  const chars = Array.from(text);
+  return chars.slice(0, Math.max(0, maxBodyCharacters - 1)).join("").trimEnd() + "…";
+}
+
 function brandAutomatedMessage(value: string, channel: string, maxSmsCharacters = 155): string {
   const content = value.trim();
   if (channel === "sms") {
-    const prefix = "AgriCapital: ";
-    const alreadyBranded = /AgriCapital/i.test(content);
     const base = normalizeSms(content);
-    const full = alreadyBranded ? base : prefix + base;
-    const chars = Array.from(full);
-    const fitted = chars.length > maxSmsCharacters
-      ? chars.slice(0, Math.max(0, maxSmsCharacters - 1)).join("").trimEnd() + "…"
-      : full;
-    return assertSmsLength(fitted, maxSmsCharacters);
+    const full = /AgriCapital/i.test(content) ? base : "AgriCapital: " + base;
+    return reformulateSmsWithinLimit(full, maxSmsCharacters);
   }
   if (channel === "whatsapp") return normalizeWhatsAppMessage(content);
   return content;
@@ -168,9 +254,11 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const structuredFirstNames = contact.prenoms?.trim();
   const structuredLastName = contact.nom?.trim();
   const structuredDisplayName = structuredFirstNames && structuredLastName
-    ? (structuredFirstNames.toLocaleLowerCase("fr-FR") === structuredLastName.toLocaleLowerCase("fr-FR")
-      ? titleCaseNames(structuredFirstNames)
-      : titleCaseNames(structuredFirstNames) + " " + structuredLastName.toLocaleUpperCase("fr-FR"))
+    ? (() => {
+        const givenNames = structuredFirstNames.split(/\s+/).filter(Boolean);
+        const lastGivenName = givenNames[givenNames.length - 1] || structuredFirstNames;
+        return titleCaseNames(lastGivenName) + " " + titleCaseNames(structuredLastName);
+      })()
     : null;
   const displayName = structuredDisplayName || (nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName);
   // Seul le jeton {dernier_prenom_nom} est autorisé pour le nom du destinataire.
@@ -228,19 +316,45 @@ async function providerStatus() {
   let whatsapp: { senderPhone: string } | null = null;
   try { whatsapp = await resolveWhatsAppSenderSession(); } catch { whatsapp = null; }
   let smsReady = false;
+  let accountBalance: any = null;
+  let balanceError: string | null = null;
+  let senderCountries: any[] = [];
+  let senderIdLifecycle: string | null = null;
   if (typeof apiKey === "string" && apiKey) {
     try {
       const client = new SenndoClient({ apiKey, baseUrl: "https://api.senndo.com", timeoutMs: 12000, maxRetries: 0, userAgent: "AgriCapital-CRM/1.0" });
-      const senderResult = await client.listSenderIds();
+      const [senderResult, balanceResult] = await Promise.all([
+        client.listSenderIds(),
+        client.getBalance({ currency: "USD" }).catch((error: any) => { balanceError = String(error?.code || error?.message || "Solde indisponible"); return null; }),
+      ]);
       const senders = Array.isArray(senderResult?.senderIds) ? senderResult.senderIds : [];
-      smsReady = senders.some((item: any) => String(item?.value || "") === "AgriCapital" &&
-        !/reject|inactive|pending|blocked/i.test(String(item?.lifecycleStatus || "")));
-    } catch { smsReady = false; }
+      const sender = senders.find((item: any) => String(item?.value || "") === "AgriCapital");
+      senderIdLifecycle = sender?.lifecycleStatus || null;
+      senderCountries = Array.isArray(sender?.countries) ? sender.countries : [];
+      smsReady = Boolean(sender) && !/reject|inactive|pending|blocked/i.test(String(sender?.lifecycleStatus || ""));
+      if (balanceResult) {
+        const rawBalance = balanceResult?.balanceUsd ?? balanceResult?.balance_usd ?? balanceResult?.balance ?? balanceResult?.amountUsd;
+        const balanceUsd = rawBalance === undefined || rawBalance === null ? null : Number(rawBalance);
+        if (balanceUsd !== null && Number.isFinite(balanceUsd)) {
+          const budgetUsd = 100;
+          const remainingOnBudgetUsd = Math.min(budgetUsd, Math.max(0, balanceUsd));
+          accountBalance = {
+            currency: "USD", balanceUsd, budgetUsd, remainingOnBudgetUsd,
+            consumedOnBudgetUsd: Math.max(0, budgetUsd - remainingOnBudgetUsd),
+            updatedAt: new Date().toISOString(),
+          };
+        } else balanceError = "Senndo n'a pas renvoyé un solde USD exploitable.";
+      }
+    } catch (error: any) {
+      smsReady = false;
+      if (!balanceError) balanceError = String(error?.code || error?.message || "Lecture du compte Senndo indisponible");
+    }
   }
   return {
     senndo: Boolean(apiKey), webhook: Boolean(webhookSecret), sms: smsReady,
     email: false, whatsapp_paired: Boolean(whatsapp),
-    voice: false, sender_id: "AgriCapital",
+    voice: false, sender_id: "AgriCapital", sender_id_lifecycle: senderIdLifecycle,
+    sender_countries: senderCountries, accountBalance, balanceError,
     whatsapp_business_number: whatsapp?.senderPhone || null,
     email_sender_id: emailSenderId || null, email_provider: apiKey ? "senndo" : null,
   };
@@ -261,7 +375,34 @@ async function sendEmail(contact: Contact, subject: string, content: string, ded
   const result = await sendBrandedEmail({ apiKey, to: contact.email, subject: subject || "Notification AgriCapital", content: text, senderId, idempotencyKey: dedupeKey });
   return { provider: "senndo", messageId: result.id || null };
 }
-async function sendSms(contact: Contact, content: string, dedupeKey: string) {
+async function claimGlobalSend(recipient: string, channel: string, content: string, scope?: string) {
+  if (!content.trim()) return;
+  const { data, error } = await admin.rpc("notification_claim_send_guard", {
+    p_recipient: recipient, p_channel: channel, p_content: content, p_scope: scope || null,
+  });
+  if (error) throw new Error("Protection anti-doublon indisponible : " + error.message);
+  if (data !== true) {
+    const duplicate = new Error("DUPLICATE_BLOCKED: message identique déjà réservé ou envoyé à ce destinataire dans les dernières 24 heures.");
+    (duplicate as any).code = "DUPLICATE_BLOCKED";
+    throw duplicate;
+  }
+}
+async function releaseGlobalSend(recipient: string, channel: string, content: string, scope?: string) {
+  if (!content.trim()) return;
+  const { error } = await admin.rpc("notification_release_send_guard", {
+    p_recipient: recipient, p_channel: channel, p_content: content, p_scope: scope || null,
+  });
+  if (error) console.error("[NotificationDedupe] libération impossible", error.message);
+}
+async function finishGlobalSend(recipient: string, channel: string, content: string, messageId: string | null, scope?: string) {
+  if (!content.trim()) return;
+  const { error } = await admin.rpc("notification_finish_send_guard", {
+    p_recipient: recipient, p_channel: channel, p_content: content, p_message_id: messageId, p_scope: scope || null,
+  });
+  if (error) console.error("[NotificationDedupe] confirmation impossible", error.message);
+}
+
+async function sendSms(contact: Contact, content: string, dedupeKey: string, dedupeScope?: string) {
   const candidates = contact.telephone_candidates?.length ? contact.telephone_candidates : phoneCandidates(contact);
   if (!candidates.length) throw new Error("Aucun numéro de téléphone disponible");
   const client = await getSenndoClient();
@@ -270,11 +411,20 @@ async function sendSms(contact: Contact, content: string, dedupeKey: string) {
     const to = candidates[index];
     try {
       const smsText = assertSmsLength(normalizeSms(content));
-      const result = await client.sendMessage({
-        channel: "sms", to, text: smsText, senderId: "AgriCapital",
-        idempotencyKey: index === 0 ? dedupeKey : dedupeKey + ":telephone-secondaire",
-      });
-      return { provider: "senndo", messageId: result.id || null, content: smsText, to };
+      await claimGlobalSend(to, "sms", smsText, dedupeScope);
+      try {
+        const result = await client.sendMessage({
+          channel: "sms", to, text: smsText,
+          ...(to.startsWith("+225") ? { senderId: "AgriCapital" } : {}),
+          idempotencyKey: index === 0 ? dedupeKey : dedupeKey + ":telephone-secondaire",
+        });
+        await finishGlobalSend(to, "sms", smsText, result.id || null, dedupeScope);
+        return { provider: "senndo", messageId: result.id || null, content: smsText, to };
+      } catch (sendError) {
+        const status = Number((sendError as any)?.status || (sendError as any)?.statusCode || 0);
+        if (status >= 400 && status < 500) await releaseGlobalSend(to, "sms", smsText, dedupeScope);
+        throw sendError;
+      }
     } catch (error) {
       lastError = error;
       if (index === candidates.length - 1) throw error;
@@ -480,12 +630,13 @@ function whatsappCandidates(contact: Contact): string[] {
  return [...new Set(values.map(([v,d])=>normalizeWhatsAppRecipient(v,d)).filter((v):v is string=>Boolean(v)))];
 }
 
-async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string, mediaRef?: string) {
+async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string, mediaRef?: string, dedupeScope?: string) {
   const recipients = contact.whatsapp_candidates?.length ? contact.whatsapp_candidates : whatsappCandidates(contact);
   if (!recipients.length) throw new Error("Aucun numéro WhatsApp valide dans la fiche du destinataire. Vérifiez le WhatsApp, l’indicatif et le téléphone principal marqué WhatsApp.");
   const session = await resolveWhatsAppSenderSession();
   for (let index = 0; index < recipients.length; index++) {
     const recipient = recipients[index];
+  await claimGlobalSend(recipient, "whatsapp", content, dedupeScope);
   const response = await fetch("https://api.senndo.com/v1/messages", {
     method: "POST",
     headers: { authorization: "Bearer " + session.apiKey, "content-type": "application/json", accept: "application/json" },
@@ -498,6 +649,7 @@ async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status >= 400 && response.status < 500) await releaseGlobalSend(recipient, "whatsapp", content, dedupeScope);
     const nestedErrors = [payload?.error, payload?.message, payload?.details, payload?.data?.error, payload?.data]
       .filter((value: any) => value && typeof value === "object");
     const providerCodeValue = payload?.code ?? nestedErrors.map((value: any) => value.code).find((value: any) => typeof value === "string");
@@ -520,9 +672,11 @@ async function sendWhatsApp(contact: Contact, content: string, dedupeKey: string
     console.warn("[NotificationWhatsApp] numéro injoignable, essai du prochain numéro explicitement WhatsApp", { sourceType: contact.source_type, sourceId: contact.source_id, attempted: recipient });
     continue;
   }
+  const acceptedMessageId = payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null;
+  await finishGlobalSend(recipient, "whatsapp", content, acceptedMessageId, dedupeScope);
   return {
     provider: "senndo_whatsapp_baileys",
-    messageId: payload?.id ?? payload?.messageId ?? payload?.message?.id ?? null,
+    messageId: acceptedMessageId,
     to: recipient,
     senderPhone: session.senderPhone,
   };
@@ -592,9 +746,11 @@ async function deliver(args: {
       ? (phoneChannel ? [phoneChannel] : [])
       : args.canal === "email_sms"
         ? ["email", ...(phoneChannel ? [phoneChannel] : [])]
-        : ["sms", "whatsapp"].includes(args.canal)
-          ? (phoneChannel ? [phoneChannel] : [])
-          : [args.canal];
+        : args.canal === "sms"
+          ? ["sms"]
+          : args.canal === "whatsapp"
+            ? ["whatsapp"]
+            : [args.canal];
     if (!channels.length) {
       failed++;
       failureReasons.push("Aucun numéro international valide pour appliquer la règle SMS/WhatsApp.");
@@ -731,7 +887,7 @@ async function deliver(args: {
           await admin.from("notification_deliveries").update({ statut: "envoye", sent_at: new Date().toISOString() }).eq("id", delivery.id);
         } else if (channel === "whatsapp") {
           assertWhatsAppLength(rendered);
-          const result = await sendWhatsApp(recipientContact, rendered, providerDedupeKey, mediaForChannel[0]?.ref);
+          const result = await sendWhatsApp(recipientContact, rendered, providerDedupeKey, mediaForChannel[0]?.ref, args.eventKey || undefined);
           for (let i = 1; i < mediaForChannel.length; i++) {
             await sendWhatsApp(contact, "", providerDedupeKey + ":media:" + i, mediaForChannel[i].ref);
           }
@@ -742,7 +898,7 @@ async function deliver(args: {
             provider_status: result.providerStatus || "accepted", erreur: null, sent_at: new Date().toISOString(),
           }).eq("id", delivery.id);
         } else if (channel === "sms") {
-          const result = await sendSms(contact, rendered, providerDedupeKey);
+          const result = await sendSms(contact, rendered, providerDedupeKey, args.eventKey || undefined);
           await admin.from("notification_deliveries").update({
             statut: "envoye", fournisseur: result.provider, provider_message_id: result.messageId,
             recipient_phone: result.to || contact.telephone || null, contenu: result.content || normalizeSms(rendered),
@@ -955,7 +1111,9 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
       }
       const firstNames = linkedProfile ? (linkedProfile.prenoms || "") : (beneficiary.first_names || "");
       const lastName = linkedProfile ? (linkedProfile.nom || "") : (beneficiary.last_name || "");
-      const displayName = [firstNames, lastName].filter(Boolean).join(" ").trim()
+      const givenNameParts = String(firstNames || "").trim().split(/\s+/).filter(Boolean);
+      const lastGivenName = givenNameParts[givenNameParts.length - 1] || "";
+      const displayName = [lastGivenName ? titleCaseNames(lastGivenName) : "", lastName ? titleCaseNames(lastName) : ""].filter(Boolean).join(" ").trim()
         || linkedProfile?.nom_complet || (linkedProfile ? "" : beneficiary.display_name || "");
       const phone = linkedProfile?.telephone || linkedProfile?.whatsapp || beneficiary.phone || "";
       if (!phone) throw new Error("Telephone du beneficiaire absent.");
@@ -990,6 +1148,8 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
     if (context.proprietaire_id) {
       contacts = contacts.filter((c) => c.source_id === context.proprietaire_id && c.source_type === "proprietaire_foncier");
     }
+    if (context.lead_id) contacts = contacts.filter((c) => c.source_id === context.lead_id && c.source_type === "lead");
+    if (context.prospect_id) contacts = contacts.filter((c) => c.source_id === context.prospect_id && c.source_type === "prospect");
     if (context.user_id) contacts = contacts.filter((c) => c.user_id === context.user_id);
     const cooldownMinutes = Math.max(0, Number(automation.cooldown_minutes) || 0);
     if (contacts.length) {
@@ -1351,6 +1511,12 @@ serve(async (req) => {
     }
     const requiredPermission = mode === "preview" ? "messagerie.view" : "messagerie.send";
     if (!(await staffAuthorized(req, requiredPermission))) return json(req, { error: "Accès refusé : votre rôle ne possède pas la permission de messagerie requise." }, 401);
+    if (mode === "restructure_sms") {
+      const content = typeof body.content === "string" ? body.content : "";
+      const rewritten = restructureSmsTemplateWithinLimit(content, 130);
+      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\\{\\s*(?:dernier_prenom_nom|dernierprenom_nom)\\s*\\}/gi, ""))).length;
+      return json(req, { ok: true, content: rewritten, bodyCharacters, maxBodyCharacters: 130, engine: "internal" });
+    }
     if (mode === "recipient_directory") {
       // Use the same canonical recipient resolver as campaign previews and sends.
       // Directly querying legacy CRM columns here caused the picker to fail with
