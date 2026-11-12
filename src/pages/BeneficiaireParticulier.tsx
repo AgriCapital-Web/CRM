@@ -253,7 +253,7 @@ const BeneficiaireParticulier = () => {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Sprout className="h-5 w-5" /> Actif agricole</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><Label>Quote-part du bénéficiaire (ha)</Label><Input type="number" step="0.01" min="0.5" value={plantation.superficie_ha} onChange={e=>setPlantation({...plantation,superficie_ha:e.target.value,superficie_activee:e.target.value})}/></div>
+            <div><Label>Quote-part du bénéficiaire (ha)</Label><Input type="number" step="0.5" min="0.5" value={plantation.superficie_ha} onChange={e=>setPlantation({...plantation,superficie_ha:e.target.value,superficie_activee:e.target.value})}/></div>
             <div><Label>Date de plantation / engagement</Label><Input type="date" value={plantation.date_plantation} onChange={e=>setPlantation({...plantation,date_plantation:e.target.value})}/></div>
             <div><Label>Date d’activation</Label><Input type="date" value={plantation.date_activation} onChange={e=>setPlantation({...plantation,date_activation:e.target.value})}/></div>
           </CardContent>
