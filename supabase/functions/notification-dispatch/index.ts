@@ -1514,7 +1514,7 @@ serve(async (req) => {
     if (mode === "restructure_sms") {
       const content = typeof body.content === "string" ? body.content : "";
       const rewritten = restructureSmsTemplateWithinLimit(content, 130);
-      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\\{\\s*(?:dernier_prenom_nom|dernierprenom_nom)\\s*\\}/gi, ""))).length;
+      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""))).length;
       return json(req, { ok: true, content: rewritten, bodyCharacters, maxBodyCharacters: 130, engine: "internal" });
     }
     if (mode === "recipient_directory") {
