@@ -44,6 +44,6 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
    <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} villageName={formData.localite||""} includeInactive required onChange={(g)=>updateFormData({...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||""}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{localite:g.villageName??"",village_nom:g.villageName??formData.village_nom??""}:{})})}/>
    <div><Label>Lieu de résidence *</Label><Input value={formData.domicile||""} onChange={e=>updateFormData({domicile:e.target.value})} placeholder="Quartier, campement, rue ou commune"/></div>
   </CardContent></Card>
-  <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={true} showAdditionalDocuments={false}/>
+  <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={true} showSignedContract={true} showAdditionalDocuments={false}/>
  </div>;
 };
