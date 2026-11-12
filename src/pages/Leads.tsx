@@ -866,6 +866,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 departementId={leadForm.departement_id}
                                 sousPrefectureId={leadForm.sous_prefecture_id}
                                 villageId={leadForm.village_id}
+                                villageName={leadForm.localite || ""}
                                 required
                                 onChange={(g)=>setLeadForm(x=>({...x,district_id:g.districtId!==undefined?(g.districtId||""):x.district_id,region_id:g.regionId!==undefined?(g.regionId||""):x.region_id,departement_id:g.departementId!==undefined?(g.departementId||""):x.departement_id,sous_prefecture_id:g.sousPrefectureId!==undefined?(g.sousPrefectureId||""):x.sous_prefecture_id,village_id:g.villageId!==undefined?(g.villageId||""):x.village_id,localite:g.villageName!==undefined?(g.villageName||""):x.localite,region_residence:g.regionName!==undefined?(g.regionName||""):x.region_residence}))}
                               />
