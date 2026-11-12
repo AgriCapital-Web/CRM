@@ -299,7 +299,7 @@ const Dashboard = () => {
         const byParcel = new Map<string, number>();
         let withoutParcel = 0;
         rows.forEach((row: any) => {
-          const amount = Math.max(0, Number(row.surface_reellement_plantee ?? row.superficie_activee ?? 0));
+          const amount = Math.max(0, Number(row.superficie_activee ?? row.superficie_ha ?? row.surface_reellement_plantee ?? 0));
           if (row.parcelle_id) byParcel.set(row.parcelle_id, (byParcel.get(row.parcelle_id) || 0) + amount);
           else withoutParcel += amount;
         });
@@ -325,7 +325,7 @@ const Dashboard = () => {
       let engagedHa = commercialClients.reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
       const scopedPlantations = plantations.filter((p: any) => p.client_id && dashboardClientIds.has(p.client_id));
       let plantedHa = scopedPlantations.reduce((s: number, p: any) =>
-        s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+        s + Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0), 0);
       let remainingHa = Math.max(0, engagedHa - plantedHa);
       const productionRows = plantations.filter((p: any) => p.statut_global === "en_production");
       const productionHa = sumPlantedArea(productionRows);
@@ -368,7 +368,7 @@ const Dashboard = () => {
       const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
       const plantedByPartnershipParcel = new Map<string, number>();
       plantations.filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id)).forEach((p: any) => {
-        const amount = Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0);
+        const amount = Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0);
         plantedByPartnershipParcel.set(p.parcelle_id, (plantedByPartnershipParcel.get(p.parcelle_id) || 0) + amount);
       });
       const partnershipMetrics = validatedPartnershipParcels.reduce((acc: any, p: any) => {
@@ -665,7 +665,7 @@ const Dashboard = () => {
         const mPlant = scopedPlantations.filter((p: any) => {
           const dt = new Date(p.date_plantation || p.date_activation || p.created_at);
           return dt >= d && dt <= end;
-        }).reduce((s: number, p: any) => s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
+        }).reduce((s: number, p: any) => s + Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0), 0);
         const mPay = commercialValidPayments.filter((p: any) => {
           const dt = new Date(p.date_paiement || p.created_at);
           return dt >= d && dt <= end;
