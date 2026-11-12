@@ -470,8 +470,16 @@ const NouvelleAcquisition = () => {
       }
     }
     if(step.code==="documents"){
-      if(!formData.contrat_signe_client_file&&!formData.contrat_signe_client_preview){
-        toast({variant:"destructive",title:"Contrat signé manquant",description:"Veuillez joindre le contrat signé dans cette étape."});
+      if(formData.offre_formulaire_contrats_loaded === false){
+        toast({variant:"destructive",title:"Chargement des contrats",description:"Attendez la fin du chargement des pièces contractuelles avant de continuer."});
+        return false;
+      }
+      const configuredContracts = Array.isArray(formData.offre_formulaire_contrats) ? formData.offre_formulaire_contrats : [];
+      const missingContracts = configuredContracts.length
+        ? configuredContracts.filter((contract:any) => contract.obligatoire && !formData["contrat_"+contract.type_contrat+"_file"] && !formData["contrat_"+contract.type_contrat+"_preview"])
+        : (!formData.contrat_signe_client_file && !formData.contrat_signe_client_preview ? [{nom:"Contrat signé"}] : []);
+      if(missingContracts.length){
+        toast({variant:"destructive",title:"Contrat signé manquant",description:missingContracts.map((contract:any)=>contract.nom||contract.type_contrat||"Contrat signé").join(", ")});
         return false;
       }
       const docs = recordId
@@ -774,6 +782,21 @@ const NouvelleAcquisition = () => {
           [contract.type_contrat==="contrat_acquisition_client"?"contrat_acquisition_statut":"contrat_accompagnement_statut"]:file ? "signe" : (formData[key+"_statut"]||"a_preparer")
         });
         if(contractStatusError)throw contractStatusError;
+      }
+
+      if (contracts.length === 0) {
+        const genericContractFile = recoverFile(formData.contrat_signe_client_file, formData.contrat_signe_client_preview, "contrat_signe_client");
+        if (!genericContractFile) throw new Error("Le contrat signé obligatoire doit être téléversé.");
+        const uploaded = await uploadFile("documents", genericContractFile, user.id + "/clients/" + client.id + "/contrats", "contrat-signe-client");
+        if (!uploaded?.path) throw new Error("Téléversement du contrat signé impossible.");
+        const { error: genericContractError } = await offlineUpsert("documents_acquisition", {
+          id: stableUuid(stableClientId, "contract:contrat_signe_client"),
+          client_id: client.id, type_document: "contrat_signe_client", code_document: "contrat_signe_client",
+          categorie: "contrat", obligatoire: true, source_contractuelle: "contrat_signe_client",
+          fichier_url: uploaded.path, statut: "en_attente", uploaded_by: user.id,
+          metadata: { offre_id: offer.id, parcours_code: offer.parcours_code || offer.code, storage_bucket: "documents" },
+        });
+        if (genericContractError) throw genericContractError;
       }
 
       // Conserver les liens du dossier d'origine sans fabriquer de lead pour un prospect autonome.
