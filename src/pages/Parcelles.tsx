@@ -116,8 +116,12 @@ const Parcelles = () => {
   const saveParcel = async () => {
     if (!selectedParcel || !canEditParcel || parcelSaving) return;
     const total = Number(parcelForm.surface_totale_ha), share = Number(parcelForm.surface_agricapital_ha);
-    if (!Number.isFinite(total) || total < 0 || !Number.isFinite(share) || share < 0 || share > total) {
-      toast({ title: "Surfaces invalides", variant: "destructive" }); return;
+    const conventionManaged = Boolean(selectedParcel.convention_id || ["achat","plante_partage"].includes(String(selectedParcel.mode_surface || "").toLowerCase()));
+    const validTotal = conventionManaged
+      ? Number.isFinite(total) && total >= 2 && Math.abs(total / 2 - Math.round(total / 2)) <= 0.000001
+      : Number.isFinite(total) && total >= 0.5 && Math.abs(total * 2 - Math.round(total * 2)) <= 0.000001;
+    if (!validTotal || !Number.isFinite(share) || share < 0 || share > total) {
+      toast({ title: "Surfaces invalides", description: conventionManaged ? "Une parcelle issue d’une convention foncière reste sur 2 ha minimum, par multiples de 2 ha." : "Une parcelle client doit mesurer au moins 0,50 ha, par pas de 0,50 ha.", variant: "destructive" }); return;
     }
     setParcelSaving(true);
     try {
@@ -218,16 +222,16 @@ const Parcelles = () => {
                 {editParcel ? <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1"><Label>Nom de la parcelle</Label><Input value={parcelForm.nom} onChange={e => setParcelForm(v => ({ ...v, nom: e.target.value }))} /></div>
                   <div className="space-y-1"><Label>Village</Label><Input value={parcelForm.village} onChange={e => setParcelForm(v => ({ ...v, village: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Superficie totale (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_totale_ha} onChange={e => setParcelForm(v => ({ ...v, surface_totale_ha: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Part AgriCapital (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_agricapital_ha} onChange={e => setParcelForm(v => ({ ...v, surface_agricapital_ha: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Superficie totale (ha)</Label><Input type="number" min={selectedParcel?.convention_id || ["achat","plante_partage"].includes(String(selectedParcel?.mode_surface || "").toLowerCase()) ? "2" : "0.5"} step={selectedParcel?.convention_id || ["achat","plante_partage"].includes(String(selectedParcel?.mode_surface || "").toLowerCase()) ? "2" : "0.5"} disabled={Boolean(selectedParcel?.convention_id || ["achat","plante_partage"].includes(String(selectedParcel?.mode_surface || "").toLowerCase()))} value={parcelForm.surface_totale_ha} onChange={e => setParcelForm(v => ({ ...v, surface_totale_ha: e.target.value }))} onBlur={e=>{if(selectedParcel?.convention_id || ["achat","plante_partage"].includes(String(selectedParcel?.mode_surface || "").toLowerCase()))return;const raw=Number(e.currentTarget.value);if(Number.isFinite(raw)&&raw>0){const normalized=Math.max(0.5,Math.ceil((raw-0.000000001)*2)/2);if(Math.abs(normalized-raw)>0.000001)setParcelForm(v=>({...v,surface_totale_ha:String(normalized)}));}}} /></div>
+                  <div className="space-y-1"><Label>Part AgriCapital (ha)</Label><Input type="number" min="0" step="0.01" disabled={Boolean(selectedParcel?.convention_id || ["achat","plante_partage"].includes(String(selectedParcel?.mode_surface || "").toLowerCase()))} value={parcelForm.surface_agricapital_ha} onChange={e => setParcelForm(v => ({ ...v, surface_agricapital_ha: e.target.value }))} /></div>
                   <div className="space-y-1 sm:col-span-2"><Label>Statut</Label><Select value={parcelForm.statut} onValueChange={statut => setParcelForm(v => ({ ...v, statut }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="disponible">Disponible</SelectItem><SelectItem value="partiellement_attribuee">Partiellement attribuée</SelectItem><SelectItem value="saturee">Saturée</SelectItem><SelectItem value="validee">Validée</SelectItem><SelectItem value="a_valider">À valider</SelectItem></SelectContent></Select></div>
                 </div> : <div className="grid gap-3 sm:grid-cols-2">
                   <div><Label>Identifiant</Label><p className="font-medium">{selectedParcel.id_unique || "—"}</p></div>
                   <div><Label>Propriétaire</Label><p className="font-medium">{selectedParcel.proprietaires_terres?.nom_complet || "—"}</p></div>
                   <div><Label>Village</Label><p className="font-medium">{selectedParcel.village || "—"}</p></div>
                   <div><Label>Localisation</Label><p className="font-medium">{[selectedParcel.departements?.nom, selectedParcel.sous_prefectures?.nom, selectedParcel.districts?.nom, selectedParcel.regions?.nom].filter(Boolean).join(" · ") || "—"}</p></div>
-                  <div><Label>Superficie totale</Label><p className="font-medium">{Number(selectedParcel.surface_totale_ha || 0).toLocaleString("fr-FR")} ha</p></div>
-                  <div><Label>Part AgriCapital</Label><p className="font-medium">{Number(selectedParcel.surface_agricapital_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                  <div><Label>Superficie totale</Label><p className="font-medium">{Number(selectedParcel.surface_totale_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</p></div>
+                  <div><Label>Part AgriCapital</Label><p className="font-medium">{Number(selectedParcel.surface_agricapital_ha || 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</p></div>
                   <div><Label>Statut</Label><p className="font-medium">{statusLabel(selectedParcel, clientsByParcel.get(selectedParcel.id) || [], plantationsByParcel.get(selectedParcel.id) || [])}</p></div>
                 </div>}
                 <div className="flex justify-end gap-2">{editParcel ? <><Button type="button" variant="outline" onClick={() => setEditParcel(false)} disabled={parcelSaving}>Annuler</Button><Button type="button" onClick={() => void saveParcel()} disabled={parcelSaving}>{parcelSaving ? "Enregistrement…" : "Enregistrer"}</Button></> : <><Button type="button" variant="outline" onClick={() => setSelectedParcel(null)}>Fermer</Button>{canEditParcel && <Button type="button" onClick={() => setEditParcel(true)}>Modifier</Button>}</>}</div>
