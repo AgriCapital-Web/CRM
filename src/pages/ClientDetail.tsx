@@ -883,7 +883,7 @@ const ClientDetail = () => {
                       </div>
                       {selectedNewLot && (
                         <div className="grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-3">
-                          <div><p className="text-xs text-muted-foreground">{"Lots réservés"}</p><p className="font-semibold">{`${selectedLotGroupReference} · ${Number(selectedNewLot.surface_ha || 0).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha`}</p></div>
+                          <div><p className="text-xs text-muted-foreground">{"Lots réservés"}</p><p className="font-semibold">{`${selectedLotGroupReference} · ${selectedLotSeries.reduce((sum:any,lot:any)=>sum+Number(lot.surface_ha||0),0).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha`}</p></div>
                           <div><p className="text-xs text-muted-foreground">Localisation</p><p className="font-semibold">{availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.village || "À confirmer"}</p></div>
                           <div><p className="text-xs text-muted-foreground">Propriétaire partenaire</p><p className="font-semibold">Enregistré sur la parcelle</p></div>
                           {!selectedLotSeriesReady && <p className="text-sm text-destructive sm:col-span-3">La série de lots contigus ne couvre pas exactement la superficie demandée.</p>}
@@ -912,7 +912,7 @@ const ClientDetail = () => {
                   savingNewPlantation || loadingPlantationOptions ||
                   !newAcquisitionFormData.offre_id || !newAcquisitionFormData.formule_code ||
                   Number(newAcquisitionFormData.superficie_prevue) < 0.5 ||
-                  (!selectedOfferNeedsClientLand && !newPlantationLotId)
+                  (!selectedOfferNeedsClientLand && (!newPlantationLotId || !selectedLotSeriesReady))
                 }>
                   {savingNewPlantation ? "Enregistrement…" : "Confirmer la acquisition"}
                 </Button>
