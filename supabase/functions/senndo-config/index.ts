@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         apiError,
         emailSenderId: values.senndo_email_sender_id || "",
         whatsappSenderPhone: values.senndo_whatsapp_sender_phone || "+22564551717",
-        senderId: "AgriCapital", smsSenderId: "AgriCapital", smsSenderIdActive, smsMaxCharacters: 155,
+        senderId: "AgriCapital", smsSenderId: "AgriCapital", smsSenderIdActive, smsMaxCharacters: 155, smsContentMaxCharacters: 130,
         routing: { domestic: "+225=>sms", international: "whatsapp" },
         whatsappNumber: values.senndo_whatsapp_sender_phone || "+22564551717", provider: "Senndo",
         webhookUrl: "https://rfzfsmpsuempafhkqhra.supabase.co/functions/v1/senndo-webhook",
