@@ -831,9 +831,7 @@ const ClientDetail = () => {
                     <CardHeader className="pb-2"><CardTitle className="text-base">Parcelle partenaire et lot disponible</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm text-muted-foreground">
-                        {isPalmInvestOffer
-                          ? "Choisissez un lot dont la superficie correspond exactement à la souscription."
-                          : "Cette offre utilise une parcelle partenaire. Choisissez une parcelle puis un lot dont la superficie correspond exactement à celle de la souscription."}
+                        Choisissez une parcelle puis un lot dont la superficie correspond exactement à celle de la souscription.
                         {" "}Les lots ne sont réservés qu’après confirmation par la base.
                       </p>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
