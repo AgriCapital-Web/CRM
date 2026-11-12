@@ -326,6 +326,8 @@ const NouvelleAcquisition = () => {
     // Keep the saved draft untouched until the user starts entering the new record,
     // but never preload it into a newly requested client form.
     if (searchParams.get("nouveau") === "1") {
+      window.localStorage.removeItem(`agricapital:client-draft-step:${user?.id}:new`);
+      stepStorageKeyRef.current = null;
       setFormData({});
       setBrouillonId(null);
       setCurrent(0);
