@@ -65,7 +65,12 @@ function maskPhone(value: unknown) {
 }
 function smsDestination(client: any) {
   const pairs = [[client.telephone_indicatif, client.telephone_local], [client.whatsapp_indicatif, client.whatsapp_local]];
-  for (const [ind, loc] of pairs) if (ind && loc) return "+" + String(ind).replace(/\D/g, "") + String(loc).replace(/\D/g, "");
+  for (const [ind, loc] of pairs) if (ind && loc) {
+    const dial = String(ind).replace(/\D/g, "");
+    let national = String(loc).replace(/\D/g, "");
+    if (dial !== "225") national = national.replace(/^0+/, "");
+    return "+" + dial + national;
+  }
   const raw = String(client.telephone || client.whatsapp || client.telephone_local || "").replace(/\D/g, "").replace(/^00/, "");
   if (!raw) return null;
   return "+" + (raw.length <= 10 ? "225" + raw : raw);
