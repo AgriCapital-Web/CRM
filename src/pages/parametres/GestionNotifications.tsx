@@ -33,11 +33,11 @@ type Automation = {
 const CHANNELS = [
   { value: "app", label: "Notification app", icon: Bell },
   { value: "email", label: "Email", icon: Mail },
-  { value: "sms", label: "SMS · Senndo", icon: Smartphone },
+  { value: "sms", label: "SMS +225 / WhatsApp international · Senndo", icon: Smartphone },
   { value: "whatsapp", label: "WhatsApp appairé · Senndo", icon: MessageSquare },
   { value: "voice", label: "Appel vocal · Senndo", icon: PhoneCall },
-  { value: "email_sms", label: "E-mail + SMS · Senndo", icon: Mail },
-  { value: "auto", label: "Automatique · Senndo", icon: Zap },
+  { value: "email_sms", label: "E-mail + SMS/WhatsApp selon le pays · Senndo", icon: Mail },
+  { value: "auto", label: "Automatique · +225 SMS / international WhatsApp", icon: Zap },
 ];
 
 const EVENTS = [
@@ -232,12 +232,12 @@ const GestionNotifications = () => {
 
   const saveFinancePayoutTemplate = async (template: FinancePayoutSmsTemplate) => {
     const content = template.content || "";
-    if (!content.trim() || content.length > 150 || /[^\x20-\x7E]/.test(content)) {
-      toast.error("Le SMS doit contenir uniquement des caractères GSM/ASCII et respecter 150 caractères.");
+    if (!content.trim() || smsLength(content) > 155) {
+      toast.error("Le SMS doit respecter 155 caractères maximum, espaces et signes compris.");
       return;
     }
     const { error } = await (supabase as any).from("finance_payout_sms_templates")
-      .update({ name: template.name, content, active: template.active }).eq("id", template.id);
+      .update({ name: template.name, content: normalizeSms(content), active: template.active, max_characters: 155 }).eq("id", template.id);
     if (error) {
       toast.error(error.message || "Enregistrement impossible.");
       return;
@@ -554,6 +554,7 @@ const GestionNotifications = () => {
         <CardContent>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Status label="Senndo API" ok={Boolean(provider.senndo)} />
+            <Status label="Sender ID AgriCapital" ok={Boolean(provider.sms)} />
             <Status label="Webhook Senndo" ok={Boolean(provider.webhook)} />
             <Status label="WhatsApp appairé" ok={Boolean(provider.whatsapp_paired)} />
             <Status label="Appels vocaux" ok={Boolean(provider.voice)} />
@@ -668,7 +669,7 @@ const GestionNotifications = () => {
           {editingFinancePayoutTemplate && (
             <div className="space-y-4">
               <div className="space-y-1"><Label>Nom du modèle</Label><Input value={editingFinancePayoutTemplate.name} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, name: e.target.value } : row)} /></div>
-              <div className="space-y-1"><Label>Message SMS</Label><Textarea rows={3} maxLength={150} value={editingFinancePayoutTemplate.content} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, content: e.target.value } : row)} /><div className={editingFinancePayoutTemplate.content.length > 150 || /[^\\x20-\\x7E]/.test(editingFinancePayoutTemplate.content) ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{editingFinancePayoutTemplate.content.length}/150</div></div>
+              <div className="space-y-1"><Label>Message SMS</Label><Textarea rows={3} maxLength={155} value={editingFinancePayoutTemplate.content} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, content: e.target.value } : row)} /><div className={smsLength(editingFinancePayoutTemplate.content) > 155 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{smsLength(editingFinancePayoutTemplate.content)}/155 caractères</div></div>
               <div className="flex items-center justify-between"><Label>Actif</Label><Switch checked={editingFinancePayoutTemplate.active} onCheckedChange={(active) => setEditingFinancePayoutTemplate(row => row ? { ...row, active } : row)} /></div>
               <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditingFinancePayoutTemplate(null)}>Annuler</Button><Button type="button" onClick={() => void saveFinancePayoutTemplate(editingFinancePayoutTemplate)}>Enregistrer</Button></div>
             </div>
