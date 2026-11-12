@@ -835,7 +835,7 @@ const NouvelleAcquisition = () => {
         telephone_secondaire_whatsapp:!!formData.telephone_secondaire_whatsapp,
         whatsapp:formData.telephone_principal_whatsapp?formData.telephone:formData.telephone_secondaire_whatsapp?(formData.telephone_secondaire||null):null,
         email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
-        domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
+        domicile_residence:formData.domicile||formData.domicile_residence||null,localite:formData.localite||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
          contrat_acquisition_statut:formData.contrat_contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
          contrat_accompagnement_statut:formData.contrat_accompagnement_agricole_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
