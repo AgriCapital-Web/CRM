@@ -204,6 +204,7 @@ const GestionNotifications = () => {
   });
   const [preview, setPreview] = useState<{ count: number; sample: any[] } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [restructuringSms, setRestructuringSms] = useState(false);
   const [recipientDirectory, setRecipientDirectory] = useState<any[]>([]);
   const [recipientSearch, setRecipientSearch] = useState("");
   const [recipientPickerOpen, setRecipientPickerOpen] = useState(false);
@@ -353,6 +354,21 @@ const GestionNotifications = () => {
     try { const data = await callDispatch({ mode: "recipient_directory" }); setRecipientDirectory(data.contacts || []); }
     catch (error: any) { toast.error(error.message || "Impossible de charger les destinataires"); }
     finally { setRecipientLoading(false); }
+  };
+
+  const restructureCampaignSms = async () => {
+    if (!campaign.contenu.trim()) return toast.error("Saisis d'abord le message à reformuler.");
+    setRestructuringSms(true);
+    try {
+      const result = await callDispatch({ mode: "restructure_sms", content: campaign.contenu });
+      if (!result?.ok || typeof result.content !== "string") throw new Error(result?.error || "Le module interne n'a pas pu reformuler le message.");
+      setCampaign(current => ({ ...current, contenu: result.content }));
+      toast.success(`Reformulation interne terminée · ${Number(result.bodyCharacters) || 0}/130 caractères hors nom.`);
+    } catch (error: any) {
+      toast.error(error?.message || "Reformulation impossible.");
+    } finally {
+      setRestructuringSms(false);
+    }
   };
 
   const previewAudience = async (audience: string) => {
@@ -640,7 +656,18 @@ const GestionNotifications = () => {
                 <Field label="Planification"><Input type="datetime-local" value={campaign.programme_le} onChange={(e) => setCampaign({ ...campaign, programme_le: e.target.value })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={campaign.sujet} onChange={(e) => setCampaign({ ...campaign, sujet: e.target.value })} placeholder="Information AgriCapital" /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {dernierprenom_nom}, ..." /><div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">{["sms", "whatsapp", "auto", "email_sms"].includes(campaign.canal) && <><span className={smsBodyLength(campaign.contenu) > 130 ? "font-semibold text-destructive" : ""}>{smsBodyLength(campaign.contenu)}/130 caractères hors prénom/nom · SMS final ≤155</span><Button type="button" size="sm" variant="outline" onClick={() => { const next = restructureSms(campaign.contenu); setCampaign(current => ({ ...current, contenu: next })); toast.success("Message restructuré pour respecter la limite SMS."); }}><RefreshCw className="mr-2 h-3 w-3"/>Restructurer</Button></>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {dernierprenom_nom}, ..." />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    ["Dernier prénom + nom", "{dernierprenom_nom}"],
+                    ["Montant", "{{montant}}"],
+                    ["Date", "{{date}}"],
+                    ["Échéance", "{{date_echeance}}"],
+                    ["N° contrat", "{{numero_contrat}}"],
+                    ["Téléphone", "{{telephone}}"],
+                  ].map(([label, token]) => <Button key={token} type="button" size="sm" variant="outline" onClick={() => setCampaign(current => ({ ...current, contenu: current.contenu + (current.contenu && !/\\s$/.test(current.contenu) ? " " : "") + token }))}>{label}</Button>)}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">{["sms", "whatsapp", "auto", "email_sms"].includes(campaign.canal) && <><span className={smsBodyLength(campaign.contenu) > 130 ? "font-semibold text-destructive" : ""}>{smsBodyLength(campaign.contenu)}/130 caractères hors dernier prénom + nom · SMS personnalisé ≤155</span><Button type="button" size="sm" variant="outline" onClick={() => void restructureCampaignSms()} disabled={restructuringSms}>{restructuringSms ? <><RefreshCw className="mr-2 h-3 w-3 animate-spin"/>Reformulation interne…</> : <><RefreshCw className="mr-2 h-3 w-3"/>Restructurer</>}</Button></>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
               {preview && <Preview count={preview.count} sample={preview.sample} />}
               <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />{editingCampaignId ? "Enregistrer les modifications" : "Enregistrer la campagne"}</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>
