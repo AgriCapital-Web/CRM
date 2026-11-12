@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-import { SenndoClient } from "npm:@senndo/sdk@1.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,25 +7,34 @@ const corsHeaders = {
 };
 
 const formatMontant = (m:number) => new Intl.NumberFormat("fr-FR").format(Math.round(m));
-const formatPhone = (phone:string) => {
-  const cleaned = phone.replace(/\D/g, "");
-  return cleaned.startsWith("225") ? cleaned : "225" + cleaned;
-};
-const sendSms = async (db:any, base:string|undefined,key:string|undefined,to:string,text:string,idempotencyKey:string) => {
-  const { data: senndoKey } = await db.rpc("senndo_get_secret", { p_name: "senndo_api_key" });
-  if (typeof senndoKey === "string" && senndoKey) {
-    const stableKey = "agricapital-notification-" + idempotencyKey.replace(/[^a-zA-Z0-9:_-]/g, "-").slice(0, 80);
-    const client = new SenndoClient({ apiKey: senndoKey, baseUrl: "https://api.senndo.com", timeoutMs: 30000, maxRetries: 2, userAgent: "AgriCapital-CRM/1.0" });
-    const result = await client.sendMessage({ channel:"sms", to: to.startsWith("+") ? to : "+" + formatPhone(to), text, senderId:"AgriCapital", idempotencyKey:stableKey });
-    return { sent:true, provider:"senndo", messageId:result.id || null };
-  }
-  if (!base || !key) return { sent:false, dev:true, provider:"senndo_not_configured" };
-  const res = await fetch(`${base}/sms/2/text/advanced`, {
-    method:"POST",
-    headers:{ Authorization:`App ${key}`, "Content-Type":"application/json" },
-    body:JSON.stringify({messages:[{destinations:[{to:formatPhone(to)}],from:"AgriCapital",text}]})
+const sendRoutedNotification = async (client: any, contact: any, text: string, eventKey: string) => {
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const response = await fetch(url + "/functions/v1/notification-dispatch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": serviceKey },
+    body: JSON.stringify({
+      mode: "internal_routed_message",
+      contact: {
+        source_type: "client",
+        source_id: client.id,
+        user_id: client.user_id || null,
+        nom_complet: client.nom_complet || null,
+        telephone: contact.telephone || client.telephone,
+      },
+      content: text,
+      event_key: eventKey,
+    }),
+    signal: AbortSignal.timeout(45000),
   });
-  return { sent:res.ok, status:res.status, provider:"legacy_fallback" };
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.ok) throw new Error(payload.error || "notification-dispatch a refusé la notification.");
+  return {
+    sent: Number(payload.result?.sent || 0) > 0,
+    failed: Number(payload.result?.failed || 0),
+    provider: "notification-dispatch",
+    result: payload.result || null,
+  };
 };
 
 serve(async (req) => {
@@ -86,7 +94,7 @@ serve(async (req) => {
 
       if((mode==="arrears"||mode==="both") && monthlyActive && arrears>0) {
         const message=`AgriCapital (notification automatique): arriéré de ${formatMontant(arrears)} F CFA (${daysLate} j). Consultez votre échéancier sur pay.agricapital.ci.`;
-        const sent=await sendSms(supabase,Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,message,`arrears:${client.id}:${today}`);
+        const sent=await sendRoutedNotification(supabase,client,{telephone:client.telephone},message,`arrears:${client.id}:${today}`);
         results.arrears.push({client_id:client.id,montant_arriere:arrears,jours_retard:daysLate,...sent});
         if(client.user_id) await supabase.from("notifications").insert({user_id:client.user_id,type:"arrears_alert",title:`Arriéré de ${formatMontant(arrears)} F CFA`,message:`Échéancier personnalisé : ${daysLate} jour(s) de retard.`,data:{montant:arrears,jours:daysLate,personnalise:true},dedupe_key:`arrears-alert:${client.id}:${today}`});
       }
@@ -95,14 +103,14 @@ serve(async (req) => {
         if(customActive && Number(initial.solde||0)>0) {
           const solde=Number(initial.solde);
           const message=`AgriCapital (notification automatique): solde du paiement initial de ${formatMontant(solde)} F CFA. Consultez votre situation sur pay.agricapital.ci.`;
-        const sent=await sendSms(supabase,Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,message,`solde-pi:${client.id}:${today}`);
+        const sent=await sendRoutedNotification(supabase,client,{telephone:client.telephone},message,`solde-pi:${client.id}:${today}`);
           results.upcoming.push({client_id:client.id,type:"solde_pi",montant:solde,...sent});
         }
         if(monthlyActive) {
           for(const payment of upcoming.slice(0,1)) {
             const daysUntil=Math.max(0,Math.ceil((new Date(payment.date_echeance).getTime()-Date.now())/86400000));
             const message=`AgriCapital (notification automatique): échéance personnalisée de ${formatMontant(Number(payment.montant))} F CFA le ${new Date(payment.date_echeance).toLocaleDateString("fr-FR")}. pay.agricapital.ci`;
-        const sent=await sendSms(supabase,Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,message,`upcoming:${payment.id}`);
+        const sent=await sendRoutedNotification(supabase,client,{telephone:client.telephone},message,`upcoming:${payment.id}`);
             results.upcoming.push({client_id:client.id,paiement_id:payment.id,montant:Number(payment.montant),jours_restants:daysUntil,...sent});
             if(client.user_id) await supabase.from("notifications").insert({user_id:client.user_id,type:"payment_reminder",title:`Échéance le ${new Date(payment.date_echeance).toLocaleDateString("fr-FR")}`,message:`${formatMontant(Number(payment.montant))} F CFA — échéancier personnalisé.`,data:{paiement_id:payment.id,montant:payment.montant,personnalise:true},dedupe_key:`payment-reminder:${payment.id}`});
           }
@@ -110,7 +118,7 @@ serve(async (req) => {
           for(const payment of upcoming.slice(0,1)) {
             const daysUntil=Math.max(0,Math.ceil((new Date(payment.date_echeance).getTime()-Date.now())/86400000));
             const message=`AgriCapital (notification automatique): échéance de ${formatMontant(Number(payment.montant))} F CFA le ${new Date(payment.date_echeance).toLocaleDateString("fr-FR")}. pay.agricapital.ci`;
-        const sent=await sendSms(supabase,Deno.env.get("INFOBIP_BASE_URL"),Deno.env.get("INFOBIP_API_KEY"),client.telephone,message,`upcoming:${payment.id}`);
+        const sent=await sendRoutedNotification(supabase,client,{telephone:client.telephone},message,`upcoming:${payment.id}`);
             results.upcoming.push({client_id:client.id,paiement_id:payment.id,montant:Number(payment.montant),jours_restants:daysUntil,...sent});
           }
         }
