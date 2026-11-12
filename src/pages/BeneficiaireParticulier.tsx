@@ -90,6 +90,13 @@ const BeneficiaireParticulier = () => {
       return;
     }
 
+    const surfaceParcelle = Number(parcelle.surface_totale_ha);
+    const surfacePlantation = Number(plantation.superficie_ha);
+    if (!Number.isFinite(surfaceParcelle) || surfaceParcelle < 0.5 || !Number.isFinite(surfacePlantation) || surfacePlantation < 0.5 || surfacePlantation > surfaceParcelle) {
+      toast({ variant: "destructive", title: "Superficie invalide", description: "La parcelle et la quote-part doivent faire au moins 0,5 ha, et la plantation ne peut pas dépasser la parcelle." });
+      return;
+    }
+
     setLoading(true);
     try {
       const docs = [
@@ -237,7 +244,7 @@ const BeneficiaireParticulier = () => {
           <CardHeader><CardTitle className="flex items-center gap-2"><LandPlot className="h-5 w-5" /> Parcelle</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div><Label>Référence parcelle *</Label><Input value={parcelle.code_parc} onChange={e=>setParcelle({...parcelle,code_parc:e.target.value})}/></div>
-            <div><Label>Superficie physique de la parcelle (ha) *</Label><Input type="number" step="0.01" min="0" value={parcelle.surface_totale_ha} onChange={e=>setParcelle({...parcelle,surface_totale_ha:e.target.value})}/></div>
+            <div><Label>Superficie physique de la parcelle (ha) *</Label><Input type="number" step="0.01" min="0.5" value={parcelle.surface_totale_ha} onChange={e=>setParcelle({...parcelle,surface_totale_ha:e.target.value})}/></div>
             <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={parcelle.district_id} regionId={parcelle.region_id} departementId={parcelle.departement_id} sousPrefectureId={parcelle.sous_prefecture_id} villageId={parcelle.village_id} required onChange={(g)=>{const next={...parcelle,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",village:g.villageName||""};setParcelle(next);setProprietaire((x:any)=>({...x,district_id:next.district_id,region_id:next.region_id,departement_id:next.departement_id,sous_prefecture_id:next.sous_prefecture_id,village_id:next.village_id,village:next.village}));}}/></div>
             
           </CardContent>
@@ -246,7 +253,7 @@ const BeneficiaireParticulier = () => {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><Sprout className="h-5 w-5" /> Actif agricole</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><Label>Quote-part du bénéficiaire (ha)</Label><Input type="number" step="0.01" value={plantation.superficie_ha} onChange={e=>setPlantation({...plantation,superficie_ha:e.target.value})}/></div>
+            <div><Label>Quote-part du bénéficiaire (ha)</Label><Input type="number" step="0.01" min="0.5" value={plantation.superficie_ha} onChange={e=>setPlantation({...plantation,superficie_ha:e.target.value,superficie_activee:e.target.value})}/></div>
             <div><Label>Date de plantation / engagement</Label><Input type="date" value={plantation.date_plantation} onChange={e=>setPlantation({...plantation,date_plantation:e.target.value})}/></div>
             <div><Label>Date d’activation</Label><Input type="date" value={plantation.date_activation} onChange={e=>setPlantation({...plantation,date_activation:e.target.value})}/></div>
           </CardContent>
