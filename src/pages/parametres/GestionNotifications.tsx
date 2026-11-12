@@ -100,7 +100,14 @@ const restructureSms = (value: string) => {
   let truncated = false;
   for (const token of tokens) {
     if (token === marker) { output += token; continue; }
-    if (/^\s+$/.test(token)) { if (output && !output.endsWith(" ")) output += " "; continue; }
+    if (/^\\s+$/.test(token)) {
+      if (output && !output.endsWith(" ")) {
+        if (count + 1 > 129) { truncated = true; break; }
+        output += " ";
+        count += 1;
+      }
+      continue;
+    }
     const length = smsLength(token);
     if (count + length > 129) { truncated = true; break; }
     output += token;
