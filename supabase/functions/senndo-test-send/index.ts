@@ -100,11 +100,16 @@ Deno.serve(async (req) => {
   if (!caller) return reply(req, { error: "Accès réservé aux administrateurs autorisés" }, 403);
   try {
     const body = await req.json();
-    const channel = body?.channel;
+    let channel = body?.channel;
     const to = typeof body?.to === "string" ? body.to.trim() : "";
     const text = typeof body?.text === "string" ? body.text.trim() : "";
     const subject = typeof body?.subject === "string" ? body.subject.trim().slice(0, 150) : "Test AgriCapital";
     if (!["sms", "email", "whatsapp", "voice"].includes(channel)) return reply(req, { error: "Canal de test invalide" }, 400);
+    if (channel === "sms" || channel === "whatsapp") {
+      const destinationDigits = to.replace(/\D/g, "");
+      if (!/^[1-9]\d{7,14}$/.test(destinationDigits)) return reply(req, { error: "Numéro invalide : utilisez le format international." }, 400);
+      channel = destinationDigits.startsWith("225") ? "sms" : "whatsapp";
+    }
     if (!to || to.length > 254) return reply(req, { error: "Destinataire invalide" }, 400);
     if (!text || text.length > 1000) return reply(req, { error: "Le message doit contenir entre 1 et 1000 caractères" }, 400);
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return reply(req, { error: "Adresse e-mail invalide" }, 400);
@@ -234,8 +239,9 @@ Deno.serve(async (req) => {
       const senderId = senders.find((item: any) => String(item?.value || "") === "AgriCapital" &&
         !/reject|inactive|pending|blocked/i.test(String(item?.lifecycleStatus || "")))?.value;
       if (senderId !== "AgriCapital") return reply(req, { error: "Le Sender ID exact AgriCapital doit être actif et validé dans Senndo." }, 409);
-      const smsText = text.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").slice(0, 150);
-      if (!smsText) return reply(req, { error: "Le message ne contient aucun caractère SMS exploitable après normalisation." }, 400);
+      const smsText = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+      const smsLength = Array.from(smsText).length;
+      if (!smsText || smsLength > 155) return reply(req, { error: `Le SMS doit contenir entre 1 et 155 caractères après personnalisation (actuellement ${smsLength}).` }, 400);
       result = await client.sendMessage({ channel: "sms", to, text: smsText, senderId, idempotencyKey: crypto.randomUUID() });
     } else {
       result = await client.sendMessage({ channel: "voice", to, text, idempotencyKey: crypto.randomUUID() });
