@@ -118,20 +118,32 @@ const ClientDetail = () => {
     lot.parcelle_id === newPlantationParcelId &&
     (isPalmInvestOffer
       ? Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001
-      : (!Number(newAcquisitionFormData.superficie_prevue) || Math.abs(Number(lot.surface_ha || 0) - Number(newAcquisitionFormData.superficie_prevue)) < 0.0001))
+      : Number(lot.surface_ha || 0) > 0)
   ).sort((a: any, b: any) => Number(a.numero_h || 0) - Number(b.numero_h || 0));
   const selectedNewLot = availableLots.find((lot: any) => lot.id === newPlantationLotId) || null;
-  const selectedLotSeries = selectedNewLot && isPalmInvestOffer
-    ? lotsForSelectedParcel.filter((lot: any) => Number(lot.numero_h) >= Number(selectedNewLot.numero_h)).slice(0, Math.max(1, requestedPalmInvestLots))
-    : selectedNewLot ? [selectedNewLot] : [];
-  const selectedLotSeriesReady = !isPalmInvestOffer || (
-    requestedPalmInvestLots >= 1 &&
-    selectedLotSeries.length === requestedPalmInvestLots &&
-    selectedLotSeries[0]?.id === selectedNewLot?.id &&
-    selectedLotSeries.every((lot: any, index: number) => index === 0 || Number(lot.numero_h) === Number(selectedLotSeries[index - 1].numero_h) + 1)
+  const selectedLotSeries = selectedNewLot ? (() => {
+    const requested = isPalmInvestOffer ? requestedPalmInvestLots : newAcquisitionArea;
+    const candidates = lotsForSelectedParcel.filter((lot: any) => Number(lot.numero_h) >= Number(selectedNewLot.numero_h));
+    const series: any[] = [];
+    let remaining = requested;
+    for (const lot of candidates) {
+      if (series.length && Number(lot.numero_h) !== Number(series[series.length - 1].numero_h) + 1) break;
+      if (remaining <= 0.000001) break;
+      series.push(lot);
+      remaining -= isPalmInvestOffer ? 1 : Number(lot.surface_ha || 0);
+    }
+    return series;
+  })() : [];
+  const selectedLotSeriesSurface = selectedLotSeries.reduce((sum: number, lot: any) => sum + (isPalmInvestOffer ? 1 : Number(lot.surface_ha || 0)), 0);
+  const selectedLotSeriesContiguous = selectedLotSeries.length > 0 && selectedLotSeries[0]?.id === selectedNewLot?.id &&
+    selectedLotSeries.every((lot: any, index: number) => index === 0 || Number(lot.numero_h) === Number(selectedLotSeries[index - 1].numero_h) + 1);
+  const selectedLotSeriesReady = !!selectedNewLot && selectedLotSeriesContiguous && (
+    isPalmInvestOffer
+      ? requestedPalmInvestLots >= 1 && selectedLotSeries.length === requestedPalmInvestLots && selectedLotSeries.every((lot: any) => Math.abs(Number(lot.surface_ha || 0) - 1) < 0.0001)
+      : newAcquisitionArea >= 0.5 && selectedLotSeriesSurface + 0.000001 >= newAcquisitionArea
   );
   const selectedLotGroupReference = selectedNewLot
-    ? isPalmInvestOffer && selectedLotSeries.length > 1
+    ? selectedLotSeries.length > 1
       ? `${availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.id_unique || "PARCELLE"}-L${String(selectedLotSeries[0]?.numero_h || "").padStart(2, "0")}-${String(selectedLotSeries[selectedLotSeries.length - 1]?.numero_h || "").padStart(2, "0")}`
       : selectedNewLot.reference || `${availableParcelles.find((parcel: any) => parcel.id === newPlantationParcelId)?.id_unique || "PARCELLE"}-L${String(selectedNewLot.numero_h || "").padStart(2, "0")}`
     : "";
