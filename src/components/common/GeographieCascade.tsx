@@ -275,6 +275,15 @@ export default function GeographieCascade({
     setVillageMatches([]);
   };
 
+  useEffect(() => {
+    const query = normalizeGeo(villageSearch);
+    if (query.length < 3 || !villageMatches.length) return;
+    const exactMatches = villageMatches.filter((v) => normalizeGeo(v.nom) === query);
+    if (exactMatches.length === 1 && exactMatches[0].id !== villageId) {
+      void selectVillage(exactMatches[0].id, exactMatches[0].nom);
+    }
+  }, [villageSearch, villageMatches, villageId]);
+
   const hasChildren = !/diaspora/i.test(selectedDistrict?.nom || "");
   return <div className={className}>
     {showDistrict && <div className="space-y-2"><Label>District</Label>
