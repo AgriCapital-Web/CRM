@@ -359,11 +359,11 @@ const NouvelleAcquisition = () => {
         .filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()))
         .map((item:any)=>({code:item.code,titre:item.titre,description:item.description,ordre:item.ordre,obligatoire:item.obligatoire}));
       setSteps(configuredSteps);
-      setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
+      if (configuredSteps.length) setCurrent(v=>Math.min(v,configuredSteps.length-1));
       setLoadingSteps(false);
       return;
     }
-    if(!formData.offre_id){ setSteps([]); setCurrent(0); return; }
+    if(!formData.offre_id){ setSteps([]); return; }
     let mounted=true;
     (async()=>{
       setLoadingSteps(true);
@@ -375,7 +375,7 @@ const NouvelleAcquisition = () => {
       // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
       const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()));
       setSteps(configuredSteps);
-      setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
+      if (configuredSteps.length) setCurrent(v=>Math.min(v,configuredSteps.length-1));
       setLoadingSteps(false);
     })();
     return()=>{mounted=false;};
@@ -409,6 +409,13 @@ const NouvelleAcquisition = () => {
       const missingValues = requiredValues.filter(([, value]) => value === null || value === undefined || Number(value) <= 0);
       if (missingValues.length) {
         toast({variant:"destructive",title:"Formule incomplète",description:"Corrigez Paramètres > Offres : " + missingValues.map(([label]) => label).join(", ") + ". L’étape suivante reste bloquée tant que les paramètres sont incomplets."});
+        return false;
+      }
+    }
+    if(step.code==="offre"&&!recordId){
+      const hectares=Number(formData.superficie_prevue);
+      if(!Number.isFinite(hectares)||hectares<0.5||Math.abs(hectares*2-Math.round(hectares*2))>0.000001){
+        toast({variant:"destructive",title:"Superficie invalide",description:"La superficie minimale est de 0,50 ha et doit avancer par pas de 0,50 ha."});
         return false;
       }
     }
@@ -586,7 +593,7 @@ const NouvelleAcquisition = () => {
         whatsapp_indicatif:null,whatsapp_local:null,email:formData.email||null,
         domicile:formData.domicile||null,domicile_residence:formData.domicile||null,
         district_id:formData.district_id||null,region_id:formData.region_id||null,departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
-        localite:formData.domicile||null,montant_total_contrat:total,
+        localite:formData.localite||null,montant_total_contrat:total,
         mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
         montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
         famille_offre:offer.famille_offre||null,
@@ -877,7 +884,6 @@ toast({title:"Dossier mis à jour",description:"Les informations du client et de
     finally{setSaving(false);}
   };
 
-  const autoResumeAttempted = useRef(false);
   useEffect(() => {
     const resumePendingSubmission = () => {
       if (!pendingSubmitRetryRef.current || !navigator.onLine || submitInFlightRef.current || saving || draftLoading || loadingSteps) return;
@@ -893,19 +899,6 @@ toast({title:"Dossier mis à jour",description:"Les informations du client et de
       window.clearInterval(timer);
     };
   }, [saving, draftLoading, loadingSteps, brouillonId, current, activeSteps.length, formData]);
-
-  useEffect(() => {
-    if (autoResumeAttempted.current || draftLoading || loadingSteps || saving || !user || !brouillonId) return;
-    if (!formData.offre_id || current !== activeSteps.length - 1) return;
-    if (!formData.contrat_lu || !formData.documents_authentiques || !formData.autorisation_donnees) return;
-    const requiredIdentityReady = ["photo_profil", "photo_piece_recto", "photo_piece_verso"].every((field) =>
-      Boolean(recoverFile(formData[field + "_file"], formData[field + "_preview"], field))
-    );
-    if (!requiredIdentityReady) return;
-    autoResumeAttempted.current = true;
-    const timer = window.setTimeout(() => { void submit(); }, 900);
-    return () => window.clearTimeout(timer);
-  }, [draftLoading, loadingSteps, saving, user, brouillonId, formData, current, activeSteps.length]);
 
   const renderStep=()=>{
     if(!step)return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
