@@ -29,7 +29,7 @@ import {
 const money = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
 
-const num = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(Number(n || 0)));
+const num = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(Number(n || 0));
 
 // AgriCapital est un compte interne, jamais un client commercial, même si un ancien enregistrement est mal catégorisé.
 const isAgriCapitalInternal = (client: any) => /agricapital/i.test(String(client?.nom_complet || client?.nom || "").trim());
@@ -685,10 +685,10 @@ const Dashboard = () => {
       setAlerts(newAlerts);
 
       const superficieGroups = [
-        { label: "1 ha", min: 1, max: 1 },
-        { label: "2 ha", min: 2, max: 2 },
-        { label: "3–5 ha", min: 3, max: 5 },
-        { label: "5–10 ha", min: 5, max: 10 },
+        { label: "0,5–0,99 ha", min: 0.5, max: 1 },
+        { label: "1–1,99 ha", min: 1, max: 2 },
+        { label: "2–4,99 ha", min: 2, max: 5 },
+        { label: "5–9,99 ha", min: 5, max: 10 },
         { label: "10–50 ha", min: 10, max: 50 },
         { label: "50–100 ha", min: 50, max: 100 },
         { label: "100+ ha", min: 100, max: Number.POSITIVE_INFINITY },
@@ -698,7 +698,6 @@ const Dashboard = () => {
           label: group.label,
           count: commercialClients.filter((client: any) => {
             const ha = Number(client.total_hectares || 0);
-            if (group.min === group.max) return Math.round(ha * 100) / 100 === group.min;
             return ha >= group.min && ha < group.max;
           }).length,
         }))
