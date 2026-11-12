@@ -104,6 +104,7 @@ const ClientDetail = () => {
   const paginatedPaiements=filteredPaiements.slice((paymentPage-1)*pageSize,paymentPage*pageSize);
   const paginatedInterventions=filteredInterventions.slice((interventionPage-1)*pageSize,interventionPage*pageSize);
   const paginatedAttributions=filteredAttributions.slice((attributionPage-1)*pageSize,attributionPage*pageSize);
+  const returnedAcquisition = clientAcquisitions.find((item:any) => item.created_by === user?.id && item.validation_statut === "modification_demandee") || null;
   const selectedOfferFamily = String(newAcquisitionFormData.offre?.famille_offre || newAcquisitionFormData.offre?.code || newAcquisitionFormData.famille_offre || newAcquisitionFormData.offre_code || "").toUpperCase().replace(/[-_\s]/g, "");
   const isPalmInvestOffer = selectedOfferFamily === "PALMINVEST";
   const newAcquisitionArea = Number(newAcquisitionFormData.superficie_prevue || 0);
