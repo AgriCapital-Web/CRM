@@ -116,7 +116,7 @@ const Parcelles = () => {
   const saveParcel = async () => {
     if (!selectedParcel || !canEditParcel || parcelSaving) return;
     const total = Number(parcelForm.surface_totale_ha), share = Number(parcelForm.surface_agricapital_ha);
-    if (!Number.isFinite(total) || total < 0 || !Number.isFinite(share) || share < 0 || share > total) {
+    if (!Number.isFinite(total) || total < 0.5 || !Number.isFinite(share) || share < 0 || share > total) {
       toast({ title: "Surfaces invalides", variant: "destructive" }); return;
     }
     setParcelSaving(true);
