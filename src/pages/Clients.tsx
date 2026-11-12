@@ -139,7 +139,7 @@ const Clients = () => {
         const clientAttributions = attributionsData.filter((a: any) => a.client_id === client.id);
         const totalHectares = clientAttributions.length
           ? clientAttributions.reduce((sum: number, a: any) => sum + Number(a.surface_attribuee_ha || 0), 0)
-          : clientPlantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0);
+          : clientPlantations.reduce((sum: number, p: any) => sum + Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0), 0);
 
         return {
           ...client,
@@ -177,7 +177,7 @@ const Clients = () => {
             return {
               ...s,
               nombre_plantations: plantations.length,
-              total_hectares: plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0),
+              total_hectares: plantations.reduce((sum: number, p: any) => sum + Number(p.superficie_activee ?? p.superficie_ha ?? p.surface_reellement_plantee ?? 0), 0),
             };
           });
         setClients(enrichedData);
