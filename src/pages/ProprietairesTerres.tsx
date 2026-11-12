@@ -300,7 +300,6 @@ const ProprietairesTerres = () => {
         part_proprietaire_pct: ownerPct,
         part_agricapital_pct: agriPct,
         nombre_lots_agricapital: nombreLots,
-        surface_unitaire_lot_ha: lotUnitHa,
         part_proprietaire_ha: partProprietaireHa,
         part_agricapital_ha: partAgriHa,
         caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
