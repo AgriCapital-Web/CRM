@@ -373,7 +373,23 @@ export default function GeographieCascade({
     </>}
     {showVillage && <div className="space-y-2 relative"><Label>Village / localité{required ? " *" : ""}</Label>
       <input value={villageSearch || villageName || selectedVillageName}
-        onChange={(e) => { const value=e.target.value; setVillageSearch(value); setVillageDropdownOpen(true); onChange({ villageId:null, villageName:value }); }}
+        onChange={(e) => {
+          const value=e.target.value;
+          setVillageSearch(value);
+          setVillageDropdownOpen(true);
+          onChange({
+            districtId: districtId || null,
+            districtName: selectedDistrict?.nom || null,
+            regionId: regionId || null,
+            regionName: regions.find((item) => item.id === regionId)?.nom || null,
+            departementId: departementId || null,
+            departementName: departements.find((item) => item.id === departementId)?.nom || null,
+            sousPrefectureId: sousPrefectureId || null,
+            sousPrefectureName: sousPrefectures.find((item) => item.id === sousPrefectureId)?.nom || null,
+            villageId: null,
+            villageName: value
+          });
+        }}
         onClick={() => { setVillageDropdownOpen(true); }}
         onBlur={() => { window.setTimeout(() => {
           const term = normalizeGeo(villageSearch);
