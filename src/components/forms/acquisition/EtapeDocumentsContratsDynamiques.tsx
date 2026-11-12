@@ -44,6 +44,13 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
       if (mounted) {
         setDocuments(docs || []);
         setContracts(ctrs || []);
+        updateFormData({
+          offre_formulaire_contrats: (ctrs || []).map((contract: any) => ({
+            type_contrat: contract.type_contrat,
+            nom: contract.nom || contract.libelle || contract.type_contrat,
+            obligatoire: Boolean(contract.obligatoire),
+          })),
+        });
         setLoading(false);
       }
     };
@@ -54,7 +61,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
   const identityDocumentCodes = new Set(["client_piece_recto", "client_piece_verso", "client_photo_profil"]);
   const visibleDocuments = useMemo(
     () => documents.filter((doc) => !identityDocumentCodes.has(doc.code) && conditionActive(doc, formData)),
-    [documents, formData.has_representant, formData.offre_code, formData.formule_code, formData.formule_nom, formData.document_securisation_necessaire]
+    [documents, formData.has_representant, formData.offre_code, formData.formule_code, formData.formule_nom, formData.document_securisation_necessaire, formData.offre?.necessite_foncier_client, formData.offre?.contrat_acquisition_requis]
   );
 
   const handleFileChange = (code: string, file: File | null, preview: string) => {
@@ -114,7 +121,22 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
             </>
           )}
 
-          {showSignedContract && (
+          {showSignedContract && contracts.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle>Contrats à signer</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {contracts.map((contract: any) => {
+                  const key = "contrat_" + contract.type_contrat;
+                  const required = Boolean(contract.obligatoire);
+                  return <div key={contract.id || contract.type_contrat} className="rounded-xl border p-3 space-y-2">
+                    <p className="font-medium">{contract.nom || contract.libelle || contract.type_contrat}</p>
+                    <FileUploadVisual label={required ? "Contrat signé *" : "Contrat signé"} field={key} accept=".pdf,image/*" required={required} currentFile={formData[key + "_file"] || null} currentPreview={formData[key + "_preview"] || ""} onFileChange={(field,file,preview)=>updateFormData({[key + "_file"]:file,[key + "_preview"]:preview})}/>
+                  </div>;
+                })}
+              </CardContent>
+            </Card>
+          )}
+          {showSignedContract && contracts.length === 0 && (
             <Card>
               <CardHeader><CardTitle>Contrat signé</CardTitle></CardHeader>
               <CardContent>
