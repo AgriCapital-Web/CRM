@@ -889,7 +889,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                                 <div><Label>Superficie à valoriser (ha)</Label><Input type="number" min="0" step="0.01" value={leadForm.superficie_a_valoriser_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_a_valoriser_ha: e.target.value })} /></div>
                               </>
                             ) : (
-                              <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0.5" step="0.01" value={leadForm.superficie_souhaitee_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_souhaitee_ha: e.target.value })} /></div>
+                              <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0.5" step="0.5" value={leadForm.superficie_souhaitee_ha} onChange={(e) => setLeadForm({ ...leadForm, superficie_souhaitee_ha: e.target.value })} /></div>
                             )}
                             <div>
                               <Label>Délai de démarrage</Label>
