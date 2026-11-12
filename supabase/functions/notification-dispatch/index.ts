@@ -73,7 +73,7 @@ async function sendWebPush(contact: Contact, title: string, body: string, dedupe
 
 type Contact = {
   source_type: string; source_id: string; user_id?: string | null;
-  nom_complet?: string | null; email?: string | null; telephone?: string | null; telephone_secondaire?: string | null; whatsapp?: string | null; telephone_secondaire_whatsapp_numero?: string | null;
+  nom_complet?: string | null; nom?: string | null; prenoms?: string | null; email?: string | null; telephone?: string | null; telephone_secondaire?: string | null; whatsapp?: string | null; telephone_secondaire_whatsapp_numero?: string | null;
   telephone_indicatif?: string | null; telephone_local?: string | null; whatsapp_indicatif?: string | null; whatsapp_local?: string | null;
   telephone_secondaire_indicatif?: string | null; telephone_secondaire_local?: string | null;
   telephone_principal_whatsapp?: boolean | null; telephone_secondaire_whatsapp?: boolean | null; telephone_whatsapp?: boolean | null;
@@ -119,7 +119,7 @@ function brandAutomatedMessage(value: string, channel: string, maxSmsCharacters 
   const content = value.trim();
   if (channel === "sms") {
     const prefix = "AgriCapital: ";
-    const alreadyBranded = /^AgriCapital\s*[:(]/i.test(content);
+    const alreadyBranded = /AgriCapital/i.test(content);
     const base = normalizeSms(content);
     const full = alreadyBranded ? base : prefix + base;
     const chars = Array.from(full);
@@ -164,7 +164,11 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const leadStyleName = contact.source_type === "lead" || contact.source_type === "prospect";
   const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || (context.finance_payout_sms === true ? "" : "Client"));
   const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
-  const displayName = nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName;
+  const titleCaseNames = (value: string) => value.toLocaleLowerCase("fr-FR").replace(/(^|[\\s'-])(\\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  const structuredDisplayName = contact.prenoms?.trim() && contact.nom?.trim()
+    ? titleCaseNames(contact.prenoms.trim()) + " " + contact.nom.trim().toLocaleUpperCase("fr-FR")
+    : null;
+  const displayName = structuredDisplayName || (nameParts.length > 1 ? `${firstName.charAt(0).toLocaleUpperCase("fr-FR")}${firstName.slice(1).toLocaleLowerCase("fr-FR")} ${familyName.toLocaleUpperCase("fr-FR")}` : familyName);
   // Seul le jeton {dernier_prenom_nom} est autorisé pour le nom du destinataire.
   // Les anciens alias nom/prenom/nom_complet ne sont volontairement pas exposés.
   const vars: Record<string, string> = {
@@ -414,6 +418,7 @@ type NotificationRoutingPolicy = {
   domestic_channel: "sms";
   international_channel: "whatsapp";
   sms_max_characters: number;
+  sms_content_max_characters: number;
   sms_sender_id: "AgriCapital";
 };
 const DEFAULT_ROUTING_POLICY: NotificationRoutingPolicy = {
@@ -421,11 +426,12 @@ const DEFAULT_ROUTING_POLICY: NotificationRoutingPolicy = {
   domestic_channel: "sms",
   international_channel: "whatsapp",
   sms_max_characters: 155,
+  sms_content_max_characters: 130,
   sms_sender_id: "AgriCapital",
 };
 async function getNotificationRoutingPolicy(): Promise<NotificationRoutingPolicy> {
   const { data, error } = await admin.from("notification_channel_policy")
-    .select("domestic_country_calling_code,domestic_channel,international_channel,sms_max_characters,sms_sender_id")
+    .select("domestic_country_calling_code,domestic_channel,international_channel,sms_max_characters,sms_content_max_characters,sms_sender_id")
     .eq("id", true).maybeSingle();
   if (error || !data) {
     console.warn("[NotificationRouting] politique par défaut utilisée", { reason: error?.message || "configuration absente" });
@@ -436,6 +442,7 @@ async function getNotificationRoutingPolicy(): Promise<NotificationRoutingPolicy
     domestic_channel: "sms",
     international_channel: "whatsapp",
     sms_max_characters: Math.min(155, Math.max(1, Number(data.sms_max_characters) || 155)),
+    sms_content_max_characters: Math.min(130, Math.max(1, Number(data.sms_content_max_characters) || 130)),
     sms_sender_id: "AgriCapital",
   };
 }
@@ -537,6 +544,7 @@ async function hydrateContacts(rows: Contact[]): Promise<Contact[]> {
   if(original.source_type==="proprietaire_foncier")table=maps.get("proprietaires_terres")?.has(original.source_id)?"proprietaires_terres":"clients";
   const record:any=table?maps.get(table)?.get(original.source_id):null;if(!record)continue;
  const c:Contact={...original,...record,source_type:original.source_type,source_id:original.source_id,user_id:original.user_id||record.user_id||null,
+ nom:record.nom||null, prenoms:record.prenoms||null,
  nom_complet:record.nom_complet||record.display_name||[record.prenoms,record.nom].filter(Boolean).join(" ")||record.denomination_sociale||original.nom_complet||null,
  email:original.email||record.email||null,telephone:record.telephone||(record.telephone_local?String(record.telephone_indicatif||"+225")+record.telephone_local:null)||record.phone||null,
  telephone_secondaire:record.telephone_secondaire||record.secondary_phone||null,whatsapp:record.whatsapp||null,
@@ -822,6 +830,14 @@ async function runCampaign(campaignId: string) {
   if (campaign.programme_le && new Date(campaign.programme_le).getTime() > Date.now()) return { skipped: true, reason: "programme" };
 
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
+  if (["sms", "whatsapp", "auto", "email_sms"].includes(String(campaign.canal || ""))) {
+    const routingPolicy = await getNotificationRoutingPolicy();
+    const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
+    const bodyCharacters = Array.from(bodyWithoutRecipientName).length;
+    if (bodyCharacters > routingPolicy.sms_content_max_characters) {
+      throw new Error(\`Message de campagne trop long : \${bodyCharacters}/\${routingPolicy.sms_content_max_characters} caractères hors nom/prénom. Utilisez « Restructurer » avant l'envoi.\`);
+    }
+  }
   const hasExplicitSelection = Array.isArray(criteria.selected_recipients);
   const selectedRecipients = hasExplicitSelection ? criteria.selected_recipients as Array<{ source_type?: string; source_id?: string }> : [];
   // Fail closed: an empty saved manual selection must never fall through to the broad audience resolver.
