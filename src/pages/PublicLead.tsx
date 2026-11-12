@@ -148,7 +148,7 @@ export default function PublicLead() {
                   <div><Label>Hectares à mettre en valeur</Label><Input type="number" step="0.01" value={f.superficie_a_valoriser_ha} onChange={e=>set("superficie_a_valoriser_ha",e.target.value)} /></div>
                 </div>
               ) : (
-                <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0.5" step="0.01" value={f.superficie_souhaitee_ha} onChange={e=>set("superficie_souhaitee_ha",e.target.value)} /></div>
+                <div><Label>Superficie souhaitée (ha)</Label><Input type="number" min="0.5" step="0.5" value={f.superficie_souhaitee_ha} onChange={e=>set("superficie_souhaitee_ha",e.target.value)} /></div>
               )}
             </CardContent>
           </Card>
