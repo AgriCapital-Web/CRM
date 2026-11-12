@@ -278,7 +278,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
     <FileUploadVisual
       label={label}
       field={field}
-      accept="image/*,.pdf"
+      accept={field === "photo_profil" ? "image/*" : "image/*,.pdf"}
       currentFile={file}
       currentPreview={currentPreview}
       existingPreview={field === "photo_profil" ? storedPhotoPreview : field === "piece_recto" ? storedRectoPreview : storedVersoPreview}
