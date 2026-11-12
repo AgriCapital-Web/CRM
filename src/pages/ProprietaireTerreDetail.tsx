@@ -220,8 +220,8 @@ const ProprietaireTerreDetail = () => {
     if (!can("parcelles.create")) { toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne permet pas de créer une parcelle." }); return; }
     if (!id) return;
     const surface = Number(form.surface_totale_ha);
-    if (!Number.isFinite(surface) || surface < 2) {
-      toast({ variant: "destructive", title: "Surface invalide", description: "La surface doit être d’au moins 2 hectares." });
+    if (!Number.isFinite(surface) || surface < 0.5) {
+      toast({ variant: "destructive", title: "Surface invalide", description: "La surface doit être d’au moins 0,5 ha." });
       return;
     }
     setSaving(true);
@@ -298,8 +298,8 @@ const ProprietaireTerreDetail = () => {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Parcelles</p><p className="mt-1 text-2xl font-bold">{totals.count}</p></CardContent></Card>
-            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface totale</p><p className="mt-1 text-2xl font-bold">{Math.round(totals.total).toLocaleString("fr-FR")} ha</p></CardContent></Card>
-            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface disponible</p><p className="mt-1 text-2xl font-bold">{Math.round(totals.available).toLocaleString("fr-FR")} ha</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface totale</p><p className="mt-1 text-2xl font-bold">{totals.total.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Surface disponible</p><p className="mt-1 text-2xl font-bold">{totals.available.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</p></CardContent></Card>
           </div>
 
           <Card>
@@ -360,7 +360,7 @@ const ProprietaireTerreDetail = () => {
                   <form onSubmit={submit} className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2"><Label>Nom</Label><Input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value.toLocaleUpperCase("fr-FR") }))} /></div>
-                      <div className="space-y-2"><Label>Surface totale (ha)</Label><Input type="number" min="2" step="0.1" required value={form.surface_totale_ha} onChange={e => setForm(f => ({ ...f, surface_totale_ha: e.target.value }))} /></div>
+                      <div className="space-y-2"><Label>Surface totale (ha)</Label><Input type="number" min="0.5" step="0.01" required value={form.surface_totale_ha} onChange={e => setForm(f => ({ ...f, surface_totale_ha: e.target.value }))} /></div>
                     </div>
                     <GeographieCascade districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} onChange={g => setForm(f => ({ ...f, district_id: g.districtId || "", region_id: g.regionId || "", departement_id: g.departementId || "", sous_prefecture_id: g.sousPrefectureId || "", village: g.villageName || "", village_id: g.villageId || "" } as any))} villageId={(form as any).village_id || null} />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -383,10 +383,10 @@ const ProprietaireTerreDetail = () => {
                         const available = Math.max(0, ac - used);
                         return <TableRow key={p.id}>
                           <TableCell><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /><span>{[p.village,p.departements?.nom,p.regions?.nom].filter(Boolean).join(", ") || "—"}</span></div></TableCell>
-                          <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
-                          <TableCell>{Math.round(ac).toLocaleString("fr-FR")} ha</TableCell>
-                          <TableCell>{Math.round(used).toLocaleString("fr-FR")} ha</TableCell>
-                          <TableCell>{Math.round(available).toLocaleString("fr-FR")} ha</TableCell>
+                          <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</TableCell>
+                          <TableCell>{ac.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</TableCell>
+                          <TableCell>{used.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</TableCell>
+                          <TableCell>{available.toLocaleString("fr-FR",{maximumFractionDigits:2})} ha</TableCell>
                           <TableCell><Badge>{p.statut === "partiellement_attribuee" ? "Partiellement attribuée" : p.statut === "saturee" ? "Saturée" : "Disponible"}</Badge></TableCell>
                         </TableRow>;
                       })
@@ -398,7 +398,7 @@ const ProprietaireTerreDetail = () => {
           </Card>
 
           <div className="flex flex-wrap gap-2 text-sm">
-            <Badge variant="outline"><Ruler className="mr-1 h-3 w-3" />{Math.round(Number(owner.surface_totale_ha ?? totals.total)).toLocaleString("fr-FR")} ha déclarés</Badge>
+            <Badge variant="outline"><Ruler className="mr-1 h-3 w-3" />{Number(owner.surface_totale_ha ?? totals.total).toLocaleString("fr-FR",{maximumFractionDigits:2})} ha déclarés</Badge>
             <Badge variant="outline"><Layers className="mr-1 h-3 w-3" />{totals.count} parcelle(s)</Badge>
           </div>
         </div>
