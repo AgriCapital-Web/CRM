@@ -76,11 +76,11 @@ const AUDIENCES = [
 const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) return true; const type = String(r.source_type || ""); return types.some((t) => t === "proprietaire_foncier" ? type.includes("proprietaire_foncier") : t === "beneficiaire_particulier" ? type.includes("beneficiaire_particulier") : t === "autre" ? ["autre","cotitulaire_proprietaire","cotitulaire_client"].includes(type) : type === t); };
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const smsLength = (value: string) => Array.from(normalizeSms(value)).length
-const SMS_NAME_TOKEN = /\\{\\s*(?:dernier_prenom_nom|dernierprenom_nom)\\s*\\}/gi;
+const SMS_NAME_TOKEN = /\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
 const smsBodyLength = (value: string) => smsLength(value.replace(SMS_NAME_TOKEN, ""));
 const restructureSms = (value: string) => {
   const marker = "__AGRICAPITAL_RECIPIENT_NAME__";
-  let text = value.replace(SMS_NAME_TOKEN, marker).replace(/\\s+/g, " ").trim();
+  let text = value.replace(SMS_NAME_TOKEN, marker).replace(/\s+/g, " ").trim();
   const simplifications: Array<[RegExp, string]> = [
     [/nous vous prions de bien vouloir/gi, "Merci de"],
     [/nous vous invitons à/gi, "Merci de"],
@@ -100,14 +100,14 @@ const restructureSms = (value: string) => {
   let truncated = false;
   for (const token of tokens) {
     if (token === marker) { output += token; continue; }
-    if (/^\\s+$/.test(token)) { if (output && !output.endsWith(" ")) output += " "; continue; }
+    if (/^\s+$/.test(token)) { if (output && !output.endsWith(" ")) output += " "; continue; }
     const length = smsLength(token);
     if (count + length > 130) { truncated = true; break; }
     output += token;
     count += length;
   }
-  output = output.trimEnd().replace(/\\s+([,.;!?])/g, "$1");
-  if (truncated) output = output.replace(/[\\s,;:]+$/g, "") + "…";
+  output = output.trimEnd().replace(/\s+([,.;!?])/g, "$1");
+  if (truncated) output = output.replace(/[\s,;:]+$/g, "") + "…";
   return output.replaceAll(marker, "{dernierprenom_nom}");
 };
 const isImageFile = (file: File | MediaAttachment) => {
