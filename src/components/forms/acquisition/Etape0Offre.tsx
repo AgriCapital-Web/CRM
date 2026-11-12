@@ -361,8 +361,8 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
             <Input
               id="superficie_prevue"
               type="number"
-              step="0.5"
-              min="1"
+              step="0.01"
+              min="0.5"
               value={formData.superficie_prevue || ""}
               onChange={(e) => updateFormData({ superficie_prevue: e.target.value })}
               placeholder=""
