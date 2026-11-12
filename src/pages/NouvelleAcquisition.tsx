@@ -24,6 +24,13 @@ import { PERMISSIONS } from "@/lib/roles";
 
 
 type Step = { code:string; titre:string; description?:string; ordre:number; obligatoire:boolean };
+const DEFAULT_ACQUISITION_STEPS: Step[] = [
+  { code: "offre", titre: "Offre et superficie", ordre: 1, obligatoire: true },
+  { code: "client", titre: "Client", ordre: 2, obligatoire: true },
+  { code: "cotitulaire", titre: "Cotitulaire / mandataire", ordre: 3, obligatoire: false },
+  { code: "documents", titre: "Documents", ordre: 4, obligatoire: true },
+  { code: "confirmation", titre: "Confirmation", ordre: 5, obligatoire: true },
+];
 
 const IDENTITY_DOCUMENT_FIELDS: Record<string, { field: string; column: string; bucket: string }> = {
   client_photo_profil: { field: "photo_profil", column: "photo_profil_url", bucket: "photos-profils" },
@@ -142,6 +149,12 @@ const NouvelleAcquisition = () => {
   const { can } = usePermissions();
   const canEditExisting = Boolean(existingRecord?.client) && can("clients.update");
   const [searchParams]=useSearchParams();
+  const searchParamsSignature = searchParams.toString();
+  const leadIdParam = searchParams.get("lead_id") || "";
+  const prospectIdParam = searchParams.get("prospect_id") || "";
+  const isNewClientRequest = searchParams.get("nouveau") === "1";
+  const userId = user?.id || "";
+  const workflowSnapshotKey = JSON.stringify(formData.offre_snapshot?.workflow?.steps || []);
   const {data:promotionActive}=usePromotionActive(formData.offre_id, undefined, !recordId);
 
   const updateFormData = useCallback((data: any) => setFormData((prev: any) => ({ ...prev, ...data })), []);
@@ -156,8 +169,8 @@ const NouvelleAcquisition = () => {
   }, []);
 
   useEffect(()=>{
-    const leadId=searchParams.get("lead_id");
-    const prospectId=searchParams.get("prospect_id");
+    const leadId=leadIdParam;
+    const prospectId=prospectIdParam;
     if(!(leadId || prospectId)) return;
     const params: Record<string, string> = {
       lead_id: leadId || "",
@@ -173,11 +186,13 @@ const NouvelleAcquisition = () => {
       departement_id: searchParams.get("departement_id") || "",
       sous_prefecture_id: searchParams.get("sous_prefecture_id") || "",
       village_id: searchParams.get("village_id") || "",
-      domicile: searchParams.get("village") || "",
+      localite: searchParams.get("localite") || searchParams.get("village") || "",
+      village_nom: searchParams.get("localite") || searchParams.get("village") || "",
+      domicile: searchParams.get("domicile") || "",
     };
     // Une URL ne doit préremplir que les valeurs réellement fournies.
     updateFormData(Object.fromEntries(Object.entries(params).filter(([, value]) => value !== "")));
-  },[searchParams]);
+  },[searchParamsSignature, leadIdParam, prospectIdParam]);
 
   useEffect(()=>{
     const prospectId=searchParams.get("prospect_id");
@@ -204,8 +219,11 @@ const NouvelleAcquisition = () => {
         telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
         departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
-        village_id:source.village_id||"", domicile:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
-        domicile_residence:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
+        village_id:source.village_id||"",
+        localite:source.localite||source.village||source.village_nom||"",
+        village_nom:source.village||source.village_nom||source.localite||"",
+        domicile:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||"",
+        domicile_residence:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||"",
         offre_id:offerId,
         commercial_id:source.assigned_to||undefined,
       };
@@ -219,7 +237,7 @@ const NouvelleAcquisition = () => {
       });
     })();
     return ()=>{active=false;};
-  },[searchParams]);
+  },[leadIdParam, prospectIdParam]);
 
   useEffect(()=>{
     if(!recordId) return;
@@ -310,7 +328,7 @@ const NouvelleAcquisition = () => {
   useEffect(()=>{
     let mounted=true;
     if(recordId){setBrouillonId(null);setDraftLoading(true);return()=>{mounted=false;};}
-    const isLeadOrProspectConversion = Boolean(searchParams.get("lead_id") || searchParams.get("prospect_id"));
+    const isLeadOrProspectConversion = Boolean(leadIdParam || prospectIdParam);
     if (isLeadOrProspectConversion) {
       // A conversion always starts at the first official step. Never restore an unrelated
       // draft's step index into a lead/prospect conversion.
@@ -322,7 +340,7 @@ const NouvelleAcquisition = () => {
     // The explicit "Nouveau client" action must start from a clean form.
     // Keep the saved draft untouched until the user starts entering the new record,
     // but never preload it into a newly requested client form.
-    if (searchParams.get("nouveau") === "1") {
+    if (isNewClientRequest) {
       setFormData({});
       setBrouillonId(null);
       setCurrent(0);
@@ -333,9 +351,8 @@ const NouvelleAcquisition = () => {
     setDraftLoading(true);
     (async()=>{
       try {
-        const currentUser = user;
-        if(!currentUser) return;
-        const key = `agricapital:client-draft:${currentUser.id}`;
+        if(!userId) return;
+        const key = `agricapital:client-draft:${userId}`;
         const raw = window.localStorage.getItem(key);
         if(!raw || !mounted) return;
         const draft = JSON.parse(raw);
@@ -350,16 +367,17 @@ const NouvelleAcquisition = () => {
       }
     })();
     return()=>{mounted=false;};
-  },[user, searchParams, recordId]);
+  },[userId, leadIdParam, prospectIdParam, isNewClientRequest, recordId]);
 
   useEffect(()=>{
     if(recordId){
       const savedSteps = Array.isArray(formData.offre_snapshot?.workflow?.steps) ? formData.offre_snapshot.workflow.steps : [];
       const configuredSteps = savedSteps
-        .filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()))
+        .filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()))
         .map((item:any)=>({code:item.code,titre:item.titre,description:item.description,ordre:item.ordre,obligatoire:item.obligatoire}));
-      setSteps(configuredSteps);
-      setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
+      const nextSteps = configuredSteps.length ? configuredSteps : DEFAULT_ACQUISITION_STEPS;
+      setSteps(nextSteps);
+      setCurrent(v=>Math.min(v,Math.max(0,nextSteps.length-1)));
       setLoadingSteps(false);
       return;
     }
@@ -370,18 +388,24 @@ const NouvelleAcquisition = () => {
       const {data,error}=await (supabase as any).from("offre_formulaire_etapes")
         .select("code,titre,description,ordre,obligatoire").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre");
       if(!mounted)return;
-      if(error)toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
-      // Le foncier relève exclusivement de la première intervention technique, jamais du parcours commercial.
-      // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
-      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()));
-      setSteps(configuredSteps);
-      setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
+      if(error){
+        toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
+        setSteps((current)=>current.length ? current : DEFAULT_ACQUISITION_STEPS);
+        setLoadingSteps(false);
+        return;
+      }
+      // Le foncier relève exclusivement de la première intervention technique.
+      // L'étape Documents appartient bien au parcours commercial et ne doit jamais être supprimée.
+      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()));
+      const nextSteps=configuredSteps.length ? configuredSteps : DEFAULT_ACQUISITION_STEPS;
+      setSteps(nextSteps);
+      setCurrent(v=>Math.min(v,Math.max(0,nextSteps.length-1)));
       setLoadingSteps(false);
     })();
     return()=>{mounted=false;};
-  },[formData.offre_id,recordId,formData.offre_snapshot?.workflow]);
+  },[formData.offre_id,recordId,workflowSnapshotKey]);
 
-  const activeSteps=useMemo(()=>formData.offre_id?steps:[{code:"offre",titre:"Offre et superficie",ordre:1,obligatoire:true}], [formData.offre_id,steps]);
+  const activeSteps=useMemo(()=>formData.offre_id?(steps.length?steps:DEFAULT_ACQUISITION_STEPS):[DEFAULT_ACQUISITION_STEPS[0]], [formData.offre_id,steps]);
   const step=activeSteps[current];
 
   const validateStep=async()=>{
@@ -389,6 +413,16 @@ const NouvelleAcquisition = () => {
     if(step.code==="offre" && !recordId){
       if(!formData.commercial_id||!formData.offre_id||Number(formData.superficie_prevue)<=0){
         toast({variant:"destructive",title:"Étape incomplète",description:"Sélectionnez le commercial responsable, une offre et renseignez la superficie."}); return false;
+      }
+      const offerFamily=String(formData.offre?.famille_offre||formData.offre?.code||formData.offre_code||"").toUpperCase().replace(/[-_\\s]/g,"");
+      const palmInvest=offerFamily==="PALMINVEST";
+      const hectares=Number(formData.superficie_prevue);
+      const validArea=palmInvest
+        ? Number.isInteger(hectares)&&hectares>=1
+        : Number.isFinite(hectares)&&hectares>=0.5&&Math.abs(hectares*2-Math.round(hectares*2))<=0.000001;
+      if(!validArea){
+        toast({variant:"destructive",title:"Superficie invalide",description:palmInvest?"PalmInvest exige des lots entiers de 1 ha minimum.":"La superficie minimale est de 0,50 ha, par pas de 0,50 ha."});
+        return false;
       }
       const configuredFormulas = Array.isArray(formData.offre?.formules_configuration) ? formData.offre.formules_configuration : [];
       if(configuredFormulas.length === 0){
@@ -417,15 +451,14 @@ const NouvelleAcquisition = () => {
     }
     if(step.code==="client"){
       const typePersonne=formData.type_personne||"personne_physique";
-      const commonMissing=["telephone","domicile"].filter(f=>!formData[f]);
+      const commonMissing=["telephone","domicile","localite"].filter(f=>!formData[f]);
       const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
-      const signedContractMissing=!formData.contrat_signe_client_file&&!formData.contrat_signe_client_preview;
-      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||signedContractMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
+      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
         const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing];
-        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : signedContractMissing ? "Veuillez joindre le contrat signé." : "Un groupe familial doit compter au moins deux membres.";
+        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : "Un groupe familial doit compter au moins deux membres.";
         toast({variant:"destructive",title:"Fiche client incomplète",description:reason}); return false;
       }
     }
@@ -437,6 +470,10 @@ const NouvelleAcquisition = () => {
       }
     }
     if(step.code==="documents"){
+      if(!formData.contrat_signe_client_file&&!formData.contrat_signe_client_preview){
+        toast({variant:"destructive",title:"Contrat signé manquant",description:"Veuillez joindre le contrat signé dans cette étape."});
+        return false;
+      }
       const docs = recordId
         ? (Array.isArray(formData.offre_snapshot?.workflow?.documents) ? formData.offre_snapshot.workflow.documents : [])
         : ((await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre")).data || []);
@@ -586,7 +623,7 @@ const NouvelleAcquisition = () => {
         whatsapp_indicatif:null,whatsapp_local:null,email:formData.email||null,
         domicile:formData.domicile||null,domicile_residence:formData.domicile||null,
         district_id:formData.district_id||null,region_id:formData.region_id||null,departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
-        localite:formData.domicile||null,montant_total_contrat:total,
+        localite:formData.localite||formData.village_nom||null,montant_total_contrat:total,
         mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
         montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
         famille_offre:offer.famille_offre||null,
@@ -807,6 +844,7 @@ const NouvelleAcquisition = () => {
         telephone_secondaire_whatsapp:!!formData.telephone_secondaire_whatsapp,
         whatsapp:formData.telephone_principal_whatsapp?formData.telephone:formData.telephone_secondaire_whatsapp?(formData.telephone_secondaire||null):null,
         email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
+        localite:formData.localite||formData.village_nom||existingRecord.client.localite||null,
         domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
          contrat_acquisition_statut:formData.contrat_contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
