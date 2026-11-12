@@ -137,9 +137,10 @@ const Plantations = () => {
   const superficieTotale = visiblePlantations.reduce((sum, p) => sum + (Number(p.superficie_ha) || 0), 0);
   const superficiePlantee = visiblePlantations.reduce((sum, p) => {
     const declared = Number(p.superficie_ha) || 0;
-    const real = Number(p.surface_reellement_plantee);
+    const active = Number(p.superficie_activee) || 0;
+    const real = Number(p.surface_reellement_plantee) || 0;
     const plantedFromPlants = Number(p.nombre_plants_mis_en_terre) > 0 ? declared : 0;
-    return sum + (Number.isFinite(real) && real > 0 ? real : plantedFromPlants);
+    return sum + (active > 0 ? Math.min(active, declared || active) : plantedFromPlants || (real > 0 ? Math.min(real, declared || real) : 0));
   }, 0);
   const superficieEnProduction = visiblePlantations.filter(p => p.statut_global === "en_production" || p.statut === "en_production").reduce((sum, p) => sum + (Number(p.superficie_ha) || 0), 0);
   const nombreEnProduction = visiblePlantations.filter(p => p.statut_global === "en_production" || p.statut === "en_production").length;
@@ -230,9 +231,9 @@ const Plantations = () => {
 
           <div className="grid min-w-0 grid-cols-4 gap-1 sm:gap-2">
             <Card className="min-w-0"><CardHeader className="p-2 sm:p-3 pb-1"><CardTitle className="text-[9px] leading-tight sm:text-xs font-medium text-muted-foreground">Nombre</CardTitle></CardHeader><CardContent className="p-2 sm:p-3 pt-0"><div className="text-[clamp(0.8rem,3vw,1.5rem)] font-bold leading-tight">{nombreTotal}</div><p className="mt-1 text-[9px] leading-tight text-muted-foreground sm:text-xs">plantation(s)</p></CardContent></Card>
-            <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Superficie</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(superficieTotale).toLocaleString("fr-FR")} ha</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">rattachée</p></CardContent></Card>
-            <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Superficie plantée</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(superficiePlantee).toLocaleString("fr-FR")} ha</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{superficieTotale > 0 ? `${((superficiePlantee / superficieTotale) * 100).toFixed(0)}%` : "0%"} du total</p></CardContent></Card>
-            <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">En production</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{nombreEnProduction}</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{Math.round(superficieEnProduction).toLocaleString("fr-FR")} ha</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Superficie</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{superficieTotale.toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">rattachée</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Superficie plantée</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{superficiePlantee.toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{superficieTotale > 0 ? `${((superficiePlantee / superficieTotale) * 100).toFixed(0)}%` : "0%"} du total</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">En production</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{nombreEnProduction}</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{superficieEnProduction.toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</p></CardContent></Card>
           </div>
 
           <div className="relative">
@@ -269,7 +270,7 @@ const Plantations = () => {
                         ? (plantation.lots_hectares?.reference || (plantation.lots_hectares?.numero_h != null ? `Lot ${plantation.lots_hectares.numero_h}` : "—"))
                         : "—"}
                     </TableCell>
-                    <TableCell className="font-semibold tabular-nums">{Number(plantation.surface_reellement_plantee ?? plantation.superficie_activee ?? plantation.superficie_ha ?? 0).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})} ha</TableCell>
+                    <TableCell className="font-semibold tabular-nums">{Number(plantation.superficie_ha ?? plantation.superficie_activee ?? plantation.surface_reellement_plantee ?? 0).toLocaleString("fr-FR",{minimumFractionDigits:0,maximumFractionDigits:2})} ha</TableCell>
                     <TableCell><div className="flex items-center gap-1 whitespace-nowrap"><MapPin className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="text-xs">{plantation.regions?.nom || "—"}</span></div></TableCell>
                     <TableCell><Badge className={"whitespace-nowrap text-[10px] px-1.5 py-0 " + getStatutBadge(plantation.statut_global || plantation.statut)}>{formatStatut(plantation.statut_global || plantation.statut || "actif")}</Badge></TableCell>
                     <TableCell>
