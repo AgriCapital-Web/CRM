@@ -76,6 +76,40 @@ const AUDIENCES = [
 const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) return true; const type = String(r.source_type || ""); return types.some((t) => t === "proprietaire_foncier" ? type.includes("proprietaire_foncier") : t === "beneficiaire_particulier" ? type.includes("beneficiaire_particulier") : t === "autre" ? ["autre","cotitulaire_proprietaire","cotitulaire_client"].includes(type) : type === t); };
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const smsLength = (value: string) => Array.from(normalizeSms(value)).length
+const SMS_NAME_TOKEN = /\\{\\s*(?:dernier_prenom_nom|dernierprenom_nom)\\s*\\}/gi;
+const smsBodyLength = (value: string) => smsLength(value.replace(SMS_NAME_TOKEN, ""));
+const restructureSms = (value: string) => {
+  const marker = "__AGRICAPITAL_RECIPIENT_NAME__";
+  let text = value.replace(SMS_NAME_TOKEN, marker).replace(/\\s+/g, " ").trim();
+  const simplifications: Array<[RegExp, string]> = [
+    [/nous vous prions de bien vouloir/gi, "Merci de"],
+    [/nous vous invitons à/gi, "Merci de"],
+    [/veuillez/gi, "Merci de"],
+    [/afin de/gi, "pour"],
+    [/au sujet de/gi, "sur"],
+    [/en raison de/gi, "car"],
+    [/dans les meilleurs délais/gi, "rapidement"],
+    [/nous vous remercions/gi, "Merci"],
+    [/à votre disposition/gi, "disponible"],
+    [/s'il vous plaît/gi, "svp"],
+  ];
+  for (const [pattern, replacement] of simplifications) text = text.replace(pattern, replacement);
+  const tokens = text.match(new RegExp(marker + "|[^\\s]+|\\s+", "g")) || [];
+  let output = "";
+  let count = 0;
+  let truncated = false;
+  for (const token of tokens) {
+    if (token === marker) { output += token; continue; }
+    if (/^\\s+$/.test(token)) { if (output && !output.endsWith(" ")) output += " "; continue; }
+    const length = smsLength(token);
+    if (count + length > 130) { truncated = true; break; }
+    output += token;
+    count += length;
+  }
+  output = output.trimEnd().replace(/\\s+([,.;!?])/g, "$1");
+  if (truncated) output = output.replace(/[\\s,;:]+$/g, "") + "…";
+  return output.replaceAll(marker, "{dernierprenom_nom}");
+};
 const isImageFile = (file: File | MediaAttachment) => {
   const mime = String(("type" in file ? file.type : "") || ("mimeType" in file ? file.mimeType : "") || "").toLowerCase();
   const name = String(file.name || "").toLowerCase();
@@ -329,7 +363,7 @@ const GestionNotifications = () => {
     const submittedMedia = [...campaignMedia];
     if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
     if (submittedCampaign.audience === "selection" && !selectedRecipients.some((r) => r?.source_type && r?.source_id)) return toast.error("Coche au moins un destinataire valide.");
-    if ((submittedCampaign.canal === "sms" || submittedCampaign.canal === "email_sms") && smsCount > 155) return toast.error(`Le SMS fait ${smsCount} caractères : limite 155, espaces et signes compris.`);
+    if (["sms", "whatsapp", "auto", "email_sms"].includes(submittedCampaign.canal) && smsBodyLength(submittedCampaign.contenu) > 130) return toast.error(`Le texte hors prénom/nom fait ${smsBodyLength(submittedCampaign.contenu)}/130 caractères. Clique sur « Restructurer ».`);
     if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
     let recipientCount = selectedRecipients.length;
@@ -599,7 +633,7 @@ const GestionNotifications = () => {
                 <Field label="Planification"><Input type="datetime-local" value={campaign.programme_le} onChange={(e) => setCampaign({ ...campaign, programme_le: e.target.value })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={campaign.sujet} onChange={(e) => setCampaign({ ...campaign, sujet: e.target.value })} placeholder="Information AgriCapital" /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {dernier_prenom_nom}, ..." /><div className="mt-1 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">{campaign.canal.includes("sms") && <span className={smsCount > 155 ? "font-semibold text-destructive" : ""}>{smsCount}/155 caractères SMS</span>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {dernierprenom_nom}, ..." /><div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">{["sms", "whatsapp", "auto", "email_sms"].includes(campaign.canal) && <><span className={smsBodyLength(campaign.contenu) > 130 ? "font-semibold text-destructive" : ""}>{smsBodyLength(campaign.contenu)}/130 caractères hors prénom/nom · SMS final ≤155</span><Button type="button" size="sm" variant="outline" onClick={() => { const next = restructureSms(campaign.contenu); setCampaign(current => ({ ...current, contenu: next })); toast.success("Message restructuré pour respecter la limite SMS."); }}><RefreshCw className="mr-2 h-3 w-3"/>Restructurer</Button></>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
               {preview && <Preview count={preview.count} sample={preview.sample} />}
               <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />{editingCampaignId ? "Enregistrer les modifications" : "Enregistrer la campagne"}</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>
