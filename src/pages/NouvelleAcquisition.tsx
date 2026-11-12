@@ -643,13 +643,6 @@ const NouvelleAcquisition = () => {
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
 
-      const signedContractFile=recoverFile(formData.contrat_signe_client_file,formData.contrat_signe_client_preview,"contrat_signe_client");
-      if(!signedContractFile) throw new Error("Veuillez joindre le contrat signé.");
-      const signedContractUpload=await uploadFile("documents",signedContractFile,user.id+"/clients/"+client.id+"/contrats","contrat-signe-client");
-      if(!signedContractUpload?.path) throw new Error("Téléversement du contrat signé impossible.");
-      const {error:signedContractSaveError}=await offlineUpsert("documents_acquisition",{id:stableUuid(stableClientId,"contract:contrat_signe_client"),client_id:client.id,type_document:"contrat_signe_client",code_document:"contrat_signe_client",categorie:"contrat",obligatoire:true,source_contractuelle:"contrat_signe_client",fichier_url:signedContractUpload.path,statut:"signe",uploaded_by:currentUser.id,metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:"Contrat signé",storage_bucket:"documents"}});
-      if(signedContractSaveError) throw signedContractSaveError;
-
       // Le lien lead/prospect est finalisé APRÈS les médias et documents.
       // Ainsi un délai sur le lead ne coupe plus l'envoi des photos et ne laisse pas
       // un client à moitié enregistré.
