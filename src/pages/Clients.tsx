@@ -28,7 +28,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 const formatHectares = (value: unknown) => {
   const hectares = Number(value || 0);
-  return Math.round(hectares).toLocaleString("fr-FR");
+  return hectares.toLocaleString("fr-FR",{maximumFractionDigits:2});
 };
 
 const getOfferDisplayName = (client: any) => {
