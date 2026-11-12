@@ -59,6 +59,10 @@ export default function GeographieCascade({
   }, [villageName]);
   useEffect(() => {
     let active = true;
+    // En ligne, les vues v_geo_* sont la source d’autorité. Le cache n’est
+    // utilisé qu’hors ligne afin de ne pas réafficher un district désactivé
+    // à partir d’un ancien état local.
+    if (!offline) return () => { active = false; };
     Promise.all([getAllItems(STORES.DISTRICTS), getAllItems(STORES.REGIONS), getAllItems(STORES.DEPARTEMENTS), getAllItems(STORES.SOUS_PREFECTURES), getAllItems(STORES.VILLAGES)])
       .then(([d,r,de,sp,v]) => {
         if(!active)return;
@@ -75,15 +79,16 @@ export default function GeographieCascade({
         const activeSousPrefectureIds=new Set(asp.map((row:any)=>String(row.id)));
         const av=cachedRowsForScope(v,includeInactive,["est_actif_effectif","est_actif"])
           .filter((row:any)=>includeInactive||activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
-        if(ad.length)setDistricts(ad);
-        if(ar.length)setRegions(ar);
-        if(ade.length)setDepartements(ade);
-        if(asp.length)setSousPrefectures(asp);
-        if(av.length){setVillages(av);setVillageMatches(av);}
+        setDistricts(ad);
+        setRegions(ar);
+        setDepartements(ade);
+        setSousPrefectures(asp);
+        setVillages(av);
+        setVillageMatches(av);
       })
       .catch(() => {});
     return () => { active = false; };
-  }, [includeInactive]);
+  }, [includeInactive, offline]);
 
   useEffect(() => {
     const channel = supabase.channel(`geo-cascade-${Math.random().toString(36).slice(2)}`);
@@ -328,7 +333,7 @@ export default function GeographieCascade({
     {showDistrict && <div className="space-y-2"><Label>District</Label>
       <SearchableSelect value={districtId || ""} onValueChange={(value) => onChange({
         districtId: value, districtName: districts.find((d) => d.id === value)?.nom || null,
-        regionId: null, departementId: null, sousPrefectureId: null, villageId: null, villageName: null,
+        regionId: null, departementId: null, sousPrefectureId: null, villageId: null, villageName: villageId ? null : (villageName || null),
       })} options={districts.map((x) => ({ value: x.id, label: x.nom }))}
         placeholder="Sélectionner le district" searchPlaceholder="Rechercher un district" />
     </div>}
@@ -338,14 +343,14 @@ export default function GeographieCascade({
           placeholder="Sélectionner la région" searchPlaceholder="Rechercher une région"
           onValueChange={(value) => { const x = regions.find((r) => r.id === value); const nextDistrictId = x?.district_id || districtId || null; onChange({
             districtId: nextDistrictId, districtName: districts.find((d) => d.id === nextDistrictId)?.nom || selectedDistrict?.nom || null, regionId: value,
-            departementId: null, sousPrefectureId: null, villageId: null, villageName: null, regionName: x?.nom || null
+            departementId: null, sousPrefectureId: null, villageId: null, villageName: villageId ? null : (villageName || null), regionName: x?.nom || null
           }); }} />
       </div>
       {showDepartement && <div className="space-y-2"><Label>Département</Label>
         <SearchableSelect value={departementId || ""} disabled={!regionId} options={departements.map((x) => ({ value: x.id, label: x.nom }))}
           placeholder="Sélectionner le département" searchPlaceholder="Rechercher un département"
           onValueChange={(value) => { const x = departements.find((d) => d.id === value); onChange({
-            districtId: districtId || null, regionId: regionId || null, departementId: value, sousPrefectureId: null, villageId: null, villageName: null,
+            districtId: districtId || null, regionId: regionId || null, departementId: value, sousPrefectureId: null, villageId: null, villageName: villageId ? null : (villageName || null),
             regionName: regions.find((r) => r.id === regionId)?.nom || null, departementName: x?.nom || null
           }); }} />
       </div>}
@@ -363,7 +368,21 @@ export default function GeographieCascade({
       <input value={villageSearch || villageName || selectedVillageName}
         onChange={(e) => { const value=e.target.value; setVillageSearch(value); setVillageDropdownOpen(true); onChange({ villageId:null, villageName:value }); }}
         onClick={() => { setVillageDropdownOpen(true); }}
-        onBlur={() => { window.setTimeout(() => setVillageDropdownOpen(false), 160); }}
+        onBlur={() => { window.setTimeout(() => {
+          const term = normalizeGeo(villageSearch);
+          const exact = villageMatches.filter((item) => normalizeGeo(item.nom) === term);
+          if (term && exact.length === 1) void selectVillage(exact[0].id, exact[0].nom);
+          else setVillageDropdownOpen(false);
+        }, 160); }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          const term = normalizeGeo(villageSearch);
+          const exact = villageMatches.filter((item) => normalizeGeo(item.nom) === term);
+          if (exact.length === 1) {
+            event.preventDefault();
+            void selectVillage(exact[0].id, exact[0].nom);
+          }
+        }}
         autoComplete="off" role="combobox" aria-expanded={villageDropdownOpen && villageMatches.length > 0}
         aria-autocomplete="list"
         placeholder="Saisir une localité ou rechercher un village (sans choisir de district)"
