@@ -41,9 +41,15 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
     <div className="space-y-1">{phone("telephone_secondaire","Téléphone secondaire")}<label className="flex items-center gap-2 text-xs"><Checkbox checked={!!formData.telephone_secondaire_whatsapp} onCheckedChange={v=>updateFormData({telephone_secondaire_whatsapp:v===true,telephone_principal_whatsapp:v===true?false:!!formData.telephone_principal_whatsapp})}/>Dispose d'un compte WhatsApp !</label></div>
    </div>
    <div><Label>Email</Label><Input type="email" value={formData.email||""} onChange={e=>updateFormData({email:e.target.value})}/></div>
-   <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} required onChange={(g)=>updateFormData({district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||""})}/>
+   <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} villageName={formData.localite||formData.village_nom||""} includeInactive required onChange={(g)=>updateFormData({
+     district_id:g.districtId||"",district_nom:g.districtName||formData.district_nom||"",
+     region_id:g.regionId||"",region_nom:g.regionName||formData.region_nom||"",
+     departement_id:g.departementId||"",departement_nom:g.departementName||formData.departement_nom||"",
+     sous_prefecture_id:g.sousPrefectureId||"",sous_prefecture_nom:g.sousPrefectureName||formData.sous_prefecture_nom||"",
+     village_id:g.villageId||"",localite:g.villageName??formData.localite??"",village_nom:g.villageName??formData.village_nom??""
+   })}/>
    <div><Label>Lieu de résidence *</Label><Input value={formData.domicile||""} onChange={e=>updateFormData({domicile:e.target.value})} placeholder="Quartier, campement, rue ou commune"/></div>
   </CardContent></Card>
-  <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={true} showAdditionalDocuments={false}/>
+  <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={true} showSignedContract={false} showAdditionalDocuments={false}/>
  </div>;
 };
