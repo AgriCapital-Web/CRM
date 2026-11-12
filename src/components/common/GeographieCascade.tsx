@@ -123,7 +123,7 @@ export default function GeographieCascade({
       const sorted = (error ? [] : (data || [])).sort((a: any, b: any) =>
         Number(withChildren.has(a.id)) - Number(withChildren.has(b.id)) || String(a.nom).localeCompare(String(b.nom), "fr"));
       const cached = error ? cachedRowsForScope(await getAllItems(STORES.DISTRICTS).catch(() => []),includeInactive,["est_actif_effectif","est_actif"]) : [];
-      if (active) setDistricts(error ? cached : sorted);
+      if (active) setDistricts(error ? (offline ? cached : []) : sorted);
       if (!error && data?.length) void putItems(STORES.DISTRICTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(() => {});
     })();
     return () => { active = false; };
@@ -142,7 +142,7 @@ export default function GeographieCascade({
       const activeDistrictIds = new Set(cachedRowsForScope(cachedDistrictRows,includeInactive,["est_actif"]).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? scopedRows : scopedRows.filter((row:any)=>activeDistrictIds.has(String(row.district_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif"]) : [];
-      if (active) setRegions(error ? cached : (data || []));
+      if (active) setRegions(error ? (offline ? cached : []) : (data || []));
       if (!error && data?.length) void putItems(STORES.REGIONS, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
@@ -162,7 +162,7 @@ export default function GeographieCascade({
         .filter((row:any)=>includeInactive||activeDistrictIds.has(String(row.district_id))).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeRegionIds.has(String(row.region_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
-      if (active) setDepartements(error ? cached : (data || []));
+      if (active) setDepartements(error ? (offline ? cached : []) : (data || []));
       if (!error && data?.length) void putItems(STORES.DEPARTEMENTS, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
@@ -184,7 +184,7 @@ export default function GeographieCascade({
         .filter((row:any)=>includeInactive||activeRegionIds.has(String(row.region_id))).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeDepartementIds.has(String(row.departement_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_active_effectif","est_active","est_actif_effectif","est_actif"]) : [];
-      if (active) setSousPrefectures(error ? cached : (data || []));
+      if (active) setSousPrefectures(error ? (offline ? cached : []) : (data || []));
       if (!error && data?.length) void putItems(STORES.SOUS_PREFECTURES, data.map((row:any)=>({...row,est_active:row.est_active_effectif,est_active_effectif:row.est_active_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
@@ -208,7 +208,7 @@ export default function GeographieCascade({
         .filter((row:any)=>includeInactive||activeDepartementIds.has(String(row.departement_id))).map((row:any)=>String(row.id)));
       const parentScopedRows = includeInactive ? cachedRows : cachedRows.filter((row:any)=>activeSousPrefectureIds.has(String(row.sous_prefecture_id)));
       const cached = error ? cachedRowsForScope(parentScopedRows,includeInactive,["est_actif_effectif","est_actif"]) : [];
-      if (active) setVillages(error ? cached : (data || []));
+      if (active) setVillages(error ? (offline ? cached : []) : (data || []));
       if (!error && data?.length) void putItems(STORES.VILLAGES, data.map((row:any)=>({...row,est_actif:row.est_actif_effectif,est_actif_effectif:row.est_actif_effectif}))).catch(()=>{});
     })();
     return () => { active = false; };
