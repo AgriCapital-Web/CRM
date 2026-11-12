@@ -83,9 +83,9 @@ type Contact = {
 };
 
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
-const assertSmsLength = (value: string) => {
+const assertSmsLength = (value: string, maxCharacters = 155) => {
   const length = Array.from(value).length;
-  if (length > 155) throw new Error(`SMS trop long : ${length}/155 caractères, espaces et signes compris.`);
+  if (length > maxCharacters) throw new Error(\`SMS trop long : \${length}/\${maxCharacters} caractères, espaces et signes compris.\`);
   if (!length) throw new Error("Le SMS ne peut pas être vide.");
   return value;
 };
@@ -115,22 +115,23 @@ function normalizeWhatsAppMessage(value: string): string {
   }).join("\\n").replace(/\\n{3,}/g, "\\n\\n").trim();
   return header ? uniqueBody ? header + "\\n\\n" + uniqueBody : header : uniqueBody;
 }
-function brandAutomatedMessage(value: string, channel: string): string {
+function brandAutomatedMessage(value: string, channel: string, maxSmsCharacters = 155): string {
   const content = value.trim();
   if (channel === "sms") {
-    const prefix = "AgriCapital : ";
+    const prefix = "AgriCapital: ";
     const alreadyBranded = /^AgriCapital\s*[:(]/i.test(content);
-    if (alreadyBranded) return assertSmsLength(normalizeSms(content));
     const base = normalizeSms(content);
-    const maxBody = 155 - Array.from(prefix).length;
-    const clipped = Array.from(base).length > maxBody
-      ? Array.from(base).slice(0, maxBody - 1).join("").trimEnd() + "…"
-      : base;
-    return assertSmsLength(prefix + clipped);
+    const full = alreadyBranded ? base : prefix + base;
+    const chars = Array.from(full);
+    const fitted = chars.length > maxSmsCharacters
+      ? chars.slice(0, Math.max(0, maxSmsCharacters - 1)).join("").trimEnd() + "…"
+      : full;
+    return assertSmsLength(fitted, maxSmsCharacters);
   }
   if (channel === "whatsapp") return normalizeWhatsAppMessage(content);
   return content;
 }
+
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
 async function prepareMedia(attachments: MediaAttachment[] = []) {
   const prepared: Array<{ ref: string; name: string; mimeType: string; path: string }> = [];
@@ -218,8 +219,18 @@ async function providerStatus() {
   const { data: emailSenderId } = await admin.rpc("senndo_get_secret", { p_name: "senndo_email_sender_id" });
   let whatsapp: { senderPhone: string } | null = null;
   try { whatsapp = await resolveWhatsAppSenderSession(); } catch { whatsapp = null; }
+  let smsReady = false;
+  if (typeof apiKey === "string" && apiKey) {
+    try {
+      const client = new SenndoClient({ apiKey, baseUrl: "https://api.senndo.com", timeoutMs: 12000, maxRetries: 0, userAgent: "AgriCapital-CRM/1.0" });
+      const senderResult = await client.listSenderIds();
+      const senders = Array.isArray(senderResult?.senderIds) ? senderResult.senderIds : [];
+      smsReady = senders.some((item: any) => String(item?.value || "") === "AgriCapital" &&
+        !/reject|inactive|pending|blocked/i.test(String(item?.lifecycleStatus || "")));
+    } catch { smsReady = false; }
+  }
   return {
-    senndo: Boolean(apiKey), webhook: Boolean(webhookSecret), sms: false,
+    senndo: Boolean(apiKey), webhook: Boolean(webhookSecret), sms: smsReady,
     email: false, whatsapp_paired: Boolean(whatsapp),
     voice: false, sender_id: "AgriCapital",
     whatsapp_business_number: whatsapp?.senderPhone || null,
@@ -250,11 +261,12 @@ async function sendSms(contact: Contact, content: string, dedupeKey: string) {
   for (let index = 0; index < candidates.length; index++) {
     const to = candidates[index];
     try {
+      const smsText = assertSmsLength(normalizeSms(content));
       const result = await client.sendMessage({
-        channel: "sms", to, text: normalizeSms(content), senderId: "AgriCapital",
+        channel: "sms", to, text: smsText, senderId: "AgriCapital",
         idempotencyKey: index === 0 ? dedupeKey : dedupeKey + ":telephone-secondaire",
       });
-      return { provider: "senndo", messageId: result.id || null, content: normalizeSms(content), to };
+      return { provider: "senndo", messageId: result.id || null, content: smsText, to };
     } catch (error) {
       lastError = error;
       if (index === candidates.length - 1) throw error;
@@ -395,6 +407,52 @@ function phoneCandidates(contact: Contact): string[] {
  const values:Array<[unknown,unknown]>=[[contact.telephone_local||contact.telephone,contact.telephone_indicatif],[contact.telephone_secondaire_local||contact.telephone_secondaire,contact.telephone_secondaire_indicatif]];
  return [...new Set(values.map(([v,d])=>normalizeWhatsAppRecipient(v,d)).filter((v):v is string=>Boolean(v)))];
 }
+
+type NotificationRoutingPolicy = {
+  domestic_country_calling_code: string;
+  domestic_channel: "sms";
+  international_channel: "whatsapp";
+  sms_max_characters: number;
+  sms_sender_id: "AgriCapital";
+};
+const DEFAULT_ROUTING_POLICY: NotificationRoutingPolicy = {
+  domestic_country_calling_code: "+225",
+  domestic_channel: "sms",
+  international_channel: "whatsapp",
+  sms_max_characters: 155,
+  sms_sender_id: "AgriCapital",
+};
+async function getNotificationRoutingPolicy(): Promise<NotificationRoutingPolicy> {
+  const { data, error } = await admin.from("notification_channel_policy")
+    .select("domestic_country_calling_code,domestic_channel,international_channel,sms_max_characters,sms_sender_id")
+    .eq("id", true).maybeSingle();
+  if (error || !data) {
+    console.warn("[NotificationRouting] politique par défaut utilisée", { reason: error?.message || "configuration absente" });
+    return DEFAULT_ROUTING_POLICY;
+  }
+  return {
+    domestic_country_calling_code: String(data.domestic_country_calling_code || "+225"),
+    domestic_channel: "sms",
+    international_channel: "whatsapp",
+    sms_max_characters: Math.min(155, Math.max(1, Number(data.sms_max_characters) || 155)),
+    sms_sender_id: "AgriCapital",
+  };
+}
+function resolveAutomaticChannel(contact: Contact, policy: NotificationRoutingPolicy): "sms" | "whatsapp" | null {
+  const candidates = phoneCandidates(contact);
+  const destination = candidates[0] || normalizeWhatsAppRecipient(contact.whatsapp, contact.whatsapp_indicatif);
+  if (!destination) return null;
+  return destination.startsWith(policy.domestic_country_calling_code)
+    ? policy.domestic_channel : policy.international_channel;
+}
+function routedWhatsAppContact(contact: Contact, policy: NotificationRoutingPolicy): Contact {
+  const internationalPhones = phoneCandidates(contact).filter((phone) => !phone.startsWith(policy.domestic_country_calling_code));
+  const existing = contact.whatsapp_candidates?.length ? contact.whatsapp_candidates : whatsappCandidates(contact);
+  const recipients = internationalPhones.length
+    ? [...internationalPhones, ...existing.filter((phone) => !internationalPhones.includes(phone))]
+    : existing;
+  return { ...contact, whatsapp_candidates: recipients, whatsapp: recipients[0] || null };
+}
 function selectedWhatsAppNumber(contact: Contact): string | null {
   return contact.whatsapp_candidates?.[0] || whatsappCandidates(contact)[0] || null;
 }
@@ -508,10 +566,27 @@ async function deliver(args: {
 }) {
   let sent = 0, failed = 0;
   const failureReasons: string[] = [];
-  const needsSenndoMedia = args.canal === "whatsapp";
+  const routingPolicy = await getNotificationRoutingPolicy();
+  const needsSenndoMedia = Boolean(args.mediaAttachments?.length) && (
+    args.canal === "whatsapp" ||
+    (["auto", "sms", "email_sms"].includes(args.canal) &&
+      args.contacts.some((contact) => resolveAutomaticChannel(contact, routingPolicy) === "whatsapp"))
+  );
   const preparedMedia = args.mediaAttachments?.length && needsSenndoMedia ? await prepareMedia(args.mediaAttachments) : [];
   for (const contact of args.contacts) {
-    const channels = args.canal === "auto" ? ["whatsapp","sms","email"] : args.canal === "email_sms" ? ["email","sms"] : [args.canal];
+    const phoneChannel = resolveAutomaticChannel(contact, routingPolicy);
+    const channels = args.canal === "auto"
+      ? (phoneChannel ? [phoneChannel] : [])
+      : args.canal === "email_sms"
+        ? ["email", ...(phoneChannel ? [phoneChannel] : [])]
+        : ["sms", "whatsapp"].includes(args.canal)
+          ? (phoneChannel ? [phoneChannel] : [])
+          : [args.canal];
+    if (!channels.length) {
+      failed++;
+      failureReasons.push("Aucun numéro international valide pour appliquer la règle SMS/WhatsApp.");
+      continue;
+    }
     for (const channel of [...new Set(channels)]) {
       if (channel === "app" && !contact.user_id && contact.source_type === "equipe") continue;
       const dedupeKey = (args.campaignId || args.automationId || "manual") + ":" +
@@ -527,7 +602,7 @@ async function deliver(args: {
         if (args.canal === "auto") break;
         continue;
       }
-      let recipientContact = contact;
+      let recipientContact = channel === "whatsapp" ? routedWhatsAppContact(contact, routingPolicy) : contact;
       if (channel === "whatsapp" && existing?.statut === "echoue" && /RECIPIENT_NOT_REACHABLE/i.test(String(existing.erreur || ""))) {
         const alternatives = (contact.whatsapp_candidates || whatsappCandidates(contact)).filter((phone) => phone !== String(existing.recipient_phone || ""));
         // Never hit the same WhatsApp number again after Senndo explicitly rejected it.
@@ -537,8 +612,8 @@ async function deliver(args: {
 
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
-      const rendered = brandAutomatedMessage(render(args.content, contact, args.context || {}), channel);
-      if (channel === "sms" && args.context?.finance_payout_sms === true && Array.from(normalizeSms(rendered)).length > 150) throw new Error("SMS AgriCapital PAY bloque : " + Array.from(normalizeSms(rendered)).length + "/150 caracteres apres personnalisation.");
+      const rendered = brandAutomatedMessage(render(args.content, contact, args.context || {}), channel, routingPolicy.sms_max_characters);
+      if (channel === "sms") assertSmsLength(normalizeSms(rendered), routingPolicy.sms_max_characters);
       const rawSubject = render(args.subject || "", contact, args.context || {});
       const renderedSubject = channel === "app" && rawSubject && !/^AgriCapital\\b/i.test(rawSubject) ? "AgriCapital · " + rawSubject : rawSubject;
       const attachments = args.mediaAttachments || [];
@@ -556,9 +631,14 @@ async function deliver(args: {
         user_id: contact.user_id || null, source_type: contact.source_type, source_id: contact.source_id,
         recipient_name: contact.nom_complet || null, recipient_email: contact.email || null,
         recipient_phone: (channel === "whatsapp" ? selectedWhatsAppNumber(recipientContact) : (contact.telephone_candidates?.[0] || contact.telephone || contact.telephone_secondaire)) || null, canal: channel, statut: "en_cours",
-        contenu: channel === "sms" ? assertSmsLength(normalizeSms(rendered)) : rendered, dedupe_key: dedupeKey,
+        contenu: channel === "sms" ? assertSmsLength(normalizeSms(rendered), routingPolicy.sms_max_characters) : rendered, dedupe_key: dedupeKey,
         media_attachments: attachmentMetadata,
-        metadata: { event_key: args.eventKey || null },
+        metadata: {
+          event_key: args.eventKey || null,
+          requested_channel: args.canal,
+          routing_rule: channel === "sms" ? "CI:+225=>SMS" : channel === "whatsapp" ? "INTERNATIONAL=>WHATSAPP" : "EXPLICIT",
+          sms_max_characters: routingPolicy.sms_max_characters,
+        },
       };
 
       let delivery: { id: string };
@@ -1260,15 +1340,15 @@ serve(async (req) => {
     }
     if (mode === "manual_contact") {
       const leadId = String(body.lead_id || "").trim();
-      const channel = String(body.channel || "");
+      let channel = String(body.channel || "");
       const content = String(body.content || "").trim();
       const subject = String(body.subject || "Suivi de votre projet de plantation de palmier à huile").slice(0, 160);
       const requestId = String(body.request_id || "").replace(/[^a-zA-Z0-9:_-]/g, "").slice(0, 100);
       if (!leadId) return json(req, { error: "lead_id requis" }, 400);
       if (!["whatsapp", "email", "sms"].includes(channel)) return json(req, { error: "Canal non pris en charge" }, 400);
-      const normalizedContent = brandAutomatedMessage(content, channel === "email" ? "email" : channel === "sms" ? "sms" : "whatsapp");
-      const effectiveLength = Array.from(normalizedContent).length;
-      const limit = channel === "sms" ? 155 : channel === "whatsapp" ? 4096 : 5000;
+      let normalizedContent = brandAutomatedMessage(content, channel === "email" ? "email" : "whatsapp");
+      let effectiveLength = Array.from(normalizedContent).length;
+      let limit = 5000;
       if (!normalizedContent || effectiveLength > limit) {
         return json(req, { error: `Le message doit contenir entre 1 et ${limit} caractères (actuellement ${effectiveLength}).` }, 400);
       }
@@ -1279,14 +1359,14 @@ serve(async (req) => {
       if (authError || !actor) return json(req, { error: "Session invalide" }, 401);
       const rawAttachments = Array.isArray(body.media_attachments) ? body.media_attachments : [];
       if (rawAttachments.length > 6) return json(req, { error: "Six pièces jointes maximum par message." }, 400);
-      if (channel === "sms" && rawAttachments.length) return json(req, { error: "Les SMS ne prennent pas en charge les pièces jointes." }, 400);
+      // Les pièces jointes sont validées après routage, car le pays du numéro décide du canal.
       const templateId = String(body.template_id || "").trim();
       let templateMedia: Array<Record<string, unknown>> = [];
       if (templateId) {
         const { data: selectedTemplate, error: templateError } = await admin.from("notification_templates")
           .select("id,canal,actif,media_attachments").eq("id", templateId).maybeSingle();
         if (templateError) throw templateError;
-        if (!selectedTemplate || !selectedTemplate.actif || selectedTemplate.canal !== channel) {
+        if (!selectedTemplate || !selectedTemplate.actif) {
           return json(req, { error: "Le modèle sélectionné n’est plus disponible pour ce canal." }, 400);
         }
         templateMedia = Array.isArray(selectedTemplate.media_attachments) ? selectedTemplate.media_attachments : [];
@@ -1325,6 +1405,20 @@ serve(async (req) => {
         nom_complet: [lead.prenoms, lead.nom].filter(Boolean).join(" ").trim() || "Contact AgriCapital",
         email: lead.email || null, telephone: lead.telephone || null, whatsapp: lead.whatsapp || null,
       };
+      const routingPolicy = await getNotificationRoutingPolicy();
+      if (channel === "sms" || channel === "whatsapp") {
+        const routedChannel = resolveAutomaticChannel(contact, routingPolicy);
+        if (!routedChannel) return json(req, { error: "Numéro international invalide pour appliquer la règle SMS/WhatsApp." }, 400);
+        channel = routedChannel;
+        normalizedContent = brandAutomatedMessage(content, channel, routingPolicy.sms_max_characters);
+        effectiveLength = Array.from(normalizedContent).length;
+        limit = channel === "sms" ? routingPolicy.sms_max_characters : 4096;
+        if (!normalizedContent || effectiveLength > limit) {
+          return json(req, { error: \`Le message doit contenir entre 1 et \${limit} caractères (actuellement \${effectiveLength}).\` }, 400);
+        }
+      }
+      if (channel === "sms" && rawAttachments.length) return json(req, { error: "Les SMS ne prennent pas en charge les pièces jointes." }, 400);
+      const routedContact = channel === "whatsapp" ? routedWhatsAppContact(contact, routingPolicy) : contact;
       if (channel === "whatsapp" && !(contact.whatsapp || contact.telephone)) return json(req, { error: "Numéro WhatsApp absent" }, 400);
       if (channel === "sms" && !contact.telephone) return json(req, { error: "Numéro de téléphone absent" }, 400);
       if (channel === "email" && !contact.email) return json(req, { error: "Adresse email absente" }, 400);
@@ -1334,9 +1428,9 @@ serve(async (req) => {
       if (channel === "whatsapp") {
         assertWhatsAppLength(normalizedContent);
         const prepared = mediaAttachments.length ? await prepareMedia(mediaAttachments) : [];
-        result = await sendWhatsApp(contact, normalizedContent, dedupeKey, prepared[0]?.ref);
+        result = await sendWhatsApp(routedContact, normalizedContent, dedupeKey, prepared[0]?.ref);
         for (let i = 1; i < prepared.length; i++) {
-          await sendWhatsApp(contact, "", `${dedupeKey}:media:${i}`, prepared[i].ref);
+          await sendWhatsApp(routedContact, "", `${dedupeKey}:media:${i}`, prepared[i].ref);
         }
       } else if (channel === "email") {
         result = await sendEmail(contact, subject, normalizedContent, dedupeKey, mediaAttachments);
