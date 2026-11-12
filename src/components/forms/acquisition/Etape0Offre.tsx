@@ -86,6 +86,9 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     },
   });
   const snapshotOffer = formData.offre_snapshot?.offer || formData.offre || null;
+  const selectedOffer = offres?.find((item: any) => item.id === formData.offre_id) || snapshotOffer;
+  const selectedOfferFamily = String(selectedOffer?.famille_offre || selectedOffer?.code || formData.offre_code || "").toUpperCase().replace(/[-_\s]/g, "");
+  const isPalmInvestOffer = selectedOfferFamily === "PALMINVEST";
   const offres: Offre[] = contractReadOnly
     ? (snapshotOffer ? [{ ...snapshotOffer, id: snapshotOffer.id || formData.offre_id,
         code: snapshotOffer.code || formData.offre_code || "", nom: snapshotOffer.nom || formData.formule_nom || "Offre enregistrée",
@@ -361,8 +364,8 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
             <Input
               id="superficie_prevue"
               type="number"
-              step="0.5"
-              min="0.5"
+              step={isPalmInvestOffer ? "1" : "0.5"}
+              min={isPalmInvestOffer ? "1" : "0.5"}
               value={formData.superficie_prevue || ""}
               onChange={(e) => updateFormData({ superficie_prevue: e.target.value })}
               placeholder=""
