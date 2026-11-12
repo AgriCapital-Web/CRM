@@ -368,6 +368,14 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
               min={isPalmInvestOffer ? "1" : "0.5"}
               value={formData.superficie_prevue || ""}
               onChange={(e) => updateFormData({ superficie_prevue: e.target.value })}
+              onBlur={(e) => {
+                const raw = Number(e.currentTarget.value);
+                if (!Number.isFinite(raw) || raw <= 0) return;
+                const normalized = isPalmInvestOffer
+                  ? Math.max(1, Math.ceil(raw - 0.000000001))
+                  : Math.max(0.5, Math.ceil((raw - 0.000000001) * 2) / 2);
+                if (Math.abs(normalized - raw) > 0.000001) updateFormData({ superficie_prevue: String(normalized) });
+              }}
               placeholder=""
               readOnly={surfaceReadOnly}
               disabled={surfaceReadOnly}
