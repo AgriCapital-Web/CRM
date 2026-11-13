@@ -40,7 +40,7 @@ export default function ValidationDossiers(){
     setLoading(true);
     try{
       const [clientRes,saleRes,ownersRes]=await Promise.all([
-        canValidateClients?(supabase as any).from("clients").select("id,id_unique,nom_complet,telephone,email,created_at,created_by,validation_statut,validation_commentaire,offre_id,formule_nom,formule_code,total_hectares,type_client").neq("type_client","beneficiaire_particulier").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]}),
+        canValidateClients?(supabase as any).from("clients").select("id,id_unique,nom_complet,telephone,email,created_at,created_by,validation_statut,validation_commentaire,offre_id,formule_nom,formule_code,total_hectares,type_client").neq("type_client","beneficiaire_particulier").in("validation_statut",["a_valider","modification_demandee"]).order("id_unique",{ascending:true}):Promise.resolve({data:[]}),
         canValidateSales?(supabase as any).from("acquisitions").select("id,client_id,offre_nom,offre_code,formule_nom,formule_code,superficie_ha,montant_total_contrat,statut,created_at,created_by,validation_statut,validation_commentaire,metadata,client:clients(id,id_unique,nom_complet,telephone,validation_statut)").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]}),
         canReviewOwners?(supabase as any).from("proprietaires_terres").select("id,id_unique,nom_complet,telephone,created_at,validation_statut,validation_notes").in("validation_statut",["a_valider","modification_demandee"]).order("created_at",{ascending:false}):Promise.resolve({data:[]})
       ]);
