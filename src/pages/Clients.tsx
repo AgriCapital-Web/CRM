@@ -28,8 +28,12 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 const formatHectares = (value: unknown) => {
   const hectares = Number(value || 0);
-  return Math.round(hectares).toLocaleString("fr-FR");
+  return hectares.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
 };
+const getRecordPath = (record: any) =>
+  String(record?.id_unique || "").startsWith("AC_B")
+    ? `/beneficiaire-particulier/${encodeURIComponent(record.id)}`
+    : `/acquisitions/${encodeURIComponent(record.id)}`;
 
 const getOfferDisplayName = (client: any) => {
   // Le nom historique de la formule enregistré sur le client prime toujours.
@@ -408,7 +412,7 @@ const Clients = () => {
             </div>
 
             <TabsContent value="kanban">
-              <KanbanPipeline clients={filteredClients} onRefresh={fetchData} />
+              <KanbanPipeline clients={filteredClients.filter((client: any) => !String(client.id_unique || "").startsWith("AC_B"))} onRefresh={fetchData} />
             </TabsContent>
 
             <TabsContent value="table">
@@ -447,7 +451,7 @@ const Clients = () => {
                       </TableRow>
                     ) : (
                       filteredClients.map((client) => (
-                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche client ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate("/acquisitions/" + encodeURIComponent(client.id)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
+                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${String(client.id_unique || "").startsWith("AC_B") ? "bénéficiaire" : "client"} ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate(getRecordPath(client))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(getRecordPath(client)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
@@ -489,7 +493,7 @@ const Clients = () => {
                           </TableCell>
                           <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" title="Fiche client" aria-label="Fiche client" onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}>
+                              <Button variant="ghost" size="sm" title={String(client.id_unique || "").startsWith("AC_B") ? "Fiche bénéficiaire" : "Fiche client"} aria-label={String(client.id_unique || "").startsWith("AC_B") ? "Fiche bénéficiaire" : "Fiche client"} onClick={() => navigate(getRecordPath(client))}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               <DropdownMenu>
@@ -499,7 +503,7 @@ const Clients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  {canEditClient(client) && <DropdownMenuItem onClick={() => navigate("/acquisitions/" + encodeURIComponent(client.id))}><Edit className="mr-2 h-4 w-4" />Modifier / ouvrir la fiche officielle</DropdownMenuItem>}
+                                  {canEditClient(client) && <DropdownMenuItem onClick={() => navigate(getRecordPath(client))}><Edit className="mr-2 h-4 w-4" />{String(client.id_unique || "").startsWith("AC_B") ? "Modifier / ouvrir la fiche bénéficiaire" : "Modifier / ouvrir la fiche officielle"}</DropdownMenuItem>}
                                   {canEditClient(client) && <DropdownMenuSeparator />}
                                   {canEditClient(client) && client.statut !== 'actif' && (
                                     <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'actif')}>
