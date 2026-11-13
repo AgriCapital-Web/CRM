@@ -29,7 +29,7 @@ import {
 const money = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
 
-const num = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.round(Number(n || 0)));
+const num = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(Number(n || 0));
 
 // AgriCapital est un compte interne, jamais un client commercial, même si un ancien enregistrement est mal catégorisé.
 const isAgriCapitalInternal = (client: any) => /agricapital/i.test(String(client?.nom_complet || client?.nom || "").trim());
@@ -399,7 +399,7 @@ const Dashboard = () => {
       const agriCapitalSoldToClientsHa = partnershipMetrics.agriTransferred;
       const foncierPlantedHa = partnershipMetrics.agriPlanted;
       const foncierRemainingHa = partnershipMetrics.agriRemaining;
-      const clientParcelIds = new Set(allExternalClients.filter((c: any) => c.parcelle_id).map((c: any) => c.parcelle_id).filter((id: string) => !validatedPartnershipParcelIds.has(id)));
+      const clientParcelIds = new Set(commercialClients.filter((c: any) => c.parcelle_id).map((c: any) => c.parcelle_id).filter((id: string) => !validatedPartnershipParcelIds.has(id)));
       const clientParcelRows = parcelles.filter((p: any) => clientParcelIds.has(p.id));
       const clientParcelCount = clientParcelRows.length;
       const clientParcelAreaHa = clientParcelRows.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
