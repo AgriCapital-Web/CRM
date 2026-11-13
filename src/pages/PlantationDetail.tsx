@@ -169,7 +169,7 @@ const PlantationDetail = () => {
                   <div><p className="text-xs text-muted-foreground">Rôle</p><p className="font-semibold">Bénéficiaire particulier</p></div>
                   <div><p className="text-xs text-muted-foreground">Rattachement foncier historique</p><p className="font-semibold">{parcelle?.id_unique || "À confirmer"}</p></div>
                 </div>
-                <p className="mt-3 text-xs text-muted-foreground">La surface de l’actif est enregistrée à 2 ha. La localisation foncière reste à confirmer ; cette fiche ne vaut pas validation d’une attribution sur la parcelle historique.</p>
+                <p className="mt-3 text-xs text-muted-foreground">La surface de l’actif est enregistrée à {Number(attributions.find(a => a.clients?.id === client?.id)?.surface_attribuee_ha || plantation.superficie_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha. La localisation foncière reste à confirmer ; cette fiche ne vaut pas validation d’une attribution sur la parcelle historique.</p>
               </CardContent>
             </Card>
           )}
