@@ -23,6 +23,7 @@ type Rule = {
 };
 
 const money = (value: unknown) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0));
+const percent = (value: unknown) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value ?? 0));
 const RULES = {
   partnerSale: "COMMERCIAL_ACQUISITION_PARTENAIRE",
   partnerRecovery: "COMMERCIAL_REC_PARTENAIRE_AN1",
@@ -152,7 +153,7 @@ export default function GestionRemuneration() {
                       return <div key={rule.code} className="rounded-md border p-3">
                         <div className="font-medium text-sm">{rule.label}</div>
                         {row ? <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-lg font-semibold tabular-nums">{rule.unit === "money" ? `${money(row.montant)} FCFA` : `${money(row.taux_pourcentage)} %`}</span>
+                          <span className="text-lg font-semibold tabular-nums">{rule.unit === "money" ? `${money(row.montant)} FCFA` : `${percent(row.taux_pourcentage)} %`}</span>
                           <span className={`rounded-full px-2 py-1 text-xs ${row.actif === false ? "bg-muted text-muted-foreground" : "bg-green-100 text-green-800"}`}>{row.actif === false ? "Inactive" : "Active"}</span>
                         </div> : <p className="mt-2 text-sm text-muted-foreground">Règle non configurée dans la base de données.</p>}
                       </div>;
