@@ -58,49 +58,57 @@ export function formatUserProfileName(fullName?: string | null): string {
 
 
 type NormalizableTextField = HTMLInputElement | HTMLTextAreaElement;
+type CrmTextNormalizationMode = "none" | "uppercase" | "sentence";
 
 const stripTextAccents = (value: string): string =>
   value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
 
 const getTextFieldContext = (field: NormalizableTextField): string => {
   const labels = field.labels ? Array.from(field.labels).map(label => label.textContent || "").join(" ") : "";
-  return [
+  return stripTextAccents([
     field.name,
     field.id,
     field.getAttribute("aria-label"),
     field.getAttribute("placeholder"),
     field.getAttribute("data-field"),
-    field.getAttribute("autocomplete"),
     labels,
-  ].filter(Boolean).join(" ").replace(/([a-z])([A-Z])/g, "$1 $2").toLocaleLowerCase("fr-FR");
+  ].filter(Boolean).join(" ").replace(/([a-z])([A-Z])/g, "$1 $2")).toLocaleLowerCase("fr-FR");
 };
 
-/**
- * Normalisation globale des champs texte du CRM :
- * - identité et localisations : MAJUSCULES sans accents ;
- * - autres textes : première lettre en majuscule, sans accents ;
- * - champs techniques : inchangés.
- */
-export function normalizeCrmTextField(field: NormalizableTextField): string {
-  const raw = field.value;
+const getCrmTextNormalizationMode = (field: NormalizableTextField): CrmTextNormalizationMode => {
   const context = getTextFieldContext(field);
   const type = field instanceof HTMLInputElement ? field.type.toLowerCase() : "textarea";
 
   if (field instanceof HTMLInputElement && [
     "email", "password", "tel", "number", "url", "search", "date", "datetime-local",
     "month", "week", "time", "color", "file", "range", "checkbox", "radio", "hidden",
-  ].includes(type)) return raw;
+  ].includes(type)) return "none";
 
-  if (/(^|[^a-z])(email|e-mail|telephone|téléphone|phone|whatsapp|password|mot de passe|otp|pin|code|identifiant|username|login|url|lien|slug|token|matricule|reference|référence|iban|compte bancaire|numero de compte|numéro de compte)([^a-z]|$)/i.test(context)) {
-    return raw;
+  if (/(^|[^a-z])(email|e-mail|telephone|phone|whatsapp|password|otp|pin|code|identifiant|username|login|url|lien|slug|token|matricule|reference|iban|compte bancaire|numero de compte)([^a-z]|$)/i.test(context)) {
+    return "none";
   }
 
-  const text = stripTextAccents(raw);
-  const identityField = /(^|[^a-z])(nom|prenom|prénom|noms|prenoms|prénoms|firstname|lastname|given name|family name|surname|full name|nom complet|nom de famille|raison sociale|entreprise|societe|société)([^a-z]|$)/i.test(context);
-  const locationField = /(^|[^a-z])(localite|localité|village|residence|résidence|lieu|localisation|locality|location|ville|commune|quartier|pays|region|région|departement|département|province|zone|adresse|address|site)([^a-z]|$)/i.test(context);
+  if (/(^|[^a-z])(nom|prenom|noms|prenoms|firstname|lastname|given name|family name|surname|full name|nom complet|nom de famille|raison sociale|entreprise|societe)([^a-z]|$)/i.test(context)) {
+    return "uppercase";
+  }
 
-  if (identityField || locationField) return text.toLocaleUpperCase("fr-FR");
+  if (/(^|[^a-z])(localite|village|residence|lieu|localisation|locality|location|ville|commune|quartier|pays|region|departement|province|zone|adresse|address|site)([^a-z]|$)/i.test(context)) {
+    return "uppercase";
+  }
+
+  return "sentence";
+};
+
+const normalizeCrmTextValue = (value: string, mode: CrmTextNormalizationMode): string => {
+  if (mode === "none") return value;
+  const text = stripTextAccents(value);
+  if (mode === "uppercase") return text.toLocaleUpperCase("fr-FR");
   return text.replace(/\\p{L}/u, letter => letter.toLocaleUpperCase("fr-FR"));
+};
+
+/** Normalise une valeur de champ selon sa nature (identité, localité ou texte courant). */
+export function normalizeCrmTextField(field: NormalizableTextField): string {
+  return normalizeCrmTextValue(field.value, getCrmTextNormalizationMode(field));
 }
 
 /** Installe une normalisation à la capture pour couvrir les formulaires de toutes les pages. */
@@ -112,27 +120,23 @@ export function installGlobalTextNormalization(): void {
     if (event.type === "input" && (event as InputEvent).isComposing) return;
     const field = event.target;
     if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
-    const start = field.selectionStart;
-    const end = field.selectionEnd;
+
+    const mode = getCrmTextNormalizationMode(field);
+    if (mode === "none") return;
+
     const before = field.value;
-    const after = normalizeCrmTextField(field);
+    const after = normalizeCrmTextValue(before, mode);
     if (before === after) return;
 
-    const normalizedPrefixLength = start === null ? null : normalizeCrmTextField({
-      ...({} as HTMLInputElement),
-      value: before.slice(0, start),
-      name: field.name,
-      id: field.id,
-      type: field instanceof HTMLInputElement ? field.type : "text",
-      getAttribute: field.getAttribute.bind(field),
-      labels: field.labels,
-    } as NormalizableTextField).length;
+    const start = field.selectionStart;
+    const end = field.selectionEnd;
+    const nextStart = start === null ? null : normalizeCrmTextValue(before.slice(0, start), mode).length;
+    const nextEnd = end === null ? null : normalizeCrmTextValue(before.slice(0, end), mode).length;
 
     field.value = after;
-    if (start !== null && end !== null) {
-      const nextStart = Math.min(normalizedPrefixLength ?? start, after.length);
-      const prefixEnd = normalizeCrmTextField(Object.assign(Object.create(Object.getPrototypeOf(field)), field, { value: before.slice(0, end) })).length;
-      try { field.setSelectionRange(nextStart, Math.min(prefixEnd, after.length)); } catch { /* Certains champs n'exposent pas de curseur. */ }
+    if (nextStart !== null && nextEnd !== null) {
+      try { field.setSelectionRange(Math.min(nextStart, after.length), Math.min(nextEnd, after.length)); }
+      catch { /* Certains champs ne prennent pas en charge la sélection du curseur. */ }
     }
   };
 
