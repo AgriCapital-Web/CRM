@@ -782,7 +782,7 @@ async function deliver(args: {
             ? (contact.email || contact.source_id)
             : (contact.user_id || contact.source_id);
       const destinationKey = ["sms", "whatsapp", "voice"].includes(channel)
-        ? String(destination).replace(/\\D/g, "")
+        ? String(destination).replace(/\D/g, "")
         : channel === "email"
           ? String(destination).trim().toLowerCase()
           : String(destination);
