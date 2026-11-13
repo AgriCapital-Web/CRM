@@ -777,8 +777,8 @@ const ProprietairesTerres = () => {
                         const ownerHa = total * ownerPct / 100;
                         const lots = Number(formData.nombre_lots_agricapital || 0);
                         return <div className="p-3 rounded-md bg-primary/10 text-sm space-y-1">
-                          <p>Part propriétaire : <strong>{Math.round(ownerHa).toLocaleString("fr-FR")} ha</strong> ({ownerPct}%)</p>
-                          <p>Part AgriCapital : <strong>{Math.round(agriHa).toLocaleString("fr-FR")} ha</strong> ({agriPct}%)</p>
+                          <p>Part propriétaire : <strong>{ownerHa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</strong> ({ownerPct}%)</p>
+                          <p>Part AgriCapital : <strong>{agriHa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</strong> ({agriPct}%)</p>
                           <p>Lots AgriCapital : <strong>{lots}</strong> × 1 ha</p>
                           {formData.type_convention === "plante_partage" && <p>Caution foncière : <strong>{(agriHa * 50000).toLocaleString('fr-FR')} FCFA</strong></p>}
                         </div>;
@@ -974,7 +974,7 @@ const ProprietairesTerres = () => {
                     <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={p.nom_complet || [p.prenoms,p.nom].filter(Boolean).join(" ")} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
-                    <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")}</TableCell>
+                    <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}</TableCell>
                     <TableCell><Badge className={p.statut === "actif" ? "bg-green-500" : "bg-red-500"}>{p.statut}</Badge></TableCell>
                     <TableCell><Badge variant={p.validation_statut === "valide" ? "default" : p.validation_statut === "refuse" ? "destructive" : "outline"}>{p.validation_statut === "valide" ? "Validé" : p.validation_statut === "refuse" ? "Refusé" : "À valider"}</Badge></TableCell>
                   </TableRow>
