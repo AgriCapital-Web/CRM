@@ -80,20 +80,6 @@ export default function GestionRemuneration() {
           throw new Error("La base de données n’a pas confirmé l’enregistrement de la règle « " + row.code_regle + " ». Rechargez la page et réessayez.");
         }
       }
-      const recovery = byCode.get(RULES.partnerRecovery);
-      if (recovery) {
-        for (const legacyCode of ["COMMERCIAL_REC_PARTENAIRE_AN2", "COMMERCIAL_REC_PARTENAIRE_AN3"]) {
-          const legacy = rows.find(item => item.code_regle === legacyCode);
-          if (legacy) {
-            const { error } = await (supabase as any).from("grille_remuneration").update({
-              taux_pourcentage: recovery.taux_pourcentage === "" || recovery.taux_pourcentage === null ? null : Number(recovery.taux_pourcentage),
-              actif: recovery.actif !== false,
-              updated_at: new Date().toISOString(),
-            }).eq("id", legacy.id);
-            if (error) throw error;
-          }
-        }
-      }
       // Actualiser les portefeuilles sans réécrire les commissions historiques.
       const { error: portfolioError } = await (supabase as any).rpc("recalculer_commissions_depuis_grille");
       if (portfolioError) throw portfolioError;
