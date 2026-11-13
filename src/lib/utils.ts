@@ -88,7 +88,7 @@ const getCrmTextNormalizationMode = (field: NormalizableTextField): CrmTextNorma
     return "none";
   }
 
-  if (/(^|[^a-z])(nom|prenom|noms|prenoms|firstname|lastname|given name|family name|surname|full name|nom complet|nom de famille|raison sociale|entreprise|societe)([^a-z]|$)/i.test(context)) {
+  if (/(^|[^a-z])(nom|prenom|noms|prenoms|name|first name|last name|firstname|lastname|given name|family name|surname|sur name|full name|nom complet|nom de famille|raison sociale|entreprise|societe)([^a-z]|$)/i.test(context)) {
     return "uppercase";
   }
 
