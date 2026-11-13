@@ -248,6 +248,10 @@ const NouvelleAcquisition = () => {
         }
         const clientId=client?.id||acquisition?.client_id||recordId;
         if(!client) throw new Error("Dossier client introuvable.");
+        if (String(client.id_unique || "").startsWith("AC_B")) {
+          navigate(`/beneficiaire-particulier/${encodeURIComponent(client.id)}`, { replace: true });
+          return;
+        }
         if(!acquisition){
           const result=await (supabase as any).from("acquisitions").select("*").eq("client_id",client.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
           if(result.error) throw result.error;
@@ -303,7 +307,7 @@ const NouvelleAcquisition = () => {
       finally{if(active)setDraftLoading(false);}
     })();
     return()=>{active=false;};
-  },[recordId]);
+  },[recordId,navigate]);
 
   // Restaurer le brouillon avant d'autoriser la saisie : un chargement réseau tardif
   // ne doit jamais interférer avec les premières modifications de l'utilisateur.
