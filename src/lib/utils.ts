@@ -61,7 +61,7 @@ type NormalizableTextField = HTMLInputElement | HTMLTextAreaElement;
 type CrmTextNormalizationMode = "none" | "uppercase" | "sentence";
 
 const stripTextAccents = (value: string): string =>
-  value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 const getTextFieldContext = (field: NormalizableTextField): string => {
   const labels = field.labels ? Array.from(field.labels).map(label => label.textContent || "").join(" ") : "";
@@ -103,7 +103,7 @@ const normalizeCrmTextValue = (value: string, mode: CrmTextNormalizationMode): s
   if (mode === "none") return value;
   const text = stripTextAccents(value);
   if (mode === "uppercase") return text.toLocaleUpperCase("fr-FR");
-  return text.replace(/\\p{L}/u, letter => letter.toLocaleUpperCase("fr-FR"));
+  return text.replace(/\p{L}/u, letter => letter.toLocaleUpperCase("fr-FR"));
 };
 
 /** Normalise une valeur de champ selon sa nature (identité, localité ou texte courant). */
@@ -133,7 +133,12 @@ export function installGlobalTextNormalization(): void {
     const nextStart = start === null ? null : normalizeCrmTextValue(before.slice(0, start), mode).length;
     const nextEnd = end === null ? null : normalizeCrmTextValue(before.slice(0, end), mode).length;
 
-    field.value = after;
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      field instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+    if (valueSetter) valueSetter.call(field, after);
+    else field.value = after;
     if (nextStart !== null && nextEnd !== null) {
       try { field.setSelectionRange(Math.min(nextStart, after.length), Math.min(nextEnd, after.length)); }
       catch { /* Certains champs ne prennent pas en charge la sélection du curseur. */ }
