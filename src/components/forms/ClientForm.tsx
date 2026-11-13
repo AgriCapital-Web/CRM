@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +37,11 @@ const CLIENT_COLUMNS = new Set([
 ]);
 
 const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommercialAssignment = false }: ClientFormProps) => {
+  const navigate = useNavigate();
+  const isBeneficiaryRecord = String(client?.id_unique || "").startsWith("AC_B");
+  useEffect(() => {
+    if (isBeneficiaryRecord && client?.id) navigate(`/beneficiaire-particulier/${encodeURIComponent(client.id)}`, { replace: true });
+  }, [isBeneficiaryRecord, client?.id, navigate]);
   const { user } = useAuth();
   const { can } = usePermissions();
   const canEditClient = can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
@@ -284,6 +290,8 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       compact
     />
   );
+  if (isBeneficiaryRecord) return <div className="p-4 text-sm text-muted-foreground">Ouverture de la fiche bénéficiaire…</div>;
+
   return (
     <div className="space-y-3">
       {readOnly && <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3"><div><p className="font-semibold">Fiche complète du client</p><p className="text-xs text-muted-foreground">{isEditing ? "Mode modification activé" : "Consultation seule — les champs sont verrouillés"}</p></div>{!isEditing && canEditClient && <Button type="button" onClick={() => setIsEditing(true)}>Modifier</Button>}</div>}
