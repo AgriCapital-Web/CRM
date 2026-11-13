@@ -31,7 +31,7 @@ const BeneficiaireParticulier = () => {
   const [recordLoading, setRecordLoading] = useState(Boolean(recordId));
   const [existingIds, setExistingIds] = useState<{client_id:string;proprietaire_id:string|null;parcelle_id:string|null;plantation_id:string|null}>({client_id:recordId||"",proprietaire_id:null,parcelle_id:null,plantation_id:null});
   const initialFullName = searchParams.get("nom_complet") || "";
-  const initialNameParts = initialFullName.trim().split(/\\s+/);
+  const initialNameParts = initialFullName.trim().split(/\s+/);
   const [beneficiaire, setBeneficiaire] = useState({
     civilite: "M",
     nom: initialNameParts[0] || "",
