@@ -112,6 +112,7 @@ const DomainRouter = () => {
       
       <Route path="/acquisition/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
       <Route path="/acquisitions/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><NouvelleAcquisition /></ProtectedRoute>} />
+            <Route path="/beneficiaire-particulier/:id" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_CLIENTS}><BeneficiaireParticulier /></ProtectedRoute>} />
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
       <Route path="/messagerie" element={<Navigate to="/connect" replace />} />
       <Route path="/connect" element={<ProtectedRoute><AgriCapitalConnect /></ProtectedRoute>} />
