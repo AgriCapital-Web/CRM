@@ -322,8 +322,11 @@ const Dashboard = () => {
       const overdueAmount = overdue.reduce((s: number, p: any) => s + Math.max(0, Number(p.montant || 0) - Number(p.montant_paye || 0)), 0);
 
       const dashboardClientIds = new Set(commercialClients.map((c: any) => c.id));
+      const externalClientIds = new Set(allExternalClients.map((c: any) => c.id));
       let engagedHa = commercialClients.reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
-      const scopedPlantations = plantations.filter((p: any) => p.client_id && dashboardClientIds.has(p.client_id));
+      // Les indicateurs techniques couvrent aussi les plantations des bénéficiaires AC_B,
+      // sans les réintégrer aux statistiques commerciales.
+      const scopedPlantations = plantations.filter((p: any) => p.client_id && externalClientIds.has(p.client_id));
       let plantedHa = scopedPlantations.reduce((s: number, p: any) =>
         s + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0), 0);
       let remainingHa = Math.max(0, engagedHa - plantedHa);
@@ -502,7 +505,7 @@ const Dashboard = () => {
         ownersPendingValidation: proprietaires.filter((owner: any) => owner.validation_statut === "a_valider").length,
         parcelles: parcelles.length,
         proprietaireParcelles: parcelles.filter((p: any) => Boolean(p.proprietaire_id)).length,
-        beneficiaries: new Set(beneficiaries.map((b: any) => b.client_id).filter(Boolean)).size,
+        beneficiaries: allExternalClients.filter((c: any) => String(c.type_client || "").toLowerCase() === "beneficiaire_particulier").length,
         activeContracts: activeContracts.length,
         installationContracts: activeContracts.filter((r: any) => r.phase_actuelle === "installation").length,
         productionContracts: activeContracts.filter((r: any) => r.phase_actuelle === "production").length,
@@ -521,7 +524,7 @@ const Dashboard = () => {
 
       // IMPORTANT: "Clients récents" = ordre de création récent, pas numéro métier.
       setRecentClients(
-        [...clients].filter((c: any) => !c.is_internal && String(c.type_client || "").toLowerCase() !== "proprietaire_foncier")
+        [...commercialClients]
           .sort((a: any, b: any) => {
             const byDate = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
             return byDate || Number(b.numero_ordre_global || 0) - Number(a.numero_ordre_global || 0);
