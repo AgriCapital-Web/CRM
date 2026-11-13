@@ -1041,7 +1041,7 @@ async function runCampaign(campaignId: string) {
   const { data: campaign, error } = await admin.from("notification_campaigns")
     .select("*, segment:notification_segments(criteres)").eq("id", campaignId).single();
   if (error) throw error;
-  if (["annule","termine","suspendue"].includes(campaign.statut)) return { skipped: true, reason: campaign.statut };
+  if (["annule","termine","partiel","echoue","suspendue"].includes(campaign.statut)) return { skipped: true, reason: campaign.statut };
   if (campaign.programme_le && new Date(campaign.programme_le).getTime() > Date.now()) return { skipped: true, reason: "programme" };
 
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
