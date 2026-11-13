@@ -162,8 +162,8 @@ const Parcelles = () => {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{parcelles.length}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">Parcelles</div></div></CardContent></Card>
-            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><MapPin className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalSurface).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha référencés</div></div></CardContent></Card>
-            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Sprout className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{Math.round(totalAgri).toLocaleString("fr-FR")}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha AgriCapital non cédés</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><MapPin className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{totalSurface.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha référencés</div></div></CardContent></Card>
+            <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Sprout className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{totalAgri.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">ha AgriCapital non cédés</div></div></CardContent></Card>
             <Card><CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3"><Layers className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" /><div className="min-w-0"><div className="text-xl sm:text-2xl font-bold">{totalLots}</div><div className="text-[11px] sm:text-xs leading-tight text-muted-foreground">lots AgriCapital disponibles</div></div></CardContent></Card>
           </div>
 
@@ -197,9 +197,9 @@ const Parcelles = () => {
                     <TableCell className="font-medium">{p.nom || p.village || "Parcelle"}</TableCell>
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
-                    <TableCell>{Math.round(Number(p.surface_totale_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
+                    <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</TableCell>
                     <TableCell>{p.proprietaires_terres?.nom_complet ? p.proprietaires_terres.nom_complet : (ownClient ? parcelClients[0]?.nom_complet || "Client" : "—")}</TableCell>
-                    <TableCell>{Math.round(Number(p.surface_agricapital_ha || 0)).toLocaleString("fr-FR")} ha</TableCell>
+                    <TableCell>{Number(p.surface_agricapital_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</TableCell>
                     <TableCell>{parcelLots.length || "—"}</TableCell>
                     <TableCell className="max-w-[280px] text-xs">
                       {parcelClients.length ? parcelClients.map(c => <div key={c.id}>{c.nom_complet} · {c.total_hectares} ha</div>) : "—"}
