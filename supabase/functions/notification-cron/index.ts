@@ -53,11 +53,20 @@ Deno.serve(async (req) => {
     const scheduled = await call({ mode: "run_automations" });
     const scheduledCampaigns = await call({ mode: "run_scheduled_campaigns" });
 
-    const { data: accounts } = await admin.from("client_account_provision_outbox")
+    const { data: pendingAccounts, error: pendingAccountsError } = await admin.from("client_account_provision_outbox")
       .select("id,client_id,tentatives")
       .eq("statut", "en_attente")
       .order("created_at")
       .limit(20);
+    if (pendingAccountsError) throw pendingAccountsError;
+    const { data: accounts, error: accountClaimError } = pendingAccounts?.length
+      ? await admin.from("client_account_provision_outbox")
+          .update({ statut: "en_cours", claimed_at: new Date().toISOString() })
+          .in("id", pendingAccounts.map((item) => item.id))
+          .eq("statut", "en_attente")
+          .select("id,client_id,tentatives")
+      : { data: [], error: null };
+    if (accountClaimError) throw accountClaimError;
 
     const accountResults = [];
     for (const account of accounts || []) {
@@ -70,24 +79,33 @@ Deno.serve(async (req) => {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) throw new Error(payload.error || "Provisionnement HTTP " + response.status);
         await admin.from("client_account_provision_outbox").update({
-          statut: "traite", processed_at: new Date().toISOString(), tentatives: (account.tentatives || 0) + 1, derniere_erreur: null,
-        }).eq("id", account.id);
+          statut: "traite", processed_at: new Date().toISOString(), claimed_at: null, tentatives: (account.tentatives || 0) + 1, derniere_erreur: null,
+        }).eq("id", account.id).eq("statut", "en_cours");
         accountResults.push({ id: account.id, ok: true, user_id: payload.user_id || null });
       } catch (error) {
         await admin.from("client_account_provision_outbox").update({
-          statut: (account.tentatives || 0) >= 4 ? "echoue" : "en_attente",
+          statut: "echoue",
           tentatives: (account.tentatives || 0) + 1,
           derniere_erreur: error instanceof Error ? error.message : String(error),
-        }).eq("id", account.id);
+        }).eq("id", account.id).eq("statut", "en_cours");
         accountResults.push({ id: account.id, ok: false, error: error instanceof Error ? error.message : String(error) });
       }
     }
 
-    const { data: events } = await admin.from("notification_event_outbox")
+    const { data: pendingEvents, error: pendingEventsError } = await admin.from("notification_event_outbox")
       .select("id,event_code,context,tentatives")
       .eq("statut", "en_attente")
       .order("created_at")
       .limit(20);
+    if (pendingEventsError) throw pendingEventsError;
+    const { data: events, error: eventClaimError } = pendingEvents?.length
+      ? await admin.from("notification_event_outbox")
+          .update({ statut: "en_cours", claimed_at: new Date().toISOString() })
+          .in("id", pendingEvents.map((item) => item.id))
+          .eq("statut", "en_attente")
+          .select("id,event_code,context,tentatives")
+      : { data: [], error: null };
+    if (eventClaimError) throw eventClaimError;
 
     const results = [];
     if ((events || []).length) {
@@ -107,17 +125,18 @@ Deno.serve(async (req) => {
             await admin.from("notification_event_outbox").update({
               statut: "traite",
               processed_at: new Date().toISOString(),
+              claimed_at: null,
               tentatives: (event.tentatives || 0) + 1,
               derniere_erreur: null,
-            }).eq("id", event.id);
+            }).eq("id", event.id).eq("statut", "en_cours");
             results.push({ id: event.id, ok: true });
           } else {
             const error = result?.error || "notification-dispatch batch failed";
             await admin.from("notification_event_outbox").update({
-              statut: (event.tentatives || 0) >= 4 ? "echoue" : "en_attente",
+              statut: "echoue",
               tentatives: (event.tentatives || 0) + 1,
               derniere_erreur: error,
-            }).eq("id", event.id);
+            }).eq("id", event.id).eq("statut", "en_cours");
             results.push({ id: event.id, ok: false, error });
           }
         }
@@ -128,7 +147,7 @@ Deno.serve(async (req) => {
             statut: (event.tentatives || 0) >= 4 ? "echoue" : "en_attente",
             tentatives: (event.tentatives || 0) + 1,
             derniere_erreur: message,
-          }).eq("id", event.id);
+          }).eq("id", event.id).eq("statut", "en_cours");
           results.push({ id: event.id, ok: false, error: message });
         }
       }
