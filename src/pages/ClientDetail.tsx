@@ -418,7 +418,7 @@ const ClientDetail = () => {
     if (id) {
       fetchData();
     }
-  }, [id, canViewClientMoney, canViewClientPayments]);
+  }, [id, canViewClientMoney, canViewClientPayments, navigate]);
 
   useEffect(() => {
     if (!isNewPlantationOpen || !id) return;
