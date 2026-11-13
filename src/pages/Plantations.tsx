@@ -1,3 +1,4 @@
+import { sortByCrmIdentifier } from "@/lib/crmIdentifierSort";
 import { useState, useEffect } from "react";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
@@ -59,14 +60,14 @@ const Plantations = () => {
           regions (nom),
           departements (nom)
         `)
-        .order("id_unique", { ascending: false });
+        .order("id_unique", { ascending: true });
 
       if (error) throw error;
       setPlantations(data || []);
     } catch (error: any) {
       if (!navigator.onLine) {
         const cached = await getCachedPlantations();
-        setPlantations(cached);
+        setPlantations(sortByCrmIdentifier(cached));
         toast({ title: "Mode hors ligne", description: "Plantations locales affichées. Les modifications seront synchronisées au retour du réseau." });
       } else {
         toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });

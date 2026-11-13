@@ -1,3 +1,4 @@
+import { sortByCrmIdentifier, compareCrmIdentifiers } from "@/lib/crmIdentifierSort";
 import { useState, useEffect, useRef } from "react";
 import { logActivity } from "@/utils/traceability";
 import MainLayout from "@/components/layout/MainLayout";
@@ -101,7 +102,7 @@ const Clients = () => {
           .or("type_client.is.null,type_client.neq.proprietaire_foncier");
         // Les bénéficiaires particuliers doivent également apparaître dans le tableau Acquisition.
         clientsQuery = clientsQuery
-          .order("id_unique", { ascending: false })
+          .order("id_unique", { ascending: true })
           .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
 
         if (safeSearch) {
@@ -175,7 +176,7 @@ const Clients = () => {
         const enrichedData = cachedClients
           .filter((client: any) => !client.is_internal &&
             String(client.type_client || "").toLowerCase() !== "proprietaire_foncier")
-          .sort((a: any, b: any) => String(b.id_unique || "").localeCompare(String(a.id_unique || ""), "en"))
+          .sort((a: any, b: any) => compareCrmIdentifiers(a.id_unique, b.id_unique))
           .map((s: any) => {
             const plantations = cachedPlantations.filter((p: any) => p.client_id === s.id);
             return {

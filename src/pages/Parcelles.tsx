@@ -37,13 +37,13 @@ const Parcelles = () => {
       const [{ data: p, error: pe }, { data: c, error: ce }, { data: l, error: le }, { data: plant, error: ple }] = await Promise.all([
         (supabase as any).from("parcelles")
           .select("*, proprietaires_terres(id,id_unique,nom_complet), districts(nom), regions(nom), departements(nom), sous_prefectures(nom)")
-          .order("id_unique", { ascending: false }),
+          .order("id_unique", { ascending: true }),
         (supabase as any).from("clients")
           .select("id,id_unique,nom_complet,parcelle_id,formule_code,formule_nom,total_hectares,statut,validation_statut")
           .not("parcelle_id", "is", null),
         (supabase as any).from("lots_hectares")
           .select("id,reference,parcelle_id,client_id,surface_ha,statut,numero_h")
-          .order("reference", { ascending: false }),
+          .order("reference", { ascending: true }),
         (supabase as any).from("plantations").select("id,parcelle_id,client_id,statut,surface_reellement_plantee,superficie_ha"),
       ]);
       if (pe) throw pe;

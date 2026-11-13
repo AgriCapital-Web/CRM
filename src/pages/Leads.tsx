@@ -1,3 +1,4 @@
+import { compareCrmIdentifiers } from "@/lib/crmIdentifierSort";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 import { normalizeSearchText } from "@/lib/utils";
@@ -186,9 +187,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     queryFn: async () => {
       if (!navigator.onLine) {
         const cached = await getCachedItems(STORES.LEADS);
-        return cached.sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''));
+        return cached.sort((a: any, b: any) => compareCrmIdentifiers(a.id_unique, b.id_unique));
       }
-      const { data, error } = await (supabase as any).from("leads").select("*").order("id_unique", { ascending: false });
+      const { data, error } = await (supabase as any).from("leads").select("*").order("id_unique", { ascending: true });
       if (error) throw error;
       return data || [];
     },
@@ -198,7 +199,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     queryKey: ["prospects"],
     queryFn: async () => {
       if (!navigator.onLine) return [];
-      const { data, error } = await (supabase as any).from("prospects").select("*").order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("prospects").select("*").order("id_unique", { ascending: true });
       if (error) throw error;
       return data || [];
     },

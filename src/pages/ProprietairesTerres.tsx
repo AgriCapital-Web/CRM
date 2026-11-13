@@ -1,3 +1,4 @@
+import { sortByCrmIdentifier } from "@/lib/crmIdentifierSort";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -106,14 +107,14 @@ const ProprietairesTerres = () => {
     try {
       if (!navigator.onLine) {
         const cached = await getCachedItems(STORES.PROPRIETAIRES_TERRES);
-        setProprietaires(cached);
+        setProprietaires(sortByCrmIdentifier(cached));
         setLoading(false);
         return;
       }
       const { data, error } = await (supabase as any)
         .from("proprietaires_terres")
         .select("*, districts(nom), regions(nom), departements(nom), sous_prefectures(nom), parcelles(count)")
-        .order("id_unique", { ascending: false });
+        .order("id_unique", { ascending: true });
       if (error) throw error;
       setProprietaires(data || []);
     } catch (e: any) {
