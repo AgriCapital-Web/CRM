@@ -96,28 +96,34 @@ const assertWhatsAppLength = (value: string) => {
   return value;
 };
 
+function stripAgriCapitalPrefix(value: string): string {
+  return value
+    .replace(/^\s*AgriCapital\s*\(notification automatique\)\s*:\s*/i, "")
+    .replace(/^\s*AgriCapital\s*(?::|[·•—-])\s*/i, "")
+    .replace(/^\s*AgriCapital\s*\n+/i, "")
+    .replace(/^\s*Notification automatique(?:\s+|\n+|$)/i, "")
+    .trimStart();
+}
+
 function normalizeWhatsAppMessage(value: string): string {
-  // Keep the automation label as a header, separated from the campaign body by exactly two line breaks.
-  // Remove only the prohibited plant emoji and duplicate slogan; preserve message formatting.
-  const normalized = value.replace(/\\r\\n?/g, "\\n").replace(/🌱/gu, "");
-  const lines = normalized.split("\\n").map((line) => line.trimEnd());
-  const headerIndex = lines.findIndex((line) => /^(?:AgriCapital\\s*[·•—-]\\s*)?Notification automatique\\s*$/i.test(line.trim()));
-  const header = headerIndex >= 0 ? "Notification automatique" : "";
-  const bodyLines = lines.filter((_, index) => index !== headerIndex);
-  const normalizeForCompare = (line: string) => line.replace(/[*_~`]/g, "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[’‘]/g, "'").replace(/[.!]/g, "").replace(/\\s+/g, " ").trim().toLocaleLowerCase("fr");
+  // Le Sender ID identifie déjà l'expéditeur : aucun nom ni en-tête automatique dans le corps.
+  const normalized = stripAgriCapitalPrefix(value.replace(/\r\n?/g, "\n").replace(/🌱/gu, ""));
+  const lines = normalized.split("\n").map((line) => line.trimEnd());
+  const normalizeForCompare = (line: string) => line.replace(/[*_~]/g, "").normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[’‘]/g, "'").replace(/[.!]/g, "")
+    .replace(/\s+/g, " ").trim().toLocaleLowerCase("fr");
   const slogan = "Investir la terre. Cultiver l'avenir.";
   let sloganSeen = false;
-  const uniqueBody = bodyLines.filter((line) => {
+  return lines.filter((line) => {
+    if (/^(?:AgriCapital\s*[·•—-]\s*)?Notification automatique\s*$/i.test(line.trim())) return false;
     if (normalizeForCompare(line) !== normalizeForCompare(slogan)) return true;
     if (sloganSeen) return false;
     sloganSeen = true;
     return true;
-  }).join("\\n").replace(/\\n{3,}/g, "\\n\\n").trim();
-  return header ? uniqueBody ? header + "\\n\\n" + uniqueBody : header : uniqueBody;
+  }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): string {
-  let text = normalizeSms(value).replace(/\s+/g, " ").trim();
-  if (!/AgriCapital/i.test(text)) text = "AgriCapital: " + text;
+  let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(/\s+/g, " ").trim();
   if (Array.from(text).length <= maxSmsCharacters) return text;
 
   const rules: Array<[RegExp, string]> = [
@@ -166,9 +172,8 @@ function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): strin
 function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 130): string {
   const tokenPattern = /\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
   const marker = "__AGRICAPITAL_LAST_GIVEN_NAME_AND_SURNAME__";
-  let text = normalizeSms(value).replace(tokenPattern, marker);
+  let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(tokenPattern, marker);
   if (!text) throw new Error("Le message est vide.");
-  if (!/AgriCapital/i.test(text)) text = "AgriCapital: " + text;
   const rules: Array<[RegExp, string]> = [
     [/nous vous prions de bien vouloir/gi, "Merci de"],
     [/nous vous invitons à/gi, "Merci de"],
@@ -210,12 +215,10 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
 function brandAutomatedMessage(value: string, channel: string, maxSmsCharacters = 155): string {
   const content = value.trim();
   if (channel === "sms") {
-    const base = normalizeSms(content);
-    const full = /AgriCapital/i.test(content) ? base : "AgriCapital: " + base;
-    return reformulateSmsWithinLimit(full, maxSmsCharacters);
+    return reformulateSmsWithinLimit(stripAgriCapitalPrefix(normalizeSms(content)), maxSmsCharacters);
   }
   if (channel === "whatsapp") return normalizeWhatsAppMessage(content);
-  return content;
+  return stripAgriCapitalPrefix(content);
 }
 
 type MediaAttachment = { bucket?: string; path: string; name: string; mimeType: string; size?: number };
@@ -798,7 +801,7 @@ async function deliver(args: {
         rendered = brandAutomatedMessage(rawRendered, channel, routingPolicy.sms_max_characters);
       }
       const rawSubject = render(args.subject || "", contact, args.context || {});
-      const renderedSubject = channel === "app" && rawSubject && !/^AgriCapital\\b/i.test(rawSubject) ? "AgriCapital · " + rawSubject : rawSubject;
+      const renderedSubject = stripAgriCapitalPrefix(rawSubject);
       const attachments = args.mediaAttachments || [];
       const mediaForChannel = channel === "whatsapp" ? preparedMedia : [];
       const attachmentMetadata = attachments.map((item) => ({
