@@ -303,7 +303,7 @@ const BeneficiaireParticulier = () => {
         Le dossier principal a déjà été créé. La tentative précédente a échoué pendant l’enregistrement des pièces jointes. Relancez l’enregistrement pour terminer ce même dossier sans en créer un second.
       </div>}
       <div className="flex items-center gap-3">
-        <Button type="button" variant="ghost" onClick={() => navigate("/clients")}>
+        <Button type="button" variant="ghost" onClick={() => navigate(isEditing ? "/acquisitions" : "/clients")}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Retour
         </Button>
         <div>
@@ -314,6 +314,7 @@ const BeneficiaireParticulier = () => {
 
       {recordLoading && <div role="status" className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">Chargement de la fiche bénéficiaire…</div>}
       <form onSubmit={onSubmit} className="space-y-6">
+      <fieldset disabled={recordLoading} className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" /> Bénéficiaire</CardTitle>
@@ -386,11 +387,12 @@ const BeneficiaireParticulier = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={()=>navigate("/acquisitions")}>Annuler</Button>
+          <Button type="button" variant="outline" onClick={()=>navigate(isEditing ? "/acquisitions" : "/clients")}>Annuler</Button>
           <Button type="submit" disabled={loading || recordLoading}>
             <Upload className="h-4 w-4 mr-2" />{loading ? "Enregistrement..." : isEditing ? "Enregistrer les modifications" : "Enregistrer le bénéficiaire et les rattachements"}
           </Button>
         </div>
+      </fieldset>
       </form>
     </div>
       </MainLayout>
