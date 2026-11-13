@@ -106,21 +106,30 @@ function stripAgriCapitalPrefix(value: string): string {
 }
 
 function normalizeWhatsAppMessage(value: string): string {
-  // Le Sender ID identifie déjà l'expéditeur : aucun nom ni en-tête automatique dans le corps.
-  const normalized = stripAgriCapitalPrefix(value.replace(/\r\n?/g, "\n").replace(/🌱/gu, ""));
+  // WhatsApp conserve l'en-tête automatique, suivi de deux sauts de ligne avant le corps.
+  // Le Sender ID évite uniquement de répéter le nom AgriCapital.
+  const normalized = value
+    .replace(/\r\n?/g, "\n")
+    .replace(/🌱/gu, "")
+    .replace(/^\s*AgriCapital\s*\(notification automatique\)\s*:\s*/i, "")
+    .replace(/^\s*AgriCapital\s*(?::|[·•—-])\s*/i, "")
+    .trimStart();
   const lines = normalized.split("\n").map((line) => line.trimEnd());
+  const bodyLines = lines.filter((line) =>
+    !/^(?:AgriCapital\s*[·•—-]\s*)?Notification automatique\s*$/i.test(line.trim())
+  );
   const normalizeForCompare = (line: string) => line.replace(/[*_~]/g, "").normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "").replace(/[’‘]/g, "'").replace(/[.!]/g, "")
     .replace(/\s+/g, " ").trim().toLocaleLowerCase("fr");
   const slogan = "Investir la terre. Cultiver l'avenir.";
   let sloganSeen = false;
-  return lines.filter((line) => {
-    if (/^(?:AgriCapital\s*[·•—-]\s*)?Notification automatique\s*$/i.test(line.trim())) return false;
+  const body = bodyLines.filter((line) => {
     if (normalizeForCompare(line) !== normalizeForCompare(slogan)) return true;
     if (sloganSeen) return false;
     sloganSeen = true;
     return true;
   }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return body ? "Notification automatique\n\n" + body : "Notification automatique";
 }
 function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): string {
   let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(/\s+/g, " ").trim();
