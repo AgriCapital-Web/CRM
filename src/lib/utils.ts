@@ -15,7 +15,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const displayCaseName = (value: string) => {
-  const lower = value.toLocaleLowerCase("fr-FR");
+  const lower = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr-FR");
   return lower.replace(/(^|[\s’'-])\p{L}/gu, match => match.toLocaleUpperCase("fr-FR"));
 };
 
@@ -33,14 +33,14 @@ export function formatUserShortName(fullName?: string | null): string {
 /** Nom de communication pour les répertoires mixtes : les leads/prospects stockent PRENOMS NOM,
  * les profils internes/clients stockent généralement NOM puis prénoms. */
 export function formatRecipientName(fullName?: string | null, sourceType?: string | null): string {
-  const parts = String(fullName || "").trim().split(/\\s+/).filter(Boolean);
+  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (parts.length < 2) return parts.length ? displayCaseName(parts[0]) : "Contact";
   if (sourceType === "lead" || sourceType === "prospect") {
-    const surname = parts[parts.length - 1].toLocaleUpperCase("fr-FR");
+    const surname = parts[parts.length - 1].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("fr-FR");
     const givenName = displayCaseName(parts[parts.length - 2]);
     return givenName + " " + surname;
   }
-  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
+  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("fr-FR");
 }
 
 /** Bandeau de bienvenue: dernier prénom puis NOM en majuscules (ex: KONAN ADJOUA LARRISSA → Larrissa KONAN). */
