@@ -1,1 +1,0 @@
-revoke all on function public.trg_notification_prospect_created() from public, anon, authenticated;
