@@ -188,20 +188,22 @@ const BeneficiaireParticulier = () => {
           const bucket = doc.document_type.startsWith("cni_") ? "pieces-identite" : doc.document_type === "photo_officielle" ? "photos-profils" : "documents";
           const uploaded = await uploadFile(bucket, selected, `beneficiaires/${recordId}`);
           if (!uploaded) throw new Error(`Échec du stockage de ${doc.libelle}`);
-          const payload = { client_id: recordId, proprietaire_id: existingIds.proprietaire_id, parcelle_id: existingIds.parcelle_id, plantation_id: existingIds.plantation_id, document_type: doc.document_type, libelle: doc.libelle, categorie: doc.categorie, fichier_url: uploaded.path, storage_bucket: bucket, storage_path: uploaded.path, statut: "stocke" };
-          const { data: existingDoc, error: existingDocError } = await (supabase as any).from("beneficiaire_documents").select("id").eq("client_id", recordId).eq("document_type", doc.document_type).maybeSingle();
-          if (existingDocError) throw existingDocError;
-          const saveDoc = existingDoc?.id
-            ? await (supabase as any).from("beneficiaire_documents").update(payload).eq("id", existingDoc.id)
-            : await (supabase as any).from("beneficiaire_documents").insert(payload);
-          if (saveDoc.error) throw saveDoc.error;
+          const { error: documentSaveError } = await (supabase as any).rpc("save_beneficiaire_document", {
+            p_client_id: recordId, p_document_type: doc.document_type, p_libelle: doc.libelle, p_categorie: doc.categorie,
+            p_fichier_url: uploaded.path, p_storage_bucket: bucket, p_storage_path: uploaded.path,
+            p_proprietaire_id: existingIds.proprietaire_id, p_parcelle_id: existingIds.parcelle_id, p_plantation_id: existingIds.plantation_id,
+          });
+          if (documentSaveError) throw documentSaveError;
         }
         for (const [photoIndex, photo] of remisePhotos.entries()) {
           const uploaded = await uploadFile("documents", photo, `beneficiaires/${recordId}/remise-acte`);
           if (!uploaded) throw new Error(`Échec du stockage de la photo de remise ${photo.name}`);
           const libelle = `Photo remise de l’acte ${photoIndex + 1} — ${photo.name}`;
-          const photoPayload = { client_id: recordId, proprietaire_id: existingIds.proprietaire_id, parcelle_id: existingIds.parcelle_id, plantation_id: existingIds.plantation_id, document_type: "photo_remise_acte", libelle, categorie: "remise_acte", fichier_url: uploaded.path, storage_bucket: "documents", storage_path: uploaded.path, statut: "stocke" };
-          const { error: photoError } = await (supabase as any).from("beneficiaire_documents").insert(photoPayload);
+          const { error: photoError } = await (supabase as any).rpc("save_beneficiaire_document", {
+            p_client_id: recordId, p_document_type: "photo_remise_acte", p_libelle: libelle, p_categorie: "remise_acte",
+            p_fichier_url: uploaded.path, p_storage_bucket: "documents", p_storage_path: uploaded.path,
+            p_proprietaire_id: existingIds.proprietaire_id, p_parcelle_id: existingIds.parcelle_id, p_plantation_id: existingIds.plantation_id,
+          });
           if (photoError) throw photoError;
         }
         toast({ title: "Fiche bénéficiaire mise à jour", description: "Les informations et la superficie de la plantation ont été enregistrées." });
@@ -310,6 +312,7 @@ const BeneficiaireParticulier = () => {
         </div>
       </div>
 
+      {recordLoading && <div role="status" className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">Chargement de la fiche bénéficiaire…</div>}
       <form onSubmit={onSubmit} className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -384,7 +387,7 @@ const BeneficiaireParticulier = () => {
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={()=>navigate("/acquisitions")}>Annuler</Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || recordLoading}>
             <Upload className="h-4 w-4 mr-2" />{loading ? "Enregistrement..." : isEditing ? "Enregistrer les modifications" : "Enregistrer le bénéficiaire et les rattachements"}
           </Button>
         </div>
