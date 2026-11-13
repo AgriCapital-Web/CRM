@@ -770,8 +770,17 @@ async function deliver(args: {
     }
     for (const channel of [...new Set(channels)]) {
       if (channel === "app" && !contact.user_id && contact.source_type === "equipe") continue;
-      const dedupeKey = (args.campaignId || args.automationId || "manual") + ":" +
-        (args.eventKey || "") + ":" + (contact.user_id || contact.source_id) + ":" + channel;
+      // One business event may match several active automations. The event identity,
+      // recipient and resolved channel—not the automation row—define one delivery.
+      // This prevents parallel/overlapping rules from sending the same event twice.
+      const logicalEventKey = args.eventKey
+        ? "event:" + args.eventKey
+        : args.campaignId
+          ? "campaign:" + args.campaignId
+          : args.automationId
+            ? "automation:" + args.automationId
+            : "manual";
+      const dedupeKey = logicalEventKey + ":" + (contact.user_id || contact.source_id) + ":" + channel;
       const { data: existing } = await admin.from("notification_deliveries")
         .select("id,statut,created_at,erreur,recipient_phone,metadata").eq("dedupe_key", dedupeKey).maybeSingle();
 
