@@ -1,8 +1,8 @@
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile } from "@/utils/storage";
+import { uploadFile, resolveStorageUrl } from "@/utils/storage";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,9 +23,13 @@ type UploadState = { file: File | null; preview: string };
 
 const BeneficiaireParticulier = () => {
   const navigate = useNavigate();
+  const { id: recordId } = useParams();
+  const isEditing = Boolean(recordId);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [recordLoading, setRecordLoading] = useState(Boolean(recordId));
+  const [existingIds, setExistingIds] = useState<{client_id:string;proprietaire_id:string|null;parcelle_id:string|null;plantation_id:string|null}>({client_id:recordId||"",proprietaire_id:null,parcelle_id:null,plantation_id:null});
   const initialFullName = searchParams.get("nom_complet") || "";
   const initialNameParts = initialFullName.trim().split(/\\s+/);
   const [beneficiaire, setBeneficiaire] = useState({
@@ -73,6 +77,78 @@ const BeneficiaireParticulier = () => {
     client_id: string; proprietaire_id: string; parcelle_id: string; plantation_id: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (!recordId) return;
+    let active = true;
+    setRecordLoading(true);
+    void (async () => {
+      try {
+        const { data: client, error: clientError } = await (supabase as any).from("clients").select("*").eq("id", recordId).maybeSingle();
+        if (clientError) throw clientError;
+        if (!client || !String(client.id_unique || "").startsWith("AC_B") || client.type_client !== "beneficiaire_particulier") {
+          throw new Error("Cette référence n’est pas un dossier bénéficiaire AC_B.");
+        }
+        const { data: plantationRow, error: plantationError } = await (supabase as any).from("plantations").select("*").eq("client_id", client.id).eq("role_attribution", "beneficiaire_particulier").order("created_at", { ascending: true }).limit(1).maybeSingle();
+        if (plantationError) throw plantationError;
+        if (!plantationRow) throw new Error("La plantation du bénéficiaire n’a pas été retrouvée.");
+        const { data: parcel, error: parcelError } = plantationRow.parcelle_id
+          ? await (supabase as any).from("parcelles").select("*").eq("id", plantationRow.parcelle_id).maybeSingle()
+          : { data: null, error: null };
+        if (parcelError) throw parcelError;
+        const { data: owner, error: ownerError } = parcel?.proprietaire_id
+          ? await (supabase as any).from("proprietaires_terres").select("*").eq("id", parcel.proprietaire_id).maybeSingle()
+          : { data: null, error: null };
+        if (ownerError) throw ownerError;
+        const { data: documents, error: documentsError } = await (supabase as any).from("beneficiaire_documents").select("*").eq("client_id", client.id);
+        if (documentsError) throw documentsError;
+        if (!active) return;
+        setExistingIds({ client_id: client.id, proprietaire_id: owner?.id || null, parcelle_id: parcel?.id || null, plantation_id: plantationRow.id });
+        setBeneficiaire({
+          civilite: client.civilite || "M", nom: client.nom || "", prenoms: client.prenoms || "", nom_complet: client.nom_complet || "",
+          date_naissance: client.date_naissance || "", lieu_naissance: client.lieu_naissance || "", nationalite: client.nationalite || "",
+          type_piece: client.type_piece || "cni", numero_piece: client.numero_piece || "", date_delivrance_piece: client.date_delivrance_piece || "",
+          telephone: client.telephone || "", telephone_indicatif: client.telephone_indicatif || "", telephone_local: client.telephone_local || "",
+          whatsapp: client.whatsapp || "", whatsapp_indicatif: client.whatsapp_indicatif || "", whatsapp_local: client.whatsapp_local || "",
+          email: client.email || "", domicile: client.domicile || client.domicile_residence || "",
+        });
+        setProprietaire({
+          nom: owner?.nom || "", prenoms: owner?.prenoms || "", nom_complet: owner?.nom_complet || "",
+          telephone: owner?.telephone || "", telephone_indicatif: "", telephone_local: "", whatsapp: owner?.whatsapp || "", whatsapp_indicatif: "", whatsapp_local: "",
+          statut_foncier: owner?.statut_foncier || "coutumier", village: owner?.village || parcel?.village || "",
+          district_id: owner?.district_id || parcel?.district_id || "", region_id: owner?.region_id || parcel?.region_id || "",
+          departement_id: owner?.departement_id || parcel?.departement_id || "", sous_prefecture_id: owner?.sous_prefecture_id || parcel?.sous_prefecture_id || "", village_id: parcel?.village_id || "",
+        });
+        setParcelle({
+          nom: parcel?.nom || "", surface_totale_ha: String(parcel?.surface_totale_ha ?? ""), village: parcel?.village || "", code_parc: parcel?.code_parc || "",
+          district_id: parcel?.district_id || "", region_id: parcel?.region_id || "", departement_id: parcel?.departement_id || "",
+          sous_prefecture_id: parcel?.sous_prefecture_id || "", village_id: parcel?.village_id || "",
+        });
+        setPlantation({
+          nom: plantationRow.nom_plantation || plantationRow.nom || "", superficie_ha: String(plantationRow.superficie_ha ?? client.total_hectares ?? "2"),
+          superficie_activee: String(plantationRow.superficie_activee ?? ""), date_plantation: plantationRow.date_plantation || "",
+          date_activation: plantationRow.date_activation || "", statut: plantationRow.statut || "en_cours", statut_global: plantationRow.statut_global || "en_cours",
+        });
+        const fileMap: Record<string,string> = { cni_recto: "cni_recto", cni_verso: "cni_verso", photo_officielle: "photo_officielle", acte_remise: "acte_remise" };
+        const nextFiles: Record<string,UploadState> = { cni_recto:{file:null,preview:""}, cni_verso:{file:null,preview:""}, photo_officielle:{file:null,preview:""}, acte_remise:{file:null,preview:""} };
+        for (const doc of documents || []) {
+          const key = fileMap[doc.document_type];
+          if (!key || !doc.fichier_url) continue;
+          const preview = await resolveStorageUrl(doc.storage_bucket || "documents", doc.storage_path || doc.fichier_url);
+          if (preview) nextFiles[key] = { file: null, preview };
+        }
+        if (active) setFiles(nextFiles);
+      } catch (error: any) {
+        if (active) {
+          toast({ variant: "destructive", title: "Fiche bénéficiaire indisponible", description: getSafeErrorMessage(error) });
+          navigate("/acquisitions", { replace: true });
+        }
+      } finally {
+        if (active) setRecordLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [recordId, navigate, toast]);
+
   const setFile = (field: string, file: File | null, preview: string) => {
     setFiles((prev) => ({ ...prev, [field]: { file, preview } }));
   };
@@ -85,7 +161,7 @@ const BeneficiaireParticulier = () => {
       return;
     }
     const proprietaireNomComplet = [proprietaire.nom, proprietaire.prenoms].filter(Boolean).join(" ").trim();
-    if (!proprietaire.nom.trim() || !proprietaire.prenoms.trim() || !parcelle.code_parc.trim()) {
+    if (!isEditing && (!proprietaire.nom.trim() || !proprietaire.prenoms.trim() || !parcelle.code_parc.trim())) {
       toast({ variant: "destructive", title: "Rattachement incomplet", description: "Le nom, les prénoms du propriétaire foncier et la référence de parcelle sont obligatoires." });
       return;
     }
@@ -98,6 +174,40 @@ const BeneficiaireParticulier = () => {
         { document_type: "photo_officielle", libelle: "Photo officielle du bénéficiaire", categorie: "beneficiaire" },
         { document_type: "acte_remise", libelle: "Acte de remise d’actif agricole", categorie: "acte" },
       ];
+
+      if (recordId) {
+        const { error: updateError } = await (supabase as any).rpc("update_beneficiaire_particulier", {
+          p_client_id: recordId,
+          p_beneficiaire: { ...beneficiaire, nom_complet: beneficiaireNomComplet },
+          p_superficie_ha: Number(plantation.superficie_ha),
+        });
+        if (updateError) throw updateError;
+        for (const doc of docs) {
+          const selected = files[doc.document_type]?.file;
+          if (!selected) continue;
+          const bucket = doc.document_type.startsWith("cni_") ? "pieces-identite" : doc.document_type === "photo_officielle" ? "photos-profils" : "documents";
+          const uploaded = await uploadFile(bucket, selected, `beneficiaires/${recordId}`);
+          if (!uploaded) throw new Error(`Échec du stockage de ${doc.libelle}`);
+          const payload = { client_id: recordId, proprietaire_id: existingIds.proprietaire_id, parcelle_id: existingIds.parcelle_id, plantation_id: existingIds.plantation_id, document_type: doc.document_type, libelle: doc.libelle, categorie: doc.categorie, fichier_url: uploaded.path, storage_bucket: bucket, storage_path: uploaded.path, statut: "stocke" };
+          const { data: existingDoc, error: existingDocError } = await (supabase as any).from("beneficiaire_documents").select("id").eq("client_id", recordId).eq("document_type", doc.document_type).maybeSingle();
+          if (existingDocError) throw existingDocError;
+          const saveDoc = existingDoc?.id
+            ? await (supabase as any).from("beneficiaire_documents").update(payload).eq("id", existingDoc.id)
+            : await (supabase as any).from("beneficiaire_documents").insert(payload);
+          if (saveDoc.error) throw saveDoc.error;
+        }
+        for (const [photoIndex, photo] of remisePhotos.entries()) {
+          const uploaded = await uploadFile("documents", photo, `beneficiaires/${recordId}/remise-acte`);
+          if (!uploaded) throw new Error(`Échec du stockage de la photo de remise ${photo.name}`);
+          const libelle = `Photo remise de l’acte ${photoIndex + 1} — ${photo.name}`;
+          const photoPayload = { client_id: recordId, proprietaire_id: existingIds.proprietaire_id, parcelle_id: existingIds.parcelle_id, plantation_id: existingIds.plantation_id, document_type: "photo_remise_acte", libelle, categorie: "remise_acte", fichier_url: uploaded.path, storage_bucket: "documents", storage_path: uploaded.path, statut: "stocke" };
+          const { error: photoError } = await (supabase as any).from("beneficiaire_documents").insert(photoPayload);
+          if (photoError) throw photoError;
+        }
+        toast({ title: "Fiche bénéficiaire mise à jour", description: "Les informations et la superficie de la plantation ont été enregistrées." });
+        navigate("/acquisitions");
+        return;
+      }
 
       let ids = pendingRegistration;
       if (!ids) {
@@ -184,7 +294,7 @@ const BeneficiaireParticulier = () => {
   };
 
   return (
-    <ProtectedRoute requiredPermissionCode="beneficiaires.create">
+    <ProtectedRoute requiredPermissionCode={isEditing ? "clients.update_private_beneficiary" : "beneficiaires.create"}>
       <MainLayout>
     <div className="max-w-5xl mx-auto space-y-6 pb-10">
       {pendingRegistration && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
@@ -195,7 +305,7 @@ const BeneficiaireParticulier = () => {
           <ArrowLeft className="h-4 w-4 mr-2" /> Retour
         </Button>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Bénéficiaire particulier</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">{isEditing ? "Fiche bénéficiaire" : "Bénéficiaire particulier"}</h1>
   
         </div>
       </div>
@@ -223,23 +333,26 @@ const BeneficiaireParticulier = () => {
 
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><LandPlot className="h-5 w-5" /> Propriétaire foncier</CardTitle></CardHeader>
+          {isEditing && <p className="px-6 text-xs text-muted-foreground">Rattachement foncier historique conservé sans modification : la localisation doit être confirmée avant toute réaffectation.</p>}
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            
+            <fieldset disabled={isEditing} className="contents">
             <div><Label>Nom</Label><Input value={proprietaire.nom} onChange={e=>setProprietaire({...proprietaire,nom:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <div><Label>Prénom</Label><Input value={proprietaire.prenoms} onChange={e=>setProprietaire({...proprietaire,prenoms:e.target.value.toLocaleUpperCase("fr-FR")})}/></div>
             <CountryPhoneInput label="Téléphone du propriétaire" countryCode={proprietaire.telephone_indicatif||""} localValue={proprietaire.telephone_local||""} onChange={v=>setProprietaire(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/>
             <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={proprietaire.district_id} regionId={proprietaire.region_id} departementId={proprietaire.departement_id} sousPrefectureId={proprietaire.sous_prefecture_id} villageId={proprietaire.village_id} required onChange={(g)=>setProprietaire((x:any)=>({...x,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",village:g.villageName||""}))}/></div>
             <div><Label>Statut foncier</Label><Input value={proprietaire.statut_foncier} onChange={e=>setProprietaire({...proprietaire,statut_foncier:e.target.value})}/></div>
+            </fieldset>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><LandPlot className="h-5 w-5" /> Parcelle</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <fieldset disabled={isEditing} className="contents">
             <div><Label>Référence parcelle *</Label><Input value={parcelle.code_parc} onChange={e=>setParcelle({...parcelle,code_parc:e.target.value})}/></div>
             <div><Label>Superficie physique de la parcelle (ha) *</Label><Input type="number" step="0.01" min="0" value={parcelle.surface_totale_ha} onChange={e=>setParcelle({...parcelle,surface_totale_ha:e.target.value})}/></div>
             <div className="md:col-span-3"><Label>Localisation administrative</Label><GeographieCascade districtId={parcelle.district_id} regionId={parcelle.region_id} departementId={parcelle.departement_id} sousPrefectureId={parcelle.sous_prefecture_id} villageId={parcelle.village_id} required onChange={(g)=>{const next={...parcelle,district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||"",village:g.villageName||""};setParcelle(next);setProprietaire((x:any)=>({...x,district_id:next.district_id,region_id:next.region_id,departement_id:next.departement_id,sous_prefecture_id:next.sous_prefecture_id,village_id:next.village_id,village:next.village}));}}/></div>
-            
+            </fieldset>
           </CardContent>
         </Card>
 
@@ -270,9 +383,9 @@ const BeneficiaireParticulier = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={()=>navigate("/clients")}>Annuler</Button>
+          <Button type="button" variant="outline" onClick={()=>navigate("/acquisitions")}>Annuler</Button>
           <Button type="submit" disabled={loading}>
-            <Upload className="h-4 w-4 mr-2" />{loading ? "Enregistrement..." : "Enregistrer le bénéficiaire et les rattachements"}
+            <Upload className="h-4 w-4 mr-2" />{loading ? "Enregistrement..." : isEditing ? "Enregistrer les modifications" : "Enregistrer le bénéficiaire et les rattachements"}
           </Button>
         </div>
       </form>
