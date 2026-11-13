@@ -19,6 +19,9 @@ const displayCaseName = (value: string) => {
   return lower.replace(/(^|[\s’'-])\p{L}/gu, match => match.toLocaleUpperCase("fr-FR"));
 };
 
+const uppercaseName = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("fr-FR");
+
 /** Nom court pour les communications : dernier prénom usuel puis nom de famille.
  * Convention CRM : NOM en premier, puis les prénoms. Exemple : KONAN AMENAN LARISSA → Larissa KONAN.
  */
@@ -26,7 +29,7 @@ export function formatUserShortName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
   if (parts.length === 1) return displayCaseName(parts[0]);
-  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
+  return displayCaseName(parts[parts.length - 1]) + " " + uppercaseName(parts[0]);
 }
 
 
@@ -36,11 +39,11 @@ export function formatRecipientName(fullName?: string | null, sourceType?: strin
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (parts.length < 2) return parts.length ? displayCaseName(parts[0]) : "Contact";
   if (sourceType === "lead" || sourceType === "prospect") {
-    const surname = parts[parts.length - 1].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("fr-FR");
+    const surname = uppercaseName(parts[parts.length - 1]);
     const givenName = displayCaseName(parts[parts.length - 2]);
     return givenName + " " + surname;
   }
-  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("fr-FR");
+  return displayCaseName(parts[parts.length - 1]) + " " + uppercaseName(parts[0]);
 }
 
 /** Bandeau de bienvenue: dernier prénom puis NOM en majuscules (ex: KONAN ADJOUA LARRISSA → Larrissa KONAN). */
