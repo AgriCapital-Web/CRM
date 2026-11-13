@@ -770,9 +770,25 @@ async function deliver(args: {
     }
     for (const channel of [...new Set(channels)]) {
       if (channel === "app" && !contact.user_id && contact.source_type === "equipe") continue;
+      // A campaign/automation can contain the same person more than once in CRM
+      // (for example, separate prospect rows sharing one phone). Deduplicate on the
+      // actual destination for phone/email channels, not on the source record UUID.
+      let recipientContact = channel === "whatsapp" ? routedWhatsAppContact(contact, routingPolicy) : contact;
+      const destination = channel === "sms" || channel === "voice"
+        ? (phoneCandidates(contact)[0] || contact.source_id)
+        : channel === "whatsapp"
+          ? (selectedWhatsAppNumber(recipientContact) || contact.source_id)
+          : channel === "email"
+            ? (contact.email || contact.source_id)
+            : (contact.user_id || contact.source_id);
+      const destinationKey = ["sms", "whatsapp", "voice"].includes(channel)
+        ? String(destination).replace(/\\D/g, "")
+        : channel === "email"
+          ? String(destination).trim().toLowerCase()
+          : String(destination);
       // One business event may match several active automations. The event identity,
-      // recipient and resolved channel—not the automation row—define one delivery.
-      // This prevents parallel/overlapping rules from sending the same event twice.
+      // actual destination and resolved channel—not the automation/source row—define
+      // one delivery across overlapping rules and duplicate CRM records.
       const logicalEventKey = args.eventKey
         ? "event:" + args.eventKey
         : args.campaignId
@@ -780,7 +796,7 @@ async function deliver(args: {
           : args.automationId
             ? "automation:" + args.automationId
             : "manual";
-      const dedupeKey = logicalEventKey + ":" + (contact.user_id || contact.source_id) + ":" + channel;
+      const dedupeKey = logicalEventKey + ":" + destinationKey + ":" + channel;
       const { data: existing } = await admin.from("notification_deliveries")
         .select("id,statut,created_at,erreur,recipient_phone,metadata").eq("dedupe_key", dedupeKey).maybeSingle();
 
@@ -792,7 +808,6 @@ async function deliver(args: {
         if (args.canal === "auto") break;
         continue;
       }
-      let recipientContact = channel === "whatsapp" ? routedWhatsAppContact(contact, routingPolicy) : contact;
       if (channel === "whatsapp" && existing?.statut === "echoue" && /RECIPIENT_NOT_REACHABLE/i.test(String(existing.erreur || ""))) {
         const alternatives = (contact.whatsapp_candidates || whatsappCandidates(contact)).filter((phone) => phone !== String(existing.recipient_phone || ""));
         // Never hit the same WhatsApp number again after Senndo explicitly rejected it.
