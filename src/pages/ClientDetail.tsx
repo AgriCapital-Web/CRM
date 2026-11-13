@@ -244,6 +244,10 @@ const ClientDetail = () => {
         .single();
 
       if (clientError) throw clientError;
+      if (String(clientData.id_unique || "").startsWith("AC_B")) {
+        navigate(`/beneficiaire-particulier/${encodeURIComponent(clientData.id)}`, { replace: true });
+        return;
+      }
       const [{ data: campementInfo }, { data: villageInfo }] = await Promise.all([
         clientData.campement_id
           ? (supabase as any).from("campements").select("id,nom").eq("id", clientData.campement_id).maybeSingle()
