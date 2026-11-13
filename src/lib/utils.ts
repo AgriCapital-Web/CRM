@@ -50,8 +50,8 @@ export function formatRecipientName(fullName?: string | null, sourceType?: strin
 export function formatWelcomeName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
-  if (parts.length === 1) return parts[0].toLocaleUpperCase("fr-FR");
-  return displayCaseName(parts[parts.length - 1]) + " " + parts[0].toLocaleUpperCase("fr-FR");
+  if (parts.length === 1) return uppercaseName(parts[0]);
+  return displayCaseName(parts[parts.length - 1]) + " " + uppercaseName(parts[0]);
 }
 
 /** Nom utilisé dans les communications et les affichages courts. */
