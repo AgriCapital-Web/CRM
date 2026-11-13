@@ -902,13 +902,18 @@ async function deliver(args: {
             }
           }
 
-          const pushCount = await sendWebPush(contact, renderedSubject, rendered, dedupeKey, {
-            campaign_id: args.campaignId || null,
-            automation_id: args.automationId || null,
-            event_key: args.eventKey || null,
-          });
-          if (!contact.user_id && pushCount === 0) {
-            throw new Error("Aucun abonnement Push actif pour ce destinataire. Il doit activer les notifications depuis son PWA.");
+          // For authenticated users, inserting into notifications already enqueues
+          // exactly one push through trg_notifications_push_event. Do not send a
+          // second direct WebPush from this path.
+          if (!contact.user_id) {
+            const pushCount = await sendWebPush(contact, renderedSubject, rendered, dedupeKey, {
+              campaign_id: args.campaignId || null,
+              automation_id: args.automationId || null,
+              event_key: args.eventKey || null,
+            });
+            if (pushCount === 0) {
+              throw new Error("Aucun abonnement Push actif pour ce destinataire. Il doit activer les notifications depuis son PWA.");
+            }
           }
           await admin.from("notification_deliveries").update({ statut: "envoye", sent_at: new Date().toISOString() }).eq("id", delivery.id);
         } else if (channel === "whatsapp") {
