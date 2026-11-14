@@ -76,6 +76,9 @@ function encodeWorkspaceCsv(rows: string[][]): string {
     return row.slice(0, Math.max(1, last + 1)).map((cell) => /[;"\r\n]/.test(cell) ? '"' + cell.replace(/"/g, '""') + '"' : cell).join(";");
   }).join("\n");
 }
+function neutralizeSpreadsheetCell(cell: string): string {
+  return /^[=+\-@\t\r]/.test(cell) ? "'" + cell : cell;
+}
 const WORKSPACE_WORKBOOK_PREFIX = "__AGRICAPITAL_WORKBOOK_V1__\n";
 type WorkspaceCellStyle = { background?: string; color?: string; bold?: boolean; align?: "left" | "center" | "right"; format?: "general" | "number" | "currency" | "percent" | "date" };
 type WorkspaceSheet = { name: string; rows: string[][]; styles?: Record<string, WorkspaceCellStyle>; conditionalFormatting?: boolean };
@@ -313,7 +316,7 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
     onChange(encodeWorkspaceWorkbook(next)); setActiveSheet(Math.max(0, activeIndex - 1));
   };
   const exportCsv = () => {
-    const blob = new Blob(["\uFEFF" + encodeWorkspaceCsv(parsed)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob(["\uFEFF" + encodeWorkspaceCsv(parsed.map((row) => row.map(neutralizeSpreadsheetCell)))], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob); const link = document.createElement("a");
     link.href = url; link.download = (titleSafe(active.name) || "tableur") + ".csv"; link.click(); URL.revokeObjectURL(url);
   };
@@ -383,7 +386,7 @@ function WorkspaceSpreadsheet({ value, onChange, disabled }: { value: string; on
       workbook.forEach((sheet) => {
         const ws = book.addWorksheet((sheet.name || "Feuille").slice(0, 31));
         sheet.rows.forEach((row, rowIndex) => {
-          const excelRow = ws.addRow(row.map((raw) => raw.trim().startsWith("=") ? { formula: raw.trim().slice(1) } : raw));
+          const excelRow = ws.addRow(row.map((raw) => neutralizeSpreadsheetCell(raw)));
           row.forEach((_, columnIndex) => {
             const style = sheet.styles?.[rowIndex + ":" + columnIndex];
             if (!style) return;
