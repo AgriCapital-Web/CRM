@@ -42,7 +42,7 @@ function FinancePanel({clientId}:{clientId:string}){
   if(!rows)return <p className="text-sm text-muted-foreground">Chargement…</p>;
   const ok=rows.filter(r=>["valide","paye"].includes(String(r.statut)));
   const encaisse=ok.reduce((s,r)=>s+Number(r.montant_paye??r.montant??0),0);
-  const total=Number(acq?.montant_total??acq?.prix_total??acq?.montant_contrat??0);
+  const total=Number(acq?.montant_total_contrat??0);
   const reste=Math.max(total-encaisse,0);
   const attente=rows.filter(r=>r.statut==="en_attente").length;
   return <div className="space-y-4">
