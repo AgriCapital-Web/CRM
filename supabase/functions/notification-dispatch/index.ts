@@ -1659,6 +1659,11 @@ serve(async (req) => {
         .eq("id", leadId).maybeSingle();
       if (leadError) throw leadError;
       if (!lead) return json(req, { error: "Lead ou prospect introuvable" }, 404);
+      const scoped = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") || "", {
+        global: { headers: { Authorization: authHeader } }, auth: { persistSession: false },
+      });
+      const { data: visibleLead } = await scoped.from("leads").select("id").eq("id", leadId).maybeSingle();
+      if (!visibleLead) return json(req, { error: "Ce contact ne fait pas partie de votre secteur." }, 403);
       if (!supervisor && lead.assigned_to !== actor.id && lead.created_by !== actor.id) {
         return json(req, { error: "Vous ne pouvez contacter que vos propres leads ou prospects." }, 403);
       }
