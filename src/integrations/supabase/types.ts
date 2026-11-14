@@ -1037,6 +1037,7 @@ export type Database = {
       }
       client_account_provision_outbox: {
         Row: {
+          claimed_at: string | null
           client_id: string
           created_at: string
           derniere_erreur: string | null
@@ -1046,6 +1047,7 @@ export type Database = {
           tentatives: number
         }
         Insert: {
+          claimed_at?: string | null
           client_id: string
           created_at?: string
           derniere_erreur?: string | null
@@ -1055,6 +1057,7 @@ export type Database = {
           tentatives?: number
         }
         Update: {
+          claimed_at?: string | null
           client_id?: string
           created_at?: string
           derniere_erreur?: string | null
@@ -3840,6 +3843,9 @@ export type Database = {
           notes: string | null
           profile_id: string | null
           role_label: string
+          telephone: string | null
+          telephone_indicatif: string | null
+          telephone_local: string | null
           updated_at: string
         }
         Insert: {
@@ -3850,6 +3856,9 @@ export type Database = {
           notes?: string | null
           profile_id?: string | null
           role_label?: string
+          telephone?: string | null
+          telephone_indicatif?: string | null
+          telephone_local?: string | null
           updated_at?: string
         }
         Update: {
@@ -3860,6 +3869,9 @@ export type Database = {
           notes?: string | null
           profile_id?: string | null
           role_label?: string
+          telephone?: string | null
+          telephone_indicatif?: string | null
+          telephone_local?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3906,11 +3918,17 @@ export type Database = {
           created_at: string
           created_by: string | null
           expense_id: string
+          fee_amount: number
+          fee_applied: boolean
+          fee_rate: number
+          gross_amount: number
           id: string
+          idempotency_key: string | null
           paid_at: string
           payment_method: string | null
           proof_name: string | null
           proof_path: string | null
+          status: string
           transaction_id: string
         }
         Insert: {
@@ -3918,11 +3936,17 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expense_id: string
+          fee_amount?: number
+          fee_applied?: boolean
+          fee_rate?: number
+          gross_amount?: number
           id?: string
+          idempotency_key?: string | null
           paid_at?: string
           payment_method?: string | null
           proof_name?: string | null
           proof_path?: string | null
+          status?: string
           transaction_id: string
         }
         Update: {
@@ -3930,11 +3954,17 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expense_id?: string
+          fee_amount?: number
+          fee_applied?: boolean
+          fee_rate?: number
+          gross_amount?: number
           id?: string
+          idempotency_key?: string | null
           paid_at?: string
           payment_method?: string | null
           proof_name?: string | null
           proof_path?: string | null
+          status?: string
           transaction_id?: string
         }
         Relationships: [
@@ -3974,6 +4004,7 @@ export type Database = {
           proof_mime_type: string | null
           proof_name: string | null
           proof_path: string | null
+          reference: string | null
           status: string
           supplier_name: string | null
           total_amount: number
@@ -3998,6 +4029,7 @@ export type Database = {
           proof_mime_type?: string | null
           proof_name?: string | null
           proof_path?: string | null
+          reference?: string | null
           status?: string
           supplier_name?: string | null
           total_amount?: number
@@ -4022,6 +4054,7 @@ export type Database = {
           proof_mime_type?: string | null
           proof_name?: string | null
           proof_path?: string | null
+          reference?: string | null
           status?: string
           supplier_name?: string | null
           total_amount?: number
@@ -4313,6 +4346,361 @@ export type Database = {
           },
         ]
       }
+      finance_payout_audit_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          details: Json
+          event_type: string
+          from_status: string | null
+          id: string
+          payout_id: string
+          to_status: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          event_type: string
+          from_status?: string | null
+          id?: string
+          payout_id: string
+          to_status?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          event_type?: string
+          from_status?: string | null
+          id?: string
+          payout_id?: string
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_payout_audit_events_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "finance_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_payout_batches: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          metadata: Json
+          payout_count: number
+          reference: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          metadata?: Json
+          payout_count?: number
+          reference?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          metadata?: Json
+          payout_count?: number
+          reference?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      finance_payout_beneficiaries: {
+        Row: {
+          active: boolean
+          beneficiary_type: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          email: string | null
+          first_names: string | null
+          id: string
+          last_name: string | null
+          notes: string | null
+          phone: string | null
+          profile_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          beneficiary_type?: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          email?: string | null
+          first_names?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          beneficiary_type?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          email?: string | null
+          first_names?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_payout_beneficiaries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payout_beneficiaries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payout_beneficiaries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payout_beneficiaries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_payout_beneficiaries_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      finance_payout_sms_templates: {
+        Row: {
+          active: boolean
+          category: string
+          content: string
+          created_at: string
+          id: string
+          max_characters: number
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          content: string
+          created_at?: string
+          id?: string
+          max_characters?: number
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          max_characters?: number
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      finance_payouts: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          beneficiary_id: string
+          cancelled_at: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          failure_reason: string | null
+          id: string
+          idempotency_key: string
+          metadata: Json
+          notification_error: string | null
+          notification_status: string
+          paid_at: string | null
+          payment_method: string
+          processed_at: string | null
+          profile_id: string | null
+          provider_code: string
+          provider_fee: number
+          provider_reference: string | null
+          provider_transaction_id: string | null
+          reason: string
+          reference: string
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          beneficiary_id: string
+          cancelled_at?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          metadata?: Json
+          notification_error?: string | null
+          notification_status?: string
+          paid_at?: string | null
+          payment_method?: string
+          processed_at?: string | null
+          profile_id?: string | null
+          provider_code?: string
+          provider_fee?: number
+          provider_reference?: string | null
+          provider_transaction_id?: string | null
+          reason: string
+          reference?: string
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          beneficiary_id?: string
+          cancelled_at?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          idempotency_key?: string
+          metadata?: Json
+          notification_error?: string | null
+          notification_status?: string
+          paid_at?: string | null
+          payment_method?: string
+          processed_at?: string | null
+          profile_id?: string | null
+          provider_code?: string
+          provider_fee?: number
+          provider_reference?: string | null
+          provider_transaction_id?: string | null
+          reason?: string
+          reference?: string
+          source_id?: string | null
+          source_kind?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_payouts_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "finance_payout_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payouts_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "finance_payout_beneficiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payouts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payouts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_internal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payouts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_payouts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["manager_profile_id"]
+          },
+          {
+            foreignKeyName: "finance_payouts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_workspace_organization_chart"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       finance_payroll_items: {
         Row: {
           base_salary: number
@@ -4587,6 +4975,10 @@ export type Database = {
           created_at: string
           created_by: string | null
           direction: string
+          fee_amount: number
+          fee_applied: boolean
+          fee_rate: number
+          gross_amount: number
           id: string
           label: string
           notes: string | null
@@ -4610,6 +5002,10 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           direction: string
+          fee_amount?: number
+          fee_applied?: boolean
+          fee_rate?: number
+          gross_amount?: number
           id?: string
           label: string
           notes?: string | null
@@ -4633,6 +5029,10 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           direction?: string
+          fee_amount?: number
+          fee_applied?: boolean
+          fee_rate?: number
+          gross_amount?: number
           id?: string
           label?: string
           notes?: string | null
@@ -6928,6 +7328,8 @@ export type Database = {
           polygone_gps: Json | null
           reference: string | null
           statut: string | null
+          surface_attribuee_ha: number
+          surface_disponible_ha: number | null
           surface_ha: number | null
           updated_at: string | null
         }
@@ -6952,6 +7354,8 @@ export type Database = {
           polygone_gps?: Json | null
           reference?: string | null
           statut?: string | null
+          surface_attribuee_ha?: number
+          surface_disponible_ha?: number | null
           surface_ha?: number | null
           updated_at?: string | null
         }
@@ -6976,6 +7380,8 @@ export type Database = {
           polygone_gps?: Json | null
           reference?: string | null
           statut?: string | null
+          surface_attribuee_ha?: number
+          surface_disponible_ha?: number | null
           surface_ha?: number | null
           updated_at?: string | null
         }
@@ -7305,6 +7711,39 @@ export type Database = {
           },
         ]
       }
+      notification_channel_policy: {
+        Row: {
+          domestic_channel: string
+          domestic_country_calling_code: string
+          id: boolean
+          international_channel: string
+          sms_content_max_characters: number
+          sms_max_characters: number
+          sms_sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          domestic_channel?: string
+          domestic_country_calling_code?: string
+          id?: boolean
+          international_channel?: string
+          sms_content_max_characters?: number
+          sms_max_characters?: number
+          sms_sender_id?: string
+          updated_at?: string
+        }
+        Update: {
+          domestic_channel?: string
+          domestic_country_calling_code?: string
+          id?: boolean
+          international_channel?: string
+          sms_content_max_characters?: number
+          sms_max_characters?: number
+          sms_sender_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_client_preferences: {
         Row: {
           canal_finalisation: string
@@ -7511,6 +7950,7 @@ export type Database = {
       }
       notification_event_outbox: {
         Row: {
+          claimed_at: string | null
           context: Json
           created_at: string
           derniere_erreur: string | null
@@ -7521,6 +7961,7 @@ export type Database = {
           tentatives: number
         }
         Insert: {
+          claimed_at?: string | null
           context?: Json
           created_at?: string
           derniere_erreur?: string | null
@@ -7531,6 +7972,7 @@ export type Database = {
           tentatives?: number
         }
         Update: {
+          claimed_at?: string | null
           context?: Json
           created_at?: string
           derniere_erreur?: string | null
@@ -7720,6 +8162,42 @@ export type Database = {
             referencedColumns: ["profile_id"]
           },
         ]
+      }
+      notification_send_guard: {
+        Row: {
+          channel: string
+          content_hash: string
+          created_at: string
+          expires_at: string
+          fingerprint: string
+          id: string
+          provider_message_id: string | null
+          recipient_key: string
+          status: string
+        }
+        Insert: {
+          channel: string
+          content_hash: string
+          created_at?: string
+          expires_at?: string
+          fingerprint: string
+          id?: string
+          provider_message_id?: string | null
+          recipient_key: string
+          status?: string
+        }
+        Update: {
+          channel?: string
+          content_hash?: string
+          created_at?: string
+          expires_at?: string
+          fingerprint?: string
+          id?: string
+          provider_message_id?: string | null
+          recipient_key?: string
+          status?: string
+        }
+        Relationships: []
       }
       notification_templates: {
         Row: {
@@ -14571,6 +15049,18 @@ export type Database = {
         Args: { p_client_id: string }
         Returns: string
       }
+      admin_assign_requested_user_zone: {
+        Args: {
+          p_actor_user_id: string
+          p_departement_geo_id: string
+          p_district_id: string
+          p_region_id: string
+          p_role_code: string
+          p_sous_prefecture_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       admin_set_profile_active: {
         Args: { p_actif: boolean; p_user_id: string }
         Returns: {
@@ -14579,8 +15069,45 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_set_profile_active_authorized: {
+        Args: { p_actif: boolean; p_actor_user_id: string; p_user_id: string }
+        Returns: {
+          actif: boolean
+          profile_id: string
+          user_id: string
+        }[]
+      }
       admin_set_user_roles_with_primary: {
         Args: { p_primary_role: string; p_roles: string[]; p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_user_roles_with_primary_authorized: {
+        Args: {
+          p_actor_user_id: string
+          p_primary_role: string
+          p_roles: string[]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      admin_update_profile_from_account_request: {
+        Args: {
+          p_actor_user_id: string
+          p_email: string
+          p_nom_complet: string
+          p_password_change_required: boolean
+          p_photo_url: string
+          p_poste: string
+          p_telephone: string
+          p_telephone_indicatif: string
+          p_telephone_local: string
+          p_user_id: string
+          p_username: string
+        }
+        Returns: undefined
+      }
+      admin_update_username_authorized: {
+        Args: { p_actor_user_id: string; p_user_id: string; p_username: string }
         Returns: undefined
       }
       annuaire_staff: {
@@ -14673,9 +15200,22 @@ export type Database = {
         Returns: Json
       }
       create_paiement_initial: { Args: { _client_id: string }; Returns: string }
+      crm_current_user_has_app_permission: {
+        Args: { required_code: string }
+        Returns: boolean
+      }
+      crm_current_user_permissions: { Args: never; Returns: string[] }
       crm_normalize_phone_e164: {
         Args: { p_dial_code?: string; p_value: string }
         Returns: string
+      }
+      crm_user_app_permissions: {
+        Args: { _user_id: string }
+        Returns: string[]
+      }
+      crm_user_has_app_permission: {
+        Args: { _required_code: string; _user_id: string }
+        Returns: boolean
       }
       current_profile_id: { Args: never; Returns: string }
       current_user_has_app_permission: {
@@ -14699,6 +15239,35 @@ export type Database = {
         Args: { _client_id: string }
         Returns: undefined
       }
+      finalize_independent_service_payment: {
+        Args: {
+          p_payment_id: string
+          p_provider_amount: number
+          p_provider_payload?: Json
+          p_transaction_id: string
+        }
+        Returns: {
+          amount: number
+          checkout_url: string | null
+          created_at: string
+          currency: string
+          id: string
+          idempotency_key: string
+          invoice_id: string
+          provider: string
+          provider_payload: Json
+          provider_transaction_id: string | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "independent_service_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       finalize_portal_payment: {
         Args: {
           _metadata?: Json
@@ -14712,6 +15281,65 @@ export type Database = {
       finance_can_manage: { Args: never; Returns: boolean }
       finance_can_view: { Args: never; Returns: boolean }
       finance_can_view_payroll: { Args: never; Returns: boolean }
+      finance_create_associate_movement: {
+        Args: {
+          p_amount: number
+          p_associate_id: string
+          p_movement_date: string
+          p_movement_type: string
+          p_notes?: string
+          p_reference?: string
+        }
+        Returns: string
+      }
+      finance_create_expense: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_client_id?: string
+          p_description?: string
+          p_expense_date: string
+          p_is_direct_cost?: boolean
+          p_plantation_id?: string
+          p_profile_id?: string
+          p_proof_mime_type?: string
+          p_proof_name?: string
+          p_proof_path?: string
+        }
+        Returns: string
+      }
+      finance_create_manual_entry: {
+        Args: {
+          p_amount: number
+          p_contact_phone?: string
+          p_notes?: string
+          p_payment_method?: string
+          p_proof_name?: string
+          p_proof_path?: string
+          p_reference?: string
+          p_source_name: string
+          p_source_type: string
+          p_transaction_date: string
+        }
+        Returns: string
+      }
+      finance_create_planned_expense: {
+        Args: {
+          p_amount: number
+          p_beneficiary_name?: string
+          p_beneficiary_phone?: string
+          p_category: string
+          p_description?: string
+          p_due_date?: string
+          p_expense_date: string
+          p_is_direct_cost?: boolean
+          p_profile_id?: string
+          p_proof_mime_type?: string
+          p_proof_name?: string
+          p_proof_path?: string
+        }
+        Returns: string
+      }
       finance_generate_commission_payouts: {
         Args: { p_period_end: string; p_period_start: string }
         Returns: number
@@ -14740,6 +15368,129 @@ export type Database = {
           p_versement_id: string
         }
         Returns: undefined
+      }
+      finance_payout_approve: {
+        Args: { p_payout_id: string }
+        Returns: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          beneficiary_id: string
+          cancelled_at: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          failure_reason: string | null
+          id: string
+          idempotency_key: string
+          metadata: Json
+          notification_error: string | null
+          notification_status: string
+          paid_at: string | null
+          payment_method: string
+          processed_at: string | null
+          profile_id: string | null
+          provider_code: string
+          provider_fee: number
+          provider_reference: string | null
+          provider_transaction_id: string | null
+          reason: string
+          reference: string
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finance_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      finance_payout_approve_batch: {
+        Args: { p_batch_id: string }
+        Returns: number
+      }
+      finance_payout_create_batch: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_payment_method?: string
+          p_profile_ids: string[]
+          p_provider_code?: string
+          p_reason: string
+        }
+        Returns: string
+      }
+      finance_payout_create_payroll_batch: {
+        Args: {
+          p_payment_method?: string
+          p_payroll_run_id: string
+          p_provider_code?: string
+        }
+        Returns: string
+      }
+      finance_payout_list_profiles: {
+        Args: never
+        Returns: {
+          actif: boolean
+          email: string
+          id: string
+          nom: string
+          nom_complet: string
+          poste: string
+          prenoms: string
+          telephone: string
+        }[]
+      }
+      finance_payout_record_manual_success: {
+        Args: {
+          p_payment_method?: string
+          p_payout_id: string
+          p_provider_reference: string
+          p_provider_transaction_id?: string
+        }
+        Returns: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          beneficiary_id: string
+          cancelled_at: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          failure_reason: string | null
+          id: string
+          idempotency_key: string
+          metadata: Json
+          notification_error: string | null
+          notification_status: string
+          paid_at: string | null
+          payment_method: string
+          processed_at: string | null
+          profile_id: string | null
+          provider_code: string
+          provider_fee: number
+          provider_reference: string | null
+          provider_transaction_id: string | null
+          reason: string
+          reference: string
+          source_id: string | null
+          source_kind: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "finance_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       finance_payroll_mark_paid: {
         Args: {
@@ -14771,6 +15522,119 @@ export type Database = {
         }
         Returns: Json
       }
+      finance_register_expense_payment:
+        | {
+            Args: {
+              p_amount: number
+              p_expense_id: string
+              p_paid_at: string
+              p_payment_method?: string
+              p_proof_name?: string
+              p_proof_path?: string
+              p_reference?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_expense_id: string
+              p_fee_applied: boolean
+              p_payment_date: string
+              p_payment_method: string
+              p_proof_name: string
+              p_proof_path: string
+              p_reference: string
+              p_request_id: string
+            }
+            Returns: Json
+          }
+      finance_save_paid_expense: {
+        Args: {
+          p_amount: number
+          p_client_id: string
+          p_description: string
+          p_expense_category: string
+          p_expense_date: string
+          p_expense_id: string
+          p_fee_amount: number
+          p_fee_applied: boolean
+          p_gross_amount: number
+          p_is_direct_cost: boolean
+          p_payment_method: string
+          p_plantation_id: string
+          p_profile_id: string
+          p_proof_mime_type: string
+          p_proof_name: string
+          p_proof_path: string
+          p_reference: string
+          p_supplier_name: string
+        }
+        Returns: Json
+      }
+      finance_update_associate_movement: {
+        Args: {
+          p_amount: number
+          p_associate_id: string
+          p_movement_date: string
+          p_movement_id: string
+          p_movement_type: string
+          p_notes?: string
+          p_reference?: string
+        }
+        Returns: string
+      }
+      finance_update_expense: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_client_id?: string
+          p_description?: string
+          p_expense_date: string
+          p_expense_id: string
+          p_is_direct_cost?: boolean
+          p_plantation_id?: string
+          p_profile_id?: string
+          p_proof_mime_type?: string
+          p_proof_name?: string
+          p_proof_path?: string
+        }
+        Returns: string
+      }
+      finance_update_manual_entry: {
+        Args: {
+          p_amount: number
+          p_contact_phone?: string
+          p_label: string
+          p_notes?: string
+          p_payment_method?: string
+          p_proof_name?: string
+          p_proof_path?: string
+          p_reference?: string
+          p_source_type: string
+          p_transaction_date: string
+          p_transaction_id: string
+        }
+        Returns: string
+      }
+      finance_update_planned_expense: {
+        Args: {
+          p_amount: number
+          p_beneficiary_name?: string
+          p_beneficiary_phone?: string
+          p_category: string
+          p_description?: string
+          p_due_date?: string
+          p_expense_date: string
+          p_expense_id: string
+          p_is_direct_cost?: boolean
+          p_profile_id?: string
+          p_proof_mime_type?: string
+          p_proof_name?: string
+          p_proof_path?: string
+        }
+        Returns: string
+      }
       finance_validate_commission_payout: {
         Args: { p_versement_id: string }
         Returns: undefined
@@ -14785,6 +15649,16 @@ export type Database = {
       generate_parcelle_id: { Args: never; Returns: string }
       generate_plantation_id: { Args: never; Returns: string }
       generate_proprietaire_id: { Args: never; Returns: string }
+      get_available_team_members: {
+        Args: { p_equipe_id: string }
+        Returns: {
+          equipe_id: string
+          id: string
+          nom_complet: string
+          roles: string[]
+          user_id: string
+        }[]
+      }
       get_client_effective_pi: { Args: { _client_id: string }; Returns: number }
       get_commercial_directory: {
         Args: never
@@ -14804,6 +15678,19 @@ export type Database = {
       get_lead_commercial_for_conversion: {
         Args: { _lead_id: string }
         Returns: string
+      }
+      get_team_options_for_department: {
+        Args: { p_departement: string }
+        Returns: Json
+      }
+      get_team_responsible_candidates: {
+        Args: { p_team_type: string }
+        Returns: {
+          id: string
+          nom_complet: string
+          roles: string[]
+          user_id: string
+        }[]
       }
       get_technician_directory: {
         Args: never
@@ -14915,11 +15802,59 @@ export type Database = {
         Args: { p_value: string }
         Returns: string
       }
+      notification_claim_send_guard:
+        | {
+            Args: { p_channel: string; p_content: string; p_recipient: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_channel: string
+              p_content: string
+              p_recipient: string
+              p_scope: string
+            }
+            Returns: boolean
+          }
       notification_emit_event: {
         Args: { _context: Json; _event: string }
         Returns: undefined
       }
+      notification_finish_send_guard:
+        | {
+            Args: {
+              p_channel: string
+              p_content: string
+              p_message_id?: string
+              p_recipient: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_channel: string
+              p_content: string
+              p_message_id: string
+              p_recipient: string
+              p_scope: string
+            }
+            Returns: undefined
+          }
       notification_get_internal_secret: { Args: never; Returns: string }
+      notification_release_send_guard:
+        | {
+            Args: { p_channel: string; p_content: string; p_recipient: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_channel: string
+              p_content: string
+              p_recipient: string
+              p_scope: string
+            }
+            Returns: undefined
+          }
       notification_resolve_recipients: {
         Args: { _criteres?: Json }
         Returns: {
@@ -15017,6 +15952,34 @@ export type Database = {
           ordre: number
         }[]
       }
+      prepare_independent_service_payment: {
+        Args: {
+          p_amount: number
+          p_idempotency_key: string
+          p_invoice_id: string
+        }
+        Returns: {
+          amount: number
+          checkout_url: string | null
+          created_at: string
+          currency: string
+          id: string
+          idempotency_key: string
+          invoice_id: string
+          provider: string
+          provider_payload: Json
+          provider_transaction_id: string | null
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "independent_service_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       rachater_monnaie_client: {
         Args: { p_client_id: string; p_jours: number }
         Returns: number
@@ -15112,6 +16075,21 @@ export type Database = {
         }
         Returns: Json
       }
+      save_beneficiaire_document: {
+        Args: {
+          p_categorie: string
+          p_client_id: string
+          p_document_type: string
+          p_fichier_url: string
+          p_libelle: string
+          p_parcelle_id?: string
+          p_plantation_id?: string
+          p_proprietaire_id?: string
+          p_storage_bucket: string
+          p_storage_path: string
+        }
+        Returns: string
+      }
       senndo_get_secret: { Args: { p_name: string }; Returns: string }
       senndo_store_secret: {
         Args: { p_name: string; p_value: string }
@@ -15145,10 +16123,80 @@ export type Database = {
         Args: { p_client_id: string; p_plantation_id: string }
         Returns: Json
       }
+      update_beneficiaire_particulier: {
+        Args: {
+          p_beneficiaire: Json
+          p_client_id: string
+          p_superficie_ha: number
+        }
+        Returns: Json
+      }
       update_configurations_systeme_batch: {
         Args: { p_changes: Json }
         Returns: number
       }
+      update_independent_service_quote: {
+        Args: {
+          p_items: Json
+          p_observations: string
+          p_quote_id: string
+          p_title: string
+        }
+        Returns: {
+          accepted_at: string | null
+          archived_at: string | null
+          assigned_commercial_id: string | null
+          client_email: string | null
+          client_id: string
+          client_locality: string | null
+          client_name: string
+          client_phone: string
+          client_type: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          issued_at: string | null
+          observations: string | null
+          pdf_path: string | null
+          previous_version_id: string | null
+          reference: string
+          refused_at: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          title: string | null
+          total_amount: number
+          updated_at: string
+          updated_by: string | null
+          valid_until: string | null
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "independent_service_proformas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      user_can_assign_app_role: {
+        Args: { p_actor_user_id: string; p_role_code: string }
+        Returns: boolean
+      }
+      user_can_assign_team_to_department: {
+        Args: { p_departement: string; p_equipe_id: string }
+        Returns: boolean
+      }
+      user_can_manage_admin_action: {
+        Args: {
+          p_action: string
+          p_actor_user_id: string
+          p_target_user_id: string
+        }
+        Returns: boolean
+      }
+      user_can_supervise_leads: { Args: { _user_id: string }; Returns: boolean }
       username_available: { Args: { _username: string }; Returns: boolean }
       validate_proprietaire_foncier: {
         Args: { _decision: string; _notes?: string; _proprietaire_id: string }
