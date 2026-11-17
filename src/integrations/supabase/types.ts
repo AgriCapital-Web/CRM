@@ -2141,6 +2141,7 @@ export type Database = {
           date_calcul: string | null
           date_validation: string | null
           id: string
+          intervention_id: string | null
           montant_base: number | null
           montant_commission: number | null
           paiement_id: string | null
@@ -2160,6 +2161,7 @@ export type Database = {
           date_calcul?: string | null
           date_validation?: string | null
           id?: string
+          intervention_id?: string | null
           montant_base?: number | null
           montant_commission?: number | null
           paiement_id?: string | null
@@ -2179,6 +2181,7 @@ export type Database = {
           date_calcul?: string | null
           date_validation?: string | null
           id?: string
+          intervention_id?: string | null
           montant_base?: number | null
           montant_commission?: number | null
           paiement_id?: string | null
@@ -2212,6 +2215,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_monnaie_clients"
             referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "commissions_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_techniques"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "commissions_paiement_id_fkey"
