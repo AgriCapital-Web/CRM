@@ -292,7 +292,11 @@ const Clients = () => {
   clients.forEach((client: any) => (client.plantations || []).forEach((p: any) => plantationIds.add(p.id)));
   attributions.forEach((a: any) => { if (a.plantation_id) plantationIds.add(a.plantation_id); });
   // Les bénéficiaires particuliers restent visibles dans la table, mais ne gonflent aucun indicateur commercial.
-  const commercialClients = clients.filter((c: any) => !["beneficiaire_particulier", "proprietaire_foncier"].includes(String(c.type_client || "").toLowerCase()));
+  const commercialClients = clients.filter((c: any) =>
+    !c.is_internal &&
+    /^AC_C/i.test(String(c.id_unique || "").trim()) &&
+    !["beneficiaire_particulier", "proprietaire_foncier", "associe", "associe_actionnaire", "partenaire"].includes(String(c.type_client || "").toLowerCase())
+  );
   const clientsOfficiels = commercialClients.length;
   const commercialClientIds = new Set(commercialClients.map((c: any) => c.id));
   // Un dossier sans ligne plantation est le seul considéré comme non planté; une plantation enregistrée à 0 ha reste à vérifier techniquement.
