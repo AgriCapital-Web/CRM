@@ -27,3 +27,19 @@ Ces règles s'appliquent à toutes les pages existantes, aux refontes et à tout
 - Les notifications et modèles de messages se configurent dans Paramètres → Notifications, pas dans les modules opérationnels.
 - Avant de livrer une nouvelle page, vérifier son rendu mobile, ses permissions, ses états de chargement/erreur/vide, la recherche et l'export des tableaux.
 - Parcelles et plantations sont alimentées par les workflows automatiques : le PDG peut les consulter, mais aucune action manuelle de création, modification, suppression, changement de statut ou transfert ne doit lui être proposée. Les automatisations et RPC métier autorisés restent responsables de leur évolution.
+
+
+# Mémoire persistante AgriCapital CRM — obligatoire
+
+Avant toute nouvelle tâche, lire intégralement `docs/CRM_OPERATING_ROADMAP.md`. Ce document est la mémoire durable des décisions métier, des dossiers, des migrations, des vérifications et des éléments en attente. Ne pas demander à l'utilisateur de répéter les informations qui y figurent.
+
+- Vérifier les données réelles et l'état de production avant chaque intervention ; la feuille de route ne remplace pas les contrôles live.
+- Exécuter les tâches de bout en bout : migration Supabase, code si nécessaire, commit GitHub, déploiement Vercel production et vérification.
+- Après chaque tâche terminée, mettre à jour `docs/CRM_OPERATING_ROADMAP.md` dans le même commit. Noter la migration, le SHA, les contrôles DB, le déploiement et les points restant à faire.
+- Ne jamais déclarer un travail terminé tant que les données ne sont pas vérifiées et que le déploiement requis n'est pas `READY`.
+- Conserver les consignes antérieures encore valides. Une consigne récente ne remplace que le point auquel elle s'oppose.
+- Ne jamais inventer de convention foncière, date de signature, référence, paiement, mode de paiement ou document juridique. Les champs inconnus restent nuls.
+- Distinguer le propriétaire foncier, son profil `beneficiaire_particulier` et les clients commerciaux PalmInvest associés à ses parcelles.
+- Pour les parcelles partagées PalmInvest, respecter la séparation 1 ha client + 1 ha propriétaire bénéficiaire, sans offre ni dette pour le propriétaire bénéficiaire.
+- Ne jamais contourner RLS, les autorisations ou les triggers par falsification de session.
+- L'utilisateur attend l'exécution, pas des comptes rendus répétitifs. Répondre brièvement et ne signaler que les éléments réellement encore en attente.
