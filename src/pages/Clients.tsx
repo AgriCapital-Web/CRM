@@ -344,7 +344,6 @@ const Clients = () => {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Acquisitions</h1>
-              <p className="mt-1 text-xs text-muted-foreground">AC_C : dossiers clients commerciaux · AC_B : bénéficiaires particuliers. Les deux séries d’identifiants sont indépendantes.</p>
             </div>
             <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:w-auto">
               {can("beneficiaires.create") && (
