@@ -189,7 +189,7 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 - Les deux migrations Paulin/shared parcel sont appliquées et les données ont été vérifiées dans Supabase.
 - Commits des migrations : `8b88a541154c53336587f184ca73d315286c3814` et `0a78e918e0406a4ee2ef81643b58aca9f0c9abe8`.
 - Le commit de documentation et l'état du déploiement Vercel doivent être ajoutés ici après création de la présente feuille de route et du commit correspondant.
-- Le seul élément foncier restant sur Paulin est le rattachement de la convention active par la direction. Ne pas fermer ce point avant vérification de `parcelles.convention_id`, `lots_hectares.convention_id`, du statut de la convention et de la validation de l'acquisition.
+- L'acquisition Paulin a été validée et passée active par le PDG le 19/11/2026, malgré la convention active encore à rattacher. Le drapeau `foncier_convention_en_attente=true` reste conservé pour la traçabilité juridique ; ce point ne bloque plus la validation métier. La direction doit toujours rattacher la convention réelle lorsqu'elle sera disponible.
 
 ### Réconciliation clients et acquisitions — 19/11/2026
 
@@ -208,6 +208,17 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 - Après approbation, la fonction crée une notification interne `account_welcome` dédupliquée et la fonction `send-account-approved-notification` envoie le SMS de bienvenue via Senndo. Le SMS contient le nom complet et reste limité à 150 caractères.
 - SMS BOTI BI TRA JULES : « BOTI BI TRA JULES, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login » (113 caractères).
 - Le bouton d'approbation de `AccountRequests.tsx` affiche maintenant le résultat réel de l'envoi SMS/e-mail. Après le déploiement, le PDG devra relancer l'action « Approuver » sur la demande encore en attente ; cette action finalisera la confirmation Auth et déclenchera le SMS. Aucun SMS n'est prétendu envoyé avant cette approbation.
+
+
+### Déploiement et contrôles de la tâche — 19/11/2026, 16:22 UTC
+
+- Commit GitHub : `4f87799d4c12ad70cc40d79c30f59151436fdb62` — validation des acquisitions, enregistrement des deux dossiers PalmTerroir, synchronisation sécurisée du profil et automatisation des messages de bienvenue.
+- Déploiement Vercel production : `dpl_2ijqJfVqUXXa9pXgV5U3UHKFPtNb`, état **READY**, commit exact `4f87799d4c12ad70cc40d79c30f59151436fdb62`, alias `https://app.agricapital.ci`.
+- Contrôle HTTP de `https://app.agricapital.ci` : **200 OK**.
+- Edge Function `approve-account-request` déployée active, version 125. Edge Function `send-account-approved-notification` déployée active, version 41.
+- Le bouton d'approbation utilise maintenant la RPC `admin_sync_account_request_profile` pour synchroniser le téléphone et le poste sans contourner le trigger de protection ; l'approbation confirme l'adresse Auth, active le profil, attribue le rôle, crée une notification interne dédupliquée et appelle le service de bienvenue.
+- Le SMS de bienvenue est construit avec le nom complet, contrôlé à 150 caractères maximum et envoyé avec une clé d'idempotence. L'interface affiche le résultat réel de l'envoi SMS et e-mail.
+- BOTI BI TRA JULES : rôle `chef_equipe_commercial`, poste « Chef d’équipe commerciale », téléphone `+2250703537932`, profil actif. La demande reste toutefois `en_attente` et `email_confirmed_at` est nul ; le clic d'approbation antérieur n'a donc pas terminé le workflow Auth. Après déploiement, le PDG doit relancer une seule fois « Approuver » sur cette demande pour finaliser la confirmation Auth et déclencher le SMS. Aucun SMS n'a été envoyé ni déclaré envoyé avant cette étape.
 
 ### Modèle obligatoire pour chaque nouvelle tâche terminée
 
@@ -228,6 +239,6 @@ Ajouter une entrée datée avec :
 - Déploiement Vercel de production contrôlé : `dpl_D71kz7YzTFM7HuYsMKpvjoWJe7qR`, commit `753b83c39ad6b69581a751e135b33e35c956a428`, état **READY**.
 - Alias de production associé : `https://app.agricapital.ci`.
 - Vérification HTTP de l'alias : réponse **200 OK**, HTML de l'application AgriCapital 360 servi par Vercel.
-- Vérification Supabase finale : client Paulin correct ; lot L01 attribué ; L02 et L03 disponibles ; plantation Paulin 1 ha (statut `actif`) ; plantation bénéficiaire Zongo 1 ha (statut `active`) ; profil Zongo sans offre ni mensualité ; paiement initial 90 700 FCFA valide ; deux commissions de 5 000 FCFA payées ; acquisition toujours en attente de la convention foncière ; portefeuille Jean-Marie brut 45 000 FCFA, payé 36 000 FCFA.
+- Vérification Supabase finale : 13 fiches clients non internes, toutes `validation_statut='valide'` ; 8 acquisitions, toutes `validation_statut='valide'` (4 `active`, 4 `souscrite`) ; acquisition Paulin active et validée malgré le drapeau de convention en attente ; Yao Lambert et Patrice enregistrés, acquisitions validées, paiements initiaux valides et synchronisés au grand livre ; lot L01 attribué ; L02/L03 disponibles ; plantations Paulin/Zongo 1 ha chacune ; deux commissions de 5 000 FCFA payées ; portefeuille Jean-Marie brut 45 000 FCFA, payé 36 000 FCFA.
 - La migration Supabase est déjà appliquée : aucune réexécution nécessaire. Les deux plantations sont bien présentes ; le contrôle final confirme les deux statuts réels distincts (`actif` pour Paulin, `active` pour Zongo).
 - Aucune autre modification applicative n'était nécessaire pour ce contrôle. La convention foncière de Zongo reste à renseigner par la direction ; jusqu'à cette mise à jour, l'acquisition reste à valider et ne doit pas être présentée comme juridiquement finalisée.
