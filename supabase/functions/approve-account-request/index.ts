@@ -192,20 +192,14 @@ serve(async (req) => {
       .from("profiles").select("id,user_id,photo_url").eq("user_id", userId).maybeSingle();
     if (linkedProfileError) return json({ error: `Profil: ${linkedProfileError.message}`, step, logs }, 400);
     if (linkedProfile) {
-      const { error: profileUpdateError } = await admin.from("profiles").update({
-        email: profilePayload.email,
-        nom_complet: profilePayload.nom_complet,
-        telephone: profilePayload.telephone,
-        telephone_indicatif: profilePayload.telephone_indicatif,
-        telephone_local: profilePayload.telephone_local,
-        username: profilePayload.username,
-        poste: profilePayload.poste,
-        photo_url: profilePayload.photo_url ?? linkedProfile.photo_url ?? null,
-        district_id: profilePayload.district_id,
-        region_id: profilePayload.region_id,
-        password_change_required: Boolean(tempPassword),
-      }).eq("user_id", userId);
-      if (profileUpdateError) return json({ error: `Profil: ${profileUpdateError.message}`, step, logs }, 400);
+      const { data: syncedProfileId, error: profileSyncError } = await admin.rpc("admin_sync_account_request_profile", {
+        p_request_id: request_id,
+        p_actor_user_id: caller.user.id,
+      });
+      if (profileSyncError || !syncedProfileId) {
+        return json({ error: `Synchronisation du profil: ${profileSyncError?.message ?? "profil non synchronisé"}`, step, logs }, 400);
+      }
+      log(`profil synchronisé depuis la demande: ${syncedProfileId}`);
     } else {
       const { error: profileInsertError } = await admin.from("profiles").insert({ id: userId, ...profilePayload });
       if (profileInsertError) return json({ error: `Profil: ${profileInsertError.message}`, step, logs }, 400);
@@ -258,7 +252,30 @@ serve(async (req) => {
       return json({ error: "La demande a été traitée mais le profil reste inactif. L'activation n'a pas été confirmée.", step: "verify_activation", logs }, 500);
     }
 
-    return json({ success: true, user_id: userId, role: finalRole, roles: assigned, actif: finalProfile.actif, request_status: updatedRequest.statut, temp_password: tempPassword, logs });
+    step = "welcome_notification";
+    const welcomeDedupeKey = `account-welcome:${userId}`;
+    let welcomeNotificationCreated = false;
+    const { data: existingWelcome, error: welcomeLookupError } = await admin
+      .from("notifications").select("id").eq("dedupe_key", welcomeDedupeKey).maybeSingle();
+    if (welcomeLookupError) {
+      log(`notification de bienvenue non vérifiée: ${welcomeLookupError.message}`);
+    } else if (existingWelcome) {
+      welcomeNotificationCreated = true;
+    } else {
+      const { error: welcomeError } = await admin.from("notifications").insert({
+        user_id: userId,
+        type: "account_welcome",
+        title: "Bienvenue chez AgriCapital",
+        message: `Bienvenue ${reqRow.nom_complet} ! Votre compte AgriCapital est activé. Vous pouvez dès maintenant accéder à votre espace et utiliser les fonctionnalités correspondant à votre rôle.`,
+        data: { route: "/dashboard", role: finalRole, account_request_id: request_id },
+        read: false,
+        dedupe_key: welcomeDedupeKey,
+      });
+      if (welcomeError) log(`notification de bienvenue non créée: ${welcomeError.message}`);
+      else welcomeNotificationCreated = true;
+    }
+
+    return json({ success: true, user_id: userId, role: finalRole, roles: assigned, actif: finalProfile.actif, request_status: updatedRequest.statut, temp_password: tempPassword, welcome_notification_created: welcomeNotificationCreated, logs });
   } catch (e) {
     console.error("approve-account-request error", step, e);
     return json({ error: (e as Error).message, step, logs }, 500);
