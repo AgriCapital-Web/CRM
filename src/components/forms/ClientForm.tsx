@@ -33,7 +33,7 @@ const CLIENT_COLUMNS = new Set([
   "district_id","region_id","departement_id","sous_prefecture_id","village_id","commercial_id","type_compte","banque_operateur",
   "numero_compte","nom_titulaire_compte","photo_profil_url","fichier_piece_url","fichier_piece_recto_url",
   "fichier_piece_verso_url","localite","nationalite","type_client","telephone_indicatif","telephone_local",
-  "whatsapp_indicatif","whatsapp_local","latitude","longitude","updated_by"
+  "whatsapp_indicatif","whatsapp_local","latitude","longitude","total_hectares","superficie_ha","montant_total_contrat","paiement_initial_montant","mensualite_montant","offre_snapshot","updated_by"
 ]);
 
 const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommercialAssignment = false }: ClientFormProps) => {
@@ -142,8 +142,15 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const selectedFormula = snapshotFormula.code || form.formule_code
     ? { ...formulaConfiguration, code: snapshotFormula.code || form.formule_code,
         nom: snapshotFormula.nom || form.formule_nom || formulaConfiguration.nom } : null;
-  const hectares = Math.max(Number(snapshotContract.superficie_ha ?? form.total_hectares ?? 0), 0);
-  const perHa = (amount: unknown) => hectares > 0 ? Number(amount || 0) / hectares : Number(amount || 0);
+  const snapshotSurface = Math.max(Number(snapshotContract.superficie_ha ?? client?.total_hectares ?? client?.superficie_ha ?? form.total_hectares ?? form.superficie_ha ?? 0), 0);
+  const hectares = Math.max(Number(form.total_hectares ?? form.superficie_ha ?? snapshotSurface), 0);
+  // Les tarifs unitaires de l'instantané restent la référence ; seule la surface est modifiable.
+  const perHa = (amount: unknown) => snapshotSurface > 0 ? Number(amount || 0) / snapshotSurface : Number(amount || 0);
+  const scaledAmount = (amount: unknown) => Math.round(perHa(amount) * hectares * 100) / 100;
+  const recalculatedTotal = scaledAmount(snapshotContract.montant_total_contrat ?? form.montant_total_contrat);
+  const recalculatedInitial = scaledAmount(snapshotContract.paiement_initial_montant ?? form.paiement_initial_montant);
+  const recalculatedMonthly = scaledAmount(snapshotContract.mensualite_montant ?? form.mensualite_montant);
+  const formatContractAmount = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " FCFA";
   const effectiveOffer = offer ? {
     ...offer, ...formulaConfiguration, nom: offer.nom || form.famille_offre || "Offre enregistrée",
     montant_pi_par_ha: perHa(snapshotContract.paiement_initial_montant ?? form.paiement_initial_montant),
@@ -239,6 +246,24 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       clientPayload.fichier_piece_verso_url = fichier_piece_verso_url;
       clientPayload.nom = String(form.nom || "").trim();
       clientPayload.nom_complet = [clientPayload.nom, form.prenoms].filter(Boolean).join(" ").trim();
+      if (!isBeneficiary && offer && hectares > 0) {
+        clientPayload.total_hectares = hectares;
+        clientPayload.superficie_ha = hectares;
+        clientPayload.montant_total_contrat = recalculatedTotal;
+        clientPayload.paiement_initial_montant = recalculatedInitial;
+        clientPayload.mensualite_montant = recalculatedMonthly;
+        clientPayload.offre_snapshot = {
+          ...offerSnapshot,
+          contract: {
+            ...snapshotContract,
+            superficie_ha: hectares,
+            montant_total_contrat: recalculatedTotal,
+            paiement_initial_montant: recalculatedInitial,
+            mensualite_montant: recalculatedMonthly,
+          },
+          snapshot_at: new Date().toISOString(),
+        };
+      }
       clientPayload.whatsapp = form.telephone_principal_whatsapp ? form.telephone : form.telephone_secondaire_whatsapp ? (form.telephone_secondaire || null) : null;
       clientPayload.updated_by = user.id;
       if (client?.validation_statut === "modification_demandee") {
@@ -415,7 +440,26 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
               </div>
             </div>
           )}
-          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Les conditions commerciales restent figées. Modifier le dossier ne change ni le tarif ni les promotions.</span></div>}
+          {!isBeneficiary && effectiveOffer && (
+            <div className="grid grid-cols-1 gap-2 rounded-lg border bg-background p-3 sm:grid-cols-[minmax(150px,0.8fr)_1.2fr]">
+              <div className="space-y-1">
+                <Label className="text-xs">Superficie contractuelle (ha)</Label>
+                <Input className="h-9" type="number" min="0.01" step="0.01"
+                  value={form.total_hectares ?? form.superficie_ha ?? hectares}
+                  onChange={(e) => {
+                    const value = e.target.value === "" ? "" : Number(e.target.value);
+                    setField("total_hectares", value);
+                    setField("superficie_ha", value);
+                  }} />
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div><p className="text-xs text-muted-foreground">Total du contrat</p><p className="text-sm font-semibold tabular-nums">{formatContractAmount(recalculatedTotal)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="text-sm font-semibold tabular-nums">{formatContractAmount(recalculatedInitial)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Mensualité</p><p className="text-sm font-semibold tabular-nums">{formatContractAmount(recalculatedMonthly)}</p></div>
+              </div>
+            </div>
+          )}
+          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Les tarifs unitaires contractuels restent inchangés. La modification de la superficie recalcule automatiquement le total, le paiement initial et les mensualités ; les surfaces déjà attribuées ou plantées restent conservées.</span></div>}
         </CardContent>
       </Card>
 
