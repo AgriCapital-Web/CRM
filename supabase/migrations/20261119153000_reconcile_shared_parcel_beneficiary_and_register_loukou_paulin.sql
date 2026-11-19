@@ -289,10 +289,8 @@ BEGIN
   SELECT * INTO v_owner_client
     FROM public.clients c
    WHERE c.proprietaire_id=p_proprietaire_id
-     AND c.parcelle_id=p_parcelle_id
      AND c.type_client='beneficiaire_particulier'
-     AND coalesce((c.metadata->>'beneficiaire_foncier_owner')::boolean,false)
-   ORDER BY c.created_at
+   ORDER BY CASE WHEN c.parcelle_id=p_parcelle_id THEN 0 ELSE 1 END,c.created_at
    LIMIT 1;
 
   IF FOUND THEN
@@ -601,7 +599,6 @@ BEGIN
            p.role_attribution='beneficiaire_particulier'
            AND c.type_client='beneficiaire_particulier'
            AND c.proprietaire_id=v_parcelle_owner_id
-           AND coalesce((c.metadata->>'beneficiaire_foncier_owner')::boolean,false)
          )
        )
      ORDER BY CASE WHEN p.role_attribution='beneficiaire_particulier' THEN 0 ELSE 1 END,p.created_at
@@ -639,11 +636,13 @@ BEGIN
   IF NEW.role_attribution='proprietaire' AND NEW.client_id IS NULL THEN
     v_is_owner_beneficiary:=true;
   ELSIF NEW.role_attribution='beneficiaire_particulier' AND NEW.client_id IS NOT NULL THEN
-    SELECT coalesce((c.metadata->>'beneficiaire_foncier_owner')::boolean,false)
+    SELECT (
+      c.type_client='beneficiaire_particulier'
+      AND c.proprietaire_id=(SELECT pr.proprietaire_id FROM public.parcelles pr WHERE pr.id=NEW.parcelle_id)
+    )
       INTO v_is_owner_beneficiary
       FROM public.clients c
-     WHERE c.id=NEW.client_id
-       AND c.type_client='beneficiaire_particulier';
+     WHERE c.id=NEW.client_id;
   END IF;
 
   IF v_is_owner_beneficiary THEN
