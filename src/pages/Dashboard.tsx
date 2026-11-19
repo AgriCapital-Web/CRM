@@ -276,7 +276,7 @@ const Dashboard = () => {
       // Les bénéficiaires particuliers restent hors du périmètre des clients officiels,
       // même s'ils possèdent une attribution ou une acquisition pour une plantation distincte.
       const commercialClients = allExternalClients.filter((c: any) =>
-        String(c.type_client || "").toLowerCase() !== "beneficiaire_particulier" &&
+        !["beneficiaire_particulier", "associe", "associe_actionnaire", "partenaire"].includes(String(c.type_client || "").toLowerCase()) &&
         /^AC_C/i.test(String(c.id_unique || "").trim())
       );
       const plantations = plantationsRes.data || [];
