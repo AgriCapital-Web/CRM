@@ -1244,7 +1244,7 @@ BEGIN
     '42a884da-f5b8-43d3-954c-95ff09b7d3a9',v_parcelle.id,
     1,1,0,
     NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-    NULL,0,0,0,0,0,0,NULL,
+    NULL,0,0,0,0,0,0,0,NULL,
     0,0,0,
     true,'actif','actif','valide','plantation',
     'non_requis','non_requis',
