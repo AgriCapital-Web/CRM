@@ -1220,47 +1220,63 @@ BEGIN
     RAISE EXCEPTION 'Le profil bénéficiaire particulier du propriétaire existe déjà sur cette parcelle.';
   END IF;
 
-  -- Le propriétaire reste propriétaire foncier. Son profil bénéficiaire particulier est distinct,
-  -- comme dans le cas Emmanuel/Zagble, sans offre ni engagement financier.
-  INSERT INTO public.clients(
-    nom,prenoms,nom_complet,civilite,telephone,whatsapp,nationalite,type_personne,
-    type_client,type_client_foncier,parcours_code,proprietaire_id,parcelle_id,
-    total_hectares,superficie_ha,nombre_plantations,
-    offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,
-    mode_paiement,montant_total_contrat,montant_total_par_ha,
-    paiement_initial_montant,montant_pi_total,montant_pi_par_ha,
-    mensualite_montant,mensualite_par_ha,duree_paiement_mois,
-    montant_promo_applique,taux_journalier_ha,jours_contrat_total,
-    compte_actif,statut,statut_global,validation_statut,phase_actuelle,
-    contrat_acquisition_statut,contrat_accompagnement_statut,
-    region_id,district_id,departement_id,sous_prefecture_id,village_id,localite,
-    commercial_id,offre_snapshot,paiement_personnalise,metadata
-  )
-  VALUES(
-    v_owner_record.nom,v_owner_record.prenoms,v_owner_record.nom_complet,
-    v_owner_record.civilite,v_owner_record.telephone,v_owner_record.whatsapp,
-    v_owner_record.nationalite,'personne_physique',
-    'beneficiaire_particulier','EXT','beneficiaire_particulier',
-    '42a884da-f5b8-43d3-954c-95ff09b7d3a9',v_parcelle.id,
-    1,1,0,
-    NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-    'echeancier',0,0,0,0,0,0,0,NULL,
-    0,0,0,
-    true,'actif','actif','valide','plantation',
-    'non_requis','non_requis',
-    v_parcelle.region_id,v_parcelle.district_id,v_parcelle.departement_id,
-    v_parcelle.sous_prefecture_id,v_parcelle.village_id,v_parcelle.village,
-    NULL,'{}'::jsonb,'{}'::jsonb,
-    jsonb_build_object(
-      'beneficiaire_foncier_owner',true,
-      'source_migration','20261119153000_reconcile_shared_parcel_beneficiary_and_register_loukou_paulin',
-      'parcelle_id',v_parcelle.id,
-      'surface_beneficiaire_ha',1,
-      'hors_offre_commerciale',true,
-      'sans_echeancier_financier',true
-    )
-  )
-  RETURNING id INTO v_owner_beneficiary_id;
+  -- Le propriétaire foncier reste dans proprietaires_terres.
+  -- Son unique profil CRM est requalifié en bénéficiaire particulier (1 ha), sans offre ni dette.
+  -- La superficie foncière totale de 6 ha reste conservée dans la parcelle et les métadonnées.
+  v_owner_beneficiary_id:=v_owner_record.id;
+
+  UPDATE public.clients
+     SET type_client='beneficiaire_particulier',
+         type_client_foncier='EXT',
+         parcours_code='beneficiaire_particulier',
+         proprietaire_id='42a884da-f5b8-43d3-954c-95ff09b7d3a9',
+         parcelle_id=v_parcelle.id,
+         total_hectares=1,
+         superficie_ha=1,
+         nombre_plantations=0,
+         offre_id=NULL,
+         offre_code=NULL,
+         offre_nom=NULL,
+         famille_offre=NULL,
+         formule_code=NULL,
+         formule_nom=NULL,
+         gestion_type=NULL,
+         mode_paiement='echeancier',
+         montant_total_contrat=0,
+         montant_total_par_ha=0,
+         paiement_initial_montant=0,
+         montant_pi_total=0,
+         montant_pi_par_ha=0,
+         mensualite_montant=0,
+         mensualite_par_ha=0,
+         duree_paiement_mois=NULL,
+         montant_promo_applique=0,
+         taux_journalier_ha=0,
+         jours_contrat_total=0,
+         commercial_id=NULL,
+         compte_actif=true,
+         statut='actif',
+         statut_global='actif',
+         validation_statut='valide',
+         phase_actuelle='plantation',
+         contrat_acquisition_statut='non_requis',
+         contrat_accompagnement_statut='non_requis',
+         localite=v_parcelle.village,
+         offre_snapshot='{}'::jsonb,
+         paiement_personnalise='{}'::jsonb,
+         metadata=coalesce(metadata,'{}'::jsonb) || jsonb_build_object(
+           'beneficiaire_foncier_owner',true,
+           'source_migration','20261119153000_reconcile_shared_parcel_beneficiary_and_register_loukou_paulin',
+           'parcelle_id',v_parcelle.id,
+           'surface_fonciere_totale_ha',6,
+           'surface_part_agricapital_ha',3,
+           'surface_part_proprietaire_ha',3,
+           'surface_beneficiaire_ha',1,
+           'hors_offre_commerciale',true,
+           'sans_echeancier_financier',true
+         ),
+         updated_at=now()
+   WHERE id=v_owner_record.id;
 
   -- Création du client PalmInvest sans offre à l'INSERT afin de ne pas déclencher
   -- une acquisition incomplète. L'offre et la formule sont liées juste après.
