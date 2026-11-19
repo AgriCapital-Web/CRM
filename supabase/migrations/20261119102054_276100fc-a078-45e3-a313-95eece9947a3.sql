@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.trg_paiement_alerte_validation() FROM public, anon, authenticated;
+CREATE INDEX IF NOT EXISTS idx_paiements_validation_comptable_par ON public.paiements(validation_comptable_par);
