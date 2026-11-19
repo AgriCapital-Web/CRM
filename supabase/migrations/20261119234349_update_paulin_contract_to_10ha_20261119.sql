@@ -34,7 +34,13 @@ SET superficie_ha=10,montant_pi_total=907000,montant_total_contrat=24679000,mens
       'surface_contractuelle_ha',10,'surface_fonciere_allouee_ha',1,'surface_fonciere_restante_ha',9,
       'surface_disponible_parcelle_ha',2,'foncier_a_attribuer_plus_tard',true,'technical_intervention_pending',true,
       'pi_total_contractuel',907000,'pi_paye_a_la_conversion',90700,'solde_pi_restant',816300,
-      'land_allocation_note','1 ha deja attribue sur PAR-000008-L01. 9 ha restent a affecter. 2 ha disponibles sur la parcelle actuelle; aucune attribution supplementaire effectuee.')
+      'land_allocation_note','1 ha deja attribue sur PAR-000008-L01. 9 ha restent a affecter. 2 ha disponibles sur la parcelle actuelle; aucune attribution supplementaire effectuee.'),
+    validation_commentaire=CASE
+      WHEN position('Contrat commercial porte a 10 ha' in coalesce(a.validation_commentaire,''))>0 THEN a.validation_commentaire
+      ELSE concat_ws(chr(10),nullif(a.validation_commentaire,''),
+        'Contrat commercial porte a 10 ha. 1 ha est deja attribue; 9 ha restent a affecter. PI contractuel : 907 000 FCFA; 90 700 FCFA encaisses; solde PI : 816 300 FCFA.')
+    END,
+    updated_at=now()
 FROM public.clients c
 WHERE a.client_id=c.id AND c.id_unique='AC_C000008' AND c.nom_complet='PAULIN LOUKOU';
 
