@@ -423,8 +423,13 @@ const Dashboard = () => {
       remainingHa = Math.max(0, engagedHa - plantedHa);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
-      // Prévision fondée uniquement sur les contrats validés et les comptes effectivement activés.
-      const activeContracts = commercialClients.filter((c: any) => c.compte_actif === true && c.validation_statut === "valide");
+      // Le prévisionnel commercial dépend de la validation du contrat, pas de l'activation
+      // facultative du compte portail : un client peut payer avant de créer son accès.
+      const activeContracts = commercialClients.filter((c: any) =>
+        c.validation_statut === "valide" &&
+        ["actif", "active"].includes(String(c.statut || c.statut_global || "").toLowerCase()) &&
+        Number(c.montant_total_contrat || 0) > 0
+      );
       const contractRows = activeContracts.filter((c: any) => Number(c.montant_total_contrat || 0) > 0);
       const paidByClient = new Map<string, number>();
       commercialValidPayments.forEach((p: any) => paidByClient.set(p.client_id, (paidByClient.get(p.client_id) || 0) + Number(p.montant_paye ?? p.montant ?? 0)));
