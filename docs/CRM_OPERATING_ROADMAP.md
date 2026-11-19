@@ -242,3 +242,44 @@ Ajouter une entrée datée avec :
 - Vérification Supabase finale : 13 fiches clients non internes, toutes `validation_statut='valide'` ; 8 acquisitions, toutes `validation_statut='valide'` (4 `active`, 4 `souscrite`) ; acquisition Paulin active et validée malgré le drapeau de convention en attente ; Yao Lambert et Patrice enregistrés, acquisitions validées, paiements initiaux valides et synchronisés au grand livre ; lot L01 attribué ; L02/L03 disponibles ; plantations Paulin/Zongo 1 ha chacune ; deux commissions de 5 000 FCFA payées ; portefeuille Jean-Marie brut 45 000 FCFA, payé 36 000 FCFA.
 - La migration Supabase est déjà appliquée : aucune réexécution nécessaire. Les deux plantations sont bien présentes ; le contrôle final confirme les deux statuts réels distincts (`actif` pour Paulin, `active` pour Zongo).
 - Aucune autre modification applicative n'était nécessaire pour ce contrôle. La convention foncière de Zongo reste à renseigner par la direction ; jusqu'à cette mise à jour, l'acquisition reste à valider et ne doit pas être présentée comme juridiquement finalisée.
+
+
+## Reprise et finalisation du 19 novembre 2026
+
+### Données commerciales, acquisitions et technique
+- Les 8 acquisitions commerciales existantes sont maintenant toutes au statut `active`, avec `validation_statut='valide'`. Aucune acquisition validée ne reste au statut `souscrite`.
+- La validation de Paulin LOUKOU reste active sans convention foncière active, conformément à la décision explicite de la direction. Le suivi juridique de la convention reste une information séparée et ne bloque plus la validation opérationnelle.
+- Les quatre dossiers historiquement plantés dont l'acquisition était restée `souscrite` ont été remis en cohérence avec leur plantation et leur parcelle : YAO KOUAKOU GUY LAURENT, TIONON MADOU, KOUAKOU KONAN DONALD et KOUAME FERDINAND KOUAKOU.
+- YAO Lambert KONAN : acquisition 0,5 ha active et validée, mise en terre au 30/09/2026, parcelle client saturée, plantation active. Intervention technique réalisée et liée à la plantation. Compte portail actif et provisionné.
+- KOUASSI KOUADIO Patrice : acquisition 1,5 ha active et validée, mise en terre au 09/11/2026, parcelle client saturée, plantation active. Intervention technique réalisée et liée à la plantation. Compte portail actif et provisionné.
+- Pour ces deux plantations, 72 et 215 plants sont des quantités **prévues** calculées sur la densité de référence de 143 plants/ha. Les quantités réellement mises en terre et le taux de réussite restent volontairement non renseignés, faute de relevé confirmé.
+- Les comptes portail de YAO Lambert KONAN et KOUASSI KOUADIO Patrice ont été créés via `refresh_client_account_activation` puis `provision-client-account`. Les profils sont classés `type_compte='client'`, `relation_rh='Client'`, `poste='client'`; les téléphones sont confirmés. Les clients pourront initialiser leur code portail par OTP.
+- Vérification globale après migration : 13 fiches clients présentes, 13 validées et 13 comptes actifs ; 8 acquisitions, 8 validées et 8 actives ; 13 plantations sans statut d'attente de paiement.
+
+### Compte BOTI BI TRA JULES et notifications de bienvenue
+- Demande `ba094701-7134-4c8f-b6fb-56e0b4c659d3` approuvée avec le rôle `chef_equipe_commercial`, par l'acteur PDG autorisé `bd9579fd-1d07-4431-9cc4-b57dfeeab593`.
+- Profil actif, rôle principal attribué, adresse `botibitrajules@gmail.com` confirmée dans Auth. Téléphone enregistré : `+2250703537932`.
+- SMS de bienvenue envoyé avec succès : 113 caractères, nom complet compris. La création de la notification interne est également confirmée. L'envoi e-mail n'a pas été confirmé par le fournisseur ; le SMS, demandé par la direction, a bien été envoyé.
+- `approve-account-request` version 128 déclenche maintenant côté serveur la notification de bienvenue après chaque approbation, avec contrôle du secret interne et vérification des permissions de l'acteur. `AccountRequests.tsx` ne lance plus un second envoi, ce qui évite les doublons.
+- `provision-client-account` version 47 classe les profils provisionnés comme comptes clients, y compris lors d'un appel idempotent sur un compte déjà lié.
+
+### Finance & Comptabilité et affichage des clients
+- `Clients.tsx` trie désormais les identifiants clients par ordre décroissant : les fiches les plus récentes apparaissent en premier.
+- `Finance.tsx` propose une recherche dans les catégories des sorties et des dépenses à payer.
+- Les options de frais restent cohérentes : « Sans frais » pour les entrées et apports concernés ; « Avec les frais » pour les sorties et paiements concernés.
+- Les formulaires de mouvement associé et de paiement de paie disposent désormais, eux aussi, d'un choix exclusif entre référence et téléversement du justificatif. Le paiement de paie prend également en charge l'option « Avec les frais ».
+- Les formulaires d'entrée, de sortie, de dépense à payer et de paiement client conservent leur case de bascule : un seul champ est affiché à la fois, référence ou fichier.
+- Migration `20261119199000_add_payroll_payment_fees_and_file_proof` : la fonction de paiement de paie enregistre séparément le montant de base, les frais éventuels et le justificatif, sans perdre le contrôle d'autorisation.
+
+### Migrations de cette reprise
+- `20261119196000_backfill_yao_lambert_and_patrice_planting_workflows`
+- `20261119197000_finalize_client_portal_profiles_and_planting_links`
+- `20261119198000_activate_all_validated_planting_acquisitions`
+- `20261119199000_add_payroll_payment_fees_and_file_proof`
+- Les quatre migrations ont été appliquées avec succès sur le projet Supabase CRM `rfzfsmpsuempafhkqhra`.
+
+### Points nécessitant une confirmation de la direction
+- Aucun client, lead ou prospect nommé « Diop » n'a été retrouvé dans les tables CRM vérifiées. Ne pas créer de fiche incomplète : demander le nom complet et le téléphone.
+- Le prospect `KOMENAN OSIMEON KOUAME` (`+17203854284`) est actuellement enregistré à 2 ha, formule `PALMINVEST_AUTONOME`, résidence USA, sans paiement ni lead lié. Un lead distinct `Beau Siméon ZOUKPANGBEU` (`+2250506526722`) existe également, sans superficie ni formule. Aucun des deux dossiers ne correspond sans ambiguïté à la demande « Kwame Siméon, 10 ha, formule suggestion, 303 000 FCFA déjà payés ». Ne pas convertir, fusionner ni enregistrer le paiement avant confirmation de l'identité et de la formule.
+- La parcelle client de BI BERTIN BI à Gonaté (1 ha) reste `a_valider` : elle n'a ni acquisition, ni intervention, ni plantation reliée. Aucune date de mise en terre n'est disponible ; ne pas la déclarer saturée ou plantée sans confirmation technique.
+- DJAHA KOUAME reste un prospect chaud de 2 ha : `dispose_terrain=false`, aucun paiement enregistré et aucun client lié. Ne pas le convertir automatiquement sans confirmation de souscription/paiement.
