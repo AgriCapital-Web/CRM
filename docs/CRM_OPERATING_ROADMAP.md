@@ -283,3 +283,9 @@ Ajouter une entrée datée avec :
 - Le prospect `KOMENAN OSIMEON KOUAME` (`+17203854284`) est actuellement enregistré à 2 ha, formule `PALMINVEST_AUTONOME`, résidence USA, sans paiement ni lead lié. Un lead distinct `Beau Siméon ZOUKPANGBEU` (`+2250506526722`) existe également, sans superficie ni formule. Aucun des deux dossiers ne correspond sans ambiguïté à la demande « Kwame Siméon, 10 ha, formule suggestion, 303 000 FCFA déjà payés ». Ne pas convertir, fusionner ni enregistrer le paiement avant confirmation de l'identité et de la formule.
 - La parcelle client de BI BERTIN BI à Gonaté (1 ha) reste `a_valider` : elle n'a ni acquisition, ni intervention, ni plantation reliée. Aucune date de mise en terre n'est disponible ; ne pas la déclarer saturée ou plantée sans confirmation technique.
 - DJAHA KOUAME reste un prospect chaud de 2 ha : `dispose_terrain=false`, aucun paiement enregistré et aucun client lié. Ne pas le convertir automatiquement sans confirmation de souscription/paiement.
+
+
+## Ajustement d’interface — 19 novembre 2026
+- Page **Acquisitions** : suppression du paragraphe explicatif sur les préfixes AC_C et AC_B. Les identifiants et leur logique de génération ne sont pas modifiés par cet ajustement.
+- Fichier : `src/pages/Clients.tsx`. Commit applicatif : `77400294ea861871c695b7e52ad41a046203b167`.
+- Contrôle de production à effectuer après le déploiement automatique Vercel.
