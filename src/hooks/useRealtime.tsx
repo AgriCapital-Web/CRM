@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -23,6 +23,7 @@ export const useRealtime = ({
   onChange,
 }: UseRealtimeOptions) => {
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const instanceId = useId().replace(/:/g, '');
   const callbacks = useRef({ onInsert, onUpdate, onDelete, onChange });
   callbacks.current = { onInsert, onUpdate, onDelete, onChange };
 
@@ -31,7 +32,7 @@ export const useRealtime = ({
     if (filter) config.filter = filter;
 
     const realtimeChannel = supabase
-      .channel(`crm-${table}-${filter || 'all'}`)
+      .channel(`crm-${table}-${filter || 'all'}-${instanceId}`)
       .on('postgres_changes', config, (payload) => {
         callbacks.current.onChange?.(payload);
         if (payload.eventType === 'INSERT') callbacks.current.onInsert?.(payload.new);
@@ -45,7 +46,7 @@ export const useRealtime = ({
       void supabase.removeChannel(realtimeChannel);
       setChannel((current) => current === realtimeChannel ? null : current);
     };
-  }, [table, event, filter]);
+  }, [table, event, filter, instanceId]);
 
   return { channel };
 };
