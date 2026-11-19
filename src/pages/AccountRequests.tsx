@@ -62,21 +62,35 @@ const AccountRequests = () => {
       if (error || payload?.error) throw new Error(payload?.error || error?.message);
 
       if (actionType === 'approve') {
+        let notificationSummary = "Notification de bienvenue non confirmée.";
+        let smsSent = false;
         try {
-          await supabase.functions.invoke('send-account-approved-notification', {
+          const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-account-approved-notification', {
             body: {
               request_id: selectedRequest.id,
               used_own_password: !payload?.temp_password,
               temp_password: payload?.temp_password || undefined,
             },
           });
-        } catch (e) { console.log('notif email fail (non-blocking)', e); }
+          if (!notificationError && notificationData?.success === true) {
+            smsSent = notificationData?.sms_sent === true;
+            const smsStatus = smsSent ? "SMS de bienvenue envoyé." : "SMS non confirmé.";
+            const emailStatus = notificationData?.email_sent === true ? "E-mail envoyé." : "E-mail non confirmé.";
+            notificationSummary = `${smsStatus} ${emailStatus}`;
+          }
+        } catch (e) {
+          console.error('notification de bienvenue non confirmée', e);
+        }
 
         toast({
           title: "Demande approuvée",
-          description: payload?.temp_password
-            ? `Compte créé. Mot de passe initial : ${payload.temp_password}`
-            : `Accès activé (rôle : ${payload?.role}). L'utilisateur peut se connecter avec son identifiant.`,
+          description: [
+            payload?.temp_password
+              ? `Compte créé. Mot de passe initial : ${payload.temp_password}`
+              : `Accès activé (rôle : ${payload?.role}). L'utilisateur peut se connecter avec son identifiant.`,
+            notificationSummary,
+          ].join(" "),
+          variant: smsSent ? "default" : "destructive",
           duration: 15000,
         });
       } else if (actionType === 'reject') {
