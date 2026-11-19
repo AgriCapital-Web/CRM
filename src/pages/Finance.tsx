@@ -30,6 +30,43 @@ const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"X
 
 const changeDisplayedAmount=(value:string,enabled:boolean,kind:"deduct"|"add")=>{const amount=Number(value);if(!Number.isFinite(amount)||amount<=0)return value;const factor=kind==="deduct"?0.99:1.01;return String(Math.max(0,Math.round(enabled?amount*factor:amount/factor)));};
 
+type SearchableCategorySelectProps = {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+};
+
+function SearchableCategorySelect({ value, options, onChange, disabled = false }: SearchableCategorySelectProps) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="w-full justify-between font-normal">
+          <span className="truncate">{value || "Choisir une catégorie…"}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Rechercher une catégorie…" />
+          <CommandList>
+            <CommandEmpty>Aucune catégorie trouvée.</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem key={option} value={option} onSelect={() => { onChange(option); setOpen(false); }}>
+                  <Check className={"mr-2 h-4 w-4 " + (value === option ? "opacity-100" : "opacity-0")} />
+                  {option}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function Finance(){
   const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") || "journal";
@@ -662,7 +699,7 @@ export default function Finance(){
       <TabsContent value="a-payer" className="mt-3 min-w-0 space-y-3">
         <div className="flex items-center justify-between gap-3"><div><h2 className="font-semibold">Dépenses à payer</h2></div>{canManage&&<Button onClick={()=>{setPlannedExpenseEditId(null);setPlannedExpenseTarget(null);setPlannedExpense({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",profileId:"",isInternalUser:false,expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false,reference:"",referenceAsFile:false});setPlannedProof(null);setPlannedExpenseOpen(true);}}><Plus className="mr-2 h-4 w-4"/>Nouvelle dépense à payer</Button>}</div>
         <Dialog open={plannedExpenseOpen} onOpenChange={open=>{if(!open&&!saving){setPlannedExpenseOpen(false);setPlannedExpenseEditId(null);setPlannedExpenseTarget(null);setPlannedProof(null);}}}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>{plannedExpenseEditId?"Modifier la dépense à payer":"Nouvelle dépense à payer"}</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1"><Label>Motif / catégorie</Label><Select value={plannedExpense.category} onValueChange={v=>setPlannedExpense({...plannedExpense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{FINANCE_EXPENSE_CATEGORIES.map(v=><SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label>Motif / catégorie</Label><SearchableCategorySelect value={plannedExpense.category} options={FINANCE_EXPENSE_CATEGORIES} onChange={v=>setPlannedExpense({...plannedExpense,category:v})}/></div>
           <div className="space-y-1"><Label>Montant prévu (FCFA)</Label><Input type="number" min="1" value={plannedExpense.amount} onChange={e=>setPlannedExpense({...plannedExpense,amount:e.target.value})}/></div><div className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-2"><Label>Bénéficiaire / fournisseur</Label><label className="flex cursor-pointer items-center gap-2 text-sm font-normal"><input type="checkbox" checked={plannedExpense.isInternalUser} onChange={e=>setPlannedExpense({...plannedExpense,isInternalUser:e.target.checked,profileId:"",beneficiary:"",beneficiaryPhone:""})} className="h-4 w-4 rounded border-input"/>Utilisateur interne</label></div>{plannedExpense.isInternalUser?<Popover open={plannedInternalUserPickerOpen} onOpenChange={setPlannedInternalUserPickerOpen}><PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" aria-expanded={plannedInternalUserPickerOpen} className="w-full justify-between font-normal"><span className="truncate">{profiles.find((p:any)=>p.id===plannedExpense.profileId)?.nom_complet||"Rechercher un utilisateur interne…"}</span><ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50"/></Button></PopoverTrigger><PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start"><Command><CommandInput placeholder="Rechercher par nom, poste ou e-mail…"/><CommandList><CommandEmpty>Aucun utilisateur interne trouvé.</CommandEmpty><CommandGroup>{profiles.map((p:any)=><CommandItem key={p.id} value={[p.nom_complet,p.poste,p.email].filter(Boolean).join(" ")} onSelect={()=>{setPlannedExpense({...plannedExpense,profileId:p.id,beneficiary:p.nom_complet||""});setPlannedInternalUserPickerOpen(false);}}><Check className={"mr-2 h-4 w-4 "+(plannedExpense.profileId===p.id?"opacity-100":"opacity-0")}/><span className="min-w-0"><span className="block truncate">{p.nom_complet}</span><span className="block truncate text-xs text-muted-foreground">{[p.poste,p.email].filter(Boolean).join(" · ")||"Collaborateur"}</span></span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover>:<Input value={plannedExpense.beneficiary} onChange={e=>setPlannedExpense({...plannedExpense,beneficiary:e.target.value})} placeholder="Nom du bénéficiaire ou fournisseur"/>}</div>{!plannedExpense.isInternalUser&&<div className="space-y-1"><Label>Téléphone du bénéficiaire / fournisseur</Label><Input type="tel" value={plannedExpense.beneficiaryPhone} onChange={e=>setPlannedExpense({...plannedExpense,beneficiaryPhone:e.target.value})} placeholder="+225 07 00 00 00 00"/></div>}
           <div className="space-y-1"><Label>Date de la dépense</Label><Input type="date" value={plannedExpense.expenseDate} onChange={e=>setPlannedExpense({...plannedExpense,expenseDate:e.target.value})}/></div><div className="space-y-1"><Label>Date prévue de paiement</Label><Input type="date" value={plannedExpense.dueDate} onChange={e=>setPlannedExpense({...plannedExpense,dueDate:e.target.value})}/></div><div className="space-y-2"><div className="flex items-center gap-2"><input id="planned-reference-file" type="checkbox" checked={plannedExpense.referenceAsFile} onChange={e=>{setPlannedExpense({...plannedExpense,referenceAsFile:e.target.checked,reference:""});setPlannedProof(null);}} className="h-4 w-4"/><Label htmlFor="planned-reference-file" className="cursor-pointer">Joindre un fichier comme référence</Label></div>{plannedExpense.referenceAsFile?<div className="space-y-1"><Label>Fichier justificatif</Label><Input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setPlannedProof(e.target.files?.[0]||null)}/><p className="text-xs text-muted-foreground">{plannedProof?.name||plannedExpenseTarget?.proof_name||"Aucun fichier sélectionné"}</p></div>:<div className="space-y-1"><Label>Référence</Label><Input value={plannedExpense.reference} onChange={e=>setPlannedExpense({...plannedExpense,reference:e.target.value})} placeholder="N° facture, devis ou pièce"/></div>}</div>
           <div className="space-y-1 sm:col-span-2 lg:col-span-3"><Label>Description</Label><Textarea value={plannedExpense.description} onChange={e=>setPlannedExpense({...plannedExpense,description:e.target.value})} rows={2}/></div><div className="flex items-center gap-2"><input type="checkbox" checked={plannedExpense.direct} onChange={e=>setPlannedExpense({...plannedExpense,direct:e.target.checked})} className="h-4 w-4"/><Label>Coût direct</Label></div><div className="flex gap-2 sm:col-span-2 lg:col-span-3"><Button onClick={()=>void savePlannedExpense()} disabled={saving}>{saving?"Enregistrement…":plannedExpenseEditId?"Enregistrer les modifications":"Enregistrer"}</Button><Button variant="outline" onClick={()=>setPlannedExpenseOpen(false)} disabled={saving}>Annuler</Button></div>
@@ -681,7 +718,7 @@ export default function Finance(){
         {expenseFormMode!==null&&<Dialog open={expenseFormMode!==null} onOpenChange={open=>{if(!open&&!saving){setExpenseFormMode(null);setSelectedExpense(null);setExpenseProof(null);}}}><DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto"><Card>
           <CardHeader><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><CardTitle>{expenseFormMode==="new"?"Nouvelle sortie":expenseFormMode==="edit"?"Modifier la sortie":"Détail de la sortie"}</CardTitle>{expenseFormMode==="view"&&<Badge variant="secondary">Lecture seule</Badge>}</div></CardHeader>
           <CardContent className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1"><Label>Catégorie</Label><Select disabled={expenseFormMode==="view"} value={expense.category} onValueChange={v=>setExpense({...expense,category:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{FINANCE_EXPENSE_CATEGORIES.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1"><Label>Catégorie</Label><SearchableCategorySelect disabled={expenseFormMode==="view"} value={expense.category} options={FINANCE_EXPENSE_CATEGORIES} onChange={v=>setExpense({...expense,category:v})}/></div>
             <div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={expenseFormMode==="view"?String(selectedExpense?.transaction?.amount??""):expense.amount} onChange={e=>setExpense({...expense,amount:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div>
             <div className="space-y-1"><Label>Date de sortie</Label><Input type="date" value={expenseFormMode==="view"?(selectedExpense?.expense_date||""):expense.date} onChange={e=>setExpense({...expense,date:e.target.value})} readOnly={expenseFormMode==="view"} disabled={expenseFormMode==="view"}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select disabled={expenseFormMode==="view"} value={expense.method} onValueChange={v=>setExpense({...expense,amount:expense.method!=="especes"&&expense.withFees&&v==="especes"?changeDisplayedAmount(expense.amount,false,"add"):expense.amount,method:v,withFees:v==="especes"?false:expense.withFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>
             <div className="space-y-1"><Label>Utilisateur</Label>
