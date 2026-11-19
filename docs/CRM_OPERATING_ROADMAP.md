@@ -289,3 +289,47 @@ Ajouter une entrée datée avec :
 - Page **Acquisitions** : suppression du paragraphe explicatif sur les préfixes AC_C et AC_B. Les identifiants et leur logique de génération ne sont pas modifiés par cet ajustement.
 - Fichier : `src/pages/Clients.tsx`. Commit applicatif : `77400294ea861871c695b7e52ad41a046203b167`.
 - Contrôle de production à effectuer après le déploiement automatique Vercel.
+
+
+## Reprise des acquisitions, des superficies et des accès — 19 novembre 2026
+
+### Acquisitions et suivi financier
+- `AC_C000008` — **PAULIN LOUKOU** : superficie contractuelle fixée à **10 ha**. Le dossier conserve **1 ha attribué/planté** et **9 ha restant à affecter**. Le PI contractuel est de **907 000 FCFA** : **90 700 FCFA encaissés**, **816 300 FCFA restant dus**. Mensualité contractuelle : **566 000 FCFA**.
+- `AC_C000012` — **KOMENAN SIMEON KOUAME** : acquisition validée et activée pour **10 ha**. PI contractuel : **907 000 FCFA** ; paiement enregistré : **303 000 FCFA** ; solde PI : **604 000 FCFA**. Aucun hectare n'est encore affecté ; les **10 ha** restent à attribuer et l'intervention technique reste à planifier.
+- Contrôle après reprise : **10 acquisitions sur 10** sont au statut `valide` et `active`.
+- Le prospect distinct `KOMENAN OSIMEON KOUAME` (2 ha, résidence USA) et le lead `Beau Siméon ZOUKPANGBEU` restent séparés et inchangés : ils ne sont pas fusionnés avec le dossier AC_C000012.
+
+### Superficies et foncier
+- La base distingue désormais `total_hectares` (surface contractuelle) et `surface_plantee_ha` (surface effectivement plantée).
+- La fonction `update_client_stats()` met à jour les plantations et `surface_plantee_ha` sans écraser la superficie contractuelle lors d'une mise à jour GPS.
+- La synchronisation client/acquisition conserve la surface du lot réellement attribué et enregistre séparément la surface contractuelle, la surface foncière attribuée et le reliquat à affecter.
+- `finance_associates` : ajout des champs de surface bénéficiaire et GPS. **Jacques Kouakou KOUAME** reste un associé bénéficiaire de **6,5 ha**, non facturable, sans création de client, d'acquisition ou d'échéancier.
+
+### Coordonnées GPS enregistrées
+- Paulin LOUKOU : `6.997856, -6.214123`.
+- Boukary ZONGO : `6.997856, -6.214114`.
+- Lambert : `6.942856, -6.236825`.
+- Emmanuel (2 ha) : `6.993066, -6.437648`.
+- ZAGBLE BOLOU JEAN-JACQUES : `6.994030, -6.440636`.
+- Ferdinand : `6.966816, -6.216460`.
+- Jacques KOUAME, associé bénéficiaire : `6.966916, -6.216489`.
+- Patrice : aucune coordonnée n'ayant été fournie, sa localisation n'a pas été modifiée.
+- Pour les parcelles partagées, les coordonnées du bénéficiaire et le point de référence de la parcelle restent enregistrés séparément.
+
+### Interface et accès
+- `src/pages/Clients.tsx` : déplacement de `clientSurface` au niveau du module pour corriger l'erreur `Cannot access 'W' before initialization`.
+- La vue Acquisitions affiche le détail « hectares contractuels / hectares attribués / hectares restant à attribuer ».
+- La vue Acquisitions inclut les associés bénéficiaires disposant d'une superficie non facturable, avec un accès vers Finance.
+- Le compte de **BOTI BI TRA JULES** est actif, son adresse e-mail est confirmée et son rôle principal `chef_equipe_commercial` est attribué. Aucun historique de connexion réussie n'est encore enregistré ; un test de connexion réel reste à effectuer.
+
+### Migrations appliquées sur Supabase CRM
+- `20261119234333_reconcile_acquisition_contract_sync_20261119`
+- `20261119234349_update_paulin_contract_to_10ha_20261119`
+- `20261119234359_validate_simeon_deferred_land_acquisition_20261119`
+- `20261119234436_update_land_gps_and_associate_beneficiary_area_20261119_v2`
+- `20261119235120_separate_contract_and_planted_surfaces_20261119`
+
+### Points antérieurs restant à confirmer
+- Aucun client, lead ou prospect nommé « Diop » n'a été retrouvé dans les tables CRM vérifiées. Demander le nom complet et le téléphone avant création.
+- La parcelle de BI BERTIN BI à Gonaté (1 ha) reste à valider techniquement ; aucune plantation ne doit être déclarée sans constat.
+- DJAHA KOUAME reste un prospect chaud de 2 ha, sans paiement ni client lié ; ne pas le convertir sans confirmation.
