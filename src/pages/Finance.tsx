@@ -130,7 +130,9 @@ export default function Finance(){
   const [payrollPaymentRunId,setPayrollPaymentRunId]=useState("");
   const [payrollPaymentMethod,setPayrollPaymentMethod]=useState("virement");
   const [payrollPaymentReference,setPayrollPaymentReference]=useState("");
-  const [payrollPaymentProofUrl,setPayrollPaymentProofUrl]=useState("");
+  const [payrollPaymentReferenceAsFile,setPayrollPaymentReferenceAsFile]=useState(false);
+  const [payrollPaymentProof,setPayrollPaymentProof]=useState<File|null>(null);
+  const [payrollPaymentWithFees,setPayrollPaymentWithFees]=useState(false);
 
   const canView=can("finance.view");
   const canManage=can("finance.manage");
@@ -603,22 +605,37 @@ export default function Finance(){
 
   const payRun=async()=>{
     if(!payrollPaymentRunId||saving)return;
-    if(payrollPaymentMethod!=="especes"&&!payrollPaymentReference.trim()){
-      toast({title:"Référence obligatoire",description:"Saisissez la référence réelle du virement, chèque ou paiement Mobile Money.",variant:"destructive"});return;
+    if(payrollPaymentReferenceAsFile&&!payrollPaymentProof){
+      toast({title:"Fichier requis",description:"Sélectionnez le justificatif ou désactivez l’option fichier pour saisir une référence.",variant:"destructive"});return;
+    }
+    if(payrollPaymentMethod!=="especes"&&!payrollPaymentReferenceAsFile&&!payrollPaymentReference.trim()){
+      toast({title:"Référence obligatoire",description:"Saisissez la référence réelle du virement, chèque ou paiement Mobile Money, ou joignez le justificatif.",variant:"destructive"});return;
     }
     setSaving(true);
+    let uploadedProofPath:string|null=null;
     try {
+      if(payrollPaymentReferenceAsFile&&payrollPaymentProof){
+        const uploaded=await uploadFile("documents",payrollPaymentProof,"finance/paie");
+        if(!uploaded?.path)throw new Error("Le justificatif de paie n’a pas pu être téléversé.");
+        uploadedProofPath=uploaded.path;
+      }
       const {error}=await (supabase as any).rpc("finance_payroll_mark_paid",{
         p_run_id:payrollPaymentRunId,
         p_payment_method:payrollPaymentMethod,
-        p_payment_reference:payrollPaymentReference.trim(),
-        p_payment_proof_url:payrollPaymentProofUrl.trim()||null
+        p_payment_reference:payrollPaymentReferenceAsFile?"":payrollPaymentReference.trim(),
+        p_payment_proof_url:uploadedProofPath,
+        p_payment_proof_name:payrollPaymentReferenceAsFile?payrollPaymentProof?.name:null,
+        p_payment_proof_mime_type:payrollPaymentReferenceAsFile?payrollPaymentProof?.type:null,
+        p_fee_applied:payrollPaymentMethod!=="especes"&&payrollPaymentWithFees
       });
       if(error)throw error;
-      toast({title:"Paiement de paie enregistré",description:"Les écritures financières et les lignes de paie ont été mises à jour ensemble."});
-      setPayrollPaymentRunId("");setPayrollPaymentReference("");setPayrollPaymentProofUrl("");
+      toast({title:"Paiement de paie enregistré",description:"Les écritures financières, les frais éventuels et les justificatifs ont été mis à jour ensemble."});
+      setPayrollPaymentRunId("");setPayrollPaymentReference("");setPayrollPaymentProof(null);setPayrollPaymentReferenceAsFile(false);setPayrollPaymentWithFees(false);
       await load();
-    } catch(error:any) {toast({title:"Paiement non confirmé",description:error?.message||"Aucune confirmation de paiement n’a été enregistrée.",variant:"destructive"});}
+    } catch(error:any) {
+      if(uploadedProofPath) await supabase.storage.from("documents").remove([uploadedProofPath]);
+      toast({title:"Paiement non confirmé",description:error?.message||"Aucune confirmation de paiement n’a été enregistrée.",variant:"destructive"});
+    }
     finally {setSaving(false);}
   };
 
@@ -795,8 +812,8 @@ export default function Finance(){
           <div className="space-y-1"><Label>Jour habituel de paiement (1 à 31)</Label><Input type="number" min="1" max="31" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/></div>
           <Button className="w-full sm:col-span-2" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
         </div></DialogContent></Dialog></>}
-        {can("finance.payroll")&&<Card><CardHeader><div className="flex items-center justify-between gap-2"><CardTitle>Générer la paie</CardTitle><Button size="sm" onClick={()=>setPayrollGenerateOpen(true)}><PlayCircle className="mr-2 h-4 w-4"/>Préparer une paie</Button></div></CardHeader><CardContent className="space-y-3"><Dialog open={payrollGenerateOpen} onOpenChange={setPayrollGenerateOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Préparer une paie mensuelle</DialogTitle></DialogHeader><div className="space-y-3"><Label>Période</Label><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setPayrollGenerateOpen(false)}>Annuler</Button><Button onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>Générer le brouillon</Button></div></div></DialogContent></Dialog><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p>{r.payment_reference&&<p className="text-xs text-muted-foreground">Réf. : {r.payment_reference}</p>}</div><div className="flex flex-wrap items-center gap-2">{r.status==="brouillon"&&<Button size="sm" onClick={()=>void validatePayrollRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>Valider</Button>}{r.status==="valide"&&<Button size="sm" onClick={()=>{setPayrollPaymentRunId(r.id);setPayrollPaymentReference("");setPayrollPaymentMethod("virement");}} disabled={saving}><Banknote className="mr-1 h-4 w-4"/>Enregistrer le paiement</Button>}{r.status==="paye"&&<Badge>Payée</Badge>}{canDeleteDraftPayroll && r.status==="brouillon" && <Button size="sm" variant="destructive" onClick={()=>{if(window.confirm("Supprimer définitivement ce brouillon de paie et ses lignes ?")) void deletePayrollDraft(r);}} disabled={saving}><Trash2 className="mr-1 h-4 w-4"/>Supprimer</Button>}</div></div>)}
-        {!!payrollPaymentRunId&&<Dialog open={!!payrollPaymentRunId} onOpenChange={open=>{if(!open&&!saving)setPayrollPaymentRunId("");}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Confirmer le paiement de paie</DialogTitle></DialogHeader><div className="space-y-3"><h3 className="font-semibold">Confirmer le paiement du lot {payrollRuns.find(r=>r.id===payrollPaymentRunId)?.period_start?.slice(0,7)}</h3><div className="grid gap-2 sm:grid-cols-2"><div className="space-y-1"><Label>Mode de paiement</Label><Select value={payrollPaymentMethod} onValueChange={setPayrollPaymentMethod}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Référence réelle {payrollPaymentMethod==="especes"?"(facultative)":"(obligatoire)"}</Label><Input value={payrollPaymentReference} onChange={e=>setPayrollPaymentReference(e.target.value)} placeholder="Référence transaction / chèque"/></div><div className="space-y-1 sm:col-span-2"><Label>URL du justificatif (facultative)</Label><Input value={payrollPaymentProofUrl} onChange={e=>setPayrollPaymentProofUrl(e.target.value)} placeholder="Lien sécurisé vers le justificatif"/></div></div><div className="flex flex-wrap gap-2"><Button onClick={()=>void payRun()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement enregistré"}</Button><Button variant="outline" onClick={()=>setPayrollPaymentRunId("")} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>}</div></CardContent></Card>}
+        {can("finance.payroll")&&<Card><CardHeader><div className="flex items-center justify-between gap-2"><CardTitle>Générer la paie</CardTitle><Button size="sm" onClick={()=>setPayrollGenerateOpen(true)}><PlayCircle className="mr-2 h-4 w-4"/>Préparer une paie</Button></div></CardHeader><CardContent className="space-y-3"><Dialog open={payrollGenerateOpen} onOpenChange={setPayrollGenerateOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Préparer une paie mensuelle</DialogTitle></DialogHeader><div className="space-y-3"><Label>Période</Label><Input type="month" value={period} onChange={e=>setPeriod(e.target.value)}/><div className="flex justify-end gap-2"><Button variant="outline" onClick={()=>setPayrollGenerateOpen(false)}>Annuler</Button><Button onClick={()=>void generatePayroll()} disabled={saving}><PlayCircle className="mr-2 h-4 w-4"/>Générer le brouillon</Button></div></div></DialogContent></Dialog><div className="space-y-2">{payrollRuns.map(r=><div key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><b>{r.period_start.slice(0,7)}</b><p className="text-xs text-muted-foreground">{r.status.toUpperCase()}</p>{r.payment_reference&&<p className="text-xs text-muted-foreground">Réf. : {r.payment_reference}</p>}</div><div className="flex flex-wrap items-center gap-2">{r.status==="brouillon"&&<Button size="sm" onClick={()=>void validatePayrollRun(r)} disabled={saving}><CheckCircle2 className="mr-1 h-4 w-4"/>Valider</Button>}{r.status==="valide"&&<Button size="sm" onClick={()=>{setPayrollPaymentRunId(r.id);setPayrollPaymentReference("");setPayrollPaymentMethod("virement");setPayrollPaymentProof(null);setPayrollPaymentReferenceAsFile(false);setPayrollPaymentWithFees(false);}} disabled={saving}><Banknote className="mr-1 h-4 w-4"/>Enregistrer le paiement</Button>}{r.status==="paye"&&<Badge>Payée</Badge>}{canDeleteDraftPayroll && r.status==="brouillon" && <Button size="sm" variant="destructive" onClick={()=>{if(window.confirm("Supprimer définitivement ce brouillon de paie et ses lignes ?")) void deletePayrollDraft(r);}} disabled={saving}><Trash2 className="mr-1 h-4 w-4"/>Supprimer</Button>}</div></div>)}
+        {!!payrollPaymentRunId&&<Dialog open={!!payrollPaymentRunId} onOpenChange={open=>{if(!open&&!saving)setPayrollPaymentRunId("");}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Confirmer le paiement de paie</DialogTitle></DialogHeader><div className="space-y-3"><h3 className="font-semibold">Confirmer le paiement du lot {payrollRuns.find(r=>r.id===payrollPaymentRunId)?.period_start?.slice(0,7)}</h3><div className="grid gap-2 sm:grid-cols-2"><div className="space-y-1"><Label>Mode de paiement</Label><Select value={payrollPaymentMethod} onValueChange={v=>{setPayrollPaymentMethod(v);if(v==="especes")setPayrollPaymentWithFees(false);}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="virement">Virement bancaire</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="cheque">Chèque</SelectItem><SelectItem value="especes">Espèces</SelectItem><SelectItem value="autre">Autre</SelectItem></SelectContent></Select></div>{payrollPaymentMethod!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3"><input id="payroll-payment-with-fees" type="checkbox" checked={payrollPaymentWithFees} onChange={e=>setPayrollPaymentWithFees(e.target.checked)} className="h-4 w-4"/><Label htmlFor="payroll-payment-with-fees" className="cursor-pointer">Avec les frais</Label></div>}<div className="space-y-2 sm:col-span-2"><div className="flex items-center gap-2"><input id="payroll-payment-reference-file" type="checkbox" checked={payrollPaymentReferenceAsFile} onChange={e=>{setPayrollPaymentReferenceAsFile(e.target.checked);setPayrollPaymentReference("");setPayrollPaymentProof(null);}} className="h-4 w-4"/><Label htmlFor="payroll-payment-reference-file" className="cursor-pointer">Joindre un justificatif</Label></div>{payrollPaymentReferenceAsFile?<div className="space-y-1"><Label>Fichier justificatif</Label><Input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setPayrollPaymentProof(e.target.files?.[0]||null)}/><p className="text-xs text-muted-foreground">{payrollPaymentProof?.name||"Aucun fichier sélectionné"}</p></div>:<div className="space-y-1"><Label>Référence réelle {payrollPaymentMethod==="especes"?"(facultative)":"(obligatoire)"}</Label><Input value={payrollPaymentReference} onChange={e=>setPayrollPaymentReference(e.target.value)} placeholder="Référence transaction / chèque"/></div>}</div></div><div className="flex flex-wrap gap-2"><Button onClick={()=>void payRun()} disabled={saving}>{saving?"Enregistrement…":"Confirmer le paiement enregistré"}</Button><Button variant="outline" onClick={()=>setPayrollPaymentRunId("")} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>}</div></CardContent></Card>}
       </div></TabsContent>
       
       <TabsContent value="associes" className="mt-3 min-w-0 space-y-3">
