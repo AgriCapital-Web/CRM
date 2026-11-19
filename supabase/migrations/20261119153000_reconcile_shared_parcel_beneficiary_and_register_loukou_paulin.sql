@@ -1407,7 +1407,6 @@ BEGIN
          acquisition_id=v_acquisition_id,
          date_attribution='2026-11-01',
          surface_attribuee_ha=1,
-         surface_disponible_ha=0,
          notes=concat_ws(E'\n',nullif(notes,''),'Lot affecté à LOUKOU Paulin — PalmInvest Autonome, 1 ha.')
    WHERE id=v_lot.id;
 
