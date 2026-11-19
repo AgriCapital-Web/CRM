@@ -114,8 +114,8 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 - Acquisition Paulin : `39be445f-e724-45fa-9770-d779c5dda280`.
 - L'acquisition reste souscrite et à valider tant que la convention active n'est pas liée à la parcelle et au lot. Son étape technique est `mise_en_terre_realisee`.
 - Activation partagée : `81f51e7b-f823-445d-b6e2-268d1ae87d8d`, 1 ha client + 1 ha propriétaire.
-- Plantation Paulin : `e41f2484-dcca-4fce-9ea9-27fb33a7d109`, 1 ha, active, mise en terre le 03/11/2026.
-- Plantation bénéficiaire particulier Zongo : `26c684b3-178a-40d5-9c2b-4eedd9de3b45`, 1 ha, active, mise en terre le 03/11/2026.
+- Plantation Paulin : `e41f2484-dcca-4fce-9ea9-27fb33a7d109`, 1 ha, statut base `actif`, mise en terre le 03/11/2026.
+- Plantation bénéficiaire particulier Zongo : `26c684b3-178a-40d5-9c2b-4eedd9de3b45`, 1 ha, statut base `active`, mise en terre le 03/11/2026.
 - Intervention de mise en terre : `f7c7326b-383b-4fbc-8ac4-0ffc7612da66`, 143 plants prévus et 143 réalisés.
 - `agent_technique_id` reste nul car le contrôle d'affectation exige une session autorisée ; ne pas contourner ce contrôle. Les deux commissions confirmées sont bien reliées au profil rémunéré Jean-Marie.
 
@@ -204,3 +204,13 @@ Ajouter une entrée datée avec :
 - éléments restant à faire et responsable de la prochaine action.
 
 **Règle permanente : après chaque tâche achevée, mettre à jour cette feuille de route automatiquement. Lorsqu'un nouvel assistant arrive, il doit lire `AGENTS.md` puis ce document et reprendre à partir de l'état vérifié, sans demander à l'utilisateur de reprendre toute l'histoire.**
+
+
+### Vérification finale du déploiement — 19/11/2026, 15:06 UTC
+
+- Déploiement Vercel de production contrôlé : `dpl_D71kz7YzTFM7HuYsMKpvjoWJe7qR`, commit `753b83c39ad6b69581a751e135b33e35c956a428`, état **READY**.
+- Alias de production associé : `https://app.agricapital.ci`.
+- Vérification HTTP de l'alias : réponse **200 OK**, HTML de l'application AgriCapital 360 servi par Vercel.
+- Vérification Supabase finale : client Paulin correct ; lot L01 attribué ; L02 et L03 disponibles ; plantation Paulin 1 ha (statut `actif`) ; plantation bénéficiaire Zongo 1 ha (statut `active`) ; profil Zongo sans offre ni mensualité ; paiement initial 90 700 FCFA valide ; deux commissions de 5 000 FCFA payées ; acquisition toujours en attente de la convention foncière ; portefeuille Jean-Marie brut 45 000 FCFA, payé 36 000 FCFA.
+- La migration Supabase est déjà appliquée : aucune réexécution nécessaire. Les deux plantations sont bien présentes ; le contrôle final confirme les deux statuts réels distincts (`actif` pour Paulin, `active` pour Zongo).
+- Aucune autre modification applicative n'était nécessaire pour ce contrôle. La convention foncière de Zongo reste à renseigner par la direction ; jusqu'à cette mise à jour, l'acquisition reste à valider et ne doit pas être présentée comme juridiquement finalisée.
