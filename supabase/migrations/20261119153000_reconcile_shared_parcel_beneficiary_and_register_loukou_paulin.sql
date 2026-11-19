@@ -1715,27 +1715,85 @@ BEGIN
     RAISE EXCEPTION 'Le profil CRM de Zongo Boukary n’a pas été requalifié en bénéficiaire particulier.';
   END IF;
 
-  -- Synchronisation explicite de la part propriétaire vers le profil bénéficiaire particulier.
-  v_owner_plantation_id:=public.sync_owner_plantation_for_shared_parcel(
+  -- La fonction de synchronisation est exécutée, puis la ligne propriétaire est consolidée
+  -- sous le profil bénéficiaire particulier existant (migration administrative contrôlée).
+  PERFORM public.sync_owner_plantation_for_shared_parcel(
     v_parcelle.id,'42a884da-f5b8-43d3-954c-95ff09b7d3a9',NULL
   );
 
-  IF v_owner_plantation_id IS NULL THEN
-    RAISE EXCEPTION 'La synchronisation de la plantation bénéficiaire de Zongo Boukary a renvoyé une référence vide.';
-  END IF;
-
-  -- La fonction de synchronisation crée la plantation de Boukary comme bénéficiaire particulier.
   SELECT p.id INTO v_owner_plantation_id
     FROM public.plantations p
    WHERE p.parcelle_id=v_parcelle.id
-     AND p.client_id=v_owner_beneficiary_id
-     AND p.role_attribution='beneficiaire_particulier'
+     AND (
+       (p.client_id=v_owner_beneficiary_id AND p.role_attribution='beneficiaire_particulier')
+       OR (p.client_id IS NULL AND p.role_attribution='proprietaire')
+     )
      AND coalesce(p.statut,'')<>'annule'
-   ORDER BY p.created_at
-   LIMIT 1;
+   ORDER BY CASE WHEN p.client_id=v_owner_beneficiary_id THEN 0 ELSE 1 END,p.created_at
+   LIMIT 1
+   FOR UPDATE;
+
+  PERFORM set_config('app.internal_plantation_write','sync_owner_plantation_for_shared_parcel',true);
 
   IF v_owner_plantation_id IS NULL THEN
-    RAISE EXCEPTION 'La plantation bénéficiaire particulier de Zongo Boukary n’a pas été créée par l’activation partagée.';
+    INSERT INTO public.plantations(
+      client_id,parcelle_id,activation_id,lot_id,acquisition_id,
+      role_attribution,nom,nom_plantation,
+      superficie_ha,superficie_activee,surface_reellement_plantee,
+      nombre_plants,nombre_plants_prevus,nombre_plants_mis_en_terre,densite_plants,densite_cible,
+      region_id,departement_id,sous_prefecture_id,district_id,village,village_nom,localite,
+      localisation_gps_lat,localisation_gps_lng,latitude,longitude,
+      date_plantation,date_activation,statut,statut_global,type_culture,
+      notes,created_by,updated_by
+    )
+    VALUES(
+      v_owner_beneficiary_id,v_parcelle.id,
+      (SELECT pa.id FROM public.plantation_activations pa WHERE pa.lot_id=v_lot.id),
+      NULL,NULL,
+      'beneficiaire_particulier','Plantation bénéficiaire particulier — BOUKARY ZONGO',
+      'Plantation bénéficiaire particulier — BOUKARY ZONGO',
+      1,1,1,143,143,143,143,143,
+      v_parcelle.region_id,v_parcelle.departement_id,v_parcelle.sous_prefecture_id,v_parcelle.district_id,
+      v_parcelle.village,v_parcelle.village,v_parcelle.village,
+      v_parcelle.localisation_gps_lat,v_parcelle.localisation_gps_lng,
+      v_parcelle.localisation_gps_lat,v_parcelle.localisation_gps_lng,
+      '2026-11-03','2026-11-03','active','active',
+      coalesce(v_parcelle.plantation_type_culture,'Palmier à huile'),
+      'Bénéfice particulier du propriétaire foncier Zongo Boukary : 1 ha. Hors offre commerciale, sans échéancier ni dette. Plantation créée sur la quote-part propriétaire de la parcelle partagée.',
+      v_prospect.created_by,v_prospect.created_by
+    )
+    RETURNING id INTO v_owner_plantation_id;
+  ELSE
+    UPDATE public.plantations
+       SET client_id=v_owner_beneficiary_id,
+           parcelle_id=v_parcelle.id,
+           activation_id=(SELECT pa.id FROM public.plantation_activations pa WHERE pa.lot_id=v_lot.id),
+           lot_id=NULL,
+           acquisition_id=NULL,
+           role_attribution='beneficiaire_particulier',
+           nom='Plantation bénéficiaire particulier — BOUKARY ZONGO',
+           nom_plantation='Plantation bénéficiaire particulier — BOUKARY ZONGO',
+           superficie_ha=1,
+           superficie_activee=1,
+           surface_reellement_plantee=1,
+           nombre_plants=143,
+           nombre_plants_prevus=143,
+           nombre_plants_mis_en_terre=143,
+           densite_plants=143,
+           densite_cible=143,
+           date_plantation='2026-11-03',
+           date_activation='2026-11-03',
+           statut='active',
+           statut_global='active',
+           type_culture=coalesce(v_parcelle.plantation_type_culture,'Palmier à huile'),
+           notes='Bénéfice particulier du propriétaire foncier Zongo Boukary : 1 ha. Hors offre commerciale, sans échéancier ni dette. Plantation créée sur la quote-part propriétaire de la parcelle partagée.',
+           updated_by=v_prospect.created_by,
+           updated_at=now()
+     WHERE id=v_owner_plantation_id;
+  END IF;
+
+  IF v_owner_plantation_id IS NULL THEN
+    RAISE EXCEPTION 'La plantation bénéficiaire particulier de Zongo Boukary n’a pas pu être enregistrée.';
   END IF;
 
   INSERT INTO public.interventions_techniques(
