@@ -12,9 +12,16 @@ interface PlantationMarker {
   label: string;
   info: string;
 }
+interface SourceLocation {
+  id: string;
+  label: string;
+  url: string | null;
+  note: string;
+}
 
 export const PlantationsMap = () => {
   const [markers, setMarkers] = useState<PlantationMarker[]>([]);
+  const [sourceLocations, setSourceLocations] = useState<SourceLocation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,7 +38,7 @@ export const PlantationsMap = () => {
       try {
         const [plantRes, clientRes, parcelRes, campementRes, villageRes] = await Promise.all([
           (supabase as any).from("plantations")
-            .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,superficie_ha,surface_reellement_plantee,village_nom,village,localite,parcelle_id,client_id")
+            .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,localisation_source_url,localisation_reference_plantation_id,localisation_distance_m,superficie_ha,surface_reellement_plantee,village_nom,village,localite,parcelle_id,client_id")
             .range(0, 99999),
           (supabase as any).from("clients")
             .select("id,nom_complet,parcelle_id,campement_id,village_id,localite,total_hectares,latitude,longitude")
@@ -59,13 +66,28 @@ export const PlantationsMap = () => {
         });
         const parcelById = new Map<string, any>(parcels.map((p: any) => [p.id, p]));
         const out: PlantationMarker[] = [];
+        const sourceOnly: SourceLocation[] = [];
         const parcelsWithPlantation = new Set<string>();
 
         for (const p of plantations) {
           const parcel = parcelById.get(p.parcelle_id);
           const lat = num(p.latitude, p.localisation_gps_lat, parcel?.localisation_gps_lat);
           const lng = num(p.longitude, p.localisation_gps_lng, parcel?.localisation_gps_lng);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+          if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            const reference = p.localisation_reference_plantation_id
+              ? plantations.find((row: any) => row.id === p.localisation_reference_plantation_id)
+              : null;
+            const referenceClient = reference?.client_id ? clientById.get(reference.client_id) : null;
+            if (p.localisation_source_url || reference) sourceOnly.push({
+              id: p.id,
+              label: clientById.get(p.client_id)?.nom_complet || p.nom_plantation || p.id_unique || "Plantation",
+              url: p.localisation_source_url || reference?.localisation_source_url || null,
+              note: reference
+                ? "À environ " + Number(p.localisation_distance_m || 0).toLocaleString("fr-FR") + " m de " + (referenceClient?.nom_complet || reference.nom_plantation || "la plantation de référence")
+                : "Lien Google Maps enregistré ; coordonnées GPS à confirmer pour placer le repère sur la carte",
+            });
+            continue;
+          }
           if (p.parcelle_id) parcelsWithPlantation.add(p.parcelle_id);
           const client = clientById.get(p.client_id);
           const campement = campementById.get(client?.campement_id);
@@ -111,7 +133,10 @@ export const PlantationsMap = () => {
             info: `Site client • Localité : ${locality}`,
           });
         }
-        if (active) setMarkers(out);
+        if (active) {
+          setMarkers(out);
+          setSourceLocations(sourceOnly);
+        }
       } catch (error) {
         console.error("Erreur lors du chargement des localisations de la carte:", error);
       } finally {
@@ -130,9 +155,9 @@ export const PlantationsMap = () => {
         <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
           <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           Carte interactive des clients et plantations
-          {markers.length > 0 && (
+          {(markers.length + sourceLocations.length) > 0 && (
             <span className="ml-auto text-xs font-normal text-muted-foreground">
-              {markers.length} localisation(s)
+              {markers.length + sourceLocations.length} site(s) · {markers.length} repère(s) GPS
             </span>
           )}
         </CardTitle>
@@ -158,6 +183,20 @@ export const PlantationsMap = () => {
               <InteractiveMap mode="view" markers={markers} height="100%" className="h-full w-full rounded-lg" />
             </div>
           </Suspense>
+        )}
+        {sourceLocations.length > 0 && (
+          <div className="mt-3 space-y-2 rounded-lg border bg-muted/20 p-3">
+            <p className="text-xs font-semibold">Localisations reçues — repères GPS à confirmer</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {sourceLocations.map((location) => (
+                <div key={location.id} className="min-w-0 rounded-md border bg-background p-2 text-xs">
+                  <p className="font-medium">{location.label}</p>
+                  <p className="mt-1 text-muted-foreground">{location.note}</p>
+                  {location.url && <a className="mt-1 inline-block text-primary underline underline-offset-2" href={location.url} target="_blank" rel="noreferrer">Ouvrir la localisation Google Maps</a>}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>
