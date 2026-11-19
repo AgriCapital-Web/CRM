@@ -40,7 +40,7 @@ serve(async (req) => {
     const login_url = "https://app.agricapital.ci/login";
 
     const secretClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const { data: reqRow, error: reqErr } = await secretClient.from("account_requests").select("email,statut").eq("id", requestId).maybeSingle();
+    const { data: reqRow, error: reqErr } = await secretClient.from("account_requests").select("email,nom_complet,telephone,statut").eq("id", requestId).maybeSingle();
     if (reqErr || !reqRow?.email) return deny("Demande de compte introuvable", 404);
     if (!["approuve", "approuvee", "approved", "valide", "validee"].includes(String(reqRow.statut ?? "").toLowerCase())) return deny("La demande n'est pas approuvée", 409);
     const email = String(reqRow.email);
@@ -62,25 +62,69 @@ serve(async (req) => {
         <p style="color:#6b7280;font-size:12px;margin-top:24px">AgriCapital — Investir la terre. Cultiver l'avenir.</p>
       </div>`;
 
-    if (typeof senndoKey === "string" && senndoKey) {
-      const senndo = new SenndoClient({ apiKey: senndoKey, baseUrl: "https://api.senndo.com", timeoutMs: 30000, maxRetries: 2, userAgent: "AgriCapital-CRM/1.0" });
-      const text = `AgriCapital — notification automatique. Votre compte est activé. Connectez-vous sur ${login_url}. ${used_own_password ? "Utilisez le mot de passe choisi lors de votre demande." : "Votre mot de passe temporaire est : " + String(temp_password ?? "") + ". Modifiez-le après la première connexion."} Investir la terre. Cultiver l’avenir.`;
-      await senndo.sendMessage({ channel: "email", to: email, senderId: (typeof senndoSender === "string" && senndoSender) || Deno.env.get("SENNDO_EMAIL_SENDER_ID") || "no-reply@agricapital.ci", subject, text, idempotencyKey: `account-approved-${String(email).toLowerCase()}` });
-    } else if (RESEND_API_KEY) {
-      const r = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": `account-approved-${String(email).toLowerCase()}` },
-        body: JSON.stringify({
-          from: "AgriCapital <no-reply@agricapital.ci>",
-          to: [email], subject, html,
-        }),
-      });
-      if (!r.ok) console.error("resend fail", await r.text());
-    } else {
-      console.warn("RESEND_API_KEY manquant — email non envoyé (log only)");
+    const senndo = typeof senndoKey === "string" && senndoKey
+      ? new SenndoClient({ apiKey: senndoKey, baseUrl: "https://api.senndo.com", timeoutMs: 30000, maxRetries: 2, userAgent: "AgriCapital-CRM/1.0" })
+      : null;
+
+    let smsSent = false;
+    let smsError: string | null = null;
+    let smsCharacters = 0;
+    const phone = String(reqRow.telephone ?? "").trim();
+    const fullName = String(reqRow.nom_complet ?? "").trim();
+    const smsText = `${fullName}, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login`;
+    smsCharacters = Array.from(smsText).length;
+
+    if (!fullName) smsError = "Nom complet absent.";
+    else if (!phone) smsError = "Numéro de téléphone absent.";
+    else if (!senndo) smsError = "Service SMS Senndo non configuré.";
+    else if (smsCharacters > 150) smsError = "Le message dépasse la limite de 150 caractères.";
+    else {
+      try {
+        await senndo.sendMessage({
+          channel: "sms",
+          to: phone,
+          text: smsText,
+          ...(phone.startsWith("+225") ? { senderId: "AgriCapital" } : {}),
+          idempotencyKey: `account-approved-sms-${requestId}`,
+        });
+        smsSent = true;
+      } catch (smsSendError) {
+        smsError = "Envoi SMS non confirmé.";
+        console.error("account approval SMS failed", requestId, smsSendError);
+      }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    let emailSent = false;
+    let emailError: string | null = null;
+    try {
+      if (senndo) {
+        const text = `AgriCapital — notification automatique. Votre compte est activé. Connectez-vous sur ${login_url}. ${used_own_password ? "Utilisez le mot de passe choisi lors de votre demande." : "Votre mot de passe temporaire est : " + String(temp_password ?? "") + ". Modifiez-le après la première connexion."} Investir la terre. Cultiver l’avenir.`;
+        await senndo.sendMessage({
+          channel: "email",
+          to: email,
+          senderId: (typeof senndoSender === "string" && senndoSender) || Deno.env.get("SENNDO_EMAIL_SENDER_ID") || "no-reply@agricapital.ci",
+          subject,
+          text,
+          idempotencyKey: `account-approved-${String(email).toLowerCase()}`,
+        });
+        emailSent = true;
+      } else if (RESEND_API_KEY) {
+        const r = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json", "Idempotency-Key": `account-approved-${String(email).toLowerCase()}` },
+          body: JSON.stringify({ from: "AgriCapital <no-reply@agricapital.ci>", to: [email], subject, html }),
+        });
+        if (!r.ok) throw new Error("Fournisseur e-mail a refusé l'envoi.");
+        emailSent = true;
+      } else {
+        emailError = "Aucun fournisseur e-mail configuré.";
+      }
+    } catch (emailSendError) {
+      emailError = "Envoi e-mail non confirmé.";
+      console.error("account approval email failed", requestId, emailSendError);
+    }
+
+    return new Response(JSON.stringify({ success: true, email_sent: emailSent, email_error: emailError, sms_sent: smsSent, sms_error: smsError, sms_characters: smsCharacters }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
