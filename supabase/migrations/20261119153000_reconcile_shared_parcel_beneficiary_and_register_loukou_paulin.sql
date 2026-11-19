@@ -1452,7 +1452,15 @@ BEGIN
   )
   RETURNING id INTO v_payment_id;
 
-  -- Le trigger de paiement active le lot et crée les deux parts d'activation.
+  -- L'activation est appelée explicitement et de façon idempotente après l'encaissement.
+  -- Cela garantit les deux parts 1 ha + 1 ha, même si le trigger de paiement est conditionnel.
+  PERFORM public.activate_client_lot_from_lot(v_lot.id,v_client_id,'2026-11-01');
+
+  -- Synchronisation explicite de la part propriétaire vers le profil bénéficiaire particulier.
+  v_owner_plantation_id:=public.sync_owner_plantation_for_shared_parcel(
+    v_parcelle.id,'42a884da-f5b8-43d3-954c-95ff09b7d3a9',NULL
+  );
+
   -- La fonction de synchronisation crée la plantation de Boukary comme bénéficiaire particulier.
   SELECT p.id INTO v_owner_plantation_id
     FROM public.plantations p
