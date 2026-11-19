@@ -6,6 +6,7 @@ import { PERMISSIONS } from "@/lib/roles";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import PaiementsAValider from "@/components/finance/PaiementsAValider";
 import { useRealtime } from "@/hooks/useRealtime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -438,6 +439,7 @@ const GestionPaiements = () => {
           </>
           )}
 
+          <PaiementsAValider />
           {/* Tabs */}
           <Tabs defaultValue="paiements" className="space-y-4">
             <TabsList className="grid w-full sm:w-auto grid-cols-1 min-[420px]:grid-cols-2 gap-2">

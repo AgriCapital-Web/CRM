@@ -13,7 +13,7 @@ import { Bell, CalendarDays, CheckSquare, ChevronLeft, ChevronRight, Clock3, Map
 import { toast } from "sonner";
 
 type MeetingItem = { id: string; title: string; description: string | null; agenda: string | null; starts_at: string; ends_at: string; status: string; provider: string; join_url: string | null };
-type Kind = "event" | "task" | "meeting" | "availability";
+type Kind = "event" | "task" | "meeting" | "availability" | "payment";
 type Item = {
   id: string; rawId: string; kind: Kind; title: string; description: string | null; subtype: string;
   starts_at: string; ends_at: string; all_day: boolean; location: string | null; status: string;
@@ -36,9 +36,10 @@ const KIND_STYLE: Record<Kind, string> = {
   meeting: "border-accent bg-accent/20 text-foreground",
   task: "border-secondary-foreground/60 bg-secondary text-secondary-foreground",
   availability: "border-muted-foreground bg-muted text-muted-foreground",
+  payment: "border-destructive bg-destructive/10 text-foreground",
 };
-const KIND_DOT: Record<Kind, string> = { event: "bg-primary", meeting: "bg-accent", task: "bg-secondary-foreground/60", availability: "bg-muted-foreground" };
-const KIND_LABEL: Record<Kind, string> = { event: "Événement", meeting: "Réunion", task: "Tâche", availability: "Disponibilité" };
+const KIND_DOT: Record<Kind, string> = { event: "bg-primary", meeting: "bg-accent", task: "bg-secondary-foreground/60", availability: "bg-muted-foreground", payment: "bg-destructive" };
+const KIND_LABEL: Record<Kind, string> = { event: "Événement", meeting: "Réunion", task: "Tâche", availability: "Disponibilité", payment: "Échéance de paiement" };
 
 const HOUR_PX = 48;
 const fr = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("fr-FR", o).format(d);
@@ -86,7 +87,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [e, t, a] = await Promise.all([
+    const [e, t, a, pay] = await Promise.all([
       (supabase as any).from("workspace_events")
         .select("id,title,description,event_type,starts_at,ends_at,all_day,location,status,recurrence_rule,linked_meeting_id,created_by_profile_id")
         .gte("ends_at", range.from.toISOString()).lte("starts_at", range.to.toISOString())
@@ -98,6 +99,9 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
       (supabase as any).from("workspace_availability")
         .select("id,profile_id,availability_type,starts_at,ends_at,note")
         .gte("ends_at", range.from.toISOString()).lte("starts_at", range.to.toISOString()).limit(1000),
+      (supabase as any).from("paiements")
+        .select("id,montant,date_echeance,type_paiement,clients(nom_complet)").eq("statut", "en_attente")
+        .not("date_echeance", "is", null).gte("date_echeance", dayKey(range.from)).lte("date_echeance", dayKey(range.to)).limit(1000),
     ]);
     if (e.error || t.error || a.error) {
       console.error("Agenda", e.error || t.error || a.error);
@@ -121,6 +125,13 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
         title: AVAILABILITY_TYPES.find(([v]) => v === x.availability_type)?.[1] || "Disponibilité",
         description: x.note, subtype: x.availability_type, starts_at: x.starts_at, ends_at: x.ends_at,
         all_day: (new Date(x.ends_at).getTime() - new Date(x.starts_at).getTime()) >= 86400000, location: null, status: "scheduled", owner: x.profile_id,
+      })),
+      ...((pay?.data || []) as any[]).map(x => ({
+        id: "p-" + x.id, rawId: x.id, kind: "payment" as Kind,
+        title: (x.clients?.nom_complet || "Client") + " · " + new Intl.NumberFormat("fr-FR").format(Number(x.montant || 0)) + " F",
+        description: x.type_paiement === "PI" ? "Paiement initial" : "Mensualité", subtype: "payment",
+        starts_at: new Date(x.date_echeance + "T00:00:00").toISOString(), ends_at: new Date(x.date_echeance + "T23:59:00").toISOString(),
+        all_day: true, location: null, status: x.date_echeance < dayKey(new Date()) ? "overdue" : "scheduled",
       })),
       ...meetings.filter(m => m.status !== "cancelled").map(m => ({
         id: "m-" + m.id, rawId: m.id, kind: "meeting" as Kind, title: m.title, description: m.agenda || m.description, subtype: "meeting",
@@ -457,7 +468,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
           </div>
           <div className="flex flex-wrap justify-end gap-2 pt-2">
             {selected.kind === "task" && selected.status !== "done" && <Button size="sm" onClick={() => void completeTask()}><CheckCircle2 className="mr-1 h-4 w-4" />Terminer</Button>}
-            {selected.kind !== "meeting" && (!selected.owner || selected.owner === profileId) && <Button size="sm" variant="outline" onClick={() => void removeSelected()}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>}
+            {selected.kind !== "meeting" && selected.kind !== "payment" && (!selected.owner || selected.owner === profileId) && <Button size="sm" variant="outline" onClick={() => void removeSelected()}><Trash2 className="mr-1 h-4 w-4" />Supprimer</Button>}
           </div>
         </>}
       </DialogContent>
