@@ -31,6 +31,12 @@ const formatHectares = (value: unknown) => {
   const hectares = Number(value || 0);
   return hectares.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
 };
+
+// Fonction partagée au niveau du module : évite une référence avant initialisation
+// et privilégie la superficie contractuelle, distincte de la surface plantée.
+const clientSurface = (client: any) => Number(
+  client?.metadata?.surface_contractuelle_ha ?? client?.total_hectares ?? client?.superficie_ha ?? 0
+);
 const getRecordPath = (record: any) =>
   String(record?.id_unique || "").startsWith("AC_B")
     ? `/beneficiaire-particulier/${encodeURIComponent(record.id)}`
@@ -56,6 +62,7 @@ const Clients = () => {
   const canEditClient = (client: any) => can(client?.type_client === "beneficiaire_particulier" ? "clients.update_private_beneficiary" : "clients.update");
   const canDeleteClient = can("clients.delete");
   const [clients, setClients] = useState<any[]>([]);
+  const [financeAssociates, setFinanceAssociates] = useState<any[]>([]);
   const [salesPendingValidation, setSalesPendingValidation] = useState(0);
   const [attributions, setAttributions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +88,7 @@ const Clients = () => {
     const table = container.querySelector("table");
     if (table) observer?.observe(table);
     return () => observer?.disconnect();
-  }, [clients.length, loading]);
+  }, [clients.length, financeAssociates.length, loading]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -122,7 +129,15 @@ const Clients = () => {
       // Découper les identifiants en lots pour éviter des requêtes URL trop longues.
       const clientIdBatches: string[][] = [];
       for (let i = 0; i < ids.length; i += 250) clientIdBatches.push(ids.slice(i, i + 250));
-      const [plantationBatches, attributionBatches, regionsRes, teamPerfRes, pendingSalesRes] = await Promise.all([
+      const associateBeneficiariesQuery = acquisitionsView && can("finance.view")
+        ? (supabase as any).from("finance_associates")
+            .select("id,full_name,telephone,active,superficie_beneficiaire_ha,latitude,longitude,created_at")
+            .eq("active", true)
+            .gt("superficie_beneficiaire_ha", 0)
+            .order("full_name")
+        : Promise.resolve({ data: [], error: null });
+
+      const [plantationBatches, attributionBatches, regionsRes, teamPerfRes, pendingSalesRes, associateBeneficiariesRes] = await Promise.all([
         Promise.all(clientIdBatches.map((batch) =>
           supabase.from("plantations").select("id,client_id,superficie_ha,superficie_activee,surface_reellement_plantee,role_attribution").in("client_id", batch)
         )),
@@ -132,9 +147,16 @@ const Clients = () => {
         supabase.from("regions").select("id,nom"),
         (supabase as any).from("v_performance_equipes").select("id,nom,type_equipe,clients,hectares,interventions"),
         can("acquisitions.validate") ? (supabase as any).from("clients").select("id,validation_statut,metadata").in("validation_statut", ["a_valider", "modification_demandee"]) : Promise.resolve({ data: [] }),
+        associateBeneficiariesQuery,
       ]);
 
       setSalesPendingValidation((pendingSalesRes?.data || []).filter((client: any) => ["a_valider", "modification_demandee"].includes(String(client.validation_statut || ""))).length);
+      if (associateBeneficiariesRes?.error) {
+        console.warn("Chargement des superficies beneficiaires associes impossible :", associateBeneficiariesRes.error);
+        setFinanceAssociates([]);
+      } else {
+        setFinanceAssociates(associateBeneficiariesRes?.data || []);
+      }
       const plantations = plantationBatches.flatMap((result: any) => result.data || []);
       const attributionsData = attributionBatches.flatMap((result: any) => result.data || []);
       const regionsMap = new Map((regionsRes.data || []).map((r: any) => [r.id, r]));
@@ -145,7 +167,7 @@ const Clients = () => {
         const surfacePlantee = clientPlantations.reduce(
           (sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0
         );
-        const surfaceContractuelle = Number(client.total_hectares ?? client.superficie_ha ?? 0);
+        const surfaceContractuelle = Number(client.metadata?.surface_contractuelle_ha ?? client.total_hectares ?? client.superficie_ha ?? 0);
 
         return {
           ...client,
@@ -185,13 +207,16 @@ const Clients = () => {
             return {
               ...s,
               nombre_plantations: plantations.length,
-              total_hectares: plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0),
+              total_hectares: Number(s.metadata?.surface_contractuelle_ha ?? s.total_hectares ?? s.superficie_ha ?? 0),
+              surface_plantee_ha: plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0),
             };
           });
         setClients(enrichedData);
+        setFinanceAssociates([]);
         toast({ title: "Mode hors ligne", description: "Données locales affichées. Les modifications seront synchronisées au retour du réseau." });
       } else {
         setClients([]);
+        setFinanceAssociates([]);
         toast({
           variant: "destructive",
           title: "Acquisitions indisponibles",
@@ -210,12 +235,21 @@ const Clients = () => {
 
   useRealtime({ table: "clients", onChange: fetchData });
   useRealtime({ table: "plantations", onChange: fetchData });
+  useRealtime({ table: "finance_associates", onChange: fetchData });
 
   const filteredClients = clients.filter((s) =>
     s.id_unique?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.nom_complet?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.telephone?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredAssociateBeneficiaries = acquisitionsView && can("finance.view")
+    ? financeAssociates.filter((associate) =>
+        !normalizedSearch ||
+        String(associate.full_name || "").toLowerCase().includes(normalizedSearch) ||
+        String(associate.telephone || "").toLowerCase().includes(normalizedSearch)
+      )
+    : [];
   const handleStatusChange = async (id: string, newStatus: string) => {
     const client = clients.find(s => s.id === id);
     if (!canEditClient(client)) { toast({variant:"destructive",title:"Action non autorisée",description:"Votre compte ne dispose pas de la permission de modification."}); return; }
@@ -307,7 +341,6 @@ const Clients = () => {
     commercialClients.flatMap((client: any) => (client.plantations || []).map((plantation: any) => plantation.id))
   ).size;
 
-  const clientSurface = (client: any) => Number(client.total_hectares || client.superficie_ha || 0);
   const surfaceBands = [
     { key: "1", label: "1 ha", matches: (ha: number) => ha === 1 },
     { key: "2", label: "2 ha", matches: (ha: number) => ha === 2 },
@@ -454,14 +487,15 @@ const Clients = () => {
                           Chargement...
                         </TableCell>
                       </TableRow>
-                    ) : filteredClients.length === 0 ? (
+                    ) : filteredClients.length === 0 && filteredAssociateBeneficiaries.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={10} className="text-center py-8">
-                          Aucun client trouvé
+                          Aucun dossier trouvé
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredClients.map((client) => (
+                      <>
+                      {filteredClients.map((client) => (
                         <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${String(client.id_unique || "").startsWith("AC_B") ? "bénéficiaire" : "client"} ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate(getRecordPath(client))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(getRecordPath(client)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
@@ -493,7 +527,14 @@ const Clients = () => {
                               {client.nombre_plantations || 0}
                             </Badge>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">{formatHectares(client.total_hectares)} ha</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <div>{formatHectares(clientSurface(client))} ha</div>
+                            {client.metadata?.foncier_a_attribuer_plus_tard && (
+                              <div className="mt-0.5 text-[10px] text-muted-foreground">
+                                {formatHectares(client.metadata?.surface_fonciere_allouee_ha ?? 0)} ha attribué · {formatHectares(client.metadata?.surface_fonciere_restante_ha ?? 0)} ha à attribuer
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="whitespace-nowrap">
                             <Badge className={getStatutBadge(client.statut || client.statut_global) + " whitespace-nowrap"}>
                               {client.statut || client.statut_global || 'actif'}
@@ -550,7 +591,39 @@ const Clients = () => {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
+                      ))}
+                      {filteredAssociateBeneficiaries.map((associate) => (
+                        <TableRow
+                          key={`associate-${associate.id}`}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Ouvrir la comptabilité de l’associé ${associate.full_name}`}
+                          onClick={() => navigate("/finance")}
+                          onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate("/finance"); } }}
+                          className="cursor-pointer bg-muted/20 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1"
+                        >
+                          <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">ASSOCIÉ</TableCell>
+                          <TableCell className="font-medium text-xs whitespace-nowrap">{associate.full_name}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}>
+                            <ContactLauncher phone={associate.telephone} name={associate.full_name || "Associé"} kind="client" status={associate.active ? "actif" : "inactif"} />
+                          </TableCell>
+                          <TableCell><Badge variant="secondary" className="whitespace-nowrap">Associé</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className="whitespace-nowrap">Non facturable</Badge></TableCell>
+                          <TableCell className="text-muted-foreground">—</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <div>{formatHectares(associate.superficie_beneficiaire_ha)} ha</div>
+                            <div className="text-[10px] text-muted-foreground">Surface bénéficiaire</div>
+                          </TableCell>
+                          <TableCell><Badge variant="outline" className="whitespace-nowrap">Actif</Badge></TableCell>
+                          <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
+                            {associate.created_at ? format(new Date(associate.created_at), "dd MMM yyyy", { locale: fr }) : "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
+                            <Button variant="ghost" size="sm" onClick={() => navigate("/finance")}>Voir finance</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      </>
                     )}
                   </TableBody>
                 </Table>
