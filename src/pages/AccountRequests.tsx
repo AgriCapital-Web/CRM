@@ -62,25 +62,13 @@ const AccountRequests = () => {
       if (error || payload?.error) throw new Error(payload?.error || error?.message);
 
       if (actionType === 'approve') {
-        let notificationSummary = "Notification de bienvenue non confirmée.";
-        let smsSent = false;
-        try {
-          const { data: notificationData, error: notificationError } = await supabase.functions.invoke('send-account-approved-notification', {
-            body: {
-              request_id: selectedRequest.id,
-              used_own_password: !payload?.temp_password,
-              temp_password: payload?.temp_password || undefined,
-            },
-          });
-          if (!notificationError && notificationData?.success === true) {
-            smsSent = notificationData?.sms_sent === true;
-            const smsStatus = smsSent ? "SMS de bienvenue envoyé." : "SMS non confirmé.";
-            const emailStatus = notificationData?.email_sent === true ? "E-mail envoyé." : "E-mail non confirmé.";
-            notificationSummary = `${smsStatus} ${emailStatus}`;
-          }
-        } catch (e) {
-          console.error('notification de bienvenue non confirmée', e);
-        }
+        const delivery = payload?.welcome_delivery;
+        const smsSent = delivery?.sms_sent === true;
+        const emailSent = delivery?.email_sent === true;
+        const notificationSummary = [
+          smsSent ? "SMS de bienvenue envoyé." : "SMS non confirmé.",
+          emailSent ? "E-mail envoyé." : "E-mail non confirmé.",
+        ].join(" ");
 
         toast({
           title: "Demande approuvée",
