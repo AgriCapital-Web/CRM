@@ -1455,10 +1455,48 @@ BEGIN
   -- Cela garantit les deux parts 1 ha + 1 ha, même si le trigger de paiement est conditionnel.
   PERFORM public.activate_client_lot_from_lot(v_lot.id,v_client_id,'2026-11-01');
 
+  -- Verrouillage de l'activation partagée : 1 ha pour Paulin et 1 ha pour le bénéficiaire propriétaire.
+  IF EXISTS (SELECT 1 FROM public.plantation_activations WHERE lot_id=v_lot.id) THEN
+    UPDATE public.plantation_activations
+       SET parcelle_id=v_parcelle.id,
+           proprietaire_id='42a884da-f5b8-43d3-954c-95ff09b7d3a9',
+           client_id=v_client_id,
+           surface_client_ha=1,
+           surface_proprietaire_ha=1,
+           statut='active',
+           date_activation='2026-11-01',
+           updated_at=now()
+     WHERE lot_id=v_lot.id;
+  ELSE
+    INSERT INTO public.plantation_activations(
+      lot_id,parcelle_id,proprietaire_id,client_id,
+      surface_client_ha,surface_proprietaire_ha,statut,date_activation,
+      created_by,updated_by
+    )
+    VALUES(
+      v_lot.id,v_parcelle.id,'42a884da-f5b8-43d3-954c-95ff09b7d3a9',v_client_id,
+      1,1,'active','2026-11-01',v_prospect.created_by,v_prospect.created_by
+    );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.clients
+     WHERE id=v_owner_beneficiary_id
+       AND type_client='beneficiaire_particulier'
+       AND proprietaire_id='42a884da-f5b8-43d3-954c-95ff09b7d3a9'
+       AND parcelle_id=v_parcelle.id
+  ) THEN
+    RAISE EXCEPTION 'Le profil CRM de Zongo Boukary n’a pas été requalifié en bénéficiaire particulier.';
+  END IF;
+
   -- Synchronisation explicite de la part propriétaire vers le profil bénéficiaire particulier.
   v_owner_plantation_id:=public.sync_owner_plantation_for_shared_parcel(
     v_parcelle.id,'42a884da-f5b8-43d3-954c-95ff09b7d3a9',NULL
   );
+
+  IF v_owner_plantation_id IS NULL THEN
+    RAISE EXCEPTION 'La synchronisation de la plantation bénéficiaire de Zongo Boukary a renvoyé une référence vide.';
+  END IF;
 
   -- La fonction de synchronisation crée la plantation de Boukary comme bénéficiaire particulier.
   SELECT p.id INTO v_owner_plantation_id
