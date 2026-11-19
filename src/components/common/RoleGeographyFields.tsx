@@ -10,6 +10,17 @@ type Props = { role?: string | null; value: Values; onChange: (value: Values) =>
 // de demande de compte. Les champs parents restent visibles pour pouvoir choisir une
 // région, un département ou une sous-préfecture dans la hiérarchie officielle.
 const normalizeRole = (role?: string | null) => role === "responsable_zone" ? "responsable_district" : String(role || "");
+const FALLBACK_COVERAGE: Record<string, string> = {
+  responsable_district: "district",
+  responsable_commercial: "region",
+  responsable_operations: "region",
+  superviseur_mobilisation_fonciere: "region",
+  chef_equipe_commercial: "departement",
+  chef_equipe_technique: "departement",
+  commercial: "departement",
+  mobilisateur_foncier: "departement",
+  technicien: "departement",
+};
 const levelsForCoverage = (coverage?: string | null): string[] => {
   switch (String(coverage || "").toLowerCase()) {
     case "district": return ["district"];
@@ -45,7 +56,7 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
       if (!active) return;
       if (error) {
         console.error("Impossible de charger le périmètre du rôle", error);
-        setCoverage(null);
+        setCoverage(FALLBACK_COVERAGE[code] || null);
         return;
       }
       setCoverage(data?.niveau_couverture || null);
@@ -64,12 +75,27 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
           (supabase as any).from("v_geo_departements").select("id,nom,region_id").order("nom"),
           (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id").order("nom"),
         ]);
-        if (d.error || r.error || de.error || sp.error) throw d.error || r.error || de.error || sp.error;
         if (!active) return;
-        setDistricts(d.data || []);
-        setRegions(r.data || []);
-        setDepartements(de.data || []);
-        setSousPrefectures(sp.data || []);
+        // Une vue géographique défaillante ne doit pas vider les trois autres listes.
+        const loadRows = async (result: any, table: string, columns: string) => {
+          if (!result.error && Array.isArray(result.data) && result.data.length) return result.data;
+          const fallback = await (supabase as any).from(table).select(columns).order("nom");
+          if (fallback.error) {
+            console.error("Liste géographique indisponible", { table, viewError: result.error?.message, fallbackError: fallback.error.message });
+            return [];
+          }
+          return fallback.data || [];
+        };
+        const [districtRows, regionRows, departmentRows, subPrefectureRows] = await Promise.all([
+          loadRows(d, "districts", "id,nom"),
+          loadRows(r, "regions", "id,nom,district_id"),
+          loadRows(de, "departements", "id,nom,region_id"),
+          loadRows(sp, "sous_prefectures", "id,nom,departement_id"),
+        ]);
+        setDistricts(districtRows);
+        setRegions(regionRows);
+        setDepartements(departmentRows);
+        setSousPrefectures(subPrefectureRows);
       } catch (error) {
         console.error("Chargement des zones actives impossible", error);
         if (active) {
