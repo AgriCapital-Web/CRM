@@ -8,7 +8,7 @@ function generateTempPassword() {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-agricapital-account-secret",
 };
 const json = (p: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(p), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status });
@@ -27,13 +27,32 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
+    step = "parse_body";
+    const body = await req.json();
+    const token = (req.headers.get("Authorization") ?? "").replace("Bearer ", "").trim();
+    const internalHeader = (req.headers.get("x-agricapital-account-secret") ?? "").trim();
+    const { data: expectedInternalSecret, error: internalSecretError } = await admin.rpc("notification_get_internal_secret");
+    const isInternal = !internalSecretError && typeof expectedInternalSecret === "string"
+      && internalHeader.length > 0 && internalHeader === expectedInternalSecret;
+    let callerUserId = "";
+
     step = "auth_caller";
-    const token = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
-    if (!token) return json({ error: "Non authentifié", step, logs }, 401);
-    const { data: caller } = await admin.auth.getUser(token);
-    if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
+    if (isInternal) {
+      callerUserId = String(body?.actor_user_id ?? "").trim();
+      if (!callerUserId) return json({ error: "acteur PDG requis pour l'approbation interne", step, logs }, 400);
+      const { data: actor, error: actorError } = await admin.auth.admin.getUserById(callerUserId);
+      if (actorError || !actor?.user) return json({ error: "Acteur d'approbation introuvable", step, logs }, 401);
+      log(`internal approval requested by authorized actor=${callerUserId}`);
+    } else {
+      if (!token) return json({ error: "Non authentifié", step, logs }, 401);
+      const { data: caller } = await admin.auth.getUser(token);
+      if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
+      callerUserId = callerUserId;
+      log(`caller=${callerUserId}`);
+    }
+
     const { data: canManageRequests, error: permissionError } = await admin.rpc("crm_user_has_app_permission", {
-      _user_id: caller.user.id,
+      _user_id: callerUserId,
       _required_code: "parametres.manage_users",
     });
     if (permissionError) {
@@ -42,10 +61,8 @@ serve(async (req) => {
     if (canManageRequests !== true) {
       return json({ error: "Accès réservé aux utilisateurs autorisés à gérer les comptes.", step, logs }, 403);
     }
-    log(`caller=${caller.user.id}`);
 
-    step = "parse_body";
-    const { request_id, action, role, motif_rejet } = await req.json();
+    const { request_id, action, role, motif_rejet } = body;
     if (!request_id || !action) return json({ error: "request_id et action requis", step, logs }, 400);
     log(`action=${action} request_id=${request_id} role=${role ?? "(défaut)"}`);
 
@@ -74,7 +91,7 @@ serve(async (req) => {
       const { error } = await admin.from("account_requests").update({
         statut: "rejete",
         motif_rejet: motif_rejet ?? null,
-        traite_par: caller.user.id,
+        traite_par: callerUserId,
         traite_le: new Date().toISOString(),
       }).eq("id", request_id);
       if (error) return json({ error: error.message, step, logs }, 400);
@@ -109,14 +126,14 @@ serve(async (req) => {
     if (!roleRecord) return json({ error: `Le rôle choisi n'existe pas ou n'est pas actif: ${finalRole}`, step, logs }, 400);
 
     const { data: canAssignRole, error: assignRolePermissionError } = await admin.rpc("user_can_assign_app_role", {
-      p_actor_user_id: caller.user.id,
+      p_actor_user_id: callerUserId,
       p_role_code: finalRole,
     });
     if (assignRolePermissionError) return json({ error: "Vérification du rôle attribuable impossible.", step, logs }, 500);
     if (canAssignRole !== true) return json({ error: "Ce rôle ne peut pas être attribué par votre compte.", step, logs }, 403);
 
     const { data: canCreateAccount, error: createPermissionError } = await admin.rpc("user_can_manage_admin_action", {
-      p_actor_user_id: caller.user.id,
+      p_actor_user_id: callerUserId,
       p_target_user_id: reqRow.auth_user_id || null,
       p_action: "create_user",
     });
@@ -194,7 +211,7 @@ serve(async (req) => {
     if (linkedProfile) {
       const { data: syncedProfileId, error: profileSyncError } = await admin.rpc("admin_sync_account_request_profile", {
         p_request_id: request_id,
-        p_actor_user_id: caller.user.id,
+        p_actor_user_id: callerUserId,
       });
       if (profileSyncError || !syncedProfileId) {
         return json({ error: `Synchronisation du profil: ${profileSyncError?.message ?? "profil non synchronisé"}`, step, logs }, 400);
@@ -208,7 +225,7 @@ serve(async (req) => {
     const { data: activationRows, error: activationError } = await admin.rpc("admin_set_profile_active_authorized", {
       p_user_id: userId,
       p_actif: true,
-      p_actor_user_id: caller.user.id,
+      p_actor_user_id: callerUserId,
     });
     if (activationError) return json({ error: `Activation du profil: ${activationError.message}`, step, logs }, 400);
     const activeProfile = (activationRows ?? []).find((p: any) => p.user_id === userId || p.profile_id === userId);
@@ -221,7 +238,7 @@ serve(async (req) => {
       p_user_id: userId,
       p_roles: [finalRole],
       p_primary_role: finalRole,
-      p_actor_user_id: caller.user.id,
+      p_actor_user_id: callerUserId,
     });
     if (roleErr) return json({ error: `Attribution du rôle impossible: ${roleErr.message}`, step, logs }, 400);
 
@@ -240,7 +257,7 @@ serve(async (req) => {
       statut: "approuve",
       auth_user_id: userId,
       role_souhaite: finalRole,
-      traite_par: caller.user.id,
+      traite_par: callerUserId,
       traite_le: new Date().toISOString(),
     }).eq("id", request_id).select("id,statut,auth_user_id").maybeSingle();
     if (updErr) return json({ error: updErr.message, step, logs }, 400);
@@ -275,7 +292,45 @@ serve(async (req) => {
       else welcomeNotificationCreated = true;
     }
 
-    return json({ success: true, user_id: userId, role: finalRole, roles: assigned, actif: finalProfile.actif, request_status: updatedRequest.statut, temp_password: tempPassword, welcome_notification_created: welcomeNotificationCreated, logs });
+    step = "welcome_dispatch";
+    let welcomeDelivery: Record<string, unknown> | null = null;
+    try {
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const notifyResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-account-approved-notification`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          request_id,
+          used_own_password: !tempPassword,
+          temp_password: tempPassword ?? undefined,
+        }),
+      });
+      welcomeDelivery = await notifyResponse.json().catch(() => ({ success: false, error: "Réponse de notification illisible" }));
+      if (!notifyResponse.ok || welcomeDelivery?.success !== true) {
+        log(`bienvenue non confirmée: ${String(welcomeDelivery?.error ?? notifyResponse.status)}`);
+      } else {
+        log(`bienvenue distribuée: SMS=${String(welcomeDelivery?.sms_sent)} email=${String(welcomeDelivery?.email_sent)}`);
+      }
+    } catch (dispatchError) {
+      log(`échec de distribution bienvenue: ${(dispatchError as Error).message}`);
+    }
+
+    return json({
+      success: true,
+      user_id: userId,
+      role: finalRole,
+      roles: assigned,
+      actif: finalProfile.actif,
+      request_status: updatedRequest.statut,
+      temp_password: tempPassword,
+      welcome_notification_created: welcomeNotificationCreated,
+      welcome_delivery: welcomeDelivery,
+      logs,
+    });
   } catch (e) {
     console.error("approve-account-request error", step, e);
     return json({ error: (e as Error).message, step, logs }, 500);
