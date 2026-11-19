@@ -240,6 +240,14 @@ ON public.acquisitions
 FOR EACH ROW
 EXECUTE FUNCTION public.validate_client_acquisition_foncier();
 
+-- Un propriétaire peut être associé à plusieurs clients PalmInvest.
+-- L'unicité ne concerne que son profil portail propriétaire/bénéficiaire, pas les souscripteurs.
+DROP INDEX IF EXISTS public.uq_clients_proprietaire_portal;
+CREATE UNIQUE INDEX uq_clients_proprietaire_portal
+  ON public.clients USING btree (proprietaire_id)
+  WHERE proprietaire_id IS NOT NULL
+    AND type_client IN ('proprietaire_foncier','beneficiaire_particulier');
+
 CREATE OR REPLACE FUNCTION public.sync_owner_plantation_for_shared_parcel(
   p_parcelle_id uuid,
   p_proprietaire_id uuid,
