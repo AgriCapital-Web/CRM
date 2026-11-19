@@ -53,13 +53,13 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 - Les deux plantations peuvent générer chacune une commission technique de 5 000 FCFA lorsque la grille active le prévoit.
 - Les fonctions de synchronisation doivent reconnaître le profil propriétaire bénéficiaire et éviter les doublons.
 
-### 3.3 Convention foncière en attente
+### 3.3 Convention foncière et validation métier
 
-- L'absence de convention active ne doit pas empêcher de rattacher une plantation et une activation partagée lorsque le propriétaire, la parcelle et le lot sont correctement identifiés et que la direction a demandé de compléter la convention ultérieurement.
-- Dans ce cas, l'acquisition reste `statut='souscrite'`, `validation_statut='a_valider'`, avec `metadata.foncier_convention_en_attente=true`.
-- La plantation et le paiement réellement confirmés peuvent être actifs/valides ; cela ne valide pas la convention ni l'acquisition foncière.
+- Consigne explicite du PDG du 19/11/2026 : l'absence de convention active ne doit plus bloquer la validation métier d'une acquisition lorsque le lot, la parcelle, le propriétaire et la quote-part sont correctement identifiés.
+- Le trigger `validate_client_acquisition_foncier` continue de contrôler le lot cible, son rattachement à la parcelle, la quote-part AgriCapital, le propriétaire partenaire et la superficie PalmInvest. Lorsque `validation_statut='valide'`, il autorise l'acquisition à passer à `statut='active'`, même si `metadata.foncier_convention_en_attente=true`.
+- La validation de l'acquisition ne vaut pas création ni validation juridique de la convention. Le drapeau `foncier_convention_en_attente` reste conservé pour la traçabilité jusqu'au rattachement réel de la convention par la direction.
 - Ne jamais créer une convention fictive, réutiliser celle d'une autre parcelle ou inventer une référence/date de signature.
-- Pour finaliser après la mise à jour manuelle de la convention, celle-ci doit être active et liée au bon propriétaire et à la bonne parcelle. Le même identifiant de convention doit être renseigné sur `parcelles.convention_id` et `lots_hectares.convention_id`. Ensuite, enlever le drapeau d'attente et passer l'acquisition à active/valide par une mise à jour normale : le trigger `validate_client_acquisition_foncier` revérifie le lot et la convention.
+- La convention peut être ajoutée ultérieurement sur la bonne parcelle et les bons lots, sans revenir sur la validation métier déjà effectuée.
 - La fonction `sync_palminvest_lot_activation` doit accepter une plantation client de 1 ha et créer/synchroniser séparément la quote-part propriétaire de 1 ha. Elle ne doit pas exiger que la ligne de plantation du client fasse 2 ha.
 - Ne pas inférer que les étapes antérieures (validation parcelle, défrichage, piquetage, trouaison) ont été réalisées à la date de mise en terre. N'enregistrer que les dates réellement connues.
 
@@ -112,7 +112,7 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 ### 4.4 Plantations, activation et intervention
 
 - Acquisition Paulin : `39be445f-e724-45fa-9770-d779c5dda280`.
-- L'acquisition reste souscrite et à valider tant que la convention active n'est pas liée à la parcelle et au lot. Son étape technique est `mise_en_terre_realisee`.
+- L'acquisition a été validée par le PDG le 19/11/2026 : `statut='active'`, `validation_statut='valide'`. Le drapeau `metadata.foncier_convention_en_attente=true` reste conservé ; la convention sera rattachée par la direction ultérieurement. L'étape technique reste `mise_en_terre_realisee`.
 - Activation partagée : `81f51e7b-f823-445d-b6e2-268d1ae87d8d`, 1 ha client + 1 ha propriétaire.
 - Plantation Paulin : `e41f2484-dcca-4fce-9ea9-27fb33a7d109`, 1 ha, statut base `actif`, mise en terre le 03/11/2026.
 - Plantation bénéficiaire particulier Zongo : `26c684b3-178a-40d5-9c2b-4eedd9de3b45`, 1 ha, statut base `active`, mise en terre le 03/11/2026.
@@ -154,21 +154,20 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 
 ### KONAN Yao Lambert
 
-- Lead existant à convertir sans doublon ; aucun prospect/client confirmé au dernier contrôle.
-- 0,5 ha PalmTerroir Flexible ; inscription 27/09/2026 ; paiement 34 000 FCFA le 28/09/2026 ; mise en terre 30/09/2026.
-- Tarif initial catalogue : 65 000 FCFA/ha, soit 32 500 FCFA pour 0,5 ha.
-- Mensualité 6 300 FCFA ; 36 mois ; total 259 300 FCFA.
-- Trop-perçu 1 500 FCFA : crédit de 7 jours (1 470 FCFA) et reliquat de 30 FCFA à conserver dans un registre de crédit auditable. Ne pas créer une deuxième recette.
-- Ne pas précréer une parcelle ; l'intervention technique crée la parcelle/plantation automatiquement. Ne pas utiliser le domicile comme localisation foncière.
+- Client créé et validé : `ecbe72e6-171e-4b78-923a-31b34e6f53bc`. Acquisition : `ee3c5707-77dc-43c9-81ef-83ba52e90d61`, active et validée. Lead source `51f06de0-1d5b-4195-9bc6-48f17859b377` converti et relié au client.
+- 0,5 ha PalmTerroir Flexible (+) ; inscription 27/09/2026 ; paiement 34 000 FCFA le 28/09/2026 ; mise en terre déclarée le 30/09/2026.
+- Tarif initial contractuel : 65 000 FCFA/ha, soit 32 500 FCFA pour 0,5 ha ; mensualité 6 300 FCFA pendant 36 mois ; total 259 300 FCFA.
+- Paiement initial validé : `10573e6b-bab9-42ed-9165-22214eb52e7d`, 34 000 FCFA ; mode et référence laissés nuls car non communiqués.
+- Trop-perçu de 1 500 FCFA conservé dans un mouvement de crédit unique : 7 jours (1 470 FCFA) et reliquat de 30 FCFA. Aucun second encaissement créé.
+- Aucune parcelle n'a été précréée ; la localisation foncière reste à renseigner par le workflow technique. Le champ `compte_actif` reste faux car aucun compte portail Auth n'est rattaché ; la fiche client et l'acquisition sont validées.
 
 ### KOUASSI KOUADIO Patrice
 
-- 1,5 ha PalmTerroir personnalisé ; paiement initial reçu : 30 000 FCFA le 07/11/2026 ; inscription 06/11/2026 ; mise en terre 09/11/2026.
-- Initial attendu : 52 500 FCFA ; solde initial : 22 500 FCFA.
-- Mensualité 10 000 FCFA pendant 36 mois ; total 412 500 FCFA.
-- Appliquer le tarif personnalisé au seul dossier client, sans modifier le catalogue commun.
-- Pas de lead/prospect trouvé au dernier contrôle ; téléphone connu dans le contexte projet. Aucune localité foncière confirmée. Ne pas en inventer.
-- Ne pas précréer la parcelle ; laisser le workflow d'intervention la créer.
+- Client créé et validé : `31748f03-e2a2-4e17-8609-87b51a9d4b02`. Acquisition : `081648b8-1d31-488c-9317-5b018f4d8efb`, active et validée.
+- 1,5 ha PalmTerroir personnalisé ; inscription 06/11/2026 ; mise en terre déclarée le 09/11/2026.
+- Initial attendu : 52 500 FCFA ; paiement partiel validé : `9b7ee7df-6efd-4236-96b9-8feac55aed12`, 30 000 FCFA le 07/11/2026 ; solde initial : 22 500 FCFA. Mode et référence laissés nuls.
+- Mensualité 10 000 FCFA pendant 36 mois ; total 412 500 FCFA. Le tarif personnalisé est enregistré au niveau du client et de son acquisition uniquement ; le catalogue commun n'a pas été modifié.
+- Aucune parcelle n'a été précréée ; aucune localité foncière n'est inventée. Le champ `compte_actif` reste faux car aucun compte portail Auth n'est rattaché ; la fiche client et l'acquisition sont validées.
 
 ### Jacques KOUAKOU KOUAME
 
@@ -191,6 +190,24 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 - Commits des migrations : `8b88a541154c53336587f184ca73d315286c3814` et `0a78e918e0406a4ee2ef81643b58aca9f0c9abe8`.
 - Le commit de documentation et l'état du déploiement Vercel doivent être ajoutés ici après création de la présente feuille de route et du commit correspondant.
 - Le seul élément foncier restant sur Paulin est le rattachement de la convention active par la direction. Ne pas fermer ce point avant vérification de `parcelles.convention_id`, `lots_hectares.convention_id`, du statut de la convention et de la validation de l'acquisition.
+
+### Réconciliation clients et acquisitions — 19/11/2026
+
+- Les 11 fiches clients déjà présentes ont été contrôlées : elles portent `validation_statut='valide'`.
+- KONAN Yao Lambert et KOUASSI KOUADIO Patrice ont été enregistrés comme clients, chacun avec son acquisition PalmTerroir active et validée ; le lead de Yao Lambert est converti et relié au client.
+- Les paiements initiaux confirmés ont été inscrits dans `paiements` et synchronisés au registre financier. Le crédit de trop-perçu de Yao Lambert est auditable. Les modes de paiement et références non communiqués restent nuls.
+- L'acquisition Paulin est désormais active et validée par le PDG sans convention active, conformément à la nouvelle consigne. Le drapeau d'attente foncière reste présent pour la traçabilité.
+- DJAHA KOUAME reste un prospect PalmInvest de 2 ha : aucune parcelle/lot ne lui a été affecté et aucun paiement n'est enregistré faute de date de réception. Ne pas le convertir en acquisition sans allocation foncière confirmée.
+- Migrations Supabase appliquées : `20261119191000_allow_authorized_acquisition_validation_without_active_convention`, `20261119192000_validate_paulin_acquisition_without_active_convention`, `20261119193000_register_and_validate_yao_lambert_and_patrice`, `20261119194000_add_authorized_account_request_profile_sync`, `20261119195000_align_boty_account_request_role_and_phone`.
+
+### Comptes utilisateurs et bienvenue automatique — 19/11/2026
+
+- BOTI BI TRA JULES : profil `bc0da3ca-97c4-49c5-886d-4312590c4615`, demande `ba094701-7134-4c8f-b6fb-56e0b4c659d3`, rôle attribué `chef_equipe_commercial`, poste harmonisé « Chef d’équipe commerciale », téléphone synchronisé `+2250703537932`.
+- Le profil est marqué actif, mais la demande reste `en_attente` et `auth.users.email_confirmed_at` est nul. Le compte n'est donc pas encore prêt à se connecter. L'approbation doit passer par la fonction Auth sécurisée `approve-account-request`, qui confirme l'e-mail, active le profil, persiste le rôle et clôture la demande. Ne pas modifier directement `auth.users` par SQL.
+- La RPC sécurisée `admin_sync_account_request_profile` permet à la fonction d'approbation de synchroniser le téléphone et le poste malgré le trigger de protection du profil ; elle vérifie la permission `parametres.manage_users` et est réservée au service role.
+- Après approbation, la fonction crée une notification interne `account_welcome` dédupliquée et la fonction `send-account-approved-notification` envoie le SMS de bienvenue via Senndo. Le SMS contient le nom complet et reste limité à 150 caractères.
+- SMS BOTI BI TRA JULES : « BOTI BI TRA JULES, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login » (113 caractères).
+- Le bouton d'approbation de `AccountRequests.tsx` affiche maintenant le résultat réel de l'envoi SMS/e-mail. Après le déploiement, le PDG devra relancer l'action « Approuver » sur la demande encore en attente ; cette action finalisera la confirmation Auth et déclenchera le SMS. Aucun SMS n'est prétendu envoyé avant cette approbation.
 
 ### Modèle obligatoire pour chaque nouvelle tâche terminée
 
