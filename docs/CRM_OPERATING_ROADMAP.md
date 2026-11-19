@@ -212,10 +212,10 @@ Ne pas confondre le projet Supabase CRM avec le projet distinct `sxsolthkxfavimi
 
 ### Déploiement et contrôles de la tâche — 19/11/2026, 16:22 UTC
 
-- Commit GitHub : `4f87799d4c12ad70cc40d79c30f59151436fdb62` — validation des acquisitions, enregistrement des deux dossiers PalmTerroir, synchronisation sécurisée du profil et automatisation des messages de bienvenue.
-- Déploiement Vercel production : `dpl_2ijqJfVqUXXa9pXgV5U3UHKFPtNb`, état **READY**, commit exact `4f87799d4c12ad70cc40d79c30f59151436fdb62`, alias `https://app.agricapital.ci`.
+- Commit GitHub final : `2f3213d9386d5900d13c6fd73edfe78d142810a1` — le commit `4f87799d4c12ad70cc40d79c30f59151436fdb62` contient les migrations métier ; les commits `216fbce5344e36564c881d95c90070d5ca2e4234`, `52a541e764c083f3ab9e6a8d275b919d8a592f0f` et `2f3213d9386d5900d13c6fd73edfe78d142810a1` ajoutent respectivement l'approbation sécurisée, le SMS/e-mail et le retour d'état dans l'interface.
+- Déploiement Vercel production final : `dpl_GQ3RhoqMr5Ux7QXEVP23oYBt9hEi`, état **READY**, commit exact `2f3213d9386d5900d13c6fd73edfe78d142810a1`, alias `https://app.agricapital.ci`.
 - Contrôle HTTP de `https://app.agricapital.ci` : **200 OK**.
-- Edge Function `approve-account-request` déployée active, version 125. Edge Function `send-account-approved-notification` déployée active, version 41.
+- Edge Function `approve-account-request` déployée active, version 126. Edge Function `send-account-approved-notification` déployée active, version 43.
 - Le bouton d'approbation utilise maintenant la RPC `admin_sync_account_request_profile` pour synchroniser le téléphone et le poste sans contourner le trigger de protection ; l'approbation confirme l'adresse Auth, active le profil, attribue le rôle, crée une notification interne dédupliquée et appelle le service de bienvenue.
 - Le SMS de bienvenue est construit avec le nom complet, contrôlé à 150 caractères maximum et envoyé avec une clé d'idempotence. L'interface affiche le résultat réel de l'envoi SMS et e-mail.
 - BOTI BI TRA JULES : rôle `chef_equipe_commercial`, poste « Chef d’équipe commerciale », téléphone `+2250703537932`, profil actif. La demande reste toutefois `en_attente` et `email_confirmed_at` est nul ; le clic d'approbation antérieur n'a donc pas terminé le workflow Auth. Après déploiement, le PDG doit relancer une seule fois « Approuver » sur cette demande pour finaliser la confirmation Auth et déclencher le SMS. Aucun SMS n'a été envoyé ni déclaré envoyé avant cette étape.
