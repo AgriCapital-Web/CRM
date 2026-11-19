@@ -317,6 +317,8 @@ BEGIN
   v_plant_count:=CASE WHEN v_density IS NOT NULL THEN round(v_surface*v_density)::integer ELSE NULL END;
 
   IF v_surface<=0 THEN
+    RAISE EXCEPTION 'SYNC_OWNER_DEBUG owner_client_id=%, surface=%, proprietor_id=%, parcel_id=%',
+      v_owner_client_id,v_surface,p_proprietaire_id,p_parcelle_id;
     UPDATE public.plantations
        SET superficie_ha=0,
            superficie_activee=0,
