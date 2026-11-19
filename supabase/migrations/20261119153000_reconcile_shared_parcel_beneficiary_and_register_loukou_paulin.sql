@@ -306,6 +306,12 @@ BEGIN
      AND proprietaire_id=p_proprietaire_id
      AND statut='active';
 
+  -- Le profil bénéficiaire propriétaire porte la surface individuelle attribuée;
+  -- il permet de maintenir la plantation même si une ancienne activation manque.
+  IF v_owner_client_id IS NOT NULL THEN
+    v_surface:=greatest(v_surface,coalesce(v_owner_client.total_hectares,0));
+  END IF;
+
   v_density:=coalesce(nullif(v_parcelle.plantation_densite_plants,0),143);
   v_plantation_date:=coalesce(v_parcelle.plantation_date_activation,current_date);
   v_plant_count:=CASE WHEN v_density IS NOT NULL THEN round(v_surface*v_density)::integer ELSE NULL END;
@@ -502,6 +508,224 @@ BEGIN
      AND statut='active';
 
   RETURN v_owner_plantation_id;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.sync_palminvest_lot_activation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_formula text;
+  v_parcelle public.parcelles%rowtype;
+  v_client public.clients%rowtype;
+  v_acquisition public.acquisitions%rowtype;
+  v_pending_foncier boolean := false;
+  v_units integer;
+  v_lot record;
+  v_activation uuid;
+  v_existing public.plantation_activations%rowtype;
+  v_done integer := 0;
+  v_available integer := 0;
+BEGIN
+  IF NEW.client_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT * INTO v_client FROM public.clients WHERE id=NEW.client_id;
+  IF NOT FOUND THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.acquisition_id IS NOT NULL THEN
+    SELECT * INTO v_acquisition
+      FROM public.acquisitions
+     WHERE id=NEW.acquisition_id
+       AND client_id=NEW.client_id;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Souscription PalmInvest introuvable pour la plantation.';
+    END IF;
+
+    v_formula:=upper(coalesce(v_acquisition.formule_code,''));
+    v_pending_foncier:=coalesce((v_acquisition.metadata->>'foncier_convention_en_attente')::boolean,false);
+
+    IF v_pending_foncier AND (
+      v_acquisition.statut<>'souscrite'
+      OR v_acquisition.validation_statut<>'a_valider'
+    ) THEN
+      RAISE EXCEPTION 'Une plantation PalmInvest sans convention active doit rester souscrite et à valider.';
+    END IF;
+
+    IF v_acquisition.lot_id IS DISTINCT FROM NEW.lot_id
+       OR v_acquisition.parcelle_id IS DISTINCT FROM NEW.parcelle_id THEN
+      RAISE EXCEPTION 'Le lot et la parcelle de la plantation ne correspondent pas à la souscription.';
+    END IF;
+  ELSE
+    v_formula:=upper(coalesce(v_client.formule_code,''));
+  END IF;
+
+  IF coalesce(v_formula,'') NOT LIKE 'PALMINVEST%' OR NEW.parcelle_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT * INTO v_parcelle FROM public.parcelles WHERE id=NEW.parcelle_id;
+  IF NOT FOUND OR NOT coalesce(v_parcelle.plantation_partagee_activee,false) THEN
+    RAISE EXCEPTION 'La plantation PalmInvest doit être rattachée à une parcelle partagée activée.';
+  END IF;
+  IF v_parcelle.proprietaire_id IS NULL THEN
+    RAISE EXCEPTION 'La parcelle de plantation partagée doit être liée à un propriétaire foncier validé.';
+  END IF;
+
+  IF (v_parcelle.convention_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.conventions_foncieres cf
+     WHERE cf.id=v_parcelle.convention_id
+       AND cf.parcelle_id=v_parcelle.id
+       AND cf.proprietaire_id=v_parcelle.proprietaire_id
+       AND cf.statut='active'
+  )) AND NOT v_pending_foncier THEN
+    RAISE EXCEPTION 'La plantation PalmInvest doit dépendre d’une convention foncière active ou d’une souscription explicitement en attente de convention.';
+  END IF;
+
+  -- Une plantation client PalmInvest représente sa quote-part de 1 ha.
+  -- La plantation propriétaire de 1 ha est gérée séparément par l'activation partagée.
+  IF coalesce(NEW.superficie_ha,0)<=0
+     OR abs(NEW.superficie_ha-round(NEW.superficie_ha))>0.000001 THEN
+    RAISE EXCEPTION 'La superficie de plantation PalmInvest doit être un nombre entier d’hectares.';
+  END IF;
+
+  v_units:=round(NEW.superficie_ha)::integer;
+  IF v_units<=0 THEN
+    RAISE EXCEPTION 'Superficie PalmInvest invalide pour une activation partagée.';
+  END IF;
+
+  IF NEW.acquisition_id IS NOT NULL THEN
+    SELECT count(*)::integer
+      INTO v_available
+      FROM public.acquisition_lots al
+      JOIN public.lots_hectares lh ON lh.id=al.lot_id
+     WHERE al.acquisition_id=NEW.acquisition_id
+       AND al.client_id=NEW.client_id
+       AND lh.parcelle_id=NEW.parcelle_id
+       AND coalesce(lh.part_type,'agricapital')='agricapital'
+       AND abs(coalesce(al.surface_ha,lh.surface_ha,0)-1)<0.0001;
+
+    IF v_available<>v_units THEN
+      RAISE EXCEPTION 'L’acquisition PalmInvest doit avoir exactement % lot(s) AgriCapital de 1 ha associé(s); % trouvé(s).',v_units,v_available;
+    END IF;
+  ELSE
+    SELECT count(*)::integer INTO v_available
+      FROM (
+        SELECT lh.id
+          FROM public.lots_hectares lh
+         WHERE lh.parcelle_id=NEW.parcelle_id
+           AND coalesce(lh.part_type,'agricapital')='agricapital'
+           AND lh.client_id=NEW.client_id
+           AND lh.surface_ha=1
+         ORDER BY lh.numero_h
+         LIMIT v_units
+      ) available_lots;
+
+    IF v_available<>v_units THEN
+      RAISE EXCEPTION 'Nombre de lots AgriCapital de 1 ha insuffisant : % requis, % trouvé(s).',v_units,v_available;
+    END IF;
+  END IF;
+
+  FOR v_lot IN
+    SELECT lh.*
+      FROM public.lots_hectares lh
+     WHERE lh.parcelle_id=NEW.parcelle_id
+       AND coalesce(lh.part_type,'agricapital')='agricapital'
+       AND (
+         (
+           NEW.acquisition_id IS NOT NULL
+           AND EXISTS (
+             SELECT 1 FROM public.acquisition_lots al
+              WHERE al.lot_id=lh.id
+                AND al.acquisition_id=NEW.acquisition_id
+                AND al.client_id=NEW.client_id
+                AND abs(coalesce(al.surface_ha,lh.surface_ha,0)-1)<0.0001
+           )
+         )
+         OR (
+           NEW.acquisition_id IS NULL
+           AND lh.client_id=NEW.client_id
+           AND lh.surface_ha=1
+         )
+       )
+     ORDER BY lh.numero_h
+     LIMIT v_units
+     FOR UPDATE OF lh
+  LOOP
+    v_activation:=NULL;
+
+    SELECT * INTO v_existing
+      FROM public.plantation_activations
+     WHERE lot_id=v_lot.id
+     FOR UPDATE;
+
+    IF FOUND THEN
+      IF v_existing.client_id IS DISTINCT FROM NEW.client_id
+         OR v_existing.parcelle_id IS DISTINCT FROM NEW.parcelle_id
+         OR v_existing.proprietaire_id IS DISTINCT FROM v_parcelle.proprietaire_id THEN
+        RAISE EXCEPTION 'Le lot % possède déjà une activation incompatible.',v_lot.reference;
+      END IF;
+      v_activation:=v_existing.id;
+    ELSE
+      INSERT INTO public.plantation_activations(
+        lot_id,parcelle_id,proprietaire_id,client_id,
+        surface_client_ha,surface_proprietaire_ha,
+        statut,date_activation,notes,created_by
+      )
+      VALUES(
+        v_lot.id,NEW.parcelle_id,v_parcelle.proprietaire_id,NEW.client_id,
+        1,1,'active',coalesce(NEW.date_activation::date,current_date),
+        'Activation partagée PalmInvest : 1 ha client et 1 ha bénéficiaire propriétaire, sans offre ni échéancier propriétaire.',
+        NEW.created_by
+      )
+      ON CONFLICT (lot_id) DO NOTHING
+      RETURNING id INTO v_activation;
+
+      IF v_activation IS NULL THEN
+        SELECT * INTO v_existing
+          FROM public.plantation_activations
+         WHERE lot_id=v_lot.id
+         FOR UPDATE;
+        IF v_existing.id IS NULL
+           OR v_existing.client_id IS DISTINCT FROM NEW.client_id
+           OR v_existing.parcelle_id IS DISTINCT FROM NEW.parcelle_id
+           OR v_existing.proprietaire_id IS DISTINCT FROM v_parcelle.proprietaire_id THEN
+          RAISE EXCEPTION 'Conflit d’activation sur le lot %; attribution interrompue.',v_lot.reference;
+        END IF;
+        v_activation:=v_existing.id;
+      END IF;
+    END IF;
+
+    UPDATE public.lots_hectares
+       SET client_id=NEW.client_id,
+           acquisition_id=coalesce(NEW.acquisition_id,acquisition_id),
+           statut='attribue',
+           date_attribution=coalesce(date_attribution,current_date),
+           notes=concat_ws(' ',notes,'Activation PalmInvest liée à une parcelle partagée.')
+     WHERE id=v_lot.id;
+
+    v_done:=v_done+1;
+    IF v_done=1 AND NEW.activation_id IS NULL THEN
+      NEW.activation_id:=v_activation;
+    END IF;
+  END LOOP;
+
+  IF v_done<>v_units THEN
+    RAISE EXCEPTION 'Activation PalmInvest incomplète : % lot(s) requis, % traité(s).',v_units,v_done;
+  END IF;
+
+  PERFORM public.sync_owner_plantation_for_shared_parcel(
+    NEW.parcelle_id,v_parcelle.proprietaire_id,coalesce(NEW.updated_by,NEW.created_by)
+  );
+
+  RETURN NEW;
 END;
 $function$;
 
