@@ -142,9 +142,10 @@ const Clients = () => {
       const enrichedData = (baseClients || []).map((client: any) => {
         const clientPlantations = plantations.filter((p: any) => p.client_id === client.id);
         const clientAttributions = attributionsData.filter((a: any) => a.client_id === client.id);
-        const totalHectares = clientAttributions.length
-          ? clientAttributions.reduce((sum: number, a: any) => sum + Number(a.surface_attribuee_ha || 0), 0)
-          : clientPlantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0);
+        const surfacePlantee = clientPlantations.reduce(
+          (sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0
+        );
+        const surfaceContractuelle = Number(client.total_hectares ?? client.superficie_ha ?? 0);
 
         return {
           ...client,
@@ -155,7 +156,9 @@ const Clients = () => {
           nombre_plantations: clientAttributions.length
             ? new Set(clientAttributions.map((a: any) => a.plantation_id).filter(Boolean)).size || clientAttributions.length
             : clientPlantations.length,
-          total_hectares: totalHectares,
+          // Conserver la surface contractuelle pour Acquisition; afficher séparément la surface réellement plantée.
+          total_hectares: surfaceContractuelle,
+          surface_plantee_ha: surfacePlantee,
         };
       });
 
@@ -294,6 +297,8 @@ const Clients = () => {
   const commercialClientIds = new Set(commercialClients.map((c: any) => c.id));
   // Un dossier sans ligne plantation est le seul considéré comme non planté; une plantation enregistrée à 0 ha reste à vérifier techniquement.
   const clientsNotYetPlanted = commercialClients.filter((c: any) => !(c.plantations || []).length).length;
+  const superficieNonPlantee = commercialClients.reduce((sum: number, client: any) =>
+    sum + Math.max(0, clientSurface(client) - Number(client.surface_plantee_ha || 0)), 0);
   const commercialPlantationCount = new Set(
     commercialClients.flatMap((client: any) => (client.plantations || []).map((plantation: any) => plantation.id))
   ).size;
@@ -321,7 +326,8 @@ const Clients = () => {
     total: commercialClients.length,
     actifs: commercialClients.filter(s => s.statut === "actif" || s.statut_global === "actif").length,
     inactifs: commercialClients.filter(s => s.statut === "inactif" || s.statut === "suspendu" || s.statut === "archive").length,
-    totalHectares: commercialClients.reduce((sum, s) => sum + Number(s.total_hectares || s.superficie_ha || 0), 0),
+    totalHectares: commercialClients.reduce((sum, s) => sum + clientSurface(s), 0),
+    superficieNonPlantee,
     plantations: commercialPlantationCount,
     clientsOfficiels,
     salesPendingValidation,
@@ -369,12 +375,13 @@ const Clients = () => {
             <Link to="/acquisitions/prestations-independantes" className="inline-flex h-9 items-center justify-center rounded-md border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary hover:bg-primary/10">Prestations indépendantes</Link>
           </div>
 
-          <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Dossiers</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Clients commerciaux</p></CardContent></Card>
+          <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Clients</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.total}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Clients commerciaux</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Actifs</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.actifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statut actif</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Inactifs / suspendus</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{stats.inactifs}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Statuts inactifs</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Superficie totale</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.totalHectares)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Sans double comptage</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Clients non plantés</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight">{clientsNotYetPlanted}</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Aucune plantation enregistrée</p></CardContent></Card>
+            <Card className="min-w-0"><CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-medium text-muted-foreground leading-tight">Superficie non plantée</CardTitle></CardHeader><CardContent className="p-3 pt-0"><div className="text-xl font-bold leading-tight whitespace-nowrap">{formatHectares(stats.superficieNonPlantee)} ha</div><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Surface contractuelle restante</p></CardContent></Card>
           </div>
 
 
@@ -425,7 +432,7 @@ const Clients = () => {
                 <Table className="responsive-data-table min-w-[1500px] text-xs">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="whitespace-nowrap px-2 py-2">Identifiant dossier</TableHead>
+                      <TableHead className="whitespace-nowrap px-2 py-2">Identifiant client</TableHead>
                       <TableHead className="whitespace-nowrap px-2 py-2">Nom complet</TableHead>
                       <TableHead className="whitespace-nowrap px-2 py-2">Téléphone</TableHead>
                       <TableHead className="whitespace-nowrap px-2 py-2">Type / rôle</TableHead>
@@ -447,7 +454,7 @@ const Clients = () => {
                     ) : filteredClients.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={10} className="text-center py-8">
-                          Aucun dossier trouvé
+                          Aucun client trouvé
                         </TableCell>
                       </TableRow>
                     ) : (
