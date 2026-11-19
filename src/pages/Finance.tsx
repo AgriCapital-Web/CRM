@@ -83,7 +83,8 @@ export default function Finance(){
   const [associates,setAssociates]=useState<any[]>([]);
   const [associateMovements,setAssociateMovements]=useState<any[]>([]);
   const [associateMovementOpen,setAssociateMovementOpen]=useState(false);
-  const [associateMovement,setAssociateMovement]=useState({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:"",method:"mobile_money",withoutFees:false});
+  const [associateMovement,setAssociateMovement]=useState({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",referenceAsFile:false,notes:"",method:"mobile_money",withoutFees:false});
+  const [associateMovementProof,setAssociateMovementProof]=useState<File|null>(null);
   const [plannedExpenseOpen,setPlannedExpenseOpen]=useState(false);
   const [plannedInternalUserPickerOpen,setPlannedInternalUserPickerOpen]=useState(false);
   const [tableSearch,setTableSearch]=useState("");
@@ -171,7 +172,7 @@ export default function Finance(){
         (supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}),
         (supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id,amount,gross_amount,paid_at,payment_method,proof_path,proof_name)").order("created_at",{ascending:false}),
         (supabase as any).from("finance_associates").select("*").order("full_name"),
-        (supabase as any).from("finance_associate_transactions").select("id,associate_id,transaction_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name)").order("created_at",{ascending:false}),
+        (supabase as any).from("finance_associate_transactions").select("id,associate_id,transaction_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name,proof_mime_type)").order("created_at",{ascending:false}),
         (async () => {
           const result = await (supabase as any).rpc("workspace_list_finance_users");
           if (result.error) throw result.error;
@@ -330,17 +331,33 @@ export default function Finance(){
     const feeApplied=associateMovement.method!=="especes"&&associateMovement.withoutFees;
     const grossAmount=feeApplied?Math.round(ledgerAmount/0.99):ledgerAmount;
     const feeAmount=Math.max(0,grossAmount-ledgerAmount);
-    if(!associateMovement.associateId||!Number.isFinite(ledgerAmount)||ledgerAmount<=0){toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;}
+    if(!associateMovement.associateId||!Number.isFinite(ledgerAmount)||ledgerAmount<=0){
+      toast({title:"Informations requises",description:"Sélectionnez un associé et saisissez un montant positif.",variant:"destructive"});return;
+    }
+    const existing=associateMovementEditId?associateMovements.find((m:any)=>m.id===associateMovementEditId):null;
+    const existingTx=existing?.finance_transactions||transactions.find((t:any)=>t.id===existing?.transaction_id);
+    if(associateMovement.referenceAsFile&&!associateMovementProof&&!existingTx?.proof_path){
+      toast({title:"Fichier requis",description:"Sélectionnez un justificatif ou désactivez l’option fichier pour saisir une référence.",variant:"destructive"});return;
+    }
     setSaving(true);
+    let uploadedProofPath:string|null=null;
     try{
+      if(associateMovement.referenceAsFile&&associateMovementProof){
+        const uploaded=await uploadFile("documents",associateMovementProof,"finance/associes");
+        if(!uploaded?.path)throw new Error("Le justificatif du mouvement associé n’a pas pu être téléversé.");
+        uploadedProofPath=uploaded.path;
+      }
       const isRefund=associateMovement.type==="remboursement";
-      const existing=associateMovementEditId?associateMovements.find((m:any)=>m.id===associateMovementEditId):null;
       const txPayload={
         direction:isRefund?"sortie":"entree",category:isRefund?"REMBOURSEMENT_ASSOCIE":"APPORT_ASSOCIE",
         label:(isRefund?"Remboursement associé — ":"Apport associé — ")+(associates.find(a=>a.id===associateMovement.associateId)?.full_name||""),
         amount:ledgerAmount,gross_amount:grossAmount,fee_rate:feeApplied?1:0,fee_amount:feeAmount,fee_applied:feeApplied,
         transaction_date:new Date(associateMovement.date+"T12:00:00").toISOString(),payment_method:associateMovement.method,
-        status:"valide",source_type:"associate",reference:associateMovement.reference.trim()||null,notes:associateMovement.notes.trim()||null
+        status:"valide",source_type:"associate",reference:associateMovement.referenceAsFile?null:associateMovement.reference.trim()||null,
+        proof_path:associateMovement.referenceAsFile?(uploadedProofPath||existingTx?.proof_path||null):null,
+        proof_name:associateMovement.referenceAsFile?(associateMovementProof?.name||existingTx?.proof_name||null):null,
+        proof_mime_type:associateMovement.referenceAsFile?(associateMovementProof?.type||existingTx?.proof_mime_type||null):null,
+        notes:associateMovement.notes.trim()||null
       };
       let txId:string;
       if(existing?.transaction_id){
@@ -362,9 +379,12 @@ export default function Finance(){
         if(error){await (supabase as any).from("finance_transactions").update({status:"annule"}).eq("id",txId);throw error;}
       }
       toast({title:existing?"Mouvement associé modifié":"Mouvement associé enregistré"});
-      setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:"",method:"mobile_money",withoutFees:false});
-      setAssociateMovementEditId(null);setAssociateMovementOpen(false);await load();
-    }catch(error:any){toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});}
+      setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",referenceAsFile:false,notes:"",method:"mobile_money",withoutFees:false});
+      setAssociateMovementProof(null);setAssociateMovementEditId(null);setAssociateMovementOpen(false);await load();
+    }catch(error:any){
+      if(uploadedProofPath) await supabase.storage.from("documents").remove([uploadedProofPath]);
+      toast({title:"Enregistrement impossible",description:error?.message||"Réessayez.",variant:"destructive"});
+    }
     finally{setSaving(false);}
   };
 
@@ -465,7 +485,7 @@ export default function Finance(){
   const hasFinanceAction=(tx:any)=>manualEntryTypes.includes(tx.source_type) || associateMovements.some((m:any)=>m.transaction_id===tx.id) || expenses.some((e:any)=>e.transaction_id===tx.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===tx.id));
   const editFinanceTransaction=(tx:any)=>{
     const movement=associateMovements.find((m:any)=>m.transaction_id===tx.id);
-    if(movement){setAssociateMovementEditId(movement.id);setAssociateMovement({associateId:movement.associate_id,type:movement.movement_type||"apport",amount:String(tx.gross_amount||tx.amount||movement.estimated_value||""),date:new Date(tx.transaction_date).toISOString().slice(0,10),reference:tx.reference||"",notes:tx.notes||movement.notes||"",method:tx.payment_method||"mobile_money",withoutFees:!!tx.fee_applied});setAssociateMovementOpen(true);return;}
+    if(movement){setAssociateMovementEditId(movement.id);setAssociateMovement({associateId:movement.associate_id,type:movement.movement_type||"apport",amount:String(tx.gross_amount||tx.amount||movement.estimated_value||""),date:new Date(tx.transaction_date).toISOString().slice(0,10),reference:tx.reference||"",referenceAsFile:!!tx.proof_path,notes:tx.notes||movement.notes||"",method:tx.payment_method||"mobile_money",withoutFees:!!tx.fee_applied});setAssociateMovementProof(null);setAssociateMovementOpen(true);return;}
     const expenseRow=expenses.find((e:any)=>e.transaction_id===tx.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===tx.id));
     if(expenseRow){
       if(expenseRow.finance_expense_payments?.some((p:any)=>p.status==="valide")){setPlannedExpenseTarget(expenseRow);setPlannedExpenseEditId(expenseRow.id);setPlannedExpense({category:expenseRow.expense_category||"PRESTATIONS",amount:String(expenseRow.total_amount||""),description:expenseRow.description||"",beneficiary:expenseRow.beneficiary_name||expenseRow.supplier_name||"",beneficiaryPhone:expenseRow.beneficiary_phone||"",profileId:expenseRow.profile_id||"",isInternalUser:!!expenseRow.profile_id,expenseDate:expenseRow.expense_date||new Date().toISOString().slice(0,10),dueDate:expenseRow.due_date||"",direct:!!expenseRow.is_direct_cost,reference:expenseRow.reference||"",referenceAsFile:!!expenseRow.proof_path});setPlannedProof(null);setPlannedExpenseOpen(true);}
@@ -780,7 +800,7 @@ export default function Finance(){
       </div></TabsContent>
       
       <TabsContent value="associes" className="mt-3 min-w-0 space-y-3">
-        <Dialog open={associateMovementOpen} onOpenChange={open=>{if(!open&&!saving){setAssociateMovementOpen(false);setAssociateMovementEditId(null);}}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{associateMovementEditId?"Modifier le mouvement associé":"Nouveau mouvement associé"}</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1 sm:col-span-2"><Label>Associé</Label><Select value={associateMovement.associateId} onValueChange={v=>setAssociateMovement({...associateMovement,associateId:v})}><SelectTrigger><SelectValue placeholder="Sélectionner un associé"/></SelectTrigger><SelectContent>{associates.filter(a=>a.active).map(a=><SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Type de mouvement</Label><Select value={associateMovement.type} onValueChange={v=>setAssociateMovement({...associateMovement,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">Apport</SelectItem><SelectItem value="remboursement">Remboursement</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={associateMovement.amount} onChange={e=>setAssociateMovement({...associateMovement,amount:e.target.value})}/></div><div className="space-y-1"><Label>Date du mouvement</Label><Input type="date" value={associateMovement.date} onChange={e=>setAssociateMovement({...associateMovement,date:e.target.value})}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select value={associateMovement.method} onValueChange={v=>setAssociateMovement({...associateMovement,amount:associateMovement.method!=="especes"&&associateMovement.withoutFees&&v==="especes"?changeDisplayedAmount(associateMovement.amount,false,"deduct"):associateMovement.amount,method:v,withoutFees:v==="especes"?false:associateMovement.withoutFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>{associateMovement.method!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3 sm:col-span-2"><input id="associate-without-fees" type="checkbox" checked={associateMovement.withoutFees} onChange={e=>setAssociateMovement({...associateMovement,amount:changeDisplayedAmount(associateMovement.amount,e.target.checked,"deduct"),withoutFees:e.target.checked})} className="h-4 w-4"/><Label htmlFor="associate-without-fees" className="cursor-pointer">Sans frais</Label></div>}<div className="space-y-1"><Label>Référence</Label><Input value={associateMovement.reference} onChange={e=>setAssociateMovement({...associateMovement,reference:e.target.value})}/></div><div className="space-y-1 sm:col-span-2"><Label>Notes</Label><Textarea value={associateMovement.notes} onChange={e=>setAssociateMovement({...associateMovement,notes:e.target.value})}/></div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void saveAssociateMovement()} disabled={saving}>{saving?"Enregistrement…":associateMovementEditId?"Enregistrer les modifications":"Enregistrer le mouvement"}</Button><Button variant="outline" onClick={()=>setAssociateMovementOpen(false)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>
+        <Dialog open={associateMovementOpen} onOpenChange={open=>{if(!open&&!saving){setAssociateMovementOpen(false);setAssociateMovementEditId(null);}}}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{associateMovementEditId?"Modifier le mouvement associé":"Nouveau mouvement associé"}</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1 sm:col-span-2"><Label>Associé</Label><Select value={associateMovement.associateId} onValueChange={v=>setAssociateMovement({...associateMovement,associateId:v})}><SelectTrigger><SelectValue placeholder="Sélectionner un associé"/></SelectTrigger><SelectContent>{associates.filter(a=>a.active).map(a=><SelectItem key={a.id} value={a.id}>{a.full_name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Type de mouvement</Label><Select value={associateMovement.type} onValueChange={v=>setAssociateMovement({...associateMovement,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="apport">Apport</SelectItem><SelectItem value="remboursement">Remboursement</SelectItem></SelectContent></Select></div><div className="space-y-1"><Label>Montant (FCFA)</Label><Input type="number" min="1" value={associateMovement.amount} onChange={e=>setAssociateMovement({...associateMovement,amount:e.target.value})}/></div><div className="space-y-1"><Label>Date du mouvement</Label><Input type="date" value={associateMovement.date} onChange={e=>setAssociateMovement({...associateMovement,date:e.target.value})}/></div><div className="space-y-1"><Label>Moyen de paiement</Label><Select value={associateMovement.method} onValueChange={v=>setAssociateMovement({...associateMovement,amount:associateMovement.method!=="especes"&&associateMovement.withoutFees&&v==="especes"?changeDisplayedAmount(associateMovement.amount,false,"deduct"):associateMovement.amount,method:v,withoutFees:v==="especes"?false:associateMovement.withoutFees})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="especes">Espèces</SelectItem><SelectItem value="mobile_money">Mobile Money</SelectItem><SelectItem value="virement">Bancaire</SelectItem></SelectContent></Select></div>{associateMovement.method!=="especes"&&<div className="flex items-center gap-2 rounded-md border p-3 sm:col-span-2"><input id="associate-without-fees" type="checkbox" checked={associateMovement.withoutFees} onChange={e=>setAssociateMovement({...associateMovement,amount:changeDisplayedAmount(associateMovement.amount,e.target.checked,"deduct"),withoutFees:e.target.checked})} className="h-4 w-4"/><Label htmlFor="associate-without-fees" className="cursor-pointer">Sans frais</Label></div>}<div className="space-y-2 sm:col-span-2"><div className="flex items-center gap-2"><input id="associate-reference-file" type="checkbox" checked={associateMovement.referenceAsFile} onChange={e=>{setAssociateMovement({...associateMovement,referenceAsFile:e.target.checked,reference:""});setAssociateMovementProof(null);}} className="h-4 w-4"/><Label htmlFor="associate-reference-file" className="cursor-pointer">Joindre un justificatif</Label></div>{associateMovement.referenceAsFile?<div className="space-y-1"><Label>Fichier justificatif</Label><Input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setAssociateMovementProof(e.target.files?.[0]||null)}/><p className="text-xs text-muted-foreground">{associateMovementProof?.name||"Le justificatif déjà enregistré sera conservé."}</p></div>:<div className="space-y-1"><Label>Référence</Label><Input value={associateMovement.reference} onChange={e=>setAssociateMovement({...associateMovement,reference:e.target.value})}/></div>}</div><div className="space-y-1 sm:col-span-2"><Label>Notes</Label><Textarea value={associateMovement.notes} onChange={e=>setAssociateMovement({...associateMovement,notes:e.target.value})}/></div><div className="flex gap-2 sm:col-span-2"><Button onClick={()=>void saveAssociateMovement()} disabled={saving}>{saving?"Enregistrement…":associateMovementEditId?"Enregistrer les modifications":"Enregistrer le mouvement"}</Button><Button variant="outline" onClick={()=>setAssociateMovementOpen(false)} disabled={saving}>Annuler</Button></div></div></DialogContent></Dialog>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
             <div><CardTitle className="text-base">Associés et répartition des apports</CardTitle></div>{(can("finance.associates")||canManage)&&<Button size="sm" onClick={()=>{setAssociateMovementEditId(null);setAssociateMovement({associateId:"",type:"apport",amount:"",date:new Date().toISOString().slice(0,10),reference:"",notes:"",method:"mobile_money",withoutFees:false});setAssociateMovementOpen(true);}}><Plus className="mr-2 h-4 w-4"/>Nouveau mouvement</Button>}
