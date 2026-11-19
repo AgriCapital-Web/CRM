@@ -63,7 +63,19 @@ Deno.serve(async (req) => {
     if (sError) throw sError;
     if (!s) return json({ success: false, error: "Client introuvable" }, 404);
     if (!s.compte_actif) return json({ success: false, error: "Compte client non activé" }, 409);
-    if (s.user_id) return json({ success: true, user_id: s.user_id, already_linked: true });
+    if (s.user_id) {
+      const { error: existingProfileError } = await admin.from("profiles").update({
+        nom_complet: s.nom_complet,
+        telephone: s.telephone || null,
+        actif: true,
+        poste: "client",
+        type_compte: "client",
+        relation_rh: "Client",
+        updated_at: new Date().toISOString(),
+      }).eq("user_id", s.user_id);
+      if (existingProfileError) throw existingProfileError;
+      return json({ success: true, user_id: s.user_id, already_linked: true });
+    }
 
     const phone = normalizePhone(s.telephone || "");
     const username = String(s.numero_contrat || s.id_unique || s.id).trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
@@ -99,6 +111,8 @@ Deno.serve(async (req) => {
       telephone: s.telephone || null,
       actif: true,
       poste: "client",
+      type_compte: "client",
+      relation_rh: "Client",
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id" });
     if (profileError) throw profileError;
