@@ -8671,10 +8671,13 @@ export type Database = {
           refund_reason: string | null
           refund_requested_at: string | null
           refunded_at: string | null
+          rejet_motif: string | null
           statut: string | null
           type_paiement: string | null
           type_preuve: string | null
           updated_at: string | null
+          validation_comptable_at: string | null
+          validation_comptable_par: string | null
           valide_par: string | null
         }
         Insert: {
@@ -8715,10 +8718,13 @@ export type Database = {
           refund_reason?: string | null
           refund_requested_at?: string | null
           refunded_at?: string | null
+          rejet_motif?: string | null
           statut?: string | null
           type_paiement?: string | null
           type_preuve?: string | null
           updated_at?: string | null
+          validation_comptable_at?: string | null
+          validation_comptable_par?: string | null
           valide_par?: string | null
         }
         Update: {
@@ -8759,10 +8765,13 @@ export type Database = {
           refund_reason?: string | null
           refund_requested_at?: string | null
           refunded_at?: string | null
+          rejet_motif?: string | null
           statut?: string | null
           type_paiement?: string | null
           type_preuve?: string | null
           updated_at?: string | null
+          validation_comptable_at?: string | null
+          validation_comptable_par?: string | null
           valide_par?: string | null
         }
         Relationships: [
@@ -15932,6 +15941,22 @@ export type Database = {
           reduction_pct: number
         }[]
       }
+      paiement_alert_roles: {
+        Args: {
+          _data: Json
+          _dedupe: string
+          _msg: string
+          _roles: string[]
+          _title: string
+          _type: string
+        }
+        Returns: undefined
+      }
+      paiement_decider: {
+        Args: { _decision: string; _motif?: string; _paiement_id: string }
+        Returns: string
+      }
+      paiements_emettre_rappels: { Args: never; Returns: number }
       pdg_delete_payroll_draft: {
         Args: { p_run_id: string }
         Returns: undefined
