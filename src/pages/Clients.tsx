@@ -253,7 +253,7 @@ const Clients = () => {
     const clientRows = filteredClients.filter((row) => !isOwnerRecord(row)).sort((a: any, b: any) => {
       const dateA = new Date(a.created_at || 0).getTime();
       const dateB = new Date(b.created_at || 0).getTime();
-      return dateB - dateA || String(a.id_unique || "").localeCompare(String(b.id_unique || ""));
+      return dateB - dateA || compareCrmIdentifiers(a.id_unique, b.id_unique);
     });
     const usedOwners = new Set<string>();
     const result: any[] = [];
@@ -274,7 +274,7 @@ const Clients = () => {
       });
     }
     ownerRows.filter((owner: any) => !usedOwners.has(owner.id))
-      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime() || compareCrmIdentifiers(a.id_unique, b.id_unique))
       .forEach((owner: any) => result.push(owner));
     return result;
   })();
