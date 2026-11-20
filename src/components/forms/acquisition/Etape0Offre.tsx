@@ -389,7 +389,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                   </div>
                 ))}
               </div>}
-              {calculs.promotionAppliquee && <div className="flex items-center gap-1 text-xs text-amber-600"><Sparkles className="h-3 w-3" /><span>Promo -{calculs.promoReduction}% appliquée sur {calculs.promoCible}</span></div>}
+              {calculs.promotionAppliquee && <div className="flex items-center gap-1 text-xs text-amber-600"><Sparkles className="h-3 w-3" /><span>Promotion : {promotionActive?.nom || promotionActive?.libelle || formData.offre_snapshot?.contract?.promotion_nom || "Promotion appliquée"} · -{calculs.promoReduction}% sur {calculs.promoCible || "le montant contractuel"}</span></div>}
             </div>
           )}
         </CardContent>
