@@ -33,14 +33,10 @@ import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { getSafeErrorMessage } from "@/lib/safeError";
 
 const ANNEXES_CONVENTION = [
-  { field: "annexe_1_pv_delimitation_croquis", label: "Annexe 1 — Procès-verbal de délimitation / croquis parcellaire" },
-  { field: "annexe_2_pv_consentement_familial", label: "Annexe 2 — Procès-verbal de consentement familial signé" },
-  { field: "annexe_3_acte_reconnaissance_parts", label: "Annexe 3 — Acte de délimitation et reconnaissance des parts" },
-  { field: "annexe_4_acte_remise_jouissance", label: "Annexe 4 — Acte de Remise en Jouissance (36 mois)" },
-  { field: "annexe_5_procuration_mandataire", label: "Annexe 5 — Procuration co-titulaire / mandataire" },
-  { field: "annexe_6_copies_cni_signataires", label: "Annexe 6 — Copies CNI d’au moins six signataires" },
-  { field: "annexe_7_acte_mariage", label: "Annexe 7 — Acte de mariage (si applicable)" },
-  { field: "annexe_8_guide_villageois_attestation", label: "Annexe 8 — Guide villageois / attestation foncière du chef" },
+  { field: "annexe_1_copies_identite_signataires", label: "Annexe 1 — Pièces d’identité du propriétaire et des signataires", obligatoire: true },
+  { field: "annexe_2_pv_consentement_familial", label: "Annexe 2 — Procès-verbal de consentement familial signé", when: "famille_groupement" },
+  { field: "annexe_3_procuration_mandataire", label: "Annexe 3 — Procuration du mandataire signée", when: "mandataire" },
+  { field: "annexe_4_attestation_droit_foncier", label: "Annexe 4 — Attestation de propriété ou de droit foncier (peut être jointe ultérieurement)", facultative: true },
 ];
 
 const createInitialAnnexStatuses = (): Record<string, "joint" | "a_fournir"> =>
@@ -92,9 +88,9 @@ const ProprietairesTerres = () => {
     servitudes: "", croquis_joint: false,
     plantation_partagee_activee: true, plantation_surface_cible_ha: "",
     plantation_type_culture: "Palmier à huile", plantation_densite_plants: "143", plantation_date_activation: "",
-    co_titulaire_nom: "", co_titulaire_lien: "", co_titulaire_piece: "", co_titulaire_telephone: "", co_titulaire_telephone_indicatif: "", co_titulaire_telephone_local: "",
+    co_titulaire_type: "cotitulaire", co_titulaire_nom: "", co_titulaire_lien: "", co_titulaire_piece: "", co_titulaire_telephone: "", co_titulaire_telephone_indicatif: "", co_titulaire_telephone_local: "",
     temoin_proprietaire_nom: "", temoin_proprietaire_qualite: "", representant_agricapital_nom: "", representant_agricapital_qualite: "",
-    leader_communautaire_nom: "", leader_communautaire_qualite: "", voisin_1_nom: "", voisin_1_cote: "", voisin_2_nom: "", voisin_2_cote: "",
+    leader_communautaire_nom: "", leader_communautaire_qualite: "", president_cvgfr_nom: "", president_cvgfr_qualite: "", temoin_2_nom: "", temoin_2_qualite: "", voisin_1_nom: "", voisin_1_cote: "", voisin_2_nom: "", voisin_2_cote: "", voisin_3_nom: "", voisin_3_cote: "", voisin_4_nom: "", voisin_4_cote: "",
     notes: "",
   });
 
@@ -223,7 +219,10 @@ const ProprietairesTerres = () => {
       const currentUser = user;
       if (!currentUser) throw new Error("Session utilisateur introuvable");
       if (!user) throw new Error("Non authentifié");
-      const missingAnnex = ANNEXES_CONVENTION.find((a) => annexStatuses[a.field] === "joint" && !files[a.field]);
+      const applicableAnnexes = ANNEXES_CONVENTION.filter((a:any) =>
+        (!a.when || (a.when === "famille_groupement" && formData.type_proprietaire === "famille_groupement") || (a.when === "mandataire" && formData.co_titulaire_type === "mandataire"))
+      );
+      const missingAnnex = applicableAnnexes.find((a:any) => annexStatuses[a.field] === "joint" && !files[a.field]);
       if (missingAnnex) throw new Error(`${missingAnnex.label}: fichier obligatoire si “Joint” est coché`);
 
       let photo_profil_url = editingOwner?.photo_profil_url || null, fichier_piece_recto_url = editingOwner?.fichier_piece_recto_url || null, fichier_piece_verso_url = editingOwner?.fichier_piece_verso_url || null;
@@ -234,7 +233,7 @@ const ProprietairesTerres = () => {
       if (files.photo_profil) photo_profil_url = await uploadFile('photos-profils', files.photo_profil, user.id);
       if (files.cni_recto) fichier_piece_recto_url = await uploadFile('pieces-identite', files.cni_recto, `proprietaires/${user.id}/pieces`);
       if (files.cni_verso) fichier_piece_verso_url = await uploadFile('pieces-identite', files.cni_verso, `proprietaires/${user.id}/pieces`);
-      for (const annexe of ANNEXES_CONVENTION) {
+      for (const annexe of applicableAnnexes) {
         const file = files[annexe.field];
         annexUploads[annexe.field] = file ? await uploadFile('documents-fonciers', file, `conventions/${user.id}/annexes`) : null;
       }
@@ -252,13 +251,11 @@ const ProprietairesTerres = () => {
       const partAgriHa = surfaceTotale ? (surfaceTotale * agriPct) / 100 : null;
       const partProprietaireHa = surfaceTotale ? (surfaceTotale * ownerPct) / 100 : null;
       const nombreLots = Math.max(0, parseInt(formData.nombre_lots_agricapital || "0", 10) || 0);
-      const maxLots = typeConvention === "plante_partage"
-        ? Math.min(Math.floor(partAgriHa || 0), Math.floor(partProprietaireHa || 0))
-        : Math.floor(partAgriHa || 0);
+      const maxLots = Math.floor(partAgriHa || 0);
       if (surfaceTotale && nombreLots > maxLots) {
         throw new Error(`Le nombre de lots AgriCapital ne peut pas dépasser ${maxLots} lot(s) de 1 ha pour cette répartition.`);
       }
-      const cautionTotale = typeConvention === "plante_partage" && partAgriHa ? partAgriHa * 50000 : 0;
+      const cautionTotale = typeConvention === "plante_partage" && partProprietaireHa ? partProprietaireHa * 25000 : 0;
       const gps = String(formData.coordonnees_gps || "").split(/[,;\s]+/).map(Number).filter(Number.isFinite);
       const gpsLat = gps.length >= 2 ? gps[0] : null;
       const gpsLng = gps.length >= 2 ? gps[1] : null;
@@ -303,7 +300,7 @@ const ProprietairesTerres = () => {
         nombre_lots_agricapital: nombreLots,
         part_proprietaire_ha: partProprietaireHa,
         part_agricapital_ha: partAgriHa,
-        caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
+        caution_par_ha: typeConvention === "plante_partage" ? 25000 : 0,
         caution_totale: cautionTotale,
         limites_nord: formData.limites_nord || null,
         limites_sud: formData.limites_sud || null,
@@ -315,16 +312,25 @@ const ProprietairesTerres = () => {
         co_titulaire_lien: formData.co_titulaire_lien || null,
         co_titulaire_piece: formData.co_titulaire_piece || null,
         co_titulaire_telephone: formData.co_titulaire_telephone || null, co_titulaire_telephone_indicatif: formData.co_titulaire_telephone_indicatif || null, co_titulaire_telephone_local: formData.co_titulaire_telephone_local || null,
+        co_titulaire_type: formData.co_titulaire_type || "cotitulaire",
         temoin_proprietaire_nom: formData.temoin_proprietaire_nom || null,
         temoin_proprietaire_qualite: formData.temoin_proprietaire_qualite || null,
         representant_agricapital_nom: formData.representant_agricapital_nom || null,
         representant_agricapital_qualite: formData.representant_agricapital_qualite || null,
         leader_communautaire_nom: formData.leader_communautaire_nom || null,
         leader_communautaire_qualite: formData.leader_communautaire_qualite || null,
+        president_cvgfr_nom: formData.president_cvgfr_nom || null,
+        president_cvgfr_qualite: formData.president_cvgfr_qualite || null,
+        temoin_2_nom: formData.temoin_2_nom || null,
+        temoin_2_qualite: formData.temoin_2_qualite || null,
         voisin_1_nom: formData.voisin_1_nom || null,
         voisin_1_cote: formData.voisin_1_cote || null,
         voisin_2_nom: formData.voisin_2_nom || null,
         voisin_2_cote: formData.voisin_2_cote || null,
+        voisin_3_nom: formData.voisin_3_nom || null,
+        voisin_3_cote: formData.voisin_3_cote || null,
+        voisin_4_nom: formData.voisin_4_nom || null,
+        voisin_4_cote: formData.voisin_4_cote || null,
         notes: formData.notes || null,
         created_by: currentUser.id,
         updated_by: user.id,
@@ -412,7 +418,7 @@ const ProprietairesTerres = () => {
       if (conventionError || !convention) throw conventionError || new Error("La convention n’a pas été enregistrée.");
       const conventionRef: any = convention;
 
-      const documents = ANNEXES_CONVENTION.map((a) => ({
+      const documents = applicableAnnexes.map((a) => ({
         proprietaire_id: proprietaire.id,
         parcelle_id: parcelleId,
         type_document: a.field,
@@ -728,8 +734,8 @@ const ProprietairesTerres = () => {
                           <Select value={formData.type_convention} onValueChange={v => update('type_convention', v)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="plante_partage">Planté-partagé</SelectItem>
-                              <SelectItem value="achat">Achat</SelectItem>
+                              <SelectItem value="plante_partage">Convention de mise en valeur agricole</SelectItem>
+                              {editingOwner && formData.type_convention === "achat" && <SelectItem value="achat">Achat — dossier historique</SelectItem>}
                             </SelectContent>
                           </Select>
                         </div>
@@ -822,20 +828,29 @@ const ProprietairesTerres = () => {
                       </div>
                       <h4 className="font-semibold mt-4">Co-titulaire / mandataire et signatures</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Qualité du signataire</Label><Select value={formData.co_titulaire_type || "cotitulaire"} onValueChange={v=>update("co_titulaire_type",v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cotitulaire">Co-titulaire</SelectItem><SelectItem value="mandataire">Mandataire</SelectItem></SelectContent></Select></div>
                         <div className="space-y-2"><Label>Nom co-titulaire / mandataire</Label><Input value={formData.co_titulaire_nom} onChange={e => update('co_titulaire_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Lien avec le propriétaire</Label><RelationshipSelect value={formData.co_titulaire_lien} onChange={v=>update("co_titulaire_lien",v)}/></div>
                         <div className="space-y-2"><Label>Type de pièce du co-titulaire</Label><PieceTypeSelect value={formData.co_titulaire_piece} onChange={v=>update("co_titulaire_piece",v)}/></div>
                         <CountryPhoneInput label="Téléphone principal du cotitulaire" countryCode={formData.co_titulaire_telephone_indicatif||undefined} localValue={formData.co_titulaire_telephone_local||formData.co_titulaire_telephone||""} onChange={v=>updateFormPhone(v,"co_titulaire_telephone")}/>
-                        <div className="space-y-2"><Label>Témoin propriétaire — Nom</Label><Input value={formData.temoin_proprietaire_nom} onChange={e => update('temoin_proprietaire_nom', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Témoin propriétaire — Qualité</Label><Input value={formData.temoin_proprietaire_qualite} onChange={e => update('temoin_proprietaire_qualite', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Représentant AgriCapital — Nom</Label><Input value={formData.representant_agricapital_nom} onChange={e => update('representant_agricapital_nom', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Représentant AgriCapital — Qualité</Label><Input value={formData.representant_agricapital_qualite} onChange={e => update('representant_agricapital_qualite', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Leader communautaire — Nom</Label><Input value={formData.leader_communautaire_nom} onChange={e => update('leader_communautaire_nom', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Leader communautaire — Qualité</Label><Input value={formData.leader_communautaire_qualite} onChange={e => update('leader_communautaire_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°1 — Nom</Label><Input value={formData.temoin_proprietaire_nom} onChange={e => update('temoin_proprietaire_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°1 — Qualité</Label><Input value={formData.temoin_proprietaire_qualite} onChange={e => update('temoin_proprietaire_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°2 — Nom</Label><Input value={formData.temoin_2_nom} onChange={e => update('temoin_2_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°2 — Qualité</Label><Input value={formData.temoin_2_qualite} onChange={e => update('temoin_2_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Mobilisateur foncier — Nom</Label><Input value={formData.representant_agricapital_nom} onChange={e => update('representant_agricapital_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Mobilisateur foncier — Fonction</Label><Input value={formData.representant_agricapital_qualite} onChange={e => update('representant_agricapital_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Chef de village / Leader communautaire — Nom</Label><Input value={formData.leader_communautaire_nom} onChange={e => update('leader_communautaire_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Qualité</Label><Input value={formData.leader_communautaire_qualite} onChange={e => update('leader_communautaire_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Président du CVGFR — Nom (si présent)</Label><Input value={formData.president_cvgfr_nom} onChange={e => update('president_cvgfr_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Qualité</Label><Input value={formData.president_cvgfr_qualite} onChange={e => update('president_cvgfr_qualite', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Voisin riverain n°1 — Nom</Label><Input value={formData.voisin_1_nom} onChange={e => update('voisin_1_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_1_cote} onChange={e => update('voisin_1_cote', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Voisin riverain n°2 — Nom</Label><Input value={formData.voisin_2_nom} onChange={e => update('voisin_2_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_2_cote} onChange={e => update('voisin_2_cote', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Voisin riverain n°3 — Nom</Label><Input value={formData.voisin_3_nom} onChange={e => update('voisin_3_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_3_cote} onChange={e => update('voisin_3_cote', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Voisin riverain n°4 — Nom</Label><Input value={formData.voisin_4_nom} onChange={e => update('voisin_4_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_4_cote} onChange={e => update('voisin_4_cote', e.target.value)} /></div>
                       </div>
                     </TabsContent>
 
@@ -855,7 +870,7 @@ const ProprietairesTerres = () => {
                       <h4 className="font-semibold mt-4 flex items-center gap-2"><FileText className="h-4 w-4" /> Annexes de la Convention</h4>
                       
                       <div className="space-y-3 text-sm">
-                        {ANNEXES_CONVENTION.map((annexe, index) => {
+                        {ANNEXES_CONVENTION.filter((annexe:any) => !annexe.when || (annexe.when === "famille_groupement" && formData.type_proprietaire === "famille_groupement") || (annexe.when === "mandataire" && formData.co_titulaire_type === "mandataire")).map((annexe, index) => {
                           const isJoint = annexStatuses[annexe.field] === "joint";
                           return (
                             <div key={annexe.field} className="rounded-md border p-3 space-y-3">
