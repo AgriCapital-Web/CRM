@@ -90,9 +90,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="font-medium">{doc.libelle}</p>
-                    {doc.source_contractuelle && (
-                      <p className="text-xs text-muted-foreground">{doc.source_contractuelle}</p>
-                    )}
+
                   </div>
                   <Badge variant={required ? "default" : "outline"}>
                     {required ? "Obligatoire" : "Conditionnel"}
@@ -127,12 +125,7 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
                   <Card key={contract.id || contract.type_contrat}>
                     <CardHeader>
                       <CardTitle>{label}</CardTitle>
-                      {contract.source_document && (
-                        <div className="text-xs text-muted-foreground">
-                          <span>Modèle de référence : {contract.source_document}</span>
-                          <a className="ml-2 text-primary underline" href={`https://github.com/AgriCapital-Web/CRM/blob/main/${contract.source_document}`} target="_blank" rel="noreferrer">Consulter le modèle</a>
-                        </div>
-                      )}
+
                     </CardHeader>
                     <CardContent>
                       <FileUploadVisual
