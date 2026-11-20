@@ -49,9 +49,12 @@ type SearchableCategorySelectProps = {
 function SearchableCategorySelect({ value, options, onChange, disabled = false }: SearchableCategorySelectProps) {
   const [open, setOpen] = useState(false);
   const optionSet = new Set(options);
-  const groups = FINANCE_EXPENSE_CATEGORY_GROUPS
-    .map((group) => ({ label: group.label, categories: group.categories.filter((category) => optionSet.has(category)) }))
+  const groups: { label: string; categories: string[] }[] = FINANCE_EXPENSE_CATEGORY_GROUPS
+    .map((group) => ({ label: group.label, categories: [...group.categories].filter((category) => optionSet.has(category)) }))
     .filter((group) => group.categories.length > 0);
+  const groupedOptions = new Set(groups.flatMap((group) => group.categories));
+  const ungroupedOptions = options.filter((option) => !groupedOptions.has(option));
+  if (ungroupedOptions.length) groups.push({ label: "Autres catégories", categories: ungroupedOptions });
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
