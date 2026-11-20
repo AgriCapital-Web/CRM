@@ -137,6 +137,32 @@ const ProprietairesTerres = () => {
         return [key, value == null ? (typeof current[key] === "boolean" ? false : "") : String(value)];
       })));
       setFiles({ photo_profil: null, cni_recto: null, cni_verso: null });
+      const { data: existingAnnexes } = await (supabase as any)
+        .from("documents_convention")
+        .select("type_document,statut,fichier_url,created_at")
+        .eq("proprietaire_id", editId)
+        .order("created_at", { ascending: false });
+      const annexAliases:Record<string,string> = {
+        annexe_1_copies_identite_signataires:"annexe_1_copies_identite_signataires",
+        annexe_6_copies_cni_signataires:"annexe_1_copies_identite_signataires",
+        annexe_2_pv_consentement_familial:"annexe_2_pv_consentement_familial",
+        annexe_3_procuration_mandataire:"annexe_3_procuration_mandataire",
+        annexe_5_procuration_mandataire:"annexe_3_procuration_mandataire",
+        annexe_4_attestation_droit_foncier:"annexe_4_attestation_droit_foncier",
+      };
+      const previewValues:Record<string,string> = {};
+      const statusValues:Record<string,"joint"|"a_fournir"> = {};
+      for (const doc of existingAnnexes || []) {
+        const field=annexAliases[doc.type_document];
+        if(!field || previewValues[field+"_url"]) continue;
+        const rawUrl=doc.fichier_url||"";
+        previewValues[field+"_url"]=rawUrl.startsWith("http")
+          ? rawUrl
+          : (supabase as any).storage.from("documents").getPublicUrl(rawUrl).data.publicUrl;
+        statusValues[field]=doc.fichier_url ? "joint" : "a_fournir";
+      }
+      setFormData((current:any)=>({...current,...previewValues}));
+      setAnnexStatuses((current)=>({...current,...statusValues}));
       setIsFormOpen(true);
     })();
     return () => { active = false; };
@@ -915,7 +941,7 @@ const ProprietairesTerres = () => {
                                 </div>
                               </div>
                               {isJoint && (
-                                <FileUploadVisual label="Fichier" field={annexe.field} accept="image/*,.pdf" required currentFile={files[annexe.field]||null} onFileChange={(_,f)=>setFiles(x=>({...x,[annexe.field]:f}))}/>
+                                <FileUploadVisual label="Fichier" field={annexe.field} accept="image/*,.pdf" required currentFile={files[annexe.field]||null} existingPreview={formData[annexe.field+"_url"]||""} onFileChange={(_,f)=>setFiles(x=>({...x,[annexe.field]:f}))}/>
                               )}
                               {files[annexe.field] && <p className="text-xs text-muted-foreground">Fichier sélectionné: {files[annexe.field]?.name}</p>}
                             </div>
