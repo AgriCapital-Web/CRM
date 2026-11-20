@@ -189,7 +189,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         const cached = await getCachedItems(STORES.LEADS);
         return cached.sort((a: any, b: any) => compareCrmIdentifiers(a.id_unique, b.id_unique));
       }
-      const { data, error } = await (supabase as any).from("leads").select("*").order("id_unique", { ascending: true });
+      const { data, error } = await (supabase as any).from("leads").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -199,7 +199,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     queryKey: ["prospects"],
     queryFn: async () => {
       if (!navigator.onLine) return [];
-      const { data, error } = await (supabase as any).from("prospects").select("*").order("id_unique", { ascending: true });
+      const { data, error } = await (supabase as any).from("prospects").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
