@@ -242,6 +242,42 @@ const Clients = () => {
     s.nom_complet?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.telephone?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Dans Acquisition, les propriétaires associés suivent immédiatement le dossier client
+  // auquel ils sont rattachés : par propriétaire commun ou, pour les bénéficiaires historiques,
+  // par date de création identique.
+  const orderedAcquisitionClients = (() => {
+    if (!acquisitionsView) return filteredClients;
+    const isOwnerRecord = (row: any) => String(row.id_unique || "").startsWith("OWNER-AC-P");
+    const ownerRows = filteredClients.filter(isOwnerRecord);
+    const clientRows = filteredClients.filter((row) => !isOwnerRecord(row)).sort((a: any, b: any) => {
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return dateB - dateA || String(a.id_unique || "").localeCompare(String(b.id_unique || ""));
+    });
+    const usedOwners = new Set<string>();
+    const result: any[] = [];
+    const day = (value: any) => value ? String(value).slice(0, 10) : "";
+    for (const client of clientRows) {
+      result.push(client);
+      const linkedOwners = ownerRows.filter((owner: any) => {
+        if (usedOwners.has(owner.id)) return false;
+        const sameOwner = Boolean(owner.proprietaire_id && client.proprietaire_id && owner.proprietaire_id === client.proprietaire_id);
+        const sameRegistrationDay = String(client.id_unique || "").startsWith("AC_B")
+          && day(owner.created_at) !== ""
+          && day(owner.created_at) === day(client.created_at);
+        return sameOwner || sameRegistrationDay;
+      });
+      linkedOwners.forEach((owner: any) => {
+        usedOwners.add(owner.id);
+        result.push(owner);
+      });
+    }
+    ownerRows.filter((owner: any) => !usedOwners.has(owner.id))
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .forEach((owner: any) => result.push(owner));
+    return result;
+  })();
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredAssociateBeneficiaries = acquisitionsView && can("finance.view")
     ? financeAssociates.filter((associate) =>
@@ -495,7 +531,7 @@ const Clients = () => {
                       </TableRow>
                     ) : (
                       <>
-                      {filteredClients.map((client) => (
+                      {orderedAcquisitionClients.map((client) => (
                         <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${String(client.id_unique || "").startsWith("AC_B") ? "bénéficiaire" : "client"} ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate(getRecordPath(client))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(getRecordPath(client)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
