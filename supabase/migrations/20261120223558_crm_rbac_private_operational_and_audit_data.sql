@@ -1,6 +1,6 @@
 begin;
 
-drop policy if exists "Staff create notes" on public.activity_notes;
+drop policy if exists "Staff view notes" on public.activity_notes;
 create policy activity_notes_read_by_author_or_audit
   on public.activity_notes for select to authenticated
   using (user_id=(select auth.uid()) or private.crm_has_role_permission('parametres.view_audit'));
