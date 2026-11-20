@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
   requiredAnyPermissions?: string[];
 }
 
-const ProtectedRoute = ({ children, requiredPermission, requiredPermissionCode }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, requiredPermission, requiredPermissionCode, requiredAnyPermissions }: ProtectedRouteProps) => {
   const { user, profile, loading } = useAuth();
   const { can, canAny, loading: permissionsLoading } = usePermissions();
   const navigate = useNavigate();
