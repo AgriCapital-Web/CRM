@@ -662,7 +662,7 @@ const Dashboard = () => {
       commercialClients.forEach((client: any) => {
         const residence = String(client.domicile || "").trim();
         const isDiaspora = /\b(USA|U\.S\.A\.|UNITED STATES|ETATS[- ]UNIS|ÉTATS[- ]UNIS|FRANCE|CANADA|EUROPE)\b/i.test(residence);
-        const name = regionMap.get(String(client.region_id || "")) || (isDiaspora ? "Diaspora" : "Haut-Sassandra");
+        const name = regionMap.get(String(client.region_id || "")) || (isDiaspora ? "Diaspora" : "À vérifier");
         regionCounts.set(name, (regionCounts.get(name) || 0) + 1);
       });
       setRegional([...regionCounts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8));
