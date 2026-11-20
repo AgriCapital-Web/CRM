@@ -121,6 +121,13 @@ const StoredAttachmentLinks=({formData}:{formData:any})=>{
 };
 
 
+const requiredContractForOffer = (formData: any) => {
+  const family = String(formData.offre?.famille_offre || formData.famille_offre || formData.offre_snapshot?.offer?.famille_offre || "").toUpperCase();
+  if (family === "PALMTERROIR") return { type: "accompagnement_agricole", field: "contrat_accompagnement_agricole", label: "Contrat d’accompagnement agricole" };
+  if (family === "PALMINVEST" || family === "TERRAPALM") return { type: "contrat_acquisition_client", field: "contrat_contrat_acquisition_client", label: "Contrat d’acquisition" };
+  return { type: "signe_client", field: "contrat_signe_client", label: "Contrat signé" };
+};
+
 const NouvelleAcquisition = () => {
   const [formData,setFormData]=useState<any>({});
   const [steps,setSteps]=useState<Step[]>([]);
@@ -426,10 +433,9 @@ const NouvelleAcquisition = () => {
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
-      const signedContractMissing=!formData.contrat_signe_client_file&&!formData.contrat_signe_client_preview;
-      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||signedContractMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
+      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
         const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing];
-        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : signedContractMissing ? "Veuillez joindre le contrat signé." : "Un groupe familial doit compter au moins deux membres.";
+        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : "Un groupe familial doit compter au moins deux membres.";
         toast({variant:"destructive",title:"Fiche client incomplète",description:reason}); return false;
       }
     }
@@ -441,6 +447,13 @@ const NouvelleAcquisition = () => {
       }
     }
     if(step.code==="documents"){
+      const requiredContract = requiredContractForOffer(formData);
+      const contractPresent = Boolean(formData[requiredContract.field + "_file"] || formData[requiredContract.field + "_preview"] ||
+        (requiredContract.field !== "contrat_signe_client" && (formData.contrat_signe_client_file || formData.contrat_signe_client_preview)));
+      if (!contractPresent) {
+        toast({variant:"destructive",title:"Contrat obligatoire manquant",description:"Veuillez joindre le " + requiredContract.label.toLowerCase() + " signé."});
+        return false;
+      }
       const docs = recordId
         ? (Array.isArray(formData.offre_snapshot?.workflow?.documents) ? formData.offre_snapshot.workflow.documents : [])
         : ((await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre")).data || []);
@@ -602,11 +615,22 @@ const NouvelleAcquisition = () => {
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
 
-      const signedContractFile=recoverFile(formData.contrat_signe_client_file,formData.contrat_signe_client_preview,"contrat_signe_client");
-      if(!signedContractFile) throw new Error("Veuillez joindre le contrat signé.");
-      const signedContractUpload=await uploadFile("documents",signedContractFile,user.id+"/clients/"+client.id+"/contrats","contrat-signe-client");
-      if(!signedContractUpload?.path) throw new Error("Téléversement du contrat signé impossible.");
-      const {error:signedContractSaveError}=await offlineUpsert("documents_acquisition",{id:stableUuid(stableClientId,"contract:contrat_signe_client"),client_id:client.id,type_document:"contrat_signe_client",code_document:"contrat_signe_client",categorie:"contrat",obligatoire:true,source_contractuelle:"contrat_signe_client",fichier_url:signedContractUpload.path,statut:"signe",uploaded_by:currentUser.id,metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:"Contrat signé",storage_bucket:"documents"}});
+      const requiredContract = requiredContractForOffer(formData);
+      const signedContractFile=recoverFile(
+        formData[requiredContract.field + "_file"],
+        formData[requiredContract.field + "_preview"] || (requiredContract.field !== "contrat_signe_client" ? formData.contrat_signe_client_preview : ""),
+        requiredContract.field
+      );
+      if(!signedContractFile) throw new Error("Veuillez joindre le " + requiredContract.label.toLowerCase() + " signé.");
+      const signedContractUpload=await uploadFile("documents",signedContractFile,user.id+"/clients/"+client.id+"/contrats","contract-"+requiredContract.type);
+      if(!signedContractUpload?.path) throw new Error("Téléversement du contrat impossible.");
+      const {error:signedContractSaveError}=await offlineUpsert("documents_acquisition",{
+        id:stableUuid(stableClientId,"contract:"+requiredContract.type),
+        client_id:client.id,type_document:requiredContract.type,code_document:requiredContract.type,
+        categorie:"contrat",obligatoire:true,source_contractuelle:requiredContract.type,
+        fichier_url:signedContractUpload.path,statut:"signe",uploaded_by:currentUser.id,
+        metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:requiredContract.label,storage_bucket:"documents"}
+      });
       if(signedContractSaveError) throw signedContractSaveError;
 
       // Le lien lead/prospect est finalisé APRÈS les médias et documents.
