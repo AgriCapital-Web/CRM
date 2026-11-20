@@ -91,7 +91,7 @@ const ProprietaireTerreDetail = () => {
         (supabase as any).from("parcelles")
           .select("*, districts(nom), regions(nom), departements(nom), sous_prefectures(nom)")
           .eq("proprietaire_id", id)
-          .order("created_at", { ascending: true }),
+          .order("created_at", { ascending: false }),
         (supabase as any).from("documents_convention").select("*").eq("proprietaire_id",id).order("created_at",{ascending:true}),
       ]);
       if (ownerRes.error) throw ownerRes.error;
