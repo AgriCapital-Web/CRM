@@ -98,7 +98,6 @@ BEGIN
          mensualite_par_ha = x.mensualite_par_ha,
          montant_total_contrat = x.total_contrat,
          mensualite_montant = x.mensualite_totale,
-         taux_journalier_ha = x.mensualite_par_ha / 30,
          echeancier = coalesce(x.base_formula->'tranches_paiement', '[]'::jsonb),
          promotion_id = NULL,
          montant_promo_applique = 0,
