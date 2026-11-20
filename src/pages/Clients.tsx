@@ -528,10 +528,13 @@ const Clients = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="whitespace-nowrap">
-                            <div>{formatHectares(clientSurface(client))} ha</div>
-                            {client.metadata?.foncier_a_attribuer_plus_tard && (
-                              <div className="mt-0.5 text-[10px] text-muted-foreground">
-                                {formatHectares(client.metadata?.surface_fonciere_allouee_ha ?? 0)} ha attribué · {formatHectares(client.metadata?.surface_fonciere_restante_ha ?? 0)} ha à attribuer
+                            <div className="font-medium">{formatHectares(clientSurface(client))} ha contractuels</div>
+                            <div className="mt-0.5 text-[10px] text-muted-foreground">
+                              Planté : {formatHectares(client.surface_plantee_ha)} ha · À planter : {formatHectares(Math.max(0, clientSurface(client) - Number(client.surface_plantee_ha || 0)))} ha
+                            </div>
+                            {client.metadata?.surface_fonciere_allouee_ha != null && (
+                              <div className="text-[10px] text-muted-foreground">
+                                Foncier affecté : {formatHectares(client.metadata.surface_fonciere_allouee_ha)} ha · À affecter : {formatHectares(client.metadata.surface_fonciere_restante_ha ?? 0)} ha
                               </div>
                             )}
                           </TableCell>
