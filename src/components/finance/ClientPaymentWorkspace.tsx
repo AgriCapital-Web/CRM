@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useKkiapay } from "@/hooks/useKkiapay";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   onRefund?: (client: ClientFinanceRow) => void;
 }) {
   const { toast } = useToast();
+  const { can } = usePermissions();
+  const canRecordPayments = can("paiements.record") || can("paiements.execute");
   const queryClient = useQueryClient();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
   const [search, setSearch] = useState("");
@@ -282,6 +285,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   };
 
   const startKkiapayPayment = async () => {
+    if (!canRecordPayments) {
+      toast({ variant: "destructive", title: "Accès refusé", description: "Votre rôle ne vous autorise pas à lancer un encaissement." });
+      return;
+    }
     if (!activeClient || !activeContract) return;
     const paymentAmount = Math.round(Number(amount));
     if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
@@ -440,7 +447,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                     <TableCell><div className="flex items-center justify-end gap-1">
                       {remainingClient > 0 && !client.contrat_solde_at && onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${client.nom_complet || "ce client"}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
                       {remainingClient > 0 && !client.contrat_solde_at && onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${client.nom_complet || "ce client"}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
-                      {remainingClient > 0 && !client.contrat_solde_at && <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${client.nom_complet || "ce client"}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>}
+                      {remainingClient > 0 && !client.contrat_solde_at && canRecordPayments && <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${client.nom_complet || "ce client"}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>}
                     </div></TableCell>
                   </TableRow>;
                 })}
@@ -494,10 +501,10 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => setSheetOpen(false)}>Fermer</Button>
-            <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType !== "PI" || Boolean(activeContract.acquisitionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0) || (paymentType === "RATTRAPAGE" && arrearsAmount <= 0 && daysLate <= 0) || (paymentType === "AVANCE" && (arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0))}>
+            {canRecordPayments ? <Button type="button" className="gap-2" onClick={() => void startKkiapayPayment()} disabled={loadingFinance || paying || !activeClient || !activeContract || Number(amount) <= 0 || ((paymentType !== "PI" || Boolean(activeContract.acquisitionId)) && !selectedPlantationId) || (paymentType === "MENSUALITE" && Number(monthly.montant_a_payer || 0) <= 0) || (paymentType === "RATTRAPAGE" && arrearsAmount <= 0 && daysLate <= 0) || (paymentType === "AVANCE" && (arrearsAmount > 0 || daysLate > 0 || Number(monthly.montant_a_payer || 0) > 0))}>
               {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
               {paying ? "Ouverture / vérification…" : paymentType === "RATTRAPAGE" ? "Rattraper le paiement" : paymentType === "PI" ? "Payer le solde initial" : paymentType === "AVANCE" ? "Payer en avance" : "Payer la mensualité"}
-            </Button>
+            </Button> : <p className="text-xs text-muted-foreground">Consultation uniquement : votre rôle ne permet pas de lancer un encaissement.</p>}
           </DialogFooter>
         </DialogContent>
       </Dialog>
