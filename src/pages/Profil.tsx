@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Shield, KeyRound, Save, Upload, UserRound, Camera, Check } from "lucide-react";
-import { formatUserProfileName } from "@/lib/utils";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
@@ -187,7 +187,7 @@ const Profil = () => {
                   {!photoUrl && <span className="pointer-events-none absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 shadow-sm"><Upload className="h-4 w-4" /></span>}
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold">{formatUserProfileName(profile.nom_complet || "AgriCapital")}</h2>
+                  <h2 className="text-xl font-bold">{formatStructuredPersonName(profile.nom, profile.prenoms)}</h2>
                   <p className="text-sm text-muted-foreground">{profile.email || user?.email || "—"}</p>
                 </div>
                 
