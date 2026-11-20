@@ -1665,6 +1665,7 @@ export type Database = {
           statut_marital: string | null
           statut_technique: string | null
           superficie_ha: number | null
+          surface_plantee_ha: number
           taux_journalier_ha: number
           telephone: string
           telephone_indicatif: string | null
@@ -1794,6 +1795,7 @@ export type Database = {
           statut_marital?: string | null
           statut_technique?: string | null
           superficie_ha?: number | null
+          surface_plantee_ha?: number
           taux_journalier_ha?: number
           telephone: string
           telephone_indicatif?: string | null
@@ -1923,6 +1925,7 @@ export type Database = {
           statut_marital?: string | null
           statut_technique?: string | null
           superficie_ha?: number | null
+          surface_plantee_ha?: number
           taux_journalier_ha?: number
           telephone?: string
           telephone_indicatif?: string | null
@@ -2337,6 +2340,7 @@ export type Database = {
           reference: string | null
           sous_prefecture_id: string | null
           statut: string | null
+          surface_campagne_ha: number | null
           surface_totale_ha: number | null
           type_convention: string
           updated_at: string | null
@@ -2367,6 +2371,7 @@ export type Database = {
           reference?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
+          surface_campagne_ha?: number | null
           surface_totale_ha?: number | null
           type_convention?: string
           updated_at?: string | null
@@ -2397,6 +2402,7 @@ export type Database = {
           reference?: string | null
           sous_prefecture_id?: string | null
           statut?: string | null
+          surface_campagne_ha?: number | null
           surface_totale_ha?: number | null
           type_convention?: string
           updated_at?: string | null
@@ -3850,9 +3856,12 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          latitude: number | null
+          longitude: number | null
           notes: string | null
           profile_id: string | null
           role_label: string
+          superficie_beneficiaire_ha: number | null
           telephone: string | null
           telephone_indicatif: string | null
           telephone_local: string | null
@@ -3863,9 +3872,12 @@ export type Database = {
           created_at?: string
           full_name: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           notes?: string | null
           profile_id?: string | null
           role_label?: string
+          superficie_beneficiaire_ha?: number | null
           telephone?: string | null
           telephone_indicatif?: string | null
           telephone_local?: string | null
@@ -3876,9 +3888,12 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           notes?: string | null
           profile_id?: string | null
           role_label?: string
+          superficie_beneficiaire_ha?: number | null
           telephone?: string | null
           telephone_indicatif?: string | null
           telephone_local?: string | null
@@ -6707,6 +6722,7 @@ export type Database = {
           plantation_id: string | null
           recommandations: string | null
           statut: string
+          surface_reellement_plantee_ha: number | null
           ticket_id: string | null
           type_intervention: string
           updated_at: string
@@ -6731,6 +6747,7 @@ export type Database = {
           plantation_id?: string | null
           recommandations?: string | null
           statut?: string
+          surface_reellement_plantee_ha?: number | null
           ticket_id?: string | null
           type_intervention?: string
           updated_at?: string
@@ -6755,6 +6772,7 @@ export type Database = {
           plantation_id?: string | null
           recommandations?: string | null
           statut?: string
+          surface_reellement_plantee_ha?: number | null
           ticket_id?: string | null
           type_intervention?: string
           updated_at?: string
@@ -9224,8 +9242,11 @@ export type Database = {
           id: string
           id_unique: string | null
           latitude: number | null
+          localisation_distance_m: number | null
           localisation_gps_lat: number | null
           localisation_gps_lng: number | null
+          localisation_reference_plantation_id: string | null
+          localisation_source_url: string | null
           localite: string | null
           longitude: number | null
           lot_id: string | null
@@ -9286,8 +9307,11 @@ export type Database = {
           id?: string
           id_unique?: string | null
           latitude?: number | null
+          localisation_distance_m?: number | null
           localisation_gps_lat?: number | null
           localisation_gps_lng?: number | null
+          localisation_reference_plantation_id?: string | null
+          localisation_source_url?: string | null
           localite?: string | null
           longitude?: number | null
           lot_id?: string | null
@@ -9348,8 +9372,11 @@ export type Database = {
           id?: string
           id_unique?: string | null
           latitude?: number | null
+          localisation_distance_m?: number | null
           localisation_gps_lat?: number | null
           localisation_gps_lng?: number | null
+          localisation_reference_plantation_id?: string | null
+          localisation_source_url?: string | null
           localite?: string | null
           longitude?: number | null
           lot_id?: string | null
@@ -9439,6 +9466,13 @@ export type Database = {
             columns: ["district_id"]
             isOneToOne: false
             referencedRelation: "v_geo_districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantations_localisation_reference_plantation_id_fkey"
+            columns: ["localisation_reference_plantation_id"]
+            isOneToOne: false
+            referencedRelation: "plantations"
             referencedColumns: ["id"]
           },
           {
@@ -10216,6 +10250,7 @@ export type Database = {
         Row: {
           active: boolean | null
           applique_toutes_offres: boolean | null
+          arrondi_mensualite: number
           cible: string
           code: string | null
           created_at: string | null
@@ -10227,12 +10262,14 @@ export type Database = {
           nom: string
           offre_ids: Json | null
           pourcentage_reduction: number | null
+          surface_min_ha: number
           type_promotion: string
           updated_at: string | null
         }
         Insert: {
           active?: boolean | null
           applique_toutes_offres?: boolean | null
+          arrondi_mensualite?: number
           cible?: string
           code?: string | null
           created_at?: string | null
@@ -10244,12 +10281,14 @@ export type Database = {
           nom: string
           offre_ids?: Json | null
           pourcentage_reduction?: number | null
+          surface_min_ha?: number
           type_promotion?: string
           updated_at?: string | null
         }
         Update: {
           active?: boolean | null
           applique_toutes_offres?: boolean | null
+          arrondi_mensualite?: number
           cible?: string
           code?: string | null
           created_at?: string | null
@@ -10261,6 +10300,7 @@ export type Database = {
           nom?: string
           offre_ids?: Json | null
           pourcentage_reduction?: number | null
+          surface_min_ha?: number
           type_promotion?: string
           updated_at?: string | null
         }
@@ -10278,6 +10318,7 @@ export type Database = {
           co_titulaire_telephone: string | null
           co_titulaire_telephone_indicatif: string | null
           co_titulaire_telephone_local: string | null
+          co_titulaire_type: string | null
           coordonnees_gps: string | null
           created_at: string | null
           created_by: string | null
@@ -10319,6 +10360,8 @@ export type Database = {
           part_proprietaire_pct: number | null
           photo_profil_url: string | null
           prenoms: string | null
+          president_cvgfr_nom: string | null
+          president_cvgfr_qualite: string | null
           reference_cadastrale: string | null
           region_id: string | null
           representant_agricapital_nom: string | null
@@ -10330,6 +10373,7 @@ export type Database = {
           sous_prefecture_id: string | null
           statut: string | null
           statut_foncier: string | null
+          surface_campagne_ha: number | null
           surface_totale_declaree_ha: number | null
           surface_totale_ha: number | null
           telephone: string | null
@@ -10340,6 +10384,8 @@ export type Database = {
           telephone_secondaire_indicatif: string | null
           telephone_secondaire_local: string | null
           telephone_secondaire_whatsapp: boolean
+          temoin_2_nom: string | null
+          temoin_2_qualite: string | null
           temoin_proprietaire_nom: string | null
           temoin_proprietaire_qualite: string | null
           type_personne: string
@@ -10357,6 +10403,10 @@ export type Database = {
           voisin_1_nom: string | null
           voisin_2_cote: string | null
           voisin_2_nom: string | null
+          voisin_3_cote: string | null
+          voisin_3_nom: string | null
+          voisin_4_cote: string | null
+          voisin_4_nom: string | null
           whatsapp: string | null
           whatsapp_indicatif: string | null
           whatsapp_local: string | null
@@ -10372,6 +10422,7 @@ export type Database = {
           co_titulaire_telephone?: string | null
           co_titulaire_telephone_indicatif?: string | null
           co_titulaire_telephone_local?: string | null
+          co_titulaire_type?: string | null
           coordonnees_gps?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -10413,6 +10464,8 @@ export type Database = {
           part_proprietaire_pct?: number | null
           photo_profil_url?: string | null
           prenoms?: string | null
+          president_cvgfr_nom?: string | null
+          president_cvgfr_qualite?: string | null
           reference_cadastrale?: string | null
           region_id?: string | null
           representant_agricapital_nom?: string | null
@@ -10424,6 +10477,7 @@ export type Database = {
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_foncier?: string | null
+          surface_campagne_ha?: number | null
           surface_totale_declaree_ha?: number | null
           surface_totale_ha?: number | null
           telephone?: string | null
@@ -10434,6 +10488,8 @@ export type Database = {
           telephone_secondaire_indicatif?: string | null
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
+          temoin_2_nom?: string | null
+          temoin_2_qualite?: string | null
           temoin_proprietaire_nom?: string | null
           temoin_proprietaire_qualite?: string | null
           type_personne?: string
@@ -10451,6 +10507,10 @@ export type Database = {
           voisin_1_nom?: string | null
           voisin_2_cote?: string | null
           voisin_2_nom?: string | null
+          voisin_3_cote?: string | null
+          voisin_3_nom?: string | null
+          voisin_4_cote?: string | null
+          voisin_4_nom?: string | null
           whatsapp?: string | null
           whatsapp_indicatif?: string | null
           whatsapp_local?: string | null
@@ -10466,6 +10526,7 @@ export type Database = {
           co_titulaire_telephone?: string | null
           co_titulaire_telephone_indicatif?: string | null
           co_titulaire_telephone_local?: string | null
+          co_titulaire_type?: string | null
           coordonnees_gps?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -10507,6 +10568,8 @@ export type Database = {
           part_proprietaire_pct?: number | null
           photo_profil_url?: string | null
           prenoms?: string | null
+          president_cvgfr_nom?: string | null
+          president_cvgfr_qualite?: string | null
           reference_cadastrale?: string | null
           region_id?: string | null
           representant_agricapital_nom?: string | null
@@ -10518,6 +10581,7 @@ export type Database = {
           sous_prefecture_id?: string | null
           statut?: string | null
           statut_foncier?: string | null
+          surface_campagne_ha?: number | null
           surface_totale_declaree_ha?: number | null
           surface_totale_ha?: number | null
           telephone?: string | null
@@ -10528,6 +10592,8 @@ export type Database = {
           telephone_secondaire_indicatif?: string | null
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
+          temoin_2_nom?: string | null
+          temoin_2_qualite?: string | null
           temoin_proprietaire_nom?: string | null
           temoin_proprietaire_qualite?: string | null
           type_personne?: string
@@ -10545,6 +10611,10 @@ export type Database = {
           voisin_1_nom?: string | null
           voisin_2_cote?: string | null
           voisin_2_nom?: string | null
+          voisin_3_cote?: string | null
+          voisin_3_nom?: string | null
+          voisin_4_cote?: string | null
+          voisin_4_nom?: string | null
           whatsapp?: string | null
           whatsapp_indicatif?: string | null
           whatsapp_local?: string | null
@@ -15109,6 +15179,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_sync_account_request_profile: {
+        Args: { p_actor_user_id: string; p_request_id: string }
+        Returns: string
+      }
       admin_update_profile_from_account_request: {
         Args: {
           p_actor_user_id: string
@@ -15128,6 +15202,15 @@ export type Database = {
       admin_update_username_authorized: {
         Args: { p_actor_user_id: string; p_user_id: string; p_username: string }
         Returns: undefined
+      }
+      allocate_acquisition_lot: {
+        Args: {
+          p_acquisition_id: string
+          p_lot_id: string
+          p_notes?: string
+          p_surface_ha?: number
+        }
+        Returns: Json
       }
       annuaire_staff: {
         Args: never
@@ -15257,6 +15340,10 @@ export type Database = {
       ensure_client_contracts: {
         Args: { _client_id: string }
         Returns: undefined
+      }
+      ensure_technical_preceding_steps: {
+        Args: { p_plantation_id: string; p_reference_date?: string }
+        Returns: number
       }
       finalize_independent_service_payment: {
         Args: {
@@ -15511,15 +15598,28 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      finance_payroll_mark_paid: {
-        Args: {
-          p_payment_method: string
-          p_payment_proof_url?: string
-          p_payment_reference: string
-          p_run_id: string
-        }
-        Returns: undefined
-      }
+      finance_payroll_mark_paid:
+        | {
+            Args: {
+              p_payment_method: string
+              p_payment_proof_url?: string
+              p_payment_reference: string
+              p_run_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_fee_applied?: boolean
+              p_payment_method: string
+              p_payment_proof_mime_type?: string
+              p_payment_proof_name?: string
+              p_payment_proof_url?: string
+              p_payment_reference: string
+              p_run_id: string
+            }
+            Returns: undefined
+          }
       finance_record_commission_payment: {
         Args: {
           p_amount: number
