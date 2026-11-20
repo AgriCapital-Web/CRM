@@ -493,40 +493,14 @@ const TechnicienTerrain=()=>{
           if(String(interventionAcquisition.famille_offre||interventionAcquisition.offre_code||"").toUpperCase().includes("PALMINVEST")&&Math.abs(requestedSurface-1)>0.000001){
             throw new Error("Chaque lot PalmInvest doit représenter exactement 1 ha.");
           }
-          const today=new Date().toISOString().slice(0,10);
-          const {data:allocationRow,error:allocationInsertError}=await (supabase as any).from("acquisition_lots").insert({
-            client_id:targetClientId,acquisition_id:interventionAcquisition.id,lot_id:selectedLotId,
-            surface_ha:requestedSurface,date_attribution:today,created_by:profile.id,
-            notes:"Affectation foncière progressive depuis le suivi technique."
-          }).select("id").single();
-          if(allocationInsertError)throw allocationInsertError;
-          const {data:claimedLot,error:claimError}=await (supabase as any).from("lots_hectares")
-            .update({client_id:targetClientId,acquisition_id:interventionAcquisition.id,statut:"attribue",date_attribution:today,surface_attribuee_ha:requestedSurface,updated_at:new Date().toISOString()})
-            .eq("id",selectedLotId).is("client_id",null).is("acquisition_id",null).eq("statut","disponible").select("id").maybeSingle();
-          if(claimError||!claimedLot){
-            await (supabase as any).from("acquisition_lots").delete().eq("id",allocationRow.id);
-            if(claimError)throw claimError;
-            throw new Error("Ce lot vient d'être attribué à un autre dossier. Actualisez les données.");
-          }
-          const allocatedAfter=alreadyAllocated+requestedSurface;
-          const remainingAfter=Math.max(0,contractSurface-allocatedAfter);
-          const nextMetadata={
-            ...(interventionAcquisition.metadata||{}),
-            surface_contractuelle_ha:contractSurface,
-            surface_fonciere_allouee_ha:allocatedAfter,
-            surface_fonciere_restante_ha:remainingAfter,
-            foncier_a_attribuer_plus_tard:remainingAfter>0.000001,
-            technical_intervention_pending:true,
-            land_allocation_note:`Contrat de ${contractSurface} ha. ${allocatedAfter} ha affectés sur plusieurs parcelles; ${remainingAfter} ha restent à affecter.`
-          };
-          const {error:metadataError}=await (supabase as any).from("acquisitions")
-            .update({metadata:nextMetadata,updated_at:new Date().toISOString()})
-            .eq("id",interventionAcquisition.id).eq("client_id",targetClientId);
-          if(metadataError){
-            await (supabase as any).from("lots_hectares").update({client_id:null,acquisition_id:null,statut:"disponible",date_attribution:null,surface_attribuee_ha:0,updated_at:new Date().toISOString()}).eq("id",selectedLotId);
-            await (supabase as any).from("acquisition_lots").delete().eq("id",allocationRow.id);
-            throw metadataError;
-          }
+          const {data:allocationResult,error:allocationError}=await (supabase as any).rpc("allocate_acquisition_lot",{
+            p_acquisition_id:interventionAcquisition.id,
+            p_lot_id:selectedLotId,
+            p_surface_ha:requestedSurface,
+            p_notes:"Affectation foncière progressive depuis le suivi technique."
+          });
+          if(allocationError)throw allocationError;
+          if(!allocationResult?.allocation_id)throw new Error("L'affectation foncière n'a pas été confirmée par le serveur.");
         }
       }
       if(editingInterventionId){
