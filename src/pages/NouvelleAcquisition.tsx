@@ -334,7 +334,14 @@ const NouvelleAcquisition = () => {
           if(code==="client_photo_profil") values.photo_profil_preview=doc.fichier_url||values.photo_profil_preview;
           else if(code==="client_piece_recto") values.photo_piece_recto_preview=doc.fichier_url||values.photo_piece_recto_preview;
           else if(code==="client_piece_verso") values.photo_piece_verso_preview=doc.fichier_url||values.photo_piece_verso_preview;
-          else if(doc.categorie==="contrat"||code.includes("contrat")){values["contrat_"+code+"_preview"]=doc.fichier_url||"";values["contrat_"+code+"_statut"]=doc.statut||"a_preparer";}
+          else if(doc.categorie==="contrat"||code.includes("contrat")){
+            const family=String(offer?.famille_offre||savedSnapshot.offer?.famille_offre||"").toUpperCase();
+            if(code==="contrat_signe_client"&&family==="PALMTERROIR") values.contrat_accompagnement_agricole_preview=doc.fichier_url||"";
+            else if(code==="contrat_signe_client"&&(family==="PALMINVEST"||family==="TERRAPALM")) values.contrat_contrat_acquisition_client_preview=doc.fichier_url||"";
+            else if(code==="contrat_signe_client") values.contrat_signe_client_preview=doc.fichier_url||"";
+            else values["contrat_"+code+"_preview"]=doc.fichier_url||"";
+            values["contrat_"+(code==="contrat_signe_client"?(family==="PALMTERROIR"?"accompagnement_agricole":family==="PALMINVEST"||family==="TERRAPALM"?"contrat_acquisition_client":"signe_client"):code)+"_statut"]=doc.statut||"a_preparer";
+          }
           else values["doc_"+code+"_preview"]=doc.fichier_url||"";
         }
         if(!active)return;
