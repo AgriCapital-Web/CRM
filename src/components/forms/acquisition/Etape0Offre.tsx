@@ -171,7 +171,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
         totalUnitaire: perHa(total), totalFinal: total, totalNormal: total,
         modePaiement: contract.mode_paiement || formData.mode_paiement || "echeancier",
         tranches: Array.isArray(contract.echeancier) ? contract.echeancier : [],
-        duree: Number(contract.duree_paiement_mois || 0), mensualiteEffective: perHa(monthly),
+        duree: Number(contract.duree_paiement_mois || 0), mensualiteEffective: perHa(monthly), mensualiteTotale: monthly,
         promoCible: null, promoReduction: 0, promotionAppliquee: Boolean(contract.promotion_id),
       };
     }
@@ -213,6 +213,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
       tranches: tranchesEffectives,
       duree: Number(o.duree_paiement_mois || 0),
       mensualiteEffective,
+      mensualiteTotale: mensualiteEffective * ha,
       promoCible: prix.promotion_cible,
       promoReduction: Number(prix.reduction_pct || 0),
       promotionAppliquee: !!prix.promotion_id,
@@ -239,120 +240,6 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
         </Card>
       )}
 
-      {promotionActive && (
-        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-amber-700 font-semibold mb-2">
-            <Sparkles className="h-5 w-5" />
-            <span>Promotion en cours: {promotionActive.nom}</span>
-          </div>
-          <p className="text-sm text-amber-600">
-            {(() => {
-              const pct = Number((promotionActive as any).pourcentage_reduction || 0);
-              const fixe = Number((promotionActive as any).montant_fixe_reduction || 0);
-              const cible = String((promotionActive as any).cible || "");
-              return fixe > 0 && pct > 0 ? "-" + pct + "% + " + formatMontant(fixe) + " F sur " + cible
-                : fixe > 0 ? "-" + formatMontant(fixe) + " F sur " + cible
-                : "-" + pct + "% sur " + cible;
-            })()}
-          </p>
-        </div>
-      )}
-
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base sm:text-lg">{contractReadOnly ? "Offre et conditions enregistrées" : "Choisissez votre offre"}</CardTitle>
-          
-        </CardHeader>
-        {formData.offre_id && !contractReadOnly && (
-          <CardContent className="pt-0 pb-3">
-            <Button type="button" variant="outline" size="sm" onClick={() => updateFormData({ offre_id: "", offre_code: "", offre: null, type_client: "" })}>
-              Changer d’offre
-            </Button>
-          </CardContent>
-        )}
-        <CardContent className="space-y-2">
-          {(formData.offre_id ? familles.filter(([, familyOffers]) => familyOffers.some((o) => o.id === formData.offre_id)) : familles).map(([famille, familyOffers]) => {
-            const selectedFamily = familyOffers.some((o) => o.id === formData.offre_id);
-            const first = familyOffers[0];
-            const familleLabel = String(famille);
-            return (
-              <div key={famille} className="rounded-xl border transition-all border-border">
-                <button
-                  type="button"
-                  disabled={contractReadOnly}
-                  className="flex w-full min-w-0 items-center gap-3 p-3 text-left sm:p-4"
-                  onClick={() => {
-                    if (selectedFamily) return;
-                    const typeClient = first.type_offre === "sans_terre" ? "sans_terre" : "avec_terre";
-                    // Selecting an offer only opens its formulas. It never chooses one automatically.
-                    updateFormData({
-                      offre_id: first.id,
-                      offre_code: first.code,
-                      offre: first,
-                      formule_code: "",
-                      formule_nom: "",
-                      formule_confirmed: false,
-                      gestion_type: first.gestion_type || null,
-                      type_client: typeClient,
-                    });
-                  }}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <Sprout className="h-5 w-5 text-primary" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold text-primary">{familleLabel}</span>
-                    <span className="block text-xs text-muted-foreground">{familyOffers.reduce((count, item: any) => count + (Array.isArray(item.formules_configuration) ? item.formules_configuration.length : 0), 0)} formules configurées</span>
-                  </span>
-                  <span className="text-xs font-medium text-muted-foreground">{selectedFamily ? "Ouvert" : "Choisir"}</span>
-                </button>
-
-                {selectedFamily && (
-                  <div className="border-t px-3 pb-3 pt-3 sm:px-4">
-                    <Label className="text-xs">Formule</Label>
-                    <Select
-                      disabled={contractReadOnly}
-                      value={formData.formule_code || ""}
-                      onValueChange={(value) => {
-                        const formulaOwner = familyOffers.find((item: any) => {
-                          const configured = Array.isArray(item.formules_configuration) ? item.formules_configuration : [];
-                          return configured.some((f: any) => f.code === value);
-                        }) || first;
-                        const formulas = Array.isArray(formulaOwner.formules_configuration) ? formulaOwner.formules_configuration : [];
-                        const formula = formulas.find((f: any) => f.code === value) as any;
-                        const selected = formula ? applyFormulaConfig(formulaOwner, formula) : formulaOwner;
-                        if (!formula) return;
-                        const selectedCode = formula.code;
-                        const selectedName = formula.nom;
-                        updateFormData({
-                          offre_id: formulaOwner.id,
-                          offre_code: formulaOwner.code,
-                          offre: selected,
-                          formule_code: selectedCode,
-                          formule_nom: selectedName,
-                          formule_confirmed: true,
-                          gestion_type: formula?.gestion_type || formulaOwner.gestion_type || null,
-                          type_client: formulaOwner.type_offre === "sans_terre" ? "sans_terre" : "avec_terre",
-                          ...(formulaOwner.type_offre === "sans_terre" ? {} : { parcelle_id: null }),
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="mt-1 w-full min-w-0"><SelectValue placeholder="Sélectionner une formule" /></SelectTrigger>
-                      <SelectContent>
-                        {familyOffers.flatMap((item: any) => {
-                          const formulas = Array.isArray(item.formules_configuration) ? item.formules_configuration : [];
-                          return formulas.map((formula: any) => <SelectItem key={formula.code} value={formula.code}>{formula.nom}</SelectItem>);
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>{superficieLabel}</CardTitle>
@@ -378,18 +265,18 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
           {calculs && (
             <div className="p-4 bg-primary/10 rounded-lg space-y-3">
               <div className="flex justify-between text-sm"><span>Superficie:</span><span className="font-medium">{calculs.ha} ha</span></div>
-              <div className="flex justify-between text-sm"><span>{`Paiement initial${calculs.promoCible === "paiement_initial" ? " (promo)" : ""}`}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
+              <div className="flex justify-between text-sm"><span>{"Paiement initial"}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
               <div className="border-t pt-2 flex justify-between"><span className="font-semibold">Coût global contractuel{calculs.promoCible === "cout_global" ? " (promo)" : ""}:</span><span className="text-lg font-bold text-primary">{formatMontant(calculs.totalFinal)} F</span></div>
               {<div className="border-t pt-3 space-y-2">
+                <div className="flex justify-between text-sm"><span>Mensualité totale :</span><span className="font-semibold">{formatMontant(calculs.mensualiteTotale)} F/mois</span></div>
                 <div className="flex justify-between text-sm"><span>Durée de paiement :</span><span className="font-semibold">{calculs.duree} mois</span></div>
                 {calculs.tranches.filter((tranche: any) => Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0) > 0).map((tranche: any, index: number) => (
                   <div key={`${tranche.mois_debut || index}-${tranche.mois_fin || tranche.mois || index}`} className="flex justify-between gap-3 text-xs text-muted-foreground">
                     <span>{`Mensualité · ${tranche.mois || ((tranche.mois_fin || 0) - (tranche.mois_debut || 0) + 1)} mois`}</span>
-                    <span className="font-medium text-foreground">{formatMontant(Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0))} F/ha/mois</span>
+                    <span className="font-medium text-foreground">{formatMontant(Number(tranche.mensualite_par_ha_effective ?? tranche.mensualite_par_ha ?? 0) * calculs.ha)} F/mois</span>
                   </div>
                 ))}
               </div>}
-              {calculs.promotionAppliquee && <div className="flex items-center gap-1 text-xs text-amber-600"><Sparkles className="h-3 w-3" /><span>Promotion : {promotionActive?.nom || promotionActive?.libelle || formData.offre_snapshot?.contract?.promotion_nom || "Promotion appliquée"} · -{calculs.promoReduction}% sur {calculs.promoCible || "le montant contractuel"}</span></div>}
             </div>
           )}
         </CardContent>
