@@ -374,7 +374,7 @@ const GestionBaseDonnees = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <p className="text-sm text-muted-foreground">Les tables de sécurité contenant des clés API, codes d’accès, OTP, jetons de session ou abonnements push sont volontairement exclues de l’export.</p>
+              <p className="text-sm text-muted-foreground">Les {EXCLUDED_SECURITY_TABLES.length} tables de sécurité contenant des clés API, codes d’accès, OTP, jetons de session ou abonnements push sont volontairement exclues de l’export.</p>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label>Tables à exporter</Label>
