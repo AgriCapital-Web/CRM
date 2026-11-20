@@ -1,7 +1,7 @@
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, IdCard, Map, KeyRound, Cable, Contact } from "lucide-react";
+import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, IdCard, Map, KeyRound, Cable, Contact, History } from "lucide-react";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import Utilisateurs from "@/pages/Utilisateurs";
@@ -21,6 +21,7 @@ import GestionRemuneration from "@/pages/parametres/GestionRemuneration";
 import ReinitialiserCodesAcces from "@/pages/parametres/ReinitialiserCodesAcces";
 import IntegrationAcreMap from "@/pages/parametres/IntegrationAcreMap";
 import ImportContacts from "@/pages/parametres/ImportContacts";
+import JournalAudit from "@/pages/parametres/JournalAudit";
 import { useSearchParams } from "react-router-dom";
 
 interface TabConfig {
@@ -45,7 +46,7 @@ const Parametres = () => {
     { value: 'roles', label: 'Rôles', icon: Shield, permission: PERMISSIONS.MANAGE_ROLES, component: GestionRoles },
     { value: 'demandes', label: 'Demandes', icon: UserPlus, permission: PERMISSIONS.MANAGE_USERS, component: AccountRequests },
     { value: 'geographie', label: 'Géographie', icon: Map, permission: PERMISSIONS.MANAGE_GEO, component: GestionGeographie },
-    { value: 'zones', label: 'Zones', icon: MapPinned, permission: PERMISSIONS.MANAGE_TEAMS, component: GestionZones },
+    { value: 'zones', label: 'Zones', icon: MapPinned, permission: PERMISSIONS.MANAGE_GEO, component: GestionZones },
     { value: 'offres', label: 'Offres', icon: Package, permission: PERMISSIONS.MANAGE_OFFERS, component: Offres },
     { value: 'remuneration', label: 'Rémunération', mobileLabel: 'Rémun.', icon: Settings2, permission: PERMISSIONS.MANAGE_REMUNERATION, component: GestionRemuneration },
     { value: 'codes-acces', label: 'Codes d’accès', mobileLabel: 'Codes', icon: KeyRound, permission: PERMISSIONS.MANAGE_SYSTEM, component: ReinitialiserCodesAcces },
@@ -56,6 +57,7 @@ const Parametres = () => {
     { value: 'acremap', label: 'AcreMap API', mobileLabel: 'AcreMap', icon: Cable, permission: PERMISSIONS.MANAGE_SYSTEM, component: IntegrationAcreMap },
     { value: 'contacts', label: 'Importer contacts', mobileLabel: 'Contacts', icon: Contact, permission: PERMISSIONS.MANAGE_SYSTEM, component: ImportContacts },
     { value: 'offline', label: 'Hors ligne', icon: HardDrive, permission: PERMISSIONS.MANAGE_SYSTEM, component: SyncQueue },
+    { value: 'audit', label: 'Journal d’audit', mobileLabel: 'Audit', icon: History, permission: PERMISSIONS.VIEW_AUDIT, component: JournalAudit },
   ];
 
   const visibleTabs = tabs.filter(tab => can(tab.permission));
