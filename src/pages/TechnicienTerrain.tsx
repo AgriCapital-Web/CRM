@@ -166,6 +166,7 @@ const TechnicienTerrain=()=>{
   useEffect(()=>{
     let cancelled=false;
     if(!interventionAcquisition?.id){setAssignedLots([]);return;}
+    setAssignedLots([]);
     (async()=>{
       const {data,error}=await (supabase as any).from("acquisition_lots")
         .select("id,lot_id,surface_ha,lot:lots_hectares(id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id)")
@@ -226,6 +227,7 @@ const TechnicienTerrain=()=>{
         .eq("parcelle_id",intervention.parcelle_id)
         .eq("statut","disponible")
         .is("client_id",null)
+        .is("acquisition_id",null)
         .order("numero_h");
       setLots(data||[]);
     })();
