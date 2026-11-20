@@ -423,3 +423,26 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 
 ### Point contractuel encore ouvert
 - Les documents d'acquisition consultés affichent deux durées différentes : 42 mois dans le contrat et 40 mois dans l'avenant. Aucune durée n'a été changée sans arbitrage écrit de la direction.
+
+
+## Reprise demandée par la direction — 20 novembre 2026
+
+### Tarification et dossier Paulin
+- Consigne actualisée du PDG : aucune remise automatique « 10 ha et plus » ne doit être activée ni affichée comme une promotion permanente. La mensualité de base issue de la formule PalmInvest reste 56 600 FCFA par hectare et par mois ; le total mensuel du dossier est calculé sur la superficie contractuelle (566 000 FCFA/mois pour 10 ha). Le prix global suit également la superficie.
+- La remise test « Remise volume — 10 ha et plus » a été désactivée. Les contrats concernés ont été restaurés depuis leur configuration de formule enregistrée : Paulin LOUKOU (AC_C000008) et KOUAME KOMENAN SIMEON (AC_C000012) sont chacun à 10 ha, 24 679 000 FCFA de total contractuel et 566 000 FCFA par mois. Le PI contractuel de 907 000 FCFA et les paiements réellement encaissés restent inchangés.
+- Migration appliquée sur Supabase CRM : `20261120050000_remove_test_volume_discount_and_restore_base_contracts`.
+- Vérification SQL après migration : la promotion est inactive ; aucun client ni acquisition ne conserve son `promotion_id` ; les deux clients et leurs acquisitions affichent 24 679 000 FCFA et 566 000 FCFA/mois.
+- La superficie contractuelle de Paulin reste 10 ha. Le 1 ha planté/attribué et les 9 ha restant à affecter demeurent des données foncières distinctes ; aucune donnée de parcelle n'a été modifiée.
+
+### Cohérence mobile / ordinateur
+- Une branche de correction est ouverte : `fix/crm-coherence-paul-inventaire-finance-20261120`.
+- Le cache du service worker est incrémenté de v33 à v34 afin de forcer le renouvellement du bundle PWA potentiellement conservé par les navigateurs de bureau. Le contrôle du déploiement et le test de cohérence multi-appareils restent à effectuer.
+- La source actuelle `Clients.tsx` lit la superficie contractuelle depuis `metadata.surface_contractuelle_ha`, puis `total_hectares`, et trie les clients du plus récent au plus ancien. Le contrôle de la session/du périmètre RLS sur le poste où l'écart est constaté reste à effectuer si l'écart persiste après actualisation du PWA.
+
+### Travaux globaux encore à auditer
+- Recherche des doublons de filtres/recherches sur toutes les pages et de l'ordre de tri des tableaux.
+- Vérification de tous les formulaires Finance & Comptabilité : catégories par familles, recherche mobile, défilement des listes, choix « Avec frais / Sans frais » et bascule exclusive référence/fichier justificatif.
+- Vérification des listes déroulantes et de la géographie issue des référentiels actifs, avec maintien de l'exception « prestation indépendante ».
+- Audit de persistance des champs de création de compte et du profil utilisateur, indicatifs téléphoniques et cases WhatsApp indépendantes.
+- Vérification du parcours d'acquisition : contrat signé à l'étape 2, 4 étapes pour les offres ordinaires, 5 étapes uniquement pour Palme du Roi, procuration uniquement pour mandataire, suppression des documents de référence visibles et des champs fonciers non nécessaires.
+- Aucun champ métier ni aucune colonne de base n'est supprimé sans audit de dépendances et de données.
