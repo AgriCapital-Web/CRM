@@ -44,7 +44,7 @@ const Parametres = () => {
     { value: 'equipes', label: 'Équipes', icon: UsersRound, permission: PERMISSIONS.MANAGE_TEAMS, component: Equipes },
 
     { value: 'roles', label: 'Rôles', icon: Shield, permission: PERMISSIONS.MANAGE_ROLES, component: GestionRoles },
-    { value: 'demandes', label: 'Demandes', icon: UserPlus, permission: PERMISSIONS.MANAGE_USERS, component: AccountRequests },
+    { value: 'demandes', label: 'Demandes', icon: UserPlus, permission: PERMISSIONS.MANAGE_ACCOUNT_REQUESTS, component: AccountRequests },
     { value: 'geographie', label: 'Géographie', icon: Map, permission: PERMISSIONS.MANAGE_GEO, component: GestionGeographie },
     { value: 'zones', label: 'Zones', icon: MapPinned, permission: PERMISSIONS.MANAGE_GEO, component: GestionZones },
     { value: 'offres', label: 'Offres', icon: Package, permission: PERMISSIONS.MANAGE_OFFERS, component: Offres },
