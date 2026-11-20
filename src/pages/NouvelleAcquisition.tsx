@@ -152,7 +152,7 @@ const requiredContractForOffer = (formData: any) => {
 const isPalmeDuRoi = (offer: any) => {
   const family = String(offer?.famille_offre || "").toUpperCase();
   const identity = [offer?.code, offer?.nom, family].filter(Boolean).join(" ");
-  return family === "PALMEDUROI" || /palme[\\s_-]*du[\\s_-]*roi/i.test(identity) || /palmeduroi/i.test(identity);
+  return family === "PALMEDUROI" || /palme[\s_-]*du[\s_-]*roi/i.test(identity) || /palmeduroi/i.test(identity);
 };
 
 const normalizeWorkflowSteps = (items: any[], offer: any): Step[] => {
