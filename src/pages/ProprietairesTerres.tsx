@@ -110,7 +110,7 @@ const ProprietairesTerres = () => {
       const { data, error } = await (supabase as any)
         .from("proprietaires_terres")
         .select("*, districts(nom), regions(nom), departements(nom), sous_prefectures(nom), parcelles(count)")
-        .order("id_unique", { ascending: true });
+        .order("created_at", { ascending: false });
       if (error) throw error;
       setProprietaires(data || []);
     } catch (e: any) {
