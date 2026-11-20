@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sprout, Sparkles, Loader2 } from "lucide-react";
+import { Sprout, Loader2 } from "lucide-react";
 import { usePromotionActive } from "@/hooks/usePromotionActive";
 import { calculPrixEffectif } from "@/lib/pricing";
 import { supabase } from "@/integrations/supabase/client";
@@ -266,7 +266,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
             <div className="p-4 bg-primary/10 rounded-lg space-y-3">
               <div className="flex justify-between text-sm"><span>Superficie:</span><span className="font-medium">{calculs.ha} ha</span></div>
               <div className="flex justify-between text-sm"><span>{"Paiement initial"}:</span><span className="font-bold text-primary">{formatMontant(calculs.totalPI)} F</span></div>
-              <div className="border-t pt-2 flex justify-between"><span className="font-semibold">Coût global contractuel{calculs.promoCible === "cout_global" ? " (promo)" : ""}:</span><span className="text-lg font-bold text-primary">{formatMontant(calculs.totalFinal)} F</span></div>
+              <div className="border-t pt-2 flex justify-between"><span className="font-semibold">Coût global contractuel:</span><span className="text-lg font-bold text-primary">{formatMontant(calculs.totalFinal)} F</span></div>
               {<div className="border-t pt-3 space-y-2">
                 <div className="flex justify-between text-sm"><span>Mensualité totale :</span><span className="font-semibold">{formatMontant(calculs.mensualiteTotale)} F/mois</span></div>
                 <div className="flex justify-between text-sm"><span>Durée de paiement :</span><span className="font-semibold">{calculs.duree} mois</span></div>
