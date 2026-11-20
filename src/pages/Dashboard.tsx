@@ -537,7 +537,10 @@ const Dashboard = () => {
         avgDaysRemaining,
         commissions: commissionTotal,
         portfolio: portfolioTotal,
-        forecastRevenue,\n        monthlyForecast,\n        plantingTargetHa,\n        patrimoineTotalHa: plantedHa,
+        forecastRevenue,
+        monthlyForecast,
+        plantingTargetHa,
+        patrimoineTotalHa: plantedHa,
         clientCredit,
         independentCustomers: independentCustomers.length,
         independentProformas: independentProformas.length,
@@ -760,7 +763,8 @@ const Dashboard = () => {
 
   const kpis: any[] = [
     { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canDashboardExecutiveFinance, metrics:[
-      {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},\n      {label:"Paiement mensuel prévisionnel",value:money(stats.monthlyForecast),href:"/finance"},
+      {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
+      {label:"Paiement mensuel prévisionnel",value:money(stats.monthlyForecast),href:"/finance"},
       {label:"Encaissé",value:money(stats.collected),href:"/finance"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
