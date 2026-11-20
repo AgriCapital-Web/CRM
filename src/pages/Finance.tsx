@@ -376,7 +376,6 @@ export default function Finance(){
         status:"valide",source_type:"associate",reference:associateMovement.referenceAsFile?null:associateMovement.reference.trim()||null,
         proof_path:associateMovement.referenceAsFile?(uploadedProofPath||existingTx?.proof_path||null):null,
         proof_name:associateMovement.referenceAsFile?(associateMovementProof?.name||existingTx?.proof_name||null):null,
-        proof_mime_type:associateMovement.referenceAsFile?(associateMovementProof?.type||existingTx?.proof_mime_type||null):null,
         notes:associateMovement.notes.trim()||null
       };
       let txId:string;
