@@ -74,7 +74,7 @@ const GestionRoles = () => {
     // Défense contre les lignes personnalisées incomplètes en base : une seule
     // permission mal formée ne doit jamais faire planter toute la page Rôles.
     const custom = (Array.isArray(customPermissions) ? customPermissions : [])
-      .filter((p) => p && p.actif !== false && typeof p.code === "string" && typeof p.module === "string" && typeof p.action === "string" && typeof p.libelle === "string")
+      .filter((p) => p && p.actif !== false && typeof p.code === "string" && !PERMISSION_CODES.includes(p.code) && typeof p.module === "string" && typeof p.action === "string" && typeof p.libelle === "string")
       .map((p) => ({ code: p.code, module: p.module, action: p.action, libelle: p.libelle }));
     const all: PermissionDef[] = [...PERMISSION_CATALOG, ...custom];
     return all.reduce<Record<string, PermissionDef[]>>((acc, permission) => {
