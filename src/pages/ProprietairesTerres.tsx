@@ -408,7 +408,7 @@ const ProprietairesTerres = () => {
         nombre_lots_agricapital: nombreLots,
         part_proprietaire_ha: partProprietaireHa,
         part_agricapital_ha: partAgriHa,
-        caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
+        caution_par_ha: typeConvention === "plante_partage" ? 25000 : 0,
         caution_totale: cautionTotale,
         statut: "a_valider",
         notes: formData.notes || null,
@@ -787,7 +787,7 @@ const ProprietairesTerres = () => {
                           <p>Part propriétaire : <strong>{ownerHa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</strong> ({ownerPct}%)</p>
                           <p>Part AgriCapital : <strong>{agriHa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</strong> ({agriPct}%)</p>
                           <p>Lots AgriCapital : <strong>{lots}</strong> × 1 ha</p>
-                          {formData.type_convention === "plante_partage" && <p>Caution foncière : <strong>{(agriHa * 50000).toLocaleString('fr-FR')} FCFA</strong></p>}
+                          {formData.type_convention === "plante_partage" && <p>Caution foncière (25 000 FCFA × portion du Propriétaire) : <strong>{(ownerHa * 25000).toLocaleString('fr-FR')} FCFA</strong></p>}
                         </div>;
                       })()}
                       <h4 className="font-semibold mt-4">Limites de la parcelle</h4>
@@ -876,7 +876,7 @@ const ProprietairesTerres = () => {
                             <div key={annexe.field} className="rounded-md border p-3 space-y-3">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="outline">Annexe {index + 1}</Badge>
+                                  <Badge variant="outline">Annexe {Number(annexe.label.match(/^Annexe (\\d+)/)?.[1] || index + 1)}</Badge>
                                   <span>{annexe.label.replace(/^Annexe \d+ — /, "")}</span>
                                 </div>
                                 <div className="flex items-center gap-4">
