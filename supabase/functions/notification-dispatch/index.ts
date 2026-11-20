@@ -79,7 +79,7 @@ type Contact = {
   telephone_principal_whatsapp?: boolean | null; telephone_secondaire_whatsapp?: boolean | null; telephone_whatsapp?: boolean | null;
   whatsapp_candidates?: string[];
   telephone_candidates?: string[];
-  role_code?: string | null; offre_id?: string | null; offre_code?: string | null; offre_nom?: string | null;
+  role_code?: string | null; offre_id?: string | null; offre_code?: string | null; offre_nom?: string | null; formule_code?: string | null; formule_nom?: string | null;
 };
 
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
@@ -278,7 +278,8 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const vars: Record<string, string> = {
     email: contact.email || "", telephone: contact.telephone || "",
     role: contact.role_code || "", offre: contact.offre_nom || contact.offre_code || "",
-    offre_code: contact.offre_code || "", date: new Date().toLocaleDateString("fr-FR"),
+    offre_code: contact.offre_code || "", formule: contact.formule_nom || contact.formule_code || "",
+    formule_code: contact.formule_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
     dernier_prenom_nom: displayName, dernierprenom_nom: displayName,
     ...(context.finance_payout_sms === true ? { prenom: firstName, nom: familyName, nom_complet: displayName } : {}),
@@ -708,6 +709,17 @@ async function hydrateContacts(rows: Contact[]): Promise<Contact[]> {
  const groups=[["clients",["client","beneficiaire_particulier","proprietaire_foncier+beneficiaire_particulier","proprietaire_foncier"]],["leads",["lead","prospect"]],["prospects",["prospect"]],["proprietaires_terres",["proprietaire_foncier"]],["profiles",["equipe","utilisateur"]],["cotitulaires_mandataires",["cotitulaire_proprietaire"]],["client_cotitulaires_mandataires",["cotitulaire_client"]],["crm_parties",["autre"]],["imported_phone_contacts",["contact_importe"]]] as const;
  const fetched=await Promise.all(groups.map(async([table,types])=>{const ids=[...new Set(rows.filter(r=>(types as readonly string[]).includes(r.source_type)).map(r=>r.source_id))];if(!ids.length)return[table,new Map()] as const;const {data,error}=await admin.from(table).select("*").in("id",ids);if(error)throw error;return[table,new Map((data||[]).map((r:any)=>[r.id,r]))] as const;}));
  const maps=new Map(fetched),out:Contact[]=[];
+  const clientRecords=[...(maps.get("clients")?.values()||[])];
+  const offerIds=[...new Set([
+    ...rows.map(r=>r.offre_id),
+    ...clientRecords.map((r:any)=>r.offre_id),
+  ].filter((id):id is string=>typeof id==="string"&&id.length>0))];
+  const offerMap=new Map<string,{nom?:string|null;code?:string|null}>();
+  if(offerIds.length){
+    const {data:offerRows,error:offerError}=await admin.from("offres").select("id,nom,code").in("id",offerIds);
+    if(offerError)throw offerError;
+    for(const offer of offerRows||[])offerMap.set(offer.id,offer);
+  }
  for(const original of rows){
   let table=groups.find(([,types])=>(types as readonly string[]).includes(original.source_type))?.[0];
   if(original.source_type==="prospect")table=maps.get("prospects")?.has(original.source_id)?"prospects":"leads";
@@ -721,7 +733,12 @@ async function hydrateContacts(rows: Contact[]): Promise<Contact[]> {
  telephone_principal_whatsapp:record.telephone_principal_whatsapp??record.whatsapp_primary??false,telephone_secondaire_whatsapp:record.telephone_secondaire_whatsapp??record.whatsapp_secondary??false,
  telephone_indicatif:record.telephone_indicatif||null,telephone_local:record.telephone_local||null,whatsapp_indicatif:record.whatsapp_indicatif||null,whatsapp_local:record.whatsapp_local||null,
  telephone_secondaire_indicatif:record.telephone_secondaire_indicatif||null,telephone_secondaire_local:record.telephone_secondaire_local||null,
- role_code:original.role_code||record.role_code||null,offre_id:original.offre_id||record.offre_id||null,offre_code:original.offre_code||record.offre_code||null,offre_nom:original.offre_nom||record.offre_nom||null};
+ role_code:original.role_code||record.role_code||null,
+  offre_id:original.offre_id||record.offre_id||null,
+  offre_code:original.offre_code||record.offre_code||offerMap.get(record.offre_id)?.code||null,
+  offre_nom:offerMap.get(record.offre_id)?.nom||original.offre_nom||record.offre_nom||record.offre_snapshot?.offer?.nom||null,
+  formule_code:record.formule_code||record.offre_snapshot?.formula?.code||null,
+  formule_nom:record.formule_nom||record.offre_snapshot?.formula?.nom||null};
  c.telephone_candidates=phoneCandidates(c);c.telephone=c.telephone_candidates[0]||null;c.telephone_secondaire=c.telephone_candidates[1]||null;c.whatsapp_candidates=whatsappCandidates(c);c.whatsapp=c.whatsapp_candidates[0]||null;out.push(c);
  }
  return out;
@@ -817,7 +834,15 @@ async function deliver(args: {
 
       // Render the message separately for each recipient/channel. These variables must
       // exist before building the delivery row and before invoking the provider.
-      const rawRendered = render(args.content, contact, args.context || {});
+      let renderContext:Record<string,unknown>={...(args.context||{})};
+      if(/\{\{?\s*telephone_direction\s*\}?\}/i.test(args.content||"")||/\{\{?\s*telephone_direction\s*\}?\}/i.test(args.subject||"")){
+        const {data:directionSetting,error:directionError}=await admin.from("decision_center_settings").select("value").eq("key","telephone_direction").maybeSingle();
+        if(directionError)throw directionError;
+        const directionValue=directionSetting?.value;
+        const directionPhone=typeof directionValue==="string"?directionValue:String((directionValue as any)?.phone||(directionValue as any)?.telephone||"");
+        renderContext={...renderContext,telephone_direction:directionPhone};
+      }
+      const rawRendered = render(args.content, contact, renderContext);
       let rendered: string;
       if (channel === "sms") {
         const greetingName = rawRendered.match(/Bonjour\s+([^,;:]+)[,;:]/i)?.[1]?.trim() || "";
@@ -833,7 +858,7 @@ async function deliver(args: {
       } else {
         rendered = brandAutomatedMessage(rawRendered, channel, routingPolicy.sms_max_characters);
       }
-      const rawSubject = render(args.subject || "", contact, args.context || {});
+      const rawSubject = render(args.subject || "", contact, renderContext);
       const renderedSubject = stripAgriCapitalPrefix(rawSubject);
       const attachments = args.mediaAttachments || [];
       const mediaForChannel = channel === "whatsapp" ? preparedMedia : [];
