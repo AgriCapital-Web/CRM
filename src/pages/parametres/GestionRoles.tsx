@@ -94,7 +94,7 @@ const GestionRoles = () => {
     setLoading(true);
     try {
       const profileQuery = canViewUsers
-        ? (supabase as any).from("profiles").select("id, user_id, nom_complet, email, actif, departement, relation_rh, type_compte").eq("actif", true).neq("type_compte","client_portail").order("nom_complet")
+        ? (supabase as any).from("profiles").select("id, user_id, nom_complet, email, username, telephone, telephone_indicatif, telephone_local, whatsapp, whatsapp_indicatif, whatsapp_local, photo_url, actif, departement, relation_rh, district_id, region_id, equipe_id, type_compte").eq("actif", true).neq("type_compte","client_portail").order("nom_complet")
         : Promise.resolve({ data: [], error: null });
       const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }, { data: permissionData, error: permissionError }] = await Promise.all([
         profileQuery,
@@ -225,11 +225,14 @@ const GestionRoles = () => {
           if (selectedPrimaryRole) {
             primaryRole = selectedRole;
           } else {
+            if (currentPrimary?.role !== selectedRole) {
+              throw new Error("Ce rôle est déjà attribué à cet utilisateur.");
+            }
             const alternativePrimary = existingCodes.find((role) => role !== selectedRole);
             if (!alternativePrimary) {
               throw new Error("Un compte doit conserver un rôle principal. Attribuez d’abord un autre rôle.");
             }
-            primaryRole = currentPrimary?.role === selectedRole ? alternativePrimary : primaryRole;
+            primaryRole = alternativePrimary;
           }
         } else {
           nextRoles = [...nextRoles, selectedRole];
@@ -532,7 +535,7 @@ const GestionRoles = () => {
                         <SelectValue placeholder="Sélectionner un utilisateur" />
                       </SelectTrigger>
                       <SelectContent>
-                        {profiles.filter((profile) => Boolean(profile.user_id) || canCreateUsers).map((profile) => (
+                        {profiles.filter((profile) => Boolean(profile.user_id) || (canCreateUsers && Boolean(profile.email))).map((profile) => (
                           <SelectItem key={profile.id} value={profile.id}>
                             {profile.nom_complet || profile.email}
                           </SelectItem>
