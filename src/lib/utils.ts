@@ -27,8 +27,8 @@ const uppercaseName = (value: string) =>
  */
 /** Affiche uniquement le dernier prénom puis le nom de famille à partir des champs structurés. */
 export function formatStructuredPersonName(lastName?: string | null, givenNames?: string | null): string {
-  const surname = String(lastName || "").trim().split(/\\s+/).filter(Boolean).join(" ");
-  const given = String(givenNames || "").trim().split(/\\s+/).filter(Boolean).pop() || "";
+  const surname = String(lastName || "").trim().split(/\s+/).filter(Boolean).join(" ");
+  const given = String(givenNames || "").trim().split(/\s+/).filter(Boolean).pop() || "";
   if (!surname && !given) return "Utilisateur";
   if (!surname) return displayCaseName(given);
   if (!given) return uppercaseName(surname);
