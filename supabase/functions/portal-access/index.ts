@@ -125,22 +125,51 @@ serve(async (req: Request) => {
         .gte("created_at", new Date(Date.now() - 60 * 1000).toISOString()).limit(1);
       if (recent && recent.length) return json({ success: false, error: "Un code vient d'être envoyé. Patientez une minute avant d'en demander un autre." });
       const otp = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, "0");
-      await supabase.from("otp_codes").delete().eq("telephone", phone).eq("verified", false);
+      await supabase.from("otp_codes").delete().eq("telephone", phone);
       const { data: otpRow, error: otpErr } = await supabase.from("otp_codes").insert({
         telephone: phone, code: await codeHash(otp, "otp:" + phone),
         expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), verified: false, attempts: 0,
       }).select("id").single();
       if (otpErr || !otpRow) throw otpErr || new Error("Impossible d'enregistrer le code de vérification.");
+      const { data: delivery, error: deliveryInsertError } = await supabase.from("notification_deliveries").insert({
+        source_type: "client",
+        source_id: client.id,
+        recipient_name: client.nom_complet || "Client AgriCapital",
+        recipient_phone: dest,
+        canal: "sms",
+        fournisseur: "senndo",
+        statut: "en_cours",
+        contenu: "Code de vérification de première connexion au portail (code non conservé dans le CRM).",
+        dedupe_key: "portal-otp:" + otpRow.id,
+        metadata: { purpose: "portal_first_access_otp", requested_channel: "sms", otp_record_id: otpRow.id },
+      }).select("id").maybeSingle();
+      if (deliveryInsertError) console.error("[Portal OTP] Suivi CRM indisponible", deliveryInsertError.message);
       try {
-        await sendOtpSms(supabase, dest, otp);
+        const providerResult = await sendOtpSms(supabase, dest, otp);
+        if (delivery?.id) {
+          const { error: deliveryUpdateError } = await supabase.from("notification_deliveries").update({
+            statut: "envoye",
+            provider_message_id: providerResult?.id || null,
+            provider_status: "accepted",
+            sent_at: new Date().toISOString(),
+          }).eq("id", delivery.id);
+          if (deliveryUpdateError) console.error("[Portal OTP] Mise à jour CRM impossible", deliveryUpdateError.message);
+        }
       } catch (sendError: any) {
-        await supabase.from("otp_codes").delete().eq("id", otpRow.id);
+        if (delivery?.id) {
+          await supabase.from("notification_deliveries").update({
+            statut: "echoue",
+            erreur: String(sendError?.message || "Échec Senndo").slice(0, 300),
+            provider_status: String(sendError?.status || sendError?.statusCode || "rejected"),
+          }).eq("id", delivery.id);
+        }
         console.error("[Portal OTP] Échec Senndo SMS", {
           status: sendError?.status || sendError?.statusCode || null,
           code: sendError?.code || null,
           message: String(sendError?.message || "Erreur fournisseur").slice(0, 300),
           destination: maskPhone(dest),
         });
+        // Conserver l'empreinte OTP pendant 60 secondes pour éviter les envois en rafale.
         return json({ success: false, code: "SMS_SEND_FAILED", error: "Le SMS n'a pas pu être envoyé. Vérifiez votre numéro auprès d'AgriCapital ou réessayez dans quelques instants." }, 502);
       }
       return json({ success: true, otp_sent: true, canal: "sms", telephone_masque: maskPhone(dest) });
