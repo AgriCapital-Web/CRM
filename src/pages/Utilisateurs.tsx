@@ -122,7 +122,8 @@ const Utilisateurs = () => {
     const loadPhoto = async () => {
       if (!viewUser?.photo_url) { setViewPhotoUrl(""); return; }
       if (/^(https?:|data:)/.test(viewUser.photo_url)) { setViewPhotoUrl(viewUser.photo_url); return; }
-      const { data } = await supabase.storage.from("photos-profils").createSignedUrl(viewUser.photo_url, 3600);
+      const photoBucket = String(viewUser.photo_url).startsWith("pending/") ? "account-request-photos" : "photos-profils";
+      const { data } = await supabase.storage.from(photoBucket).createSignedUrl(viewUser.photo_url, 3600);
       if (!cancelled) setViewPhotoUrl(data?.signedUrl || "");
     };
     void loadPhoto();
