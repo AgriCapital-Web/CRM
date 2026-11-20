@@ -24,7 +24,7 @@ import { useSearchParams } from "react-router-dom";
 import FinanceAnalytics from "@/pages/FinanceAnalytics";
 import FinanceHistoryImport from "@/pages/FinanceHistoryImport";
 import AgriCapitalPay from "@/components/finance/AgriCapitalPay";
-import { FINANCE_EXPENSE_CATEGORIES } from "@/lib/finance-categories";
+import { FINANCE_EXPENSE_CATEGORIES, FINANCE_EXPENSE_CATEGORY_GROUPS } from "@/lib/finance-categories";
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
 
@@ -39,6 +39,10 @@ type SearchableCategorySelectProps = {
 
 function SearchableCategorySelect({ value, options, onChange, disabled = false }: SearchableCategorySelectProps) {
   const [open, setOpen] = useState(false);
+  const optionSet = new Set(options);
+  const groups = FINANCE_EXPENSE_CATEGORY_GROUPS
+    .map((group) => ({ label: group.label, categories: group.categories.filter((category) => optionSet.has(category)) }))
+    .filter((group) => group.categories.length > 0);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -47,19 +51,21 @@ function SearchableCategorySelect({ value, options, onChange, disabled = false }
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] max-h-[75vh] overflow-hidden p-0" align="start">
         <Command>
           <CommandInput placeholder="Rechercher une catégorie…" />
-          <CommandList>
+          <CommandList className="max-h-[min(65vh,420px)] overflow-y-auto overscroll-contain touch-pan-y">
             <CommandEmpty>Aucune catégorie trouvée.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem key={option} value={option} onSelect={() => { onChange(option); setOpen(false); }}>
-                  <Check className={"mr-2 h-4 w-4 " + (value === option ? "opacity-100" : "opacity-0")} />
-                  {option}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {groups.map((group) => (
+              <CommandGroup key={group.label} heading={group.label}>
+                {group.categories.map((option) => (
+                  <CommandItem key={option} value={option} onSelect={() => { onChange(option); setOpen(false); }}>
+                    <Check className={"mr-2 h-4 w-4 " + (value === option ? "opacity-100" : "opacity-0")} />
+                    {option}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>
