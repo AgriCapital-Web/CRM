@@ -439,7 +439,7 @@ const TechnicienTerrain=()=>{
       acquisition_id:item.acquisition_id||"",parcelle_id:item.parcelle_id||"",convention_id:item.convention_id||"",lot_id:item.lot_id||"",
       localisation_gps_lat:item.localisation_gps_lat==null?"":String(item.localisation_gps_lat),
       localisation_gps_lng:item.localisation_gps_lng==null?"":String(item.localisation_gps_lng),
-      type_intervention:item.type_intervention||stageRefs[0]?.code||"defrichage",
+      type_intervention:item.type_intervention||visibleStageRefs[0]?.code||"validation_parcelle",
       date_intervention:item.date_intervention?String(item.date_intervention).slice(0,10):new Date().toISOString().slice(0,10),
       observations:item.observations||"",recommandations:item.recommandations||"",contenu_client:item.contenu_client||"",
       statut:item.statut||"brouillon",nombre_plants_prevus:item.nombre_plants_prevus==null?"":String(item.nombre_plants_prevus),
