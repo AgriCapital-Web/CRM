@@ -25,10 +25,13 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
  const isPalmTerroir = offerFamily === "PALMTERROIR";
  const isTerraPalm = offerFamily === "TERRAPALM";
  const isPalmInvest = offerFamily === "PALMINVEST";
+ const isAcquisitionOffer = isPalmInvest || isTerraPalm;
  const isClientLandOffer = isPalmTerroir || isTerraPalm;
  const contractContext = isPalmTerroir
    ? { title: "Contrat d’accompagnement agricole", description: "Le dossier est préparé selon l’offre PalmTerroir et son contrat d’accompagnement agricole." }
-   : { title: "Contrat d’acquisition", description: "Le dossier est préparé selon l’offre d’acquisition sélectionnée : PalmInvest ou TerraPalm." };
+   : isAcquisitionOffer
+     ? { title: "Contrat d’acquisition", description: "Le dossier est préparé selon le contrat d’acquisition de l’offre PalmInvest ou TerraPalm." }
+     : { title: "Informations du client", description: "Renseignez les informations nécessaires à la constitution du dossier." };
 
  const file=(field:string,label:string,accept=".pdf,image/*",ocr=false)=><FileUploadVisual label={label} field={field} accept={accept} required currentFile={formData[field+"_file"]||null} currentPreview={formData[field+"_preview"]||""} onFileChange={(f,value,preview)=>updateFormData({[field+"_file"]:value,[field+"_preview"]:preview})} onIdentityNumberDetected={ocr?n=>updateFormData({numero_piece:n}):undefined} identityDocumentType={formData.type_piece}/>;
  const phone=(field:"telephone"|"telephone_secondaire",label:string)=> <CountryPhoneInput label={label} required={field==="telephone"} countryCode={formData[field+"_indicatif"]||undefined} localValue={formData[field+"_local"]||formData[field]||""} onChange={v=>updateFormData({[field+"_indicatif"]:v.callingCode,[field+"_local"]:v.localValue,[field]:v.internationalValue})}/>;
