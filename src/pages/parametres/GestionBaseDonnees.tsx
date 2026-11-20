@@ -22,13 +22,16 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-// Catalogue synchronisé avec le schéma Supabase du projet.
+// Tables publiques exportables. Les tables contenant des secrets, codes d’accès, OTP, jetons de session ou abonnements push sont exclues.
 const TABLES = [
   "account_requests",
   "acquisition_lots",
-  "acquisitions_brouillon",
+  "acquisitions",
+  "acremap_lots",
+  "acremap_morcellements",
   "activity_notes",
   "admin_audit_logs",
+  "app_permissions",
   "app_roles",
   "beneficiaire_attributions",
   "beneficiaire_documents",
@@ -37,24 +40,71 @@ const TABLES = [
   "client_account_provision_outbox",
   "client_contracts",
   "client_cotitulaires_mandataires",
-  "client_enquetes",
-  "client_portal_access_codes",
-  "client_portal_sessions",
+  "client_monnaie_mouvements",
   "clients",
+  "commission_payment_allocations",
   "commissions",
   "configurations_systeme",
   "conventions_foncieres",
   "cotitulaires_mandataires",
+  "crm_parties",
+  "crm_party_links",
+  "crm_party_relationships",
+  "decision_access_grants",
+  "decision_approvals",
+  "decision_center_audit",
+  "decision_center_settings",
+  "decision_confidentiality_rules",
+  "decision_financing_sources",
+  "decision_proposal_versions",
+  "decision_proposals",
+  "decision_scenarios",
   "departements",
   "departements_entreprise",
+  "department_budgets",
   "districts",
   "documents_acquisition",
   "documents_convention",
   "domaines",
+  "equipe_membres",
   "equipes",
+  "finance_associate_transactions",
+  "finance_associates",
+  "finance_expense_payments",
+  "finance_expenses",
+  "finance_historical_import_batches",
+  "finance_historical_ledger",
+  "finance_payout_audit_events",
+  "finance_payout_batches",
+  "finance_payout_beneficiaries",
+  "finance_payout_sms_templates",
+  "finance_payouts",
+  "finance_payroll_items",
+  "finance_payroll_runs",
+  "finance_salary_profiles",
+  "finance_transaction_budget_allocations",
+  "finance_transactions",
   "grille_remuneration",
   "historique_actions",
   "historique_activites",
+  "imported_phone_contacts",
+  "independent_service_catalog",
+  "independent_service_customers",
+  "independent_service_events",
+  "independent_service_invoices",
+  "independent_service_items",
+  "independent_service_payments",
+  "independent_service_proformas",
+  "internal_conversation_members",
+  "internal_conversations",
+  "internal_meeting_attachments",
+  "internal_meeting_participants",
+  "internal_meeting_provider_config",
+  "internal_meetings",
+  "internal_message_attachments",
+  "internal_message_reactions",
+  "internal_message_receipts",
+  "internal_messages",
   "interventions_techniques",
   "kkiapay_events",
   "lead_historique",
@@ -63,18 +113,23 @@ const TABLES = [
   "lots_hectares",
   "notification_automations",
   "notification_campaigns",
+  "notification_channel_policy",
+  "notification_client_preferences",
   "notification_cron_state",
   "notification_deliveries",
+  "notification_delivery_attempts",
   "notification_event_outbox",
   "notification_provider_events",
+  "notification_provider_webhook_receipts",
   "notification_segments",
+  "notification_send_guard",
   "notification_templates",
   "notifications",
   "offre_formulaire_contrats",
   "offre_formulaire_documents",
   "offre_formulaire_etapes",
   "offres",
-  "otp_codes",
+  "paiement_acquisition_allocations",
   "paiements",
   "parcelles",
   "photos_plantation",
@@ -82,29 +137,81 @@ const TABLES = [
   "plantations",
   "portail_messages",
   "portail_notifications",
+  "portail_support_requests",
   "portefeuille_versement_lignes",
+  "portefeuille_versement_paiements",
   "portefeuille_versements",
   "portefeuilles",
   "profiles",
   "promotions",
   "proprietaires_terres",
-  "push_subscriptions",
+  "prospects",
   "rapports_visites_medias",
   "rapports_visites_techniques",
   "rate_limits",
+  "referentiels_systeme",
   "regions",
   "remboursements",
   "retraits_portefeuille",
   "role_permissions",
   "sous_prefectures",
+  "strategic_actions",
+  "strategic_plan_audit",
+  "strategic_plans",
   "tickets_techniques",
   "transferts_paiements",
+  "user_permission_overrides",
   "user_roles",
   "villages",
+  "workspace_availability",
+  "workspace_decision_audit",
+  "workspace_document_comments",
+  "workspace_document_members",
+  "workspace_document_versions",
+  "workspace_documents",
+  "workspace_event_external_guests",
+  "workspace_event_participants",
+  "workspace_events",
+  "workspace_job_assignments",
+  "workspace_job_descriptions",
+  "workspace_leave_requests",
+  "workspace_notifications",
+  "workspace_objectives",
+  "workspace_performance_reviews",
+  "workspace_project_members",
+  "workspace_projects",
+  "workspace_reminders",
+  "workspace_reporting_lines",
+  "workspace_tasks",
   "zone_assignments"
 ];
 
+const EXCLUDED_SECURITY_TABLES = [
+  "acremap_integration_settings",
+  "client_portal_access_codes",
+  "client_portal_sessions",
+  "independent_service_portal_otps",
+  "independent_service_portal_sessions",
+  "internal_external_meeting_invites",
+  "otp_codes",
+  "push_subscriptions"
+];
+
 const AUTO_BACKUP_TABLES = ["clients","plantations","paiements","parcelles","portail_messages","documents_acquisition","interventions_techniques","profiles","user_roles","offres","promotions","configurations_systeme"];
+
+const PAGE_SIZE = 500;
+
+async function fetchAllRows(table: string): Promise<any[]> {
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await (supabase as any).from(table).select("*").range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
 
 const GestionBaseDonnees = () => {
   const { toast } = useToast();
@@ -116,9 +223,7 @@ const GestionBaseDonnees = () => {
   const createLocalAutoBackup = useCallback(async () => {
     const snapshot: Record<string, unknown[]> = {};
     for (const table of AUTO_BACKUP_TABLES) {
-      const { data, error } = await (supabase as any).from(table).select("*");
-      if (error) throw error;
-      snapshot[table] = data || [];
+      snapshot[table] = await fetchAllRows(table);
     }
     const payload = JSON.stringify({ version: 1, created_at: new Date().toISOString(), tables: snapshot });
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -157,12 +262,7 @@ const GestionBaseDonnees = () => {
       const exportData: Record<string, any[]> = {};
       
       for (const table of selectedTables) {
-        const { data, error } = await (supabase as any)
-          .from(table)
-          .select("*");
-        
-        if (error) throw error;
-        exportData[table] = data || [];
+        exportData[table] = await fetchAllRows(table);
       }
 
       let content: string;
@@ -261,7 +361,7 @@ const GestionBaseDonnees = () => {
           </TabsTrigger>
           <TabsTrigger value="backup" className="gap-2">
             <Cloud className="h-4 w-4" />
-            Sauvegarde Auto
+            Copie locale
           </TabsTrigger>
         </TabsList>
 
@@ -274,6 +374,7 @@ const GestionBaseDonnees = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              <p className="text-sm text-muted-foreground">Les {EXCLUDED_SECURITY_TABLES.length} tables de sécurité contenant des clés API, codes d’accès, OTP, jetons de session ou abonnements push sont volontairement exclues de l’export.</p>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label>Tables à exporter</Label>
@@ -385,15 +486,16 @@ const GestionBaseDonnees = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cloud className="h-5 w-5" />
-                Sauvegarde Automatique
+                Copie locale de secours
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              <p className="text-sm text-muted-foreground">Cette copie est conservée uniquement dans le navigateur de cet appareil. Elle couvre un ensemble limité de tables et les lignes accessibles à votre compte ; elle ne remplace pas une sauvegarde complète de la base Supabase.</p>
               <div className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-4">
                   <HardDrive className="h-8 w-8 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">Sauvegarde automatique</p>
+                    <p className="font-medium">Copie locale des tables essentielles</p>
                     <p className="text-sm text-muted-foreground">
                       {autoBackupEnabled ? "Activée sur cet appareil" : "Désactivée"}
                     </p>

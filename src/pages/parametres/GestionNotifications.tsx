@@ -55,6 +55,26 @@ const EVENTS = [
   ["plantation_activee", "Plantation activée"],
   ["prospect_relance", "Relance prospect"],
   ["campagne_speciale", "Campagne speciale"],
+  ["client_access_code_reset", "Réinitialisation du code d’accès portail"],
+  ["client_account_ready", "Compte client prêt"],
+  ["nouvelle_demande_compte", "Nouvelle demande de création de compte"],
+  ["nouveau_prospect", "Nouveau prospect"],
+  ["proforma_independante_creee", "Proforma de prestation indépendante créée"],
+  ["proforma_independante_emise", "Proforma de prestation indépendante émise"],
+  ["finance_payout_paid_advance", "Décaissement effectué — avance"],
+  ["finance_payout_paid_agricultural_labor", "Décaissement effectué — main-d’œuvre agricole"],
+  ["finance_payout_paid_bonus", "Décaissement effectué — prime"],
+  ["finance_payout_paid_commission", "Décaissement effectué — commission"],
+  ["finance_payout_paid_indemnity", "Décaissement effectué — indemnité"],
+  ["finance_payout_paid_other", "Décaissement effectué — autre paiement"],
+  ["finance_payout_paid_partner", "Décaissement effectué — associé"],
+  ["finance_payout_paid_refund", "Décaissement effectué — remboursement"],
+  ["finance_payout_paid_reimbursement", "Décaissement effectué — remboursement de frais"],
+  ["finance_payout_paid_remuneration", "Décaissement effectué — rémunération"],
+  ["finance_payout_paid_salary", "Décaissement effectué — salaire"],
+  ["finance_payout_paid_supplier", "Décaissement effectué — fournisseur"],
+  ["workspace_document_comment_email", "Commentaire sur document partagé"],
+  ["workspace_document_shared_email", "Document partagé"]
 ];
 
 const AUDIENCES = [

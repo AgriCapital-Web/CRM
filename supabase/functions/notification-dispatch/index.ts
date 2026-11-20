@@ -211,7 +211,7 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
     const remaining = maxBodyCharacters - Array.from(beforeName).length;
     if (remaining < 1) throw new Error("Le texte avant le nom dépasse déjà 130 caractères.");
     const words = afterName.split(/\s+/).filter(Boolean);
-    let kept = words;
+    const kept = [...words];
     while (kept.length && Array.from(kept.join(" ")).length > remaining - 1) kept.pop();
     const suffix = kept.length ? " " + kept.join(" ") : "";
     const fitted = beforeName + marker + suffix + (kept.length < words.length ? "…" : "");

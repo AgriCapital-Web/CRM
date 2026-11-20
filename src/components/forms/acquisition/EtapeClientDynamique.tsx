@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
+import GeographieCascade from "@/components/common/GeographieCascade";
 import CountryNationalitySelect from "@/components/common/CountryNationalitySelect";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import { useSystemReferences } from "@/hooks/useSystemReferences";

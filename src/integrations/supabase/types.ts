@@ -15307,6 +15307,10 @@ export type Database = {
         Returns: boolean
       }
       crm_current_user_permissions: { Args: never; Returns: string[] }
+      crm_set_user_permission_override: {
+        Args: { _effect: string; _permission_code: string; _reason: string; _target_user_id: string }
+        Returns: undefined
+      }
       crm_normalize_phone_e164: {
         Args: { p_dial_code?: string; p_value: string }
         Returns: string

@@ -55,11 +55,10 @@ export default function ReinitialiserCodesAcces() {
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Réinitialisation impossible.");
       toast({
         title: "Code réinitialisé",
-        description: "Le client devra créer un nouveau code à 4 chiffres à sa prochaine connexion. Le SMS d'information a été déclenché.",
+        description: "Le client devra créer un nouveau code à 4 chiffres à sa prochaine connexion. Le SMS d'information a été mis en file d'envoi.",
       });
       setSelectedId("");
       setSearch("");
-      setResetDialogOpen(false);
       setResetDialogOpen(false);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Réinitialisation impossible", description: e?.message || "Une erreur est survenue." });

@@ -47,7 +47,7 @@ serve(async (req) => {
       if (!token) return json({ error: "Non authentifié", step, logs }, 401);
       const { data: caller } = await admin.auth.getUser(token);
       if (!caller?.user) return json({ error: "Session invalide", step, logs }, 401);
-      callerUserId = callerUserId;
+      callerUserId = caller.user.id;
       log(`caller=${callerUserId}`);
     }
 

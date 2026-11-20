@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,8 @@ const RULES = {
 
 export default function GestionRemuneration() {
   const { toast } = useToast();
+  const { can } = usePermissions();
+  const canEditRemuneration = can("system.global_admin");
   const queryClient = useQueryClient();
   const [rows, setRows] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +117,7 @@ export default function GestionRemuneration() {
   return <div className="space-y-4">
     <div className="flex justify-end gap-2">
       <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Actualiser</Button>
-      <Button size="sm" onClick={() => setEditOpen(true)} disabled={loading}>Modifier les paramètres</Button>
+      {canEditRemuneration ? <Button size="sm" onClick={() => setEditOpen(true)} disabled={loading}>Modifier les paramètres</Button> : <span className="text-xs text-muted-foreground">Consultation seule — modification réservée à la direction</span>}
     </div>
     {loading ? <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">Chargement…</div> : (
       <>

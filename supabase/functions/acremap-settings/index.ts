@@ -20,12 +20,12 @@ Deno.serve(async (req) => {
   if (authError || !auth.user) return respond({ error: "unauthorized" }, 401);
 
   const admin = createClient(url, serviceKey);
-  const { data: allowed, error: permissionError } = await admin.rpc("user_has_app_permission", {
+  const { data: effectivePermissions, error: permissionError } = await admin.rpc("crm_user_app_permissions", {
     _user_id: auth.user.id,
-    _required_code: "parametres.manage_system",
   });
   if (permissionError) return respond({ error: "permission_check_failed" }, 500);
-  if (allowed !== true) return respond({ error: "forbidden" }, 403);
+  const allowed = Array.isArray(effectivePermissions) && effectivePermissions.includes("parametres.manage_system");
+  if (!allowed) return respond({ error: "forbidden" }, 403);
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return respond({ error: "invalid_json" }, 400); }
