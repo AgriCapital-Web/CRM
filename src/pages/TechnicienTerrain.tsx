@@ -436,9 +436,10 @@ const TechnicienTerrain=()=>{
 
   const saveIntervention=async()=>{
     const interventionPlantation=plantations.find(p=>p.id===intervention.plantation_id);
+    const selectedAcquisitionLot=acquisitionLotOptions.find((lot:any)=>lot.id===intervention.lot_id);
     const targetClientId=intervention.client_id||interventionPlantation?.client_id||null;
     let targetParcelleId=interventionAcquisition
-      ? (intervention.parcelle_id||interventionAcquisition.parcelle_id||null)
+      ? (selectedAcquisitionLot?.parcelle_id||intervention.parcelle_id||interventionAcquisition.parcelle_id||null)
       : technicalPalmInvest
         ? (intervention.parcelle_id||interventionPlantation?.parcelle_id||null)
         : (intervention.parcelle_id||interventionClient?.parcelle_id||interventionPlantation?.parcelle_id||null);
@@ -452,7 +453,7 @@ const TechnicienTerrain=()=>{
     if(!targetClientId){toast({variant:"destructive",title:"Client / dossier requis",description:"Sélectionnez le Client ou dossier concerné."});return;}
     if(!targetParcelleId && !technicalPalmInvest && (!intervention.nouvelle_parcelle_nom?.trim() || Number(intervention.nouvelle_parcelle_surface)<=0 || !intervention.nouvelle_parcelle_village?.trim())){toast({variant:"destructive",title:"Identification de la parcelle requise",description:"Lors de la première visite, renseignez le nom, la superficie et le village de la parcelle appartenant au Client."});return;}
     if(technicalPalmInvest && !interventionAcquisition && (!intervention.convention_id || !intervention.lot_id)){toast({variant:"destructive",title:"Lot requis",description:"Sélectionnez une parcelle puis un lot disponible avant de commencer le suivi technique."});return;}
-    if(technicalPalmInvest && interventionAcquisition && !interventionAcquisition.lot_id){toast({variant:"destructive",title:"Lot de acquisition absent",description:"Cette acquisition partenaire doit être rattachée à un lot disponible avant l’intervention."});return;}
+    if(technicalPalmInvest && interventionAcquisition && !intervention.lot_id){toast({variant:"destructive",title:"Lot requis",description:"Choisissez le lot de la parcelle sur laquelle cette intervention sera réalisée."});return;}
     if(!isPrePlantationStage && !intervention.plantation_id){toast({variant:"destructive",title:"Plantation requise",description:"Cette étape intervient après la création de la plantation."});return;}
     const technicalContext={...interventionPlantation,client:interventionClient,date_plantation:interventionPlantation?.date_plantation};
     // Même référentiel que le Portail : toutes les étapes actives sont disponibles dans l'ordre défini en base.
@@ -461,6 +462,70 @@ const TechnicienTerrain=()=>{
     setSaving(true);
     try{
       const profile=await profileContext(); if(!profile?.id)throw new Error("Profil technicien introuvable");
+      if(technicalPalmInvest && interventionAcquisition){
+        const selectedLotId=intervention.lot_id||interventionAcquisition.lot_id;
+        const {data:existingAllocation,error:allocationReadError}=await (supabase as any).from("acquisition_lots")
+          .select("id,surface_ha").eq("acquisition_id",interventionAcquisition.id).eq("client_id",targetClientId).eq("lot_id",selectedLotId).maybeSingle();
+        if(allocationReadError)throw allocationReadError;
+        const {data:lotRow,error:lotReadError}=await (supabase as any).from("lots_hectares")
+          .select("id,reference,surface_ha,surface_attribuee_ha,surface_disponible_ha,client_id,parcelle_id,convention_id,statut,acquisition_id,part_type")
+          .eq("id",selectedLotId).maybeSingle();
+        if(lotReadError)throw lotReadError;
+        if(!lotRow)throw new Error("Le lot sélectionné est introuvable.");
+        targetParcelleId=lotRow.parcelle_id;
+        if(existingAllocation){
+          if(lotRow.client_id!==targetClientId||lotRow.acquisition_id!==interventionAcquisition.id){
+            throw new Error("Le rattachement du lot à cette acquisition est incohérent. Vérifiez le foncier avant de poursuivre.");
+          }
+        }else{
+          if(lotRow.client_id||lotRow.acquisition_id||lotRow.statut!=="disponible"||lotRow.convention_id!==intervention.convention_id){
+            throw new Error("Le lot n'est plus disponible dans la convention et la parcelle sélectionnées.");
+          }
+          const requestedSurface=Number(lotRow.surface_ha||1);
+          const alreadyAllocated=acquisitionAllocatedSurface;
+          const contractSurface=Number(interventionAcquisition.superficie_ha||0);
+          if(alreadyAllocated+requestedSurface>contractSurface+0.000001){
+            throw new Error(`Cette affectation dépasserait le contrat de ${contractSurface} ha. Il reste ${Math.max(0,contractSurface-alreadyAllocated).toLocaleString("fr-FR")} ha à affecter.`);
+          }
+          if(String(interventionAcquisition.famille_offre||interventionAcquisition.offre_code||"").toUpperCase().includes("PALMINVEST")&&Math.abs(requestedSurface-1)>0.000001){
+            throw new Error("Chaque lot PalmInvest doit représenter exactement 1 ha.");
+          }
+          const today=new Date().toISOString().slice(0,10);
+          const {data:allocationRow,error:allocationInsertError}=await (supabase as any).from("acquisition_lots").insert({
+            client_id:targetClientId,acquisition_id:interventionAcquisition.id,lot_id:selectedLotId,
+            surface_ha:requestedSurface,date_attribution:today,created_by:profile.id,
+            notes:"Affectation foncière progressive depuis le suivi technique."
+          }).select("id").single();
+          if(allocationInsertError)throw allocationInsertError;
+          const {data:claimedLot,error:claimError}=await (supabase as any).from("lots_hectares")
+            .update({client_id:targetClientId,acquisition_id:interventionAcquisition.id,statut:"attribue",date_attribution:today,surface_attribuee_ha:requestedSurface,updated_at:new Date().toISOString()})
+            .eq("id",selectedLotId).is("client_id",null).is("acquisition_id",null).eq("statut","disponible").select("id").maybeSingle();
+          if(claimError||!claimedLot){
+            await (supabase as any).from("acquisition_lots").delete().eq("id",allocationRow.id);
+            if(claimError)throw claimError;
+            throw new Error("Ce lot vient d'être attribué à un autre dossier. Actualisez les données.");
+          }
+          const allocatedAfter=alreadyAllocated+requestedSurface;
+          const remainingAfter=Math.max(0,contractSurface-allocatedAfter);
+          const nextMetadata={
+            ...(interventionAcquisition.metadata||{}),
+            surface_contractuelle_ha:contractSurface,
+            surface_fonciere_allouee_ha:allocatedAfter,
+            surface_fonciere_restante_ha:remainingAfter,
+            foncier_a_attribuer_plus_tard:remainingAfter>0.000001,
+            technical_intervention_pending:true,
+            land_allocation_note:`Contrat de ${contractSurface} ha. ${allocatedAfter} ha affectés sur plusieurs parcelles; ${remainingAfter} ha restent à affecter.`
+          };
+          const {error:metadataError}=await (supabase as any).from("acquisitions")
+            .update({metadata:nextMetadata,updated_at:new Date().toISOString()})
+            .eq("id",interventionAcquisition.id).eq("client_id",targetClientId);
+          if(metadataError){
+            await (supabase as any).from("lots_hectares").update({client_id:null,acquisition_id:null,statut:"disponible",date_attribution:null,surface_attribuee_ha:0,updated_at:new Date().toISOString()}).eq("id",selectedLotId);
+            await (supabase as any).from("acquisition_lots").delete().eq("id",allocationRow.id);
+            throw metadataError;
+          }
+        }
+      }
       if(editingInterventionId){
         const original=interventions.find((item:any)=>item.id===editingInterventionId);
         if(!original)throw new Error("Intervention introuvable ou hors de votre périmètre.");
@@ -468,7 +533,7 @@ const TechnicienTerrain=()=>{
         const updatePayload={
           client_id:targetClientId,parcelle_id:targetParcelleId,plantation_id:intervention.plantation_id||null,
           acquisition_id:intervention.acquisition_id||null,convention_id:intervention.convention_id||null,
-          lot_id:interventionAcquisition?.lot_id||intervention.lot_id||null,
+          lot_id:intervention.lot_id||interventionAcquisition?.lot_id||null,
           type_intervention:intervention.type_intervention,observations:intervention.observations||null,
           recommandations:intervention.recommandations||null,contenu_client:intervention.contenu_client||null,
           statut:original.statut||intervention.statut,
@@ -476,6 +541,7 @@ const TechnicienTerrain=()=>{
           nombre_plants_realises:intervention.nombre_plants_realises?Number(intervention.nombre_plants_realises):null,
           nombre_plants_remplaces:intervention.nombre_plants_remplaces?Number(intervention.nombre_plants_remplaces):null,
           densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null,
+          surface_reellement_plantee_ha:intervention.surface_reellement_plantee_ha?Number(intervention.surface_reellement_plantee_ha):null,
           updated_at:new Date().toISOString()
         };
         // Keep the original date and assigned technician unchanged when editing.
@@ -516,15 +582,7 @@ const TechnicienTerrain=()=>{
           const {error:clientParcelError}=await offlineUpdate("clients",targetClientId,{parcelle_id:targetParcelleId,updated_at:new Date().toISOString()});
           if(clientParcelError)throw clientParcelError;
         }
-        if(interventionAcquisition){
-          const {data:lotRow,error:lotReadError}=await (supabase as any).from("lots_hectares")
-            .select("id,client_id,parcelle_id,convention_id,statut,acquisition_id")
-            .eq("id",interventionAcquisition.lot_id).maybeSingle();
-          if(lotReadError)throw lotReadError;
-          if(!lotRow || lotRow.client_id!==targetClientId || lotRow.parcelle_id!==targetParcelleId || lotRow.acquisition_id!==interventionAcquisition.id){
-            throw new Error("Le lot n’est plus rattaché à cette acquisition. Actualisez les données avant de poursuivre.");
-          }
-        } else {
+        if(!interventionAcquisition){
           const {data:lotRow,error:lotReadError}=await (supabase as any).from("lots_hectares").select("id,client_id,parcelle_id,convention_id,statut").eq("id",intervention.lot_id).maybeSingle();
           if(lotReadError)throw lotReadError;
           if(!lotRow||lotRow.parcelle_id!==targetParcelleId||lotRow.convention_id!==intervention.convention_id||lotRow.client_id){throw new Error("Le lot sélectionné n'est plus disponible pour cette parcelle.");}
@@ -542,11 +600,12 @@ const TechnicienTerrain=()=>{
       const payload={...interventionFields,contenu_client:intervention.contenu_client||null,id:crypto.randomUUID(),agent_technique_id:profile.id,
         client_id:targetClientId,parcelle_id:targetParcelleId,plantation_id:intervention.plantation_id||null,
         acquisition_id:intervention.acquisition_id||null,
-        convention_id:intervention.convention_id||null,lot_id:interventionAcquisition?.lot_id||intervention.lot_id||null,
+        convention_id:intervention.convention_id||null,lot_id:intervention.lot_id||interventionAcquisition?.lot_id||null,
         nombre_plants_prevus:intervention.nombre_plants_prevus?Number(intervention.nombre_plants_prevus):null,
         nombre_plants_realises:intervention.nombre_plants_realises?Number(intervention.nombre_plants_realises):null,
         nombre_plants_remplaces:intervention.nombre_plants_remplaces?Number(intervention.nombre_plants_remplaces):null,
-        densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null
+        densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null,
+        surface_reellement_plantee_ha:intervention.surface_reellement_plantee_ha?Number(intervention.surface_reellement_plantee_ha):null
       };
       const {error}=await offlineInsert("interventions_techniques",payload);
       if(error)throw error;
