@@ -168,7 +168,7 @@ const NouvelleAcquisition = () => {
   const { can } = usePermissions();
   const canEditExisting = Boolean(existingRecord?.client) && can("clients.update");
   const [searchParams]=useSearchParams();
-  const {data:promotionActive}=usePromotionActive(formData.offre_id, undefined, !recordId);
+  const {data:promotionActive}=usePromotionActive(formData.offre_id, formData.formule_code, !recordId, Number(formData.superficie_prevue || 0));
 
   const updateFormData = useCallback((data: any) => setFormData((prev: any) => ({ ...prev, ...data })), []);
 
@@ -626,7 +626,7 @@ const NouvelleAcquisition = () => {
       const ha=Number(formData.superficie_prevue);
       // The client contract workflow currently enforces the échéancier mode in the DB.
       const modePaiement = "echeancier" as const;
-      const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement});
+      const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement,superficieHa:ha});
       const total=Number(prix.montant_total_effectif||prix.montant_total_base||0)*ha;
       const paiementInitial=Number(prix.pi_effectif||0)*ha;
       const mensualite=Number(prix.mensualite_effective||0)*ha;
