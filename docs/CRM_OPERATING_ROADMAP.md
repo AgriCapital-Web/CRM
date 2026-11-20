@@ -333,3 +333,31 @@ Ajouter une entrée datée avec :
 - Aucun client, lead ou prospect nommé « Diop » n'a été retrouvé dans les tables CRM vérifiées. Demander le nom complet et le téléphone avant création.
 - La parcelle de BI BERTIN BI à Gonaté (1 ha) reste à valider techniquement ; aucune plantation ne doit être déclarée sans constat.
 - DJAHA KOUAME reste un prospect chaud de 2 ha, sans paiement ni client lié ; ne pas le convertir sans confirmation.
+
+
+## Finalisation du 20 novembre 2026 — suivi progressif et étapes techniques
+
+### Corrections applicatives préparées sur `feat/progressive-planting-multi-parcel-20261120`
+- Tableau de bord : suppression du champ de recherche en double dans « Clients récents » et « Paiements récents » ; un seul filtre reste affiché par tableau.
+- Tri des associés bénéficiaires dans Acquisition : ordre chronologique de création, avec les propriétaires affichés à côté du dossier client correspondant.
+- Interventions techniques : les étapes de préparation foncière « Défrichage » et « Nettoyage » ne sont proposées que pour PalmInvest et TerraPalm ; elles sont masquées pour PalmTerroir. L'édition d'une intervention existante est ramenée vers une étape autorisée pour la formule du client.
+- Les interventions antérieures à la mise en terre sont matérialisées sans prétendre connaître leur date exacte : la note d'audit indique explicitement que la date affichée est la date de mise en terre connue, et non une date historique vérifiée.
+- Commit de branche : `cf041b7b1054e6a8c54a65bbf802a670a2255b3d`. À fusionner et déployer après contrôle du build et de l'aperçu Vercel.
+
+### Contrôle des commissions Jean-Marie — 20/11/2026
+- Les commissions de Paulin et de Boukary Zongo sont enregistrées payées : 5 000 FCFA chacune, soit 10 000 FCFA réglés.
+- Les commissions de Yao Lambert et de Patrice sont validées à 5 000 FCFA chacune, soit 10 000 FCFA à régler.
+- Pour ces quatre dossiers : 20 000 FCFA de commissions générées, dont 10 000 FCFA payées et 10 000 FCFA validées non encore payées. Les deux lignes Paulin/Zongo sont distinctes et correspondent aux deux plantations de la parcelle partagée.
+- Le registre global de Jean-Marie contient 30 000 FCFA payés, 25 000 FCFA validés non payés et 25 000 FCFA annulés. Les lignes annulées sont exclues du montant dû/payé.
+- Les commissions sont reliées au profil de Jean-Marie. L'affectation de l'agent dans la fiche intervention doit rester soumise à la fonction sécurisée `reassign_intervention`, qui exige une session d'un rôle autorisé ; ne pas la contourner via SQL.
+
+### Tarification 10 ha
+- Vérification en base : Paulin et Siméon ont chacun un PI contractuel de 907 000 FCFA, une mensualité unitaire de 50 900 FCFA/ha (réduction d'environ 10,07 % par rapport à 56 600 FCFA), une mensualité totale de 509 000 FCFA et un total contractuel de 22 285 000 FCFA.
+- Paulin : 10 ha contractuels, 1 ha planté, 9 ha à attribuer/planter progressivement.
+- Siméon : 10 ha contractuels, 0 ha planté, 10 ha à attribuer/planter progressivement.
+- Les données client/acquisition sont cohérentes sur ces valeurs ; aucun nouveau recalcul n'est nécessaire.
+
+### État de production au contrôle du 20/11/2026
+- Dernier déploiement CRM de production contrôlé : commit `9bfb691e16c33fd407a0041103ea20e6d65faa96`, état `READY`.
+- Aucun groupe d'erreurs runtime remonté sur les dernières 24 h. La lecture des logs détaillés sur une heure n'est pas disponible sur le plan Vercel courant ; une lecture sur 30 minutes n'a retourné aucun log d'erreur.
+- Les modifications de la branche ci-dessus ne sont pas encore en production à cette date.
