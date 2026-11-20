@@ -121,6 +121,24 @@ const StoredAttachmentLinks=({formData}:{formData:any})=>{
 };
 
 
+const buildLandInformation = (formData: any, offer: any) => {
+  const family = String(offer?.famille_offre || formData.offre?.famille_offre || formData.offre_snapshot?.offer?.famille_offre || "").toUpperCase();
+  return {
+    famille_offre: family || null,
+    propriete_fonciere: family === "PALMINVEST" ? "partenaire_agricapital" : "client",
+    site_agricapital: formData.site_agricapital || null,
+    superficie_contractuelle_ha: Number(formData.superficie_prevue || 0) || null,
+    statut_foncier: formData.parcelle_statut_foncier || null,
+    district_id: formData.parcelle_district_id || null,
+    region_id: formData.parcelle_region_id || null,
+    departement_id: formData.parcelle_departement_id || null,
+    sous_prefecture_id: formData.parcelle_sous_prefecture_id || null,
+    village_id: formData.parcelle_village_id || null,
+    reference_parcelle: formData.parcelle_reference || null,
+    coordonnees_gps: formData.parcelle_coordonnees_gps || null,
+  };
+};
+
 const requiredContractForOffer = (formData: any) => {
   const family = String(formData.offre?.famille_offre || formData.famille_offre || formData.offre_snapshot?.offer?.famille_offre || "").toUpperCase();
   if (family === "PALMTERROIR") return { type: "accompagnement_agricole", field: "contrat_accompagnement_agricole", label: "Contrat d’accompagnement agricole" };
@@ -293,6 +311,18 @@ const NouvelleAcquisition = () => {
           formule_confirmed:true,superficie_prevue:String(acquisition?.superficie_ha??savedSnapshot.contract?.superficie_ha??client.total_hectares??client.superficie_ha??""),
           photo_profil_preview:client.photo_profil_url||"",photo_piece_recto_preview:client.fichier_piece_recto_url||"",
           photo_piece_verso_preview:client.fichier_piece_verso_url||"",contrat_lu:true,documents_authentiques:true,autorisation_donnees:true};
+        const landInfo=client.metadata?.informations_foncieres||{};
+        Object.assign(values,{
+          site_agricapital:landInfo.site_agricapital||"",
+          parcelle_statut_foncier:landInfo.statut_foncier||"",
+          parcelle_district_id:landInfo.district_id||"",
+          parcelle_region_id:landInfo.region_id||"",
+          parcelle_departement_id:landInfo.departement_id||"",
+          parcelle_sous_prefecture_id:landInfo.sous_prefecture_id||"",
+          parcelle_village_id:landInfo.village_id||"",
+          parcelle_reference:landInfo.reference_parcelle||"",
+          parcelle_coordonnees_gps:landInfo.coordonnees_gps||"",
+        });
         if(repResult.data) Object.assign(values,{has_representant:true,representant_type:repResult.data.type_relation||"cotitulaire",
           representant_lien:repResult.data.lien_client||"",representant_civilite:repResult.data.civilite||"",
           representant_nom:repResult.data.nom||"",representant_prenoms:repResult.data.prenoms||"",
@@ -436,12 +466,15 @@ const NouvelleAcquisition = () => {
     if(step.code==="client"){
       const typePersonne=formData.type_personne||"personne_physique";
       const commonMissing=["telephone","domicile"].filter(f=>!formData[f]);
-      const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
+      const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom","prenoms","date_naissance","lieu_naissance","nationalite","statut_marital","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
-      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
-        const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing];
+      const offerFamily=String(formData.offre?.famille_offre||formData.offre_snapshot?.offer?.famille_offre||"").toUpperCase();
+      const clientLandRequired=offerFamily==="PALMTERROIR"||offerFamily==="TERRAPALM";
+      const parcelMissing=clientLandRequired ? ["parcelle_statut_foncier","parcelle_region_id","parcelle_departement_id","parcelle_sous_prefecture_id","parcelle_village_id"].filter(f=>!formData[f]) : [];
+      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||parcelMissing.length||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
+        const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing,...parcelMissing];
         const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : "Un groupe familial doit compter au moins deux membres.";
         toast({variant:"destructive",title:"Fiche client incomplète",description:reason}); return false;
       }
@@ -610,7 +643,9 @@ const NouvelleAcquisition = () => {
         whatsapp_indicatif:null,whatsapp_local:null,email:formData.email||null,
         domicile:formData.domicile||null,domicile_residence:formData.domicile||null,
         district_id:formData.district_id||null,region_id:formData.region_id||null,departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
-        localite:formData.domicile||null,montant_total_contrat:total,
+        localite:formData.domicile||null,
+        metadata:{...(formData.metadata||{}),informations_foncieres:buildLandInformation(formData,offer)},
+        montant_total_contrat:total,
         mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
         montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
         famille_offre:offer.famille_offre||null,
@@ -840,7 +875,9 @@ const NouvelleAcquisition = () => {
         telephone_secondaire_whatsapp:!!formData.telephone_secondaire_whatsapp,
         whatsapp:formData.telephone_principal_whatsapp?formData.telephone:formData.telephone_secondaire_whatsapp?(formData.telephone_secondaire||null):null,
         email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
-        domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
+        domicile_residence:formData.domicile||formData.domicile_residence||null,
+        metadata:{...(existingRecord.client.metadata||{}),informations_foncieres:buildLandInformation(formData,offer)},
+        district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
          contrat_acquisition_statut:formData.contrat_contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
          contrat_accompagnement_statut:formData.contrat_accompagnement_agricole_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",
