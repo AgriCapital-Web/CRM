@@ -209,9 +209,10 @@ const ProprietairesTerres = () => {
       toast({ variant: "destructive", title: "Téléphone obligatoire", description: "Renseignez le numéro de téléphone du propriétaire." });
       return;
     }
-    if (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0) {
+    const totalSurface = Number(formData.surface_totale_declaree_ha || 0);
+    if (totalSurface < 2 || Math.abs(totalSurface / 2 - Math.round(totalSurface / 2)) > 0.000001) {
       setActiveFormTab("parcelle");
-      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro." });
+      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie totale doit être d’au moins 2 ha et respecter des tranches de 2 ha." });
       return;
     }
     if ((formData.type_convention || "plante_partage") === "plante_partage") {
@@ -751,7 +752,7 @@ const ProprietairesTerres = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Superficie totale de la parcelle (ha) *</Label>
-                          <Input type="number" min="0.1" step="0.1" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
+                          <Input type="number" min="2" step="2" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
                         </div>
                         {formData.type_convention !== "achat" && <div className="space-y-2">
                           <Label>Superficie de la campagne de mise en valeur (ha) — minimum 2 ha *</Label>
