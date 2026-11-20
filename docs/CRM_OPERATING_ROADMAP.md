@@ -387,3 +387,39 @@ Cette section prévaut sur les anciennes notes de reprise lorsque les données o
 - PR #58 reste ouverte. Le dernier commit cf041b7b1054e6a8c54a65bbf802a670a2255b3d n'a pas obtenu de build Vercel : le service a renvoyé une limitation de déploiement pendant 24 h. Les previews antérieures 76c5df9 et e221942 étaient READY, mais ne correspondent pas au dernier commit.
 - Ne pas fusionner/déployer PR #58 avant un build réussi du dernier commit. Reprendre le contrôle dès la levée de la limitation.
 - Point contractuel toujours ouvert : le modèle d'acquisition et son avenant affichent respectivement 42 et 40 mois. Ne pas changer la durée ou le tarif sans décision formelle.
+
+
+## Contrôle final après fusion et déploiement — 20 novembre 2026, 07:32 UTC
+
+Cette entrée remplace les anciens statuts de PR et de déploiement qui précèdent.
+
+### Livraison CRM
+- PR #58 fusionnée dans `main` ; commit de fusion : `854337f5cb067c70e38996d6f96122ad3273b42d`.
+- Déploiement Vercel production : `dpl_9ZAzm2dJ69Q3Eqj3itDcwjHGYnrU`, **READY**, alias `https://app.agricapital.ci`.
+- Contrôle HTTP de `/clients` : **200 OK**. Aucun runtime error sur les dernières 24 h ; aucun log error/fatal sur les 30 dernières minutes.
+- Aperçu correspondant au dernier commit avant fusion : **READY**, build Vercel réussi.
+- Les migrations 20261120030324 à 20261120042606 sont enregistrées dans le registre Supabase ; les règles de plantation progressive, formulaires, offres, convention, remise 10 ha et étapes techniques sont appliquées.
+
+### Données et commissions — corrections de référence
+- Les 13 plantations sur 13 ont bien `region_id = Haut-Sassandra`. La répartition géographique du tableau de bord reste calculée à partir des plantations. Aucun « Non renseignée » n'est justifié par les données actuelles des plantations.
+- Paulin : 10 ha contractuels, 1 ha planté, 9 ha restant à attribuer/planter ; parcelle Boukary Zongo conservée à 6 ha.
+- Siméon : 10 ha contractuels, 0 ha planté, 10 ha restant à attribuer/planter.
+- Pour chacun : PI contractuel 907 000 FCFA ; mensualité 50 900 FCFA/ha, soit 509 000 FCFA pour 10 ha ; total contrat 22 285 000 FCFA.
+- Commissions des quatre dossiers demandés (Paulin, Boukary Zongo, Lambert, Patrice) : 20 000 FCFA au total, dont 10 000 FCFA payés (Paulin et Boukary, 5 000 FCFA chacun) et 10 000 FCFA validés en attente de paiement (Lambert et Patrice, 5 000 FCFA chacun). Boukary est le bénéficiaire propriétaire de la parcelle partagée ; sa ligne de commission est distincte, mais elle se rattache à la même opération de plantation que Paulin.
+- État des lignes de commission du profil Jean-Marie dans `commissions` au contrôle : 30 000 FCFA `payee`, 25 000 FCFA `validee`, 25 000 FCFA `annule`. Les lignes annulées ne sont ni des paiements effectués ni un solde à payer. Cette extraction ne doit pas être confondue avec les anciens totaux de portefeuille figurant plus haut dans l'historique de cette feuille.
+
+### Dossiers mentionnés comme inexistants ou brouillons
+- Aucun dossier Diop ni KOMENAN OSIMEON KOUAME n'a été retrouvé dans les tables prospects/leads interrogées.
+- VANIE BI BERTIN (`AC_C000001`) est une fiche client réelle, validée et active, correctement nommée ; ce n'est pas un brouillon et elle n'a pas été supprimée.
+- DJAHA KOUAME (`AC_C000011`) n'est pas un brouillon : prospect `P000014` converti, client actif et validé, acquisition PalmInvest active/validée de 2 ha et paiement PI de 181 400 FCFA validé. Aucune suppression n'a été faite sur cette fiche financière existante.
+- Aucun brouillon correspondant à ces noms n'a été identifié dans les résultats vérifiés. Ne pas supprimer les fiches actives ni les écritures financières sans instruction explicite de suppression de ces dossiers actifs.
+
+### Portail client
+- Déploiement de production : `dpl_2uJA9MnV5kUo5kNxZZ3ES1vyPNas`, **READY**, commit `9b20288a239d08d05cd7063ae3e2fc3e1a73ff53`, alias `https://client.agricapital.ci`.
+- La démo `/demo` charge un compte local PalmInvest ; le paiement est simulé localement sans débit réel. Paramètres actuels : PI 90 700 FCFA, mensualité 56 600 FCFA/ha, total cohérent 2 467 900 FCFA pour 1 ha, aucun arriéré et prochaine échéance à J+10.
+- Favicon, icône PWA, Open Graph et Twitter utilisent le fichier de logo officiel `/logo-agricapital.png` via les références du portail.
+- Défrichage et Nettoyage sont masqués dans la progression PalmTerroir ; ils restent disponibles pour PalmInvest et TerraPalm.
+- Restent à traiter dans la feuille de route portail : intégrer les sept photos démo fournies (six fichiers actuellement présents), finaliser le contrôle visuel de l'accueil/historique/conseiller, et vérifier l'exhaustivité du référentiel pays.
+
+### Point contractuel encore ouvert
+- Les documents d'acquisition consultés affichent deux durées différentes : 42 mois dans le contrat et 40 mois dans l'avenant. Aucune durée n'a été changée sans arbitrage écrit de la direction.
