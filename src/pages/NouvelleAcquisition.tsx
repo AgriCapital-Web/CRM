@@ -4,12 +4,13 @@ import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Loader2, BriefcaseBusiness, UserRound, UserCog, FileText, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, BriefcaseBusiness, UserRound, UserCog, FileText, CheckCircle2, MapPin } from "lucide-react";
 import { Etape0Offre } from "@/components/forms/acquisition/Etape0Offre";
 import { EtapeClientDynamique } from "@/components/forms/acquisition/EtapeClientDynamique";
 import { EtapeRepresentantDynamique } from "@/components/forms/acquisition/EtapeRepresentantDynamique";
 import { EtapeDocumentsContratsDynamiques } from "@/components/forms/acquisition/EtapeDocumentsContratsDynamiques";
 import { EtapeConfirmationDossier } from "@/components/forms/acquisition/EtapeConfirmationDossier";
+import { EtapeParcelleDynamique } from "@/components/forms/acquisition/EtapeParcelleDynamique";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, resolveStorageUrl } from "@/utils/storage";
 import { offlineUpdate, offlineUpsert } from "@/lib/offlineWrite";
@@ -97,7 +98,7 @@ function hasDocumentFile(formData: any, code: string): boolean {
   if (identity) return Boolean(recoverFile(formData[identity.field + "_file"], formData[identity.field + "_preview"], identity.field));
   return Boolean(recoverFile(formData["doc_" + code + "_file"], formData["doc_" + code + "_preview"], code));
 }
-const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, cotitulaire: UserCog, documents: FileText, confirmation: CheckCircle2 };
+const STEP_ICONS: Record<string, any> = { offre: BriefcaseBusiness, client: UserRound, parcelle: MapPin, cotitulaire: UserCog, documents: FileText, confirmation: CheckCircle2 };
 const StoredAttachmentLinks=({formData}:{formData:any})=>{
   const [items,setItems]=useState<Array<{label:string;url:string;image:boolean}>>([]);
   const signature=Object.entries(formData||{}).filter(([key,value])=>key.endsWith("_preview")&&typeof value==="string"&&Boolean(value)).map(([key,value])=>key+":"+String(value)).join("|");
@@ -146,6 +147,28 @@ const requiredContractForOffer = (formData: any) => {
   if (family === "PALMTERROIR") return { type: "accompagnement_agricole", field: "contrat_accompagnement_agricole", label: "Contrat d’accompagnement agricole" };
   if (family === "PALMINVEST" || family === "TERRAPALM") return { type: "contrat_acquisition_client", field: "contrat_contrat_acquisition_client", label: "Contrat d’acquisition" };
   return { type: "signe_client", field: "contrat_signe_client", label: "Contrat signé" };
+};
+
+const isPalmeDuRoi = (offer: any) => {
+  const family = String(offer?.famille_offre || "").toUpperCase();
+  const identity = [offer?.code, offer?.nom, family].filter(Boolean).join(" ");
+  return family === "PALMEDUROI" || /palme[\\s_-]*du[\\s_-]*roi/i.test(identity) || /palmeduroi/i.test(identity);
+};
+
+const normalizeWorkflowSteps = (items: any[], offer: any): Step[] => {
+  const kingPalm = isPalmeDuRoi(offer);
+  const filtered = (items || []).filter((item: any) => {
+    const code = String(item.code || "").toLowerCase();
+    if (["documents", "enquete"].includes(code)) return false;
+    if (!kingPalm && code === "parcelle") return false;
+    return true;
+  }).map((item: any) => ({ ...item }));
+  if (kingPalm && !filtered.some((item: any) => String(item.code).toLowerCase() === "parcelle")) {
+    filtered.splice(Math.min(2, filtered.length), 0, {
+      code: "parcelle", titre: "Identification de la parcelle", ordre: 3, obligatoire: false,
+    });
+  }
+  return filtered.map((item: any, index: number) => ({ ...item, ordre: index + 1 }));
 };
 
 const NouvelleAcquisition = () => {
@@ -415,16 +438,12 @@ const NouvelleAcquisition = () => {
   useEffect(()=>{
     if(recordId){
       const savedSteps = Array.isArray(formData.offre_snapshot?.workflow?.steps) ? formData.offre_snapshot.workflow.steps : [];
-      const family = String(formData.offre_snapshot?.offer?.famille_offre || formData.famille_offre || "").toUpperCase();
-      const configuredSteps = savedSteps
-        .filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()))
-        .map((item:any)=>({
-          code:item.code,
-          titre:item.code==="client" ? (family==="PALMTERROIR" ? "Informations du souscripteur" : "Informations de l’acquéreur")
-            : item.code==="documents" ? (family==="PALMTERROIR" ? "Contrat d’accompagnement agricole" : "Contrat d’acquisition et annexes")
-            : item.titre,
-          description:item.description,ordre:item.ordre,obligatoire:item.obligatoire
-        }));
+      const savedOffer = formData.offre_snapshot?.offer || formData.offre || { famille_offre: formData.famille_offre };
+      const family = String(savedOffer?.famille_offre || formData.famille_offre || "").toUpperCase();
+      const configuredSteps = normalizeWorkflowSteps(savedSteps, savedOffer).map((item:any)=>({
+        ...item,
+        titre:item.code==="client" ? (family==="PALMTERROIR" ? "Informations du souscripteur" : "Informations de l’acquéreur") : item.titre,
+      }));
       setSteps(configuredSteps);
       setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
       setLoadingSteps(false);
@@ -438,9 +457,7 @@ const NouvelleAcquisition = () => {
         .select("code,titre,description,ordre,obligatoire").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre");
       if(!mounted)return;
       if(error)toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
-      // Le foncier relève exclusivement de la première intervention technique, jamais du parcours commercial.
-      // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
-      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()));
+      const configuredSteps=normalizeWorkflowSteps(data||[], formData.offre || formData.offre_snapshot?.offer || { famille_offre: formData.famille_offre });
       setSteps(configuredSteps);
       setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
       setLoadingSteps(false);
@@ -489,11 +506,15 @@ const NouvelleAcquisition = () => {
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
-      const offerFamily=String(formData.offre?.famille_offre||formData.offre_snapshot?.offer?.famille_offre||"").toUpperCase();
-      const clientLandRequired=offerFamily==="PALMTERROIR"||offerFamily==="TERRAPALM";
-      const parcelMissing=clientLandRequired ? ["parcelle_statut_foncier","parcelle_region_id","parcelle_departement_id","parcelle_sous_prefecture_id","parcelle_village_id"].filter(f=>!formData[f]) : [];
-      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||parcelMissing.length||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
-        const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing,...parcelMissing];
+      const requiredContract = requiredContractForOffer(formData);
+      const contractPresent = Boolean(formData[requiredContract.field + "_file"] || formData[requiredContract.field + "_preview"] ||
+        (requiredContract.field !== "contrat_signe_client" && (formData.contrat_signe_client_file || formData.contrat_signe_client_preview)));
+      if(!contractPresent){
+        toast({variant:"destructive",title:"Contrat signé manquant",description:"Joignez le contrat signé à cette étape."});
+        return false;
+      }
+      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
+        const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing];
         const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : "Un groupe familial doit compter au moins deux membres.";
         toast({variant:"destructive",title:"Fiche client incomplète",description:reason}); return false;
       }
@@ -503,6 +524,9 @@ const NouvelleAcquisition = () => {
       if(formData.has_representant){
         const repFields=["representant_type","representant_nom","representant_prenoms","representant_type_piece","representant_numero_piece","representant_telephone"];
         if(repFields.some(f=>!formData[f])||!formData.representant_piece_recto_file||!formData.representant_piece_verso_file||!formData.representant_photo_profil_file){toast({variant:"destructive",title:"Cotitulaire / mandataire incomplet",description:"Renseignez l’identité, le lien, les coordonnées et les pièces/photos."});return false;}
+        if(formData.representant_type==="mandataire"&&!hasDocumentFile(formData,"procuration_representant")){
+          toast({variant:"destructive",title:"Procuration manquante",description:"Joignez la procuration signée du mandataire."});return false;
+        }
       }
     }
     if(step.code==="documents"){
@@ -1001,6 +1025,7 @@ toast({title:"Dossier mis à jour",description:"Les informations du client et de
     switch(step.code){
       case "offre":return <Etape0Offre formData={formData} updateFormData={updateFormData} contractReadOnly={Boolean(recordId)} />;
       case "client":return <EtapeClientDynamique formData={formData} updateFormData={updateFormData}/>;
+      case "parcelle":return <EtapeParcelleDynamique formData={formData} updateFormData={updateFormData}/>;
       case "cotitulaire":return <EtapeRepresentantDynamique formData={formData} updateFormData={updateFormData}/>;
       case "documents":return <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={false} showSignedContract={true} showAdditionalDocuments={true}/>;
       case "confirmation":return <EtapeConfirmationDossier formData={formData} updateFormData={updateFormData}/>;
