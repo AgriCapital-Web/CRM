@@ -167,7 +167,7 @@ const Clients = () => {
         const surfacePlantee = clientPlantations.reduce(
           (sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0
         );
-        const surfaceContractuelle = Number(client.metadata?.surface_contractuelle_ha ?? client.total_hectares ?? client.superficie_ha ?? 0);
+        const surfaceContractuelle = Number(client.total_hectares ?? client.metadata?.surface_contractuelle_ha ?? client.superficie_ha ?? 0);
 
         return {
           ...client,
@@ -207,7 +207,7 @@ const Clients = () => {
             return {
               ...s,
               nombre_plantations: plantations.length,
-              total_hectares: Number(s.metadata?.surface_contractuelle_ha ?? s.total_hectares ?? s.superficie_ha ?? 0),
+              total_hectares: Number(s.total_hectares ?? s.metadata?.surface_contractuelle_ha ?? s.superficie_ha ?? 0),
               surface_plantee_ha: plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0),
             };
           });
