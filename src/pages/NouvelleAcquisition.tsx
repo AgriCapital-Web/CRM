@@ -21,6 +21,7 @@ import { usePromotionActive } from "@/hooks/usePromotionActive";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/roles";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
 
 type Step = { code:string; titre:string; description?:string; ordre:number; obligatoire:boolean };
@@ -221,13 +222,23 @@ const NouvelleAcquisition = () => {
         offerId=offer?.id||"";
       }
       if(!active) return;
+      const mainPhone = parsePhoneNumberFromString(String(source.telephone || ""));
+      const secondaryPhone = parsePhoneNumberFromString(String(source.telephone_secondaire || ""));
       const sourceValues = {
         ...(isProspect ? {prospect_id:source.id,lead_id:source.lead_id||undefined} : {lead_id:source.id,prospect_id:source.prospect_id||undefined}),
         type_personne:source.type_personne||"personne_physique",
         denomination_sociale:source.denomination_sociale||"",nature_organisation_code:source.nature_organisation_code||"",forme_juridique_code:source.forme_juridique_code||"",
         numero_enregistrement:source.numero_enregistrement||"",responsable_legal_nom:source.responsable_legal_nom||"",responsable_legal_prenoms:source.responsable_legal_prenoms||"",nombre_membres:source.nombre_membres||null,
         nom:source.nom||"", prenoms:source.prenoms||"",
-        telephone:source.telephone||"", whatsapp:source.whatsapp||"", email:source.email||"",
+        telephone:source.telephone||"",
+        telephone_indicatif:source.telephone_indicatif || (mainPhone?.countryCallingCode ? "+" + mainPhone.countryCallingCode : ""),
+        telephone_local:source.telephone_local || mainPhone?.nationalNumber || "",
+        telephone_secondaire:source.telephone_secondaire||"",
+        telephone_secondaire_indicatif:source.telephone_secondaire_indicatif || (secondaryPhone?.countryCallingCode ? "+" + secondaryPhone.countryCallingCode : ""),
+        telephone_secondaire_local:source.telephone_secondaire_local || secondaryPhone?.nationalNumber || "",
+        telephone_principal_whatsapp:Boolean(source.telephone_principal_whatsapp ?? (source.whatsapp && source.whatsapp === source.telephone)),
+        telephone_secondaire_whatsapp:Boolean(source.telephone_secondaire_whatsapp),
+        whatsapp:source.whatsapp||"", email:source.email||"",
         district_id:source.district_id||"", region_id:source.region_id||"",
         departement_id:source.departement_id||"", sous_prefecture_id:source.sous_prefecture_id||"",
         village_id:source.village_id||"", domicile:source.lieu_residence||source.domicile_residence||source.domicile||source.campement_quartier||source.region_residence||source.localite||"",
