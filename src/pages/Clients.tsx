@@ -134,7 +134,7 @@ const Clients = () => {
             .select("id,full_name,telephone,active,superficie_beneficiaire_ha,latitude,longitude,created_at")
             .eq("active", true)
             .gt("superficie_beneficiaire_ha", 0)
-            .order("full_name")
+            .order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null });
 
       const [plantationBatches, attributionBatches, regionsRes, teamPerfRes, pendingSalesRes, associateBeneficiariesRes] = await Promise.all([
