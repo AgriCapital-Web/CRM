@@ -1010,6 +1010,7 @@ const Dashboard = () => {
                   <Card className="lg:col-span-1">
                     <CardHeader><CardTitle className="flex items-center gap-2 text-base"><MapPin className="h-5 w-5 text-primary" />Répartition géographique des clients</CardTitle></CardHeader>
                     <CardContent>
+                      <p className="mb-3 text-xs text-muted-foreground">Source : fiches clients et région de résidence. Siméon est classé dans la diaspora selon son domicile déclaré aux États-Unis.</p>
                       {regional.length ? regional.map((r) => (
                         <div key={r.name} className="mb-3"><div className="flex justify-between text-xs"><span>{r.name}</span><span>{r.value}</span></div><Progress value={regional[0]?.value ? (r.value / regional[0].value) * 100 : 0} className="mt-1" /></div>
                       )) : <p className="text-sm text-muted-foreground">Aucune plantation géolocalisée dans votre périmètre.</p>}
