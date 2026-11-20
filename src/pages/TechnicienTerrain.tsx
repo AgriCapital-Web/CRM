@@ -59,6 +59,7 @@ const TechnicienTerrain=()=>{
   const [profileName,setProfileName]=useState("");
   const [conventions,setConventions]=useState<any[]>([]);
   const [lots,setLots]=useState<any[]>([]);
+  const [assignedLots,setAssignedLots]=useState<any[]>([]);
   const [localisationMode,setLocalisationMode]=useState<"automatic"|"manual">("automatic");
   const [loading,setLoading]=useState(true);
   const [activeTab,setActiveTab]=useState("rapport");
@@ -77,7 +78,7 @@ const TechnicienTerrain=()=>{
   const [existingReportMedia,setExistingReportMedia]=useState<any[]>([]);
   const [intervention,setIntervention]=useState<any>({
     plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"defrichage",date_intervention:new Date().toISOString().slice(0,10),
-    observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",
+    observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",
     nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""
   });
 
@@ -108,7 +109,7 @@ const TechnicienTerrain=()=>{
       const formattedTechnicianName=technicianNameParts.length>1?`${givenNames.map(titleCase).join(" ")} ${surname.toLocaleUpperCase("fr-FR")}`:titleCase(rawTechnicianName);
       setProfileName(formattedTechnicianName);
       const results=await Promise.all([
-        (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,parcelle_id,acquisition_id,statut_global,prochaine_visite,date_plantation,nombre_plants_prevus,nombre_plants_mis_en_terre,densite_plants,densite_cible,parcelles:parcelles(plantation_densite_plants)").order("nom_plantation"),
+        (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,superficie_activee,surface_reellement_plantee,client_id,parcelle_id,acquisition_id,statut_global,prochaine_visite,date_plantation,nombre_plants_prevus,nombre_plants_mis_en_terre,densite_plants,densite_cible,parcelles:parcelles(plantation_densite_plants)").order("nom_plantation"),
         (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,proprietaire_id,district_id,region_id,departement_id,sous_prefecture_id,localite,is_internal,type_client_foncier").order("nom_complet"),
         (supabase as any).from("acquisitions").select("id,client_id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,necessite_foncier_client,superficie_ha,parcelle_id,lot_id,statut,statut_technique,montant_pi_total,montant_total_contrat,parcelle:parcelles(plantation_densite_plants)").order("created_at",{ascending:false}),
         (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
@@ -144,6 +145,9 @@ const TechnicienTerrain=()=>{
   const interventionClient=useMemo(()=>clients.find(c=>c.id===intervention.client_id)||null,[clients,intervention.client_id]);
   const interventionPlantation=useMemo(()=>plantations.find(p=>p.id===intervention.plantation_id)||null,[plantations,intervention.plantation_id]);
   const interventionAcquisition=useMemo(()=>clientAcquisitions.find((s:any)=>s.id===intervention.acquisition_id)||null,[clientAcquisitions,intervention.acquisition_id]);
+  const acquisitionLotOptions=useMemo(()=>[...new Map([...assignedLots,...lots].filter((lot:any)=>lot?.id).map((lot:any)=>[lot.id,lot])).values()],[assignedLots,lots]);
+  const acquisitionAllocatedSurface=useMemo(()=>assignedLots.reduce((sum:number,lot:any)=>sum+Number(lot.acquisition_surface_ha??lot.surface_ha??0),0),[assignedLots]);
+  const acquisitionPlantedSurface=useMemo(()=>plantations.filter((p:any)=>p.acquisition_id===interventionAcquisition?.id).reduce((sum:number,p:any)=>sum+Number(p.surface_reellement_plantee??p.superficie_activee??0),0),[plantations,interventionAcquisition?.id]);
   const pendingClientAcquisitions=useMemo(()=>clientAcquisitions.filter((s:any)=>s.client_id===intervention.client_id&&s.statut_technique!=="mise_en_terre_realisee"),[clientAcquisitions,intervention.client_id]);
   const interventionOwnerClient=interventionClient || clients.find((c:any)=>c.id===interventionPlantation?.client_id) || null;
   const clientOffer=offerConfigs.find((o:any)=>o.id===(interventionAcquisition?.offre_id||interventionOwnerClient?.offre_id))
@@ -158,6 +162,33 @@ const TechnicienTerrain=()=>{
     ? !!interventionAcquisition.necessite_foncier_client
     : pendingClientAcquisitions.length>0 ? false
     : Boolean(clientOffer?.necessite_foncier_client===true);
+
+  useEffect(()=>{
+    let cancelled=false;
+    if(!interventionAcquisition?.id){setAssignedLots([]);return;}
+    (async()=>{
+      const {data,error}=await (supabase as any).from("acquisition_lots")
+        .select("id,lot_id,surface_ha,lot:lots_hectares(id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id)")
+        .eq("acquisition_id",interventionAcquisition.id)
+        .eq("client_id",interventionAcquisition.client_id);
+      if(error){if(!cancelled)setAssignedLots([]);return;}
+      const rows=(data||[]).map((row:any)=>row.lot?{...row.lot,acquisition_surface_ha:row.surface_ha,allocation_id:row.id}:null).filter(Boolean);
+      if(!cancelled){
+        setAssignedLots(rows);
+        const primary=rows.find((lot:any)=>lot.id===interventionAcquisition.lot_id);
+        if(primary)setIntervention((current:any)=>({...current,parcelle_id:current.parcelle_id||primary.parcelle_id||"",convention_id:current.convention_id||primary.convention_id||"",lot_id:current.lot_id||primary.id}));
+      }
+    })();
+    return ()=>{cancelled=true;};
+  },[interventionAcquisition?.id]);
+
+  useEffect(()=>{
+    const assigned=assignedLots.find((lot:any)=>lot.id===intervention.lot_id);
+    if(!assigned)return;
+    setIntervention((current:any)=>current.parcelle_id===assigned.parcelle_id&&current.convention_id===(assigned.convention_id||"")?current:{
+      ...current,parcelle_id:assigned.parcelle_id||"",convention_id:assigned.convention_id||""
+    });
+  },[assignedLots,intervention.lot_id]);
 
   useEffect(()=>{
     if(!interventionClient)return;
@@ -362,7 +393,7 @@ const TechnicienTerrain=()=>{
   const resetInterventionForm=()=>{
     setEditingInterventionId("");
     setInterventionEditEnabled(false);
-    setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"defrichage",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
+    setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"defrichage",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
   };
 
   const editIntervention=(item:any)=>{
@@ -380,6 +411,7 @@ const TechnicienTerrain=()=>{
       nombre_plants_realises:item.nombre_plants_realises==null?"":String(item.nombre_plants_realises),
       nombre_plants_remplaces:item.nombre_plants_remplaces==null?"":String(item.nombre_plants_remplaces),
       densite_plants:item.densite_plants==null?"":String(item.densite_plants),
+      surface_reellement_plantee_ha:item.surface_reellement_plantee_ha==null?"":String(item.surface_reellement_plantee_ha),
       nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""
     });
     setActiveTab("intervention");
