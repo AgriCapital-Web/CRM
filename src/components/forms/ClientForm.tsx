@@ -226,6 +226,10 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       if (!isBeneficiary && offer && hectares > 0) {
         clientPayload.total_hectares = hectares;
         clientPayload.superficie_ha = hectares;
+        clientPayload.metadata = {
+          ...((form.metadata && typeof form.metadata === "object") ? form.metadata : client?.metadata || {}),
+          surface_contractuelle_ha: hectares,
+        };
         clientPayload.montant_total_contrat = recalculatedTotal;
         clientPayload.paiement_initial_montant = recalculatedInitial;
         clientPayload.mensualite_montant = recalculatedMonthly;
