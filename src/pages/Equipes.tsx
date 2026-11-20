@@ -80,7 +80,7 @@ const Equipes = () => {
         { data: commercialLeaders, error: commercialError },
         { data: technicalLeaders, error: technicalError },
       ] = await Promise.all([
-        (supabase as any).from("equipes").select("*, region:regions(nom)").order("created_at", { ascending: false }),
+        (supabase as any).rpc("get_team_directory_for_current_user"),
         (supabase as any).from("v_geo_regions").select("id,nom").eq("est_active_effectif", true).order("nom"),
         (supabase as any).rpc("get_team_member_counts"),
         (supabase as any).rpc("get_team_responsible_candidates", { p_team_type: "commercial" }),
@@ -100,6 +100,7 @@ const Equipes = () => {
 
       setEquipes((equipesData || []).map((team: any) => ({
         ...team,
+        region: team.region_nom ? { nom: team.region_nom } : null,
         responsable: team.responsable_id ? responsibleById.get(team.responsable_id) || null : null,
         effectif: memberCounts.get(team.id) || 0,
       })));
