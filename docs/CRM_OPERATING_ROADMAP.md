@@ -439,10 +439,20 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Le cache du service worker est incrémenté de v33 à v34 afin de forcer le renouvellement du bundle PWA potentiellement conservé par les navigateurs de bureau. Le contrôle du déploiement et le test de cohérence multi-appareils restent à effectuer.
 - La source actuelle `Clients.tsx` lit la superficie contractuelle depuis `metadata.surface_contractuelle_ha`, puis `total_hectares`, et trie les clients du plus récent au plus ancien. Le contrôle de la session/du périmètre RLS sur le poste où l'écart est constaté reste à effectuer si l'écart persiste après actualisation du PWA.
 
-### Travaux globaux encore à auditer
-- Recherche des doublons de filtres/recherches sur toutes les pages et de l'ordre de tri des tableaux.
-- Vérification de tous les formulaires Finance & Comptabilité : catégories par familles, recherche mobile, défilement des listes, choix « Avec frais / Sans frais » et bascule exclusive référence/fichier justificatif.
-- Vérification des listes déroulantes et de la géographie issue des référentiels actifs, avec maintien de l'exception « prestation indépendante ».
-- Audit de persistance des champs de création de compte et du profil utilisateur, indicatifs téléphoniques et cases WhatsApp indépendantes.
-- Vérification du parcours d'acquisition : contrat signé à l'étape 2, 4 étapes pour les offres ordinaires, 5 étapes uniquement pour Palme du Roi, procuration uniquement pour mandataire, suppression des documents de référence visibles et des champs fonciers non nécessaires.
+### Corrections appliquées sur la branche
+- **Paulin** : la base confirme 10 ha contractuels et 1 ha planté. La surface contractuelle reste 10 ha ; les données de plantation restent distinctes. La valeur affichée par le CRM doit se baser sur la superficie contractuelle.
+- **Tarifs** : les deux dossiers restaurés utilisent 24 679 000 FCFA au total et 566 000 FCFA/mois pour 10 ha. La remise test est inactive et aucun libellé de promotion n'est affiché dans le parcours.
+- **Parcours client** : migration appliquée pour désactiver l'étape Documents, rendre le contrat signé obligatoire à l'étape Client et ramener les offres actives à 4 étapes. Le parcours conditionnel à 5 étapes est prévu uniquement si une offre Palme du Roi existe ; aucune offre Palme du Roi n'est actuellement configurée dans les offres actives.
+- **Représentant** : le dépôt de procuration est proposé et contrôlé uniquement lorsque la qualité choisie est « Mandataire ».
+- **Documents de référence** : les liens vers les modèles déposés dans le CRM ont été retirés du formulaire client. Les champs fonciers détaillés ne sont plus présentés pour les offres ordinaires ; le parcours Palme du Roi conserve uniquement la localisation, le lieu-dit, la référence et les coordonnées GPS.
+- **Finance** : catégories réorganisées par familles agricoles, recherche et défilement mobile/ordinateur renforcés ; choix « Avec frais / Sans frais » harmonisé dans les formulaires de mouvements ; référence par défaut et bascule exclusive vers le fichier justificatif dans le formulaire de paiement client.
+- **Géographie** : les formulaires de compte et les cascades partagées filtrent les régions, districts, départements, sous-préfectures et villages actifs. Les entrées anciennes du cache qui ne portent pas un statut actif explicite sont ignorées. Le composant de prestation indépendante reste séparé et conserve sa géographie directe.
+- **Téléphones et profils** : les indicatifs internationaux sont réinterprétés depuis les numéros E.164 lors de la conversion prospect/client ; le sélecteur de pays se resynchronise après chargement asynchrone. Les deux indicateurs WhatsApp sont indépendants dans les formulaires client, prospect, profil et acquisition. Les vues profil et administration utilisent le bon espace de stockage pour les photos issues des demandes de compte.
+- **Tableaux et PWA** : tri des identifiants CRM inversé pour afficher le plus récent en haut ; listes d'attributions et de parcelles harmonisées. Cache du service worker passé en v34 pour forcer le renouvellement des versions de bureau.
+- **Mensualités** : les formulaires d'acquisition et d'édition affichent le montant mensuel total calculé sur la superficie, sans libellé « par hectare ».
+
+### Validation et points restant à terminer
+- Migration SQL appliquée et contrôlée sur Supabase : `remove_test_volume_discount_and_restore_base_contracts` et `align_acquisition_steps_and_contract_upload`.
+- Déploiement Vercel Preview de la branche : état READY. La validation TypeScript, les tests et le lint via le workflow GitHub restent à confirmer.
+- Le contrôle de toutes les pages de tableaux et l'audit champ par champ de l'ensemble des formulaires restent à finaliser avant la mise en production.
 - Aucun champ métier ni aucune colonne de base n'est supprimé sans audit de dépendances et de données.
