@@ -121,6 +121,7 @@ export const PERMISSIONS = {
   VIEW_PARAMETRES: "parametres.view",
   VIEW_EQUIPES: "parametres.manage_teams",
   MANAGE_USERS: "utilisateurs.view",
+  MANAGE_ACCOUNT_REQUESTS: "parametres.manage_users",
   MANAGE_TEAMS: "parametres.manage_teams",
   MANAGE_OFFERS: "offres.view",
   MANAGE_GEO: "parametres.manage_geo",
