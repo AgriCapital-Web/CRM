@@ -109,7 +109,7 @@ const Clients = () => {
           .or("type_client.is.null,type_client.neq.proprietaire_foncier");
         // Les bénéficiaires particuliers doivent également apparaître dans le tableau Acquisition.
         clientsQuery = clientsQuery
-          .order("id_unique", { ascending: false })
+          .order("created_at", { ascending: false })
           .range(clientOffset, clientOffset + CLIENT_PAGE_SIZE - 1);
 
         if (safeSearch) {
