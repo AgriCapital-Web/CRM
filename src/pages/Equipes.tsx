@@ -121,12 +121,13 @@ const Equipes = () => {
     void (async () => {
       const { data, error } = await (supabase as any).rpc("get_team_responsible_candidates", {
         p_team_type: formData.type_equipe,
+        p_region_id: formData.region_id || null,
       });
       if (!active) return;
       setResponsablesDisponibles(error ? [] : (data || []));
     })();
     return () => { active = false; };
-  }, [formData.type_equipe, canManageTeams]);
+  }, [formData.type_equipe, formData.region_id, canManageTeams]);
   useEffect(() => setTablePage(1), [searchTerm, activeTab, pageSize]);
   useRealtime({ table: "equipes", onChange: fetchData });
 
