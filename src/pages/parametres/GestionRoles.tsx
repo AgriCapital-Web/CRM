@@ -70,6 +70,9 @@ const GestionRoles = () => {
   const [tableSearch, setTableSearch] = useState("");
   const [roleTableSearch, setRoleTableSearch] = useState("");
   const canManageRoles = can("roles.manage_permissions") && rolesFromDb && matrixFromDb;
+  const canCreateRole = can("roles.create") && rolesFromDb;
+  const canUpdateRole = can("roles.update") && rolesFromDb;
+  const canDeleteRole = can("roles.delete") && rolesFromDb;
   const permissionGroups = useMemo(() => {
     // Défense contre les lignes personnalisées incomplètes en base : une seule
     // permission mal formée ne doit jamais faire planter toute la page Rôles.
@@ -336,6 +339,10 @@ const GestionRoles = () => {
   };
 
   const saveRole = async () => {
+    if (editingCode ? !canUpdateRole : !canCreateRole) {
+      toast({ variant: "destructive", title: "Accès refusé", description: "Vous ne disposez pas de la permission requise pour cette opération." });
+      return;
+    }
     const code = (roleDraft.code || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
     if (!code || !roleDraft.nom) {
       toast({ variant: "destructive", title: "Champs requis", description: "Code et nom du rôle obligatoires." });
@@ -376,7 +383,7 @@ const GestionRoles = () => {
   };
 
   const confirmDeleteRole = async () => {
-    if (!roleToDelete) return;
+    if (!roleToDelete || !canDeleteRole) return;
     setSaving(true);
     try {
       // Désactivation (jamais de suppression définitive)
@@ -660,7 +667,7 @@ const GestionRoles = () => {
             {canManageRoles && (
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setPermissionDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Nouvelle permission</Button>
-                <Button onClick={openCreateRole}><Plus className="h-4 w-4 mr-2" />Nouveau rôle</Button>
+                {canCreateRole && <Button onClick={openCreateRole}><Plus className="h-4 w-4 mr-2" />Nouveau rôle</Button>}
               </div>
             )}
           </div>
@@ -699,18 +706,14 @@ const GestionRoles = () => {
                       </Button>
                     </TableCell>
                     <TableCell className="text-right space-x-1">
-                      {canManageRoles && (
-                        <>
-                          <Button variant="ghost" size="sm" onClick={() => openEditRole(role)}>
+                      {canUpdateRole && <Button variant="ghost" size="sm" onClick={() => openEditRole(role)}>
                             <Pencil className="h-4 w-4" />
-                          </Button>
-                          {role.code !== APP_ROLES.PDG && (
+                          </Button>}
+                          {canDeleteRole && role.code !== APP_ROLES.PDG && (
                             <Button variant="ghost" size="sm" onClick={() => setRoleToDelete(role)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           )}
-                        </>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))}
