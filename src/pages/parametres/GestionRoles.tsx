@@ -70,6 +70,8 @@ const GestionRoles = () => {
   const [tableSearch, setTableSearch] = useState("");
   const [roleTableSearch, setRoleTableSearch] = useState("");
   const canManageRoles = can("roles.manage_permissions") && rolesFromDb && matrixFromDb;
+  const canViewUsers = can("utilisateurs.view");
+  const canCreateUsers = can("utilisateurs.create");
   const canCreateRole = can("roles.create") && rolesFromDb;
   const canUpdateRole = can("roles.update") && rolesFromDb;
   const canDeleteRole = can("roles.delete") && rolesFromDb;
@@ -90,8 +92,11 @@ const GestionRoles = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const profileQuery = canViewUsers
+        ? (supabase as any).from("profiles").select("id, user_id, nom_complet, email, actif, departement, relation_rh, type_compte").eq("actif", true).neq("type_compte","client_portail").order("nom_complet")
+        : Promise.resolve({ data: [], error: null });
       const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }, { data: permissionData, error: permissionError }] = await Promise.all([
-        (supabase as any).from("profiles").select("id, user_id, nom_complet, email, actif, departement, relation_rh, type_compte").eq("actif", true).neq("type_compte","client_portail").order("nom_complet"),
+        profileQuery,
         supabase.from("user_roles").select("*"),
         (supabase as any).from("app_permissions").select("*").eq("actif", true).order("module").order("code"),
       ]);
@@ -490,7 +495,7 @@ const GestionRoles = () => {
       )}
 
       {/* Attribution des rôles */}
-      <Card>
+      {canViewUsers && <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -524,7 +529,7 @@ const GestionRoles = () => {
                         <SelectValue placeholder="Sélectionner un utilisateur" />
                       </SelectTrigger>
                       <SelectContent>
-                        {profiles.map((profile) => (
+                        {profiles.filter((profile) => Boolean(profile.user_id) || canCreateUsers).map((profile) => (
                           <SelectItem key={profile.id} value={profile.id}>
                             {profile.nom_complet || profile.email}
                           </SelectItem>
@@ -633,7 +638,7 @@ const GestionRoles = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
+                          {(Boolean(profile.user_id) || canCreateUsers) && <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
@@ -642,7 +647,7 @@ const GestionRoles = () => {
                             }}
                           >
                             <Plus className="h-4 w-4" />
-                          </Button>
+                          </Button>}
                         </TableCell>
                       </TableRow>
                     );
@@ -652,7 +657,7 @@ const GestionRoles = () => {
             </Table>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Définition des rôles + matrice */}
       <Card>
