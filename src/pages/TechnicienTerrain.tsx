@@ -111,7 +111,7 @@ const TechnicienTerrain=()=>{
       const results=await Promise.all([
         (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,superficie_activee,surface_reellement_plantee,client_id,parcelle_id,acquisition_id,statut_global,prochaine_visite,date_plantation,nombre_plants_prevus,nombre_plants_mis_en_terre,densite_plants,densite_cible,parcelles:parcelles(plantation_densite_plants)").order("nom_plantation"),
         (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,proprietaire_id,district_id,region_id,departement_id,sous_prefecture_id,localite,is_internal,type_client_foncier").order("nom_complet"),
-        (supabase as any).from("acquisitions").select("id,client_id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,necessite_foncier_client,superficie_ha,parcelle_id,lot_id,statut,statut_technique,montant_pi_total,montant_total_contrat,parcelle:parcelles(plantation_densite_plants)").order("created_at",{ascending:false}),
+        (supabase as any).from("acquisitions").select("id,client_id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,necessite_foncier_client,superficie_ha,parcelle_id,lot_id,statut,statut_technique,montant_pi_total,montant_total_contrat,metadata,parcelle:parcelles(plantation_densite_plants)").order("created_at",{ascending:false}),
         (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
         (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
         (supabase as any).from("interventions_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").order("date_intervention",{ascending:false}).limit(100),
@@ -482,7 +482,10 @@ const TechnicienTerrain=()=>{
             throw new Error("Le lot n'est plus disponible dans la convention et la parcelle sélectionnées.");
           }
           const requestedSurface=Number(lotRow.surface_ha||1);
-          const alreadyAllocated=acquisitionAllocatedSurface;
+          const {data:allocationTotals,error:allocationTotalsError}=await (supabase as any).from("acquisition_lots")
+            .select("surface_ha").eq("acquisition_id",interventionAcquisition.id).eq("client_id",targetClientId);
+          if(allocationTotalsError)throw allocationTotalsError;
+          const alreadyAllocated=(allocationTotals||[]).reduce((sum:number,row:any)=>sum+Number(row.surface_ha||0),0);
           const contractSurface=Number(interventionAcquisition.superficie_ha||0);
           if(alreadyAllocated+requestedSurface>contractSurface+0.000001){
             throw new Error(`Cette affectation dépasserait le contrat de ${contractSurface} ha. Il reste ${Math.max(0,contractSurface-alreadyAllocated).toLocaleString("fr-FR")} ha à affecter.`);
