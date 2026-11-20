@@ -218,7 +218,7 @@ const GestionRoles = () => {
             if (!alternativePrimary) {
               throw new Error("Un compte doit conserver un rôle principal. Attribuez d’abord un autre rôle.");
             }
-            primaryRole = existingRole?.role === selectedRole ? alternativePrimary : primaryRole;
+            primaryRole = currentPrimary?.role === selectedRole ? alternativePrimary : primaryRole;
           }
         } else {
           nextRoles = [...nextRoles, selectedRole];
