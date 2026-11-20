@@ -74,7 +74,6 @@ const GestionRoles = () => {
   const canCreateUsers = can("utilisateurs.create");
   const canCreateRole = can("roles.create") && rolesFromDb;
   const canUpdateRole = can("roles.update") && rolesFromDb;
-  const canDeleteRole = can("roles.delete") && rolesFromDb;
   const permissionGroups = useMemo(() => {
     // Défense contre les lignes personnalisées incomplètes en base : une seule
     // permission mal formée ne doit jamais faire planter toute la page Rôles.
@@ -390,7 +389,7 @@ const GestionRoles = () => {
   };
 
   const confirmDeleteRole = async () => {
-    if (!roleToDelete || !canDeleteRole) return;
+    if (!roleToDelete || !canUpdateRole) return;
     setSaving(true);
     try {
       // Désactivation (jamais de suppression définitive)
@@ -711,7 +710,7 @@ const GestionRoles = () => {
                       {canUpdateRole && <Button variant="ghost" size="sm" onClick={() => openEditRole(role)}>
                             <Pencil className="h-4 w-4" />
                           </Button>}
-                          {canDeleteRole && role.code !== APP_ROLES.PDG && (
+                          {canUpdateRole && role.code !== APP_ROLES.PDG && (
                             <Button variant="ghost" size="sm" onClick={() => setRoleToDelete(role)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
