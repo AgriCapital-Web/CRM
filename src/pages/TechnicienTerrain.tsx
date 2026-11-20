@@ -184,6 +184,11 @@ const TechnicienTerrain=()=>{
     ()=>stageRefs.filter((stage:any)=>!["defrichage","nettoyage"].includes(String(stage.code||""))||managedLandPreparation),
     [stageRefs,managedLandPreparation]
   );
+  useEffect(()=>{
+    if(visibleStageRefs.length&&!visibleStageRefs.some((stage:any)=>stage.code===intervention.type_intervention)){
+      setIntervention((current:any)=>({...current,type_intervention:visibleStageRefs[0].code}));
+    }
+  },[visibleStageRefs,intervention.type_intervention]);
   const visibleInterventions=useMemo(()=>interventions.filter((item:any)=>{
     if(!["defrichage","nettoyage"].includes(String(item.type_intervention||"")))return true;
     const plantationRow=plantations.find((pl:any)=>pl.id===item.plantation_id);
