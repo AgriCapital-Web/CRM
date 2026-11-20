@@ -25,6 +25,16 @@ const uppercaseName = (value: string) =>
 /** Nom court pour les communications : dernier prénom usuel puis nom de famille.
  * Convention CRM : NOM en premier, puis les prénoms. Exemple : KONAN AMENAN LARISSA → Larissa KONAN.
  */
+/** Affiche uniquement le dernier prénom puis le nom de famille à partir des champs structurés. */
+export function formatStructuredPersonName(lastName?: string | null, givenNames?: string | null): string {
+  const surname = String(lastName || "").trim().split(/\\s+/).filter(Boolean).join(" ");
+  const given = String(givenNames || "").trim().split(/\\s+/).filter(Boolean).pop() || "";
+  if (!surname && !given) return "Utilisateur";
+  if (!surname) return displayCaseName(given);
+  if (!given) return uppercaseName(surname);
+  return displayCaseName(given) + " " + uppercaseName(surname);
+}
+
 export function formatUserShortName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
