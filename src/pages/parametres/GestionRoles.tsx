@@ -439,18 +439,12 @@ const GestionRoles = () => {
     setSaving(true);
     try {
       const ancien = matrix[permDialogRole.code] || [];
-      const { error: delError } = await (supabase as any)
-        .from("role_permissions")
-        .delete()
-        .eq("role_code", permDialogRole.code);
-      if (delError) throw delError;
-
-      if (permDraft.length > 0) {
-        const { error: insError } = await (supabase as any).from("role_permissions").insert(
-          permDraft.map((permission_code) => ({ role_code: permDialogRole.code, permission_code })),
-        );
-        if (insError) throw insError;
-      }
+      const { data: saved, error: saveError } = await (supabase as any).rpc("crm_set_role_permissions", {
+        p_role_code: permDialogRole.code,
+        p_permission_codes: permDraft,
+      });
+      if (saveError) throw saveError;
+      if (saved?.success !== true) throw new Error("La matrice des permissions n'a pas été confirmée.");
 
       await logAdminAction({
         action: "MODIFICATION_PERMISSIONS_ROLE",
