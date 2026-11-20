@@ -86,6 +86,9 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     },
   });
   const snapshotOffer = formData.offre_snapshot?.offer || formData.offre || null;
+  const selectedOfferForForm: any = (offres || []).find((item:any) => item.id === formData.offre_id) || snapshotOffer;
+  const offerFamilyForForm = String(selectedOfferForForm?.famille_offre || "").toUpperCase();
+  const superficieLabel = offerFamilyForForm === "PALMTERROIR" ? "Superficie nette de la parcelle" : "Superficie contractuelle";
   const offres: Offre[] = contractReadOnly
     ? (snapshotOffer ? [{ ...snapshotOffer, id: snapshotOffer.id || formData.offre_id,
         code: snapshotOffer.code || formData.offre_code || "", nom: snapshotOffer.nom || formData.formule_nom || "Offre enregistrée",
@@ -352,12 +355,12 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
 
       <Card>
         <CardHeader>
-          <CardTitle>Superficie prévue</CardTitle>
+          <CardTitle>{superficieLabel}</CardTitle>
           
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="superficie_prevue">Superficie (hectares) *</Label>
+            <Label htmlFor="superficie_prevue">{superficieLabel} (hectares) *</Label>
             <Input
               id="superficie_prevue"
               type="number"
