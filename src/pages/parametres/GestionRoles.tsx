@@ -557,16 +557,11 @@ const GestionRoles = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  {selectedProfile && selectedRole && (!selectedProfileHasPrimary || selectedRoleIsCurrentPrimary) && (
+                  {selectedProfile && selectedRole && (
                     <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
                       <Checkbox checked={selectedPrimaryRole} onCheckedChange={(checked)=>setSelectedPrimaryRole(checked===true)} />
                       <span>{selectedRoleIsCurrentPrimary ? "Rôle principal actuel" : "Définir comme rôle principal"}</span>
                     </label>
-                  )}
-                  {selectedProfile && selectedProfileHasPrimary && !selectedRoleIsCurrentPrimary && (
-                    <p className="rounded-md border px-3 py-2 text-sm text-muted-foreground">
-                      Un rôle principal est déjà défini. Décochez d’abord « {roles.find((r) => r.code === selectedProfilePrimaryRole?.role)?.nom || selectedProfilePrimaryRole?.role} » avant de définir un autre rôle principal.
-                    </p>
                   )}
                   <p className="text-xs text-muted-foreground">Le statut principal est enregistré dans la base de données et utilisé pour déterminer le périmètre principal de l’utilisateur.</p>
                 </div>
