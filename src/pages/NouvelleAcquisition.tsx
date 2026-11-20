@@ -687,7 +687,7 @@ const NouvelleAcquisition = () => {
         domicile:formData.domicile||null,domicile_residence:formData.domicile||null,
         district_id:formData.district_id||null,region_id:formData.region_id||null,departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
         localite:formData.domicile||null,
-        metadata:{...(formData.metadata||{}),informations_foncieres:buildLandInformation(formData,offer)},
+        metadata:{...(formData.metadata||{}),surface_contractuelle_ha:ha,informations_foncieres:buildLandInformation(formData,offer)},
         montant_total_contrat:total,
         mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
         montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
