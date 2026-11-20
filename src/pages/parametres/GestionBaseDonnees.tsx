@@ -22,12 +22,11 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-// Catalogue synchronisé avec le schéma Supabase du projet.
+// Tables publiques exportables. Les tables contenant des secrets, codes d’accès, OTP, jetons de session ou abonnements push sont exclues.
 const TABLES = [
   "account_requests",
   "acquisition_lots",
   "acquisitions",
-  "acremap_integration_settings",
   "acremap_lots",
   "acremap_morcellements",
   "activity_notes",
@@ -42,8 +41,6 @@ const TABLES = [
   "client_contracts",
   "client_cotitulaires_mandataires",
   "client_monnaie_mouvements",
-  "client_portal_access_codes",
-  "client_portal_sessions",
   "clients",
   "commission_payment_allocations",
   "commissions",
@@ -97,12 +94,9 @@ const TABLES = [
   "independent_service_invoices",
   "independent_service_items",
   "independent_service_payments",
-  "independent_service_portal_otps",
-  "independent_service_portal_sessions",
   "independent_service_proformas",
   "internal_conversation_members",
   "internal_conversations",
-  "internal_external_meeting_invites",
   "internal_meeting_attachments",
   "internal_meeting_participants",
   "internal_meeting_provider_config",
@@ -135,7 +129,6 @@ const TABLES = [
   "offre_formulaire_documents",
   "offre_formulaire_etapes",
   "offres",
-  "otp_codes",
   "paiement_acquisition_allocations",
   "paiements",
   "parcelles",
@@ -153,7 +146,6 @@ const TABLES = [
   "promotions",
   "proprietaires_terres",
   "prospects",
-  "push_subscriptions",
   "rapports_visites_medias",
   "rapports_visites_techniques",
   "rate_limits",
@@ -192,6 +184,17 @@ const TABLES = [
   "workspace_reporting_lines",
   "workspace_tasks",
   "zone_assignments"
+];
+
+const EXCLUDED_SECURITY_TABLES = [
+  "acremap_integration_settings",
+  "client_portal_access_codes",
+  "client_portal_sessions",
+  "independent_service_portal_otps",
+  "independent_service_portal_sessions",
+  "internal_external_meeting_invites",
+  "otp_codes",
+  "push_subscriptions"
 ];
 
 const AUTO_BACKUP_TABLES = ["clients","plantations","paiements","parcelles","portail_messages","documents_acquisition","interventions_techniques","profiles","user_roles","offres","promotions","configurations_systeme"];
@@ -371,6 +374,7 @@ const GestionBaseDonnees = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              <p className="text-sm text-muted-foreground">Les tables de sécurité contenant des clés API, codes d’accès, OTP, jetons de session ou abonnements push sont volontairement exclues de l’export.</p>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label>Tables à exporter</Label>
