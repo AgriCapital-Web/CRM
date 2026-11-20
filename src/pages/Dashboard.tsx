@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { PERMISSIONS, ROLE_SHORT_LABELS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatUserShortName, formatWelcomeName } from "@/lib/utils";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -130,6 +130,9 @@ const Dashboard = () => {
     commissions: 0,
     portfolio: 0,
     forecastRevenue: 0,
+    monthlyForecast: 0,
+    plantingTargetHa: 0,
+    patrimoineTotalHa: 0,
     clientCredit: 0,
     independentCustomers: 0,
     independentProformas: 0,
@@ -185,7 +188,7 @@ const Dashboard = () => {
         teamMembersRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,region_id,domicile,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,region_id,domicile,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre,mensualite_montant")
           : Promise.resolve({ data: [], count: 0 }),
         canViewIndependentServiceCustomers
           ? (supabase as any).from("independent_service_customers").select("id").is("archived_at", null)
@@ -328,7 +331,7 @@ const Dashboard = () => {
 
       const dashboardClientIds = new Set(commercialClients.map((c: any) => c.id));
       const externalClientIds = new Set(allExternalClients.map((c: any) => c.id));
-      let engagedHa = commercialClients.reduce((s: number, c: any) => s + Number(c.total_hectares || 0), 0);
+      const engagedHa = commercialClients.reduce((s: number, c: any) => s + Math.max(0, Number(c.total_hectares || 0)), 0);
       // Les indicateurs techniques couvrent aussi les plantations des bénéficiaires AC_B,
       // sans les réintégrer aux statistiques commerciales.
       const scopedPlantations = plantations.filter((p: any) => p.client_id && externalClientIds.has(p.client_id));
@@ -523,7 +526,7 @@ const Dashboard = () => {
         avgDaysRemaining,
         commissions: commissionTotal,
         portfolio: portfolioTotal,
-        forecastRevenue,
+        forecastRevenue,\n        monthlyForecast,\n        plantingTargetHa,\n        patrimoineTotalHa: plantedHa,
         clientCredit,
         independentCustomers: independentCustomers.length,
         independentProformas: independentProformas.length,
@@ -746,7 +749,7 @@ const Dashboard = () => {
 
   const kpis: any[] = [
     { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canDashboardExecutiveFinance, metrics:[
-      {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
+      {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},\n      {label:"Paiement mensuel prévisionnel",value:money(stats.monthlyForecast),href:"/finance"},
       {label:"Encaissé",value:money(stats.collected),href:"/finance"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
@@ -794,14 +797,14 @@ const Dashboard = () => {
                       <img src={profilePhotoUrl} alt={profile?.nom_complet || "Photo profil"} className="h-full w-full object-cover" />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center bg-primary/20 text-xl font-bold">
-                        {formatUserShortName(profile?.nom_complet).split(" ").map((n) => n[0]).join("").slice(0, 2) || "AG"}
+                        {formatStructuredPersonName(profile?.nom, profile?.prenoms).split(" ").map((n) => n[0]).join("").slice(0, 2) || "AG"}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-sm leading-tight font-bold sm:text-2xl lg:text-3xl sm:leading-normal">Bienvenue, <span className="text-accent font-extrabold drop-shadow-sm">{formatWelcomeName(profile?.nom_complet)}</span></h1>
+                <h1 className="text-sm leading-tight font-bold sm:text-2xl lg:text-3xl sm:leading-normal">Bienvenue, <span className="text-accent font-extrabold drop-shadow-sm">{formatStructuredPersonName(profile?.nom, profile?.prenoms)}</span></h1>
                 <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] sm:mt-2 sm:gap-2 sm:text-sm text-primary-foreground/90">
                   <Badge variant="secondary" className="max-w-full truncate px-2 py-0.5 text-[10px] sm:text-xs">{roleLabel || "Utilisateur"}</Badge>
                   <span className="whitespace-nowrap">Connecté à {connectionTime}</span>
@@ -1012,7 +1015,7 @@ const Dashboard = () => {
                   <Card className="lg:col-span-1">
                     <CardHeader><CardTitle className="flex items-center gap-2 text-base"><MapPin className="h-5 w-5 text-primary" />Répartition géographique des plantations</CardTitle></CardHeader>
                     <CardContent>
-                      <p className="mb-3 text-xs text-muted-foreground">Source : plantations et région enregistrée dans le CRM. Ce graphique décrit la localisation des plantations, pas le domicile des clients.</p>
+                      
                       {regional.length ? regional.map((r) => (
                         <div key={r.name} className="mb-3"><div className="flex justify-between text-xs"><span>{r.name}</span><span>{r.value}</span></div><Progress value={regional[0]?.value ? (r.value / regional[0].value) * 100 : 0} className="mt-1" /></div>
                       )) : <p className="text-sm text-muted-foreground">Aucune plantation dans votre périmètre.</p>}
