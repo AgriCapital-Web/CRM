@@ -366,9 +366,16 @@ const NouvelleAcquisition = () => {
   useEffect(()=>{
     if(recordId){
       const savedSteps = Array.isArray(formData.offre_snapshot?.workflow?.steps) ? formData.offre_snapshot.workflow.steps : [];
+      const family = String(formData.offre_snapshot?.offer?.famille_offre || formData.famille_offre || "").toUpperCase();
       const configuredSteps = savedSteps
         .filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()))
-        .map((item:any)=>({code:item.code,titre:item.titre,description:item.description,ordre:item.ordre,obligatoire:item.obligatoire}));
+        .map((item:any)=>({
+          code:item.code,
+          titre:item.code==="client" ? (family==="PALMTERROIR" ? "Informations du souscripteur" : "Informations de l’acquéreur")
+            : item.code==="documents" ? (family==="PALMTERROIR" ? "Contrat d’accompagnement agricole" : "Contrat d’acquisition et annexes")
+            : item.titre,
+          description:item.description,ordre:item.ordre,obligatoire:item.obligatoire
+        }));
       setSteps(configuredSteps);
       setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
       setLoadingSteps(false);
