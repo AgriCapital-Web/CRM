@@ -69,8 +69,8 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
         {isTerraPalm && <div className="mt-1 text-muted-foreground">Superficie contractuelle : {formData.superficie_prevue || "—"} ha</div>}
       </div>
       {isPalmInvest && <div><Label>Site / domaine AgriCapital (si applicable)</Label><Input value={formData.site_agricapital||""} onChange={e=>updateFormData({site_agricapital:e.target.value})} placeholder="Nom du site ou du domaine"/></div>}
-      {isClientLandOffer && <div>
-        <Label>Statut foncier / justificatif *</Label>
+      <div>
+        <Label>{isClientLandOffer ? "Statut foncier / justificatif *" : "Statut foncier du domaine (si connu)"}</Label>
         <Select value={formData.parcelle_statut_foncier||""} onValueChange={v=>updateFormData({parcelle_statut_foncier:v})}>
           <SelectTrigger><SelectValue placeholder="Sélectionner le statut foncier"/></SelectTrigger>
           <SelectContent>
@@ -80,7 +80,7 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
             <SelectItem value="autre">Autre</SelectItem>
           </SelectContent>
         </Select>
-      </div>}
+      </div>
       <GeographieCascade
         districtId={formData.parcelle_district_id}
         regionId={formData.parcelle_region_id}
