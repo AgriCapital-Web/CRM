@@ -6,9 +6,9 @@ import { meilleurePromotion, PromotionBase, OffreBase } from "@/lib/pricing";
  * Retourne la meilleure promotion active applicable à l'offre demandée.
  * Sans offreId, retourne la meilleure promotion active globale.
  */
-export const usePromotionActive = (offreId?: string | null, formuleCode?: string | null, enabled = true) => {
+export const usePromotionActive = (offreId?: string | null, formuleCode?: string | null, enabled = true, superficieHa = 0) => {
   return useQuery({
-    queryKey: ["promotion-active", offreId || "global", formuleCode || "default"],
+    queryKey: ["promotion-active", offreId || "global", formuleCode || "default", superficieHa],
     enabled,
     queryFn: async () => {
       const now = new Date().toISOString();
@@ -44,7 +44,7 @@ export const usePromotionActive = (offreId?: string | null, formuleCode?: string
           else if (!sharedTariff) pricingOffer[key] = null;
         }
       }
-      return meilleurePromotion(pricingOffer as OffreBase, active, nowDate);
+      return meilleurePromotion(pricingOffer as OffreBase, active, nowDate, "echeancier", Math.max(0, Number(superficieHa) || 0));
     },
     staleTime: 30_000,
   });
