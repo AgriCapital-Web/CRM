@@ -615,23 +615,7 @@ const NouvelleAcquisition = () => {
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
 
-      const requiredContract = requiredContractForOffer(formData);
-      const signedContractFile=recoverFile(
-        formData[requiredContract.field + "_file"],
-        formData[requiredContract.field + "_preview"] || (requiredContract.field !== "contrat_signe_client" ? formData.contrat_signe_client_preview : ""),
-        requiredContract.field
-      );
-      if(!signedContractFile) throw new Error("Veuillez joindre le " + requiredContract.label.toLowerCase() + " signé.");
-      const signedContractUpload=await uploadFile("documents",signedContractFile,user.id+"/clients/"+client.id+"/contrats","contract-"+requiredContract.type);
-      if(!signedContractUpload?.path) throw new Error("Téléversement du contrat impossible.");
-      const {error:signedContractSaveError}=await offlineUpsert("documents_acquisition",{
-        id:stableUuid(stableClientId,"contract:"+requiredContract.type),
-        client_id:client.id,type_document:requiredContract.type,code_document:requiredContract.type,
-        categorie:"contrat",obligatoire:true,source_contractuelle:requiredContract.type,
-        fichier_url:signedContractUpload.path,statut:"signe",uploaded_by:currentUser.id,
-        metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:requiredContract.label,storage_bucket:"documents"}
-      });
-      if(signedContractSaveError) throw signedContractSaveError;
+
 
       // Le lien lead/prospect est finalisé APRÈS les médias et documents.
       // Ainsi un délai sur le lead ne coupe plus l'envoi des photos et ne laisse pas
@@ -743,6 +727,20 @@ const NouvelleAcquisition = () => {
       const {data:contracts,error:contractsError}=await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",offer.id).eq("actif",true);
       if (contractsError) throw contractsError;
       if (!contracts) throw new Error("Impossible de vérifier les contrats requis pour cette offre.");
+      if (contracts.length === 0) {
+        const key = "contrat_signe_client";
+        const file = recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
+        if (!file) throw new Error("Veuillez joindre le contrat signé.");
+        const uploaded = await uploadFile("documents",file,user.id+"/clients/"+client.id+"/contrats","contrat-signe-client");
+        if (!uploaded?.path) throw new Error("Téléversement du contrat signé impossible.");
+        const {error:contractDocError}=await offlineUpsert("documents_acquisition",{
+          id:stableUuid(stableClientId,"contract:contrat_signe_client"),client_id:client.id,
+          type_document:key,code_document:key,categorie:"contrat",obligatoire:true,
+          source_contractuelle:key,fichier_url:uploaded.path,statut:"signe",uploaded_by:currentUser.id,
+          metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:"Contrat signé",storage_bucket:"documents"}
+        });
+        if(contractDocError) throw contractDocError;
+      }
       for(const contract of contracts){
         const key="contrat_"+contract.type_contrat;
         const file=recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
@@ -755,9 +753,9 @@ const NouvelleAcquisition = () => {
           const {error:contractDocError}=await offlineUpsert("documents_acquisition",{
             id: stableUuid(stableClientId, "contract:"+contract.type_contrat),
             client_id:client.id,type_document:contract.type_contrat,code_document:contract.type_contrat,
-            categorie:"contrat",obligatoire:!!contract.obligatoire,source_contractuelle:contract.type_contrat,
+            categorie:"contrat",obligatoire:!!contract.obligatoire,source_contractuelle:contract.source_document||contract.type_contrat,
             fichier_url:uploaded.path,statut:"en_attente",uploaded_by:user.id,
-            metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:contract.nom||contract.libelle||contract.type_contrat,storage_bucket:"documents"}
+            metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:contract.type_contrat==="accompagnement_agricole"?"Contrat d’accompagnement agricole":contract.type_contrat==="contrat_acquisition_client"?"Contrat d’acquisition":contract.type_contrat,source_document:contract.source_document||null,storage_bucket:"documents"}
           });
           if(contractDocError)throw contractDocError;
         }
