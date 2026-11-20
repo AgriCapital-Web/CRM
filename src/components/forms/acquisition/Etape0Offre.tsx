@@ -86,14 +86,14 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     },
   });
   const snapshotOffer = formData.offre_snapshot?.offer || formData.offre || null;
-  const selectedOfferForForm: any = (offres || []).find((item:any) => item.id === formData.offre_id) || snapshotOffer;
-  const offerFamilyForForm = String(selectedOfferForForm?.famille_offre || "").toUpperCase();
-  const superficieLabel = offerFamilyForForm === "PALMTERROIR" ? "Superficie nette de la parcelle" : "Superficie contractuelle";
   const offres: Offre[] = contractReadOnly
     ? (snapshotOffer ? [{ ...snapshotOffer, id: snapshotOffer.id || formData.offre_id,
         code: snapshotOffer.code || formData.offre_code || "", nom: snapshotOffer.nom || formData.formule_nom || "Offre enregistrée",
         formules_configuration: Array.isArray(snapshotOffer.formules_configuration) ? snapshotOffer.formules_configuration : [] } as Offre] : [])
     : (catalogueOffres || []);
+  const selectedOfferForForm: any = offres.find((item:any) => item.id === formData.offre_id) || snapshotOffer;
+  const offerFamilyForForm = String(selectedOfferForForm?.famille_offre || "").toUpperCase();
+  const superficieLabel = offerFamilyForForm === "PALMTERROIR" ? "Superficie nette de la parcelle" : "Superficie contractuelle";
   const isLoading = !contractReadOnly && catalogueLoading;
 
   const familles = useMemo(() => {
