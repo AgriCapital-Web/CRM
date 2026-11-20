@@ -360,7 +360,7 @@ const NouvelleAcquisition = () => {
     if(recordId){
       const savedSteps = Array.isArray(formData.offre_snapshot?.workflow?.steps) ? formData.offre_snapshot.workflow.steps : [];
       const configuredSteps = savedSteps
-        .filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()))
+        .filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()))
         .map((item:any)=>({code:item.code,titre:item.titre,description:item.description,ordre:item.ordre,obligatoire:item.obligatoire}));
       setSteps(configuredSteps);
       setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
@@ -377,7 +377,7 @@ const NouvelleAcquisition = () => {
       if(error)toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
       // Le foncier relève exclusivement de la première intervention technique, jamais du parcours commercial.
       // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
-      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()));
+      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()));
       setSteps(configuredSteps);
       setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
       setLoadingSteps(false);
