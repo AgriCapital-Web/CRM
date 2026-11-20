@@ -55,6 +55,7 @@ const EVENTS = [
   ["plantation_activee", "Plantation activée"],
   ["prospect_relance", "Relance prospect"],
   ["campagne_speciale", "Campagne speciale"],
+  ["client_access_code_reset", "Réinitialisation du code d’accès portail"],
 ];
 
 const AUDIENCES = [
