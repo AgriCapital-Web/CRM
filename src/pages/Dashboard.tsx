@@ -7,7 +7,6 @@ import { PlantationsMap } from "@/components/dashboard/PlantationsMap";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useAuth } from "@/hooks/useAuth";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
-import TableSearchInput from "@/components/common/TableSearchInput";
 import { PERMISSIONS, ROLE_SHORT_LABELS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatUserShortName, formatWelcomeName } from "@/lib/utils";
@@ -147,12 +146,6 @@ const Dashboard = () => {
   const [topClients, setTopClients] = useState<any[]>([]);
   const [regional, setRegional] = useState<any[]>([]);
   const [teamPerformance, setTeamPerformance] = useState<any[]>([]);
-  const [recentClientSearch,setRecentClientSearch]=useState("");
-  const [recentPaymentSearch,setRecentPaymentSearch]=useState("");
-
-  const filteredRecentClients=recentClients.filter((row:any)=>JSON.stringify(row).toLowerCase().includes(recentClientSearch.trim().toLowerCase()));
-  const filteredRecentPayments=recentPayments.filter((row:any)=>JSON.stringify(row).toLowerCase().includes(recentPaymentSearch.trim().toLowerCase()));
-
   const fetchStats = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -659,10 +652,8 @@ const Dashboard = () => {
 
       const regionMap = new Map<string, string>(regions.map((r: any) => [String(r.id), String(r.nom)]));
       const regionCounts = new Map<string, number>();
-      commercialClients.forEach((client: any) => {
-        const residence = String(client.domicile || "").trim();
-        const isDiaspora = /\b(USA|U\.S\.A\.|UNITED STATES|ETATS[- ]UNIS|ÉTATS[- ]UNIS|FRANCE|CANADA|EUROPE)\b/i.test(residence);
-        const name = regionMap.get(String(client.region_id || "")) || (isDiaspora ? "Diaspora" : "À vérifier");
+      scopedPlantations.forEach((plantation: any) => {
+        const name = regionMap.get(String(plantation.region_id || "")) || "À géolocaliser";
         regionCounts.set(name, (regionCounts.get(name) || 0) + 1);
       });
       setRegional([...regionCounts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8));
@@ -947,12 +938,12 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {canClients && recentClients.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle><div className="w-full min-w-0 sm:w-44 sm:shrink sm:max-w-[11rem]"><TableSearchInput value={recentClientSearch} onChange={setRecentClientSearch} placeholder="Rechercher un client" /></div></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle></div></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <Table searchable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Nom</TableHead><TableHead className="h-8 px-2 py-1.5">Plantations</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
+                        <Table searchable searchPlaceholder="Rechercher un client" exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Nom</TableHead><TableHead className="h-8 px-2 py-1.5">Plantations</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
                         <TableBody>
-                          {filteredRecentClients.length ? filteredRecentClients.map((c) => (
+                          {recentClients.length ? recentClients.map((c) => (
                             <TableRow key={c.id_unique}>
                               <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{c.nom_complet}</TableCell>
                               <TableCell className="px-2 py-1.5 text-xs sm:text-sm">{c.nombre_plantations || 0}</TableCell>
@@ -967,12 +958,12 @@ const Dashboard = () => {
 
                 {canPayments && recentPayments.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle><div className="w-full min-w-0 sm:w-44 sm:shrink sm:max-w-[11rem]"><TableSearchInput value={recentPaymentSearch} onChange={setRecentPaymentSearch} placeholder="Rechercher un paiement" /></div></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle></div></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <Table searchable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Client</TableHead><TableHead className="h-8 px-2 py-1.5">Montant</TableHead><TableHead className="h-8 px-2 py-1.5">Mode</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
+                        <Table searchable searchPlaceholder="Rechercher un paiement" exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Client</TableHead><TableHead className="h-8 px-2 py-1.5">Montant</TableHead><TableHead className="h-8 px-2 py-1.5">Mode</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
                         <TableBody>
-                          {filteredRecentPayments.length ? filteredRecentPayments.map((p) => (
+                          {recentPayments.length ? recentPayments.map((p) => (
                             <TableRow key={p.id}>
                               <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{p.client_nom}</TableCell>
                               <TableCell className="whitespace-nowrap px-2 py-1.5 text-xs sm:text-sm">{money(Number(p.montant_paye ?? p.montant ?? 0))}</TableCell>
@@ -1008,12 +999,12 @@ const Dashboard = () => {
 
                 {(canClients || canPlantations) && regional.length > 0 && (
                   <Card className="lg:col-span-1">
-                    <CardHeader><CardTitle className="flex items-center gap-2 text-base"><MapPin className="h-5 w-5 text-primary" />Répartition géographique des clients</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="flex items-center gap-2 text-base"><MapPin className="h-5 w-5 text-primary" />Répartition géographique des plantations</CardTitle></CardHeader>
                     <CardContent>
-                      <p className="mb-3 text-xs text-muted-foreground">Source : fiches clients et région de résidence. Siméon est classé dans la diaspora selon son domicile déclaré aux États-Unis.</p>
+                      <p className="mb-3 text-xs text-muted-foreground">Source : plantations et région enregistrée dans le CRM. Ce graphique décrit la localisation des plantations, pas le domicile des clients.</p>
                       {regional.length ? regional.map((r) => (
                         <div key={r.name} className="mb-3"><div className="flex justify-between text-xs"><span>{r.name}</span><span>{r.value}</span></div><Progress value={regional[0]?.value ? (r.value / regional[0].value) * 100 : 0} className="mt-1" /></div>
-                      )) : <p className="text-sm text-muted-foreground">Aucune plantation géolocalisée dans votre périmètre.</p>}
+                      )) : <p className="text-sm text-muted-foreground">Aucune plantation dans votre périmètre.</p>}
                     </CardContent>
                   </Card>
                 )}
