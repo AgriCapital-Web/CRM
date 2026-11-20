@@ -77,7 +77,7 @@ const TechnicienTerrain=()=>{
   const [media,setMedia]=useState<File[]>([]);
   const [existingReportMedia,setExistingReportMedia]=useState<any[]>([]);
   const [intervention,setIntervention]=useState<any>({
-    plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"defrichage",date_intervention:new Date().toISOString().slice(0,10),
+    plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"validation_parcelle",date_intervention:new Date().toISOString().slice(0,10),
     observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",
     nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""
   });
@@ -162,6 +162,34 @@ const TechnicienTerrain=()=>{
     ? !!interventionAcquisition.necessite_foncier_client
     : pendingClientAcquisitions.length>0 ? false
     : Boolean(clientOffer?.necessite_foncier_client===true);
+  const familyForClientAndParcel=(clientId?:string|null,parcelId?:string|null)=>{
+    const direct=clients.find((item:any)=>item.id===clientId);
+    const directFamily=String(direct?.famille_offre||direct?.formule_code||direct?.offre_code||"").toUpperCase();
+    if(directFamily)return directFamily;
+    if(!parcelId)return "";
+    const sibling=plantations
+      .filter((item:any)=>item.parcelle_id===parcelId&&item.client_id&&item.client_id!==clientId)
+      .map((item:any)=>clients.find((client:any)=>client.id===item.client_id))
+      .find((client:any)=>String(client?.famille_offre||client?.formule_code||client?.offre_code||"").trim());
+    return String(sibling?.famille_offre||sibling?.formule_code||sibling?.offre_code||"").toUpperCase();
+  };
+  const selectedPreparationFamily=String(
+    interventionAcquisition?.famille_offre||interventionAcquisition?.formule_code||
+    interventionOwnerClient?.famille_offre||interventionOwnerClient?.formule_code||
+    clientOffer?.famille_offre||clientOffer?.code||
+    familyForClientAndParcel(intervention.client_id,intervention.parcelle_id||interventionPlantation?.parcelle_id||interventionAcquisition?.parcelle_id)
+  ).toUpperCase();
+  const managedLandPreparation=selectedPreparationFamily.startsWith("PALMINVEST")||selectedPreparationFamily.startsWith("TERRAPALM");
+  const visibleStageRefs=useMemo(
+    ()=>stageRefs.filter((stage:any)=>!["defrichage","nettoyage"].includes(String(stage.code||""))||managedLandPreparation),
+    [stageRefs,managedLandPreparation]
+  );
+  const visibleInterventions=useMemo(()=>interventions.filter((item:any)=>{
+    if(!["defrichage","nettoyage"].includes(String(item.type_intervention||"")))return true;
+    const plantationRow=plantations.find((pl:any)=>pl.id===item.plantation_id);
+    const family=familyForClientAndParcel(item.client_id||plantationRow?.client_id,item.parcelle_id||plantationRow?.parcelle_id);
+    return family.startsWith("PALMINVEST")||family.startsWith("TERRAPALM");
+  }),[interventions,plantations,clients]);
 
   useEffect(()=>{
     let cancelled=false;
@@ -245,7 +273,7 @@ const TechnicienTerrain=()=>{
     return Boolean(offer && offer.necessite_foncier_client===false);
   },[plantation,offerConfigs]);
   // Le référentiel technique est partagé avec le Portail : on affiche toujours toutes les étapes actives, dans l'ordre du référentiel.
-  const applicableStages=stageRefs;
+  const applicableStages=visibleStageRefs;
 
   const captureReportPosition=()=>{
     if(!navigator.geolocation){
@@ -395,7 +423,7 @@ const TechnicienTerrain=()=>{
   const resetInterventionForm=()=>{
     setEditingInterventionId("");
     setInterventionEditEnabled(false);
-    setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"defrichage",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
+    setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:visibleStageRefs[0]?.code||"validation_parcelle",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
   };
 
   const editIntervention=(item:any)=>{
@@ -445,7 +473,7 @@ const TechnicienTerrain=()=>{
       : technicalPalmInvest
         ? (intervention.parcelle_id||interventionPlantation?.parcelle_id||null)
         : (intervention.parcelle_id||interventionClient?.parcelle_id||interventionPlantation?.parcelle_id||null);
-    const isPrePlantationStage=["defrichage","piquetage","trouaison","mise_en_terre"].includes(intervention.type_intervention);
+    const isPrePlantationStage=["validation_parcelle","defrichage","nettoyage","piquetage","trouaison","mise_en_terre"].includes(intervention.type_intervention);
     if(isPrePlantationStage && pendingClientAcquisitions.length>0 && !interventionAcquisition){
       toast({variant:"destructive",title:"Acquisition requise",description:"Choisissez la acquisition exacte à implanter afin de conserver sa formule, sa superficie et son échéancier."});return;
     }
@@ -589,7 +617,7 @@ const TechnicienTerrain=()=>{
       const {error}=await offlineInsert("interventions_techniques",payload);
       if(error)throw error;
       toast({title:intervention.type_intervention==="mise_en_terre"&&intervention.statut==="realisee"?"Mise en terre validée":"Intervention enregistrée",description:intervention.type_intervention==="mise_en_terre"&&intervention.statut==="realisee"?"Intervention technique enregistrée.":undefined});
-      setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
+      setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:visibleStageRefs[0]?.code||"validation_parcelle",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
       load();
     }catch(e:any){toast({variant:"destructive",title:"Enregistrement impossible",description:e?.message||"Erreur inconnue"});}
     finally{setSaving(false);}
@@ -666,7 +694,7 @@ const TechnicienTerrain=()=>{
 
       <TabsContent value="intervention" className="space-y-3">
         <div className="flex flex-wrap justify-end gap-2">{allowed&&<Button onClick={()=>setShowInterventionForm(true)}><Plus className="mr-2 h-4 w-4"/>Nouvelle intervention</Button>}</div>
-        {(!editingInterventionId&&!showInterventionForm)&&<Card><CardHeader className="px-3 py-2"><CardTitle className="text-base">Interventions techniques</CardTitle></CardHeader><CardContent className="p-0"><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="p-2 text-left">Date</th><th className="p-2 text-left">Plantation</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Technicien</th><th className="p-2 text-right">Action</th></tr></thead><tbody>{interventions.length===0?<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucune intervention.</td></tr>:interventions.map((i:any)=><tr key={i.id} role="button" tabIndex={0} onClick={()=>editIntervention(i)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();editIntervention(i);}}} className="cursor-pointer border-b last:border-0 hover:bg-muted/50"><td className="whitespace-nowrap p-2">{i.date_intervention?new Date(i.date_intervention).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{i.plantation?.nom_plantation||i.plantation?.id_unique||"—"}</td><td className="p-2">{i.type_intervention||"—"}</td><td className="p-2">{i.agent?.nom_complet||"—"}</td><td className="p-2 text-right"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();editIntervention(i);}}>Ouvrir</Button></td></tr>)}</tbody></table></div></CardContent></Card>}
+        {(!editingInterventionId&&!showInterventionForm)&&<Card><CardHeader className="px-3 py-2"><CardTitle className="text-base">Interventions techniques</CardTitle></CardHeader><CardContent className="p-0"><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="p-2 text-left">Date</th><th className="p-2 text-left">Plantation</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Technicien</th><th className="p-2 text-right">Action</th></tr></thead><tbody>{visibleInterventions.length===0?<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucune intervention.</td></tr>:visibleInterventions.map((i:any)=><tr key={i.id} role="button" tabIndex={0} onClick={()=>editIntervention(i)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();editIntervention(i);}}} className="cursor-pointer border-b last:border-0 hover:bg-muted/50"><td className="whitespace-nowrap p-2">{i.date_intervention?new Date(i.date_intervention).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{i.plantation?.nom_plantation||i.plantation?.id_unique||"—"}</td><td className="p-2">{i.type_intervention||"—"}</td><td className="p-2">{i.agent?.nom_complet||"—"}</td><td className="p-2 text-right"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();editIntervention(i);}}>Ouvrir</Button></td></tr>)}</tbody></table></div></CardContent></Card>}
 
         {(Boolean(editingInterventionId)||showInterventionForm)&&<Dialog open={Boolean(editingInterventionId)||showInterventionForm} onOpenChange={open=>{if(!open){setShowInterventionForm(false);setEditingInterventionId("");}}}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><Card><CardHeader><div className="flex items-center justify-between gap-2"><CardTitle>{editingInterventionId?"Consultation de l’intervention":"Intervention technique"}</CardTitle>{!editingInterventionId&&<Button type="button" variant="outline" size="sm" onClick={()=>setShowInterventionForm(false)}>Fermer</Button>}</div></CardHeader><CardContent className="space-y-2 p-3 sm:p-4"><fieldset disabled={Boolean(editingInterventionId)&&!interventionEditEnabled} className="space-y-2">
           <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -691,7 +719,7 @@ const TechnicienTerrain=()=>{
             <div><Label className="mb-0 block text-xs leading-4">Lot disponible *</Label><Select value={intervention.lot_id||""} onValueChange={v=>{const lot=lots.find(l=>l.id===v);setIntervention((x:any)=>({...x,lot_id:v,parcelle_id:lot?.parcelle_id||""}));}} disabled={!intervention.convention_id}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Sélectionner un lot"/></SelectTrigger><SelectContent>{lots.map(l=><SelectItem key={l.id} value={l.id}>{l.reference||("H"+String(l.numero_h).padStart(2,"0"))} — {l.surface_ha} ha</SelectItem>)}</SelectContent></Select></div>
           </div>}
           <div className="grid md:grid-cols-2 gap-4">
-            <div><Label className="mb-0 block text-xs leading-4">Étape technique</Label><Select value={intervention.type_intervention} onValueChange={v=>setIntervention((x:any)=>({...x,type_intervention:v}))}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue/></SelectTrigger><SelectContent>{stageRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="mb-0 block text-xs leading-4">Étape technique</Label><Select value={intervention.type_intervention} onValueChange={v=>setIntervention((x:any)=>({...x,type_intervention:v}))}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue/></SelectTrigger><SelectContent>{visibleStageRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
             <div><Label className="mb-0 block text-xs leading-4">Statut</Label><Select value={intervention.statut} onValueChange={v=>setIntervention((x:any)=>({...x,statut:v}))}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue/></SelectTrigger><SelectContent>{interventionStatusRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
           </div>
           <div className="rounded-xl border p-4 space-y-4">
