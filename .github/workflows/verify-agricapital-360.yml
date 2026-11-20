@@ -41,7 +41,18 @@ jobs:
         run: npm ci
 
       - name: Vérifier les types TypeScript
-        run: npm run typecheck
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck -- --pretty false 2>&1 | tee typecheck.log
+
+      - name: Conserver le rapport TypeScript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-report
+          path: typecheck.log
+          if-no-files-found: ignore
 
       - name: Exécuter les tests
         run: npm run test
