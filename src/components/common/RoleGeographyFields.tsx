@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 
-type Row = { id: string; nom: string; district_id?: string | null; region_id?: string | null; departement_id?: string | null; sous_prefecture_id?: string | null };
+type Row = { id: string; nom: string; district_id?: string | null; region_id?: string | null; departement_id?: string | null; sous_prefecture_id?: string | null; est_actif_effectif?: boolean; est_active_effectif?: boolean; est_actif?: boolean; est_active?: boolean };
 type Values = { districtId?: string | null; regionId?: string | null; departementId?: string | null; sousPrefectureId?: string | null };
 type Props = { role?: string | null; value: Values; onChange: (value: Values) => void; required?: boolean; className?: string };
 
@@ -70,16 +70,16 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
       setLoading(true);
       try {
         const [d, r, de, sp] = await Promise.all([
-          (supabase as any).from("v_geo_districts").select("id,nom").order("nom"),
-          (supabase as any).from("v_geo_regions").select("id,nom,district_id").order("nom"),
-          (supabase as any).from("v_geo_departements").select("id,nom,region_id").order("nom"),
-          (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id").order("nom"),
+          (supabase as any).from("v_geo_districts").select("id,nom,est_actif_effectif").eq("est_actif_effectif", true).order("nom"),
+          (supabase as any).from("v_geo_regions").select("id,nom,district_id,est_active_effectif").eq("est_active_effectif", true).order("nom"),
+          (supabase as any).from("v_geo_departements").select("id,nom,region_id,est_actif_effectif").eq("est_actif_effectif", true).order("nom"),
+          (supabase as any).from("v_geo_sous_prefectures").select("id,nom,departement_id,est_active_effectif").eq("est_active_effectif", true).order("nom"),
         ]);
         if (!active) return;
-        // Une vue géographique défaillante ne doit pas vider les trois autres listes.
-        const loadRows = async (result: any, table: string, columns: string) => {
-          if (!result.error && Array.isArray(result.data) && result.data.length) return result.data;
-          const fallback = await (supabase as any).from(table).select(columns).order("nom");
+        // Une réponse vide est valide : ne jamais la remplacer par les lignes inactives des tables sources.
+        const loadRows = async (result: any, table: string, columns: string, activeColumn: string) => {
+          if (!result.error && Array.isArray(result.data)) return result.data;
+          const fallback = await (supabase as any).from(table).select(columns).eq(activeColumn, true).order("nom");
           if (fallback.error) {
             console.error("Liste géographique indisponible", { table, viewError: result.error?.message, fallbackError: fallback.error.message });
             return [];
@@ -87,10 +87,10 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
           return fallback.data || [];
         };
         const [districtRows, regionRows, departmentRows, subPrefectureRows] = await Promise.all([
-          loadRows(d, "districts", "id,nom"),
-          loadRows(r, "regions", "id,nom,district_id"),
-          loadRows(de, "departements", "id,nom,region_id"),
-          loadRows(sp, "sous_prefectures", "id,nom,departement_id"),
+          loadRows(d, "districts", "id,nom,est_actif", "est_actif"),
+          loadRows(r, "regions", "id,nom,district_id,est_active", "est_active"),
+          loadRows(de, "departements", "id,nom,region_id,est_actif", "est_actif"),
+          loadRows(sp, "sous_prefectures", "id,nom,departement_id,est_active", "est_active"),
         ]);
         setDistricts(districtRows);
         setRegions(regionRows);
@@ -174,6 +174,5 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
     {!isDiaspora && visibleLevels.includes("region") && field("region", "Région", regionsForDistrict, value.regionId, changeRegion, visibleLevels.includes("district") && !value.districtId)}
     {!isDiaspora && visibleLevels.includes("departement") && field("departement", "Département", departmentsForRegion, value.departementId, changeDepartment, visibleLevels.includes("region") && !value.regionId)}
     {!isDiaspora && visibleLevels.includes("sous_prefecture") && field("sous_prefecture", "Sous-préfecture", subprefecturesForDepartment, value.sousPrefectureId, changeSousPrefecture, visibleLevels.includes("departement") && !value.departementId)}
-    {isDiaspora && <p className="sm:col-span-2 text-xs text-muted-foreground">Le district Diaspora n’a pas de région, de département ni de sous-préfecture. Le choix du district suffit.</p>}
   </div>;
 }
