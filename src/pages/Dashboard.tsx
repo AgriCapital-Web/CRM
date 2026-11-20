@@ -427,7 +427,7 @@ const Dashboard = () => {
         .filter((p: any) => !p.parcelle_id && !internalClientIds.has(p.client_id))
         .reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       plantedHa = sumPlantedArea(plantations);
-      const plantingTargetFromClients = clients.reduce((sum: number, client: any) => {
+      const plantingTargetFromClients = clients.filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase())).reduce((sum: number, client: any) => {
         const hectares = Math.max(0, Number(client.total_hectares || 0));
         const formula = String(client.formule_code || client.famille_offre || "").toUpperCase();
         return sum + hectares * (formula.includes("PALMINVEST") ? 2 : 1);
@@ -764,7 +764,7 @@ const Dashboard = () => {
   const kpis: any[] = [
     { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canDashboardExecutiveFinance, metrics:[
       {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
-      {label:"Paiement mensuel prévisionnel",value:money(stats.monthlyForecast),href:"/finance"},
+      {label:"Mensualités prévisionnelles",value:money(stats.monthlyForecast),href:"/finance"},
       {label:"Encaissé",value:money(stats.collected),href:"/finance"},
       {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
