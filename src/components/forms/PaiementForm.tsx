@@ -35,7 +35,7 @@ interface PaiementFormProps {
 const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   const { toast } = useToast();
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
-    defaultValues: paiement || {},
+    defaultValues: { ...(paiement || {}), type_preuve: paiement?.type_preuve || (paiement?.fichier_preuve_url ? (String(paiement.fichier_preuve_url).toLowerCase().endsWith(".pdf") ? "pdf_document" : "photo_recu") : "id_transaction") },
   });
   const [clients, setClients] = useState<any[]>([]);
   const [plantations, setPlantations] = useState<any[]>([]);
@@ -338,6 +338,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
       setFileUrl(uploaded.path);
       setValue("fichier_preuve_url", uploaded.path);
       setValue("preuve_paiement_url", uploaded.path);
+      setValue("type_preuve", file.type === "application/pdf" ? "pdf_document" : "photo_recu");
+      setValue("id_transaction", "");
+      setValue("operateur_mobile_money", "");
       
       toast({
         title: "Succès",
@@ -755,37 +758,39 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           </Select>
         </div>
 
-        <div>
-          <Label htmlFor="type_preuve">Type de Preuve *</Label>
-          <Select
-            onValueChange={(value) => setValue("type_preuve", value)}
-            defaultValue={paiement?.type_preuve}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Type de preuve" />
-            </SelectTrigger>
-            <SelectContent>{refs("mode_paiement").filter((r:any)=>["id_transaction","photo_recu","pdf_document"].includes(r.code)).map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
-          </Select>
+        <div className="flex items-center gap-2">
+          <input
+            id="paiement-preuve-fichier"
+            type="checkbox"
+            checked={typePreuve === "photo_recu" || typePreuve === "pdf_document"}
+            onChange={(event) => {
+              if (event.target.checked) {
+                setValue("type_preuve", "photo_recu");
+                setValue("id_transaction", "");
+                setValue("operateur_mobile_money", "");
+              } else {
+                setValue("type_preuve", "id_transaction");
+                setValue("fichier_preuve_url", "");
+                setValue("preuve_paiement_url", "");
+                setFileUrl("");
+                setFilePreview("");
+              }
+            }}
+            className="h-4 w-4"
+          />
+          <Label htmlFor="paiement-preuve-fichier" className="cursor-pointer">Fichier justificatif</Label>
         </div>
 
         {typePreuve === "id_transaction" && (
           <>
             <div>
-              <Label htmlFor="id_transaction">ID Transaction *</Label>
-              <Input
-                {...register("id_transaction")}
-                placeholder="Ex: OM2510156789"
-              />
+              <Label htmlFor="id_transaction">ID transaction *</Label>
+              <Input {...register("id_transaction")} placeholder="Ex : OM2510156789" />
             </div>
             <div>
               <Label htmlFor="operateur_mobile_money">Opérateur *</Label>
-              <Select
-                onValueChange={(value) => setValue("operateur_mobile_money", value)}
-                defaultValue={paiement?.operateur_mobile_money}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Opérateur" />
-                </SelectTrigger>
+              <Select onValueChange={(value) => setValue("operateur_mobile_money", value)} defaultValue={paiement?.operateur_mobile_money}>
+                <SelectTrigger><SelectValue placeholder="Opérateur" /></SelectTrigger>
                 <SelectContent>{refs("operateur_mobile").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -794,43 +799,20 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
 
         {(typePreuve === "photo_recu" || typePreuve === "pdf_document") && (
           <div>
-            <Label>Fichier de Preuve *</Label>
-            <FileUpload
-              onFileSelect={handleFileUpload}
-              accept={typePreuve === "pdf_document" ? ".pdf" : "image/*"}
-              maxSize={10}
-            />
+            <Label>Fichier justificatif *</Label>
+            <FileUpload onFileSelect={handleFileUpload} accept="image/*,.pdf" maxSize={10} />
+            {fileUrl && !filePreview && <p className="text-xs text-muted-foreground">Justificatif déjà enregistré : {String(fileUrl).split("/").pop()}</p>}
             {filePreview && (
               <div className="mt-3">
                 {filePreview.startsWith('data:image') ? (
                   <div className="relative">
                     <img src={filePreview} alt="Aperçu" className="w-full h-48 object-cover rounded-lg border" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFilePreview("");
-                        setFileUrl("");
-                        setValue("fichier_preuve_url", "");
-                      }}
-                      className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full hover:bg-destructive/80"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    <button type="button" onClick={() => { setFilePreview(""); setFileUrl(""); setValue("fichier_preuve_url", ""); setValue("preuve_paiement_url", ""); }} className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full hover:bg-destructive/80"><X className="h-4 w-4" /></button>
                   </div>
                 ) : (
                   <div className="p-3 bg-muted rounded border text-sm flex items-center justify-between">
                     <span>📄 {filePreview}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFilePreview("");
-                        setFileUrl("");
-                        setValue("fichier_preuve_url", "");
-                      }}
-                      className="p-1 bg-destructive text-white rounded-full hover:bg-destructive/80"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    <button type="button" onClick={() => { setFilePreview(""); setFileUrl(""); setValue("fichier_preuve_url", ""); setValue("preuve_paiement_url", ""); }} className="p-1 bg-destructive text-white rounded-full hover:bg-destructive/80"><X className="h-4 w-4" /></button>
                   </div>
                 )}
               </div>

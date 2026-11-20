@@ -429,7 +429,7 @@ const ClientDetail = () => {
         const [parcellesResult, lotsResult, conventionsResult] = await Promise.all([
           (supabase as any).from("parcelles")
             .select("id,id_unique,nom,village,proprietaire_id,mode_surface,region_id,departement_id,surface_totale_ha,surface_disponible_ha,statut")
-            .order("id_unique", { ascending: true }),
+            .order("id_unique", { ascending: false }),
           (supabase as any).from("lots_hectares")
             .select("id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id,part_type")
             .eq("part_type", "agricapital")

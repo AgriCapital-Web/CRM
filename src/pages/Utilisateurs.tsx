@@ -37,7 +37,9 @@ const Utilisateurs = () => {
   const [viewUser, setViewUser] = useState<any>(null);
   const [viewPhotoUrl, setViewPhotoUrl] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [adminAction, setAdminAction] = useState<null | "roles" | "password" | "username">(null);
+  const [adminAction, setAdminAction] = useState<null | "roles" | "password" | "username" | "permissions">(null);
+  const [permissionCatalog, setPermissionCatalog] = useState<any[]>([]);
+  const [permissionOverrides, setPermissionOverrides] = useState<Record<string, string>>({});
   const [adminTarget, setAdminTarget] = useState<any>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [primaryRole, setPrimaryRole] = useState<string>("");
@@ -46,7 +48,7 @@ const Utilisateurs = () => {
   const [newUsername, setNewUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const { can } = usePermissions();
+  const { can, capabilities } = usePermissions();
   const { toast } = useToast();
   const { roles: appRoles } = useAppRoles();
   const canCreateUsers = can("utilisateurs.create");
@@ -122,7 +124,8 @@ const Utilisateurs = () => {
     const loadPhoto = async () => {
       if (!viewUser?.photo_url) { setViewPhotoUrl(""); return; }
       if (/^(https?:|data:)/.test(viewUser.photo_url)) { setViewPhotoUrl(viewUser.photo_url); return; }
-      const { data } = await supabase.storage.from("photos-profils").createSignedUrl(viewUser.photo_url, 3600);
+      const photoBucket = String(viewUser.photo_url).startsWith("pending/") ? "account-request-photos" : "photos-profils";
+      const { data } = await supabase.storage.from(photoBucket).createSignedUrl(viewUser.photo_url, 3600);
       if (!cancelled) setViewPhotoUrl(data?.signedUrl || "");
     };
     void loadPhoto();
@@ -141,7 +144,7 @@ const Utilisateurs = () => {
   const getHighestRole = (user: any) =>
     user.user_roles?.find((r: any) => r.is_primary === true)?.role || null;
 
-  const openAdminAction = (user: any, action: "roles" | "password" | "username") => {
+  const openAdminAction = async (user: any, action: "roles" | "password" | "username" | "permissions") => {
     setAdminTarget(user);
     setAdminAction(action);
     const assignedRoles = getRoles(user);
@@ -150,6 +153,26 @@ const Utilisateurs = () => {
     setNewPassword("");
     setShowAdminPassword(false);
     setNewUsername(user.username || "");
+    if (action === "permissions") {
+      if (!capabilities.globalAdmin) {
+        toast({ variant: "destructive", title: "Accès refusé", description: "Seule la Direction générale peut modifier les permissions individuelles." });
+        setAdminAction(null);
+        return;
+      }
+      try {
+        const [{ data: catalog, error: catalogError }, { data: overrides, error: overridesError }] = await Promise.all([
+          (supabase as any).from("app_permissions").select("code,module,action,libelle,description").eq("actif", true).order("module").order("code"),
+          (supabase as any).from("user_permission_overrides").select("permission_code,effect").eq("user_id", user.user_id),
+        ]);
+        if (catalogError) throw catalogError;
+        if (overridesError) throw overridesError;
+        setPermissionCatalog(catalog || []);
+        setPermissionOverrides(Object.fromEntries((overrides || []).map((item: any) => [item.permission_code, item.effect])));
+      } catch (error: any) {
+        setAdminAction(null);
+        toast({ variant: "destructive", title: "Chargement impossible", description: getSafeErrorMessage(error) });
+      }
+    }
   };
 
   const runAdminAction = async () => {
@@ -160,6 +183,24 @@ const Utilisateurs = () => {
     }
     setBusy(true);
     try {
+      if (adminAction === "permissions") {
+        if (!capabilities.globalAdmin || !adminTarget.user_id) throw new Error("Modification réservée au PDG et au DG pour un compte Auth existant.");
+        for (const permission of permissionCatalog) {
+          const effect = permissionOverrides[permission.code] || "inherit";
+          const { error } = await supabase.rpc("crm_set_user_permission_override", {
+            _target_user_id: adminTarget.user_id,
+            _permission_code: permission.code,
+            _effect: effect,
+            _reason: "Ajustement individuel par la Direction générale",
+          });
+          if (error) throw error;
+        }
+        toast({ title: "Permissions individuelles enregistrées", description: "Les autorisations propres à cet utilisateur sont appliquées sans modifier son rôle." });
+        setAdminAction(null);
+        setAdminTarget(null);
+        return;
+      }
+
       if (adminAction === "roles" && !adminTarget.user_id) {
         const { data: created, error: createError } = await supabase.functions.invoke("admin-manage-user", {
           body: {
@@ -396,6 +437,9 @@ const Utilisateurs = () => {
                           <Shield className="h-4 w-4 mr-2" />
                           Gérer les rôles
                         </DropdownMenuItem>}
+                        {capabilities.globalAdmin && Boolean(user.user_id) && <DropdownMenuItem onClick={() => void openAdminAction(user, "permissions")}>
+                          <Shield className="h-4 w-4 mr-2" />Permissions individuelles
+                        </DropdownMenuItem>}
                         {canResetPasswords && <DropdownMenuItem onClick={() => openAdminAction(user, "password")}>
                           <KeyRound className="h-4 w-4 mr-2" />
                           Changer le mot de passe
@@ -460,6 +504,7 @@ const Utilisateurs = () => {
               {adminAction === "roles" && `Rôles de ${formatUserShortName(adminTarget?.nom_complet)}`}
               {adminAction === "password" && `Nouveau mot de passe — ${formatUserShortName(adminTarget?.nom_complet)}`}
               {adminAction === "username" && `Identifiant — ${formatUserShortName(adminTarget?.nom_complet)}`}
+              {adminAction === "permissions" && `Permissions individuelles — ${formatUserShortName(adminTarget?.nom_complet)}`}
             </DialogTitle>
           </DialogHeader>
 
@@ -478,6 +523,29 @@ const Utilisateurs = () => {
                     <Checkbox checked={primaryRole === r.code} onCheckedChange={(c) => c && setPrimaryRole(r.code)} />
                     <span>Rôle principal</span>
                   </label>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {adminAction === "permissions" && (
+            <div className="max-h-[58dvh] space-y-2 overflow-y-auto pr-1">
+              <p className="text-xs text-muted-foreground">« Hériter du rôle » conserve les droits du ou des rôles attribués. Une autorisation individuelle peut accorder ou retirer un accès sans modifier ces rôles.</p>
+              {permissionCatalog.map((permission: any) => (
+                <div key={permission.code} className="grid grid-cols-[minmax(0,1fr)_150px] items-center gap-2 rounded-md border p-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{permission.libelle || permission.code}</p>
+                    <p className="truncate text-xs text-muted-foreground">{permission.module} · {permission.code}</p>
+                  </div>
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-2 text-xs"
+                    value={permissionOverrides[permission.code] || "inherit"}
+                    onChange={(event) => setPermissionOverrides((current) => ({ ...current, [permission.code]: event.target.value }))}
+                  >
+                    <option value="inherit">Hériter du rôle</option>
+                    <option value="allow">Autoriser</option>
+                    <option value="deny">Retirer l'accès</option>
+                  </select>
                 </div>
               ))}
             </div>

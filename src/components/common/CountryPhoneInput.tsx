@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { getCountries, getCountryCallingCode, parsePhoneNumberFromString } from "libphonenumber-js/max";
@@ -38,7 +38,21 @@ export interface CountryPhoneInputProps {
 }
 
 export const CountryPhoneInput = ({ label, countryCode, localValue = "", required, disabled, onChange, minLocalDigits, maxLocalDigits, compact = false }: CountryPhoneInputProps) => {
-  const [selectedCode, setSelectedCode] = useState(() => countryFromCode(countryCode || "+225", COUNTRIES).code);
+  const [selectedCode, setSelectedCode] = useState(() => {
+    const explicit = String(countryCode || "").trim();
+    if (explicit) return countryFromCode(explicit, COUNTRIES).code;
+    const parsed = parsePhoneNumberFromString(String(localValue || ""));
+    return parsed?.country || countryFromCode("+225", COUNTRIES).code;
+  });
+  useEffect(() => {
+    const explicit = String(countryCode || "").trim();
+    if (explicit) {
+      setSelectedCode(countryFromCode(explicit, COUNTRIES).code);
+      return;
+    }
+    const parsed = parsePhoneNumberFromString(String(localValue || ""));
+    if (parsed?.country) setSelectedCode(parsed.country);
+  }, [countryCode, localValue]);
   const selected = COUNTRIES.find(c => c.code === selectedCode) || countryFromCode(countryCode || "+225", COUNTRIES);
   const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
   const options = useMemo(() => COUNTRIES.map(c => ({ value: c.code, label: c.name + " " + c.callingCode, flagUrl: flagUrl(c.code) })), []);

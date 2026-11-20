@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Shield, KeyRound, Save, Upload, UserRound, Camera, Check } from "lucide-react";
-import { formatUserProfileName } from "@/lib/utils";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { uploadFile } from "@/utils/storage";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
@@ -159,7 +159,8 @@ const Profil = () => {
     }
   };
 
-  const photoUrl = useSignedUrl("photos-profils", profile.photo_url);
+  const photoBucket = String(profile.photo_url || "").startsWith("pending/") ? "account-request-photos" : "photos-profils";
+  const photoUrl = useSignedUrl(photoBucket, profile.photo_url);
   const urgPhotoUrl = useSignedUrl("photos-profils", profile.contact_urgence_photo_url);
   const lockHint = isAdmin ? undefined : "Modifiable uniquement par l'administrateur";
 
@@ -186,7 +187,7 @@ const Profil = () => {
                   {!photoUrl && <span className="pointer-events-none absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 shadow-sm"><Upload className="h-4 w-4" /></span>}
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold">{formatUserProfileName(profile.nom_complet || "AgriCapital")}</h2>
+                  <h2 className="text-xl font-bold">{formatStructuredPersonName(profile.nom, profile.prenoms)}</h2>
                   <p className="text-sm text-muted-foreground">{profile.email || user?.email || "—"}</p>
                 </div>
                 
@@ -203,7 +204,7 @@ const Profil = () => {
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div className="min-w-0 w-full space-y-2">
                 <CountryPhoneInput label="Téléphone principal" compact countryCode={profile.telephone_indicatif || undefined} localValue={profile.telephone_local || profile.telephone || ""} disabled={!isAdmin} onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }} />
-                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_principal_whatsapp} onCheckedChange={(v) => { set("telephone_principal_whatsapp",v===true); if(v===true)set("telephone_secondaire_whatsapp",false); }} />Dispose d'un compte WhatsApp !</label>
+                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_principal_whatsapp} onCheckedChange={(v) => set("telephone_principal_whatsapp",v===true)} />Dispose d'un compte WhatsApp !</label>
               </div>
               <div><Label>Email secondaire</Label><Input className="h-9 text-sm" type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
               <div className="min-w-0 w-full space-y-2">
@@ -214,7 +215,7 @@ const Profil = () => {
                   localValue={profile.telephone_secondaire_local || profile.telephone_secondaire || ""}
                   onChange={(v) => { set("telephone_secondaire_indicatif", v.callingCode); set("telephone_secondaire_local", v.localValue); set("telephone_secondaire", v.internationalValue); }}
                 />
-                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_secondaire_whatsapp} onCheckedChange={(v) => { set("telephone_secondaire_whatsapp",v===true); if(v===true)set("telephone_principal_whatsapp",false); }} />Dispose d'un compte WhatsApp !</label>
+                <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_secondaire_whatsapp} onCheckedChange={(v) => set("telephone_secondaire_whatsapp",v===true)} />Dispose d'un compte WhatsApp !</label>
               </div>
               <div><Label>Ville</Label><Input className="h-9 text-sm" value={profile.ville || ""} onChange={(e) => set("ville", e.target.value)} /></div>
               <div><Label>Quartier</Label><Input className="h-9 text-sm" value={profile.quartier || ""} onChange={(e) => set("quartier", e.target.value)} /></div>

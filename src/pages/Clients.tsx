@@ -35,7 +35,7 @@ const formatHectares = (value: unknown) => {
 // Fonction partagée au niveau du module : évite une référence avant initialisation
 // et privilégie la superficie contractuelle, distincte de la surface plantée.
 const clientSurface = (client: any) => Number(
-  client?.metadata?.surface_contractuelle_ha ?? client?.total_hectares ?? client?.superficie_ha ?? 0
+  client?.total_hectares ?? client?.metadata?.surface_contractuelle_ha ?? client?.superficie_ha ?? 0
 );
 const getRecordPath = (record: any) =>
   String(record?.id_unique || "").startsWith("AC_B")
@@ -167,7 +167,7 @@ const Clients = () => {
         const surfacePlantee = clientPlantations.reduce(
           (sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0
         );
-        const surfaceContractuelle = Number(client.metadata?.surface_contractuelle_ha ?? client.total_hectares ?? client.superficie_ha ?? 0);
+        const surfaceContractuelle = Number(client.total_hectares ?? client.metadata?.surface_contractuelle_ha ?? client.superficie_ha ?? 0);
 
         return {
           ...client,
@@ -207,7 +207,7 @@ const Clients = () => {
             return {
               ...s,
               nombre_plantations: plantations.length,
-              total_hectares: Number(s.metadata?.surface_contractuelle_ha ?? s.total_hectares ?? s.superficie_ha ?? 0),
+              total_hectares: Number(s.total_hectares ?? s.metadata?.surface_contractuelle_ha ?? s.superficie_ha ?? 0),
               surface_plantee_ha: plantations.reduce((sum: number, p: any) => sum + Number(p.surface_reellement_plantee ?? p.superficie_activee ?? p.superficie_ha ?? 0), 0),
             };
           });
@@ -253,7 +253,7 @@ const Clients = () => {
     const clientRows = filteredClients.filter((row) => !isOwnerRecord(row)).sort((a: any, b: any) => {
       const dateA = new Date(a.created_at || 0).getTime();
       const dateB = new Date(b.created_at || 0).getTime();
-      return dateB - dateA || String(a.id_unique || "").localeCompare(String(b.id_unique || ""));
+      return dateB - dateA || compareCrmIdentifiers(a.id_unique, b.id_unique);
     });
     const usedOwners = new Set<string>();
     const result: any[] = [];
@@ -274,7 +274,7 @@ const Clients = () => {
       });
     }
     ownerRows.filter((owner: any) => !usedOwners.has(owner.id))
-      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime() || compareCrmIdentifiers(a.id_unique, b.id_unique))
       .forEach((owner: any) => result.push(owner));
     return result;
   })();

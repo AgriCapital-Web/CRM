@@ -17,7 +17,6 @@ import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import CountryNationalitySelect from "@/components/common/CountryNationalitySelect";
 import PieceTypeSelect from "@/components/common/PieceTypeSelect";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import GeographieCascade from "@/components/common/GeographieCascade";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
@@ -151,30 +150,8 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
   const recalculatedInitial = scaledAmount(snapshotContract.paiement_initial_montant ?? form.paiement_initial_montant);
   const recalculatedMonthly = scaledAmount(snapshotContract.mensualite_montant ?? form.mensualite_montant);
   const formatContractAmount = (value: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " FCFA";
-  const effectiveOffer = offer ? {
-    ...offer, ...formulaConfiguration, nom: offer.nom || form.famille_offre || "Offre enregistrée",
-    montant_pi_par_ha: perHa(snapshotContract.paiement_initial_montant ?? form.paiement_initial_montant),
-    montant_total_par_ha: perHa(snapshotContract.montant_total_contrat ?? form.montant_total_contrat),
-    mensualite_par_ha: perHa(snapshotContract.mensualite_montant ?? form.mensualite_montant),
-    duree_paiement_mois: Number(snapshotContract.duree_paiement_mois ??
-      (Number(snapshotContract.jours_contrat_total ?? form.jours_contrat_total ?? 0) / 30)),
-    tranches_paiement: Array.isArray(snapshotContract.echeancier) ? snapshotContract.echeancier
-      : (String(offerSnapshot.source || "").startsWith("client_registration") && Array.isArray(formulaConfiguration.tranches_paiement)
-        ? formulaConfiguration.tranches_paiement : []),
-    type_offre: offer.type_offre || form.type_client, actif: undefined,
-  } : null;
-  const paymentTranches = Array.isArray(effectiveOffer?.tranches_paiement)
-    ? effectiveOffer.tranches_paiement.filter((tranche: any) =>
-        tranche.type !== "paiement_initial" && Number(tranche.mensualite_par_ha || 0) > 0) : [];
 
-  const formatOfferAmount = (value: unknown) => {
-    const amount = Number(value);
-    return value !== null && value !== undefined && value !== "" && Number.isFinite(amount)
-      ? `${new Intl.NumberFormat("fr-FR").format(amount)} F/ha`
-      : "Non configuré";
-  };
   const isBeneficiary = form.type_client === "beneficiaire_particulier";
-  const hasActivity = Number(form.nombre_plantations || 0) > 0 || Boolean(form.pi_paye_at || form.paiement_initial_paye_at);
 
   const onSubmit = async () => {
     if (!canEditClient) {
@@ -249,6 +226,10 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       if (!isBeneficiary && offer && hectares > 0) {
         clientPayload.total_hectares = hectares;
         clientPayload.superficie_ha = hectares;
+        clientPayload.metadata = {
+          ...((form.metadata && typeof form.metadata === "object") ? form.metadata : client?.metadata || {}),
+          surface_contractuelle_ha: hectares,
+        };
         clientPayload.montant_total_contrat = recalculatedTotal;
         clientPayload.paiement_initial_montant = recalculatedInitial;
         clientPayload.mensualite_montant = recalculatedMonthly;
@@ -362,8 +343,8 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       <Card className="overflow-hidden">
         <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Coordonnées et résidence</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-2 px-4 pb-3 pt-0">
-          <div className="space-y-1"><CountryPhoneInput compact label="Téléphone principal" required countryCode={form.telephone_indicatif || undefined} localValue={form.telephone_local || form.telephone || ""} onChange={v=>{setField("telephone_indicatif",v.callingCode);setField("telephone_local",v.localValue);setField("telephone",v.internationalValue)}}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!form.telephone_principal_whatsapp} onCheckedChange={v=>{setField("telephone_principal_whatsapp",v===true);if(v===true)setField("telephone_secondaire_whatsapp",false);}}/>Dispose d'un compte WhatsApp !</label></div>
-          <div className="space-y-1"><CountryPhoneInput compact label="Téléphone secondaire" countryCode={form.telephone_secondaire_indicatif || undefined} localValue={form.telephone_secondaire_local || form.telephone_secondaire || ""} onChange={v=>{setField("telephone_secondaire_indicatif",v.callingCode);setField("telephone_secondaire_local",v.localValue);setField("telephone_secondaire",v.internationalValue)}}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!form.telephone_secondaire_whatsapp} onCheckedChange={v=>{setField("telephone_secondaire_whatsapp",v===true);if(v===true)setField("telephone_principal_whatsapp",false);}}/>Dispose d'un compte WhatsApp !</label></div>
+          <div className="space-y-1"><CountryPhoneInput compact label="Téléphone principal" required countryCode={form.telephone_indicatif || undefined} localValue={form.telephone_local || form.telephone || ""} onChange={v=>{setField("telephone_indicatif",v.callingCode);setField("telephone_local",v.localValue);setField("telephone",v.internationalValue)}}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!form.telephone_principal_whatsapp} onCheckedChange={v=>setField("telephone_principal_whatsapp",v===true)}/>Dispose d'un compte WhatsApp !</label></div>
+          <div className="space-y-1"><CountryPhoneInput compact label="Téléphone secondaire" countryCode={form.telephone_secondaire_indicatif || undefined} localValue={form.telephone_secondaire_local || form.telephone_secondaire || ""} onChange={v=>{setField("telephone_secondaire_indicatif",v.callingCode);setField("telephone_secondaire_local",v.localValue);setField("telephone_secondaire",v.internationalValue)}}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!form.telephone_secondaire_whatsapp} onCheckedChange={v=>setField("telephone_secondaire_whatsapp",v===true)}/>Dispose d'un compte WhatsApp !</label></div>
           <div><Label className="text-xs">Email</Label><Input className="h-8" type="email" value={form.email || ""} onChange={e=>setField("email",e.target.value)}/></div>
           <div className="md:col-span-2 min-w-0"><GeographieCascade className="grid grid-cols-1 md:grid-cols-3 gap-2" districtId={form.district_id} regionId={form.region_id} departementId={form.departement_id} sousPrefectureId={form.sous_prefecture_id} villageId={form.village_id} required extraField={<div className="space-y-1 min-w-0"><Label className="text-xs">Lieu de résidence</Label><Input className="h-8" value={form.domicile_residence || form.domicile || ""} onChange={e=>{setField("domicile_residence",e.target.value);setField("domicile",e.target.value);}} /></div>} onChange={(g)=>setForm((x:any)=>({...x,...(Object.prototype.hasOwnProperty.call(g,"districtId")?{district_id:g.districtId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"regionId")?{region_id:g.regionId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"departementId")?{departement_id:g.departementId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"sousPrefectureId")?{sous_prefecture_id:g.sousPrefectureId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageId")?{village_id:g.villageId||null}:{}),...(Object.prototype.hasOwnProperty.call(g,"villageName")?{localite:g.villageName??x.localite??""}:{})}))}/></div>
           <div className="md:col-span-2 rounded-md border p-3 space-y-2">
@@ -394,53 +375,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
             <div><Label className="text-xs">Offre enregistrée</Label><Input className="h-8" value={offer?.nom || "Offre personnalisée"} disabled readOnly /></div>
             <div><Label className="text-xs">Formule contractuelle</Label><Input className="h-8" value={selectedFormula?.nom || form.formule_nom || form.formule_code || "Personnalisée"} disabled readOnly /></div>
           </div>
-          {effectiveOffer && (
-            <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">{effectiveOffer.nom}{selectedFormula?.nom ? ` — ${selectedFormula.nom}` : ""}</p>
-                  <p className="text-xs text-muted-foreground">Conditions enregistrées à la souscription · valeurs historiques par hectare</p>
-                </div>
-                <Badge variant="outline">Conditions figées</Badge>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                <div className="rounded-md border bg-background p-2">
-                  <p className="text-xs text-muted-foreground">Paiement initial</p>
-                  <p className="font-semibold tabular-nums">{formatOfferAmount(effectiveOffer.montant_pi_par_ha ?? effectiveOffer.paiement_signature_par_ha)}</p>
-                </div>
-                <div className="rounded-md border bg-background p-2">
-                  <p className="text-xs text-muted-foreground">Mensualité configurée</p>
-                  <p className="font-semibold tabular-nums">{formatOfferAmount(effectiveOffer.mensualite_par_ha)}</p>
-                </div>
-                <div className="rounded-md border bg-background p-2">
-                  <p className="text-xs text-muted-foreground">Coût total configuré</p>
-                  <p className="font-semibold tabular-nums">{formatOfferAmount(effectiveOffer.montant_total_par_ha ?? effectiveOffer.montant_cash_par_ha)}</p>
-                </div>
-              </div>
-              {paymentTranches.length > 0 ? (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold">Échéancier configuré</p>
-                  {paymentTranches.map((tranche: any, index: number) => (
-                    <div key={`${tranche.annee || index}-${tranche.mois_debut || 0}`} className="flex flex-wrap justify-between gap-2 border-t pt-1 text-xs">
-                      <span>{["mensualite","mensualite_unique"].includes(String(tranche.type || "").toLowerCase()) ? `Mensualité · ${tranche.mois ?? (Number(tranche.mois_fin || 0) - Number(tranche.mois_debut || 1) + 1)} mois` : `An ${tranche.annee || index + 1} · mois ${tranche.mois_debut ?? "—"} à ${tranche.mois_fin ?? "—"} (${tranche.mois ?? (Number(tranche.mois_fin || 0) - Number(tranche.mois_debut || 1) + 1)} mois)`}</span>
-                      <span className="font-medium tabular-nums">{formatOfferAmount(tranche.mensualite_par_ha)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Aucun échéancier détaillé n’est enregistré dans ce dossier.</p>
-              )}
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant="outline">Applicable : {effectiveOffer.type_offre === "sans_terre" ? "sans terre" : effectiveOffer.type_offre === "avec_terre" ? "avec terre" : "type non précisé"}</Badge>
-                <Badge variant="outline">{effectiveOffer.necessite_foncier_client ? "Foncier client requis" : "Foncier client non requis"}</Badge>
-                {effectiveOffer.necessite_cotitulaire && <Badge variant="outline">Cotitulaire requis</Badge>}
-                {effectiveOffer.contrat_acquisition_requis && <Badge variant="outline">Contrat d’acquisition requis</Badge>}
-                {effectiveOffer.contrat_accompagnement_requis && <Badge variant="outline">Contrat d’accompagnement requis</Badge>}
-                {effectiveOffer.gestion_type && <Badge variant="outline">Gestion : {String(effectiveOffer.gestion_type)}</Badge>}
-              </div>
-            </div>
-          )}
-          {!isBeneficiary && effectiveOffer && (
+          {!isBeneficiary && offer && (
             <div className="grid grid-cols-1 gap-2 rounded-lg border bg-background p-3 sm:grid-cols-[minmax(150px,0.8fr)_1.2fr]">
               <div className="space-y-1">
                 <Label className="text-xs">Superficie contractuelle (ha)</Label>
@@ -459,7 +394,6 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
               </div>
             </div>
           )}
-          {hasActivity && <div className="flex gap-2 items-start rounded-lg border p-3 text-sm"><AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground"/><span>Les tarifs unitaires contractuels restent inchangés. La modification de la superficie recalcule automatiquement le total, le paiement initial et les mensualités ; les surfaces déjà attribuées ou plantées restent conservées.</span></div>}
         </CardContent>
       </Card>
 

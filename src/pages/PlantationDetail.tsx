@@ -75,7 +75,7 @@ const PlantationDetail = () => {
           .select("id,surface_attribuee_ha,role_attribution,statut,clients(id,id_unique,nom_complet),plantations(id,id_unique)")
           .eq("parcelle_id", p.parcelle_id)
           .eq("statut", "active")
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false });
         if (attrError) throw attrError;
         setAttributions(attrs || []);
       } else setAttributions([]);
