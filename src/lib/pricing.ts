@@ -38,6 +38,8 @@ export interface PromotionBase {
   date_debut?: string | null; date_fin?: string | null;
   applique_toutes_offres?: boolean | null; offre_ids?: unknown;
   created_at?: string | null;
+  surface_min_ha?: number | null;
+  arrondi_mensualite?: number | null;
 }
 
 export interface TrancheEffective extends TranchePaiement {
@@ -60,8 +62,9 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export const promotionCible = (p?: PromotionBase | null): "paiement_initial" | "cout_global" => {
+export const promotionCible = (p?: PromotionBase | null): "paiement_initial" | "cout_global" | "mensualites" => {
   const cible = String(p?.cible || p?.type_promotion || "paiement_initial").toLowerCase().trim();
+  if (["mensualites", "mensualité", "mensualite", "monthly"].includes(cible)) return "mensualites";
   return ["cout_global", "coût_global", "total_contrat", "cg", "special"].includes(cible)
     ? "cout_global" : "paiement_initial";
 };
@@ -83,13 +86,25 @@ const reductionPotentielle = (
   offre: OffreBase,
   promotion: PromotionBase,
   modePaiement: "echeancier" | "comptant" = "echeancier",
+  superficieHa = 0,
 ) => {
   const cible = promotionCible(promotion);
+  const seuilSurface = Math.max(0, num(promotion.surface_min_ha));
+  if (seuilSurface > 0 && superficieHa < seuilSurface) return 0;
   const pct = Math.min(100, Math.max(0, num(promotion.pourcentage_reduction))) / 100;
   const fixe = Math.max(0, num(promotion.montant_fixe_reduction));
   const cash = Math.max(0, num(offre.montant_cash_par_ha));
   const total = modePaiement === "comptant" && cash > 0
     ? cash : Math.max(0, num(offre.montant_total_par_ha));
+  if (cible === "mensualites") {
+    if (modePaiement === "comptant") return 0;
+    const monthlyBase = normaliserTranches(offre).reduce((sum, tranche) => {
+      const monthly = Math.max(0, num(tranche.mensualite_par_ha));
+      const months = Math.max(0, num(tranche.mois) || (num(tranche.mois_fin) > 0 && num(tranche.mois_debut) > 0 ? num(tranche.mois_fin) - num(tranche.mois_debut) + 1 : 0));
+      return sum + monthly * months;
+    }, 0);
+    return Math.min(monthlyBase, Math.max(0, monthlyBase * pct + fixe));
+  }
   const assiette = cible === "cout_global"
     ? total
     : modePaiement === "comptant" ? 0 : Math.max(0, num(offre.montant_pi_par_ha));
@@ -101,13 +116,14 @@ export const promotionsEligibles = (
   promotions: PromotionBase[],
   at: Date = new Date(),
   modePaiement: "echeancier" | "comptant" = "echeancier",
+  superficieHa = 0,
 ) =>
   promotions.filter(p =>
     promotionActiveMaintenant(p, at) &&
     cibleOffre(p, offre) &&
-    reductionPotentielle(offre, p, modePaiement) > 0
+    reductionPotentielle(offre, p, modePaiement, superficieHa) > 0
   ).sort((a, b) =>
-    reductionPotentielle(offre, b, modePaiement) - reductionPotentielle(offre, a, modePaiement) ||
+    reductionPotentielle(offre, b, modePaiement, superficieHa) - reductionPotentielle(offre, a, modePaiement, superficieHa) ||
     num(b.pourcentage_reduction) - num(a.pourcentage_reduction) ||
     String(b.created_at || "").localeCompare(String(a.created_at || ""))
   );
@@ -117,7 +133,8 @@ export const meilleurePromotion = (
   promotions: PromotionBase[],
   at: Date = new Date(),
   modePaiement: "echeancier" | "comptant" = "echeancier",
-) => promotionsEligibles(offre, promotions, at, modePaiement)[0] || null;
+  superficieHa = 0,
+) => promotionsEligibles(offre, promotions, at, modePaiement, superficieHa)[0] || null;
 
 const trancheBase = (t: TranchePaiement) => {
   const mensualite = Math.max(0, num(t.mensualite_par_ha));
@@ -153,10 +170,11 @@ const effectiveTranches = (tranches: TranchePaiement[], ratio = 1, cible: "paiem
 export const calculPrixEffectif = (
   offre: OffreBase,
   promotions: PromotionBase[],
-  options: { modePaiement?: "echeancier" | "comptant"; at?: Date } = {},
+  options: { modePaiement?: "echeancier" | "comptant"; at?: Date; superficieHa?: number } = {},
 ): PrixEffectif => {
   const mode = options.modePaiement || "echeancier";
-  const promo = meilleurePromotion(offre, promotions, options.at, mode);
+  const superficieHa = Math.max(0, num(options.superficieHa));
+  const promo = meilleurePromotion(offre, promotions, options.at, mode, superficieHa);
   const cible = promo ? promotionCible(promo) : null;
   const pct = Math.min(100, Math.max(0, num(promo?.pourcentage_reduction)));
   const fixe = Math.max(0, num(promo?.montant_fixe_reduction));
@@ -183,6 +201,44 @@ export const calculPrixEffectif = (
       montant_total_effectif:effective, pi_effectif:effective, cash_effectif:effective, mensualite_effective:0,
       tranches_effectives:[], promotion_id:promo.id, promotion_nom:promo.nom,
       promotion_cible:cible, reduction_pct:pct, reduction_montant:totalBase-effective,
+    };
+  }
+
+  if (cible === "mensualites") {
+    const rounding = Math.max(1, num(promo?.arrondi_mensualite) || 1);
+    const discountedTranches = tranches.map((t) => {
+      const base = trancheBase(t);
+      const isInitial = String(t.type || "").toLowerCase() === "paiement_initial" || (base.mensualite === 0 && base.montant > 0);
+      if (isInitial || base.mensualite <= 0) return {
+        ...t,
+        montant_effectif_par_ha: base.montant,
+        mensualite_par_ha_effective: base.mensualite,
+        total_periode_par_ha_effectif: base.totalPeriode,
+      };
+      const monthly = Math.round((base.mensualite * (1 - pct / 100) - (fixe / Math.max(1, base.mois))) / rounding) * rounding;
+      return {
+        ...t,
+        montant_effectif_par_ha: base.montant,
+        mensualite_par_ha_effective: Math.max(0, monthly),
+        total_periode_par_ha_effectif: Math.max(0, monthly) * base.mois,
+      };
+    });
+    const monthlyTotal = discountedTranches.reduce((sum, t) => {
+      const base = trancheBase(t);
+      const isInitial = String(t.type || "").toLowerCase() === "paiement_initial" || (base.mensualite === 0 && base.montant > 0);
+      return sum + (isInitial ? 0 : num(t.mensualite_par_ha_effective) * base.mois);
+    }, 0);
+    const monthlyValues = discountedTranches.filter(t => num(t.mensualite_par_ha_effective) > 0)
+      .map(t => num(t.mensualite_par_ha_effective));
+    const totalEff = piBase + monthlyTotal;
+    return {
+      offre_id: offre.id, code: offre.code, nom: offre.nom,
+      montant_total_base: totalBase, pi_base: piBase, cash_base: cashBase, mensualite_base: monthlyBase,
+      montant_total_effectif: totalEff, pi_effectif: piBase, cash_effectif: cashBase,
+      mensualite_effective: monthlyValues[0] || 0,
+      tranches_effectives: discountedTranches,
+      promotion_id: promo.id, promotion_nom: promo.nom, promotion_cible: cible,
+      reduction_pct: pct, reduction_montant: Math.max(0, totalBase - totalEff),
     };
   }
 
