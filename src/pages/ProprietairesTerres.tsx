@@ -32,7 +32,7 @@ import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { getSafeErrorMessage } from "@/lib/safeError";
 
-const ANNEXES_CONVENTION = [
+const ANNEXES_CONVENTION: Array<{ field: string; label: string; obligatoire?: boolean; facultative?: boolean; when?: string }> = [
   { field: "annexe_1_copies_identite_signataires", label: "Annexe 1 — Pièces d’identité du propriétaire et des signataires", obligatoire: true },
   { field: "annexe_2_pv_consentement_familial", label: "Annexe 2 — Procès-verbal de consentement familial signé", when: "famille_groupement" },
   { field: "annexe_3_procuration_mandataire", label: "Annexe 3 — Procuration du mandataire signée", when: "mandataire" },
