@@ -840,6 +840,11 @@ const ProprietairesTerres = () => {
                     </TabsContent>
 
                     <TabsContent value="documents" className="space-y-4">
+                      <div className="rounded-lg border bg-muted/20 p-3">
+                        <p className="font-medium text-sm">Modèle officiel — Convention de mise en valeur agricole</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Référence utilisée pour préparer la convention et vérifier les pièces du dossier.</p>
+                        <a className="mt-2 inline-flex text-sm text-primary underline" href="https://github.com/AgriCapital-Web/CRM/blob/main/docs/AgriCapital__Convention_Mise_en_Valeur_Agricole.docx" target="_blank" rel="noreferrer">Ouvrir le modèle de convention</a>
+                      </div>
                       <h4 className="font-semibold">Documents d'identité</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FileUploadVisual label="Photo de profil" field="photo_profil" accept="image/*" currentFile={files.photo_profil||null} existingPreview={formData.photo_profil_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,photo_profil:f}))}/>
