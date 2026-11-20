@@ -114,8 +114,10 @@ const GestionRoles = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    void fetchData();
+    // fetchData is scoped to this component; the profile query must rerun when user visibility permission resolves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canViewUsers]);
 
   const getUserRoles = (profileId: string) => {
     const profile = profiles.find((p) => p.id === profileId);
