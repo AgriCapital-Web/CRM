@@ -701,9 +701,9 @@ const GestionRoles = () => {
                       <span className="text-sm text-muted-foreground">{role.description}</span>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title={`Gérer les permissions (${role.code === APP_ROLES.PDG ? PERMISSION_CODES.length : (matrix[role.code] || []).length})`} aria-label={`Gérer les permissions de ${role.nom}`} onClick={() => openPermissions(role)}>
+                      {canManageRoles && <Button variant="ghost" size="icon" className="h-7 w-7" title={`Gérer les permissions (${(matrix[role.code] || []).length})`} aria-label={`Gérer les permissions de ${role.nom}`} onClick={() => openPermissions(role)}>
                         <ShieldCheck className="h-4 w-4" />
-                      </Button>
+                      </Button>}
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                       {canUpdateRole && <Button variant="ghost" size="sm" onClick={() => openEditRole(role)}>
