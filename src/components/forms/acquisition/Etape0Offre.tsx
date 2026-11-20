@@ -50,7 +50,7 @@ const applyFormulaConfig = (offer: any, formula: any) => {
 };
 
 export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false, contractReadOnly = false, allowPromotions = true }: Etape0Props) => {
-  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code, !contractReadOnly && allowPromotions);
+  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code, !contractReadOnly && allowPromotions, Number(formData.superficie_prevue || 0));
   const [loadingCommercialDefault, setLoadingCommercialDefault] = useState(false);
 
   useEffect(() => {
@@ -188,7 +188,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     const o = offre as any;
     const tranches = Array.isArray(o.tranches_paiement) ? o.tranches_paiement : [];
     const pricingMode = "echeancier";
-    const prix = calculPrixEffectif(o, promotionActive ? [promotionActive as any] : [], { modePaiement: pricingMode });
+    const prix = calculPrixEffectif(o, promotionActive ? [promotionActive as any] : [], { modePaiement: pricingMode, superficieHa: ha });
 
     // Use the real fields returned by calculPrixEffectif; old keys silently displayed PI as 0.
     const piUnitaireBase = Number(prix.pi_base || 0);
