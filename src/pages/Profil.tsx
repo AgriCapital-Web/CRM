@@ -159,7 +159,8 @@ const Profil = () => {
     }
   };
 
-  const photoUrl = useSignedUrl("photos-profils", profile.photo_url);
+  const photoBucket = String(profile.photo_url || "").startsWith("pending/") ? "account-request-photos" : "photos-profils";
+  const photoUrl = useSignedUrl(photoBucket, profile.photo_url);
   const urgPhotoUrl = useSignedUrl("photos-profils", profile.contact_urgence_photo_url);
   const lockHint = isAdmin ? undefined : "Modifiable uniquement par l'administrateur";
 
