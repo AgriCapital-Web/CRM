@@ -50,7 +50,7 @@ async function fetchEffectivePermissions(userId: string): Promise<PermissionMatr
   }
 }
 
-export function useRolePermissionMatrix() {
+function useEffectivePermissionSnapshot() {
   const { user } = useAuth();
   const query = useQuery({
     queryKey: ["effective-permissions", user?.id || "anonymous"],
@@ -72,10 +72,48 @@ export function useRolePermissionMatrix() {
   };
 }
 
+/** Matrice rôle → permissions. Accessible uniquement aux profils autorisés par la RLS de role_permissions. */
+export function useRolePermissionMatrix() {
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ["role-permission-matrix"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("role_permissions")
+        .select("role_code,permission_code")
+        .order("role_code")
+        .order("permission_code");
+      if (error) throw error;
+      const matrix: PermissionMatrix = {};
+      for (const row of data ?? []) {
+        if (!row?.role_code || !row?.permission_code) continue;
+        const permissions = matrix[row.role_code] ?? [];
+        if (!permissions.includes(row.permission_code)) permissions.push(row.permission_code);
+        matrix[row.role_code] = permissions;
+      }
+      return matrix;
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  return {
+    matrix: query.data ?? {},
+    loading: Boolean(user?.id) && query.isPending,
+    fromDatabase: query.isSuccess && !query.isError,
+    reload: async () => {
+      if (user?.id) await query.refetch();
+    },
+  };
+}
+
 /** Permissions effectives et capacités calculées côté base de données. */
 export function usePermissions() {
   const { user } = useAuth();
-  const { matrix, loading, fromDatabase, reload } = useRolePermissionMatrix();
+  const { matrix, loading, fromDatabase, reload } = useEffectivePermissionSnapshot();
 
   const permissions = useMemo(
     () => new Set<string>(matrix[user?.id ? effectivePermissionsKey(user.id) : ""] || []),
