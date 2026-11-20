@@ -20,6 +20,7 @@ import { fr } from "date-fns/locale";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { useOffresPrixEffectif } from "@/hooks/useOffresPrixEffectif";
+import { usePermissions } from "@/hooks/usePermissions";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
@@ -63,6 +64,11 @@ const getCouleur = (code: string, couleur?: string | null) => {
 const Offres = () => {
   const { byCategory: refs } = useSystemReferences(["offre_tarification_mode"]);
   const { toast } = useToast();
+  const { can } = usePermissions();
+  const canEditOffers = can("offres.update") || can("offres.manage_prices");
+  const canCreatePromotions = can("promotions.create") || can("offres.manage_promotions");
+  const canEditPromotions = can("promotions.update") || can("offres.manage_promotions");
+  const canDeletePromotions = can("promotions.delete") || can("offres.manage_promotions");
   const queryClient = useQueryClient();
   const { parOffre } = useOffresPrixEffectif();
   const [activeTab, setActiveTab] = useState<'offres' | 'promotions'>('offres');
@@ -608,9 +614,9 @@ const Offres = () => {
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
                       <span className="text-xs text-muted-foreground">{family.key === "PALMTERROIR" ? familyOffers.reduce((count: number, offer: any) => count + (Array.isArray(offer.formules_configuration) ? offer.formules_configuration.length : 1), 0) : 1} tarif</span>
-                      <Button size="sm" variant="outline" disabled={!familyOffers.length} onClick={() => { setEditOffre(familyOffers[0] as Offre); setIsOffreDialogOpen(true); }}>
+                      {canEditOffers && <Button size="sm" variant="outline" disabled={!familyOffers.length} onClick={() => { setEditOffre(familyOffers[0] as Offre); setIsOffreDialogOpen(true); }}>
                         <Pencil className="mr-1 h-4 w-4" /> Modifier les paramètres
-                      </Button>
+                      </Button>}
                     </div>
                   </CardContent>
                 </Card>
@@ -641,9 +647,9 @@ const Offres = () => {
                               <p className="font-semibold">{offre.formule_nom || offre.nom}</p>
                               <p className="text-xs text-muted-foreground">{offre.formule_code}</p>
                             </div>
-                            <Button size="sm" variant="outline" onClick={() => { setEditOffre(offre); setDetailsFamily(null); setIsOffreDialogOpen(true); }}>
+                            {canEditOffers && <Button size="sm" variant="outline" onClick={() => { setEditOffre(offre); setDetailsFamily(null); setIsOffreDialogOpen(true); }}>
                               <Pencil className="mr-1 h-4 w-4" /> Modifier
-                            </Button>
+                            </Button>}
                           </div>
                           {String(detailsFamily || "").toUpperCase() === "PALMTERROIR" ? (
                             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -780,12 +786,12 @@ const Offres = () => {
               setIsPromoDialogOpen(open);
               if (!open) resetPromoForm();
             }}>
-              <DialogTrigger asChild>
+              {canCreatePromotions && <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
                   Nouvelle Promotion
                 </Button>
-              </DialogTrigger>
+              </DialogTrigger>}
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>
@@ -983,7 +989,7 @@ const Offres = () => {
                         new Date(promo.date_fin) >= now;
                       
                       return (
-                        <TableRow key={promo.id} role="button" tabIndex={0} aria-label={`Modifier la promotion ${promo.nom}`} onClick={() => handleEditPromo(promo)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleEditPromo(promo); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                        <TableRow key={promo.id} role={canEditPromotions ? "button" : undefined} tabIndex={canEditPromotions ? 0 : undefined} aria-label={canEditPromotions ? `Modifier la promotion ${promo.nom}` : undefined} onClick={canEditPromotions ? () => handleEditPromo(promo) : undefined} onKeyDown={canEditPromotions ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleEditPromo(promo); } } : undefined} className={canEditPromotions ? "cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" : ""}>
                           <TableCell className="font-medium">{promo.nom}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-primary font-bold">
@@ -1004,10 +1010,10 @@ const Offres = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-2" onClick={(event) => event.stopPropagation()}>
-                            <Button size="sm" variant="ghost" onClick={() => handleEditPromo(promo)}>
+                            {canEditPromotions && <Button size="sm" variant="ghost" onClick={() => handleEditPromo(promo)}>
                               <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
+                            </Button>}
+                            {canEditPromotions && <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => togglePromoMutation.mutate({ id: promo.id, newStatus: !promo.active })}
@@ -1017,8 +1023,8 @@ const Offres = () => {
                               ) : (
                                 <CheckCircle className="h-4 w-4 text-primary" />
                               )}
-                            </Button>
-                            <Button
+                            </Button>}
+                            {canDeletePromotions && <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => {
@@ -1028,7 +1034,7 @@ const Offres = () => {
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </Button>}
                           </TableCell>
                         </TableRow>
                       );
