@@ -81,7 +81,7 @@ const ProprietairesTerres = () => {
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
     lieu_residence: "",
     district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
-    surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
+    surface_totale_declaree_ha: "", surface_campagne_ha: "", coordonnees_gps: "", date_signature_convention: "",
     type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "",
     statut_foncier: "coutumier", reference_cadastrale: "",
     limites_nord: "", limites_sud: "", limites_est: "", limites_ouest: "",
@@ -214,6 +214,14 @@ const ProprietairesTerres = () => {
       toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro." });
       return;
     }
+    if ((formData.type_convention || "plante_partage") === "plante_partage") {
+      const campaignSurface = Number(formData.surface_campagne_ha || 0);
+      if (campaignSurface < 2 || campaignSurface > Number(formData.surface_totale_declaree_ha)) {
+        setActiveFormTab("parcelle");
+        toast({ variant: "destructive", title: "Superficie de campagne invalide", description: "Chaque campagne de mise en valeur doit porter sur au moins 2 ha et ne peut pas dépasser la superficie totale de la parcelle." });
+        return;
+      }
+    }
     setUploading(true);
     try {
       const currentUser = user;
@@ -295,6 +303,7 @@ const ProprietairesTerres = () => {
         reference_cadastrale: formData.reference_cadastrale || null,
         coordonnees_gps: formData.coordonnees_gps || null,
         surface_totale_declaree_ha: surfaceTotale,
+        surface_campagne_ha: Number(formData.surface_campagne_ha || 0) || null,
         part_proprietaire_pct: ownerPct,
         part_agricapital_pct: agriPct,
         nombre_lots_agricapital: nombreLots,
@@ -371,7 +380,7 @@ const ProprietairesTerres = () => {
           surface_agricapital_ha: partAgriHa || 0,
           surface_attribuee_ha: 0,
           plantation_partagee_activee: typeConvention === "plante_partage",
-          plantation_surface_cible_ha: surfaceTotale || null,
+          plantation_surface_cible_ha: Number(formData.surface_campagne_ha || 0) || null,
           plantation_type_culture: formData.plantation_type_culture || "Palmier à huile",
           plantation_densite_plants: 143,
           plantation_date_activation: formData.plantation_date_activation || null,
@@ -403,6 +412,7 @@ const ProprietairesTerres = () => {
         date_signature: formData.date_signature_convention || null,
         date_debut: formData.date_signature_convention || null,
         surface_totale_ha: surfaceTotale || 0,
+        surface_campagne_ha: Number(formData.surface_campagne_ha || 0) || null,
         part_proprietaire_pct: ownerPct,
         part_agricapital_pct: agriPct,
         nombre_lots_agricapital: nombreLots,
@@ -743,6 +753,11 @@ const ProprietairesTerres = () => {
                           <Label>Superficie totale de la parcelle (ha) *</Label>
                           <Input type="number" min="0.1" step="0.1" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
                         </div>
+                        {formData.type_convention !== "achat" && <div className="space-y-2">
+                          <Label>Superficie de la campagne de mise en valeur (ha) — minimum 2 ha *</Label>
+                          <Input type="number" min="2" step="0.1" max={formData.surface_totale_declaree_ha || undefined} value={formData.surface_campagne_ha || ""} onChange={e => update('surface_campagne_ha', e.target.value)} required />
+                          <p className="text-xs text-muted-foreground">La superficie de la campagne ne peut pas dépasser celle de la parcelle.</p>
+                        </div>}
                         <div className="space-y-2">
                           <Label>Part AgriCapital (%)</Label>
                           <Input type="number" min="0" max="100" step="1" disabled={formData.type_convention === "achat"} value={formData.type_convention === "achat" ? "100" : formData.part_agricapital_pct} onChange={e => update('part_agricapital_pct', e.target.value)} />
