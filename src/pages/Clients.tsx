@@ -35,7 +35,7 @@ const formatHectares = (value: unknown) => {
 // Fonction partagée au niveau du module : évite une référence avant initialisation
 // et privilégie la superficie contractuelle, distincte de la surface plantée.
 const clientSurface = (client: any) => Number(
-  client?.metadata?.surface_contractuelle_ha ?? client?.total_hectares ?? client?.superficie_ha ?? 0
+  client?.total_hectares ?? client?.metadata?.surface_contractuelle_ha ?? client?.superficie_ha ?? 0
 );
 const getRecordPath = (record: any) =>
   String(record?.id_unique || "").startsWith("AC_B")
