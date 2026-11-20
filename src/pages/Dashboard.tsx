@@ -426,9 +426,20 @@ const Dashboard = () => {
       const plantationsWithoutParcelArea = plantations
         .filter((p: any) => !p.parcelle_id && !internalClientIds.has(p.client_id))
         .reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
-      engagedHa = partnershipTotalHa + clientParcelAreaHa + internalAreaHa + unplantedAcquisitionArea + plantationsWithoutParcelArea;
       plantedHa = sumPlantedArea(plantations);
-      remainingHa = Math.max(0, engagedHa - plantedHa);
+      const plantingTargetFromClients = clients.reduce((sum: number, client: any) => {
+        const hectares = Math.max(0, Number(client.total_hectares || 0));
+        const formula = String(client.formule_code || client.famille_offre || "").toUpperCase();
+        return sum + hectares * (formula.includes("PALMINVEST") ? 2 : 1);
+      }, 0);
+      const plantingTargetFromOwners = proprietaires
+        .filter((owner: any) => ["valide", "validee", "validé", "validée", "actif", "active"].includes(String(owner.validation_statut || owner.statut || "").toLowerCase()))
+        .reduce((sum: number, owner: any) => sum + Math.max(0, Number(owner.surface_totale_ha || 0)), 0);
+      const plantingTargetHa = plantingTargetFromClients + plantingTargetFromOwners;
+      remainingHa = Math.max(0, plantingTargetHa - plantedHa);
+      const monthlyForecast = clients
+        .filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase()))
+        .reduce((sum: number, client: any) => sum + Math.max(0, Number(client.mensualite_montant || 0)), 0);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
       // Le prévisionnel commercial dépend de la validation du contrat, pas de l'activation
@@ -744,7 +755,7 @@ const Dashboard = () => {
   useRealtime({ table: "independent_service_customers", onChange: refreshSilently });
   useRealtime({ table: "independent_service_proformas", onChange: refreshSilently });
 
-  const progress = stats.engagedHa > 0 ? Math.min(100, Math.round((stats.plantedHa / stats.engagedHa) * 100)) : 0;
+  const progress = stats.plantingTargetHa > 0 ? Math.min(100, Math.round((stats.plantedHa / stats.plantingTargetHa) * 100)) : 0;
   const roleLabel = userRoles.map((r) => ROLE_SHORT_LABELS[r] || r).join(" / ");
 
   const kpis: any[] = [
@@ -777,10 +788,9 @@ const Dashboard = () => {
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
       {label:"Plantations",value:stats.plantations,href:"/plantations"},
-      {label:"Surface engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
-      {label:"Surface plantée",value:num(stats.plantedHa)+" ha",href:"/plantations"},
-      {label:"Surface restante",value:num(stats.remainingHa)+" ha",href:"/plantations"},
-      ...(canViewIndependentServiceItems ? [{label:"Superficie indép.",value:num(stats.independentServiceAreaHa)+" ha",href:"/acquisitions/prestations-independantes"}] : []),
+      {label:"Superficie engagée",value:num(stats.engagedHa)+" ha",href:"/acquisitions"},
+      {label:"Superficie à planter",value:num(stats.plantingTargetHa)+" ha",href:"/plantations"},
+      {label:"Patrimoine total planté",value:num(stats.patrimoineTotalHa)+" ha",href:"/plantations"},
     ]},
   ];
 
