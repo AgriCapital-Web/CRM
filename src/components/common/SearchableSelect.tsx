@@ -45,10 +45,10 @@ export default function SearchableSelect({
           {!triggerIconOnly ? <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /> : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] max-h-[75vh] overflow-hidden p-0">
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
+          <CommandList className="max-h-[min(65vh,420px)] overflow-y-auto overscroll-contain touch-pan-y">
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
