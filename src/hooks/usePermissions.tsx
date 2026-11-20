@@ -76,7 +76,7 @@ function useEffectivePermissionSnapshot() {
 export function useRolePermissionMatrix() {
   const { user } = useAuth();
   const query = useQuery({
-    queryKey: ["role-permission-matrix"],
+    queryKey: ["role-permission-matrix", user?.id || "anonymous"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("role_permissions")
