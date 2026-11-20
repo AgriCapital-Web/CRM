@@ -23,6 +23,9 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
  const isOrganisation = typePersonne === "personne_morale";
  const offerFamily = String(formData.offre?.famille_offre || formData.famille_offre || formData.offre_snapshot?.offer?.famille_offre || "").toUpperCase();
  const isPalmTerroir = offerFamily === "PALMTERROIR";
+ const isTerraPalm = offerFamily === "TERRAPALM";
+ const isPalmInvest = offerFamily === "PALMINVEST";
+ const isClientLandOffer = isPalmTerroir || isTerraPalm;
  const contractContext = isPalmTerroir
    ? { title: "Contrat d’accompagnement agricole", description: "Le dossier est préparé selon l’offre PalmTerroir et son contrat d’accompagnement agricole." }
    : { title: "Contrat d’acquisition", description: "Le dossier est préparé selon l’offre d’acquisition sélectionnée : PalmInvest ou TerraPalm." };
@@ -37,7 +40,7 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
   {isPhysical && <Card><CardHeader><CardTitle>Identité du Client</CardTitle></CardHeader><CardContent className="space-y-4">
    <div className="grid md:grid-cols-3 gap-4"><div><Label>Civilité *</Label><Select value={formData.civilite||""} onValueChange={v=>updateFormData({civilite:v})}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("civilite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div><div><Label>Nom *</Label><Input value={formData.nom||""} onChange={e=>updateFormData({nom:upperName(e.target.value)})}/></div><div><Label>Prénom *</Label><Input value={formData.prenoms||""} onChange={e=>updateFormData({prenoms:upperName(e.target.value)})}/></div></div>
    <div className="grid md:grid-cols-3 gap-4"><div><Label>Date de naissance *</Label><Input type="date" value={formData.date_naissance||""} onChange={e=>updateFormData({date_naissance:e.target.value})}/></div><div><Label>Lieu de naissance *</Label><Input value={formData.lieu_naissance||""} onChange={e=>updateFormData({lieu_naissance:e.target.value})}/></div><CountryNationalitySelect label="Nationalité" required value={formData.nationalite} onChange={v=>updateFormData({nationalite:v})} /></div>
-   <div><Label>Situation matrimoniale</Label><Select value={formData.statut_marital||""} onValueChange={v=>updateFormData({statut_marital:v})}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("statut_marital").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
+   <div><Label>Situation matrimoniale *</Label><Select value={formData.statut_marital||""} onValueChange={v=>updateFormData({statut_marital:v})}><SelectTrigger><SelectValue placeholder="Sélectionner"/></SelectTrigger><SelectContent>{refs("statut_marital").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>
   </CardContent></Card>}
 
 
@@ -48,8 +51,57 @@ export const EtapeClientDynamique=({formData,updateFormData}:Props)=>{
    </div>
    <div><Label>Email</Label><Input type="email" value={formData.email||""} onChange={e=>updateFormData({email:e.target.value})}/></div>
    <GeographieCascade districtId={formData.district_id} regionId={formData.region_id} departementId={formData.departement_id} sousPrefectureId={formData.sous_prefecture_id} villageId={formData.village_id} required onChange={(g)=>updateFormData({district_id:g.districtId||"",region_id:g.regionId||"",departement_id:g.departementId||"",sous_prefecture_id:g.sousPrefectureId||"",village_id:g.villageId||""})}/>
-   <div><Label>Lieu de résidence *</Label><Input value={formData.domicile||""} onChange={e=>updateFormData({domicile:e.target.value})} placeholder="Quartier, campement, rue ou commune"/></div>
+   <div><Label>Adresse complète *</Label><Input value={formData.domicile||""} onChange={e=>updateFormData({domicile:e.target.value})} placeholder="Quartier, rue, campement, commune, ville et pays"/></div>
   </CardContent></Card>
+  {(isClientLandOffer || isPalmInvest) && <Card>
+    <CardHeader>
+      <CardTitle>{isPalmTerroir ? "Parcelle objet de l’accompagnement" : isTerraPalm ? "Parcelle objet de l’acquisition" : "Foncier du programme PalmInvest"}</CardTitle>
+      <CardDescription>
+        {isPalmInvest
+          ? "Le foncier relève d’AgriCapital ou de son partenaire. Son affectation au client pourra être renseignée progressivement."
+          : "Ces informations décrivent la parcelle concernée par le contrat. Elles restent distinctes de l’adresse de résidence du client."}
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      <div className="rounded-md bg-muted/40 p-3 text-sm">
+        <span className="font-medium">Propriété foncière : </span>{isPalmInvest ? "Partenaire AgriCapital" : "Client"}
+        <span className="ml-2 text-muted-foreground">· Culture : Palmier à huile</span>
+        {isTerraPalm && <div className="mt-1 text-muted-foreground">Superficie contractuelle : {formData.superficie_prevue || "—"} ha</div>}
+      </div>
+      {isPalmInvest && <div><Label>Site / domaine AgriCapital (si applicable)</Label><Input value={formData.site_agricapital||""} onChange={e=>updateFormData({site_agricapital:e.target.value})} placeholder="Nom du site ou du domaine"/></div>}
+      {isClientLandOffer && <div>
+        <Label>Statut foncier / justificatif *</Label>
+        <Select value={formData.parcelle_statut_foncier||""} onValueChange={v=>updateFormData({parcelle_statut_foncier:v})}>
+          <SelectTrigger><SelectValue placeholder="Sélectionner le statut foncier"/></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="coutumier">Droit coutumier</SelectItem>
+            <SelectItem value="certifie">Certifié</SelectItem>
+            <SelectItem value="titre">Titre foncier</SelectItem>
+            <SelectItem value="autre">Autre</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>}
+      <GeographieCascade
+        districtId={formData.parcelle_district_id}
+        regionId={formData.parcelle_region_id}
+        departementId={formData.parcelle_departement_id}
+        sousPrefectureId={formData.parcelle_sous_prefecture_id}
+        villageId={formData.parcelle_village_id}
+        required={isClientLandOffer}
+        onChange={(g)=>updateFormData({
+          parcelle_district_id:g.districtId||"",
+          parcelle_region_id:g.regionId||"",
+          parcelle_departement_id:g.departementId||"",
+          parcelle_sous_prefecture_id:g.sousPrefectureId||"",
+          parcelle_village_id:g.villageId||""
+        })}
+      />
+      <div className="grid md:grid-cols-2 gap-4">
+        <div><Label>Référence de la parcelle (si disponible)</Label><Input value={formData.parcelle_reference||""} onChange={e=>updateFormData({parcelle_reference:e.target.value})} placeholder="Référence cadastrale ou locale"/></div>
+        <div><Label>Coordonnées GPS (si disponibles)</Label><Input value={formData.parcelle_coordonnees_gps||""} onChange={e=>updateFormData({parcelle_coordonnees_gps:e.target.value})} placeholder="6.997856,-6.214123"/></div>
+      </div>
+    </CardContent>
+  </Card>}
   <EtapeDocumentsContratsDynamiques formData={formData} updateFormData={updateFormData} showIdentityAndContracts={true} showSignedContract={false} showAdditionalDocuments={false}/>
  </div>;
 };
