@@ -7,11 +7,11 @@ import { PlantationsMap } from "@/components/dashboard/PlantationsMap";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useAuth } from "@/hooks/useAuth";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
-import TableSearchInput from "@/components/common/TableSearchInput";
 import { PERMISSIONS, ROLE_SHORT_LABELS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatUserShortName, formatWelcomeName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -140,6 +140,16 @@ const Dashboard = () => {
 
   const [recentClients, setRecentClients] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [recentClientsQuery, setRecentClientsQuery] = useState("");
+  const [recentPaymentsQuery, setRecentPaymentsQuery] = useState("");
+  const filteredRecentClients = useMemo(() => {
+    const q=recentClientsQuery.trim().toLowerCase();
+    return q ? recentClients.filter((item:any)=>[item.nom_complet,item.id_unique,item.telephone].some(v=>String(v||"").toLowerCase().includes(q))) : recentClients;
+  },[recentClients,recentClientsQuery]);
+  const filteredRecentPayments = useMemo(() => {
+    const q=recentPaymentsQuery.trim().toLowerCase();
+    return q ? recentPayments.filter((item:any)=>[item.client_nom,item.reference,item.reference_paiement,item.montant_paye,item.montant,item.mode_paiement].some(v=>String(v||"").toLowerCase().includes(q))) : recentPayments;
+  },[recentPayments,recentPaymentsQuery]);
   const [monthly, setMonthly] = useState<any[]>([]);
   const [offerPerformance, setOfferPerformance] = useState<any[]>([]);
   const [cycle, setCycle] = useState<any[]>([]);
@@ -147,11 +157,6 @@ const Dashboard = () => {
   const [topClients, setTopClients] = useState<any[]>([]);
   const [regional, setRegional] = useState<any[]>([]);
   const [teamPerformance, setTeamPerformance] = useState<any[]>([]);
-  const [tableSearch,setTableSearch]=useState("");
-
-  const filteredRecentClients=recentClients.filter((row:any)=>JSON.stringify(row).toLowerCase().includes(tableSearch.trim().toLowerCase()));
-  const filteredRecentPayments=recentPayments.filter((row:any)=>JSON.stringify(row).toLowerCase().includes(tableSearch.trim().toLowerCase()));
-
   const fetchStats = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -180,7 +185,7 @@ const Dashboard = () => {
         teamMembersRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,region_id,domicile,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre")
           : Promise.resolve({ data: [], count: 0 }),
         canViewIndependentServiceCustomers
           ? (supabase as any).from("independent_service_customers").select("id").is("archived_at", null)
@@ -230,7 +235,7 @@ const Dashboard = () => {
         canPortfolios || canFinance
           ? (supabase as any).from("portefeuilles").select("solde_commissions,total_gagne,total_verse")
           : Promise.resolve({ data: [] }),
-        canPlantations
+        canPlantations || canClients
           ? (supabase as any).from("regions").select("id,nom")
           : Promise.resolve({ data: [] }),
         canClients || canPayments
@@ -658,8 +663,8 @@ const Dashboard = () => {
 
       const regionMap = new Map<string, string>(regions.map((r: any) => [String(r.id), String(r.nom)]));
       const regionCounts = new Map<string, number>();
-      scopedPlantations.forEach((p: any) => {
-        const name = regionMap.get(p.region_id) || "Non renseignée";
+      scopedPlantations.forEach((plantation: any) => {
+        const name = regionMap.get(String(plantation.region_id || "")) || "À géolocaliser";
         regionCounts.set(name, (regionCounts.get(name) || 0) + 1);
       });
       setRegional([...regionCounts.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8));
@@ -944,10 +949,10 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {canClients && recentClients.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle><div className="w-full min-w-0 sm:w-44 sm:shrink sm:max-w-[11rem]"><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un client" /></div></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle><Input value={recentClientsQuery} onChange={e=>setRecentClientsQuery(e.target.value)} placeholder="Rechercher un client" className="h-9 w-full sm:max-w-xs"/></div></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <Table><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Nom</TableHead><TableHead className="h-8 px-2 py-1.5">Plantations</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
+                        <Table searchable={false} exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Nom</TableHead><TableHead className="h-8 px-2 py-1.5">Plantations</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {filteredRecentClients.length ? filteredRecentClients.map((c) => (
                             <TableRow key={c.id_unique}>
@@ -955,7 +960,7 @@ const Dashboard = () => {
                               <TableCell className="px-2 py-1.5 text-xs sm:text-sm">{c.nombre_plantations || 0}</TableCell>
                               <TableCell className="px-2 py-1.5">{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? "Soldé" : label; const className = c.contrat_solde_at ? "whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" : status === "actif" ? "whitespace-nowrap border-emerald-200 bg-emerald-100/70 text-emerald-800 hover:bg-emerald-100/70" : status === "en_retard" || status === "retard" ? "whitespace-nowrap border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100" : "whitespace-nowrap"; return <Badge variant={c.contrat_solde_at || status === "actif" ? "outline" : status === "suspendu" ? "destructive" : "secondary"} className={className}>{display}</Badge>; })()}</TableCell>
                             </TableRow>
-                          )) : <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Aucun client accessible.</TableCell></TableRow>}
+                          )) : <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Aucun résultat pour cette recherche.</TableCell></TableRow>}
                         </TableBody></Table>
                       </div>
                     </CardContent>
@@ -964,10 +969,10 @@ const Dashboard = () => {
 
                 {canPayments && recentPayments.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle><div className="w-full min-w-0 sm:w-44 sm:shrink sm:max-w-[11rem]"><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un paiement" /></div></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle><Input value={recentPaymentsQuery} onChange={e=>setRecentPaymentsQuery(e.target.value)} placeholder="Rechercher un paiement" className="h-9 w-full sm:max-w-xs"/></div></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <Table><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Client</TableHead><TableHead className="h-8 px-2 py-1.5">Montant</TableHead><TableHead className="h-8 px-2 py-1.5">Mode</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
+                        <Table searchable={false} exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Client</TableHead><TableHead className="h-8 px-2 py-1.5">Montant</TableHead><TableHead className="h-8 px-2 py-1.5">Mode</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {filteredRecentPayments.length ? filteredRecentPayments.map((p) => (
                             <TableRow key={p.id}>
@@ -976,7 +981,7 @@ const Dashboard = () => {
                               <TableCell className="whitespace-nowrap px-2 py-1.5 text-xs">{(["content", "comptant", "cash", "espèces", "especes"].includes(String(p.mode_paiement || "").trim().toLowerCase()) ? "Cash" : p.mode_paiement || "—")}</TableCell>
                               <TableCell className="px-2 py-1.5"><Badge variant="outline" className="whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Validé</Badge></TableCell>
                             </TableRow>
-                          )) : <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Aucun paiement validé dans votre périmètre.</TableCell></TableRow>}
+                          )) : <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Aucun résultat pour cette recherche.</TableCell></TableRow>}
                         </TableBody></Table>
                       </div>
                     </CardContent>
@@ -1003,13 +1008,14 @@ const Dashboard = () => {
                   </Card>
                 )}
 
-                {canPlantations && regional.length > 0 && (
+                {(canClients || canPlantations) && regional.length > 0 && (
                   <Card className="lg:col-span-1">
-                    <CardHeader><CardTitle className="flex items-center gap-2 text-base"><MapPin className="h-5 w-5 text-primary" />Répartition géographique</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="flex items-center gap-2 text-base"><MapPin className="h-5 w-5 text-primary" />Répartition géographique des plantations</CardTitle></CardHeader>
                     <CardContent>
+                      <p className="mb-3 text-xs text-muted-foreground">Source : plantations et région enregistrée dans le CRM. Ce graphique décrit la localisation des plantations, pas le domicile des clients.</p>
                       {regional.length ? regional.map((r) => (
                         <div key={r.name} className="mb-3"><div className="flex justify-between text-xs"><span>{r.name}</span><span>{r.value}</span></div><Progress value={regional[0]?.value ? (r.value / regional[0].value) * 100 : 0} className="mt-1" /></div>
-                      )) : <p className="text-sm text-muted-foreground">Aucune plantation géolocalisée dans votre périmètre.</p>}
+                      )) : <p className="text-sm text-muted-foreground">Aucune plantation dans votre périmètre.</p>}
                     </CardContent>
                   </Card>
                 )}

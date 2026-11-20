@@ -37,13 +37,13 @@ const Parcelles = () => {
       const [{ data: p, error: pe }, { data: c, error: ce }, { data: l, error: le }, { data: plant, error: ple }] = await Promise.all([
         (supabase as any).from("parcelles")
           .select("*, proprietaires_terres(id,id_unique,nom_complet), districts(nom), regions(nom), departements(nom), sous_prefectures(nom)")
-          .order("id_unique", { ascending: true }),
+          .order("created_at", { ascending: false }),
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,parcelle_id,formule_code,formule_nom,total_hectares,statut,validation_statut")
+          .select("id,id_unique,nom_complet,parcelle_id,formule_code,formule_nom,famille_offre,offre_code,total_hectares,statut,validation_statut")
           .not("parcelle_id", "is", null),
         (supabase as any).from("lots_hectares")
-          .select("id,reference,parcelle_id,client_id,surface_ha,statut,numero_h")
-          .order("reference", { ascending: true }),
+          .select("id,reference,parcelle_id,client_id,surface_ha,statut,numero_h,created_at")
+          .order("created_at", { ascending: false }),
         (supabase as any).from("plantations").select("id,parcelle_id,client_id,statut,surface_reellement_plantee,superficie_ha"),
       ]);
       if (pe) throw pe;
@@ -151,6 +151,16 @@ const Parcelles = () => {
     return p.statut === "saturee" ? "Saturée" : p.statut === "partiellement_attribuee" ? "Partiellement attribuée" : p.statut === "validee" ? "Validée" : p.statut === "a_valider" ? "À valider" : p.statut === "disponible" ? "Disponible" : (p.statut || "—");
   };
 
+  const isClientOwnedParcel = (parcel: any) => {
+    const linkedClients = clientsByParcel.get(parcel?.id) || [];
+    return String(parcel?.mode_surface || "").toLowerCase().includes("client")
+      || String(parcel?.nom || "").toLowerCase().startsWith("parcelle client")
+      || linkedClients.some((client: any) => {
+        const family = String(client.famille_offre || client.formule_code || client.offre_code || "").toUpperCase();
+        return family.startsWith("PALMTERROIR") || family.startsWith("TERRAPALM");
+      });
+  };
+
   return (
     <ProtectedRoute requiredPermission={PERMISSIONS.VIEW_PLANTATIONS}>
       <MainLayout>
@@ -219,7 +229,7 @@ const Parcelles = () => {
                   <div className="space-y-1"><Label>Nom de la parcelle</Label><Input value={parcelForm.nom} onChange={e => setParcelForm(v => ({ ...v, nom: e.target.value }))} /></div>
                   <div className="space-y-1"><Label>Village</Label><Input value={parcelForm.village} onChange={e => setParcelForm(v => ({ ...v, village: e.target.value }))} /></div>
                   <div className="space-y-1"><Label>Superficie totale (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_totale_ha} onChange={e => setParcelForm(v => ({ ...v, surface_totale_ha: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Part AgriCapital (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_agricapital_ha} onChange={e => setParcelForm(v => ({ ...v, surface_agricapital_ha: e.target.value }))} /></div>
+                  {!isClientOwnedParcel(selectedParcel) && <div className="space-y-1"><Label>Part AgriCapital (ha)</Label><Input type="number" min="0" step="0.01" value={parcelForm.surface_agricapital_ha} onChange={e => setParcelForm(v => ({ ...v, surface_agricapital_ha: e.target.value }))} /></div>}
                   <div className="space-y-1 sm:col-span-2"><Label>Statut</Label><Select value={parcelForm.statut} onValueChange={statut => setParcelForm(v => ({ ...v, statut }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="disponible">Disponible</SelectItem><SelectItem value="partiellement_attribuee">Partiellement attribuée</SelectItem><SelectItem value="saturee">Saturée</SelectItem><SelectItem value="validee">Validée</SelectItem><SelectItem value="a_valider">À valider</SelectItem></SelectContent></Select></div>
                 </div> : <div className="grid gap-3 sm:grid-cols-2">
                   <div><Label>Identifiant</Label><p className="font-medium">{selectedParcel.id_unique || "—"}</p></div>
@@ -227,7 +237,7 @@ const Parcelles = () => {
                   <div><Label>Village</Label><p className="font-medium">{selectedParcel.village || "—"}</p></div>
                   <div><Label>Localisation</Label><p className="font-medium">{[selectedParcel.departements?.nom, selectedParcel.sous_prefectures?.nom, selectedParcel.districts?.nom, selectedParcel.regions?.nom].filter(Boolean).join(" · ") || "—"}</p></div>
                   <div><Label>Superficie totale</Label><p className="font-medium">{Number(selectedParcel.surface_totale_ha || 0).toLocaleString("fr-FR")} ha</p></div>
-                  <div><Label>Part AgriCapital</Label><p className="font-medium">{Number(selectedParcel.surface_agricapital_ha || 0).toLocaleString("fr-FR")} ha</p></div>
+                  {!isClientOwnedParcel(selectedParcel) && <div><Label>Part AgriCapital</Label><p className="font-medium">{Number(selectedParcel.surface_agricapital_ha || 0).toLocaleString("fr-FR")} ha</p></div>}
                   <div><Label>Statut</Label><p className="font-medium">{statusLabel(selectedParcel, clientsByParcel.get(selectedParcel.id) || [], plantationsByParcel.get(selectedParcel.id) || [])}</p></div>
                 </div>}
                 <div className="flex justify-end gap-2">{editParcel ? <><Button type="button" variant="outline" onClick={() => setEditParcel(false)} disabled={parcelSaving}>Annuler</Button><Button type="button" onClick={() => void saveParcel()} disabled={parcelSaving}>{parcelSaving ? "Enregistrement…" : "Enregistrer"}</Button></> : <><Button type="button" variant="outline" onClick={() => setSelectedParcel(null)}>Fermer</Button>{canEditParcel && <Button type="button" onClick={() => setEditParcel(true)}>Modifier</Button>}</>}</div>

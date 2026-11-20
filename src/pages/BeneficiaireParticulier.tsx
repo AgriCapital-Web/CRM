@@ -88,7 +88,7 @@ const BeneficiaireParticulier = () => {
         if (!client || !String(client.id_unique || "").startsWith("AC_B") || client.type_client !== "beneficiaire_particulier") {
           throw new Error("Cette référence n’est pas un dossier bénéficiaire AC_B.");
         }
-        const { data: plantationRow, error: plantationError } = await (supabase as any).from("plantations").select("*").eq("client_id", client.id).eq("role_attribution", "beneficiaire_particulier").order("created_at", { ascending: true }).limit(1).maybeSingle();
+        const { data: plantationRow, error: plantationError } = await (supabase as any).from("plantations").select("*").eq("client_id", client.id).eq("role_attribution", "beneficiaire_particulier").order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (plantationError) throw plantationError;
         if (!plantationRow) throw new Error("La plantation du bénéficiaire n’a pas été retrouvée.");
         const { data: parcel, error: parcelError } = plantationRow.parcelle_id

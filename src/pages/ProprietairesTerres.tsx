@@ -32,15 +32,11 @@ import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { getSafeErrorMessage } from "@/lib/safeError";
 
-const ANNEXES_CONVENTION = [
-  { field: "annexe_1_pv_delimitation_croquis", label: "Annexe 1 — Procès-verbal de délimitation / croquis parcellaire" },
-  { field: "annexe_2_pv_consentement_familial", label: "Annexe 2 — Procès-verbal de consentement familial signé" },
-  { field: "annexe_3_acte_reconnaissance_parts", label: "Annexe 3 — Acte de délimitation et reconnaissance des parts" },
-  { field: "annexe_4_acte_remise_jouissance", label: "Annexe 4 — Acte de Remise en Jouissance (36 mois)" },
-  { field: "annexe_5_procuration_mandataire", label: "Annexe 5 — Procuration co-titulaire / mandataire" },
-  { field: "annexe_6_copies_cni_signataires", label: "Annexe 6 — Copies CNI d’au moins six signataires" },
-  { field: "annexe_7_acte_mariage", label: "Annexe 7 — Acte de mariage (si applicable)" },
-  { field: "annexe_8_guide_villageois_attestation", label: "Annexe 8 — Guide villageois / attestation foncière du chef" },
+const ANNEXES_CONVENTION: Array<{ field: string; label: string; obligatoire?: boolean; facultative?: boolean; when?: string }> = [
+  { field: "annexe_1_copies_identite_signataires", label: "Annexe 1 — Pièces d’identité du propriétaire et des signataires", obligatoire: true },
+  { field: "annexe_2_pv_consentement_familial", label: "Annexe 2 — Procès-verbal de consentement familial signé", when: "famille_groupement" },
+  { field: "annexe_3_procuration_mandataire", label: "Annexe 3 — Procuration du mandataire signée", when: "mandataire" },
+  { field: "annexe_4_attestation_droit_foncier", label: "Annexe 4 — Attestation de propriété ou de droit foncier (peut être jointe ultérieurement)", facultative: true },
 ];
 
 const createInitialAnnexStatuses = (): Record<string, "joint" | "a_fournir"> =>
@@ -85,16 +81,16 @@ const ProprietairesTerres = () => {
     type_piece: "", numero_piece: "", date_delivrance_piece: "",
     lieu_residence: "",
     district_id: "", region_id: "", departement_id: "", sous_prefecture_id: "", village_id: "", village: "", localite: "",
-    surface_totale_declaree_ha: "", coordonnees_gps: "", date_signature_convention: "",
+    surface_totale_declaree_ha: "", surface_campagne_ha: "", coordonnees_gps: "", date_signature_convention: "",
     type_convention: "plante_partage", part_agricapital_pct: "50", nombre_lots_agricapital: "",
     statut_foncier: "coutumier", reference_cadastrale: "",
     limites_nord: "", limites_sud: "", limites_est: "", limites_ouest: "",
     servitudes: "", croquis_joint: false,
     plantation_partagee_activee: true, plantation_surface_cible_ha: "",
     plantation_type_culture: "Palmier à huile", plantation_densite_plants: "143", plantation_date_activation: "",
-    co_titulaire_nom: "", co_titulaire_lien: "", co_titulaire_piece: "", co_titulaire_telephone: "", co_titulaire_telephone_indicatif: "", co_titulaire_telephone_local: "",
+    co_titulaire_type: "cotitulaire", co_titulaire_nom: "", co_titulaire_lien: "", co_titulaire_piece: "", co_titulaire_telephone: "", co_titulaire_telephone_indicatif: "", co_titulaire_telephone_local: "",
     temoin_proprietaire_nom: "", temoin_proprietaire_qualite: "", representant_agricapital_nom: "", representant_agricapital_qualite: "",
-    leader_communautaire_nom: "", leader_communautaire_qualite: "", voisin_1_nom: "", voisin_1_cote: "", voisin_2_nom: "", voisin_2_cote: "",
+    leader_communautaire_nom: "", leader_communautaire_qualite: "", president_cvgfr_nom: "", president_cvgfr_qualite: "", temoin_2_nom: "", temoin_2_qualite: "", voisin_1_nom: "", voisin_1_cote: "", voisin_2_nom: "", voisin_2_cote: "", voisin_3_nom: "", voisin_3_cote: "", voisin_4_nom: "", voisin_4_cote: "",
     notes: "",
   });
 
@@ -114,7 +110,7 @@ const ProprietairesTerres = () => {
       const { data, error } = await (supabase as any)
         .from("proprietaires_terres")
         .select("*, districts(nom), regions(nom), departements(nom), sous_prefectures(nom), parcelles(count)")
-        .order("id_unique", { ascending: true });
+        .order("created_at", { ascending: false });
       if (error) throw error;
       setProprietaires(data || []);
     } catch (e: any) {
@@ -141,6 +137,32 @@ const ProprietairesTerres = () => {
         return [key, value == null ? (typeof current[key] === "boolean" ? false : "") : String(value)];
       })));
       setFiles({ photo_profil: null, cni_recto: null, cni_verso: null });
+      const { data: existingAnnexes } = await (supabase as any)
+        .from("documents_convention")
+        .select("type_document,statut,fichier_url,created_at")
+        .eq("proprietaire_id", editId)
+        .order("created_at", { ascending: false });
+      const annexAliases:Record<string,string> = {
+        annexe_1_copies_identite_signataires:"annexe_1_copies_identite_signataires",
+        annexe_6_copies_cni_signataires:"annexe_1_copies_identite_signataires",
+        annexe_2_pv_consentement_familial:"annexe_2_pv_consentement_familial",
+        annexe_3_procuration_mandataire:"annexe_3_procuration_mandataire",
+        annexe_5_procuration_mandataire:"annexe_3_procuration_mandataire",
+        annexe_4_attestation_droit_foncier:"annexe_4_attestation_droit_foncier",
+      };
+      const previewValues:Record<string,string> = {};
+      const statusValues:Record<string,"joint"|"a_fournir"> = {};
+      for (const doc of existingAnnexes || []) {
+        const field=annexAliases[doc.type_document];
+        if(!field || previewValues[field+"_url"]) continue;
+        const rawUrl=doc.fichier_url||"";
+        previewValues[field+"_url"]=rawUrl.startsWith("http")
+          ? rawUrl
+          : (supabase as any).storage.from("documents").getPublicUrl(rawUrl).data.publicUrl;
+        statusValues[field]=doc.fichier_url ? "joint" : "a_fournir";
+      }
+      setFormData((current:any)=>({...current,...previewValues}));
+      setAnnexStatuses((current)=>({...current,...statusValues}));
       setIsFormOpen(true);
     })();
     return () => { active = false; };
@@ -213,17 +235,37 @@ const ProprietairesTerres = () => {
       toast({ variant: "destructive", title: "Téléphone obligatoire", description: "Renseignez le numéro de téléphone du propriétaire." });
       return;
     }
-    if (!formData.surface_totale_declaree_ha || Number(formData.surface_totale_declaree_ha) <= 0) {
+    const totalSurface = Number(formData.surface_totale_declaree_ha || 0);
+    if (totalSurface < 2 || Math.abs(totalSurface / 2 - Math.round(totalSurface / 2)) > 0.000001) {
       setActiveFormTab("parcelle");
-      toast({ variant: "destructive", title: "Superficie obligatoire", description: "Renseignez une superficie supérieure à zéro." });
+      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie totale doit être d’au moins 2 ha et respecter des tranches de 2 ha." });
       return;
+    }
+    const agriPctCheck = (formData.type_convention || "plante_partage") === "achat" ? 100 : Math.max(0, Math.min(100, Number(formData.part_agricapital_pct || 50)));
+    const agriShareCheck = totalSurface * agriPctCheck / 100;
+    const ownerShareCheck = totalSurface - agriShareCheck;
+    if ([agriShareCheck, ownerShareCheck].some((share) => Math.abs(share * 2 - Math.round(share * 2)) > 0.000001)) {
+      setActiveFormTab("parcelle");
+      toast({ variant: "destructive", title: "Répartition foncière invalide", description: "Les parts du propriétaire et d’AgriCapital doivent être des multiples de 0,5 ha." });
+      return;
+    }
+    if ((formData.type_convention || "plante_partage") === "plante_partage") {
+      const campaignSurface = Number(formData.surface_campagne_ha || 0);
+      if (campaignSurface < 2 || campaignSurface > totalSurface || Math.abs(campaignSurface * 2 - Math.round(campaignSurface * 2)) > 0.000001) {
+        setActiveFormTab("parcelle");
+        toast({ variant: "destructive", title: "Superficie de campagne invalide", description: "Chaque campagne doit porter sur au moins 2 ha, par pas de 0,5 ha, sans dépasser la superficie totale de la parcelle." });
+        return;
+      }
     }
     setUploading(true);
     try {
       const currentUser = user;
       if (!currentUser) throw new Error("Session utilisateur introuvable");
       if (!user) throw new Error("Non authentifié");
-      const missingAnnex = ANNEXES_CONVENTION.find((a) => annexStatuses[a.field] === "joint" && !files[a.field]);
+      const applicableAnnexes = ANNEXES_CONVENTION.filter((a:any) =>
+        (!a.when || (a.when === "famille_groupement" && formData.type_proprietaire === "famille_groupement") || (a.when === "mandataire" && formData.co_titulaire_type === "mandataire"))
+      );
+      const missingAnnex = applicableAnnexes.find((a:any) => annexStatuses[a.field] === "joint" && !files[a.field]);
       if (missingAnnex) throw new Error(`${missingAnnex.label}: fichier obligatoire si “Joint” est coché`);
 
       let photo_profil_url = editingOwner?.photo_profil_url || null, fichier_piece_recto_url = editingOwner?.fichier_piece_recto_url || null, fichier_piece_verso_url = editingOwner?.fichier_piece_verso_url || null;
@@ -234,7 +276,7 @@ const ProprietairesTerres = () => {
       if (files.photo_profil) photo_profil_url = await uploadFile('photos-profils', files.photo_profil, user.id);
       if (files.cni_recto) fichier_piece_recto_url = await uploadFile('pieces-identite', files.cni_recto, `proprietaires/${user.id}/pieces`);
       if (files.cni_verso) fichier_piece_verso_url = await uploadFile('pieces-identite', files.cni_verso, `proprietaires/${user.id}/pieces`);
-      for (const annexe of ANNEXES_CONVENTION) {
+      for (const annexe of applicableAnnexes) {
         const file = files[annexe.field];
         annexUploads[annexe.field] = file ? await uploadFile('documents-fonciers', file, `conventions/${user.id}/annexes`) : null;
       }
@@ -252,13 +294,11 @@ const ProprietairesTerres = () => {
       const partAgriHa = surfaceTotale ? (surfaceTotale * agriPct) / 100 : null;
       const partProprietaireHa = surfaceTotale ? (surfaceTotale * ownerPct) / 100 : null;
       const nombreLots = Math.max(0, parseInt(formData.nombre_lots_agricapital || "0", 10) || 0);
-      const maxLots = typeConvention === "plante_partage"
-        ? Math.min(Math.floor(partAgriHa || 0), Math.floor(partProprietaireHa || 0))
-        : Math.floor(partAgriHa || 0);
+      const maxLots = Math.floor(partAgriHa || 0);
       if (surfaceTotale && nombreLots > maxLots) {
         throw new Error(`Le nombre de lots AgriCapital ne peut pas dépasser ${maxLots} lot(s) de 1 ha pour cette répartition.`);
       }
-      const cautionTotale = typeConvention === "plante_partage" && partAgriHa ? partAgriHa * 50000 : 0;
+      const cautionTotale = typeConvention === "plante_partage" && partProprietaireHa ? partProprietaireHa * 25000 : 0;
       const gps = String(formData.coordonnees_gps || "").split(/[,;\s]+/).map(Number).filter(Number.isFinite);
       const gpsLat = gps.length >= 2 ? gps[0] : null;
       const gpsLng = gps.length >= 2 ? gps[1] : null;
@@ -298,12 +338,13 @@ const ProprietairesTerres = () => {
         reference_cadastrale: formData.reference_cadastrale || null,
         coordonnees_gps: formData.coordonnees_gps || null,
         surface_totale_declaree_ha: surfaceTotale,
+        surface_campagne_ha: Number(formData.surface_campagne_ha || 0) || null,
         part_proprietaire_pct: ownerPct,
         part_agricapital_pct: agriPct,
         nombre_lots_agricapital: nombreLots,
         part_proprietaire_ha: partProprietaireHa,
         part_agricapital_ha: partAgriHa,
-        caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
+        caution_par_ha: typeConvention === "plante_partage" ? 25000 : 0,
         caution_totale: cautionTotale,
         limites_nord: formData.limites_nord || null,
         limites_sud: formData.limites_sud || null,
@@ -315,16 +356,25 @@ const ProprietairesTerres = () => {
         co_titulaire_lien: formData.co_titulaire_lien || null,
         co_titulaire_piece: formData.co_titulaire_piece || null,
         co_titulaire_telephone: formData.co_titulaire_telephone || null, co_titulaire_telephone_indicatif: formData.co_titulaire_telephone_indicatif || null, co_titulaire_telephone_local: formData.co_titulaire_telephone_local || null,
+        co_titulaire_type: formData.co_titulaire_type || "cotitulaire",
         temoin_proprietaire_nom: formData.temoin_proprietaire_nom || null,
         temoin_proprietaire_qualite: formData.temoin_proprietaire_qualite || null,
         representant_agricapital_nom: formData.representant_agricapital_nom || null,
         representant_agricapital_qualite: formData.representant_agricapital_qualite || null,
         leader_communautaire_nom: formData.leader_communautaire_nom || null,
         leader_communautaire_qualite: formData.leader_communautaire_qualite || null,
+        president_cvgfr_nom: formData.president_cvgfr_nom || null,
+        president_cvgfr_qualite: formData.president_cvgfr_qualite || null,
+        temoin_2_nom: formData.temoin_2_nom || null,
+        temoin_2_qualite: formData.temoin_2_qualite || null,
         voisin_1_nom: formData.voisin_1_nom || null,
         voisin_1_cote: formData.voisin_1_cote || null,
         voisin_2_nom: formData.voisin_2_nom || null,
         voisin_2_cote: formData.voisin_2_cote || null,
+        voisin_3_nom: formData.voisin_3_nom || null,
+        voisin_3_cote: formData.voisin_3_cote || null,
+        voisin_4_nom: formData.voisin_4_nom || null,
+        voisin_4_cote: formData.voisin_4_cote || null,
         notes: formData.notes || null,
         created_by: currentUser.id,
         updated_by: user.id,
@@ -365,7 +415,7 @@ const ProprietairesTerres = () => {
           surface_agricapital_ha: partAgriHa || 0,
           surface_attribuee_ha: 0,
           plantation_partagee_activee: typeConvention === "plante_partage",
-          plantation_surface_cible_ha: surfaceTotale || null,
+          plantation_surface_cible_ha: Number(formData.surface_campagne_ha || 0) || null,
           plantation_type_culture: formData.plantation_type_culture || "Palmier à huile",
           plantation_densite_plants: 143,
           plantation_date_activation: formData.plantation_date_activation || null,
@@ -397,12 +447,13 @@ const ProprietairesTerres = () => {
         date_signature: formData.date_signature_convention || null,
         date_debut: formData.date_signature_convention || null,
         surface_totale_ha: surfaceTotale || 0,
+        surface_campagne_ha: Number(formData.surface_campagne_ha || 0) || null,
         part_proprietaire_pct: ownerPct,
         part_agricapital_pct: agriPct,
         nombre_lots_agricapital: nombreLots,
         part_proprietaire_ha: partProprietaireHa,
         part_agricapital_ha: partAgriHa,
-        caution_par_ha: typeConvention === "plante_partage" ? 50000 : 0,
+        caution_par_ha: typeConvention === "plante_partage" ? 25000 : 0,
         caution_totale: cautionTotale,
         statut: "a_valider",
         notes: formData.notes || null,
@@ -412,7 +463,7 @@ const ProprietairesTerres = () => {
       if (conventionError || !convention) throw conventionError || new Error("La convention n’a pas été enregistrée.");
       const conventionRef: any = convention;
 
-      const documents = ANNEXES_CONVENTION.map((a) => ({
+      const documents = applicableAnnexes.map((a) => ({
         proprietaire_id: proprietaire.id,
         parcelle_id: parcelleId,
         type_document: a.field,
@@ -728,15 +779,20 @@ const ProprietairesTerres = () => {
                           <Select value={formData.type_convention} onValueChange={v => update('type_convention', v)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="plante_partage">Planté-partagé</SelectItem>
-                              <SelectItem value="achat">Achat</SelectItem>
+                              <SelectItem value="plante_partage">Convention de mise en valeur agricole</SelectItem>
+                              {editingOwner && formData.type_convention === "achat" && <SelectItem value="achat">Achat — dossier historique</SelectItem>}
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
                           <Label>Superficie totale de la parcelle (ha) *</Label>
-                          <Input type="number" min="0.1" step="0.1" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
+                          <Input type="number" min="2" step="2" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
                         </div>
+                        {formData.type_convention !== "achat" && <div className="space-y-2">
+                          <Label>Superficie de la campagne de mise en valeur (ha) — minimum 2 ha *</Label>
+                          <Input type="number" min="2" step="0.5" max={formData.surface_totale_declaree_ha || undefined} value={formData.surface_campagne_ha || ""} onChange={e => update('surface_campagne_ha', e.target.value)} required />
+                          <p className="text-xs text-muted-foreground">La superficie de la campagne ne peut pas dépasser celle de la parcelle.</p>
+                        </div>}
                         <div className="space-y-2">
                           <Label>Part AgriCapital (%)</Label>
                           <Input type="number" min="0" max="100" step="1" disabled={formData.type_convention === "achat"} value={formData.type_convention === "achat" ? "100" : formData.part_agricapital_pct} onChange={e => update('part_agricapital_pct', e.target.value)} />
@@ -781,7 +837,7 @@ const ProprietairesTerres = () => {
                           <p>Part propriétaire : <strong>{ownerHa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</strong> ({ownerPct}%)</p>
                           <p>Part AgriCapital : <strong>{agriHa.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</strong> ({agriPct}%)</p>
                           <p>Lots AgriCapital : <strong>{lots}</strong> × 1 ha</p>
-                          {formData.type_convention === "plante_partage" && <p>Caution foncière : <strong>{(agriHa * 50000).toLocaleString('fr-FR')} FCFA</strong></p>}
+                          {formData.type_convention === "plante_partage" && <p>Caution foncière (25 000 FCFA × portion du Propriétaire) : <strong>{(ownerHa * 25000).toLocaleString('fr-FR')} FCFA</strong></p>}
                         </div>;
                       })()}
                       <h4 className="font-semibold mt-4">Limites de la parcelle</h4>
@@ -822,24 +878,38 @@ const ProprietairesTerres = () => {
                       </div>
                       <h4 className="font-semibold mt-4">Co-titulaire / mandataire et signatures</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Qualité du signataire</Label><Select value={formData.co_titulaire_type || "cotitulaire"} onValueChange={v=>update("co_titulaire_type",v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cotitulaire">Co-titulaire</SelectItem><SelectItem value="mandataire">Mandataire</SelectItem></SelectContent></Select></div>
                         <div className="space-y-2"><Label>Nom co-titulaire / mandataire</Label><Input value={formData.co_titulaire_nom} onChange={e => update('co_titulaire_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Lien avec le propriétaire</Label><RelationshipSelect value={formData.co_titulaire_lien} onChange={v=>update("co_titulaire_lien",v)}/></div>
                         <div className="space-y-2"><Label>Type de pièce du co-titulaire</Label><PieceTypeSelect value={formData.co_titulaire_piece} onChange={v=>update("co_titulaire_piece",v)}/></div>
                         <CountryPhoneInput label="Téléphone principal du cotitulaire" countryCode={formData.co_titulaire_telephone_indicatif||undefined} localValue={formData.co_titulaire_telephone_local||formData.co_titulaire_telephone||""} onChange={v=>updateFormPhone(v,"co_titulaire_telephone")}/>
-                        <div className="space-y-2"><Label>Témoin propriétaire — Nom</Label><Input value={formData.temoin_proprietaire_nom} onChange={e => update('temoin_proprietaire_nom', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Témoin propriétaire — Qualité</Label><Input value={formData.temoin_proprietaire_qualite} onChange={e => update('temoin_proprietaire_qualite', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Représentant AgriCapital — Nom</Label><Input value={formData.representant_agricapital_nom} onChange={e => update('representant_agricapital_nom', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Représentant AgriCapital — Qualité</Label><Input value={formData.representant_agricapital_qualite} onChange={e => update('representant_agricapital_qualite', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Leader communautaire — Nom</Label><Input value={formData.leader_communautaire_nom} onChange={e => update('leader_communautaire_nom', e.target.value)} /></div>
-                        <div className="space-y-2"><Label>Leader communautaire — Qualité</Label><Input value={formData.leader_communautaire_qualite} onChange={e => update('leader_communautaire_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°1 — Nom</Label><Input value={formData.temoin_proprietaire_nom} onChange={e => update('temoin_proprietaire_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°1 — Qualité</Label><Input value={formData.temoin_proprietaire_qualite} onChange={e => update('temoin_proprietaire_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°2 — Nom</Label><Input value={formData.temoin_2_nom} onChange={e => update('temoin_2_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Témoin n°2 — Qualité</Label><Input value={formData.temoin_2_qualite} onChange={e => update('temoin_2_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Mobilisateur foncier — Nom</Label><Input value={formData.representant_agricapital_nom} onChange={e => update('representant_agricapital_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Mobilisateur foncier — Fonction</Label><Input value={formData.representant_agricapital_qualite} onChange={e => update('representant_agricapital_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Chef de village / Leader communautaire — Nom</Label><Input value={formData.leader_communautaire_nom} onChange={e => update('leader_communautaire_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Qualité</Label><Input value={formData.leader_communautaire_qualite} onChange={e => update('leader_communautaire_qualite', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Président du CVGFR — Nom (si présent)</Label><Input value={formData.president_cvgfr_nom} onChange={e => update('president_cvgfr_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Qualité</Label><Input value={formData.president_cvgfr_qualite} onChange={e => update('president_cvgfr_qualite', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Voisin riverain n°1 — Nom</Label><Input value={formData.voisin_1_nom} onChange={e => update('voisin_1_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_1_cote} onChange={e => update('voisin_1_cote', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Voisin riverain n°2 — Nom</Label><Input value={formData.voisin_2_nom} onChange={e => update('voisin_2_nom', e.target.value)} /></div>
                         <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_2_cote} onChange={e => update('voisin_2_cote', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Voisin riverain n°3 — Nom</Label><Input value={formData.voisin_3_nom} onChange={e => update('voisin_3_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_3_cote} onChange={e => update('voisin_3_cote', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Voisin riverain n°4 — Nom</Label><Input value={formData.voisin_4_nom} onChange={e => update('voisin_4_nom', e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Côté</Label><Input value={formData.voisin_4_cote} onChange={e => update('voisin_4_cote', e.target.value)} /></div>
                       </div>
                     </TabsContent>
 
                     <TabsContent value="documents" className="space-y-4">
+                      <div className="rounded-lg border bg-muted/20 p-3">
+                        <p className="font-medium text-sm">Modèle officiel — Convention de mise en valeur agricole</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Référence utilisée pour préparer la convention et vérifier les pièces du dossier.</p>
+                        <a className="mt-2 inline-flex text-sm text-primary underline" href="https://github.com/AgriCapital-Web/CRM/blob/main/docs/AgriCapital__Convention_Mise_en_Valeur_Agricole.docx" target="_blank" rel="noreferrer">Ouvrir le modèle de convention</a>
+                      </div>
                       <h4 className="font-semibold">Documents d'identité</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FileUploadVisual label="Photo de profil" field="photo_profil" accept="image/*" currentFile={files.photo_profil||null} existingPreview={formData.photo_profil_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,photo_profil:f}))}/>
@@ -850,14 +920,14 @@ const ProprietairesTerres = () => {
                       <h4 className="font-semibold mt-4 flex items-center gap-2"><FileText className="h-4 w-4" /> Annexes de la Convention</h4>
                       
                       <div className="space-y-3 text-sm">
-                        {ANNEXES_CONVENTION.map((annexe, index) => {
+                        {ANNEXES_CONVENTION.filter((annexe:any) => !annexe.when || (annexe.when === "famille_groupement" && formData.type_proprietaire === "famille_groupement") || (annexe.when === "mandataire" && formData.co_titulaire_type === "mandataire")).map((annexe, index) => {
                           const isJoint = annexStatuses[annexe.field] === "joint";
                           return (
                             <div key={annexe.field} className="rounded-md border p-3 space-y-3">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="outline">Annexe {index + 1}</Badge>
-                                  <span>{annexe.label.replace(/^Annexe \d+ — /, "")}</span>
+                                  <Badge variant="outline">Annexe {Number(annexe.label.match(/^Annexe (\d+)/)?.[1] || index + 1)}</Badge>
+                                  <span>{annexe.label.replace(/^Annexe \d+ — /, "")}{annexe.obligatoire ? " *" : ""}</span>
                                 </div>
                                 <div className="flex items-center gap-4">
                                   <Label className="flex items-center gap-2 text-xs font-normal">
@@ -871,7 +941,7 @@ const ProprietairesTerres = () => {
                                 </div>
                               </div>
                               {isJoint && (
-                                <FileUploadVisual label="Fichier" field={annexe.field} accept="image/*,.pdf" required currentFile={files[annexe.field]||null} onFileChange={(_,f)=>setFiles(x=>({...x,[annexe.field]:f}))}/>
+                                <FileUploadVisual label="Fichier" field={annexe.field} accept="image/*,.pdf" required currentFile={files[annexe.field]||null} existingPreview={formData[annexe.field+"_url"]||""} onFileChange={(_,f)=>setFiles(x=>({...x,[annexe.field]:f}))}/>
                               )}
                               {files[annexe.field] && <p className="text-xs text-muted-foreground">Fichier sélectionné: {files[annexe.field]?.name}</p>}
                             </div>

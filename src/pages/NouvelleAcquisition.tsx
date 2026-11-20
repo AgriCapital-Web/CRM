@@ -121,6 +121,32 @@ const StoredAttachmentLinks=({formData}:{formData:any})=>{
 };
 
 
+const buildLandInformation = (formData: any, offer: any) => {
+  const family = String(offer?.famille_offre || formData.offre?.famille_offre || formData.offre_snapshot?.offer?.famille_offre || "").toUpperCase();
+  return {
+    famille_offre: family || null,
+    propriete_fonciere: family === "PALMINVEST" ? "partenaire_agricapital" : "client",
+    site_agricapital: formData.site_agricapital || null,
+    superficie_contractuelle_ha: Number(formData.superficie_prevue || 0) || null,
+    superficie_nette_ha: family === "PALMTERROIR" ? (Number(formData.superficie_prevue || 0) || null) : null,
+    statut_foncier: formData.parcelle_statut_foncier || null,
+    district_id: formData.parcelle_district_id || null,
+    region_id: formData.parcelle_region_id || null,
+    departement_id: formData.parcelle_departement_id || null,
+    sous_prefecture_id: formData.parcelle_sous_prefecture_id || null,
+    village_id: formData.parcelle_village_id || null,
+    reference_parcelle: formData.parcelle_reference || null,
+    coordonnees_gps: formData.parcelle_coordonnees_gps || null,
+  };
+};
+
+const requiredContractForOffer = (formData: any) => {
+  const family = String(formData.offre?.famille_offre || formData.famille_offre || formData.offre_snapshot?.offer?.famille_offre || "").toUpperCase();
+  if (family === "PALMTERROIR") return { type: "accompagnement_agricole", field: "contrat_accompagnement_agricole", label: "Contrat d’accompagnement agricole" };
+  if (family === "PALMINVEST" || family === "TERRAPALM") return { type: "contrat_acquisition_client", field: "contrat_contrat_acquisition_client", label: "Contrat d’acquisition" };
+  return { type: "signe_client", field: "contrat_signe_client", label: "Contrat signé" };
+};
+
 const NouvelleAcquisition = () => {
   const [formData,setFormData]=useState<any>({});
   const [steps,setSteps]=useState<Step[]>([]);
@@ -142,7 +168,7 @@ const NouvelleAcquisition = () => {
   const { can } = usePermissions();
   const canEditExisting = Boolean(existingRecord?.client) && can("clients.update");
   const [searchParams]=useSearchParams();
-  const {data:promotionActive}=usePromotionActive(formData.offre_id, undefined, !recordId);
+  const {data:promotionActive}=usePromotionActive(formData.offre_id, formData.formule_code, !recordId, Number(formData.superficie_prevue || 0));
 
   const updateFormData = useCallback((data: any) => setFormData((prev: any) => ({ ...prev, ...data })), []);
 
@@ -286,6 +312,18 @@ const NouvelleAcquisition = () => {
           formule_confirmed:true,superficie_prevue:String(acquisition?.superficie_ha??savedSnapshot.contract?.superficie_ha??client.total_hectares??client.superficie_ha??""),
           photo_profil_preview:client.photo_profil_url||"",photo_piece_recto_preview:client.fichier_piece_recto_url||"",
           photo_piece_verso_preview:client.fichier_piece_verso_url||"",contrat_lu:true,documents_authentiques:true,autorisation_donnees:true};
+        const landInfo=client.metadata?.informations_foncieres||{};
+        Object.assign(values,{
+          site_agricapital:landInfo.site_agricapital||"",
+          parcelle_statut_foncier:landInfo.statut_foncier||"",
+          parcelle_district_id:landInfo.district_id||"",
+          parcelle_region_id:landInfo.region_id||"",
+          parcelle_departement_id:landInfo.departement_id||"",
+          parcelle_sous_prefecture_id:landInfo.sous_prefecture_id||"",
+          parcelle_village_id:landInfo.village_id||"",
+          parcelle_reference:landInfo.reference_parcelle||"",
+          parcelle_coordonnees_gps:landInfo.coordonnees_gps||"",
+        });
         if(repResult.data) Object.assign(values,{has_representant:true,representant_type:repResult.data.type_relation||"cotitulaire",
           representant_lien:repResult.data.lien_client||"",representant_civilite:repResult.data.civilite||"",
           representant_nom:repResult.data.nom||"",representant_prenoms:repResult.data.prenoms||"",
@@ -297,7 +335,14 @@ const NouvelleAcquisition = () => {
           if(code==="client_photo_profil") values.photo_profil_preview=doc.fichier_url||values.photo_profil_preview;
           else if(code==="client_piece_recto") values.photo_piece_recto_preview=doc.fichier_url||values.photo_piece_recto_preview;
           else if(code==="client_piece_verso") values.photo_piece_verso_preview=doc.fichier_url||values.photo_piece_verso_preview;
-          else if(doc.categorie==="contrat"||code.includes("contrat")){values["contrat_"+code+"_preview"]=doc.fichier_url||"";values["contrat_"+code+"_statut"]=doc.statut||"a_preparer";}
+          else if(doc.categorie==="contrat"||code.includes("contrat")){
+            const family=String(offer?.famille_offre||savedSnapshot.offer?.famille_offre||"").toUpperCase();
+            if(code==="contrat_signe_client"&&family==="PALMTERROIR") values.contrat_accompagnement_agricole_preview=doc.fichier_url||"";
+            else if(code==="contrat_signe_client"&&(family==="PALMINVEST"||family==="TERRAPALM")) values.contrat_contrat_acquisition_client_preview=doc.fichier_url||"";
+            else if(code==="contrat_signe_client") values.contrat_signe_client_preview=doc.fichier_url||"";
+            else values["contrat_"+code+"_preview"]=doc.fichier_url||"";
+            values["contrat_"+(code==="contrat_signe_client"?(family==="PALMTERROIR"?"accompagnement_agricole":family==="PALMINVEST"||family==="TERRAPALM"?"contrat_acquisition_client":"signe_client"):code)+"_statut"]=doc.statut||"a_preparer";
+          }
           else values["doc_"+code+"_preview"]=doc.fichier_url||"";
         }
         if(!active)return;
@@ -359,9 +404,16 @@ const NouvelleAcquisition = () => {
   useEffect(()=>{
     if(recordId){
       const savedSteps = Array.isArray(formData.offre_snapshot?.workflow?.steps) ? formData.offre_snapshot.workflow.steps : [];
+      const family = String(formData.offre_snapshot?.offer?.famille_offre || formData.famille_offre || "").toUpperCase();
       const configuredSteps = savedSteps
-        .filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()))
-        .map((item:any)=>({code:item.code,titre:item.titre,description:item.description,ordre:item.ordre,obligatoire:item.obligatoire}));
+        .filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()))
+        .map((item:any)=>({
+          code:item.code,
+          titre:item.code==="client" ? (family==="PALMTERROIR" ? "Informations du souscripteur" : "Informations de l’acquéreur")
+            : item.code==="documents" ? (family==="PALMTERROIR" ? "Contrat d’accompagnement agricole" : "Contrat d’acquisition et annexes")
+            : item.titre,
+          description:item.description,ordre:item.ordre,obligatoire:item.obligatoire
+        }));
       setSteps(configuredSteps);
       setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
       setLoadingSteps(false);
@@ -377,7 +429,7 @@ const NouvelleAcquisition = () => {
       if(error)toast({variant:"destructive",title:"Parcours indisponible",description:getSafeErrorMessage(error)});
       // Le foncier relève exclusivement de la première intervention technique, jamais du parcours commercial.
       // Filtrer aussi côté client protège contre une ancienne configuration ou un cache de configuration.
-      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete","documents"].includes(String(item.code).toLowerCase()));
+      const configuredSteps=(data||[]).filter((item:any)=>!["parcelle","enquete"].includes(String(item.code).toLowerCase()));
       setSteps(configuredSteps);
       setCurrent(v=>Math.min(v,Math.max(0,configuredSteps.length-1)));
       setLoadingSteps(false);
@@ -422,14 +474,16 @@ const NouvelleAcquisition = () => {
     if(step.code==="client"){
       const typePersonne=formData.type_personne||"personne_physique";
       const commonMissing=["telephone","domicile"].filter(f=>!formData[f]);
-      const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom","prenoms","date_naissance","lieu_naissance","nationalite","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
+      const physicalMissing=typePersonne==="personne_physique" ? ["civilite","nom","prenoms","date_naissance","lieu_naissance","nationalite","statut_marital","type_piece","numero_piece"].filter(f=>!formData[f]) : [];
       const organisationMissing=typePersonne==="personne_morale" ? ["denomination_sociale","nature_organisation_code","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const familyMissing=typePersonne==="famille_informelle" ? ["denomination_sociale","responsable_legal_nom","responsable_legal_prenoms"].filter(f=>!formData[f]) : [];
       const identityMissing=typePersonne==="personne_physique" && ((!formData.photo_piece_recto_file&&!formData.photo_piece_recto_preview)||(!formData.photo_piece_verso_file&&!formData.photo_piece_verso_preview)||(!formData.photo_profil_file&&!formData.photo_profil_preview));
-      const signedContractMissing=!formData.contrat_signe_client_file&&!formData.contrat_signe_client_preview;
-      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||signedContractMissing||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
-        const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing];
-        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : signedContractMissing ? "Veuillez joindre le contrat signé." : "Un groupe familial doit compter au moins deux membres.";
+      const offerFamily=String(formData.offre?.famille_offre||formData.offre_snapshot?.offer?.famille_offre||"").toUpperCase();
+      const clientLandRequired=offerFamily==="PALMTERROIR"||offerFamily==="TERRAPALM";
+      const parcelMissing=clientLandRequired ? ["parcelle_statut_foncier","parcelle_region_id","parcelle_departement_id","parcelle_sous_prefecture_id","parcelle_village_id"].filter(f=>!formData[f]) : [];
+      if(commonMissing.length||physicalMissing.length||organisationMissing.length||familyMissing.length||identityMissing||parcelMissing.length||(typePersonne==="famille_informelle"&&Number(formData.nombre_membres||0)<2)){
+        const missing=[...commonMissing,...physicalMissing,...organisationMissing,...familyMissing,...parcelMissing];
+        const reason=missing.length ? "Champs à compléter : "+missing.join(", ") : identityMissing ? "La photo du client et les deux faces de sa pièce d’identité sont obligatoires." : "Un groupe familial doit compter au moins deux membres.";
         toast({variant:"destructive",title:"Fiche client incomplète",description:reason}); return false;
       }
     }
@@ -441,6 +495,13 @@ const NouvelleAcquisition = () => {
       }
     }
     if(step.code==="documents"){
+      const requiredContract = requiredContractForOffer(formData);
+      const contractPresent = Boolean(formData[requiredContract.field + "_file"] || formData[requiredContract.field + "_preview"] ||
+        (requiredContract.field !== "contrat_signe_client" && (formData.contrat_signe_client_file || formData.contrat_signe_client_preview)));
+      if (!contractPresent) {
+        toast({variant:"destructive",title:"Contrat obligatoire manquant",description:"Veuillez joindre le " + requiredContract.label.toLowerCase() + " signé."});
+        return false;
+      }
       const docs = recordId
         ? (Array.isArray(formData.offre_snapshot?.workflow?.documents) ? formData.offre_snapshot.workflow.documents : [])
         : ((await (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id",formData.offre_id).eq("actif",true).order("ordre")).data || []);
@@ -565,7 +626,7 @@ const NouvelleAcquisition = () => {
       const ha=Number(formData.superficie_prevue);
       // The client contract workflow currently enforces the échéancier mode in the DB.
       const modePaiement = "echeancier" as const;
-      const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement});
+      const prix=calculPrixEffectif(offer,promotionActive?[promotionActive as any]:[],{modePaiement,superficieHa:ha});
       const total=Number(prix.montant_total_effectif||prix.montant_total_base||0)*ha;
       const paiementInitial=Number(prix.pi_effectif||0)*ha;
       const mensualite=Number(prix.mensualite_effective||0)*ha;
@@ -590,7 +651,9 @@ const NouvelleAcquisition = () => {
         whatsapp_indicatif:null,whatsapp_local:null,email:formData.email||null,
         domicile:formData.domicile||null,domicile_residence:formData.domicile||null,
         district_id:formData.district_id||null,region_id:formData.region_id||null,departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
-        localite:formData.domicile||null,montant_total_contrat:total,
+        localite:formData.domicile||null,
+        metadata:{...(formData.metadata||{}),informations_foncieres:buildLandInformation(formData,offer)},
+        montant_total_contrat:total,
         mode_paiement:modePaiement,paiement_initial_montant:paiementInitial,mensualite_montant:mensualite,
         montant_promo_applique:reduction,promotion_id:prix.promotion_id||null,
         famille_offre:offer.famille_offre||null,
@@ -602,12 +665,7 @@ const NouvelleAcquisition = () => {
       });
       if(clientError||!client)throw clientError||new Error("Client non créé");
 
-      const signedContractFile=recoverFile(formData.contrat_signe_client_file,formData.contrat_signe_client_preview,"contrat_signe_client");
-      if(!signedContractFile) throw new Error("Veuillez joindre le contrat signé.");
-      const signedContractUpload=await uploadFile("documents",signedContractFile,user.id+"/clients/"+client.id+"/contrats","contrat-signe-client");
-      if(!signedContractUpload?.path) throw new Error("Téléversement du contrat signé impossible.");
-      const {error:signedContractSaveError}=await offlineUpsert("documents_acquisition",{id:stableUuid(stableClientId,"contract:contrat_signe_client"),client_id:client.id,type_document:"contrat_signe_client",code_document:"contrat_signe_client",categorie:"contrat",obligatoire:true,source_contractuelle:"contrat_signe_client",fichier_url:signedContractUpload.path,statut:"signe",uploaded_by:currentUser.id,metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:"Contrat signé",storage_bucket:"documents"}});
-      if(signedContractSaveError) throw signedContractSaveError;
+
 
       // Le lien lead/prospect est finalisé APRÈS les médias et documents.
       // Ainsi un délai sur le lead ne coupe plus l'envoi des photos et ne laisse pas
@@ -719,6 +777,20 @@ const NouvelleAcquisition = () => {
       const {data:contracts,error:contractsError}=await (supabase as any).from("offre_formulaire_contrats").select("*").eq("offre_id",offer.id).eq("actif",true);
       if (contractsError) throw contractsError;
       if (!contracts) throw new Error("Impossible de vérifier les contrats requis pour cette offre.");
+      if (contracts.length === 0) {
+        const key = "contrat_signe_client";
+        const file = recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
+        if (!file) throw new Error("Veuillez joindre le contrat signé.");
+        const uploaded = await uploadFile("documents",file,user.id+"/clients/"+client.id+"/contrats","contrat-signe-client");
+        if (!uploaded?.path) throw new Error("Téléversement du contrat signé impossible.");
+        const {error:contractDocError}=await offlineUpsert("documents_acquisition",{
+          id:stableUuid(stableClientId,"contract:contrat_signe_client"),client_id:client.id,
+          type_document:key,code_document:key,categorie:"contrat",obligatoire:true,
+          source_contractuelle:key,fichier_url:uploaded.path,statut:"signe",uploaded_by:currentUser.id,
+          metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:"Contrat signé",storage_bucket:"documents"}
+        });
+        if(contractDocError) throw contractDocError;
+      }
       for(const contract of contracts){
         const key="contrat_"+contract.type_contrat;
         const file=recoverFile(formData[key+"_file"],formData[key+"_preview"],key);
@@ -731,9 +803,9 @@ const NouvelleAcquisition = () => {
           const {error:contractDocError}=await offlineUpsert("documents_acquisition",{
             id: stableUuid(stableClientId, "contract:"+contract.type_contrat),
             client_id:client.id,type_document:contract.type_contrat,code_document:contract.type_contrat,
-            categorie:"contrat",obligatoire:!!contract.obligatoire,source_contractuelle:contract.type_contrat,
+            categorie:"contrat",obligatoire:!!contract.obligatoire,source_contractuelle:contract.source_document||contract.type_contrat,
             fichier_url:uploaded.path,statut:"en_attente",uploaded_by:user.id,
-            metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:contract.nom||contract.libelle||contract.type_contrat,storage_bucket:"documents"}
+            metadata:{offre_id:offer.id,parcours_code:offer.parcours_code||offer.code,nom_contrat:contract.type_contrat==="accompagnement_agricole"?"Contrat d’accompagnement agricole":contract.type_contrat==="contrat_acquisition_client"?"Contrat d’acquisition":contract.type_contrat,source_document:contract.source_document||null,storage_bucket:"documents"}
           });
           if(contractDocError)throw contractDocError;
         }
@@ -803,7 +875,7 @@ const NouvelleAcquisition = () => {
         nom:displayName,
         prenoms:formData.prenoms||formData.responsable_legal_prenoms||"",nom_complet:organisationOrFamily?displayName:[formData.nom,formData.prenoms].filter(Boolean).join(" ").trim(),
         civilite:formData.civilite||null,date_naissance:formData.date_naissance||null,lieu_naissance:formData.lieu_naissance||null,
-        nationalite:formData.nationalite||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,
+        nationalite:formData.nationalite||null,statut_marital:formData.statut_marital||null,type_piece:formData.type_piece||null,numero_piece:formData.numero_piece||null,
         date_delivrance_piece:formData.date_delivrance_piece||null,telephone:formData.telephone||"",
         telephone_indicatif:formData.telephone_indicatif||null,telephone_local:formData.telephone_local||null,
         telephone_secondaire:formData.telephone_secondaire||null,telephone_secondaire_indicatif:formData.telephone_secondaire_indicatif||null,
@@ -811,7 +883,9 @@ const NouvelleAcquisition = () => {
         telephone_secondaire_whatsapp:!!formData.telephone_secondaire_whatsapp,
         whatsapp:formData.telephone_principal_whatsapp?formData.telephone:formData.telephone_secondaire_whatsapp?(formData.telephone_secondaire||null):null,
         email:formData.email||null,domicile:formData.domicile||formData.domicile_residence||null,
-        domicile_residence:formData.domicile||formData.domicile_residence||null,district_id:formData.district_id||null,region_id:formData.region_id||null,
+        domicile_residence:formData.domicile||formData.domicile_residence||null,
+        metadata:{...(existingRecord.client.metadata||{}),informations_foncieres:buildLandInformation(formData,offer)},
+        district_id:formData.district_id||null,region_id:formData.region_id||null,
         departement_id:formData.departement_id||null,sous_prefecture_id:formData.sous_prefecture_id||null,village_id:formData.village_id||null,
          contrat_acquisition_statut:formData.contrat_contrat_acquisition_client_statut||existingRecord.client.contrat_acquisition_statut||"a_preparer",
          contrat_accompagnement_statut:formData.contrat_accompagnement_agricole_statut||existingRecord.client.contrat_accompagnement_statut||"a_preparer",

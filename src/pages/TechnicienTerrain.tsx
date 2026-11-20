@@ -59,6 +59,7 @@ const TechnicienTerrain=()=>{
   const [profileName,setProfileName]=useState("");
   const [conventions,setConventions]=useState<any[]>([]);
   const [lots,setLots]=useState<any[]>([]);
+  const [assignedLots,setAssignedLots]=useState<any[]>([]);
   const [localisationMode,setLocalisationMode]=useState<"automatic"|"manual">("automatic");
   const [loading,setLoading]=useState(true);
   const [activeTab,setActiveTab]=useState("rapport");
@@ -76,8 +77,8 @@ const TechnicienTerrain=()=>{
   const [media,setMedia]=useState<File[]>([]);
   const [existingReportMedia,setExistingReportMedia]=useState<any[]>([]);
   const [intervention,setIntervention]=useState<any>({
-    plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"defrichage",date_intervention:new Date().toISOString().slice(0,10),
-    observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",
+    plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:"validation_parcelle",date_intervention:new Date().toISOString().slice(0,10),
+    observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",
     nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""
   });
 
@@ -108,9 +109,9 @@ const TechnicienTerrain=()=>{
       const formattedTechnicianName=technicianNameParts.length>1?`${givenNames.map(titleCase).join(" ")} ${surname.toLocaleUpperCase("fr-FR")}`:titleCase(rawTechnicianName);
       setProfileName(formattedTechnicianName);
       const results=await Promise.all([
-        (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,client_id,parcelle_id,acquisition_id,statut_global,prochaine_visite,date_plantation,nombre_plants_prevus,nombre_plants_mis_en_terre,densite_plants,densite_cible,parcelles:parcelles(plantation_densite_plants)").order("nom_plantation"),
+        (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,superficie_activee,surface_reellement_plantee,client_id,parcelle_id,acquisition_id,statut_global,prochaine_visite,date_plantation,nombre_plants_prevus,nombre_plants_mis_en_terre,densite_plants,densite_cible,parcelles:parcelles(plantation_densite_plants)").order("nom_plantation"),
         (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,proprietaire_id,district_id,region_id,departement_id,sous_prefecture_id,localite,is_internal,type_client_foncier").order("nom_complet"),
-        (supabase as any).from("acquisitions").select("id,client_id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,necessite_foncier_client,superficie_ha,parcelle_id,lot_id,statut,statut_technique,montant_pi_total,montant_total_contrat,parcelle:parcelles(plantation_densite_plants)").order("created_at",{ascending:false}),
+        (supabase as any).from("acquisitions").select("id,client_id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,necessite_foncier_client,superficie_ha,parcelle_id,lot_id,statut,statut_technique,montant_pi_total,montant_total_contrat,metadata,parcelle:parcelles(plantation_densite_plants)").order("created_at",{ascending:false}),
         (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
         (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
         (supabase as any).from("interventions_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").order("date_intervention",{ascending:false}).limit(100),
@@ -144,6 +145,9 @@ const TechnicienTerrain=()=>{
   const interventionClient=useMemo(()=>clients.find(c=>c.id===intervention.client_id)||null,[clients,intervention.client_id]);
   const interventionPlantation=useMemo(()=>plantations.find(p=>p.id===intervention.plantation_id)||null,[plantations,intervention.plantation_id]);
   const interventionAcquisition=useMemo(()=>clientAcquisitions.find((s:any)=>s.id===intervention.acquisition_id)||null,[clientAcquisitions,intervention.acquisition_id]);
+  const acquisitionLotOptions=useMemo(()=>[...new Map([...assignedLots,...lots].filter((lot:any)=>lot?.id).map((lot:any)=>[lot.id,lot])).values()],[assignedLots,lots]);
+  const acquisitionAllocatedSurface=useMemo(()=>assignedLots.reduce((sum:number,lot:any)=>sum+Number(lot.acquisition_surface_ha??lot.surface_ha??0),0),[assignedLots]);
+  const acquisitionPlantedSurface=useMemo(()=>plantations.filter((p:any)=>p.acquisition_id===interventionAcquisition?.id).reduce((sum:number,p:any)=>sum+Number(p.surface_reellement_plantee??p.superficie_activee??0),0),[plantations,interventionAcquisition?.id]);
   const pendingClientAcquisitions=useMemo(()=>clientAcquisitions.filter((s:any)=>s.client_id===intervention.client_id&&s.statut_technique!=="mise_en_terre_realisee"),[clientAcquisitions,intervention.client_id]);
   const interventionOwnerClient=interventionClient || clients.find((c:any)=>c.id===interventionPlantation?.client_id) || null;
   const clientOffer=offerConfigs.find((o:any)=>o.id===(interventionAcquisition?.offre_id||interventionOwnerClient?.offre_id))
@@ -158,6 +162,67 @@ const TechnicienTerrain=()=>{
     ? !!interventionAcquisition.necessite_foncier_client
     : pendingClientAcquisitions.length>0 ? false
     : Boolean(clientOffer?.necessite_foncier_client===true);
+  const familyForClientAndParcel=(clientId?:string|null,parcelId?:string|null)=>{
+    const direct=clients.find((item:any)=>item.id===clientId);
+    const directFamily=String(direct?.famille_offre||direct?.formule_code||direct?.offre_code||"").toUpperCase();
+    if(directFamily)return directFamily;
+    if(!parcelId)return "";
+    const sibling=plantations
+      .filter((item:any)=>item.parcelle_id===parcelId&&item.client_id&&item.client_id!==clientId)
+      .map((item:any)=>clients.find((client:any)=>client.id===item.client_id))
+      .find((client:any)=>String(client?.famille_offre||client?.formule_code||client?.offre_code||"").trim());
+    return String(sibling?.famille_offre||sibling?.formule_code||sibling?.offre_code||"").toUpperCase();
+  };
+  const selectedPreparationFamily=String(
+    interventionAcquisition?.famille_offre||interventionAcquisition?.formule_code||
+    interventionOwnerClient?.famille_offre||interventionOwnerClient?.formule_code||
+    clientOffer?.famille_offre||clientOffer?.code||
+    familyForClientAndParcel(intervention.client_id,intervention.parcelle_id||interventionPlantation?.parcelle_id||interventionAcquisition?.parcelle_id)
+  ).toUpperCase();
+  const managedLandPreparation=selectedPreparationFamily.startsWith("PALMINVEST")||selectedPreparationFamily.startsWith("TERRAPALM");
+  const visibleStageRefs=useMemo(
+    ()=>stageRefs.filter((stage:any)=>!["defrichage","nettoyage"].includes(String(stage.code||""))||managedLandPreparation),
+    [stageRefs,managedLandPreparation]
+  );
+  useEffect(()=>{
+    if(visibleStageRefs.length&&!visibleStageRefs.some((stage:any)=>stage.code===intervention.type_intervention)){
+      setIntervention((current:any)=>({...current,type_intervention:visibleStageRefs[0].code}));
+    }
+  },[visibleStageRefs,intervention.type_intervention]);
+  const visibleInterventions=useMemo(()=>interventions.filter((item:any)=>{
+    if(!["defrichage","nettoyage"].includes(String(item.type_intervention||"")))return true;
+    const plantationRow=plantations.find((pl:any)=>pl.id===item.plantation_id);
+    const family=familyForClientAndParcel(item.client_id||plantationRow?.client_id,item.parcelle_id||plantationRow?.parcelle_id);
+    return family.startsWith("PALMINVEST")||family.startsWith("TERRAPALM");
+  }),[interventions,plantations,clients]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    if(!interventionAcquisition?.id){setAssignedLots([]);return;}
+    setAssignedLots([]);
+    (async()=>{
+      const {data,error}=await (supabase as any).from("acquisition_lots")
+        .select("id,lot_id,surface_ha,lot:lots_hectares(id,reference,numero_h,surface_ha,parcelle_id,convention_id,statut,client_id,acquisition_id)")
+        .eq("acquisition_id",interventionAcquisition.id)
+        .eq("client_id",interventionAcquisition.client_id);
+      if(error){if(!cancelled)setAssignedLots([]);return;}
+      const rows=(data||[]).map((row:any)=>row.lot?{...row.lot,acquisition_surface_ha:row.surface_ha,allocation_id:row.id}:null).filter(Boolean);
+      if(!cancelled){
+        setAssignedLots(rows);
+        const primary=rows.find((lot:any)=>lot.id===interventionAcquisition.lot_id);
+        if(primary)setIntervention((current:any)=>({...current,parcelle_id:current.parcelle_id||primary.parcelle_id||"",convention_id:current.convention_id||primary.convention_id||"",lot_id:current.lot_id||primary.id}));
+      }
+    })();
+    return ()=>{cancelled=true;};
+  },[interventionAcquisition?.id]);
+
+  useEffect(()=>{
+    const assigned=assignedLots.find((lot:any)=>lot.id===intervention.lot_id);
+    if(!assigned)return;
+    setIntervention((current:any)=>current.parcelle_id===assigned.parcelle_id&&current.convention_id===(assigned.convention_id||"")?current:{
+      ...current,parcelle_id:assigned.parcelle_id||"",convention_id:assigned.convention_id||""
+    });
+  },[assignedLots,intervention.lot_id]);
 
   useEffect(()=>{
     if(!interventionClient)return;
@@ -195,6 +260,7 @@ const TechnicienTerrain=()=>{
         .eq("parcelle_id",intervention.parcelle_id)
         .eq("statut","disponible")
         .is("client_id",null)
+        .is("acquisition_id",null)
         .order("numero_h");
       setLots(data||[]);
     })();
@@ -212,7 +278,7 @@ const TechnicienTerrain=()=>{
     return Boolean(offer && offer.necessite_foncier_client===false);
   },[plantation,offerConfigs]);
   // Le référentiel technique est partagé avec le Portail : on affiche toujours toutes les étapes actives, dans l'ordre du référentiel.
-  const applicableStages=stageRefs;
+  const applicableStages=visibleStageRefs;
 
   const captureReportPosition=()=>{
     if(!navigator.geolocation){
@@ -362,7 +428,7 @@ const TechnicienTerrain=()=>{
   const resetInterventionForm=()=>{
     setEditingInterventionId("");
     setInterventionEditEnabled(false);
-    setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"defrichage",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
+    setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:visibleStageRefs[0]?.code||"validation_parcelle",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
   };
 
   const editIntervention=(item:any)=>{
@@ -373,13 +439,14 @@ const TechnicienTerrain=()=>{
       acquisition_id:item.acquisition_id||"",parcelle_id:item.parcelle_id||"",convention_id:item.convention_id||"",lot_id:item.lot_id||"",
       localisation_gps_lat:item.localisation_gps_lat==null?"":String(item.localisation_gps_lat),
       localisation_gps_lng:item.localisation_gps_lng==null?"":String(item.localisation_gps_lng),
-      type_intervention:item.type_intervention||stageRefs[0]?.code||"defrichage",
+      type_intervention:item.type_intervention||visibleStageRefs[0]?.code||"validation_parcelle",
       date_intervention:item.date_intervention?String(item.date_intervention).slice(0,10):new Date().toISOString().slice(0,10),
       observations:item.observations||"",recommandations:item.recommandations||"",contenu_client:item.contenu_client||"",
       statut:item.statut||"brouillon",nombre_plants_prevus:item.nombre_plants_prevus==null?"":String(item.nombre_plants_prevus),
       nombre_plants_realises:item.nombre_plants_realises==null?"":String(item.nombre_plants_realises),
       nombre_plants_remplaces:item.nombre_plants_remplaces==null?"":String(item.nombre_plants_remplaces),
       densite_plants:item.densite_plants==null?"":String(item.densite_plants),
+      surface_reellement_plantee_ha:item.surface_reellement_plantee_ha==null?"":String(item.surface_reellement_plantee_ha),
       nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""
     });
     setActiveTab("intervention");
@@ -404,13 +471,14 @@ const TechnicienTerrain=()=>{
 
   const saveIntervention=async()=>{
     const interventionPlantation=plantations.find(p=>p.id===intervention.plantation_id);
+    const selectedAcquisitionLot=acquisitionLotOptions.find((lot:any)=>lot.id===intervention.lot_id);
     const targetClientId=intervention.client_id||interventionPlantation?.client_id||null;
     let targetParcelleId=interventionAcquisition
-      ? (intervention.parcelle_id||interventionAcquisition.parcelle_id||null)
+      ? (selectedAcquisitionLot?.parcelle_id||intervention.parcelle_id||interventionAcquisition.parcelle_id||null)
       : technicalPalmInvest
         ? (intervention.parcelle_id||interventionPlantation?.parcelle_id||null)
         : (intervention.parcelle_id||interventionClient?.parcelle_id||interventionPlantation?.parcelle_id||null);
-    const isPrePlantationStage=["defrichage","piquetage","trouaison","mise_en_terre"].includes(intervention.type_intervention);
+    const isPrePlantationStage=["validation_parcelle","defrichage","nettoyage","piquetage","trouaison","mise_en_terre"].includes(intervention.type_intervention);
     if(isPrePlantationStage && pendingClientAcquisitions.length>0 && !interventionAcquisition){
       toast({variant:"destructive",title:"Acquisition requise",description:"Choisissez la acquisition exacte à implanter afin de conserver sa formule, sa superficie et son échéancier."});return;
     }
@@ -420,7 +488,7 @@ const TechnicienTerrain=()=>{
     if(!targetClientId){toast({variant:"destructive",title:"Client / dossier requis",description:"Sélectionnez le Client ou dossier concerné."});return;}
     if(!targetParcelleId && !technicalPalmInvest && (!intervention.nouvelle_parcelle_nom?.trim() || Number(intervention.nouvelle_parcelle_surface)<=0 || !intervention.nouvelle_parcelle_village?.trim())){toast({variant:"destructive",title:"Identification de la parcelle requise",description:"Lors de la première visite, renseignez le nom, la superficie et le village de la parcelle appartenant au Client."});return;}
     if(technicalPalmInvest && !interventionAcquisition && (!intervention.convention_id || !intervention.lot_id)){toast({variant:"destructive",title:"Lot requis",description:"Sélectionnez une parcelle puis un lot disponible avant de commencer le suivi technique."});return;}
-    if(technicalPalmInvest && interventionAcquisition && !interventionAcquisition.lot_id){toast({variant:"destructive",title:"Lot de acquisition absent",description:"Cette acquisition partenaire doit être rattachée à un lot disponible avant l’intervention."});return;}
+    if(technicalPalmInvest && interventionAcquisition && !intervention.lot_id){toast({variant:"destructive",title:"Lot requis",description:"Choisissez le lot de la parcelle sur laquelle cette intervention sera réalisée."});return;}
     if(!isPrePlantationStage && !intervention.plantation_id){toast({variant:"destructive",title:"Plantation requise",description:"Cette étape intervient après la création de la plantation."});return;}
     const technicalContext={...interventionPlantation,client:interventionClient,date_plantation:interventionPlantation?.date_plantation};
     // Même référentiel que le Portail : toutes les étapes actives sont disponibles dans l'ordre défini en base.
@@ -429,6 +497,47 @@ const TechnicienTerrain=()=>{
     setSaving(true);
     try{
       const profile=await profileContext(); if(!profile?.id)throw new Error("Profil technicien introuvable");
+      if(technicalPalmInvest && interventionAcquisition){
+        const selectedLotId=intervention.lot_id||interventionAcquisition.lot_id;
+        const {data:existingAllocation,error:allocationReadError}=await (supabase as any).from("acquisition_lots")
+          .select("id,surface_ha").eq("acquisition_id",interventionAcquisition.id).eq("client_id",targetClientId).eq("lot_id",selectedLotId).maybeSingle();
+        if(allocationReadError)throw allocationReadError;
+        const {data:lotRow,error:lotReadError}=await (supabase as any).from("lots_hectares")
+          .select("id,reference,surface_ha,surface_attribuee_ha,surface_disponible_ha,client_id,parcelle_id,convention_id,statut,acquisition_id,part_type")
+          .eq("id",selectedLotId).maybeSingle();
+        if(lotReadError)throw lotReadError;
+        if(!lotRow)throw new Error("Le lot sélectionné est introuvable.");
+        targetParcelleId=lotRow.parcelle_id;
+        if(existingAllocation){
+          if(lotRow.client_id!==targetClientId||lotRow.acquisition_id!==interventionAcquisition.id){
+            throw new Error("Le rattachement du lot à cette acquisition est incohérent. Vérifiez le foncier avant de poursuivre.");
+          }
+        }else{
+          if(lotRow.client_id||lotRow.acquisition_id||lotRow.statut!=="disponible"||lotRow.convention_id!==intervention.convention_id){
+            throw new Error("Le lot n'est plus disponible dans la convention et la parcelle sélectionnées.");
+          }
+          const requestedSurface=Number(lotRow.surface_ha||1);
+          const {data:allocationTotals,error:allocationTotalsError}=await (supabase as any).from("acquisition_lots")
+            .select("surface_ha").eq("acquisition_id",interventionAcquisition.id).eq("client_id",targetClientId);
+          if(allocationTotalsError)throw allocationTotalsError;
+          const alreadyAllocated=(allocationTotals||[]).reduce((sum:number,row:any)=>sum+Number(row.surface_ha||0),0);
+          const contractSurface=Number(interventionAcquisition.superficie_ha||0);
+          if(alreadyAllocated+requestedSurface>contractSurface+0.000001){
+            throw new Error(`Cette affectation dépasserait le contrat de ${contractSurface} ha. Il reste ${Math.max(0,contractSurface-alreadyAllocated).toLocaleString("fr-FR")} ha à affecter.`);
+          }
+          if(String(interventionAcquisition.famille_offre||interventionAcquisition.offre_code||"").toUpperCase().includes("PALMINVEST")&&Math.abs(requestedSurface-1)>0.000001){
+            throw new Error("Chaque lot PalmInvest doit représenter exactement 1 ha.");
+          }
+          const {data:allocationResult,error:allocationError}=await (supabase as any).rpc("allocate_acquisition_lot",{
+            p_acquisition_id:interventionAcquisition.id,
+            p_lot_id:selectedLotId,
+            p_surface_ha:requestedSurface,
+            p_notes:"Affectation foncière progressive depuis le suivi technique."
+          });
+          if(allocationError)throw allocationError;
+          if(!allocationResult?.allocation_id)throw new Error("L'affectation foncière n'a pas été confirmée par le serveur.");
+        }
+      }
       if(editingInterventionId){
         const original=interventions.find((item:any)=>item.id===editingInterventionId);
         if(!original)throw new Error("Intervention introuvable ou hors de votre périmètre.");
@@ -436,7 +545,7 @@ const TechnicienTerrain=()=>{
         const updatePayload={
           client_id:targetClientId,parcelle_id:targetParcelleId,plantation_id:intervention.plantation_id||null,
           acquisition_id:intervention.acquisition_id||null,convention_id:intervention.convention_id||null,
-          lot_id:interventionAcquisition?.lot_id||intervention.lot_id||null,
+          lot_id:intervention.lot_id||interventionAcquisition?.lot_id||null,
           type_intervention:intervention.type_intervention,observations:intervention.observations||null,
           recommandations:intervention.recommandations||null,contenu_client:intervention.contenu_client||null,
           statut:original.statut||intervention.statut,
@@ -444,6 +553,7 @@ const TechnicienTerrain=()=>{
           nombre_plants_realises:intervention.nombre_plants_realises?Number(intervention.nombre_plants_realises):null,
           nombre_plants_remplaces:intervention.nombre_plants_remplaces?Number(intervention.nombre_plants_remplaces):null,
           densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null,
+          surface_reellement_plantee_ha:intervention.surface_reellement_plantee_ha?Number(intervention.surface_reellement_plantee_ha):null,
           updated_at:new Date().toISOString()
         };
         // Keep the original date and assigned technician unchanged when editing.
@@ -484,15 +594,7 @@ const TechnicienTerrain=()=>{
           const {error:clientParcelError}=await offlineUpdate("clients",targetClientId,{parcelle_id:targetParcelleId,updated_at:new Date().toISOString()});
           if(clientParcelError)throw clientParcelError;
         }
-        if(interventionAcquisition){
-          const {data:lotRow,error:lotReadError}=await (supabase as any).from("lots_hectares")
-            .select("id,client_id,parcelle_id,convention_id,statut,acquisition_id")
-            .eq("id",interventionAcquisition.lot_id).maybeSingle();
-          if(lotReadError)throw lotReadError;
-          if(!lotRow || lotRow.client_id!==targetClientId || lotRow.parcelle_id!==targetParcelleId || lotRow.acquisition_id!==interventionAcquisition.id){
-            throw new Error("Le lot n’est plus rattaché à cette acquisition. Actualisez les données avant de poursuivre.");
-          }
-        } else {
+        if(!interventionAcquisition){
           const {data:lotRow,error:lotReadError}=await (supabase as any).from("lots_hectares").select("id,client_id,parcelle_id,convention_id,statut").eq("id",intervention.lot_id).maybeSingle();
           if(lotReadError)throw lotReadError;
           if(!lotRow||lotRow.parcelle_id!==targetParcelleId||lotRow.convention_id!==intervention.convention_id||lotRow.client_id){throw new Error("Le lot sélectionné n'est plus disponible pour cette parcelle.");}
@@ -510,16 +612,17 @@ const TechnicienTerrain=()=>{
       const payload={...interventionFields,contenu_client:intervention.contenu_client||null,id:crypto.randomUUID(),agent_technique_id:profile.id,
         client_id:targetClientId,parcelle_id:targetParcelleId,plantation_id:intervention.plantation_id||null,
         acquisition_id:intervention.acquisition_id||null,
-        convention_id:intervention.convention_id||null,lot_id:interventionAcquisition?.lot_id||intervention.lot_id||null,
+        convention_id:intervention.convention_id||null,lot_id:intervention.lot_id||interventionAcquisition?.lot_id||null,
         nombre_plants_prevus:intervention.nombre_plants_prevus?Number(intervention.nombre_plants_prevus):null,
         nombre_plants_realises:intervention.nombre_plants_realises?Number(intervention.nombre_plants_realises):null,
         nombre_plants_remplaces:intervention.nombre_plants_remplaces?Number(intervention.nombre_plants_remplaces):null,
-        densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null
+        densite_plants:intervention.densite_plants?Number(intervention.densite_plants):null,
+        surface_reellement_plantee_ha:intervention.surface_reellement_plantee_ha?Number(intervention.surface_reellement_plantee_ha):null
       };
       const {error}=await offlineInsert("interventions_techniques",payload);
       if(error)throw error;
       toast({title:intervention.type_intervention==="mise_en_terre"&&intervention.statut==="realisee"?"Mise en terre validée":"Intervention enregistrée",description:intervention.type_intervention==="mise_en_terre"&&intervention.statut==="realisee"?"Intervention technique enregistrée.":undefined});
-      setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:stageRefs[0]?.code||"",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
+      setIntervention({plantation_id:"",client_id:"",acquisition_id:"",parcelle_id:"",convention_id:"",lot_id:"",localisation_gps_lat:"",localisation_gps_lng:"",type_intervention:visibleStageRefs[0]?.code||"validation_parcelle",date_intervention:new Date().toISOString().slice(0,10),observations:"",recommandations:"",contenu_client:"",statut:"planifiee",nombre_plants_prevus:"",nombre_plants_realises:"",nombre_plants_remplaces:"",densite_plants:"",surface_reellement_plantee_ha:"",nouvelle_parcelle_nom:"",nouvelle_parcelle_surface:"",nouvelle_parcelle_village:""});
       load();
     }catch(e:any){toast({variant:"destructive",title:"Enregistrement impossible",description:e?.message||"Erreur inconnue"});}
     finally{setSaving(false);}
@@ -585,13 +688,18 @@ const TechnicienTerrain=()=>{
           <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4"><div><Label className="mb-0 block text-xs leading-4">Prochaine intervention</Label><Input className="h-7 min-h-0 px-2 py-0 text-xs" type="date" value={report.prochaine_intervention} onChange={e=>setReport((x:any)=>({...x,prochaine_intervention:e.target.value}))}/></div><div><Label className="mb-0 block text-xs leading-4">Latitude</Label><Input className="h-7 min-h-0 px-2 py-0 text-xs" type="number" step="any" value={report.localisation_gps_lat} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lat:e.target.value}))}/></div><div><Label className="mb-0 block text-xs leading-4">Longitude</Label><Input className="h-7 min-h-0 px-2 py-0 text-xs" type="number" step="any" value={report.localisation_gps_lng} onChange={e=>setReport((x:any)=>({...x,localisation_gps_lng:e.target.value}))}/></div><div className="flex items-end"><Button type="button" variant="outline" className="w-full" disabled={capturingReportPosition} onClick={captureReportPosition}>{capturingReportPosition?"Localisation…":"Capturer la position GPS"}</Button></div></div>
           <div className="rounded-lg border p-2"><p className="mb-2 text-xs font-medium text-muted-foreground">Position du rapport — cliquer sur la carte pour ajuster</p><InteractiveMap mode="pick" position={report.localisation_gps_lat&&report.localisation_gps_lng?[Number(report.localisation_gps_lat),Number(report.localisation_gps_lng)]:null} onPositionChange={(lat,lng)=>setReport((current:any)=>({...current,localisation_gps_lat:String(lat),localisation_gps_lng:String(lng)}))} height="220px"/></div>
           <div><MediaUploadVisual label="Photos / vidéos" files={media} onChange={setMedia} existingMedia={existingReportMedia}/></div>
+          {intervention.type_intervention==="mise_en_terre" && <div className="rounded-xl border bg-muted/20 p-3 space-y-1">
+            <Label className="mb-0 block text-xs leading-4">Surface réellement plantée pendant cette intervention (ha)</Label>
+            <Input className="h-7 min-h-0 px-2 py-0 text-xs max-w-xs" type="number" min="0.01" step="0.01" value={intervention.surface_reellement_plantee_ha||""} onChange={e=>setIntervention((x:any)=>({...x,surface_reellement_plantee_ha:e.target.value}))} placeholder="Facultatif — calculée avec les plants réalisés / densité"/>
+            <p className="text-[10px] text-muted-foreground">Si ce champ reste vide, AgriCapital calcule la surface à partir du nombre de plants effectivement mis en terre et de la densité. Le cumul est suivi par lot et par parcelle.</p>
+          </div>}
           </fieldset><div className="flex flex-wrap justify-end gap-2">{editingReportId&&!reportEditEnabled&&(manager||reports.find((item:any)=>item.id===editingReportId)?.agent_technique_id===profileId)&&<Button size="sm" onClick={()=>setReportEditEnabled(true)}><Pencil className="mr-1 h-4 w-4"/>Modifier</Button>}{editingReportId&&<Button size="sm" variant="outline" onClick={()=>{setEditingReportId("");setReportEditEnabled(false);setReport({ticket_id:"",plantation_id:"",date_visite:new Date().toISOString().slice(0,16),type_visite:"suivi",constat:"",travaux_realises:"",etat_plantation:"",etat_plantation_autre:"",observations:"",recommandations:"",contenu_client:"",prochaine_intervention:"",localisation_gps_lat:"",localisation_gps_lng:""});setActiveTab("rapport");}}>Fermer</Button>}{!editingReportId&&<><Button variant="outline" disabled={saving} onClick={()=>saveReport(false)}>Enregistrer brouillon</Button><Button disabled={saving} onClick={()=>saveReport(true)}>Soumettre le rapport</Button></>}{editingReportId&&reportEditEnabled&&<><Button variant="outline" disabled={saving} onClick={()=>saveReport(false)}>Enregistrer</Button>{reports.find((r:any)=>r.id===editingReportId)?.statut==="brouillon"&&<Button disabled={saving} onClick={()=>saveReport(true)}>Soumettre</Button>}</>}</div>
         </CardContent></Card></DialogContent></Dialog>}
       </TabsContent>
 
       <TabsContent value="intervention" className="space-y-3">
         <div className="flex flex-wrap justify-end gap-2">{allowed&&<Button onClick={()=>setShowInterventionForm(true)}><Plus className="mr-2 h-4 w-4"/>Nouvelle intervention</Button>}</div>
-        {(!editingInterventionId&&!showInterventionForm)&&<Card><CardHeader className="px-3 py-2"><CardTitle className="text-base">Interventions techniques</CardTitle></CardHeader><CardContent className="p-0"><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="p-2 text-left">Date</th><th className="p-2 text-left">Plantation</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Technicien</th><th className="p-2 text-right">Action</th></tr></thead><tbody>{interventions.length===0?<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucune intervention.</td></tr>:interventions.map((i:any)=><tr key={i.id} role="button" tabIndex={0} onClick={()=>editIntervention(i)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();editIntervention(i);}}} className="cursor-pointer border-b last:border-0 hover:bg-muted/50"><td className="whitespace-nowrap p-2">{i.date_intervention?new Date(i.date_intervention).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{i.plantation?.nom_plantation||i.plantation?.id_unique||"—"}</td><td className="p-2">{i.type_intervention||"—"}</td><td className="p-2">{i.agent?.nom_complet||"—"}</td><td className="p-2 text-right"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();editIntervention(i);}}>Ouvrir</Button></td></tr>)}</tbody></table></div></CardContent></Card>}
+        {(!editingInterventionId&&!showInterventionForm)&&<Card><CardHeader className="px-3 py-2"><CardTitle className="text-base">Interventions techniques</CardTitle></CardHeader><CardContent className="p-0"><div className="w-full overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="p-2 text-left">Date</th><th className="p-2 text-left">Plantation</th><th className="p-2 text-left">Type</th><th className="p-2 text-left">Technicien</th><th className="p-2 text-right">Action</th></tr></thead><tbody>{visibleInterventions.length===0?<tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Aucune intervention.</td></tr>:visibleInterventions.map((i:any)=><tr key={i.id} role="button" tabIndex={0} onClick={()=>editIntervention(i)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();editIntervention(i);}}} className="cursor-pointer border-b last:border-0 hover:bg-muted/50"><td className="whitespace-nowrap p-2">{i.date_intervention?new Date(i.date_intervention).toLocaleDateString("fr-FR"):"—"}</td><td className="p-2">{i.plantation?.nom_plantation||i.plantation?.id_unique||"—"}</td><td className="p-2">{i.type_intervention||"—"}</td><td className="p-2">{i.agent?.nom_complet||"—"}</td><td className="p-2 text-right"><Button size="sm" variant="outline" onClick={e=>{e.stopPropagation();editIntervention(i);}}>Ouvrir</Button></td></tr>)}</tbody></table></div></CardContent></Card>}
 
         {(Boolean(editingInterventionId)||showInterventionForm)&&<Dialog open={Boolean(editingInterventionId)||showInterventionForm} onOpenChange={open=>{if(!open){setShowInterventionForm(false);setEditingInterventionId("");}}}><DialogContent className="max-h-[92dvh] max-w-5xl overflow-y-auto"><Card><CardHeader><div className="flex items-center justify-between gap-2"><CardTitle>{editingInterventionId?"Consultation de l’intervention":"Intervention technique"}</CardTitle>{!editingInterventionId&&<Button type="button" variant="outline" size="sm" onClick={()=>setShowInterventionForm(false)}>Fermer</Button>}</div></CardHeader><CardContent className="space-y-2 p-3 sm:p-4"><fieldset disabled={Boolean(editingInterventionId)&&!interventionEditEnabled} className="space-y-2">
           <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -602,13 +710,21 @@ const TechnicienTerrain=()=>{
             <div><Label className="mb-0 block text-xs leading-4">Date *</Label><Input className="h-7 min-h-0 px-2 py-0 text-xs" type="date" value={intervention.date_intervention} disabled={Boolean(editingInterventionId)} onChange={e=>setIntervention((x:any)=>({...x,date_intervention:e.target.value}))}/>{editingInterventionId&&<p className="mt-1 text-xs text-muted-foreground">Date d’origine verrouillée</p>}</div>
           </div>
           {!technicalPalmInvest && (!pendingClientAcquisitions.length || !!interventionAcquisition) && !intervention.parcelle_id && !interventionPlantation?.parcelle_id && intervention.client_id && <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-4"><div><h3 className="font-semibold">Identification foncière — première visite</h3></div><div className="grid grid-cols-1 gap-2 sm:grid-cols-3"><div><Label className="mb-0 block text-xs leading-4">Nom / référence de la parcelle *</Label><Input className="h-7 min-h-0 px-2 py-0 text-xs" value={intervention.nouvelle_parcelle_nom||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_nom:e.target.value}))} placeholder="Nom ou référence terrain"/></div><div><Label className="mb-0 block text-xs leading-4">Superficie (ha) *</Label><Input className="h-7 min-h-0 px-2 py-0 text-xs" type="number" min="0.1" step="0.1" value={intervention.nouvelle_parcelle_surface||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_surface:e.target.value}))}/></div><div><Label className="mb-0 block text-xs leading-4">Village / localité *</Label><Input className="h-7 min-h-0 px-2 py-0 text-xs" value={intervention.nouvelle_parcelle_village||""} onChange={e=>setIntervention((x:any)=>({...x,nouvelle_parcelle_village:e.target.value}))}/></div></div></div>}
-          {technicalPalmInvest && interventionAcquisition && <div className="rounded-xl border p-4 text-sm"><p className="font-semibold">Lot partenaire déjà réservé pour cette acquisition</p><p className="text-muted-foreground mt-1">{interventionAcquisition.formule_nom} · {Number(interventionAcquisition.superficie_ha||0)} ha · {interventionAcquisition.lot_id}</p></div>}
+          {technicalPalmInvest && interventionAcquisition && <div className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border p-3 sm:grid-cols-2">
+            <div className="sm:col-span-2 text-xs text-muted-foreground">
+              <p className="font-semibold text-foreground">{interventionAcquisition.formule_nom||interventionAcquisition.offre_nom} · Contrat {Number(interventionAcquisition.superficie_ha||0)} ha</p>
+              <p>Foncier affecté : {acquisitionAllocatedSurface.toLocaleString("fr-FR")} ha · Planté : {acquisitionPlantedSurface.toLocaleString("fr-FR")} ha · Reste à affecter : {Math.max(0,Number(interventionAcquisition.superficie_ha||0)-acquisitionAllocatedSurface).toLocaleString("fr-FR")} ha</p>
+              <p>Vous pouvez rattacher progressivement d'autres lots issus de conventions et parcelles différentes.</p>
+            </div>
+            <div><Label className="mb-0 block text-xs leading-4">Convention foncière active *</Label><Select value={intervention.convention_id||""} onValueChange={v=>{const conv=conventions.find((item:any)=>item.id===v);setIntervention((x:any)=>({...x,convention_id:v,lot_id:"",parcelle_id:conv?.parcelle_id||""}));}}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Choisir une convention / parcelle"/></SelectTrigger><SelectContent>{conventions.filter((c:any)=>c.statut==="active").map(c=><SelectItem key={c.id} value={c.id}>{c.reference||"Convention"} — {c.proprietaire?.nom_complet||"Propriétaire non renseigné"}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="mb-0 block text-xs leading-4">Lot attribué ou disponible *</Label><Select value={intervention.lot_id||""} onValueChange={v=>{const lot=acquisitionLotOptions.find((item:any)=>item.id===v);setIntervention((x:any)=>({...x,lot_id:v,parcelle_id:lot?.parcelle_id||"",convention_id:lot?.convention_id||x.convention_id||""}));}} disabled={!intervention.convention_id&&!assignedLots.length}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Sélectionner un lot"/></SelectTrigger><SelectContent>{acquisitionLotOptions.map((lot:any)=><SelectItem key={lot.id} value={lot.id}>{lot.reference||("H"+String(lot.numero_h).padStart(2,"0"))} — {lot.surface_ha} ha {lot.acquisition_id===interventionAcquisition.id?"(déjà affecté)":"(disponible)"}</SelectItem>)}</SelectContent></Select></div>
+          </div>}
            {technicalPalmInvest&&!interventionAcquisition&&<div className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border p-3 sm:grid-cols-2">
             <div><Label className="mb-0 block text-xs leading-4">Convention foncière active *</Label><Select value={intervention.convention_id||""} onValueChange={v=>{const conv=conventions.find((item:any)=>item.id===v);setIntervention((x:any)=>({...x,convention_id:v,lot_id:"",parcelle_id:conv?.parcelle_id||""}));}}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Sélectionner une convention"/></SelectTrigger><SelectContent>{conventions.map(c=><SelectItem key={c.id} value={c.id}>{c.reference} — {c.proprietaire?.nom_complet||"Propriétaire non renseigné"}</SelectItem>)}</SelectContent></Select></div>
             <div><Label className="mb-0 block text-xs leading-4">Lot disponible *</Label><Select value={intervention.lot_id||""} onValueChange={v=>{const lot=lots.find(l=>l.id===v);setIntervention((x:any)=>({...x,lot_id:v,parcelle_id:lot?.parcelle_id||""}));}} disabled={!intervention.convention_id}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue placeholder="Sélectionner un lot"/></SelectTrigger><SelectContent>{lots.map(l=><SelectItem key={l.id} value={l.id}>{l.reference||("H"+String(l.numero_h).padStart(2,"0"))} — {l.surface_ha} ha</SelectItem>)}</SelectContent></Select></div>
           </div>}
           <div className="grid md:grid-cols-2 gap-4">
-            <div><Label className="mb-0 block text-xs leading-4">Étape technique</Label><Select value={intervention.type_intervention} onValueChange={v=>setIntervention((x:any)=>({...x,type_intervention:v}))}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue/></SelectTrigger><SelectContent>{stageRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label className="mb-0 block text-xs leading-4">Étape technique</Label><Select value={intervention.type_intervention} onValueChange={v=>setIntervention((x:any)=>({...x,type_intervention:v}))}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue/></SelectTrigger><SelectContent>{visibleStageRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
             <div><Label className="mb-0 block text-xs leading-4">Statut</Label><Select value={intervention.statut} onValueChange={v=>setIntervention((x:any)=>({...x,statut:v}))}><SelectTrigger className="h-7 min-h-0 px-2 py-0 text-xs"><SelectValue/></SelectTrigger><SelectContent>{interventionStatusRefs.map((x:any)=><SelectItem key={x.code} value={x.code}>{x.libelle}</SelectItem>)}</SelectContent></Select></div>
           </div>
           <div className="rounded-xl border p-4 space-y-4">

@@ -114,14 +114,49 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
             </>
           )}
 
-          {showSignedContract && (
+          {showSignedContract && (contracts.length > 0 ? (
+            <div className="space-y-4">
+              {contracts.map((contract: any) => {
+                const field = "contrat_" + contract.type_contrat;
+                const label = contract.type_contrat === "accompagnement_agricole"
+                  ? "Contrat d’accompagnement agricole"
+                  : contract.type_contrat === "contrat_acquisition_client"
+                    ? "Contrat d’acquisition"
+                    : String(contract.type_contrat || "Contrat").replace(/_/g, " ");
+                return (
+                  <Card key={contract.id || contract.type_contrat}>
+                    <CardHeader>
+                      <CardTitle>{label}</CardTitle>
+                      {contract.source_document && (
+                        <div className="text-xs text-muted-foreground">
+                          <span>Modèle de référence : {contract.source_document}</span>
+                          <a className="ml-2 text-primary underline" href={`https://github.com/AgriCapital-Web/CRM/blob/main/${contract.source_document}`} target="_blank" rel="noreferrer">Consulter le modèle</a>
+                        </div>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <FileUploadVisual
+                        label={contract.obligatoire ? "Contrat signé *" : "Contrat signé"}
+                        field={field}
+                        accept=".pdf,image/*"
+                        required={Boolean(contract.obligatoire)}
+                        currentFile={formData[field + "_file"] || null}
+                        currentPreview={formData[field + "_preview"] || ""}
+                        onFileChange={(name,file,preview)=>updateFormData({[field + "_file"]:file,[field + "_preview"]:preview})}
+                      />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
             <Card>
               <CardHeader><CardTitle>Contrat signé</CardTitle></CardHeader>
               <CardContent>
                 <FileUploadVisual label="Contrat signé *" field="contrat_signe_client" accept=".pdf,image/*" required currentFile={formData.contrat_signe_client_file||null} currentPreview={formData.contrat_signe_client_preview||""} onFileChange={(field,file,preview)=>updateFormData({contrat_signe_client_file:file,contrat_signe_client_preview:preview})}/>
               </CardContent>
             </Card>
-          )}
+          ))}
         </CardContent>
       </Card>
     </div>

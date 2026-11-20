@@ -50,7 +50,7 @@ const applyFormulaConfig = (offer: any, formula: any) => {
 };
 
 export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, surfaceReadOnly = false, contractReadOnly = false, allowPromotions = true }: Etape0Props) => {
-  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code, !contractReadOnly && allowPromotions);
+  const { data: promotionActive } = usePromotionActive(formData.offre_id, formData.formule_code, !contractReadOnly && allowPromotions, Number(formData.superficie_prevue || 0));
   const [loadingCommercialDefault, setLoadingCommercialDefault] = useState(false);
 
   useEffect(() => {
@@ -91,6 +91,9 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
         code: snapshotOffer.code || formData.offre_code || "", nom: snapshotOffer.nom || formData.formule_nom || "Offre enregistrée",
         formules_configuration: Array.isArray(snapshotOffer.formules_configuration) ? snapshotOffer.formules_configuration : [] } as Offre] : [])
     : (catalogueOffres || []);
+  const selectedOfferForForm: any = offres.find((item:any) => item.id === formData.offre_id) || snapshotOffer;
+  const offerFamilyForForm = String(selectedOfferForForm?.famille_offre || "").toUpperCase();
+  const superficieLabel = offerFamilyForForm === "PALMTERROIR" ? "Superficie nette de la parcelle" : "Superficie contractuelle";
   const isLoading = !contractReadOnly && catalogueLoading;
 
   const familles = useMemo(() => {
@@ -185,7 +188,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
     const o = offre as any;
     const tranches = Array.isArray(o.tranches_paiement) ? o.tranches_paiement : [];
     const pricingMode = "echeancier";
-    const prix = calculPrixEffectif(o, promotionActive ? [promotionActive as any] : [], { modePaiement: pricingMode });
+    const prix = calculPrixEffectif(o, promotionActive ? [promotionActive as any] : [], { modePaiement: pricingMode, superficieHa: ha });
 
     // Use the real fields returned by calculPrixEffectif; old keys silently displayed PI as 0.
     const piUnitaireBase = Number(prix.pi_base || 0);
@@ -352,12 +355,12 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
 
       <Card>
         <CardHeader>
-          <CardTitle>Superficie prévue</CardTitle>
+          <CardTitle>{superficieLabel}</CardTitle>
           
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="superficie_prevue">Superficie (hectares) *</Label>
+            <Label htmlFor="superficie_prevue">{superficieLabel} (hectares) *</Label>
             <Input
               id="superficie_prevue"
               type="number"
@@ -386,7 +389,7 @@ export const Etape0Offre = ({ formData, updateFormData, showCommercial = true, s
                   </div>
                 ))}
               </div>}
-              {calculs.promotionAppliquee && <div className="flex items-center gap-1 text-xs text-amber-600"><Sparkles className="h-3 w-3" /><span>Promo -{calculs.promoReduction}% appliquée sur {calculs.promoCible}</span></div>}
+              {calculs.promotionAppliquee && <div className="flex items-center gap-1 text-xs text-amber-600"><Sparkles className="h-3 w-3" /><span>Promotion : {promotionActive?.nom || promotionActive?.libelle || formData.offre_snapshot?.contract?.promotion_nom || "Promotion appliquée"} · -{calculs.promoReduction}% sur {calculs.promoCible || "le montant contractuel"}</span></div>}
             </div>
           )}
         </CardContent>
