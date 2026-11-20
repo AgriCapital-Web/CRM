@@ -318,5 +318,5 @@ function IntelligenceContent({ embedded = false }: { embedded?: boolean }) {
 }
 
 export default function AgriCapitalIntelligence({ embedded = false }: { embedded?: boolean }) {
-  return <ProtectedRoute><IntelligenceContent embedded={embedded} /></ProtectedRoute>;
+  return <ProtectedRoute requiredPermission={embedded ? undefined : "decision_center.view"}><IntelligenceContent embedded={embedded} /></ProtectedRoute>;
 }
