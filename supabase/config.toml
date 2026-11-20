@@ -1,1 +1,4 @@
 project_id = "rfzfsmpsuempafhkqhra"
+
+[functions.reset-client-access-code]
+verify_jwt = false
