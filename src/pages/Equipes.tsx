@@ -39,7 +39,6 @@ const highestVisibleRole = (roles: string[] = [], roleCatalog: { code: string; n
 const Equipes = () => {
   const [equipes, setEquipes] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
-  const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingForm, setSavingForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,33 +73,37 @@ const Equipes = () => {
 
   const fetchData = async () => {
     try {
-      const [{ data: equipesData, error }, { data: regionsData }, { data: profilesData }, { data: membershipData, error: membershipError }] = await Promise.all([
-        (supabase as any).from("equipes").select(`*, responsable:profiles!equipes_responsable_id_fkey(nom_complet, telephone), region:regions(nom)`).order("created_at", { ascending: false }),
-        (supabase as any).from("v_geo_regions").select("id,nom").eq("est_active_effectif",true).order("nom"),
-        (supabase as any).from("profiles").select("id, nom_complet, user_id, actif, relation_rh, type_compte").eq("actif", true).order("nom_complet"),
-        (supabase as any).from("equipe_membres").select("equipe_id, profile_id, profile:profiles!equipe_membres_profile_id_fkey(actif)"),
+      const [
+        { data: equipesData, error },
+        { data: regionsData },
+        { data: countsData, error: countsError },
+        { data: commercialLeaders, error: commercialError },
+        { data: technicalLeaders, error: technicalError },
+      ] = await Promise.all([
+        (supabase as any).from("equipes").select("*, region:regions(nom)").order("created_at", { ascending: false }),
+        (supabase as any).from("v_geo_regions").select("id,nom").eq("est_active_effectif", true).order("nom"),
+        (supabase as any).rpc("get_team_member_counts"),
+        (supabase as any).rpc("get_team_responsible_candidates", { p_team_type: "commercial" }),
+        (supabase as any).rpc("get_team_responsible_candidates", { p_team_type: "technique" }),
       ]);
       if (error) throw error;
-      if (membershipError) throw membershipError;
-      const memberCounts = new Map<string, Set<string>>();
-      (membershipData || []).forEach((m: any) => {
-        if (m.profile?.actif === false) return;
-        const current = memberCounts.get(m.equipe_id) || new Set<string>();
-        current.add(m.profile_id);
-        memberCounts.set(m.equipe_id, current);
+      if (countsError) throw countsError;
+      if (commercialError) throw commercialError;
+      if (technicalError) throw technicalError;
+
+      const memberCounts = new Map<string, number>();
+      (countsData || []).forEach((row: any) => memberCounts.set(row.equipe_id, Number(row.effectif) || 0));
+      const responsibleById = new Map<string, any>();
+      [...(commercialLeaders || []), ...(technicalLeaders || [])].forEach((person: any) => {
+        responsibleById.set(person.id, person);
       });
-      setEquipes((equipesData || []).map((team: any) => ({ ...team, effectif: memberCounts.get(team.id)?.size || 0 })));
+
+      setEquipes((equipesData || []).map((team: any) => ({
+        ...team,
+        responsable: team.responsable_id ? responsibleById.get(team.responsable_id) || null : null,
+        effectif: memberCounts.get(team.id) || 0,
+      })));
       setRegions(regionsData || []);
-      const baseProfiles = ((profilesData || []) as any[]).filter((profile) => profile.type_compte !== "client_portail" && profile.relation_rh !== "Client portail");
-      const userIds = baseProfiles.map((p: any) => p.user_id).filter(Boolean);
-      let rolesRows: any[] = [];
-      if (userIds.length) {
-        const { data: rr } = await (supabase as any).from("user_roles").select("user_id, role").in("user_id", userIds);
-        rolesRows = rr || [];
-      }
-      const roleMap: Record<string,string[]> = {};
-      rolesRows.forEach((r: any) => { (roleMap[r.user_id] ||= []).push(r.role); });
-      setProfiles(baseProfiles.map((p: any) => ({ ...p, roles: roleMap[p.user_id] || [] })));
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
     } finally {
@@ -129,21 +132,15 @@ const Equipes = () => {
 
   const fetchMembers = async (equipe: any) => {
     setMembersEquipe(equipe);
-    const { data: membershipRows, error: membershipError } = await (supabase as any)
-      .from("equipe_membres")
-      .select("profile_id, profile:profiles!equipe_membres_profile_id_fkey(id, nom_complet, telephone, user_id, actif)")
-      .eq("equipe_id", equipe.id);
-    if (membershipError) throw membershipError;
-    const teamMembers = (membershipRows || []).map((row: any) => row.profile).filter((p: any) => p?.actif);
-
-    const memberIds = (teamMembers || []).map((m:any) => m.user_id).filter(Boolean);
-    const { data: memberRoles } = memberIds.length
-      ? await (supabase as any).from("user_roles").select("user_id, role").in("user_id", memberIds)
-      : { data: [] };
-
-    const memberRoleMap: Record<string,string[]> = {};
-    (memberRoles || []).forEach((r:any) => { (memberRoleMap[r.user_id] ||= []).push(r.role); });
-    setMembers((teamMembers || []).map((m:any) => ({ ...m, roles: memberRoleMap[m.user_id] || [] })));
+    const { data: teamMembers, error: membersError } = await (supabase as any).rpc(
+      "get_team_member_details",
+      { p_equipe_id: equipe.id },
+    );
+    if (membersError) throw membersError;
+    setMembers((teamMembers || []).map((member: any) => ({
+      ...member,
+      roles: Array.isArray(member.roles) ? member.roles : [],
+    })));
 
     const { data: available, error: availableError } = await (supabase as any).rpc(
       "get_available_team_members",
