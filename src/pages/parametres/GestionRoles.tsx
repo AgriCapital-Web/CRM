@@ -156,67 +156,19 @@ const GestionRoles = () => {
     try {
       const profile = profiles.find((p) => p.id === selectedProfile);
       if (!profile) throw new Error("Personnel introuvable");
-      const existingRole = profile.user_id
-        ? userRoles.find((ur) => ur.user_id === profile.user_id && ur.role === selectedRole)
-        : null;
-      const currentPrimary = profile.user_id
-        ? userRoles.find((ur) => ur.user_id === profile.user_id && ur.is_primary === true) || null
-        : null;
-      if (selectedPrimaryRole && currentPrimary && currentPrimary.role !== selectedRole) {
-        throw new Error("Décochez d’abord le rôle principal actuel avant d’en définir un autre.");
-      }
-      if (existingRole) {
-        if (!selectedPrimaryRole && existingRole.is_primary) {
-          const { error: unsetError } = await (supabase as any).from("user_roles")
-            .update({ is_primary: false }).eq("user_id", profile.user_id).eq("role", selectedRole);
-          if (unsetError) throw unsetError;
-          const { data: verifiedUnset, error: verifyUnsetError } = await (supabase as any)
-            .from("user_roles").select("is_primary").eq("user_id", profile.user_id).eq("role", selectedRole).maybeSingle();
-          if (verifyUnsetError) throw verifyUnsetError;
-          if (verifiedUnset?.is_primary !== false) throw new Error("Le retrait du rôle principal n’a pas été confirmé.");
-          await logAdminAction({ action: "ROLE_PRINCIPAL_RETIRE", entite: "user_roles", cible_user_id: profile.user_id,
-            cible_libelle: profile.nom_complet, nouvelle_valeur: { role: selectedRole, is_primary: false } });
-          toast({ title: "Rôle principal décoché", description: "Vous pouvez maintenant choisir un autre rôle principal." });
-          setAssignDialogOpen(false); setSelectedProfile(""); setSelectedRole(""); setSelectedPrimaryRole(true);
-          await fetchData();
-          return;
-        }
-        if (!selectedPrimaryRole) {
-          toast({ variant: "destructive", title: "Rôle déjà attribué", description: "Ce rôle est déjà assigné à cet utilisateur." });
-          return;
-        }
-        // Autoriser à promouvoir un rôle déjà attribué au rang principal.
-        const { error: clearError } = await (supabase as any)
-          .from("user_roles").update({ is_primary: false }).eq("user_id", profile.user_id).eq("is_primary", true);
-        if (clearError) throw clearError;
-        const { error: promoteError } = await (supabase as any)
-          .from("user_roles").update({ is_primary: true }).eq("user_id", profile.user_id).eq("role", selectedRole);
-        if (promoteError) throw promoteError;
-        const { data: verified, error: verifyError } = await (supabase as any)
-          .from("user_roles").select("role,is_primary").eq("user_id", profile.user_id).eq("role", selectedRole).maybeSingle();
-        if (verifyError) throw verifyError;
-        if (verified?.is_primary !== true) throw new Error("Le rôle principal n'a pas été enregistré. Veuillez réessayer.");
-        await logAdminAction({
-          action: "ROLE_PRINCIPAL_MODIFIE",
-          entite: "user_roles",
-          cible_user_id: profile.user_id,
-          cible_libelle: profile.nom_complet,
-          nouvelle_valeur: { role: selectedRole, is_primary: true },
-        });
-        toast({ title: "Rôle principal modifié", description: `${roles.find((r) => r.code === selectedRole)?.nom || selectedRole} est maintenant le rôle principal.` });
-        setAssignDialogOpen(false);
-        setSelectedProfile("");
-        setSelectedRole("");
-        setSelectedPrimaryRole(true);
-        await fetchData();
-        return;
-      }
 
-      let uid = profile.user_id;
+      const existingRows = profile.user_id
+        ? userRoles.filter((ur) => ur.user_id === profile.user_id)
+        : [];
+      const existingCodes = existingRows.map((ur) => ur.role);
+      const currentPrimary = existingRows.find((ur) => ur.is_primary === true) || null;
+      let uid = profile.user_id as string | null;
+
       if (!uid) {
         const tempPassword = crypto.randomUUID().replace(/-/g, "").slice(0, 16) + "Aa!";
-        const { data: created, error: createError } = await supabase.functions.invoke("create-user", {
+        const { data: created, error: createError } = await supabase.functions.invoke("admin-manage-user", {
           body: {
+            action: "create_user",
             username: profile.username || String(profile.email || "").split("@")[0],
             email: profile.email,
             password: tempPassword,
@@ -229,56 +181,81 @@ const GestionRoles = () => {
             whatsapp_local: profile.whatsapp_local || null,
             departement: profile.departement || null,
             relation_rh: profile.relation_rh || null,
-            taux_commission: profile.taux_commission || null,
             district_id: profile.district_id || null,
             region_id: profile.region_id || null,
             equipe_id: profile.equipe_id || null,
             photo_url: profile.photo_url || null,
             roles: [selectedRole],
-            primary_role: selectedPrimaryRole ? selectedRole : null,
+            primary_role: selectedRole,
           },
         });
-        if (createError || !created?.success) throw new Error(created?.error || createError?.message || "Création du compte impossible");
-        uid = created.user_id;
-      } else {
-        if (selectedPrimaryRole) {
-          const { error: clearPrimaryError } = await (supabase as any).from("user_roles").update({ is_primary: false }).eq("user_id", uid);
-          if (clearPrimaryError) throw clearPrimaryError;
+        if (createError || !created?.success) {
+          throw new Error(created?.error || createError?.message || "Création du compte impossible");
         }
-        const { error } = await (supabase as any).from("user_roles").insert({ user_id: uid, role: selectedRole, is_primary: selectedPrimaryRole });
-        if (error) throw error;
+        uid = created.user_id;
+        await logAdminAction({
+          action: "ATTRIBUTION_ROLE",
+          entite: "user_roles",
+          cible_user_id: uid,
+          cible_libelle: profile.nom_complet,
+          nouvelle_valeur: { roles: [selectedRole], primary_role: selectedRole },
+        });
+        toast({
+          title: "Compte créé et rôle attribué",
+          description: created.temp_password
+            ? `Mot de passe provisoire : ${created.temp_password}`
+            : "Le compte utilisateur a été créé.",
+          duration: 15000,
+        });
+      } else {
+        let nextRoles = [...existingCodes];
+        let primaryRole = currentPrimary?.role || selectedRole;
+        if (existingCodes.includes(selectedRole)) {
+          if (selectedPrimaryRole) {
+            primaryRole = selectedRole;
+          } else {
+            const alternativePrimary = existingCodes.find((role) => role !== selectedRole);
+            if (!alternativePrimary) {
+              throw new Error("Un compte doit conserver un rôle principal. Attribuez d’abord un autre rôle.");
+            }
+            primaryRole = existingRole?.role === selectedRole ? alternativePrimary : primaryRole;
+          }
+        } else {
+          nextRoles = [...nextRoles, selectedRole];
+          primaryRole = selectedPrimaryRole ? selectedRole : (currentPrimary?.role || selectedRole);
+        }
+
+        const { data: updated, error: updateError } = await supabase.functions.invoke("admin-manage-user", {
+          body: {
+            action: "set_roles",
+            user_id: uid,
+            roles: nextRoles,
+            primary_role: primaryRole,
+          },
+        });
+        if (updateError || !updated?.success) {
+          throw new Error(updated?.error || updateError?.message || "Mise à jour des rôles impossible");
+        }
+
+        await logAdminAction({
+          action: "ATTRIBUTION_ROLE",
+          entite: "user_roles",
+          cible_user_id: uid,
+          cible_libelle: profile.nom_complet,
+          ancienne_valeur: { roles: existingCodes, primary_role: currentPrimary?.role || null },
+          nouvelle_valeur: { roles: nextRoles, primary_role: primaryRole },
+        });
+        toast({
+          title: "Rôles mis à jour",
+          description: `Rôle principal : ${roles.find((r) => r.code === primaryRole)?.nom || primaryRole}.`,
+        });
       }
 
-      if (selectedPrimaryRole && !profile.user_id) {
-        const { error: primaryError } = await (supabase as any).from("user_roles").update({ is_primary: false }).eq("user_id", uid);
-        if (primaryError) throw primaryError;
-        const { error: setPrimaryError } = await (supabase as any).from("user_roles").update({ is_primary: true }).eq("user_id", uid).eq("role", selectedRole);
-        if (setPrimaryError) throw setPrimaryError;
-      }
-
-      const { data: verifiedRole, error: verifyRoleError } = await (supabase as any)
-        .from("user_roles").select("role,is_primary").eq("user_id", uid).eq("role", selectedRole).maybeSingle();
-      if (verifyRoleError) throw verifyRoleError;
-      if (!verifiedRole || Boolean(verifiedRole.is_primary) !== selectedPrimaryRole) {
-        throw new Error(selectedPrimaryRole
-          ? "Le rôle a été attribué, mais le système n'a pas confirmé son statut de rôle principal."
-          : "Le rôle a été attribué, mais son statut secondaire n'a pas été confirmé.");
-      }
-
-      await logAdminAction({
-        action: "ATTRIBUTION_ROLE",
-        entite: "user_roles",
-        cible_user_id: uid,
-        cible_libelle: profiles.find((p) => p.id === selectedProfile)?.nom_complet,
-        nouvelle_valeur: { role: selectedRole, is_primary: selectedPrimaryRole },
-      });
-
-      toast({ title: "Succès", description: "Rôle assigné" });
       setAssignDialogOpen(false);
       setSelectedProfile("");
       setSelectedRole("");
       setSelectedPrimaryRole(true);
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       console.error("[GestionRoles] attribution du rôle impossible", error);
       toast({
@@ -295,25 +272,37 @@ const GestionRoles = () => {
     if (!userRoleToRemove) return;
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("user_roles").delete().eq("id", userRoleToRemove.id);
-      if (error) throw error;
-      if (userRoleToRemove.is_primary) {
-        const { data: remainingRoles, error: remainingError } = await (supabase as any).from("user_roles").select("id").eq("user_id", userRoleToRemove.user_id).order("created_at", { ascending: true }).limit(1);
-        if (remainingError) throw remainingError;
-        if (remainingRoles?.[0]?.id) {
-          const { error: primaryError } = await (supabase as any).from("user_roles").update({ is_primary: true }).eq("id", remainingRoles[0].id);
-          if (primaryError) throw primaryError;
-        }
+      const remainingRoles = userRoles
+        .filter((role) => role.user_id === userRoleToRemove.user_id && role.role !== userRoleToRemove.role)
+        .map((role) => role.role);
+      if (remainingRoles.length === 0) {
+        throw new Error("Un compte doit conserver au moins un rôle. Utilisez la gestion des utilisateurs pour désactiver le compte si nécessaire.");
       }
+      const currentPrimary = userRoles.find((role) => role.user_id === userRoleToRemove.user_id && role.is_primary === true);
+      const primaryRole = userRoleToRemove.is_primary
+        ? remainingRoles[0]
+        : (currentPrimary?.role && remainingRoles.includes(currentPrimary.role) ? currentPrimary.role : remainingRoles[0]);
+
+      const { data: updated, error } = await supabase.functions.invoke("admin-manage-user", {
+        body: {
+          action: "set_roles",
+          user_id: userRoleToRemove.user_id,
+          roles: remainingRoles,
+          primary_role: primaryRole,
+        },
+      });
+      if (error || !updated?.success) throw new Error(updated?.error || error?.message || "Retrait du rôle impossible");
+
       await logAdminAction({
         action: "RETRAIT_ROLE",
         entite: "user_roles",
         cible_user_id: userRoleToRemove.user_id,
-        ancienne_valeur: { role: userRoleToRemove.role },
+        ancienne_valeur: { role: userRoleToRemove.role, is_primary: userRoleToRemove.is_primary },
+        nouvelle_valeur: { roles: remainingRoles, primary_role: primaryRole },
       });
       toast({ title: "Succès", description: "Rôle retiré" });
       setUserRoleToRemove(null);
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       console.error("[GestionRoles] retrait du rôle impossible", error);
       toast({
