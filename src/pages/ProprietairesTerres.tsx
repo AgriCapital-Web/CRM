@@ -893,7 +893,7 @@ const ProprietairesTerres = () => {
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-2">
                                   <Badge variant="outline">Annexe {Number(annexe.label.match(/^Annexe (\d+)/)?.[1] || index + 1)}</Badge>
-                                  <span>{annexe.label.replace(/^Annexe \d+ — /, "")}</span>
+                                  <span>{annexe.label.replace(/^Annexe \d+ — /, "")}{annexe.obligatoire ? " *" : ""}</span>
                                 </div>
                                 <div className="flex items-center gap-4">
                                   <Label className="flex items-center gap-2 text-xs font-normal">
