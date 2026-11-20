@@ -77,10 +77,12 @@ const GestionRoles = () => {
   const permissionGroups = useMemo(() => {
     // Défense contre les lignes personnalisées incomplètes en base : une seule
     // permission mal formée ne doit jamais faire planter toute la page Rôles.
-    const custom = (Array.isArray(customPermissions) ? customPermissions : [])
-      .filter((p) => p && p.actif !== false && typeof p.code === "string" && !PERMISSION_CODES.includes(p.code) && typeof p.module === "string" && typeof p.action === "string" && typeof p.libelle === "string")
+    const activeRows = Array.isArray(customPermissions) ? customPermissions.filter((p) => p && p.actif !== false && typeof p.code === "string") : [];
+    const activeCodes = new Set(activeRows.map((p) => p.code));
+    const custom = activeRows
+      .filter((p) => !PERMISSION_CODES.includes(p.code) && typeof p.module === "string" && typeof p.action === "string" && typeof p.libelle === "string")
       .map((p) => ({ code: p.code, module: p.module, action: p.action, libelle: p.libelle }));
-    const all: PermissionDef[] = [...PERMISSION_CATALOG, ...custom];
+    const all: PermissionDef[] = [...PERMISSION_CATALOG.filter((permission) => activeCodes.has(permission.code)), ...custom];
     return all.reduce<Record<string, PermissionDef[]>>((acc, permission) => {
       if (!permission || !permission.module || !permission.code) return acc;
       (acc[permission.module] ||= []).push(permission);
