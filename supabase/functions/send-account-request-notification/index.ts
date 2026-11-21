@@ -14,9 +14,9 @@ const escapeHtml = (value: unknown): string =>
 
 const formatPersonName = (lastName?: string | null, givenNames?: string | null) => {
   const surname = String(lastName || "").trim();
-  const given = String(givenNames || "").trim().split(/\\s+/).filter(Boolean).pop() || "";
+  const given = String(givenNames || "").trim().split(/\s+/).filter(Boolean).pop() || "";
   const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
-    .replace(/(^|[\\s’'-])(\\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
   if (given && surname) return `${titleCase(given)} ${surname.toLocaleUpperCase("fr-FR")}`;
   return given ? titleCase(given) : surname ? surname.toLocaleUpperCase("fr-FR") : "Utilisateur";
 };
