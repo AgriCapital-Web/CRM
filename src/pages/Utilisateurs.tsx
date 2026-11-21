@@ -326,7 +326,7 @@ const Utilisateurs = () => {
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Shield className="h-6 w-6 shrink-0 text-primary sm:h-7 sm:w-7" />
           <div>
-            <h1 className="text-lg font-bold leading-tight sm:text-2xl">Gestion des Utilisateurs</h1>
+            <h1 className="text-lg font-bold leading-tight sm:text-2xl">Gestion des utilisateurs</h1>
             <p className="text-xs text-muted-foreground sm:text-sm">{totalUsers} utilisateur(s)</p>
           </div>
         </div>
@@ -335,11 +335,11 @@ const Utilisateurs = () => {
             <Button
               onClick={() => setSelectedUser(null)}
               className="h-9 w-9 shrink-0 p-0 sm:h-9 sm:w-auto sm:px-3"
-              title="Nouvel Utilisateur"
-              aria-label="Nouvel Utilisateur"
+              title="Nouvel utilisateur"
+              aria-label="Nouvel utilisateur"
             >
               <Plus className="h-5 w-5 sm:mr-2" />
-              <span className="hidden sm:inline">Nouvel Utilisateur</span>
+              <span className="hidden sm:inline">Nouvel utilisateur</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="w-[calc(100vw-0.75rem)] max-w-5xl max-h-[96dvh] overflow-y-auto p-3 sm:p-4">
@@ -363,7 +363,7 @@ const Utilisateurs = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Liste des Utilisateurs</CardTitle>
+          <CardTitle>Liste des utilisateurs</CardTitle>
           <div className="flex items-center gap-2 mt-4">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
@@ -379,8 +379,8 @@ const Utilisateurs = () => {
           <Table className="responsive-data-table">
             <TableHeader>
               <TableRow>
-                <TableHead>Nom Complet</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Nom complet</TableHead>
+                <TableHead>E-mail</TableHead>
                 <TableHead>Téléphone</TableHead>
                 <TableHead>Rôle principal</TableHead>
                 <TableHead>Statut</TableHead>
@@ -486,7 +486,7 @@ const Utilisateurs = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Nom</span><p className="font-medium">{formatUserShortName(viewUser.nom_complet || "—")}</p></div>
-                <div><span className="text-muted-foreground">Email</span><p className="font-medium break-all">{viewUser.email || "—"}</p></div>
+                <div><span className="text-muted-foreground">E-mail</span><p className="font-medium break-all">{viewUser.email || "—"}</p></div>
                 <div><span className="text-muted-foreground">Téléphone</span><p><ContactLauncher phone={viewUser.telephone} email={viewUser.email} name={viewUser.full_name || viewUser.nom_complet || viewUser.email || "Utilisateur"} kind="staff" status={viewUser.statut || viewUser.status || ""}/></p></div>
                 <div><span className="text-muted-foreground">Relation RH</span><p>{viewUser.relation_rh || "—"}</p></div>
                 <div><span className="text-muted-foreground">Département</span><p>{viewUser.departement || "—"}</p></div>
