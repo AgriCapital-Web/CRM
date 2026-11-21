@@ -655,10 +655,10 @@ const ClientDetail = () => {
                 Retour
               </Button>
               {clientMedia.photo ? (
-                <img src={clientMedia.photo} alt={client.nom_complet || "Photo du Client"} className="h-14 w-14 shrink-0 rounded-full border object-cover sm:h-16 sm:w-16" />
+                <img src={clientMedia.photo} alt={formatStructuredPersonName(client.nom, client.prenoms)} className="h-14 w-14 shrink-0 rounded-full border object-cover sm:h-16 sm:w-16" />
               ) : (
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold sm:h-16 sm:w-16">
-                  {String(client.nom_complet || "C").trim().charAt(0).toUpperCase()}
+                  {formatStructuredPersonName(client.nom, client.prenoms).trim().charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
