@@ -45,7 +45,9 @@ const Dashboard = () => {
   const { can, capabilities } = usePermissions();
   const profilePhotoUrl = useSignedUrl("photos-profils", profile?.photo_url);
 
-  const isClientOnly = capabilities.clientOnly;
+  // Les comptes PDG/DG ne doivent jamais être redirigés vers le tableau de bord client.
+  const isExecutive = userRoles.some((role) => role === "pdg" || role === "dg");
+  const isClientOnly = capabilities.clientOnly && !isExecutive;
   const canDashboardExecutiveFinance = can("finance.view");
   const canCommercialTeamPerformance = can("parametres.manage_teams");
   const canTechnicalTeamPerformance = can("parametres.manage_teams");
