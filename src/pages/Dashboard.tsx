@@ -962,7 +962,10 @@ const Dashboard = () => {
 
               {((canClients && recentClients.length > 0) || (canPayments && recentPayments.length > 0)) && (
               <div className="rounded-xl border border-orange-500/50 p-2.5 sm:p-3">
-                <h3 className="mb-2 text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
+                  <Input value={recentClientsQuery} onChange={e=>{setRecentClientsQuery(e.target.value);setRecentPaymentsQuery(e.target.value);}} placeholder="Rechercher un client ou un paiement" className="h-9 w-full sm:max-w-xs"/>
+                </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {canClients && recentClients.length > 0 && (
                   <Card>
@@ -986,7 +989,7 @@ const Dashboard = () => {
 
                 {canPayments && recentPayments.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle><Input value={recentPaymentsQuery} onChange={e=>setRecentPaymentsQuery(e.target.value)} placeholder="Rechercher un paiement" className="h-9 w-full sm:max-w-xs"/></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><CardTitle className="flex items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
                         <Table searchable={false} exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Client</TableHead><TableHead className="h-8 px-2 py-1.5">Montant</TableHead><TableHead className="h-8 px-2 py-1.5">Mode</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
