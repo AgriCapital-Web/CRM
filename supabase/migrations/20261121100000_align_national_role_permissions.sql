@@ -308,3 +308,26 @@ with check (public.finance_can_manage_payroll());
 alter table public.account_requests
   add column if not exists nom text,
   add column if not exists prenoms text;
+
+
+-- National managers inherit the operational permissions of their regional/team
+-- counterparts, while remaining limited to their own business domain.
+insert into public.role_permissions (role_code, permission_code)
+select v.role_code, v.permission_code
+from (values
+  ('manager_commercial_national','clients.create'),
+  ('manager_commercial_national','parcelles.create'),
+  ('manager_commercial_national','parcelles.update'),
+  ('manager_commercial_national','proprietaires.create'),
+  ('manager_commercial_national','parametres.manage_teams'),
+  ('manager_technique_national','parcelles.create'),
+  ('manager_technique_national','parcelles.update'),
+  ('manager_technique_national','proprietaires.view'),
+  ('assistant_administratif','proprietaires.view')
+) as v(role_code, permission_code)
+where exists (select 1 from public.app_roles r where r.code = v.role_code and r.actif is true)
+  and exists (select 1 from public.app_permissions p where p.code = v.permission_code and p.actif is true)
+  and not exists (
+    select 1 from public.role_permissions rp
+    where rp.role_code = v.role_code and rp.permission_code = v.permission_code
+  );
