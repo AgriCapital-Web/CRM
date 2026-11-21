@@ -9,7 +9,7 @@ import { NotificationCenter } from "@/components/common/NotificationCenter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import AIAssistant from "@/components/ai/AIAssistant";
-import { cn, formatStructuredPersonName, formatUserShortName } from "@/lib/utils";
+import { cn, formatStructuredPersonName } from "@/lib/utils";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
@@ -167,7 +167,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={syncNow} disabled={isSyncing || !isOnline} title="Synchroniser">
               <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
             </Button>
-            <div className="text-right leading-tight"><p className="text-sm font-semibold">{formatUserShortName(profile?.nom_complet)}</p><p className="text-xs text-muted-foreground">{userRoles.map(r => ROLE_SHORT_LABELS[r] || r).join(" / ") || "Compte actif"}</p></div>
+            <div className="text-right leading-tight"><p className="text-sm font-semibold">{formatStructuredPersonName(profile?.nom, profile?.prenoms)}</p><p className="text-xs text-muted-foreground">{userRoles.map(r => ROLE_SHORT_LABELS[r] || r).join(" / ") || "Compte actif"}</p></div>
             <Avatar className="h-9 w-9 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-sm">{getInitials(formatStructuredPersonName(profile?.nom, profile?.prenoms))}</AvatarFallback></Avatar>
           </div>
         </header>
@@ -175,7 +175,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       </main>
 
 
-      <AIAssistant mode="staff" context={`Utilisateur: ${formatUserShortName(profile?.nom_complet)}; rôles: ${userRoles.join(", ") || "N/A"}; département: ${profile?.departement || "non défini"}; équipe principale: ${profile?.equipe_id || "non définie"}; relation RH: ${profile?.relation_rh || "non définie"}`} />
+      <AIAssistant mode="staff" context={`Utilisateur: ${formatStructuredPersonName(profile?.nom, profile?.prenoms)}; rôles: ${userRoles.join(", ") || "N/A"}; département: ${profile?.departement || "non défini"}; équipe principale: ${profile?.equipe_id || "non définie"}; relation RH: ${profile?.relation_rh || "non définie"}`} />
     </div>
   );
 };
