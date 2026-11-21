@@ -217,11 +217,7 @@ export default function Portefeuilles(){
         </div>
 
         <Card>
-          <CardContent className="grid min-w-0 grid-cols-2 items-end gap-x-2 gap-y-2 p-3 sm:grid-cols-[minmax(180px,1fr)_minmax(125px,150px)_minmax(125px,150px)_auto] sm:gap-2 sm:p-3">
-            <div className="col-span-2 min-w-0 sm:col-span-1">
-              <label className="text-[11px] font-medium leading-tight text-muted-foreground">Rechercher</label>
-              <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom" className="mt-1 h-8 min-w-0 px-2 text-xs"/>
-            </div>
+          <CardContent className="grid min-w-0 grid-cols-2 items-end gap-x-2 gap-y-2 p-3 sm:grid-cols-[minmax(125px,150px)_minmax(125px,150px)_auto] sm:gap-2 sm:p-3">
             <div className="min-w-0">
               <label className="text-[11px] font-medium leading-tight text-muted-foreground">Début</label>
               <Input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} className="mt-1 h-8 min-w-0 px-1.5 text-xs"/>
