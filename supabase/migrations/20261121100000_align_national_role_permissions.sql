@@ -331,3 +331,11 @@ where exists (select 1 from public.app_roles r where r.code = v.role_code and r.
     select 1 from public.role_permissions rp
     where rp.role_code = v.role_code and rp.permission_code = v.permission_code
   );
+
+insert into public.role_permissions (role_code, permission_code)
+select 'manager_commercial_national', 'documents.upload'
+where not exists (
+  select 1 from public.role_permissions
+  where role_code = 'manager_commercial_national'
+    and permission_code = 'documents.upload'
+);
