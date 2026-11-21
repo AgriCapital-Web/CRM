@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -661,7 +662,7 @@ const ClientDetail = () => {
                 </div>
               )}
               <div className="min-w-0">
-                <h1 className="truncate text-2xl font-bold sm:text-3xl">{client.nom_complet}</h1>
+                <h1 className="truncate text-2xl font-bold sm:text-3xl">{formatStructuredPersonName(client.nom, client.prenoms)}</h1>
                 <p className="truncate text-sm text-muted-foreground">{client.id_unique}</p>
                 {(clientMedia.recto || clientMedia.verso) && (
                   <div className="mt-1 flex flex-wrap gap-3 text-xs">
@@ -786,7 +787,7 @@ const ClientDetail = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                  <p className="font-semibold">{client.nom_complet}</p>
+                  <p className="font-semibold">{formatStructuredPersonName(client.nom, client.prenoms)}</p>
                   <p className="text-muted-foreground">Nouvelle offre = nouvelle acquisition. Les précédentes restent inchangées.</p>
                   <p className="text-xs text-muted-foreground">Les promotions nouveaux clients ne sont pas rétroactives.</p>
                 </div>
