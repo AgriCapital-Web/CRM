@@ -35,16 +35,17 @@ import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatStructuredPersonName } from "@/lib/utils";
 import ContactLauncher from "@/components/common/ContactLauncher";
 
 
 const normalizeSmsText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const offerRequiresLand = (offer: any) => { const identity = normalizeSmsText([offer?.code, offer?.nom, offer?.famille_offre, offer?.formule_code, offer?.formule_nom].filter(Boolean).join(" ")).toLowerCase().replace(/[ _-]+/g, ""); if (identity.includes("palminvest")) return false; if (identity.includes("terrapalm") || identity.includes("palmterroir")) return true; return null; };
 const renderLeadTemplate = (template: string, lead: any) => {
-  const fullName = [lead?.prenoms, lead?.nom].filter(Boolean).join(" ").trim();
+  const fullName = formatStructuredPersonName(lead?.nom, lead?.prenoms);
+  const lastGivenName = String(lead?.prenoms || "").trim().split(/\s+/).filter(Boolean).pop() || "";
   const vars: Record<string, string> = {
-    nom: fullName, nom_complet: fullName, prenom: String(lead?.prenoms || fullName.split(/\s+/)[0] || ""),
+    nom: fullName, nom_complet: fullName, prenom: lastGivenName,
     telephone: String(lead?.telephone || ""), telephone_secondaire: String(lead?.telephone_secondaire || ""), telephone_secondaire_indicatif: String(lead?.telephone_secondaire_indicatif || ""), telephone_secondaire_local: String(lead?.telephone_secondaire_local || ""), telephone_principal_whatsapp: String(!!lead?.telephone_principal_whatsapp), telephone_secondaire_whatsapp: String(!!lead?.telephone_secondaire_whatsapp), whatsapp: String(lead?.whatsapp || lead?.telephone || ""),
     email: String(lead?.email || ""), numero_contrat: "", offre: "", montant: "", date: new Date().toLocaleDateString("fr-FR"),
   };
