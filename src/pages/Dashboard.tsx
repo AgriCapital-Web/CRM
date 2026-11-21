@@ -868,7 +868,7 @@ const Dashboard = () => {
                           ))}
                         </div>
                       ) : (
-                        <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]">
+                        <div className={k.label === "Pilotage financier" ? "grid min-w-0 grid-cols-4 gap-1.5 sm:gap-2 lg:grid-cols-7" : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]}>
                           {k.metrics.map((metric: any) => (
                             <div key={metric.label} className="flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 shadow-sm sm:p-2">
                               <span className={`min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[11px] ${k.label === "Pilotage financier" ? "whitespace-nowrap" : ""}`}>{k.label === "Pilotage financier" && metric.label === "CA prévisionnel" ? <><span className="sm:hidden">CA prév.</span><span className="hidden sm:inline">{metric.label}</span></> : metric.label}</span>
