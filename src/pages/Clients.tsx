@@ -1,4 +1,5 @@
 import { sortByCrmIdentifier, compareCrmIdentifiers } from "@/lib/crmIdentifierSort";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { logActivity } from "@/utils/traceability";
 import MainLayout from "@/components/layout/MainLayout";
@@ -537,9 +538,9 @@ const Clients = () => {
                             {client.id_unique}
                           </TableCell>
                           <TableCell className="font-medium text-xs whitespace-nowrap">
-                            {client.nom_complet || [client.nom, client.prenoms].filter(Boolean).join(" ")}
+                            {formatStructuredPersonName(client.nom, client.prenoms)}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={client.telephone} whatsapp={client.whatsapp} email={client.email} name={client.nom_complet || client.id_unique || "Client"} kind="client" status={client.statut || client.status || ""}/></TableCell>
+                          <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={client.telephone} whatsapp={client.whatsapp} email={client.email} name={formatStructuredPersonName(client.nom, client.prenoms)} kind="client" status={client.statut || client.status || ""}/></TableCell>
                           <TableCell>
                             {client.type_client === "beneficiaire_particulier" ? (
                               <Badge variant="secondary" className="whitespace-nowrap">B. particulier</Badge>
