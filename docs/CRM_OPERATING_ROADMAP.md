@@ -465,3 +465,11 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Formulaire de modification de fiche client : le contrat déjà rattaché reste consultable/remplaçable ; les montants contractuels, paiement initial et mensualité totale sont recalculés à partir de la surface et du snapshot du contrat. Le contrat signé obligatoire reste contrôlé dans le parcours de création d'acquisition, conformément à la dernière consigne conservée.
 - Formulaire de convention foncière : les champs et annexes conditionnelles sont présents. Les annexes « à fournir » restent traçables dans le dossier soumis à validation ; ne pas bloquer l'enregistrement initial ni transformer leur absence en pièce jointe fictive. La date de signature reste facultative tant qu'elle n'est pas confirmée.
 - Historique des conversations antérieures : la recherche des sessions Notion n'est pas autorisée par le niveau d'accès actuel. Cette revue s'appuie sur les décisions conservées dans le dépôt et sur le code de la branche ; les demandes non conservées ne sont pas reconstituées par supposition.
+
+
+## Correction des numéros de téléphone — 21 novembre 2026
+
+- Cause identifiée dans le composant partagé `src/components/common/CountryPhoneInput.tsx` : à chaque frappe, le numéro local était reparsé puis remplacé par `nationalNumber`. Le parseur pouvait interpréter le zéro initial comme un préfixe national et le supprimer du champ contrôlé.
+- Correction : conserver les chiffres locaux exactement comme saisis, y compris le zéro initial. Le préfixe pays n'est retiré que lorsqu'un numéro international complet est explicitement collé.
+- Le composant partagé alimente les formulaires client, propriétaire foncier, utilisateur, profil, leads et la fiche financière de paiement. La correction s'applique donc à ces écrans sans duplication de patch.
+- Dans le portail client, le composant `src/components/common/CountryPhoneInput.tsx` conservait déjà les chiffres saisis sans reparsage ; cette règle est explicitement documentée pour éviter une régression. Les champs d'identifiants et de pièces sont des champs texte, et les champs de montants/surfaces restent numériques.
