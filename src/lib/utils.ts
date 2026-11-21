@@ -35,7 +35,7 @@ export function formatStructuredPersonName(lastName?: string | null, givenNames?
 export function formatUserShortName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
-  if (parts.length === 1) return displayCaseName(parts[0]);
+  if (parts.length === 1) return uppercaseName(parts[0]);
   return formatStructuredPersonName(parts[parts.length - 1], parts.slice(0, -1).join(" "));
 }
 
@@ -51,10 +51,10 @@ export function formatRecipientName(
   }
   const parts = String(fullName || "").trim().split(/\\s+/).filter(Boolean);
   if (!parts.length) return "Contact";
-  if (parts.length === 1) return displayCaseName(parts[0]);
+  if (parts.length === 1) return uppercaseName(parts[0]);
   // Leads/prospects sont historiquement stockés PRENOMS NOM ; les fiches clients/utilisateurs
   // historiques sont souvent NOM PRENOMS. Sans champs structurés, on applique leur convention.
-  if (sourceType === "lead" || sourceType === "prospect") {
+  if (["lead", "prospect", "equipe", "utilisateur"].includes(String(sourceType || ""))) {
     return formatStructuredPersonName(parts[parts.length - 1], parts.slice(0, -1).join(" "));
   }
   return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
