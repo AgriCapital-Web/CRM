@@ -144,7 +144,7 @@ export function usePermissions() {
     technicalManager: permissions.has("system.technical_manager"),
     manageAccountRequests: permissions.has("system.manage_account_requests"),
     manageUserCredentials: permissions.has("system.manage_user_credentials"),
-    clientOnly: permissions.has("system.client_only"),
+    clientOnly: permissions.has("system.client_only") && (fromDatabase || (typeof navigator !== "undefined" && !navigator.onLine)),
     transferPlantation: permissions.has("system.transfer_plantation"),
     independentServiceCustomers: permissions.has("system.independent_service_customers"),
     independentServiceProformas: permissions.has("system.independent_service_proformas"),
@@ -155,7 +155,7 @@ export function usePermissions() {
     independentServiceWrite: permissions.has("system.independent_service_write"),
     independentServiceOperations: permissions.has("system.independent_service_operations"),
     manageHR: permissions.has("system.manage_hr"),
-  }), [permissions]);
+  }), [permissions, fromDatabase]);
 
   return {
     can,
