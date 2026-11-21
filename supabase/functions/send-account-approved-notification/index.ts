@@ -75,10 +75,10 @@ serve(async (req) => {
       const { data: profile } = await secretClient.from("profiles")
         .select("nom,prenoms").eq("user_id", reqRow.auth_user_id).maybeSingle();
       const surname = String(profile?.nom || "").trim();
-      const givenNames = String(profile?.prenoms || "").trim().split(/\\s+/).filter(Boolean);
+      const givenNames = String(profile?.prenoms || "").trim().split(/\s+/).filter(Boolean);
       const lastGivenName = givenNames[givenNames.length - 1] || "";
       const titleCase = (value: string) => value.trim().toLocaleLowerCase("fr-FR")
-        .replace(/(^|[\\s'-])(\\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+        .replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
       if (lastGivenName && surname) fullName = titleCase(lastGivenName) + " " + surname.toLocaleUpperCase("fr-FR");
     }
     const smsText = `${fullName}, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login`;
