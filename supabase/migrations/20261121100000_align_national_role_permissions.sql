@@ -302,3 +302,9 @@ on public.finance_payroll_items
 for all
 using (public.finance_can_manage_payroll())
 with check (public.finance_can_manage_payroll());
+
+
+-- Preserve the separate surname and given-name fields throughout staff onboarding.
+alter table public.account_requests
+  add column if not exists nom text,
+  add column if not exists prenoms text;
