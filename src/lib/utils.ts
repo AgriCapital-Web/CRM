@@ -16,15 +16,15 @@ export function cn(...inputs: ClassValue[]) {
 
 const displayCaseName = (value: string) => {
   const lower = value.trim().toLocaleLowerCase("fr-FR");
-  return lower.replace(/(^|[\\s’'-])(\\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  return lower.replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
 };
 
 const uppercaseName = (value: string) => value.trim().toLocaleUpperCase("fr-FR");
 
 /** Règle unique AgriCapital : dernier prénom usuel, puis NOM en majuscules. */
 export function formatStructuredPersonName(lastName?: string | null, givenNames?: string | null): string {
-  const surname = String(lastName || "").trim().replace(/\\s+/g, " ");
-  const given = String(givenNames || "").trim().split(/\\s+/).filter(Boolean).pop() || "";
+  const surname = String(lastName || "").trim().replace(/\s+/g, " ");
+  const given = String(givenNames || "").trim().split(/\s+/).filter(Boolean).pop() || "";
   if (!surname && !given) return "Utilisateur";
   if (!surname) return displayCaseName(given);
   if (!given) return uppercaseName(surname);
@@ -33,7 +33,7 @@ export function formatStructuredPersonName(lastName?: string | null, givenNames?
 
 /** Repli pour les anciens profils enregistrés sous la forme NOM + prénoms. */
 export function formatUserShortName(fullName?: string | null): string {
-  const parts = String(fullName || "").trim().split(/\\s+/).filter(Boolean);
+  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
   if (parts.length === 1) return uppercaseName(parts[0]);
   return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
@@ -49,7 +49,7 @@ export function formatRecipientName(
   if (String(lastName || "").trim() || String(givenNames || "").trim()) {
     return formatStructuredPersonName(lastName, givenNames);
   }
-  const parts = String(fullName || "").trim().split(/\\s+/).filter(Boolean);
+  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Contact";
   if (parts.length === 1) return uppercaseName(parts[0]);
   // Leads/prospects sont historiquement stockés PRENOMS NOM ; les fiches clients/utilisateurs
