@@ -60,7 +60,7 @@ export function formatRecipientName(
   return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
 }
 
-/** Même règle pour les bandeaux et les messages à partir d'un nom complet prénoms + nom. */
+/** Même règle pour les bandeaux et messages à partir des anciens profils NOM + prénoms. */
 export function formatWelcomeName(fullName?: string | null): string {
   return formatUserShortName(fullName);
 }
