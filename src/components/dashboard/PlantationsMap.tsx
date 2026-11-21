@@ -2,6 +2,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Loader2 } from "lucide-react";
+import { formatRecipientName } from "@/lib/utils";
 
 const InteractiveMap = lazy(() => import("@/components/maps/InteractiveMap"));
 
@@ -41,7 +42,7 @@ export const PlantationsMap = () => {
             .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,localisation_source_url,localisation_reference_plantation_id,localisation_distance_m,superficie_ha,surface_reellement_plantee,village_nom,village,localite,parcelle_id,client_id")
             .range(0, 99999),
           (supabase as any).from("clients")
-            .select("id,nom_complet,parcelle_id,campement_id,village_id,localite,total_hectares,latitude,longitude")
+            .select("id,nom_complet,nom,prenoms,parcelle_id,campement_id,village_id,localite,total_hectares,latitude,longitude")
             .range(0, 99999),
           (supabase as any).from("parcelles")
             .select("id,id_unique,nom,localisation_gps_lat,localisation_gps_lng,surface_totale_ha,surface_agricapital_ha,village")
@@ -80,7 +81,7 @@ export const PlantationsMap = () => {
             const referenceClient = reference?.client_id ? clientById.get(reference.client_id) : null;
             if (p.localisation_source_url || reference) sourceOnly.push({
               id: p.id,
-              label: clientById.get(p.client_id)?.nom_complet || p.nom_plantation || p.id_unique || "Plantation",
+              label: (clientById.get(p.client_id) ? formatRecipientName(clientById.get(p.client_id).nom_complet, "client", clientById.get(p.client_id).nom, clientById.get(p.client_id).prenoms) : null) || p.nom_plantation || p.id_unique || "Plantation",
               url: p.localisation_source_url || reference?.localisation_source_url || null,
               note: reference
                 ? "À environ " + Number(p.localisation_distance_m || 0).toLocaleString("fr-FR") + " m de " + (referenceClient?.nom_complet || reference.nom_plantation || "la plantation de référence")
@@ -96,7 +97,7 @@ export const PlantationsMap = () => {
           const area = p.superficie_ha ?? p.surface_reellement_plantee ?? client?.total_hectares ?? parcel?.surface_totale_ha ?? parcel?.surface_agricapital_ha ?? 0;
           out.push({
             id: `plantation-${p.id}`, lat, lng,
-            label: client?.nom_complet || p.nom_plantation || p.id_unique || parcel?.id_unique || "Client non renseigné",
+            label: (client ? formatRecipientName(client.nom_complet, "client", client.nom, client.prenoms) : null) || p.nom_plantation || p.id_unique || parcel?.id_unique || "Client non renseigné",
             info: `Superficie : ${area} ha • Localité : ${locality}`,
           });
         }
@@ -106,7 +107,7 @@ export const PlantationsMap = () => {
           const lat = num(parcel.localisation_gps_lat);
           const lng = num(parcel.localisation_gps_lng);
           if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
-          const names = (clientsByParcel.get(parcel.id) || []).map((c) => c.nom_complet).filter(Boolean).join(", ");
+          const names = (clientsByParcel.get(parcel.id) || []).map((c) => formatRecipientName(c.nom_complet, "client", c.nom, c.prenoms)).filter(Boolean).join(", ");
           out.push({
             id: `parcel-${parcel.id}`, lat, lng,
             label: names ? `${names} — ${parcel.id_unique || "Parcelle"}` : (parcel.id_unique || parcel.nom || "Parcelle"),
@@ -129,12 +130,44 @@ export const PlantationsMap = () => {
           const locality = campement?.nom || client.localite || village?.nom || "Localité non renseignée";
           out.push({
             id: `client-${client.id}`, lat, lng,
-            label: client.nom_complet || "Client",
+            label: formatRecipientName(client.nom_complet, "client", client.nom, client.prenoms) || "Client",
             info: `Site client • Localité : ${locality}`,
           });
         }
+        // Les coordonnées GPS sources restent intactes en base.
+        // Pour les plantations du même point, on décale uniquement les repères affichés
+        // en triangle équilatéral de 100 m afin de les rendre sélectionnables séparément.
+        const groupedMarkers = new Map<string, PlantationMarker[]>();
+        for (const marker of out) {
+          const key = `${marker.lat.toFixed(6)},${marker.lng.toFixed(6)}`;
+          groupedMarkers.set(key, [...(groupedMarkers.get(key) || []), marker]);
+        }
+        const visibleMarkers: PlantationMarker[] = [];
+        for (const [coordinates, group] of groupedMarkers.entries()) {
+          if (group.length === 1) {
+            visibleMarkers.push(group[0]);
+            continue;
+          }
+          const [centerLat, centerLng] = coordinates.split(",").map(Number);
+          const radiusMeters = 100 / Math.sqrt(3);
+          const metersPerDegreeLat = 111320;
+          const metersPerDegreeLng = 111320 * Math.cos(centerLat * Math.PI / 180);
+          const ordered = [...group].sort((a, b) => a.label.localeCompare(b.label, "fr"));
+          ordered.forEach((marker, index) => {
+            const angle = (-Math.PI / 2) + (2 * Math.PI * index / ordered.length);
+            const northMeters = Math.sin(angle) * radiusMeters;
+            const eastMeters = Math.cos(angle) * radiusMeters;
+            visibleMarkers.push({
+              ...marker,
+              lat: centerLat + northMeters / metersPerDegreeLat,
+              lng: centerLng + eastMeters / metersPerDegreeLng,
+              info: `${marker.info} • Repère cartographique décalé de 100 m pour distinguer les plantations partageant le même GPS source`,
+            });
+          });
+        }
+
         if (active) {
-          setMarkers(out);
+          setMarkers(visibleMarkers);
           setSourceLocations(sourceOnly);
         }
       } catch (error) {

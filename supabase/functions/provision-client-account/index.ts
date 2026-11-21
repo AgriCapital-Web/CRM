@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     if (!clientId) return json({ success: false, error: "client_id requis" }, 400);
 
     const { data: s, error: sError } = await admin.from("clients")
-      .select("id,user_id,nom_complet,telephone,email,numero_contrat,id_unique,compte_actif")
+      .select("id,user_id,nom_complet,nom,prenoms,telephone,email,numero_contrat,id_unique,compte_actif")
       .eq("id", clientId).single();
     if (sError) throw sError;
     if (!s) return json({ success: false, error: "Client introuvable" }, 404);
@@ -66,6 +66,8 @@ Deno.serve(async (req) => {
     if (s.user_id) {
       const { error: existingProfileError } = await admin.from("profiles").update({
         nom_complet: s.nom_complet,
+        nom: s.nom || null,
+        prenoms: s.prenoms || null,
         telephone: s.telephone || null,
         actif: true,
         poste: "client",
@@ -90,6 +92,8 @@ Deno.serve(async (req) => {
         password: randomPassword(),
         user_metadata: {
           nom_complet: s.nom_complet,
+          nom: s.nom || null,
+          prenoms: s.prenoms || null,
           numero_client: s.numero_contrat || s.id_unique || s.id,
           username,
           role: "client",
@@ -107,6 +111,8 @@ Deno.serve(async (req) => {
       user_id: user.id,
       username,
       nom_complet: s.nom_complet,
+      nom: s.nom || null,
+      prenoms: s.prenoms || null,
       email: realEmail || null,
       telephone: s.telephone || null,
       actif: true,

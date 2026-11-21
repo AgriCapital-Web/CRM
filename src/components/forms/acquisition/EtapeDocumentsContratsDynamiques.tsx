@@ -35,7 +35,12 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      if (!formData.offre_id) return;
+      if (!formData.offre_id) {
+        setDocuments([]);
+        setContracts([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const [{ data: docs }, { data: ctrs }] = await Promise.all([
         (supabase as any).from("offre_formulaire_documents").select("*").eq("offre_id", formData.offre_id).eq("actif", true).order("ordre"),
@@ -54,7 +59,17 @@ export const EtapeDocumentsContratsDynamiques = ({ formData, updateFormData, sho
   const identityDocumentCodes = new Set(["client_piece_recto", "client_piece_verso", "client_photo_profil"]);
   const visibleDocuments = useMemo(
     () => documents.filter((doc) => !identityDocumentCodes.has(doc.code) && conditionActive(doc, formData)),
-    [documents, formData.has_representant, formData.offre_code, formData.formule_code, formData.formule_nom, formData.document_securisation_necessaire]
+    [
+      documents,
+      formData.representant_type,
+      formData.has_representant,
+      formData.offre_code,
+      formData.formule_code,
+      formData.formule_nom,
+      formData.document_securisation_necessaire,
+      formData.offre?.necessite_foncier_client,
+      formData.offre?.contrat_acquisition_requis,
+    ]
   );
 
   const handleFileChange = (code: string, file: File | null, preview: string) => {

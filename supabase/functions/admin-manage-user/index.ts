@@ -104,7 +104,7 @@ serve(async (req) => {
         email: cleanEmail,
         password: tempPassword,
         email_confirm: true,
-        user_metadata: { nom_complet: cleanName, username: cleanUsername },
+        user_metadata: { nom_complet: cleanName, nom: String(nom ?? "").trim().toLocaleUpperCase("fr-FR") || null, prenoms: String(prenoms ?? "").trim().toLocaleUpperCase("fr-FR") || null, username: cleanUsername },
       });
       if (createError || !created?.user?.id) return json({ error: createError?.message || "Création du compte Auth non confirmée.", step }, 400);
       const authId = created.user.id;

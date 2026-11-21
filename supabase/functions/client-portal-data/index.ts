@@ -5,6 +5,15 @@ const corsHeaders={
   "Access-Control-Allow-Origin":"*",
   "Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"
 };
+const formatPersonName = (lastName?: string | null, givenNames?: string | null, legacyFullName?: string | null) => {
+  const parts = String(legacyFullName || "").trim().split(/\s+/).filter(Boolean);
+  const surname = String(lastName || parts[0] || "").trim();
+  const given = String(givenNames || parts.slice(1).join(" ")).trim().split(/\s+/).filter(Boolean).pop() || "";
+  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
+    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  return given && surname ? `${titleCase(given)} ${surname.toLocaleUpperCase("fr-FR")}`
+    : given ? titleCase(given) : surname.toLocaleUpperCase("fr-FR");
+};
 const json=(body:any,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
 const coalesceNumber=(v:any)=>Number(v||0);
 const normalizeStatus=(v:any)=>{
@@ -69,6 +78,7 @@ serve(async(req)=>{
         id: client.id,
         id_unique: client.id_unique,
         nom_complet: client.nom_complet,
+        nom_affichage: formatPersonName(client.nom, client.prenoms, client.nom_complet),
         telephone: client.telephone || client.whatsapp || client.telephone_local || client.whatsapp_local,
         email: client.email,
         compte_actif: false,
@@ -105,7 +115,7 @@ serve(async(req)=>{
         .eq("client_id",client.id).order("created_at",{ascending:false}),
       supabase.from("paiements").select("*").eq("client_id",client.id).eq("statut","valide").order("date_paiement",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false}).limit(500),
       client.commercial_id
-        ? supabase.from("profiles").select("id,user_id,nom_complet,telephone,email,photo_url,whatsapp,poste,telephone_indicatif,telephone_local,whatsapp_indicatif,whatsapp_local").or(`user_id.eq.${client.commercial_id},id.eq.${client.commercial_id}`).maybeSingle()
+        ? supabase.from("profiles").select("id,user_id,nom_complet,nom,prenoms,telephone,email,photo_url,whatsapp,poste,telephone_indicatif,telephone_local,whatsapp_indicatif,whatsapp_local").or(`user_id.eq.${client.commercial_id},id.eq.${client.commercial_id}`).maybeSingle()
         : Promise.resolve({data:null}),
       supabase.from("portail_notifications").select("id,type,title,message,data,read,created_at")
         .eq("client_id",client.id).order("created_at",{ascending:false}).limit(50),
@@ -176,11 +186,11 @@ serve(async(req)=>{
     const technicianIds=[...new Set(interventions.map((i:any)=>i.agent_technique_id).filter(Boolean))];
     let technicianRows:any[]=[];
     if(technicianIds.length){
-      const {data:rows}=await supabase.from("profiles").select("id,user_id,nom_complet,telephone,email,photo_url").in("id",technicianIds);
+      const {data:rows}=await supabase.from("profiles").select("id,user_id,nom_complet,nom,prenoms,telephone,email,photo_url").in("id",technicianIds);
       technicianRows=rows||[];
     }
     const technicianMap=new Map(technicianRows.map((p:any)=>[p.id,p]));
-    const technicians=technicianIds.map((id:string)=>technicianMap.get(id)).filter(Boolean);
+    const technicians=technicianIds.map((id:string)=>technicianMap.get(id)).filter(Boolean).map((p:any)=>({...p,nom_affichage:formatPersonName(p.nom,p.prenoms,p.nom_complet)}));
 
     let parcelleIds:string[]=[];
     let parcelles:any[]=[];
@@ -319,7 +329,7 @@ serve(async(req)=>{
     }).filter((e:any)=>e.statut!=="pending" || interventions.length>0);
     const parcel=parcelles.find((p:any)=>p.id===client.parcelle_id)||parcelles[0]||null;
     const technician=technicians[0]||null;
-    const safe:any={...client,site_gps:{
+    const safe:any={...client,nom_affichage:formatPersonName(client.nom,client.prenoms,client.nom_complet),site_gps:{
       latitude:client.latitude ?? parcel?.localisation_gps_lat ?? null,
       longitude:client.longitude ?? parcel?.localisation_gps_lng ?? null,
       source:client.latitude != null && client.longitude != null ? "client" : (parcel?.localisation_gps_lat != null && parcel?.localisation_gps_lng != null ? "parcelle" : null)
@@ -335,8 +345,8 @@ serve(async(req)=>{
       documents:documents.map((d:any)=>({...d,nom:d.type_document||d.code_document||"Document",url:d.fichier_url})),
       technique_interventions:interventions,
       technique_progression:techniqueProgression,
-      commercial:commercialRes.data?{...commercialRes.data,nom:commercialRes.data.nom_complet,fonction:commercialRes.data.poste||"Conseiller AgriCapital",telephone:commercialRes.data.telephone||[(commercialRes.data.telephone_indicatif||"+225"),commercialRes.data.telephone_local||""].filter(Boolean).join(""),whatsapp:commercialRes.data.whatsapp||[(commercialRes.data.whatsapp_indicatif||commercialRes.data.telephone_indicatif||"+225"),(commercialRes.data.whatsapp_local||commercialRes.data.telephone_local||commercialRes.data.telephone||"")].filter(Boolean).join("")}:null,
-      technicien:technician?{...technician,nom:technician.nom_complet,fonction:"Technicien terrain"}:null,
+      commercial:commercialRes.data?{...commercialRes.data,nom:formatPersonName(commercialRes.data.nom,commercialRes.data.prenoms,commercialRes.data.nom_complet),fonction:commercialRes.data.poste||"Conseiller AgriCapital",telephone:commercialRes.data.telephone||[(commercialRes.data.telephone_indicatif||"+225"),commercialRes.data.telephone_local||""].filter(Boolean).join(""),whatsapp:commercialRes.data.whatsapp||[(commercialRes.data.whatsapp_indicatif||commercialRes.data.telephone_indicatif||"+225"),(commercialRes.data.whatsapp_local||commercialRes.data.telephone_local||commercialRes.data.telephone||"")].filter(Boolean).join("")}:null,
+      technicien:technician?{...technician,nom:formatPersonName(technician.nom,technician.prenoms,technician.nom_complet),fonction:"Technicien terrain"}:null,
       techniciens:technicians,
       demo:false,
       _demo:false,

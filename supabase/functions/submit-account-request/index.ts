@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
+const formatPersonName = (lastName: string, givenNames: string) => {
+  const given = String(givenNames || "").trim().split(/\s+/).filter(Boolean).pop() || "";
+  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
+    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  return given && lastName
+    ? `${titleCase(given)} ${lastName.toLocaleUpperCase("fr-FR")}`
+    : given ? titleCase(given) : lastName.toLocaleUpperCase("fr-FR");
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -40,17 +49,22 @@ serve(async (req) => {
 
     const body = await req.json();
     const {
-      username, password, email, nom_complet, telephone, telephone_indicatif, telephone_local, role_souhaite,
+      username, password, email, nom_complet, nom, prenoms, telephone, telephone_indicatif, telephone_local, role_souhaite,
       poste_souhaite, district_id: requestedDistrictId, region_id: requestedRegionId,
       departement_geo_id: requestedDepartementGeoId, sous_prefecture_id: requestedSousPrefectureId,
       departement, justification, photo_url,
     } = body ?? {};
+    const cleanNomComplet = String(nom_complet || [nom, prenoms].filter(Boolean).join(" ")).trim();
+    const nameParts = cleanNomComplet.split(/\s+/).filter(Boolean);
+    const cleanNom = String(nom || nameParts[0] || "").trim();
+    const cleanPrenoms = String(prenoms || nameParts.slice(1).join(" ")).trim();
+    const displayName = formatPersonName(cleanNom, cleanPrenoms);
     let district_id = requestedDistrictId ?? null;
     let region_id = requestedRegionId ?? null;
     let departement_geo_id = requestedDepartementGeoId ?? null;
     let sous_prefecture_id = requestedSousPrefectureId ?? null;
 
-    if (!username || !password || !email || !nom_complet || !telephone || !role_souhaite) {
+    if (!username || !password || !email || !cleanNomComplet || !telephone || !role_souhaite) {
       return json({ error: "Champs obligatoires manquants (identifiant, mot de passe, email, nom, téléphone, rôle).", step: "validate_body" }, 400);
     }
     if (!String(username).trim()) {
@@ -143,7 +157,7 @@ serve(async (req) => {
       email: cleanEmail,
       password: String(password),
       email_confirm: false,
-      user_metadata: { nom_complet, username: cleanUsername, pending_role: role_souhaite },
+      user_metadata: { nom_complet: cleanNomComplet, nom: cleanNom, prenoms: cleanPrenoms, username: cleanUsername, pending_role: role_souhaite },
     });
 
     if (createErr) {
@@ -175,7 +189,7 @@ serve(async (req) => {
             from: "AgriCapital <no-reply@agricapital.ci>",
             to: [cleanEmail],
             subject: "Confirmez votre adresse email — AgriCapital",
-            html: `<p>Bonjour ${escapeHtml(nom_complet)},</p><p>Confirmez votre adresse email pour que votre demande de compte puisse être validée :</p><p><a href="${escapeHtml(actionLink)}">Confirmer mon adresse email</a></p>`,
+            html: `<p>Bonjour ${escapeHtml(displayName)},</p><p>Confirmez votre adresse email pour que votre demande de compte puisse être validée :</p><p><a href="${escapeHtml(actionLink)}">Confirmer mon adresse email</a></p>`,
           }),
         });
       }
@@ -189,7 +203,9 @@ serve(async (req) => {
       id: userId,
       user_id: userId,
       email: cleanEmail,
-      nom_complet,
+      nom_complet: cleanNomComplet,
+      nom: cleanNom,
+      prenoms: cleanPrenoms,
       telephone: String(telephone ?? "").trim(),
       telephone_indicatif: telephone_indicatif ?? null,
       telephone_local: telephone_local ?? null,
@@ -242,7 +258,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           requestData: {
-            nom_complet, email: cleanEmail, telephone,
+            nom_complet: cleanNomComplet, nom: cleanNom, prenoms: cleanPrenoms, email: cleanEmail, telephone,
             username: cleanUsername, poste: poste_souhaite ?? role_souhaite,
           },
         }),

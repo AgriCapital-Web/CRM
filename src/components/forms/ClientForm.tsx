@@ -390,7 +390,7 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div><p className="text-xs text-muted-foreground">Total du contrat</p><p className="text-sm font-semibold tabular-nums">{formatContractAmount(recalculatedTotal)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Paiement initial</p><p className="text-sm font-semibold tabular-nums">{formatContractAmount(recalculatedInitial)}</p></div>
-                <div><p className="text-xs text-muted-foreground">Mensualité</p><p className="text-sm font-semibold tabular-nums">{formatContractAmount(recalculatedMonthly)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Mensualité totale pour {hectares.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</p><p className="text-sm font-semibold tabular-nums">{formatContractAmount(recalculatedMonthly)}</p></div>
               </div>
             </div>
           )}

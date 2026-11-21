@@ -45,7 +45,9 @@ const Dashboard = () => {
   const { can, capabilities } = usePermissions();
   const profilePhotoUrl = useSignedUrl("photos-profils", profile?.photo_url);
 
-  const isClientOnly = capabilities.clientOnly;
+  // Les comptes PDG/DG ne doivent jamais être redirigés vers le tableau de bord client.
+  const isExecutive = userRoles.some((role) => role === "pdg" || role === "dg");
+  const isClientOnly = capabilities.clientOnly && !isExecutive;
   const canDashboardExecutiveFinance = can("finance.view");
   const canCommercialTeamPerformance = can("parametres.manage_teams");
   const canTechnicalTeamPerformance = can("parametres.manage_teams");
@@ -147,7 +149,7 @@ const Dashboard = () => {
   const [recentPaymentsQuery, setRecentPaymentsQuery] = useState("");
   const filteredRecentClients = useMemo(() => {
     const q=recentClientsQuery.trim().toLowerCase();
-    return q ? recentClients.filter((item:any)=>[item.nom_complet,item.id_unique,item.telephone].some(v=>String(v||"").toLowerCase().includes(q))) : recentClients;
+    return q ? recentClients.filter((item:any)=>[formatStructuredPersonName(item.nom,item.prenoms),item.nom_complet,item.id_unique,item.telephone].some(v=>String(v||"").toLowerCase().includes(q))) : recentClients;
   },[recentClients,recentClientsQuery]);
   const filteredRecentPayments = useMemo(() => {
     const q=recentPaymentsQuery.trim().toLowerCase();
@@ -835,7 +837,7 @@ const Dashboard = () => {
           </div>
 
           {!isClientOnly && (
-            <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2 md:grid-cols-6">
+            <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2">
               {canCreateAcquisition && <Button asChild className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/nouvelle-acquisition"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau client</span></Link></Button>}
               <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/leads?new=1&type=prospect"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau prospect</span></Link></Button>
               {canLeads && <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/leads?new=1"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau lead</span></Link></Button>}
@@ -868,7 +870,7 @@ const Dashboard = () => {
                           ))}
                         </div>
                       ) : (
-                        <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]">
+                        <div className={k.label === "Pilotage financier" ? "grid min-w-0 grid-cols-4 gap-1.5 sm:gap-2 lg:grid-cols-7" : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]"}>
                           {k.metrics.map((metric: any) => (
                             <div key={metric.label} className="flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 shadow-sm sm:p-2">
                               <span className={`min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[11px] ${k.label === "Pilotage financier" ? "whitespace-nowrap" : ""}`}>{k.label === "Pilotage financier" && metric.label === "CA prévisionnel" ? <><span className="sm:hidden">CA prév.</span><span className="hidden sm:inline">{metric.label}</span></> : metric.label}</span>
@@ -962,7 +964,10 @@ const Dashboard = () => {
 
               {((canClients && recentClients.length > 0) || (canPayments && recentPayments.length > 0)) && (
               <div className="rounded-xl border border-orange-500/50 p-2.5 sm:p-3">
-                <h3 className="mb-2 text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
+                  <Input value={recentClientsQuery} onChange={e=>{setRecentClientsQuery(e.target.value);setRecentPaymentsQuery(e.target.value);}} placeholder="Rechercher un client ou un paiement" className="h-9 w-full sm:max-w-xs"/>
+                </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {canClients && recentClients.length > 0 && (
                   <Card>
@@ -973,7 +978,7 @@ const Dashboard = () => {
                         <TableBody>
                           {filteredRecentClients.length ? filteredRecentClients.map((c) => (
                             <TableRow key={c.id_unique}>
-                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{c.nom_complet}</TableCell>
+                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{formatStructuredPersonName(c.nom,c.prenoms)}</TableCell>
                               <TableCell className="px-2 py-1.5 text-xs sm:text-sm">{c.nombre_plantations || 0}</TableCell>
                               <TableCell className="px-2 py-1.5">{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? "Soldé" : label; const className = c.contrat_solde_at ? "whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" : status === "actif" ? "whitespace-nowrap border-emerald-200 bg-emerald-100/70 text-emerald-800 hover:bg-emerald-100/70" : status === "en_retard" || status === "retard" ? "whitespace-nowrap border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100" : "whitespace-nowrap"; return <Badge variant={c.contrat_solde_at || status === "actif" ? "outline" : status === "suspendu" ? "destructive" : "secondary"} className={className}>{display}</Badge>; })()}</TableCell>
                             </TableRow>
@@ -986,7 +991,7 @@ const Dashboard = () => {
 
                 {canPayments && recentPayments.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle><Input value={recentPaymentsQuery} onChange={e=>setRecentPaymentsQuery(e.target.value)} placeholder="Rechercher un paiement" className="h-9 w-full sm:max-w-xs"/></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><CardTitle className="flex items-center gap-2 whitespace-nowrap text-sm sm:text-base"><CreditCard className="h-4 w-4 shrink-0 text-primary" />Paiements récents</CardTitle></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
                         <Table searchable={false} exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Client</TableHead><TableHead className="h-8 px-2 py-1.5">Montant</TableHead><TableHead className="h-8 px-2 py-1.5">Mode</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>

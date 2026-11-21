@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { ArrowLeft, MessageSquare, Search, Loader2, UserRound } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -14,6 +15,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 type ClientRow = {
   id: string;
   nom_complet: string | null;
+  nom: string | null;
+  prenoms: string | null;
   telephone: string | null;
   type_client: string | null;
   type_client_foncier: string | null;
@@ -54,7 +57,7 @@ export default function Messagerie() {
   const loadRecent = async () => {
     const [{ data }, { data: unreadRows, error: unreadRowsError }, { count, error: unreadError }] = await Promise.all([
       (supabase as any).from("portail_messages")
-        .select("id,client_id,auteur_type,auteur_nom,message,lu,created_at,clients(id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id)")
+        .select("id,client_id,auteur_type,auteur_nom,message,lu,created_at,clients(id,nom_complet,nom,prenoms,telephone,type_client,type_client_foncier,proprietaire_id)")
         .order("created_at", { ascending: false })
         .limit(100),
       (supabase as any).from("portail_messages")
@@ -85,7 +88,7 @@ export default function Messagerie() {
       while (true) {
         let request = (supabase as any)
           .from("clients")
-          .select("id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id")
+          .select("id,nom_complet,nom,prenoms,telephone,type_client,type_client_foncier,proprietaire_id")
           .order("nom_complet", { ascending: true })
           .order("id", { ascending: true })
           .range(offset, offset + pageSize - 1);
@@ -108,7 +111,7 @@ export default function Messagerie() {
   const loadSelected = async (id: string) => {
     const { data } = await (supabase as any)
       .from("clients")
-      .select("id,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id")
+      .select("id,nom_complet,nom,prenoms,telephone,type_client,type_client_foncier,proprietaire_id")
       .eq("id", id)
       .maybeSingle();
     if (data) setSelected(data as ClientRow);
@@ -207,7 +210,7 @@ export default function Messagerie() {
                         <button key={client.id} type="button" onClick={() => choose(client)} className={`flex min-h-[52px] w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-primary/10 ring-1 ring-primary/20" : ""}`}>
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserRound className="h-4 w-4" /></span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold">{client.nom_complet || "Dossier sans nom"}</span>
+                            <span className="block truncate text-sm font-semibold">{formatStructuredPersonName(client.nom, client.prenoms)}</span>
                             <span className="block truncate text-xs text-muted-foreground">{client.telephone || typeLabel(client)}</span>
                           </span>
                           {(unreadByClient[client.id] || 0) > 0 && <Badge className="shrink-0" aria-label={`${unreadByClient[client.id]} messages non lus`}>{unreadByClient[client.id]}</Badge>}
@@ -227,7 +230,7 @@ export default function Messagerie() {
                       <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 lg:hidden" onClick={() => setMobileConversation(false)} aria-label="Retour à la liste des clients"><ArrowLeft className="h-4 w-4" /></Button>
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><UserRound className="h-4 w-4" /></div>
                       <div className="min-w-0 flex-1">
-                        <CardTitle className="truncate text-base">{selected.nom_complet || "Dossier sans nom"}</CardTitle>
+                        <CardTitle className="truncate text-base">{formatStructuredPersonName(selected.nom, selected.prenoms)}</CardTitle>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{selected.telephone || "Téléphone non renseigné"} · {typeLabel(selected)}</p>
                       </div>
                     </div>

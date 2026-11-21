@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatStructuredPersonName, formatRecipientName } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -386,7 +387,7 @@ const ClientDetail = () => {
         .from("interventions_techniques")
         .select(`
           *,
-          agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)
+          agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet,nom,prenoms)
         `)
         .eq("client_id", id)
         .order("date_intervention", { ascending: false });
@@ -654,14 +655,14 @@ const ClientDetail = () => {
                 Retour
               </Button>
               {clientMedia.photo ? (
-                <img src={clientMedia.photo} alt={client.nom_complet || "Photo du Client"} className="h-14 w-14 shrink-0 rounded-full border object-cover sm:h-16 sm:w-16" />
+                <img src={clientMedia.photo} alt={formatStructuredPersonName(client.nom, client.prenoms)} className="h-14 w-14 shrink-0 rounded-full border object-cover sm:h-16 sm:w-16" />
               ) : (
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold sm:h-16 sm:w-16">
-                  {String(client.nom_complet || "C").trim().charAt(0).toUpperCase()}
+                  {formatStructuredPersonName(client.nom, client.prenoms).trim().charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <h1 className="truncate text-2xl font-bold sm:text-3xl">{client.nom_complet}</h1>
+                <h1 className="truncate text-2xl font-bold sm:text-3xl">{formatStructuredPersonName(client.nom, client.prenoms)}</h1>
                 <p className="truncate text-sm text-muted-foreground">{client.id_unique}</p>
                 {(clientMedia.recto || clientMedia.verso) && (
                   <div className="mt-1 flex flex-wrap gap-3 text-xs">
@@ -786,7 +787,7 @@ const ClientDetail = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                  <p className="font-semibold">{client.nom_complet}</p>
+                  <p className="font-semibold">{formatStructuredPersonName(client.nom, client.prenoms)}</p>
                   <p className="text-muted-foreground">Nouvelle offre = nouvelle acquisition. Les précédentes restent inchangées.</p>
                   <p className="text-xs text-muted-foreground">Les promotions nouveaux clients ne sont pas rétroactives.</p>
                 </div>
@@ -1156,7 +1157,7 @@ const ClientDetail = () => {
                               {new Date(intervention.date_intervention).toLocaleDateString("fr-FR")}
                             </TableCell>
                             <TableCell>{intervention.type_intervention}</TableCell>
-                            <TableCell>{intervention.agent_technique?.nom_complet}</TableCell>
+                            <TableCell>{intervention.agent_technique?.nom || intervention.agent_technique?.prenoms ? formatStructuredPersonName(intervention.agent_technique?.nom, intervention.agent_technique?.prenoms) : formatRecipientName(intervention.agent_technique?.nom_complet, "equipe")}</TableCell>
                             <TableCell className="max-w-xs truncate">
                               {intervention.observations}
                             </TableCell>
@@ -1209,7 +1210,7 @@ const ClientDetail = () => {
                       <CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" /> Propriétaire foncier</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <p className="font-semibold">{parcelle?.proprietaires_terres?.nom_complet || "À compléter"}</p>
+                      <p className="font-semibold">{parcelle?.proprietaires_terres ? formatRecipientName(parcelle.proprietaires_terres.nom_complet, "client", parcelle.proprietaires_terres.nom, parcelle.proprietaires_terres.prenoms) : "À compléter"}</p>
                       <p className="text-sm text-muted-foreground">Statut foncier : {parcelle?.proprietaires_terres?.statut_foncier || "—"}</p>
                       <p className="text-sm text-muted-foreground">Téléphone : {parcelle?.proprietaires_terres?.telephone || "À compléter"}</p>
                       

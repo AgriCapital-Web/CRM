@@ -392,7 +392,7 @@ const Utilisateurs = () => {
                 <TableRow key={user.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche utilisateur ${user.nom_complet || ""}`} onClick={() => setViewUser(user)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setViewUser(user); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                   <TableCell className="font-medium whitespace-nowrap">{formatUserShortName(user.nom_complet)}</TableCell>
                   <TableCell className="whitespace-nowrap">{user.email || "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={user.telephone} email={user.email} name={user.full_name || user.nom_complet || user.email || "Utilisateur"} kind="staff" status={user.statut || user.status || ""}/></TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={user.telephone} email={user.email} name={formatUserShortName(user.nom_complet) || user.email || "Utilisateur"} kind="staff" status={user.statut || user.status || ""}/></TableCell>
                   <TableCell>
                     {getHighestRole(user) ? (
                       <Badge variant="outline" className="whitespace-nowrap text-xs">
