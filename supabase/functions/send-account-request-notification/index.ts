@@ -56,9 +56,13 @@ serve(async (req) => {
     );
 
     const { requestData } = await req.json();
+    const requestNameParts = String(requestData?.nom_complet || "").trim().split(/\\s+/).filter(Boolean);
+    const applicantDisplayName = requestNameParts.length > 1
+      ? formatPersonName(requestNameParts[0], requestNameParts.slice(1).join(" "))
+      : formatPersonName(requestNameParts[0] || "");
     // Toutes les valeurs issues du formulaire public sont échappées avant insertion dans l'email HTML.
     const safe = {
-      nom_complet: escapeHtml(requestData?.nom_complet),
+      nom_complet: escapeHtml(applicantDisplayName),
       email: escapeHtml(requestData?.email),
       telephone: escapeHtml(requestData?.telephone),
       poste: escapeHtml(requestData?.poste),
@@ -116,7 +120,7 @@ serve(async (req) => {
         user_id: adminProfile.id,
         type: 'account_request',
         titre: 'Nouvelle demande de compte',
-        message: `${requestData.nom_complet} (${requestData.email}) demande un accès à la plateforme.`,
+        message: `${applicantDisplayName} (${requestData.email}) demande un accès à la plateforme.`,
         lien: '/account-requests',
         dedupe_key: notificationDedupeKey
       }).select('id').maybeSingle();
@@ -138,7 +142,7 @@ serve(async (req) => {
             channel: "email", to: adminProfile.email,
             senderId: (typeof senndoSender === "string" && senndoSender) || Deno.env.get("SENNDO_EMAIL_SENDER_ID") || "notifications@agricapital.ci",
             subject: "AgriCapital | Notification automatique : nouvelle demande de compte",
-            text: `AgriCapital — notification automatique à l’équipe. Nouvelle demande de compte. Nom : ${requestData.nom_complet}. E-mail : ${requestData.email}. Téléphone : ${requestData.telephone}. Rôle demandé : ${requestData.role_souhaite || requestData.poste_souhaite}. Consultez les demandes dans le CRM : https://app.agricapital.ci/account-requests`,
+            text: `AgriCapital — notification automatique à l’équipe. Nouvelle demande de compte. Nom : ${applicantDisplayName}. E-mail : ${requestData.email}. Téléphone : ${requestData.telephone}. Rôle demandé : ${requestData.role_souhaite || requestData.poste_souhaite}. Consultez les demandes dans le CRM : https://app.agricapital.ci/account-requests`,
             idempotencyKey: `account-request-${String(requestData.auth_user_id || requestData.email).toLowerCase()}-${String(adminProfile.email).toLowerCase()}`,
           });
         } catch (error) {
@@ -255,7 +259,7 @@ serve(async (req) => {
           const dispatchUrl = Deno.env.get("SUPABASE_URL") ?? "";
           const internalSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
           const message =
-            `AgriCapital - Nouvelle demande de compte\nNom: ${requestData.nom_complet}\nEmail: ${requestData.email}\nTel: ${requestData.telephone}\n${requestData.poste ? `Poste: ${requestData.poste}\n` : ""}Consultez app.agricapital.ci pour traiter la demande.`;
+            `AgriCapital - Nouvelle demande de compte\nNom: ${applicantDisplayName}\nEmail: ${requestData.email}\nTel: ${requestData.telephone}\n${requestData.poste ? `Poste: ${requestData.poste}\n` : ""}Consultez app.agricapital.ci pour traiter la demande.`;
           const routed = await fetch(dispatchUrl + "/functions/v1/notification-dispatch", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": internalSecret },
