@@ -456,3 +456,17 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Déploiement Vercel Preview de la branche : état READY. La validation TypeScript, les tests et le lint via le workflow GitHub restent à confirmer.
 - Le contrôle de toutes les pages de tableaux et l'audit champ par champ de l'ensemble des formulaires restent à finaliser avant la mise en production.
 - Aucun champ métier ni aucune colonne de base n'est supprimé sans audit de dépendances et de données.
+
+
+## Harmonisation des libellés d’interface — 21 novembre 2026
+
+- Branche : `fix/crm-interface-copy-20261121`.
+- Tableau de bord, carte « Pilotage financier » : libellé raccourci de « Mensualités prévisionnelles » à « Mensualités prévues » afin d’éviter le débordement dans la carte.
+- Paramètres : libellé mobile « Users » remplacé par « Utilis. » ; onglet « Notifs » harmonisé en « Notifications » (mobile : « Alertes ») ; onglet « BDD » harmonisé en « Base de données » (mobile : « Données »).
+- Modifications limitées aux textes de l’interface ; aucune donnée métier, table, politique RLS ou migration Supabase n’a été modifiée.
+- Validation de build et déploiement à compléter après création de la PR. L’audit orthographique exhaustif de toutes les pages et sous-sections reste à poursuivre avant de considérer l’harmonisation éditoriale comme terminée.
+
+- Corrections complémentaires repérées lors de la relecture des écrans principaux et des sous-sections Paramètres : accents et pluriels dans les campagnes de notification, libellés des onglets de configuration, formulations d’aide harmonisées au vouvoiement, ponctuation française des fiches Leads, casse des titres Utilisateurs, et libellés de chargement.
+- Dans Paramètres → Base de données, correction d’un bloc JSX qui contenait des séquences littérales « \\n » visibles autour du bouton de copie locale ; titres et ponctuation harmonisés.
+- Pages complémentaires modifiées : `FinanceAnalytics.tsx`, `PlanificationBudgetaire.tsx`, `Plantations.tsx`, `Leads.tsx`, `Utilisateurs.tsx`, ainsi que plusieurs sous-pages Paramètres.
+- Aucun changement de schéma ou de donnée Supabase. Les tests de compilation et le déploiement de production restent à vérifier.

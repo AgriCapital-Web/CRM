@@ -39,7 +39,7 @@ const Parametres = () => {
   const defaultTab = searchParams.get('tab') || 'utilisateurs';
 
   const tabs: TabConfig[] = [
-    { value: 'utilisateurs', label: 'Utilisateurs', mobileLabel: 'Users', icon: Users, permission: PERMISSIONS.MANAGE_USERS, component: Utilisateurs },
+    { value: 'utilisateurs', label: 'Utilisateurs', mobileLabel: 'Utilis.', icon: Users, permission: PERMISSIONS.MANAGE_USERS, component: Utilisateurs },
     { value: 'cartes', label: 'Carte du personnel', mobileLabel: 'Cartes', icon: IdCard, permission: PERMISSIONS.MANAGE_USERS, component: GestionCartes },
     { value: 'equipes', label: 'Équipes', icon: UsersRound, permission: PERMISSIONS.MANAGE_TEAMS, component: Equipes },
 
@@ -51,8 +51,8 @@ const Parametres = () => {
     { value: 'remuneration', label: 'Rémunération', mobileLabel: 'Rémun.', icon: Settings2, permission: PERMISSIONS.MANAGE_REMUNERATION, component: GestionRemuneration },
     { value: 'codes-acces', label: 'Codes d’accès', mobileLabel: 'Codes', icon: KeyRound, permission: PERMISSIONS.MANAGE_SYSTEM, component: ReinitialiserCodesAcces },
     { value: 'statuts', label: 'Statuts', icon: List, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionStatuts },
-    { value: 'notifications', label: 'Notifs', icon: Bell, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionNotifications },
-    { value: 'database', label: 'BDD', icon: Database, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionBaseDonnees },
+    { value: 'notifications', label: 'Notifications', mobileLabel: 'Alertes', icon: Bell, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionNotifications },
+    { value: 'database', label: 'Base de données', mobileLabel: 'Données', icon: Database, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionBaseDonnees },
     { value: 'systeme', label: 'Système', icon: Globe, permission: PERMISSIONS.MANAGE_SYSTEM, component: ConfigurationSysteme },
     { value: 'acremap', label: 'AcreMap API', mobileLabel: 'AcreMap', icon: Cable, permission: PERMISSIONS.MANAGE_SYSTEM, component: IntegrationAcreMap },
     { value: 'contacts', label: 'Importer contacts', mobileLabel: 'Contacts', icon: Contact, permission: PERMISSIONS.MANAGE_SYSTEM, component: ImportContacts },

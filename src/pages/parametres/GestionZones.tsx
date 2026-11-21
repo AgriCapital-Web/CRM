@@ -268,7 +268,7 @@ const GestionZones = () => {
           </div>
 
           {loading ? (
-            <p className="text-center py-8">Chargement...</p>
+            <p className="text-center py-8">Chargement…</p>
           ) : (
             <div className="border rounded-lg">
               <Table>
