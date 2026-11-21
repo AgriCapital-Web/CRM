@@ -255,3 +255,50 @@ begin
   where id = p_run_id;
 end;
 $function$;
+
+
+-- Separate HR salary configuration from accounting control of payroll runs.
+create or replace function public.finance_can_manage_payroll()
+returns boolean
+language sql
+stable
+security definer
+set search_path to ''
+as $function$
+  select private.is_pdg((select auth.uid()))
+    or private.crm_has_role_permission('finance.manage')
+    or private.crm_has_role_permission('finance.payouts');
+$function$;
+
+create or replace function public.finance_can_manage_salary_profiles()
+returns boolean
+language sql
+stable
+security definer
+set search_path to ''
+as $function$
+  select public.finance_can_manage_payroll()
+    or private.crm_has_role_permission('finance.payroll')
+    or private.crm_has_role_permission('ressources_humaines.manage_payroll');
+$function$;
+
+drop policy if exists finance_salary_profiles_manage on public.finance_salary_profiles;
+create policy finance_salary_profiles_manage
+on public.finance_salary_profiles
+for all
+using (public.finance_can_manage_salary_profiles())
+with check (public.finance_can_manage_salary_profiles());
+
+drop policy if exists finance_payroll_runs_manage on public.finance_payroll_runs;
+create policy finance_payroll_runs_manage
+on public.finance_payroll_runs
+for all
+using (public.finance_can_manage_payroll())
+with check (public.finance_can_manage_payroll());
+
+drop policy if exists finance_payroll_items_manage on public.finance_payroll_items;
+create policy finance_payroll_items_manage
+on public.finance_payroll_items
+for all
+using (public.finance_can_manage_payroll())
+with check (public.finance_can_manage_payroll());
