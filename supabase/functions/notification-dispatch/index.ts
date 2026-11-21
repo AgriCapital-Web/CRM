@@ -1193,7 +1193,7 @@ async function runEvent(eventCode: string, context: Record<string, unknown>) {
       const lastName = linkedProfile ? (linkedProfile.nom || "") : (beneficiary.last_name || "");
       const givenNameParts = String(firstNames || "").trim().split(/\s+/).filter(Boolean);
       const lastGivenName = givenNameParts[givenNameParts.length - 1] || "";
-      const displayName = [lastGivenName ? titleCaseNames(lastGivenName) : "", lastName ? titleCaseNames(lastName) : ""].filter(Boolean).join(" ").trim()
+      const displayName = [lastGivenName ? titleCaseNames(lastGivenName) : "", lastName ? lastName.toLocaleUpperCase("fr-FR") : ""].filter(Boolean).join(" ").trim()
         || linkedProfile?.nom_complet || (linkedProfile ? "" : beneficiary.display_name || "");
       const phone = linkedProfile?.telephone || linkedProfile?.whatsapp || beneficiary.phone || "";
       if (!phone) throw new Error("Telephone du beneficiaire absent.");
