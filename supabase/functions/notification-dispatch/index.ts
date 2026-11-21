@@ -269,7 +269,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
     ? (() => {
         const givenNames = structuredFirstNames.split(/\s+/).filter(Boolean);
         const lastGivenName = givenNames[givenNames.length - 1] || structuredFirstNames;
-        return titleCaseNames(lastGivenName) + " " + titleCaseNames(structuredLastName);
+        return titleCaseNames(lastGivenName) + " " + structuredLastName.toLocaleUpperCase("fr-FR");
       })()
     : null;
   const displayName = structuredDisplayName || (nameParts.length > 1 ? `${titleCaseNames(firstName)} ${titleCaseNames(familyName)}` : titleCaseNames(familyName));
