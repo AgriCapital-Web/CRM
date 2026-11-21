@@ -12,6 +12,15 @@ const escapeHtml = (value: unknown): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const formatPersonName = (lastName?: string | null, givenNames?: string | null) => {
+  const surname = String(lastName || "").trim();
+  const given = String(givenNames || "").trim().split(/\\s+/).filter(Boolean).pop() || "";
+  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
+    .replace(/(^|[\\s’'-])(\\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  if (given && surname) return `${titleCase(given)} ${surname.toLocaleUpperCase("fr-FR")}`;
+  return given ? titleCase(given) : surname ? surname.toLocaleUpperCase("fr-FR") : "Utilisateur";
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -77,7 +86,7 @@ serve(async (req) => {
     const adminIds = superAdmins?.map(a => a.user_id) || [];
     const { data: adminProfiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, nom_complet, telephone')
+      .select('id, user_id, email, nom_complet, nom, prenoms, telephone')
       .in('id', adminIds);
 
     if (profilesError) {
@@ -174,7 +183,7 @@ serve(async (req) => {
                       <p>Nouvelle demande de compte</p>
                     </div>
                     <div class="content">
-                      <p>Bonjour ${escapeHtml(adminProfile.nom_complet)},</p>
+                      <p>Bonjour ${escapeHtml(formatPersonName(adminProfile.nom, adminProfile.prenoms))},</p>
                       <p>Une nouvelle demande de création de compte a été soumise sur la plateforme AgriCapital.</p>
                       
                       <h3>Détails de la demande :</h3>
@@ -256,7 +265,9 @@ serve(async (req) => {
                 source_type: "equipe",
                 source_id: String(adminProfile.id),
                 user_id: String(adminProfile.id),
-                nom_complet: adminProfile.nom_complet || null,
+                nom_complet: formatPersonName(adminProfile.nom, adminProfile.prenoms),
+                nom: adminProfile.nom || null,
+                prenoms: adminProfile.prenoms || null,
                 telephone: adminProfile.telephone,
               },
               content: message,
