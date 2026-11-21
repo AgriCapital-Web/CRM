@@ -116,8 +116,11 @@ export function useRolePermissionMatrix() {
 
 /** Permissions effectives et capacités calculées côté base de données. */
 export function usePermissions() {
-  const { user } = useAuth();
+  const { user, userRoles } = useAuth();
   const { matrix, loading, fromDatabase, reload } = useEffectivePermissionSnapshot();
+  // PDG et DG disposent d'un accès exécutif global. Ne jamais les classer
+  // comme comptes clients à cause d'une capacité client_only résiduelle en base.
+  const isGlobalExecutive = userRoles.some((role) => role === "pdg" || role === "dg");
 
   const permissions = useMemo(
     () => new Set<string>(matrix[user?.id ? effectivePermissionsKey(user.id) : ""] || []),
@@ -125,21 +128,21 @@ export function usePermissions() {
   );
 
   const can = useCallback(
-    (permission: string) => permissions.has(permission),
-    [permissions],
+    (permission: string) => isGlobalExecutive || permissions.has(permission),
+    [permissions, isGlobalExecutive],
   );
   const canAny = useCallback(
-    (...requested: string[]) => requested.some((permission) => permissions.has(permission)),
-    [permissions],
+    (...requested: string[]) => isGlobalExecutive || requested.some((permission) => permissions.has(permission)),
+    [permissions, isGlobalExecutive],
   );
   const canAll = useCallback(
-    (...requested: string[]) => requested.every((permission) => permissions.has(permission)),
-    [permissions],
+    (...requested: string[]) => isGlobalExecutive || requested.every((permission) => permissions.has(permission)),
+    [permissions, isGlobalExecutive],
   );
 
   // These are capabilities returned by SQL, not role-name checks in React.
   const capabilities = useMemo(() => ({
-    globalAdmin: permissions.has("system.global_admin"),
+    globalAdmin: isGlobalExecutive || permissions.has("system.global_admin"),
     canSuperviseLeads: permissions.has("system.can_supervise_leads"),
     serviceClient: permissions.has("system.service_client"),
     commercialAssignable: permissions.has("system.commercial_assignable"),
@@ -148,7 +151,7 @@ export function usePermissions() {
     technicalManager: permissions.has("system.technical_manager"),
     manageAccountRequests: permissions.has("system.manage_account_requests"),
     manageUserCredentials: permissions.has("system.manage_user_credentials"),
-    clientOnly: permissions.has("system.client_only") && (fromDatabase || (typeof navigator !== "undefined" && !navigator.onLine)),
+    clientOnly: !isGlobalExecutive && permissions.has("system.client_only") && (fromDatabase || (typeof navigator !== "undefined" && !navigator.onLine)),
     transferPlantation: permissions.has("system.transfer_plantation"),
     independentServiceCustomers: permissions.has("system.independent_service_customers"),
     independentServiceProformas: permissions.has("system.independent_service_proformas"),
@@ -159,7 +162,7 @@ export function usePermissions() {
     independentServiceWrite: permissions.has("system.independent_service_write"),
     independentServiceOperations: permissions.has("system.independent_service_operations"),
     manageHR: permissions.has("system.manage_hr"),
-  }), [permissions, fromDatabase]);
+  }), [permissions, fromDatabase, isGlobalExecutive]);
 
   return {
     can,
