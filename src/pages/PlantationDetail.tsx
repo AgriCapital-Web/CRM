@@ -20,6 +20,8 @@ const formatMoney = (value: number) =>
 const formatStatus = (value: string | null | undefined) =>
   value === "active" ? "Actif" : (value || "—").replace(/_/g, " ");
 
+const displayOwnerName = (owner: any) => owner?.type_proprietaire === "personne_physique" ? formatRecipientName(owner?.nom_complet, "client", owner?.nom, owner?.prenoms) : (owner?.denomination_sociale || owner?.nom_complet || "Propriétaire");
+
 const PlantationDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -64,7 +66,7 @@ const PlantationDetail = () => {
 
       if (parcelRes.data?.proprietaire_id) {
         const { data: owner, error: ownerError } = await (supabase as any)
-          .from("proprietaires_terres").select("id,id_unique,nom_complet,nom,prenoms,telephone").eq("id", parcelRes.data.proprietaire_id).maybeSingle();
+          .from("proprietaires_terres").select("id,id_unique,nom_complet,nom,prenoms,type_proprietaire,denomination_sociale,telephone").eq("id", parcelRes.data.proprietaire_id).maybeSingle();
         if (ownerError) throw ownerError;
         setProprietaire(owner || null);
       } else setProprietaire(null);
@@ -151,7 +153,7 @@ const PlantationDetail = () => {
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><LandPlot className="h-4 w-4" />Foncier</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                <div><span className="text-muted-foreground">Propriétaire : </span>{formatRecipientName(proprietaire?.nom_complet, "client", proprietaire?.nom, proprietaire?.prenoms)}</div>
+                <div><span className="text-muted-foreground">Propriétaire : </span>{displayOwnerName(proprietaire)}</div>
                 <div><span className="text-muted-foreground">Lot : </span>{plantation?.lots_hectares?.reference || (plantation?.lots_hectares?.numero_h ? `H${String(plantation.lots_hectares.numero_h).padStart(2,"0")}` : "—")}</div>
                 <div><span className="text-muted-foreground">Parcelle : </span>{parcelle?.id_unique || "—"}</div>
                 <div><span className="text-muted-foreground">Village : </span>{parcelle?.village || plantation.village || "—"}</div>
@@ -205,7 +207,7 @@ const PlantationDetail = () => {
                 {paginatedInterventions.map((i: any) => (
                   <div key={i.id} className="rounded-lg border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{i.type_intervention?.replace(/_/g, " ") || "Opération"}</span><Badge variant="outline">{formatStatus(i.statut)}</Badge></div>
-                    <p className="mt-1 text-xs text-muted-foreground">{i.date_intervention ? new Date(i.date_intervention).toLocaleDateString("fr-FR") : "—"} · {i.agent?.nom || i.agent?.prenoms ? formatStructuredPersonName(i.agent?.nom, i.agent?.prenoms) : formatRecipientName(i.agent?.nom_complet, "equipe") || "Équipe technique"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{i.date_intervention ? new Date(i.date_intervention).toLocaleDateString("fr-FR") : "—"} · {i.agent?.nom || i.agent?.prenoms ? formatStructuredPersonName(i.agent?.nom, i.agent?.prenoms) : i.agent?.nom_complet ? formatRecipientName(i.agent.nom_complet, "equipe") : "Équipe technique"}</p>
                     {i.observations && <p className="mt-1 text-sm">{i.observations}</p>}
                   </div>
                 ))}
