@@ -533,7 +533,7 @@ const Clients = () => {
                     ) : (
                       <>
                       {orderedAcquisitionClients.map((client) => (
-                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${String(client.id_unique || "").startsWith("AC_B") ? "bénéficiaire" : "client"} ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate(getRecordPath(client))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(getRecordPath(client)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
+                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${String(client.id_unique || "").startsWith("AC_B") ? "bénéficiaire" : "client"} ${formatStructuredPersonName(client.nom, client.prenoms)}`} onClick={() => navigate(getRecordPath(client))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(getRecordPath(client)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
