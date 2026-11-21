@@ -56,10 +56,10 @@ serve(async (req) => {
     );
 
     const { requestData } = await req.json();
-    const requestNameParts = String(requestData?.nom_complet || "").trim().split(/\\s+/).filter(Boolean);
-    const applicantDisplayName = requestNameParts.length > 1
-      ? formatPersonName(requestNameParts[0], requestNameParts.slice(1).join(" "))
-      : formatPersonName(requestNameParts[0] || "");
+    const requestNameParts = String(requestData?.nom_complet || "").trim().split(/\s+/).filter(Boolean);
+    const applicantLastName = String(requestData?.nom || requestNameParts[0] || "").trim();
+    const applicantGivenNames = String(requestData?.prenoms || requestNameParts.slice(1).join(" ")).trim();
+    const applicantDisplayName = formatPersonName(applicantLastName, applicantGivenNames);
     // Toutes les valeurs issues du formulaire public sont échappées avant insertion dans l'email HTML.
     const safe = {
       nom_complet: escapeHtml(applicantDisplayName),
