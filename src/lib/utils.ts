@@ -31,12 +31,12 @@ export function formatStructuredPersonName(lastName?: string | null, givenNames?
   return displayCaseName(given) + " " + uppercaseName(surname);
 }
 
-/** Repli pour les anciens noms complets enregistrés sous la forme prénoms + nom. */
+/** Repli pour les anciens profils enregistrés sous la forme NOM + prénoms. */
 export function formatUserShortName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
   if (parts.length === 1) return uppercaseName(parts[0]);
-  return formatStructuredPersonName(parts[parts.length - 1], parts.slice(0, -1).join(" "));
+  return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
 }
 
 /** Nom de communication. Les champs structurés priment toujours sur le nom complet historique. */
@@ -54,7 +54,7 @@ export function formatRecipientName(
   if (parts.length === 1) return uppercaseName(parts[0]);
   // Leads/prospects sont historiquement stockés PRENOMS NOM ; les fiches clients/utilisateurs
   // historiques sont souvent NOM PRENOMS. Sans champs structurés, on applique leur convention.
-  if (["lead", "prospect", "equipe", "utilisateur"].includes(String(sourceType || ""))) {
+  if (sourceType === "lead" || sourceType === "prospect") {
     return formatStructuredPersonName(parts[parts.length - 1], parts.slice(0, -1).join(" "));
   }
   return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
