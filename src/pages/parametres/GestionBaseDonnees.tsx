@@ -441,7 +441,7 @@ const GestionBaseDonnees = () => {
 
               {lastBackup && (
                 <p className="text-sm text-muted-foreground text-center">
-                  Dernière sauvegarde: {new Date(lastBackup).toLocaleString("fr-FR")}
+                  Dernière sauvegarde : {new Date(lastBackup).toLocaleString("fr-FR")}
                 </p>
               )}
             </CardContent>
@@ -453,7 +453,7 @@ const GestionBaseDonnees = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
-                Schéma de la Base de Données
+                Schéma de la base de données
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -505,7 +505,10 @@ const GestionBaseDonnees = () => {
               </div>
 
 
-              <Button type="button" variant="outline" onClick={() => void createLocalAutoBackup()} disabled={!autoBackupEnabled} className="w-full sm:w-auto">\n                <HardDrive className="h-4 w-4 mr-2" />\n                Créer une copie maintenant\n              </Button>\n\n              <div className="p-4 border rounded-lg">
+              <Button type="button" variant="outline" onClick={() => void createLocalAutoBackup()} disabled={!autoBackupEnabled} className="w-full sm:w-auto">
+                <HardDrive className="h-4 w-4 mr-2" />
+                Créer une copie maintenant
+              </Button>\n\n              <div className="p-4 border rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="h-5 w-5 text-muted-foreground" />
                   <p className="font-medium">Historique des sauvegardes</p>
