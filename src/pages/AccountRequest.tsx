@@ -158,6 +158,8 @@ const AccountRequest = () => {
       const deptName = departmentLookup.data?.nom || "";
       const { data, error } = await supabase.functions.invoke("submit-account-request", {
         body: {
+          nom: formData.nom.trim(),
+          prenoms: formData.prenoms.trim(),
           nom_complet: [formData.nom, formData.prenoms].map((v) => String(v || "").trim()).filter(Boolean).join(" "),
           email: formData.email.trim(),
           telephone: formData.telephone.trim(),
