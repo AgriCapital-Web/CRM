@@ -45,7 +45,8 @@ const Dashboard = () => {
   const { can, capabilities } = usePermissions();
   const profilePhotoUrl = useSignedUrl("photos-profils", profile?.photo_url);
 
-  const isClientOnly = capabilities.clientOnly;
+  const isExecutive = userRoles.some((role) => ["pdg", "dg"].includes(String(role).trim().toLowerCase()));
+  const isClientOnly = capabilities.clientOnly && !isExecutive;
   const canDashboardExecutiveFinance = can("finance.view");
   const canCommercialTeamPerformance = can("parametres.manage_teams");
   const canTechnicalTeamPerformance = can("parametres.manage_teams");
