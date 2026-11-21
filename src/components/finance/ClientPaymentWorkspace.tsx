@@ -5,6 +5,7 @@ import { useKkiapay } from "@/hooks/useKkiapay";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
@@ -19,6 +20,8 @@ type ClientFinanceRow = {
   id: string;
   id_unique?: string | null;
   nom_complet?: string | null;
+  nom?: string | null;
+  prenoms?: string | null;
   telephone?: string | null;
   type_client?: string | null;
   type_client_foncier?: string | null;
@@ -86,7 +89,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: acquisitions, error: acquisitionsError }] = await Promise.all([
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares,mensualite_montant,paiement_initial_montant,montant_pi_total,duree_paiement_mois")
+          .select("id,id_unique,nom_complet,nom,prenoms,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares,mensualite_montant,paiement_initial_montant,montant_pi_total,duree_paiement_mois")
           .eq("compte_actif", true)
           .order("created_at", { ascending: false }),
         (supabase as any).from("v_client_synthese")
@@ -404,7 +407,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       onClose(() => setPaying(false));
       const opened = await openPayment({
         amount: paymentAmount,
-        name: activeClient.nom_complet || "Client AgriCapital",
+        name: formatStructuredPersonName(activeClient.nom, activeClient.prenoms),
         phone: paymentPhone || activeClient.telephone || "",
         paymentMethods: ["momo", "card"],
         data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, acquisition_id: activeContract.acquisitionId },
@@ -438,7 +441,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                   const paid = Number(client.summary?.total_paye || 0);
                   const remainingClient = Number(client.summary?.reste_a_payer ?? Math.max(0, total - paid));
                   return <TableRow key={client.id}>
-                    <TableCell><div className="font-semibold">{client.nom_complet || "Client sans nom"}</div><div className="text-xs text-muted-foreground">{client.id_unique || "—"} · {client.telephone || "Téléphone non renseigné"}</div></TableCell>
+                    <TableCell><div className="font-semibold">{formatStructuredPersonName(client.nom, client.prenoms)}</div><div className="text-xs text-muted-foreground">{client.id_unique || "—"} · {client.telephone || "Téléphone non renseigné"}</div></TableCell>
                     <TableCell>{client.formule_nom || "Contrat client"}</TableCell>
                     <TableCell>{money(total)}</TableCell>
                     <TableCell>{money(paid)}</TableCell>
