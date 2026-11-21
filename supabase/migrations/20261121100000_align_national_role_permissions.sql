@@ -138,3 +138,120 @@ where profile_id = 'bd9579fd-1d07-4431-9cc4-b57dfeeab593'::uuid
     'a3fe031b-c37d-41df-92e5-df3048a5a39c'::uuid,
     '75242b1a-4b1f-45b1-a0e3-a075f427e005'::uuid
   );
+
+
+-- HR may prepare payroll and manage salary records, but must not see the general
+-- finance ledger or independently approve/execute payroll payments.
+delete from public.role_permissions
+where role_code = 'ressources_humaines'
+  and permission_code = 'finance.view';
+
+create or replace function public.finance_validate_payroll_run(p_run_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+begin
+  if not (
+    private.crm_is_global_admin((select auth.uid()))
+    or private.crm_has_role_permission('finance.manage')
+    or private.crm_has_role_permission('finance.payouts')
+  ) then
+    raise exception 'La validation de la paie est réservée à la comptabilité et à la Direction.';
+  end if;
+  if not exists (select 1 from public.finance_payroll_items i where i.payroll_run_id = p_run_id) then
+    raise exception 'Ce lot de paie ne contient aucune ligne.';
+  end if;
+  update public.finance_payroll_runs
+  set status = 'valide', validated_at = now()
+  where id = p_run_id and status = 'brouillon';
+  if not found then raise exception 'Lot de paie introuvable ou déjà traité.'; end if;
+  update public.finance_payroll_items set status = 'valide'
+  where payroll_run_id = p_run_id and status = 'calcule';
+end;
+$function$;
+
+create or replace function public.finance_payroll_mark_paid(
+  p_run_id uuid,
+  p_payment_method text,
+  p_payment_reference text,
+  p_payment_proof_url text default null,
+  p_payment_proof_name text default null,
+  p_payment_proof_mime_type text default null,
+  p_fee_applied boolean default false
+)
+returns void
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_run public.finance_payroll_runs%rowtype;
+  v_item record;
+  v_amount numeric;
+  v_fee_amount numeric;
+  v_total_amount numeric;
+  v_fee_applied boolean;
+  v_transaction_id uuid;
+begin
+  if not (
+    private.crm_is_global_admin((select auth.uid()))
+    or private.crm_has_role_permission('finance.manage')
+    or private.crm_has_role_permission('finance.payouts')
+  ) then
+    raise exception 'Le paiement de la paie est réservé à la comptabilité et à la Direction.';
+  end if;
+  if p_payment_method not in ('virement','mobile_money','especes','cheque','autre') then
+    raise exception 'Mode de paiement invalide.';
+  end if;
+  if coalesce(trim(p_payment_reference),'') = ''
+     and coalesce(trim(p_payment_proof_url),'') = ''
+     and p_payment_method <> 'especes' then
+    raise exception 'Une référence ou un justificatif de paiement est obligatoire pour ce mode de paiement.';
+  end if;
+  select * into v_run from public.finance_payroll_runs where id = p_run_id for update;
+  if not found or v_run.status <> 'valide' then
+    raise exception 'Le lot doit être validé avant paiement.';
+  end if;
+  if exists (select 1 from public.finance_payroll_items where payroll_run_id = p_run_id and transaction_id is not null) then
+    raise exception 'Au moins une ligne possède déjà une transaction financière; vérification manuelle requise.';
+  end if;
+  if not exists (select 1 from public.finance_payroll_items where payroll_run_id = p_run_id and status = 'valide') then
+    raise exception 'Aucune ligne de paie validée à payer.';
+  end if;
+  v_fee_applied := coalesce(p_fee_applied,false) and p_payment_method <> 'especes';
+  for v_item in
+    select i.*, p.nom_complet
+    from public.finance_payroll_items i
+    join public.profiles p on p.id = i.profile_id
+    where i.payroll_run_id = p_run_id and i.status = 'valide'
+    for update of i
+  loop
+    v_amount := greatest(0, coalesce(v_item.base_salary,0) + coalesce(v_item.bonuses,0) - coalesce(v_item.deductions,0));
+    if v_amount <= 0 then raise exception 'Montant net nul ou négatif pour %.', v_item.nom_complet; end if;
+    v_fee_amount := case when v_fee_applied then round(v_amount * 0.01) else 0 end;
+    v_total_amount := v_amount + v_fee_amount;
+    insert into public.finance_transactions(
+      direction,category,label,amount,gross_amount,fee_rate,fee_amount,fee_applied,
+      payment_method,reference,proof_path,proof_name,proof_mime_type,
+      profile_id,source_type,source_id,status,notes,created_by
+    ) values (
+      'sortie','SALAIRES','Salaire — ' || v_item.nom_complet,
+      v_total_amount,v_amount,case when v_fee_applied then 1 else 0 end,v_fee_amount,v_fee_applied,
+      p_payment_method,nullif(trim(p_payment_reference),''),
+      nullif(trim(p_payment_proof_url),''),nullif(trim(p_payment_proof_name),''),
+      nullif(trim(p_payment_proof_mime_type),''),v_item.profile_id,'paie_salaire',v_item.id,'valide',
+      'Lot de paie ' || to_char(v_run.period_start,'YYYY-MM'),auth.uid()
+    ) returning id into v_transaction_id;
+    update public.finance_payroll_items
+    set transaction_id = v_transaction_id, net_salary = v_amount, status = 'paye'
+    where id = v_item.id;
+  end loop;
+  update public.finance_payroll_runs
+  set status = 'paye', paid_at = now(), payment_method = p_payment_method,
+      payment_reference = nullif(trim(p_payment_reference),''),
+      payment_proof_url = nullif(trim(p_payment_proof_url),'')
+  where id = p_run_id;
+end;
+$function$;
