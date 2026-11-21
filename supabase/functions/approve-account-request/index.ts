@@ -6,6 +6,16 @@ function generateTempPassword() {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("") + "!7";
 }
 
+const formatPersonName = (lastName?: string | null, givenNames?: string | null, legacyFullName?: string | null) => {
+  const parts = String(legacyFullName || "").trim().split(/\s+/).filter(Boolean);
+  const surname = String(lastName || parts[0] || "").trim();
+  const given = String(givenNames || parts.slice(1).join(" ")).trim().split(/\s+/).filter(Boolean).pop() || "";
+  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
+    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  return given && surname ? `${titleCase(given)} ${surname.toLocaleUpperCase("fr-FR")}`
+    : given ? titleCase(given) : surname.toLocaleUpperCase("fr-FR");
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-agricapital-account-secret",
@@ -181,7 +191,7 @@ serve(async (req) => {
           email: reqRow.email,
           password: tempPassword,
           email_confirm: true,
-          user_metadata: { nom_complet: reqRow.nom_complet, username: reqRow.username ?? undefined },
+          user_metadata: { nom_complet: reqRow.nom_complet, nom: reqRow.nom, prenoms: reqRow.prenoms, username: reqRow.username ?? undefined },
         });
         if (cErr) return json({ error: cErr.message, step, logs }, 400);
         userId = created.user!.id;
@@ -194,6 +204,8 @@ serve(async (req) => {
       user_id: userId,
       email: reqRow.email,
       nom_complet: reqRow.nom_complet,
+      nom: reqRow.nom || String(reqRow.nom_complet || "").trim().split(/\s+/)[0] || null,
+      prenoms: reqRow.prenoms || String(reqRow.nom_complet || "").trim().split(/\s+/).slice(1).join(" ") || null,
       telephone: reqRow.telephone,
       telephone_indicatif: reqRow.telephone_indicatif ?? null,
       telephone_local: reqRow.telephone_local ?? reqRow.telephone ?? null,
@@ -283,7 +295,7 @@ serve(async (req) => {
         user_id: userId,
         type: "account_welcome",
         title: "Bienvenue chez AgriCapital",
-        message: `Bienvenue ${reqRow.nom_complet} ! Votre compte AgriCapital est activé. Vous pouvez dès maintenant accéder à votre espace et utiliser les fonctionnalités correspondant à votre rôle.`,
+        message: `Bienvenue ${formatPersonName(reqRow.nom, reqRow.prenoms, reqRow.nom_complet)} ! Votre compte AgriCapital est activé. Vous pouvez dès maintenant accéder à votre espace et utiliser les fonctionnalités correspondant à votre rôle.`,
         data: { route: "/dashboard", role: finalRole, account_request_id: request_id },
         read: false,
         dedupe_key: welcomeDedupeKey,
