@@ -272,7 +272,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
         return titleCaseNames(lastGivenName) + " " + structuredLastName.toLocaleUpperCase("fr-FR");
       })()
     : null;
-  const displayName = structuredDisplayName || (nameParts.length > 1 ? `${titleCaseNames(firstName)} ${titleCaseNames(familyName)}` : titleCaseNames(familyName));
+  const displayName = structuredDisplayName || (nameParts.length > 1 ? `${titleCaseNames(firstName)} ${familyName.toLocaleUpperCase("fr-FR")}` : titleCaseNames(familyName));
   // Seul le jeton {dernier_prenom_nom} est autorisé pour le nom du destinataire.
   // Les anciens alias nom/prenom/nom_complet ne sont volontairement pas exposés.
   const vars: Record<string, string> = {
@@ -1617,6 +1617,8 @@ serve(async (req) => {
           source_type: contact.source_type,
           source_id: contact.source_id,
           nom_complet: contact.nom_complet || "",
+          nom: contact.nom || null,
+          prenoms: contact.prenoms || null,
           email: contact.email || null,
           telephone: contact.telephone || null,
           whatsapp: selectedWhatsAppNumber(contact),
@@ -1736,7 +1738,7 @@ serve(async (req) => {
     if (mode === "preview") {
       const contacts = await resolveContacts(body.criteria || {});
       return json(req, { ok: true, count: contacts.length, sample: contacts.slice(0,20).map((c) => ({
-        nom_complet:c.nom_complet,email:c.email,telephone:c.telephone,whatsapp:selectedWhatsAppNumber(c),whatsapp_format_valid:Boolean(selectedWhatsAppNumber(c)),offre_nom:c.offre_nom,role_code:c.role_code
+        nom_complet:c.nom_complet,nom:c.nom||null,prenoms:c.prenoms||null,email:c.email,telephone:c.telephone,whatsapp:selectedWhatsAppNumber(c),whatsapp_format_valid:Boolean(selectedWhatsAppNumber(c)),offre_nom:c.offre_nom,role_code:c.role_code
       })), whatsapp_missing: contacts.filter((c) => !selectedWhatsAppNumber(c)).length, whatsapp_ready: contacts.filter((c) => Boolean(selectedWhatsAppNumber(c))).length });
     }
     if (mode === "event") {
