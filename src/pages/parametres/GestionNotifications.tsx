@@ -93,7 +93,7 @@ const AUDIENCES = [
   ["autres", "Autres contacts"],
 ];
 
-const formatCampaignRecipientName = (r: any) => r?.nom && r?.prenoms ? formatStructuredPersonName(r.nom, r.prenoms) : formatRecipientName(r?.nom_complet || "", r?.source_type);
+const formatCampaignRecipientName = (r: any) => r?.nom && r?.prenoms ? formatStructuredPersonName(r.nom, r.prenoms) : formatRecipientName(r?.nom_complet || "", r?.source_type, r?.nom, r?.prenoms);
 const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) return true; const type = String(r.source_type || ""); return types.some((t) => t === "proprietaire_foncier" ? type.includes("proprietaire_foncier") : t === "beneficiaire_particulier" ? type.includes("beneficiaire_particulier") : t === "autre" ? ["autre","cotitulaire_proprietaire","cotitulaire_client"].includes(type) : type === t); };
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
 const smsLength = (value: string) => Array.from(normalizeSms(value)).length
