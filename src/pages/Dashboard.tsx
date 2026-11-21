@@ -835,7 +835,7 @@ const Dashboard = () => {
           </div>
 
           {!isClientOnly && (
-            <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2 md:grid-cols-6">
+            <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2">
               {canCreateAcquisition && <Button asChild className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/nouvelle-acquisition"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau client</span></Link></Button>}
               <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/leads?new=1&type=prospect"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau prospect</span></Link></Button>
               {canLeads && <Button asChild variant="outline" className="h-auto min-h-11 w-full min-w-0 whitespace-normal px-2 py-2 text-center text-xs sm:text-sm"><Link className="flex min-w-0 w-full items-center justify-center gap-1.5 whitespace-normal break-words text-center leading-tight" to="/leads?new=1"><Plus className="h-4 w-4 shrink-0" /><span>Nouveau lead</span></Link></Button>}
