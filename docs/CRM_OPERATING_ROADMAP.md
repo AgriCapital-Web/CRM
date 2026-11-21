@@ -456,3 +456,12 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Déploiement Vercel Preview de la branche : état READY. La validation TypeScript, les tests et le lint via le workflow GitHub restent à confirmer.
 - Le contrôle de toutes les pages de tableaux et l'audit champ par champ de l'ensemble des formulaires restent à finaliser avant la mise en production.
 - Aucun champ métier ni aucune colonne de base n'est supprimé sans audit de dépendances et de données.
+
+
+## Revue complémentaire des formulaires — 21 novembre 2026
+
+- Formulaire d'acquisition / étape Client : correction de l'actualisation des pièces et contrats conditionnels. Le filtrage des documents dépend désormais aussi du type de représentant, de la présence du représentant et des exigences foncières/contractuelles de l'offre. Un changement de ces champs met immédiatement à jour les pièces affichées.
+- Formulaire d'acquisition / étape Client : lorsque l'offre n'est pas encore sélectionnée, la liste des pièces et contrats est réinitialisée et l'état de chargement se termine ; le formulaire ne reste plus bloqué sur « Chargement des pièces requises… ».
+- Formulaire de modification de fiche client : le contrat déjà rattaché reste consultable/remplaçable ; les montants contractuels, paiement initial et mensualité totale sont recalculés à partir de la surface et du snapshot du contrat. Le contrat signé obligatoire reste contrôlé dans le parcours de création d'acquisition, conformément à la dernière consigne conservée.
+- Formulaire de convention foncière : les champs et annexes conditionnelles sont présents. Les annexes « à fournir » restent traçables dans le dossier soumis à validation ; ne pas bloquer l'enregistrement initial ni transformer leur absence en pièce jointe fictive. La date de signature reste facultative tant qu'elle n'est pas confirmée.
+- Historique des conversations antérieures : la recherche des sessions Notion n'est pas autorisée par le niveau d'accès actuel. Cette revue s'appuie sur les décisions conservées dans le dépôt et sur le code de la branche ; les demandes non conservées ne sont pas reconstituées par supposition.
