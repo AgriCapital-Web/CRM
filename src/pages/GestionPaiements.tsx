@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { formatStructuredPersonName } from "@/lib/utils";
 import ClientPaymentWorkspace from "@/components/finance/ClientPaymentWorkspace";
 
 interface Paiement {
@@ -58,7 +59,7 @@ interface Paiement {
   date_paiement: string | null;
   created_at: string;
   metadata: any;
-  clients?: { nom_complet: string; telephone: string; statut_global?: string; type_client?: string; is_internal?: boolean; contrat_solde_at?: string | null };
+  clients?: { nom_complet: string; nom?: string | null; prenoms?: string | null; telephone: string; statut_global?: string; type_client?: string; is_internal?: boolean; contrat_solde_at?: string | null };
   plantations?: { id_unique: string; nom_plantation: string };
 }
 
@@ -110,7 +111,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('v_monnaie_clients')
-        .select('client_id,monnaie_client,clients(id,nom_complet,telephone)')
+        .select('client_id,monnaie_client,clients(id,nom_complet,nom,prenoms,telephone)')
         .gt('monnaie_client', 0)
         .order('monnaie_client', { ascending: false })
         .limit(100);
@@ -118,6 +119,8 @@ const GestionPaiements = () => {
       return (data || []).map((row: any) => ({
         id: row.client_id,
         nom_complet: row.clients?.nom_complet,
+        nom: row.clients?.nom,
+        prenoms: row.clients?.prenoms,
         telephone: row.clients?.telephone,
         monnaie: Number(row.monnaie_client || 0),
       }));
@@ -250,7 +253,7 @@ const GestionPaiements = () => {
           metadata: {
             transfert_entrant: {
               depuis: sourceClient.id,
-              depuis_nom: sourceClient.nom_complet,
+              depuis_nom: formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms),
               montant: amount,
               date: new Date().toISOString(),
               notes: transferNotes
@@ -270,7 +273,7 @@ const GestionPaiements = () => {
 
       toast({
         title: "Transfert effectué",
-        description: `${formatMontant(amount)} transféré de ${sourceClient.nom_complet} vers ${targetClient.nom_complet}`
+        description: `${formatMontant(amount)} transféré de ${formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)} vers ${formatStructuredPersonName(targetClient.nom, targetClient.prenoms)}`
       });
 
       setIsTransferDialogOpen(false);
@@ -355,7 +358,7 @@ const GestionPaiements = () => {
 
       toast({
         title: "Remboursement enregistré",
-        description: `${formatMontant(amount)} à rembourser à ${sourceClient.nom_complet}`
+        description: `${formatMontant(amount)} à rembourser à ${formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)}`
       });
 
       setIsRefundDialogOpen(false);
@@ -530,7 +533,7 @@ const GestionPaiements = () => {
                   />
                   {sourceClient && (
                     <div className="bg-green-50 p-2 rounded border border-green-200">
-                      <p className="text-sm font-medium text-green-800">✓ {sourceClient.nom_complet}</p>
+                      <p className="text-sm font-medium text-green-800">✓ {formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)}</p>
                       <p className="text-xs text-green-600">ID client : {sourceClient.id_unique}</p>
                     </div>
                   )}
@@ -550,7 +553,7 @@ const GestionPaiements = () => {
                   />
                   {targetClient && (
                     <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                      <p className="text-sm font-medium text-blue-800">✓ {targetClient.nom_complet}</p>
+                      <p className="text-sm font-medium text-blue-800">✓ {formatStructuredPersonName(targetClient.nom, targetClient.prenoms)}</p>
                       <p className="text-xs text-blue-600">ID client : {targetClient.id_unique}</p>
                     </div>
                   )}
@@ -609,7 +612,7 @@ const GestionPaiements = () => {
                   />
                   {sourceClient && (
                     <div className="bg-muted p-2 rounded">
-                      <p className="text-sm font-medium">✓ {sourceClient.nom_complet}</p>
+                      <p className="text-sm font-medium">✓ {formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)}</p>
                     </div>
                   )}
                 </div>
