@@ -134,8 +134,28 @@ export const PlantationsMap = () => {
             info: `Site client • Localité : ${locality}`,
           });
         }
+        // Plusieurs plantations peuvent partager exactement le même site GPS.
+        // Un seul repère physique est alors affiché, avec tous les bénéficiaires dans son détail,
+        // afin qu'aucun repère ne masque les autres sur la carte.
+        const groupedMarkers = new Map<string, PlantationMarker[]>();
+        for (const marker of out) {
+          const key = `${marker.lat.toFixed(6)},${marker.lng.toFixed(6)}`;
+          groupedMarkers.set(key, [...(groupedMarkers.get(key) || []), marker]);
+        }
+        const visibleMarkers: PlantationMarker[] = Array.from(groupedMarkers.entries()).map(([coordinates, group]) => {
+          if (group.length === 1) return group[0];
+          const [lat, lng] = coordinates.split(",").map(Number);
+          return {
+            id: `site-${coordinates}`,
+            lat,
+            lng,
+            label: `${group.length} plantations sur le même site`,
+            info: group.map((marker) => `${marker.label} — ${marker.info || "Plantation"}`).join(" | "),
+          };
+        });
+
         if (active) {
-          setMarkers(out);
+          setMarkers(visibleMarkers);
           setSourceLocations(sourceOnly);
         }
       } catch (error) {
