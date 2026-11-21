@@ -134,25 +134,37 @@ export const PlantationsMap = () => {
             info: `Site client • Localité : ${locality}`,
           });
         }
-        // Plusieurs plantations peuvent partager exactement le même site GPS.
-        // Un seul repère physique est alors affiché, avec tous les bénéficiaires dans son détail,
-        // afin qu'aucun repère ne masque les autres sur la carte.
+        // Les coordonnées GPS sources restent intactes en base.
+        // Pour les plantations du même point, on décale uniquement les repères affichés
+        // en triangle équilatéral de 100 m afin de les rendre sélectionnables séparément.
         const groupedMarkers = new Map<string, PlantationMarker[]>();
         for (const marker of out) {
           const key = `${marker.lat.toFixed(6)},${marker.lng.toFixed(6)}`;
           groupedMarkers.set(key, [...(groupedMarkers.get(key) || []), marker]);
         }
-        const visibleMarkers: PlantationMarker[] = Array.from(groupedMarkers.entries()).map(([coordinates, group]) => {
-          if (group.length === 1) return group[0];
-          const [lat, lng] = coordinates.split(",").map(Number);
-          return {
-            id: `site-${coordinates}`,
-            lat,
-            lng,
-            label: `${group.length} plantations sur le même site`,
-            info: group.map((marker) => `${marker.label} — ${marker.info || "Plantation"}`).join(" | "),
-          };
-        });
+        const visibleMarkers: PlantationMarker[] = [];
+        for (const [coordinates, group] of groupedMarkers.entries()) {
+          if (group.length === 1) {
+            visibleMarkers.push(group[0]);
+            continue;
+          }
+          const [centerLat, centerLng] = coordinates.split(",").map(Number);
+          const radiusMeters = 100 / Math.sqrt(3);
+          const metersPerDegreeLat = 111320;
+          const metersPerDegreeLng = 111320 * Math.cos(centerLat * Math.PI / 180);
+          const ordered = [...group].sort((a, b) => a.label.localeCompare(b.label, "fr"));
+          ordered.forEach((marker, index) => {
+            const angle = (-Math.PI / 2) + (2 * Math.PI * index / ordered.length);
+            const northMeters = Math.sin(angle) * radiusMeters;
+            const eastMeters = Math.cos(angle) * radiusMeters;
+            visibleMarkers.push({
+              ...marker,
+              lat: centerLat + northMeters / metersPerDegreeLat,
+              lng: centerLng + eastMeters / metersPerDegreeLng,
+              info: `${marker.info} • Repère cartographique décalé de 100 m pour distinguer les plantations partageant le même GPS source`,
+            });
+          });
+        }
 
         if (active) {
           setMarkers(visibleMarkers);
