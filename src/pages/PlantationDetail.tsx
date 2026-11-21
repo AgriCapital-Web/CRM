@@ -53,7 +53,7 @@ const PlantationDetail = () => {
         p.client_id ? (supabase as any).from("clients").select("*").eq("id", p.client_id).maybeSingle() : Promise.resolve({ data: null }),
         p.parcelle_id ? (supabase as any).from("parcelles").select("*").eq("id", p.parcelle_id).maybeSingle() : Promise.resolve({ data: null }),
         (supabase as any).from("paiements").select("*").eq("plantation_id", id).neq("statut", "planifie").order("created_at", { ascending: false }),
-        (supabase as any).from("interventions_techniques").select("*, agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)").eq("plantation_id", id).order("date_intervention", { ascending: false }),
+        (supabase as any).from("interventions_techniques").select("*, agent:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet,nom,prenoms)").eq("plantation_id", id).order("date_intervention", { ascending: false }),
       ]);
       if (clientRes.error) throw clientRes.error;
       if (parcelRes.error) throw parcelRes.error;
@@ -64,7 +64,7 @@ const PlantationDetail = () => {
 
       if (parcelRes.data?.proprietaire_id) {
         const { data: owner, error: ownerError } = await (supabase as any)
-          .from("proprietaires_terres").select("id,id_unique,nom_complet,telephone").eq("id", parcelRes.data.proprietaire_id).maybeSingle();
+          .from("proprietaires_terres").select("id,id_unique,nom_complet,nom,prenoms,telephone").eq("id", parcelRes.data.proprietaire_id).maybeSingle();
         if (ownerError) throw ownerError;
         setProprietaire(owner || null);
       } else setProprietaire(null);
@@ -72,7 +72,7 @@ const PlantationDetail = () => {
       if (p.parcelle_id && clientRes.data?.type_client === "beneficiaire_particulier") {
         const { data: attrs, error: attrError } = await (supabase as any)
           .from("beneficiaire_attributions")
-          .select("id,surface_attribuee_ha,role_attribution,statut,clients(id,id_unique,nom_complet),plantations(id,id_unique)")
+          .select("id,surface_attribuee_ha,role_attribution,statut,clients(id,id_unique,nom_complet,nom,prenoms),plantations(id,id_unique)")
           .eq("parcelle_id", p.parcelle_id)
           .eq("statut", "active")
           .order("created_at", { ascending: false });
@@ -135,7 +135,7 @@ const PlantationDetail = () => {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><UserRound className="h-4 w-4" />Client</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-              <div><span className="text-muted-foreground">Nom : </span>{client ? <Link to={isBeneficiaire ? `/beneficiaire-particulier/${client.id}` : `/acquisitions/${client.id}`} className="font-semibold hover:underline">{client.nom_complet}</Link> : "—"}</div>
+              <div><span className="text-muted-foreground">Nom : </span>{client ? <Link to={isBeneficiaire ? `/beneficiaire-particulier/${client.id}` : `/acquisitions/${client.id}`} className="font-semibold hover:underline">{formatRecipientName(client.nom_complet, "client", client.nom, client.prenoms)}</Link> : "—"}</div>
               <div><span className="text-muted-foreground">Type : </span>{isBeneficiaire ? "Bénéficiaire particulier" : client?.type_client === "avec_terre" ? "Client — parcelle propre" : client?.type_client || "—"}</div>
               <div><span className="text-muted-foreground">Offre : </span>{client?.famille_offre || client?.offre_id || "—"}</div>
               <div><span className="text-muted-foreground">Formule : </span>{client?.formule_nom || client?.formule_code || "—"}</div>
@@ -151,7 +151,7 @@ const PlantationDetail = () => {
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><LandPlot className="h-4 w-4" />Foncier</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                <div><span className="text-muted-foreground">Propriétaire : </span>{proprietaire?.nom_complet || "—"}</div>
+                <div><span className="text-muted-foreground">Propriétaire : </span>{formatRecipientName(proprietaire?.nom_complet, "client", proprietaire?.nom, proprietaire?.prenoms)}</div>
                 <div><span className="text-muted-foreground">Lot : </span>{plantation?.lots_hectares?.reference || (plantation?.lots_hectares?.numero_h ? `H${String(plantation.lots_hectares.numero_h).padStart(2,"0")}` : "—")}</div>
                 <div><span className="text-muted-foreground">Parcelle : </span>{parcelle?.id_unique || "—"}</div>
                 <div><span className="text-muted-foreground">Village : </span>{parcelle?.village || plantation.village || "—"}</div>
@@ -205,7 +205,7 @@ const PlantationDetail = () => {
                 {paginatedInterventions.map((i: any) => (
                   <div key={i.id} className="rounded-lg border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{i.type_intervention?.replace(/_/g, " ") || "Opération"}</span><Badge variant="outline">{formatStatus(i.statut)}</Badge></div>
-                    <p className="mt-1 text-xs text-muted-foreground">{i.date_intervention ? new Date(i.date_intervention).toLocaleDateString("fr-FR") : "—"} · {i.agent?.nom_complet || "Équipe technique"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{i.date_intervention ? new Date(i.date_intervention).toLocaleDateString("fr-FR") : "—"} · {i.agent?.nom || i.agent?.prenoms ? formatStructuredPersonName(i.agent?.nom, i.agent?.prenoms) : formatRecipientName(i.agent?.nom_complet, "equipe") || "Équipe technique"}</p>
                     {i.observations && <p className="mt-1 text-sm">{i.observations}</p>}
                   </div>
                 ))}
