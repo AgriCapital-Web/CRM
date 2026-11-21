@@ -15,6 +15,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 type ClientRow = {
   id: string;
   nom_complet: string | null;
+  nom: string | null;
+  prenoms: string | null;
   telephone: string | null;
   type_client: string | null;
   type_client_foncier: string | null;
