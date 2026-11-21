@@ -45,7 +45,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
     { icon: Sprout, label: "Opérations techniques", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
-    { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" as any },
+    { icon: Wallet, label: can("finance.view") ? "Finance & Comptabilité" : "Paie & salaires", path: "/finance", permission: "finance.view" as any },
     { icon: CreditCard, label: "Paiements", path: "/paiements", permission: PERMISSIONS.VIEW_PAIEMENTS },
     { icon: Receipt, label: "Commissions", path: "/commissions", permission: PERMISSIONS.VIEW_COMMISSIONS },
     { icon: Wallet, label: "Portefeuilles", path: "/portefeuilles", permission: PERMISSIONS.VIEW_PORTEFEUILLES },
@@ -57,7 +57,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const visibleMenuItems = menuItems.filter(item => item.label === "AgriCapital 360"
     ? (can("messagerie.view") || can("finance.view") || can("documents.view") || can("decision_center.view"))
-    : can(item.permission));
+    : item.path === "/finance" ? (can("finance.view") || can("finance.payroll")) : can(item.permission));
   const handleLogout = async () => { await signOut(); navigate("/"); };
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'AG';
 
