@@ -84,3 +84,57 @@ delete from public.role_permissions rp
 where rp.role_code = 'directeur_tc'
   and not exists (select 1 from public.app_roles r where r.code = rp.role_code)
   and not exists (select 1 from public.user_roles ur where ur.role = rp.role_code);
+
+
+-- The operations lead coordinates the national operating model and therefore
+-- has national visibility rather than an unassigned single-region perimeter.
+update public.app_roles
+set niveau_couverture = 'global',
+    libelle_couverture = 'National',
+    description = 'Pilotage transversal des opérations, des offres, des paramètres métier et de la coordination opérationnelle à l’échelle nationale.',
+    updated_at = now()
+where code = 'responsable_operations';
+
+-- Assign the existing technical team lead to the only active technical team
+-- and its existing Daloa department coverage.
+insert into public.zone_assignments (user_id, zone_type, zone_id, created_by)
+select 'aaca1b35-dc74-48ee-9592-b646432825c8'::uuid, 'departement', d.id,
+       'bd9579fd-1d07-4431-9cc4-b57dfeeab593'::uuid
+from public.departements d
+where d.nom = 'Daloa'
+  and d.region_id = 'd7738144-14cf-43f6-be4d-500f21a9cee5'::uuid
+  and not exists (
+    select 1 from public.zone_assignments z
+    where z.user_id = 'aaca1b35-dc74-48ee-9592-b646432825c8'::uuid
+  );
+
+select set_config('app.internal_coverage_sync', 'true', true);
+update public.profiles
+set equipe_id = '75242b1a-4b1f-45b1-a0e3-a075f427e005'::uuid,
+    departement = 'Technique',
+    updated_at = now()
+where user_id = 'aaca1b35-dc74-48ee-9592-b646432825c8'::uuid;
+select set_config('app.internal_coverage_sync', 'false', true);
+
+insert into public.equipe_membres (equipe_id, profile_id, created_by)
+select '75242b1a-4b1f-45b1-a0e3-a075f427e005'::uuid,
+       'aaca1b35-dc74-48ee-9592-b646432825c8'::uuid,
+       'bd9579fd-1d07-4431-9cc4-b57dfeeab593'::uuid
+where not exists (
+  select 1 from public.equipe_membres em
+  where em.equipe_id = '75242b1a-4b1f-45b1-a0e3-a075f427e005'::uuid
+    and em.profile_id = 'aaca1b35-dc74-48ee-9592-b646432825c8'::uuid
+);
+
+update public.equipes
+set responsable_id = 'aaca1b35-dc74-48ee-9592-b646432825c8'::uuid,
+    updated_at = now()
+where id = '75242b1a-4b1f-45b1-a0e3-a075f427e005'::uuid;
+
+-- The PDG remains a global administrator, not an operational team member.
+delete from public.equipe_membres
+where profile_id = 'bd9579fd-1d07-4431-9cc4-b57dfeeab593'::uuid
+  and equipe_id in (
+    'a3fe031b-c37d-41df-92e5-df3048a5a39c'::uuid,
+    '75242b1a-4b1f-45b1-a0e3-a075f427e005'::uuid
+  );
