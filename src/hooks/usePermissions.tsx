@@ -33,7 +33,10 @@ async function fetchEffectivePermissions(userId: string): Promise<PermissionMatr
       // The database response remains authoritative even if offline caching fails.
     }
     return { matrix, fromDatabase: true };
-  } catch {
+  } catch (error) {
+    // Never reuse an old role matrix while the device is online: a changed role
+    // could otherwise keep a stale client-only capability after promotion.
+    if (typeof navigator !== "undefined" && navigator.onLine) throw error;
     // Offline mode may use only the last effective set returned by the database.
     // The previous role matrix is deliberately not reconstructed in the browser.
     try {
@@ -56,6 +59,7 @@ function useEffectivePermissionSnapshot() {
     queryKey: ["effective-permissions", user?.id || "anonymous"],
     queryFn: () => fetchEffectivePermissions(user!.id),
     enabled: Boolean(user?.id),
+    retry: 2,
     staleTime: 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: true,
