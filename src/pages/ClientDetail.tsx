@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { formatStructuredPersonName } from "@/lib/utils";
+import { formatStructuredPersonName, formatRecipientName } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -387,7 +387,7 @@ const ClientDetail = () => {
         .from("interventions_techniques")
         .select(`
           *,
-          agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)
+          agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet,nom,prenoms)
         `)
         .eq("client_id", id)
         .order("date_intervention", { ascending: false });
@@ -1157,7 +1157,7 @@ const ClientDetail = () => {
                               {new Date(intervention.date_intervention).toLocaleDateString("fr-FR")}
                             </TableCell>
                             <TableCell>{intervention.type_intervention}</TableCell>
-                            <TableCell>{intervention.agent_technique?.nom_complet}</TableCell>
+                            <TableCell>{intervention.agent_technique?.nom || intervention.agent_technique?.prenoms ? formatStructuredPersonName(intervention.agent_technique?.nom, intervention.agent_technique?.prenoms) : formatRecipientName(intervention.agent_technique?.nom_complet, "equipe")}</TableCell>
                             <TableCell className="max-w-xs truncate">
                               {intervention.observations}
                             </TableCell>
@@ -1210,7 +1210,7 @@ const ClientDetail = () => {
                       <CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" /> Propriétaire foncier</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <p className="font-semibold">{parcelle?.proprietaires_terres?.nom_complet || "À compléter"}</p>
+                      <p className="font-semibold">{parcelle?.proprietaires_terres ? formatRecipientName(parcelle.proprietaires_terres.nom_complet, "client", parcelle.proprietaires_terres.nom, parcelle.proprietaires_terres.prenoms) : "À compléter"}</p>
                       <p className="text-sm text-muted-foreground">Statut foncier : {parcelle?.proprietaires_terres?.statut_foncier || "—"}</p>
                       <p className="text-sm text-muted-foreground">Téléphone : {parcelle?.proprietaires_terres?.telephone || "À compléter"}</p>
                       
