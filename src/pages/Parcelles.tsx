@@ -17,6 +17,8 @@ import { formatRecipientName } from "@/lib/utils";
 import { Eye, Pencil } from "lucide-react";
 import { Search, Layers, MapPin, Sprout } from "lucide-react";
 
+const displayOwnerName = (owner: any) => owner?.type_proprietaire === "personne_physique" ? formatRecipientName(owner?.nom_complet, "client", owner?.nom, owner?.prenoms) : (owner?.denomination_sociale || owner?.nom_complet || "Propriétaire");
+
 const Parcelles = () => {
   const [parcelles, setParcelles] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -37,7 +39,7 @@ const Parcelles = () => {
     try {
       const [{ data: p, error: pe }, { data: c, error: ce }, { data: l, error: le }, { data: plant, error: ple }] = await Promise.all([
         (supabase as any).from("parcelles")
-          .select("*, proprietaires_terres(id,id_unique,nom_complet,nom,prenoms), districts(nom), regions(nom), departements(nom), sous_prefectures(nom)")
+          .select("*, proprietaires_terres(id,id_unique,nom_complet,nom,prenoms,type_proprietaire,denomination_sociale), districts(nom), regions(nom), departements(nom), sous_prefectures(nom)")
           .order("created_at", { ascending: false }),
         (supabase as any).from("clients")
           .select("id,id_unique,nom_complet,nom,prenoms,parcelle_id,formule_code,formule_nom,famille_offre,offre_code,total_hectares,statut,validation_statut")
@@ -98,7 +100,7 @@ const Parcelles = () => {
   }, [plantations]);
 
   const filtered = parcelles.filter((p) => {
-    const owner = formatRecipientName(p.proprietaires_terres?.nom_complet || "", "client", p.proprietaires_terres?.nom, p.proprietaires_terres?.prenoms);
+    const owner = displayOwnerName(p.proprietaires_terres);
     const parcelClients = clientsByParcel.get(p.id) || [];
     const haystack = [
       p.id_unique, p.nom, owner, p.village,
@@ -209,7 +211,7 @@ const Parcelles = () => {
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
                     <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</TableCell>
-                    <TableCell>{p.proprietaires_terres?.nom_complet ? formatRecipientName(p.proprietaires_terres.nom_complet, "client", p.proprietaires_terres.nom, p.proprietaires_terres.prenoms) : (ownClient ? formatRecipientName(parcelClients[0]?.nom_complet, "client", parcelClients[0]?.nom, parcelClients[0]?.prenoms) : "—")}</TableCell>
+                    <TableCell>{p.proprietaires_terres?.nom_complet ? displayOwnerName(p.proprietaires_terres) : (ownClient ? formatRecipientName(parcelClients[0]?.nom_complet, "client", parcelClients[0]?.nom, parcelClients[0]?.prenoms) : "—")}</TableCell>
                     <TableCell>{Number(p.surface_agricapital_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</TableCell>
                     <TableCell>{parcelLots.length || "—"}</TableCell>
                     <TableCell className="max-w-[280px] text-xs">
@@ -234,7 +236,7 @@ const Parcelles = () => {
                   <div className="space-y-1 sm:col-span-2"><Label>Statut</Label><Select value={parcelForm.statut} onValueChange={statut => setParcelForm(v => ({ ...v, statut }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="disponible">Disponible</SelectItem><SelectItem value="partiellement_attribuee">Partiellement attribuée</SelectItem><SelectItem value="saturee">Saturée</SelectItem><SelectItem value="validee">Validée</SelectItem><SelectItem value="a_valider">À valider</SelectItem></SelectContent></Select></div>
                 </div> : <div className="grid gap-3 sm:grid-cols-2">
                   <div><Label>Identifiant</Label><p className="font-medium">{selectedParcel.id_unique || "—"}</p></div>
-                  <div><Label>Propriétaire</Label><p className="font-medium">{formatRecipientName(selectedParcel.proprietaires_terres?.nom_complet, "client", selectedParcel.proprietaires_terres?.nom, selectedParcel.proprietaires_terres?.prenoms)}</p></div>
+                  <div><Label>Propriétaire</Label><p className="font-medium">{displayOwnerName(selectedParcel.proprietaires_terres)}</p></div>
                   <div><Label>Village</Label><p className="font-medium">{selectedParcel.village || "—"}</p></div>
                   <div><Label>Localisation</Label><p className="font-medium">{[selectedParcel.departements?.nom, selectedParcel.sous_prefectures?.nom, selectedParcel.districts?.nom, selectedParcel.regions?.nom].filter(Boolean).join(" · ") || "—"}</p></div>
                   <div><Label>Superficie totale</Label><p className="font-medium">{Number(selectedParcel.surface_totale_ha || 0).toLocaleString("fr-FR")} ha</p></div>
