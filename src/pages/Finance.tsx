@@ -32,9 +32,15 @@ const changeDisplayedAmount=(value:string,enabled:boolean,kind:"deduct"|"add")=>
 
 function FeeChoiceButtons({ value, onChange }: { value: "with" | "without"; onChange: (value: "with" | "without") => void }) {
   return (
-    <div className="inline-flex flex-wrap gap-1 rounded-md border p-1" role="group" aria-label="Frais de transaction">
-      <Button type="button" size="sm" variant={value === "with" ? "default" : "outline"} aria-pressed={value === "with"} onClick={() => onChange("with")}>Avec frais</Button>
-      <Button type="button" size="sm" variant={value === "without" ? "default" : "outline"} aria-pressed={value === "without"} onClick={() => onChange("without")}>Sans frais</Button>
+    <div className="inline-flex flex-wrap items-center gap-3" role="group" aria-label="Frais de transaction">
+      <label className="inline-flex cursor-pointer items-center gap-1.5 text-sm">
+        <input type="checkbox" checked={value === "with"} onChange={() => onChange("with")} className="h-3.5 w-3.5 rounded border-input accent-primary" />
+        Avec frais
+      </label>
+      <label className="inline-flex cursor-pointer items-center gap-1.5 text-sm">
+        <input type="checkbox" checked={value === "without"} onChange={() => onChange("without")} className="h-3.5 w-3.5 rounded border-input accent-primary" />
+        Sans frais
+      </label>
     </div>
   );
 }
