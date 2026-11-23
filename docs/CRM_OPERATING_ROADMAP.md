@@ -481,3 +481,11 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Les coordonnées des fiches clients correspondantes ont été alignées pour ZAGBLE BOLOU et Emmanuel. La parcelle propre à Jacques a également été mise à jour. La parcelle commune de ZAGBLE BOLOU et Emmanuel n'a pas été écrasée par une coordonnée individuelle.
 - Carte des plantations : suppression du décalage artificiel de 100 m ; chaque repère reprend désormais strictement le GPS enregistré sur sa plantation.
 - Finance et Comptabilité : remplacement du sélecteur à boutons « Avec frais / Sans frais » par deux petites cases à cocher mutuellement exclusives. Le composant commun couvre les formulaires de saisie de dépense, paiement d'une dépense, paiement de paie et mouvement d'associé ; les calculs métier restent inchangés.
+
+
+## Justificatifs multiples en Finance et Comptabilité — 23 novembre 2026
+
+- Les champs de justificatifs des formulaires d'entrées, sorties, dépenses à payer, règlements de dépenses, paiements de paie et mouvements d'associés acceptent désormais la sélection multiple, jusqu'à 25 fichiers par opération.
+- Les fichiers sont téléversés individuellement dans le stockage privé et leurs chemins/noms sont conservés ensemble dans les champs justificatifs existants au format JSON, sans migration de schéma ; les anciens justificatifs unitaires restent compatibles.
+- La sélection ne rajoute aucun texte d'aide ni compteur explicatif dans les formulaires.
+- L'ouverture des justificatifs prend en charge les anciens fichiers unitaires et les nouvelles listes de fichiers.
