@@ -1,4 +1,5 @@
 import { sortByCrmIdentifier, compareCrmIdentifiers } from "@/lib/crmIdentifierSort";
+import { formatStructuredPersonName, formatStructuredTablePersonName } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { logActivity } from "@/utils/traceability";
 import MainLayout from "@/components/layout/MainLayout";
@@ -532,14 +533,14 @@ const Clients = () => {
                     ) : (
                       <>
                       {orderedAcquisitionClients.map((client) => (
-                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${String(client.id_unique || "").startsWith("AC_B") ? "bénéficiaire" : "client"} ${client.nom_complet || client.id_unique || ""}`} onClick={() => navigate(getRecordPath(client))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(getRecordPath(client)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
+                        <TableRow key={client.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${String(client.id_unique || "").startsWith("AC_B") ? "bénéficiaire" : "client"} ${formatStructuredTablePersonName(client.nom, client.prenoms, client.nom_complet)}`} onClick={() => navigate(getRecordPath(client))} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(getRecordPath(client)); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1">
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">
                             {client.id_unique}
                           </TableCell>
                           <TableCell className="font-medium text-xs whitespace-nowrap">
-                            {client.nom_complet || [client.nom, client.prenoms].filter(Boolean).join(" ")}
+                            {formatStructuredPersonName(client.nom, client.prenoms)}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={client.telephone} whatsapp={client.whatsapp} email={client.email} name={client.nom_complet || client.id_unique || "Client"} kind="client" status={client.statut || client.status || ""}/></TableCell>
+                          <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={client.telephone} whatsapp={client.whatsapp} email={client.email} name={formatStructuredTablePersonName(client.nom, client.prenoms, client.nom_complet)} kind="client" status={client.statut || client.status || ""}/></TableCell>
                           <TableCell>
                             {client.type_client === "beneficiaire_particulier" ? (
                               <Badge variant="secondary" className="whitespace-nowrap">B. particulier</Badge>
@@ -642,7 +643,7 @@ const Clients = () => {
                           className="cursor-pointer bg-muted/20 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1"
                         >
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">ASSOCIÉ</TableCell>
-                          <TableCell className="font-medium text-xs whitespace-nowrap">{associate.full_name}</TableCell>
+                          <TableCell className="font-medium text-xs whitespace-nowrap">{formatTablePersonName(associate.full_name)}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}>
                             <ContactLauncher phone={associate.telephone} name={associate.full_name || "Associé"} kind="client" status={associate.active ? "actif" : "inactif"} />
                           </TableCell>
