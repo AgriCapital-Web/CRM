@@ -1174,7 +1174,7 @@ const ClientDetail = () => {
                               {new Date(intervention.date_intervention).toLocaleDateString("fr-FR")}
                             </TableCell>
                             <TableCell>{intervention.type_intervention}</TableCell>
-                            <TableCell>{intervention.agent_technique?.nom || intervention.agent_technique?.prenoms ? formatStructuredTablePersonName(intervention.agent_technique?.nom, intervention.agent_technique?.prenoms) : formatTableRecipientName(intervention.agent_technique?.nom_complet, "equipe")}</TableCell>
+                            <TableCell>{intervention.agent_technique?.nom || intervention.agent_technique?.prenoms ? formatStructuredTablePersonName(intervention.agent_technique?.nom, intervention.agent_technique?.prenoms, intervention.agent_technique?.nom_complet) : formatTableRecipientName(intervention.agent_technique?.nom_complet, "equipe")}</TableCell>
                             <TableCell className="max-w-xs truncate">
                               {intervention.observations}
                             </TableCell>
