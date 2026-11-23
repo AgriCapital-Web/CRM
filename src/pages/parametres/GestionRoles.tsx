@@ -800,7 +800,7 @@ const GestionRoles = () => {
                   value={roleDraft.code}
                   disabled={!!editingCode}
                   onChange={(e) => setRoleDraft({ ...roleDraft, code: e.target.value })}
-                  placeholder="ex: chef_equipe_commercial"
+                  placeholder="ex. : chef_equipe_commercial"
                 />
               </div>
               <div className="space-y-2">
@@ -808,7 +808,7 @@ const GestionRoles = () => {
                 <Input
                   value={roleDraft.court}
                   onChange={(e) => setRoleDraft({ ...roleDraft, court: e.target.value })}
-                  placeholder="ex: CEC"
+                  placeholder="ex. : CEC"
                 />
               </div>
             </div>
