@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatStructuredPersonName, formatRecipientName, formatStructuredTablePersonName, formatTableRecipientName } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -18,9 +19,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Sprout, DollarSign, FileText, Settings, Camera, LandPlot, UserRound, ExternalLink, MessageSquare, Upload, Plus, Download } from "lucide-react";
+import { ArrowLeft, Sprout, DollarSign, FileText, Settings, Camera, LandPlot, UserRound, ExternalLink, MessageSquare, Upload, Plus, Download, ArrowRightLeft, ArrowDownLeft } from "lucide-react";
 import TicketForm from "@/components/forms/TicketForm";
 import ClientForm from "@/components/forms/ClientForm";
+import PaiementForm from "@/components/forms/PaiementForm";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { uploadFile } from "@/utils/storage";
 import { resolveStorageUrl } from "@/utils/storage";
@@ -36,10 +38,11 @@ const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(Math.
 const ClientDetail = () => {
   const { can } = usePermissions();
   const { user } = useAuth();
-  const canViewClientMoney = can("clients.view_money");
+  const canViewClientMoney = can("clients.view_money") || can(PERMISSIONS.VIEW_CLIENTS);
+  const canManageClientMoneyActions = can("clients.manage_money_actions");
   const canValidateClient = can("clients.validate");
   const canUploadDocuments = can("documents.upload");
-  const canViewClientPayments = can("paiements.view");
+  const canViewClientPayments = can("paiements.view") || can(PERMISSIONS.VIEW_CLIENTS);
   const canCreatePlantationAcquisition = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
   const { id } = useParams();
   const navigate = useNavigate();
@@ -88,6 +91,7 @@ const ClientDetail = () => {
   const [pendingContractAcquisitionId, setPendingContractAcquisitionId] = useState<string | null>(null);
   const [newAcquisitionFormData, setNewAcquisitionFormData] = useState<any>({ mode_paiement: "echeancier" });
   const [isRachatOpen,setIsRachatOpen]=useState(false);
+  const [isPaiementFormOpen,setIsPaiementFormOpen]=useState(false);
   const [rachatJours,setRachatJours]=useState("1");
   const [tableSearch,setTableSearch]=useState("");
   const [plantationPage,setPlantationPage]=useState(1);
@@ -224,7 +228,7 @@ const ClientDetail = () => {
   };
 
   const handleRachatMonnaie=async()=>{
-    if(!canViewClientMoney||!id)return;
+    if(!canManageClientMoneyActions||!id)return;
     const jours=Math.max(1,Number(rachatJours||0));
     try{
       const {data,error}=await (supabase as any).rpc("rachater_monnaie_client",{p_client_id:id,p_jours:jours});
@@ -386,7 +390,7 @@ const ClientDetail = () => {
         .from("interventions_techniques")
         .select(`
           *,
-          agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet)
+          agent_technique:profiles!interventions_techniques_agent_technique_id_fkey(nom_complet,nom,prenoms)
         `)
         .eq("client_id", id)
         .order("date_intervention", { ascending: false });
@@ -654,14 +658,14 @@ const ClientDetail = () => {
                 Retour
               </Button>
               {clientMedia.photo ? (
-                <img src={clientMedia.photo} alt={client.nom_complet || "Photo du Client"} className="h-14 w-14 shrink-0 rounded-full border object-cover sm:h-16 sm:w-16" />
+                <img src={clientMedia.photo} alt={formatStructuredPersonName(client.nom, client.prenoms)} className="h-14 w-14 shrink-0 rounded-full border object-cover sm:h-16 sm:w-16" />
               ) : (
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold sm:h-16 sm:w-16">
-                  {String(client.nom_complet || "C").trim().charAt(0).toUpperCase()}
+                  {formatStructuredPersonName(client.nom, client.prenoms).trim().charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <h1 className="truncate text-2xl font-bold sm:text-3xl">{client.nom_complet}</h1>
+                <h1 className="truncate text-2xl font-bold sm:text-3xl">{formatStructuredPersonName(client.nom, client.prenoms)}</h1>
                 <p className="truncate text-sm text-muted-foreground">{client.id_unique}</p>
                 {(clientMedia.recto || clientMedia.verso) && (
                   <div className="mt-1 flex flex-wrap gap-3 text-xs">
@@ -675,12 +679,13 @@ const ClientDetail = () => {
       <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Ajouter un document au dossier</DialogTitle><DialogDescription>Le fichier est téléversé dans le stockage privé puis rattaché au dossier du client.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Libellé du document</Label><Input placeholder="Contrat, annexe…" value={documentLabel} onChange={e=>setDocumentLabel(e.target.value)} /></div><div className="space-y-1"><Label>Fichier</Label><Input type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={e=>setDocumentFile(e.target.files?.[0]||null)} /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>{setIsDocumentDialogOpen(false);setDocumentFile(null);setDocumentLabel("");}}>Annuler</Button><Button type="button" onClick={()=>void uploadClientDocument()} disabled={!documentFile}>Enregistrer le document</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isValidationDialogOpen} onOpenChange={setIsValidationDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Contrôle du dossier client</DialogTitle><DialogDescription>La décision et le commentaire sont enregistrés dans Supabase.</DialogDescription></DialogHeader>{isPalmInvestClient && <div className="space-y-3 rounded-lg border p-3"><div><h3 className="font-semibold">Annexes PalmInvest (facultatif)</h3><p className="text-xs text-muted-foreground">Ajoutez une ou plusieurs pièces pendant la validation du compte.</p></div><div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><Select value={annexType} onValueChange={setAnnexType}><SelectTrigger><SelectValue placeholder="Type d’annexe"/></SelectTrigger><SelectContent><SelectItem value="convention_fonciere">Convention foncière</SelectItem><SelectItem value="fiche_identification_parcelle">Fiche d’identification de la parcelle</SelectItem><SelectItem value="pv_consentement_familial">PV de consentement familial</SelectItem></SelectContent></Select><Input type="file" accept=".pdf,image/*" onChange={e=>setAnnexFile(e.target.files?.[0]||null)}/><Button type="button" variant="outline" disabled={!annexFile||savingValidation} onClick={()=>{if(annexFile){setPendingAnnexes(current=>[...current,{type:annexType,file:annexFile}]);setAnnexFile(null);}}}><Plus className="mr-1 h-4 w-4"/>Ajouter</Button></div>{pendingAnnexes.length>0 && <ul className="space-y-1 text-sm">{pendingAnnexes.map((a,i)=><li key={i} className="flex items-center justify-between gap-2"><span>{annexLabels[a.type]} — {a.file.name}</span><Button type="button" variant="ghost" size="sm" onClick={()=>setPendingAnnexes(current=>current.filter((_,j)=>j!==i))}>Retirer</Button></li>)}</ul>}</div>}<div className="space-y-2"><Label>Commentaire de contrôle</Label><Textarea rows={3} value={validationComment} onChange={e=>setValidationComment(e.target.value)} placeholder="À renseigner pour demander une correction" /></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsValidationDialogOpen(false)}>Annuler</Button>{client?.validation_statut === "modification_demandee" && <Button type="button" variant="outline" onClick={()=>{setIsValidationDialogOpen(false);setIsClientFormOpen(true);}}>Modifier le dossier</Button>}<Button type="button" variant="outline" onClick={()=>void reviewClient("demander_modification")} disabled={savingValidation}>Demander une modification</Button><Button type="button" onClick={()=>void reviewClient("valider")} disabled={savingValidation}>Valider le dossier</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={isSaleCorrectionDialogOpen} onOpenChange={setIsSaleCorrectionDialogOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Correction de la vente</DialogTitle><DialogDescription>Montants recalculés au prorata du contrat, sans nouvel échéancier.</DialogDescription></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Superficie corrigée (ha)</Label><Input type="number" min="0.01" step="0.01" value={saleCorrectionSurface} onChange={e=>setSaleCorrectionSurface(e.target.value)} /></div><div className="space-y-1"><Label>Note de correction (facultatif)</Label><Textarea rows={3} value={saleCorrectionNotes} onChange={e=>setSaleCorrectionNotes(e.target.value)} placeholder="Précision transmise au validateur" /></div></div><DialogFooter><Button type="button" variant="outline" onClick={()=>setIsSaleCorrectionDialogOpen(false)}>Annuler</Button><Button type="button" onClick={()=>void resubmitSaleCorrection()} disabled={savingSaleCorrection}>{savingSaleCorrection?"Envoi…":"Enregistrer et renvoyer"}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={isPaiementFormOpen} onOpenChange={setIsPaiementFormOpen}><DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>Ajouter un paiement — {client ? formatStructuredPersonName(client.nom, client.prenoms) : "Client"}</DialogTitle></DialogHeader><PaiementForm initialClientId={id} lockClient onCancel={()=>setIsPaiementFormOpen(false)} onSuccess={()=>{setIsPaiementFormOpen(false);void fetchData();}} /></DialogContent></Dialog>
       <Dialog open={isRachatOpen} onOpenChange={setIsRachatOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Racheter la monnaie client</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Convertir la monnaie client en jours</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">Monnaie disponible : <b>{formatMontant(monnaieClient)} F CFA</b></p>
-            <div><Label>Nombre de jours</Label><Input type="number" min="1" value={rachatJours} onChange={e=>setRachatJours(e.target.value)}/></div>
+            <div><Label>Nombre de jours à convertir</Label><Input type="number" min="1" step="1" value={rachatJours} onChange={e=>setRachatJours(e.target.value)}/></div>
             <Button className="w-full" onClick={handleRachatMonnaie}>Confirmer</Button>
           </div>
         </DialogContent>
@@ -736,7 +741,7 @@ const ClientDetail = () => {
               <CardHeader><CardTitle className="text-sm font-medium text-muted-foreground">Monnaie client</CardTitle></CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-lg font-semibold">{formatMontant(monnaieClient)} F CFA</p>
-                <Button size="sm" variant="outline" onClick={()=>setIsRachatOpen(true)} disabled={!monnaieClient}>Racheter</Button>
+                {canManageClientMoneyActions && <Button size="sm" variant="outline" onClick={()=>setIsRachatOpen(true)} disabled={!monnaieClient}>Convertir en jours</Button>}
               </CardContent>
             </Card>}
 
@@ -786,7 +791,7 @@ const ClientDetail = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                  <p className="font-semibold">{client.nom_complet}</p>
+                  <p className="font-semibold">{formatStructuredPersonName(client.nom, client.prenoms)}</p>
                   <p className="text-muted-foreground">Nouvelle offre = nouvelle acquisition. Les précédentes restent inchangées.</p>
                   <p className="text-xs text-muted-foreground">Les promotions nouveaux clients ne sont pas rétroactives.</p>
                 </div>
@@ -1083,7 +1088,20 @@ const ClientDetail = () => {
             {canViewClientPayments && <TabsContent value="paiements">
               <Card>
                 <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Historique des Paiements</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un paiement…" /></div>
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle>Historique des Paiements</CardTitle>
+                      {canManageClientMoneyActions && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" onClick={()=>setIsPaiementFormOpen(true)}><Plus className="mr-1 h-4 w-4"/>Ajouter paiement</Button>
+                          <Button size="sm" variant="outline" onClick={()=>navigate(`/paiements?client_id=${encodeURIComponent(String(id || ""))}&action=refund`)} disabled={!paiements.some((p:any)=>p.statut==="valide")}><ArrowDownLeft className="mr-1 h-4 w-4"/>Remboursement</Button>
+                          <Button size="sm" variant="outline" onClick={()=>navigate(`/paiements?client_id=${encodeURIComponent(String(id || ""))}&action=transfer`)}><ArrowRightLeft className="mr-1 h-4 w-4"/>Transfert</Button>
+                          <Button size="sm" variant="outline" onClick={()=>setIsRachatOpen(true)} disabled={!monnaieClient}>Convertir monnaie en jours</Button>
+                        </div>
+                      )}
+                    </div>
+                    <TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un paiement…" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <Table>
@@ -1156,7 +1174,7 @@ const ClientDetail = () => {
                               {new Date(intervention.date_intervention).toLocaleDateString("fr-FR")}
                             </TableCell>
                             <TableCell>{intervention.type_intervention}</TableCell>
-                            <TableCell>{intervention.agent_technique?.nom_complet}</TableCell>
+                            <TableCell>{intervention.agent_technique?.nom || intervention.agent_technique?.prenoms ? formatStructuredTablePersonName(intervention.agent_technique?.nom, intervention.agent_technique?.prenoms, intervention.agent_technique?.nom_complet) : formatTableRecipientName(intervention.agent_technique?.nom_complet, "equipe")}</TableCell>
                             <TableCell className="max-w-xs truncate">
                               {intervention.observations}
                             </TableCell>
@@ -1209,7 +1227,7 @@ const ClientDetail = () => {
                       <CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" /> Propriétaire foncier</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <p className="font-semibold">{parcelle?.proprietaires_terres?.nom_complet || "À compléter"}</p>
+                      <p className="font-semibold">{parcelle?.proprietaires_terres ? formatRecipientName(parcelle.proprietaires_terres.nom_complet, "client", parcelle.proprietaires_terres.nom, parcelle.proprietaires_terres.prenoms) : "À compléter"}</p>
                       <p className="text-sm text-muted-foreground">Statut foncier : {parcelle?.proprietaires_terres?.statut_foncier || "—"}</p>
                       <p className="text-sm text-muted-foreground">Téléphone : {parcelle?.proprietaires_terres?.telephone || "À compléter"}</p>
                       
