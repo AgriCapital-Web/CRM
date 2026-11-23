@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatTablePersonName } from "@/lib/utils";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
@@ -283,7 +283,7 @@ export default function Commissions() {
                       <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Déjà payé</TableHead><TableHead>Solde</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                       <TableBody>{selected.details.map((d: any) =>
                         <TableRow key={d.id}>
-                          <TableCell>{d.client?.nom_complet || "—"}</TableCell>
+                          <TableCell>{formatTablePersonName(d.client?.nom_complet)}</TableCell>
                           <TableCell>{d.client?.famille_offre || d.client?.formule_code || "—"}{d.client?.formule_nom ? ` · ${d.client.formule_nom}` : ""}</TableCell>
                           <TableCell><Badge variant="outline">{typeLabel(d.type_commission)}</Badge></TableCell>
                           <TableCell>{money(d.montant_base)}</TableCell>
