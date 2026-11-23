@@ -20,7 +20,7 @@ import { Wallet, ArrowDownLeft, ArrowUpRight, Users, Banknote, RefreshCw, Plus, 
 import { useToast } from "@/components/ui/use-toast";
 import TableSearchInput from "@/components/common/TableSearchInput";
 import { uploadFile } from "@/utils/storage";
-import { matchesAccentInsensitive, formatUserShortName } from "@/lib/utils";
+import { matchesAccentInsensitive, formatStructuredPersonName } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
 import FinanceAnalytics from "@/pages/FinanceAnalytics";
 import FinanceHistoryImport from "@/pages/FinanceHistoryImport";
@@ -819,7 +819,7 @@ export default function Finance(){
       </TabsContent>}
       {canPayroll && <TabsContent value="salaires" className="mt-3 min-w-0 space-y-3"><div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {can("finance.payroll")&&<><Button variant="outline" onClick={()=>setSalaryFormOpen(true)}><Plus className="mr-2 h-4 w-4"/>Paramétrer un salaire</Button><Dialog open={salaryFormOpen} onOpenChange={setSalaryFormOpen}><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Paramétrer un salaire</DialogTitle></DialogHeader><div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <div className="sm:col-span-2"><Select value={salaryForm.profileId} onValueChange={v=>{const profile=profiles.find((p:any)=>p.id===v);setSalaryForm({...salaryForm,profileId:v,baseSalary:String(profile?.salaire_base ?? "")});}}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>p.actif!==false&&Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{formatUserShortName(p.nom_complet)} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select></div>
+          <div className="sm:col-span-2"><Select value={salaryForm.profileId} onValueChange={v=>{const profile=profiles.find((p:any)=>p.id===v);setSalaryForm({...salaryForm,profileId:v,baseSalary:String(profile?.salaire_base ?? "")});}}><SelectTrigger><SelectValue placeholder="CHOISIR UN COLLABORATEUR"/></SelectTrigger><SelectContent>{profiles.filter(p=>p.actif!==false&&Number(p.salaire_base)>0).map(p=><SelectItem key={p.id} value={p.id}>{formatStructuredPersonName(p.nom, p.prenoms)} — {money(p.salaire_base)}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label>Salaire de base (synchronisé depuis les RH)</Label><Input type="number" placeholder="Salaire défini dans les RH" value={salaryForm.baseSalary} readOnly disabled/></div>
           <div className="space-y-1"><Label>Jour habituel de paiement (1 à 31)</Label><Input type="number" min="1" max="31" value={salaryForm.payDay} onChange={e=>setSalaryForm({...salaryForm,payDay:e.target.value})}/></div>
           <Button className="w-full sm:col-span-2" onClick={()=>void saveSalary()} disabled={saving}><Banknote className="mr-2 h-4 w-4"/>ENREGISTRER LE SALAIRE</Button>
