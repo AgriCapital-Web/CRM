@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getSafeErrorMessage } from "@/lib/safeError";
-import { formatRecipientName } from "@/lib/utils";
+import { formatRecipientName, formatTableRecipientName } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -257,8 +257,8 @@ const Plantations = () => {
                     </TableCell>
                     <TableCell className="font-medium">
                       {plantation.clients ? (
-                        <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline" title={formatRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}>
-                          <span className="block max-w-[12rem] truncate">{formatRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}</span>
+                        <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline" title={formatTableRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}>
+                          <span className="block max-w-[12rem] truncate">{formatTableRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}</span>
                           <span className="text-[10px] text-muted-foreground">{plantation.clients.id_unique || "Dossier"}</span>
                         </Link>
                       ) : "—"}
