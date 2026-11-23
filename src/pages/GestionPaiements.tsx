@@ -599,7 +599,7 @@ const GestionPaiements = () => {
             <DialogContent className="max-w-sm">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2"><Coins className="h-5 w-5 text-amber-600" />Convertir la monnaie en jours</DialogTitle>
-                <DialogDescription>{moneyConversionClient?.nom_complet || "Client"}</DialogDescription>
+                <DialogDescription>{formatStructuredPersonName(moneyConversionClient?.nom, moneyConversionClient?.prenoms)}</DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">Monnaie disponible : <strong>{formatMontant(Number(moneyConversionClient?.monnaie_client || 0))} F CFA</strong></p>
