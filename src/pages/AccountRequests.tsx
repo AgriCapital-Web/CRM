@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { CheckCircle, XCircle, Eye, Trash2 } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { SignedImg } from "@/hooks/useSignedUrl";
+import { formatTablePersonName } from "@/lib/utils";
 import TableSearchInput from "@/components/common/TableSearchInput";
 
 const AccountRequests = () => {
@@ -154,7 +155,7 @@ const AccountRequests = () => {
                   <TableCell>
                     {new Date(request.created_at).toLocaleDateString('fr-FR')}
                   </TableCell>
-                  <TableCell>{request.nom_complet}</TableCell>
+                  <TableCell>{formatTablePersonName(request.nom_complet)}</TableCell>
                   <TableCell>{request.email}</TableCell>
                   
                   <TableCell>{request.poste_souhaite}</TableCell>
