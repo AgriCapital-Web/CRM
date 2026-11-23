@@ -73,34 +73,68 @@ serve(async (req) => {
     // Aucune donnée personnelle du demandeur n'est journalisée.
     console.log("Request data received");
 
-    // Get all super admins
-    const { data: superAdmins, error: adminsError } = await supabaseAdmin
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'super_admin');
+    // Le routage est strictement déterminé par le poste demandé.
+    // Le PDG reçoit toujours la demande; le responsable métier ne reçoit
+    // que les demandes de son périmètre et de sa région.
+    const requestedRole = String(requestData?.role_souhaite || requestData?.poste || "").trim();
+    const normalizedRole = requestedRole.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+    const isCommercial = /commercial|vente/.test(normalizedRole);
+    const isLandMobilization = /mobilisateur|mobilisation fonciere|foncier/.test(normalizedRole);
+    const isTechnical = /technicien|technique|agronomique/.test(normalizedRole);
 
-    if (adminsError) {
-      console.error("Error fetching super admins:", adminsError);
-      throw adminsError;
+    const recipientRoles = isCommercial
+      ? ["pdg", "responsable_commercial"]
+      : isLandMobilization
+        ? ["pdg", "responsable_operations"]
+        : isTechnical
+          ? ["pdg", "responsable_technique_agronomique", "manager_technique_national"]
+          : ["pdg"];
+
+    const { data: roleRows, error: rolesError } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id,role")
+      .in("role", recipientRoles);
+    if (rolesError) throw rolesError;
+
+    const roleUserIds = [...new Set((roleRows || []).map((row: any) => String(row.user_id)).filter(Boolean))];
+    if (!roleUserIds.length) {
+      console.warn("Aucun destinataire autorisé trouvé pour la demande.");
+      return new Response(JSON.stringify({ success: true, adminsNotified: 0, routing: recipientRoles }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log("Super admins found:", superAdmins?.length);
-
-    // Get admin profiles
-    const adminIds = superAdmins?.map(a => a.user_id) || [];
-    const { data: adminProfiles, error: profilesError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, user_id, email, nom_complet, nom, prenoms, telephone')
-      .in('id', adminIds);
-
-    if (profilesError) {
-      console.error("Error fetching admin profiles:", profilesError);
-      throw profilesError;
+    let profileQuery = supabaseAdmin
+      .from("profiles")
+      .select("id,user_id,email,nom_complet,nom,prenoms,telephone,telephone_indicatif,telephone_local,region_id,actif")
+      .in("user_id", roleUserIds)
+      .eq("actif", true);
+    if (isCommercial && requestData?.region_id) {
+      profileQuery = profileQuery.eq("region_id", String(requestData.region_id));
+    } else if (isCommercial && !requestData?.region_id) {
+      // Sans région de rattachement, aucun responsable commercial régional
+      // ne peut être choisi de façon fiable : seul le PDG est destinataire.
+      profileQuery = profileQuery.eq("user_id", (roleRows || []).find((row: any) => row.role === "pdg")?.user_id || "00000000-0000-0000-0000-000000000000");
     }
 
-    console.log("Admin profiles found:", adminProfiles?.length);
+    const { data: resolvedProfiles, error: profilesError } = await profileQuery;
+    if (profilesError) throw profilesError;
 
-    // Send notifications to each super admin
+    const recipientsByUser = new Map<string, any>();
+    for (const profile of resolvedProfiles || []) {
+      const userId = String(profile.user_id || profile.id);
+      const roleForUser = (roleRows || []).filter((row: any) => String(row.user_id) === userId).map((row: any) => row.role);
+      const isPdg = roleForUser.includes("pdg");
+      if (isPdg || !recipientsByUser.has(userId)) recipientsByUser.set(userId, profile);
+    }
+    const adminProfiles = [...recipientsByUser.values()];
+
+    console.log("Account-request routing resolved", {
+      category: isCommercial ? "commercial" : isLandMobilization ? "foncier" : isTechnical ? "technique" : "autres",
+      recipientCount: adminProfiles.length,
+    });
+
+    // Send notifications only to the PDG and the responsable métier autorisés
     for (const adminProfile of adminProfiles || []) {
       console.log("Processing notification for admin");
 
@@ -254,7 +288,7 @@ serve(async (req) => {
       }
 
       // Route the administrator alert through the same country policy as every other notification.
-      if (adminProfile.telephone) {
+      if (adminProfile.telephone || adminProfile.telephone_local) {
         try {
           const dispatchUrl = Deno.env.get("SUPABASE_URL") ?? "";
           const internalSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -272,10 +306,10 @@ serve(async (req) => {
                 nom_complet: formatPersonName(adminProfile.nom, adminProfile.prenoms),
                 nom: adminProfile.nom || null,
                 prenoms: adminProfile.prenoms || null,
-                telephone: adminProfile.telephone,
+                telephone: adminProfile.telephone || (adminProfile.telephone_indicatif && adminProfile.telephone_local ? `${adminProfile.telephone_indicatif}${adminProfile.telephone_local}` : adminProfile.telephone_local),
               },
               content: message,
-              event_key: `account-request:${String(requestData.auth_user_id || requestData.email).toLowerCase()}:${adminProfile.id}`,
+              channel: "sms",\n              event_key: `account-request:${String(requestData.auth_user_id || requestData.email).toLowerCase()}:${adminProfile.id}`,
             }),
             signal: AbortSignal.timeout(45000),
           });
