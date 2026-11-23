@@ -1554,7 +1554,11 @@ serve(async (req) => {
         user_id: raw.user_id ? String(raw.user_id) : null,
         nom_complet: raw.nom_complet ? String(raw.nom_complet) : null,
         telephone: raw.telephone ? String(raw.telephone) : null,
+        telephone_local: raw.telephone_local ? String(raw.telephone_local) : null,
+        telephone_indicatif: raw.telephone_indicatif ? String(raw.telephone_indicatif) : null,
         telephone_secondaire: raw.telephone_secondaire ? String(raw.telephone_secondaire) : null,
+        telephone_secondaire_local: raw.telephone_secondaire_local ? String(raw.telephone_secondaire_local) : null,
+        telephone_secondaire_indicatif: raw.telephone_secondaire_indicatif ? String(raw.telephone_secondaire_indicatif) : null,
         whatsapp: raw.whatsapp ? String(raw.whatsapp) : null,
       };
       const content = typeof body.content === "string" ? body.content.trim() : "";
