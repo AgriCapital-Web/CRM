@@ -511,3 +511,9 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Le KPI « Sorties validées » est calculé à partir des transactions de sortie dont le statut est valide dans le grand livre finance_transactions. Il inclut les frais réellement décaissés, les commissions et les paiements de dépenses ; il ne correspond donc pas uniquement au total des fiches de dépenses.
 - Les commissions déjà payées et présentes dans le grand livre sont maintenant également rapprochées des fiches de dépenses associées.
 - Une dépense de carburant de 2 000 F CFA demeure à vérifier : sa fiche est marquée payée alors que sa transaction liée est annulée et qu'aucun règlement associé n'existe dans le registre des paiements de dépenses. Elle n'a pas été modifiée automatiquement faute de preuve sur le paiement réel.
+
+## Règle d'affichage des noms — 23 novembre 2026
+
+- Dans les profils, fiches, messages, SMS, WhatsApp, notifications et autres affichages hors tableaux : dernier prénom en casse de titre, suivi du NOM entièrement en majuscules.
+- Dans tous les tableaux : tous les prénoms et le nom complet, l'ensemble en majuscules.
+- Les champs structurés nom/prénoms sont prioritaires ; les noms complets historiques sont conservés en repli pour ne pas perdre les personnes dont les champs structurés sont incomplets.
