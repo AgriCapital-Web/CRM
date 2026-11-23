@@ -309,7 +309,8 @@ serve(async (req) => {
                 telephone: adminProfile.telephone || (adminProfile.telephone_indicatif && adminProfile.telephone_local ? `${adminProfile.telephone_indicatif}${adminProfile.telephone_local}` : adminProfile.telephone_local),
               },
               content: message,
-              channel: "sms",\n              event_key: `account-request:${String(requestData.auth_user_id || requestData.email).toLowerCase()}:${adminProfile.id}`,
+              channel: "sms",
+              event_key: `account-request:${String(requestData.auth_user_id || requestData.email).toLowerCase()}:${adminProfile.id}`,
             }),
             signal: AbortSignal.timeout(45000),
           });
