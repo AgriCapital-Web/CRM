@@ -248,7 +248,7 @@ const Plantations = () => {
                 <TableHead>Plantation</TableHead><TableHead>Client / dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement...</TableCell></TableRow>
+                {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement…</TableCell></TableRow>
                 : filteredPlantations.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8">Aucune plantation trouvée</TableCell></TableRow>
                 : paginatedPlantations.map((plantation) => (
                   <TableRow key={plantation.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche plantation ${plantation.nom_plantation || plantation.nom || ""}`} onClick={() => navigate(`/plantations/${plantation.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/plantations/${plantation.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
