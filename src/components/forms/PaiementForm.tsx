@@ -33,6 +33,17 @@ interface PaiementFormProps {
   onCancel: () => void;
 }
 
+const parsePaymentProofPaths = (value: unknown): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    if (Array.isArray(parsed)) return parsed.filter((item): item is string => typeof item === "string" && Boolean(item));
+  } catch {
+    // Les anciens justificatifs sont stockés sous forme d'un chemin simple.
+  }
+  return [String(value)];
+};
+
 const PaiementForm = ({ paiement, initialClientId, lockClient = false, onSuccess, onCancel }: PaiementFormProps) => {
   const { toast } = useToast();
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
@@ -47,6 +58,15 @@ const PaiementForm = ({ paiement, initialClientId, lockClient = false, onSuccess
   const [selectedPlantation, setSelectedPlantation] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState(paiement?.fichier_preuve_url || "");
+  const openStoredProof = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage.from("preuves-paiement").createSignedUrl(path, 3600);
+      if (error || !data?.signedUrl) throw error || new Error("Lien du justificatif indisponible.");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Ouverture impossible", description: getSafeErrorMessage(error, "Impossible d'ouvrir ce justificatif.") });
+    }
+  };
   const [filePreview, setFilePreview] = useState("");
   const [arriereInfo, setArriereInfo] = useState<any>(null);
   const [clientOffre, setClientOffre] = useState<any>(null);
@@ -825,6 +845,18 @@ const PaiementForm = ({ paiement, initialClientId, lockClient = false, onSuccess
           <div>
             <Label>Fichier justificatif *</Label>
             <Input type="file" accept="image/*,.pdf" multiple={true} disabled={uploading} onChange={event => { void handleFileUpload(event.target.files); event.target.value = ""; }} />
+            {parsePaymentProofPaths(fileUrl).length > 0 && (
+              <div className="mt-3 space-y-2 rounded-md border p-3">
+                <p className="text-sm font-medium">{parsePaymentProofPaths(fileUrl).length} justificatif(s) enregistré(s)</p>
+                <div className="flex flex-wrap gap-2">
+                  {parsePaymentProofPaths(fileUrl).map((path, index) => (
+                    <Button key={path} type="button" size="sm" variant="outline" onClick={() => void openStoredProof(path)}>
+                      <FileText className="mr-2 h-4 w-4" />Justificatif {index + 1}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {filePreview && (
               <div className="mt-3">
