@@ -134,37 +134,9 @@ export const PlantationsMap = () => {
             info: `Site client • Localité : ${locality}`,
           });
         }
-        // Les coordonnées GPS sources restent intactes en base.
-        // Pour les plantations du même point, on décale uniquement les repères affichés
-        // en triangle équilatéral de 100 m afin de les rendre sélectionnables séparément.
-        const groupedMarkers = new Map<string, PlantationMarker[]>();
-        for (const marker of out) {
-          const key = `${marker.lat.toFixed(6)},${marker.lng.toFixed(6)}`;
-          groupedMarkers.set(key, [...(groupedMarkers.get(key) || []), marker]);
-        }
-        const visibleMarkers: PlantationMarker[] = [];
-        for (const [coordinates, group] of groupedMarkers.entries()) {
-          if (group.length === 1) {
-            visibleMarkers.push(group[0]);
-            continue;
-          }
-          const [centerLat, centerLng] = coordinates.split(",").map(Number);
-          const radiusMeters = 100 / Math.sqrt(3);
-          const metersPerDegreeLat = 111320;
-          const metersPerDegreeLng = 111320 * Math.cos(centerLat * Math.PI / 180);
-          const ordered = [...group].sort((a, b) => a.label.localeCompare(b.label, "fr"));
-          ordered.forEach((marker, index) => {
-            const angle = (-Math.PI / 2) + (2 * Math.PI * index / ordered.length);
-            const northMeters = Math.sin(angle) * radiusMeters;
-            const eastMeters = Math.cos(angle) * radiusMeters;
-            visibleMarkers.push({
-              ...marker,
-              lat: centerLat + northMeters / metersPerDegreeLat,
-              lng: centerLng + eastMeters / metersPerDegreeLng,
-              info: `${marker.info} • Repère cartographique décalé de 100 m pour distinguer les plantations partageant le même GPS source`,
-            });
-          });
-        }
+        // Chaque repère utilise les coordonnées GPS propres à sa plantation.
+        // Aucun décalage cartographique : les positions affichées correspondent aux données enregistrées.
+        const visibleMarkers = out;
 
         if (active) {
           setMarkers(visibleMarkers);
