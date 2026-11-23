@@ -978,7 +978,7 @@ const Dashboard = () => {
                         <TableBody>
                           {filteredRecentClients.length ? filteredRecentClients.map((c) => (
                             <TableRow key={c.id_unique}>
-                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{formatStructuredTablePersonName(c.nom,c.prenoms)}</TableCell>
+                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{formatStructuredTablePersonName(c.nom,c.prenoms,c.nom_complet)}</TableCell>
                               <TableCell className="px-2 py-1.5 text-xs sm:text-sm">{c.nombre_plantations || 0}</TableCell>
                               <TableCell className="px-2 py-1.5">{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? "Soldé" : label; const className = c.contrat_solde_at ? "whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" : status === "actif" ? "whitespace-nowrap border-emerald-200 bg-emerald-100/70 text-emerald-800 hover:bg-emerald-100/70" : status === "en_retard" || status === "retard" ? "whitespace-nowrap border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100" : "whitespace-nowrap"; return <Badge variant={c.contrat_solde_at || status === "actif" ? "outline" : status === "suspendu" ? "destructive" : "secondary"} className={className}>{display}</Badge>; })()}</TableCell>
                             </TableRow>
