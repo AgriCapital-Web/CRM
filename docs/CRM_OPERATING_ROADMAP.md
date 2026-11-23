@@ -501,6 +501,7 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 
 - La fiche client et le module Paiements proposent les actions de conversion de monnaie client en jours, en complément de la saisie de paiement, du remboursement et du transfert.
 - Les boutons d'action sont réservés au PDG et à la Relation Client (service client et chef d'équipe Relation Client). Les profils disposant uniquement d'un droit de consultation conservent l'accès aux informations sans les commandes d'exécution.
+- Les profils autorisés à consulter une fiche client voient également l'historique des paiements et le solde de monnaie en lecture seule, dans le périmètre des clients auxquels ils ont accès. Le module global Paiements conserve son contrôle d'accès dédié.
 - Le formulaire de paiement ouvert depuis une fiche client conserve le client pré-sélectionné même lorsque le type de paiement change.
 - Le calcul du rachat de monnaie utilise le tarif journalier total du client : tarif journalier par hectare multiplié par la superficie, ou tarif total personnalisé lorsqu'il existe. Le calcul est aligné sur le moteur de tarification journalier.
 - Les permissions et politiques RLS de paiements, remboursements et transferts sont alignées avec ces rôles.
