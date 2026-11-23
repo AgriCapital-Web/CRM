@@ -77,7 +77,7 @@ serve(async (req) => {
     // Le PDG reçoit toujours la demande; le responsable métier ne reçoit
     // que les demandes de son périmètre et de sa région.
     const requestedRole = String(requestData?.role_souhaite || requestData?.poste || "").trim();
-    const normalizedRole = requestedRole.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+    const normalizedRole = requestedRole.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const isCommercial = /commercial|vente/.test(normalizedRole);
     const isLandMobilization = /mobilisateur|mobilisation fonciere|foncier/.test(normalizedRole);
     const isTechnical = /technicien|technique|agronomique/.test(normalizedRole);
@@ -104,20 +104,11 @@ serve(async (req) => {
       });
     }
 
-    let profileQuery = supabaseAdmin
+    const { data: resolvedProfiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
       .select("id,user_id,email,nom_complet,nom,prenoms,telephone,telephone_indicatif,telephone_local,region_id,actif")
       .in("user_id", roleUserIds)
       .eq("actif", true);
-    if (isCommercial && requestData?.region_id) {
-      profileQuery = profileQuery.eq("region_id", String(requestData.region_id));
-    } else if (isCommercial && !requestData?.region_id) {
-      // Sans région de rattachement, aucun responsable commercial régional
-      // ne peut être choisi de façon fiable : seul le PDG est destinataire.
-      profileQuery = profileQuery.eq("user_id", (roleRows || []).find((row: any) => row.role === "pdg")?.user_id || "00000000-0000-0000-0000-000000000000");
-    }
-
-    const { data: resolvedProfiles, error: profilesError } = await profileQuery;
     if (profilesError) throw profilesError;
 
     const recipientsByUser = new Map<string, any>();
@@ -125,7 +116,17 @@ serve(async (req) => {
       const userId = String(profile.user_id || profile.id);
       const roleForUser = (roleRows || []).filter((row: any) => String(row.user_id) === userId).map((row: any) => row.role);
       const isPdg = roleForUser.includes("pdg");
-      if (isPdg || !recipientsByUser.has(userId)) recipientsByUser.set(userId, profile);
+      const isRegionalCommercialManager = roleForUser.includes("responsable_commercial")
+        && Boolean(requestData?.region_id)
+        && String(profile.region_id || "") === String(requestData.region_id);
+      const isRequestedFunctionalManager = isLandMobilization
+        ? roleForUser.includes("responsable_operations")
+        : isTechnical
+          ? roleForUser.some((role: string) => ["responsable_technique_agronomique", "manager_technique_national"].includes(role))
+          : isCommercial
+            ? isRegionalCommercialManager
+            : false;
+      if (isPdg || isRequestedFunctionalManager) recipientsByUser.set(userId, profile);
     }
     const adminProfiles = [...recipientsByUser.values()];
 
@@ -292,8 +293,7 @@ serve(async (req) => {
         try {
           const dispatchUrl = Deno.env.get("SUPABASE_URL") ?? "";
           const internalSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-          const message =
-            `AgriCapital - Nouvelle demande de compte\nNom: ${applicantDisplayName}\nEmail: ${requestData.email}\nTel: ${requestData.telephone}\n${requestData.poste ? `Poste: ${requestData.poste}\n` : ""}Consultez app.agricapital.ci pour traiter la demande.`;
+          const message = `AgriCapital: demande de compte ${applicantDisplayName.slice(0, 28)}. Poste: ${requestedRole.slice(0, 22)}. Voir CRM: app.agricapital.ci`;
           const routed = await fetch(dispatchUrl + "/functions/v1/notification-dispatch", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": internalSecret },
