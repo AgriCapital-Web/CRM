@@ -60,6 +60,33 @@ export function formatRecipientName(
   return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
 }
 
+/** Affichage en tableau : tous les prénoms et le nom de famille, intégralement en majuscules. */
+export function formatStructuredTablePersonName(lastName?: string | null, givenNames?: string | null): string {
+  const surname = String(lastName || "").trim().replace(/\s+/g, " ");
+  const given = String(givenNames || "").trim().replace(/\s+/g, " ");
+  const fullName = [given, surname].filter(Boolean).join(" ");
+  return fullName ? uppercaseName(fullName) : "UTILISATEUR";
+}
+
+/** Les noms complets historiques sont déjà enregistrés dans l'ordre d'affichage ; les tableaux les gardent tous et les passent en majuscules. */
+export function formatTablePersonName(fullName?: string | null): string {
+  const value = String(fullName || "").trim().replace(/\s+/g, " ");
+  return value ? uppercaseName(value) : "—";
+}
+
+/** Version tableau pour les contacts avec champs structurés ou nom complet historique. */
+export function formatTableRecipientName(
+  fullName?: string | null,
+  _sourceType?: string | null,
+  lastName?: string | null,
+  givenNames?: string | null,
+): string {
+  if (String(lastName || "").trim() || String(givenNames || "").trim()) {
+    return formatStructuredTablePersonName(lastName, givenNames);
+  }
+  return formatTablePersonName(fullName);
+}
+
 /** Même règle pour les bandeaux et messages à partir des anciens profils NOM + prénoms. */
 export function formatWelcomeName(fullName?: string | null): string {
   return formatUserShortName(fullName);
