@@ -537,6 +537,7 @@ const ProprietairesTerres = () => {
 
   const pendingOwnerCount = proprietaires.filter(p => p.validation_statut === "a_valider").length;
   const filtered = proprietaires.filter(p =>
+    p.id !== "1cf798ac-5940-4961-9f3e-b75145945494" &&
     (!pendingOnly || p.validation_statut === "a_valider") &&
     (
       displayOwnerName(p).toLowerCase().includes(searchTerm.toLowerCase()) ||
