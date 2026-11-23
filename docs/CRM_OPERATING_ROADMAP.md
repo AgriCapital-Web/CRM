@@ -489,3 +489,10 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Les fichiers sont téléversés individuellement dans le stockage privé et leurs chemins/noms sont conservés ensemble dans les champs justificatifs existants au format JSON, sans migration de schéma ; les anciens justificatifs unitaires restent compatibles.
 - La sélection ne rajoute aucun texte d'aide ni compteur explicatif dans les formulaires.
 - L'ouverture des justificatifs prend en charge les anciens fichiers unitaires et les nouvelles listes de fichiers.
+
+
+## Justificatifs multiples — 23 novembre 2026
+
+- Finance et Comptabilité : les champs de justificatifs acceptent une sélection multiple jusqu'à 25 fichiers par opération. Les champs existants de la page Finance couvrent les entrées, sorties, dépenses à payer, règlements, mouvements d'associés et paiements de paie.
+- Formulaire de paiement client : remplacement du téléversement mono-fichier par une sélection multiple ; les chemins des reçus sont enregistrés ensemble dans les champs de preuve existants, sans ajouter de texte d'aide ni de message explicatif dans l'interface.
+- La limite de 25 est appliquée au nombre total de fichiers associés à l'opération. Les justificatifs sont téléversés dans le stockage privé existant.
