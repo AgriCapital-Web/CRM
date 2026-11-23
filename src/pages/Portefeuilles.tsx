@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatTablePersonName } from "@/lib/utils";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -217,11 +217,7 @@ export default function Portefeuilles(){
         </div>
 
         <Card>
-          <CardContent className="grid min-w-0 grid-cols-2 items-end gap-x-2 gap-y-2 p-3 sm:grid-cols-[minmax(180px,1fr)_minmax(125px,150px)_minmax(125px,150px)_auto] sm:gap-2 sm:p-3">
-            <div className="col-span-2 min-w-0 sm:col-span-1">
-              <label className="text-[11px] font-medium leading-tight text-muted-foreground">Rechercher</label>
-              <Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom" className="mt-1 h-8 min-w-0 px-2 text-xs"/>
-            </div>
+          <CardContent className="grid min-w-0 grid-cols-2 items-end gap-x-2 gap-y-2 p-3 sm:grid-cols-[minmax(125px,150px)_minmax(125px,150px)_auto] sm:gap-2 sm:p-3">
             <div className="min-w-0">
               <label className="text-[11px] font-medium leading-tight text-muted-foreground">Début</label>
               <Input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} className="mt-1 h-8 min-w-0 px-1.5 text-xs"/>
@@ -241,7 +237,7 @@ export default function Portefeuilles(){
               <Table className="responsive-data-table min-w-[700px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow><TableHead>Collaborateur</TableHead><TableHead>Rôle</TableHead><TableHead>Solde</TableHead><TableHead>Total gagné</TableHead><TableHead>Total versé</TableHead></TableRow></TableHeader>
               <TableBody>
                 {loading?<TableRow><TableCell colSpan={5} className="py-8 text-center">Chargement…</TableCell></TableRow>:filtered.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Aucun portefeuille.</TableCell></TableRow>:paginatedPortefeuilles.map((p:any)=><TableRow key={p.id} className="cursor-pointer hover:bg-muted/40" onClick={()=>setSelected(p)}>
-                  <TableCell className="font-medium">{formatUserShortName(p.user?.nom_complet||"—")}</TableCell>
+                  <TableCell className="font-medium">{formatTablePersonName(p.user?.nom_complet||"—")}</TableCell>
                   <TableCell><Badge variant="outline">{(p.user?.roles||[]).map((role:string)=>ROLE_LABELS[role]||role).filter(Boolean).slice(0,2).join(" / ")||p.user?.poste||"Rôle non renseigné"}</Badge></TableCell>
                   <TableCell className="font-bold text-primary">{money(p.solde_commissions)}</TableCell>
                   <TableCell>{money(p.total_gagne)}</TableCell>
@@ -258,7 +254,7 @@ export default function Portefeuilles(){
           <CardContent className="p-0"><div className="overflow-x-auto"><Table className="responsive-data-table min-w-[720px]"><TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Période</TableHead><TableHead>Montant total</TableHead><TableHead>Payé</TableHead><TableHead>Restant</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
             <TableBody>{paginatedVersements.map((v:any)=>{
               const p=profiles.find((x:any)=>x.id===v.profile_id);
-              return <TableRow key={v.id}><TableCell>{p?.nom_complet||"—"}</TableCell><TableCell>{format(new Date(v.periode_debut),"dd/MM/yyyy")} — {format(new Date(v.periode_fin),"dd/MM/yyyy")}</TableCell><TableCell className="font-semibold">{money(v.montant_brut)}</TableCell><TableCell>{money(v.montant_paye||0)}</TableCell><TableCell className="font-semibold">{money(Math.max(0,Number(v.montant_brut||0)-Number(v.montant_paye||0)))}</TableCell><TableCell><Badge>{v.statut==="partiellement_paye"?"Partiellement payé":v.statut==="paye"?"Payé":v.statut==="valide"?"À payer":v.statut==="brouillon"?"À valider":v.statut}</Badge></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label={`Actions pour le versement de ${p?.nom_complet||"ce collaborateur"}`}><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={()=>{const wallet=portefeuilles.find((x:any)=>x.profile_id===v.profile_id);if(wallet)setSelected(wallet);else toast({title:"Détail indisponible",description:"Le portefeuille de cet utilisateur n’est pas accessible.",variant:"destructive"});}}>Voir le portefeuille</DropdownMenuItem>{v.statut==="brouillon"&&<DropdownMenuItem disabled={saving} onSelect={()=>void validatePayout(v)}>Valider</DropdownMenuItem>}{["valide","partiellement_paye"].includes(v.statut)&&<DropdownMenuItem disabled={saving} onSelect={()=>void markPaid(v)}>Payer</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu></TableCell></TableRow>
+              return <TableRow key={v.id}><TableCell>{formatTablePersonName(p?.nom_complet||"—")}</TableCell><TableCell>{format(new Date(v.periode_debut),"dd/MM/yyyy")} — {format(new Date(v.periode_fin),"dd/MM/yyyy")}</TableCell><TableCell className="font-semibold">{money(v.montant_brut)}</TableCell><TableCell>{money(v.montant_paye||0)}</TableCell><TableCell className="font-semibold">{money(Math.max(0,Number(v.montant_brut||0)-Number(v.montant_paye||0)))}</TableCell><TableCell><Badge>{v.statut==="partiellement_paye"?"Partiellement payé":v.statut==="paye"?"Payé":v.statut==="valide"?"À payer":v.statut==="brouillon"?"À valider":v.statut}</Badge></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label={`Actions pour le versement de ${formatTablePersonName(p?.nom_complet||"ce collaborateur")}`}><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={()=>{const wallet=portefeuilles.find((x:any)=>x.profile_id===v.profile_id);if(wallet)setSelected(wallet);else toast({title:"Détail indisponible",description:"Le portefeuille de cet utilisateur n’est pas accessible.",variant:"destructive"});}}>Voir le portefeuille</DropdownMenuItem>{v.statut==="brouillon"&&<DropdownMenuItem disabled={saving} onSelect={()=>void validatePayout(v)}>Valider</DropdownMenuItem>}{["valide","partiellement_paye"].includes(v.statut)&&<DropdownMenuItem disabled={saving} onSelect={()=>void markPaid(v)}>Payer</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu></TableCell></TableRow>
             })}</TableBody></Table><ResponsiveTablePagination page={versementPage} pageSize={pageSize} total={filteredVersements.length} onPageChange={setVersementPage} /></div>
           </CardContent>
         </Card>}
@@ -277,7 +273,7 @@ export default function Portefeuilles(){
               <div className="overflow-x-auto">
                 <Table className="responsive-data-table min-w-[1000px]"><TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Type</TableHead><TableHead>Paiement</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                 <TableBody>{detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).map((c:any)=><TableRow key={c.id}>
-                  <TableCell>{c.client?.nom_complet||"—"}<span className="block text-xs text-muted-foreground">{c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
+                  <TableCell>{formatTablePersonName(c.client?.nom_complet||"—")}<span className="block text-xs text-muted-foreground">{c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
                   <TableCell>{c.client?.famille_offre||"—"}{c.client?.formule_nom?` · ${c.client.formule_nom}`:""}</TableCell>
                   <TableCell><Badge variant="outline">{c.type_commission==="acquisition"?"Vente commerciale":c.type_commission==="recouvrement_mensuel"?"Recouvrement mensuel":c.type_commission==="technique"?"Commission technique":c.type_commission==="mobilisation_fonciere"?"Mobilisation foncière":c.type_commission||"—"}</Badge></TableCell>
                   <TableCell>{c.paiement?.reference||"—"}</TableCell>

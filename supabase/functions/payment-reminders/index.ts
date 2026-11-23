@@ -1,5 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const formatClientDisplayName = (contact: any) => {
+  const surname = String(contact?.nom || "").trim();
+  const givenNames = String(contact?.prenoms || "").trim().split(/\s+/).filter(Boolean);
+  const lastGivenName = givenNames[givenNames.length - 1] || "";
+  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
+    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  if (lastGivenName && surname) return `${titleCase(lastGivenName)} ${surname.toLocaleUpperCase("fr-FR")}`;
+  const parts = String(contact?.nom_complet || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "Client";
+  if (parts.length === 1) return parts[0].toLocaleUpperCase("fr-FR");
+  return `${titleCase(parts[parts.length - 1])} ${parts[0].toLocaleUpperCase("fr-FR")}`;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -50,7 +63,7 @@ Deno.serve(async (req) => {
       .select(`
         id, montant, date_echeance, reference, type_paiement,
         souscripteur_id,
-        souscripteurs (id, nom_complet, telephone, user_id)
+        souscripteurs (id, nom_complet, nom, prenoms, telephone, user_id)
       `)
       .in("statut", ["en_attente", "partiel"])
       .lt("date_echeance", today)
@@ -65,6 +78,7 @@ Deno.serve(async (req) => {
     for (const paiement of overduePaiements || []) {
       const souscripteur = paiement.souscripteurs as any;
       if (!souscripteur) continue;
+      const displayName = formatClientDisplayName(souscripteur);
 
       const daysPastDue = Math.floor(
         (new Date().getTime() - new Date(paiement.date_echeance).getTime()) / (1000 * 60 * 60 * 24)
@@ -94,8 +108,8 @@ Deno.serve(async (req) => {
       // Notify hierarchy (admins, managers)
       await supabase.rpc("notify_hierarchy", {
         p_type: "paiement_retard",
-        p_title: `Retard de paiement - ${souscripteur.nom_complet}`,
-        p_message: `Paiement de ${paiement.montant.toLocaleString()} FCFA en retard de ${daysPastDue} jour(s) pour ${souscripteur.nom_complet} (${souscripteur.telephone})`,
+        p_title: `Retard de paiement - ${displayName}`,
+        p_message: `Paiement de ${paiement.montant.toLocaleString()} FCFA en retard de ${daysPastDue} jour(s) pour ${displayName} (${souscripteur.telephone})`,
         p_data: {
           paiement_id: paiement.id,
           souscripteur_id: souscripteur.id,

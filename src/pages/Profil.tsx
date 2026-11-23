@@ -102,7 +102,7 @@ const Profil = () => {
       ];
       const payload: any = {};
       fields.forEach((k) => (payload[k] = profile[k] ?? null));
-      payload.nom_complet = [String(profile.prenoms || "").trim(), String(profile.nom || "").trim()].filter(Boolean).join(" ") || profile.nom_complet || null;
+      payload.nom_complet = [String(profile.nom || "").trim(), String(profile.prenoms || "").trim()].filter(Boolean).join(" ") || profile.nom_complet || null;
       payload.telephone_principal_whatsapp = !!profile.telephone_principal_whatsapp;
       payload.telephone_secondaire_whatsapp = !!profile.telephone_secondaire_whatsapp;
       payload.whatsapp = profile.telephone_principal_whatsapp ? (profile.telephone || null) : profile.telephone_secondaire_whatsapp ? (profile.telephone_secondaire || null) : null;
@@ -198,8 +198,8 @@ const Profil = () => {
           <Card>
             <CardHeader><CardTitle>Informations personnelles</CardTitle></CardHeader>
             <CardContent className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 sm:gap-y-5">
-              <div><Label>Nom</Label><Input className="h-9 text-sm" value={profile.nom || String(profile.nom_complet || "").trim().split(/\\s+/).slice(-1)[0] || ""} onChange={(e) => set("nom", e.target.value)} /></div>
-              <div><Label>Prénom(s)</Label><Input className="h-9 text-sm" value={profile.prenoms || String(profile.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || ""} onChange={(e) => set("prenoms", e.target.value)} /></div>
+              <div><Label>Nom</Label><Input className="h-9 text-sm" value={profile.nom || String(profile.nom_complet || "").trim().split(/\\s+/)[0] || ""} onChange={(e) => set("nom", e.target.value)} /></div>
+              <div><Label>Prénom(s)</Label><Input className="h-9 text-sm" value={profile.prenoms || String(profile.nom_complet || "").trim().split(/\\s+/).slice(1).join(" ") || ""} onChange={(e) => set("prenoms", e.target.value)} /></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-9 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div className="min-w-0 w-full space-y-2">

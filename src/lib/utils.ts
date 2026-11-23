@@ -15,19 +15,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const displayCaseName = (value: string) => {
-  const lower = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr-FR");
-  return lower.replace(/(^|[\s’'-])\p{L}/gu, match => match.toLocaleUpperCase("fr-FR"));
+  const lower = value.trim().toLocaleLowerCase("fr-FR");
+  return lower.replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
 };
 
-const uppercaseName = (value: string) =>
-  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("fr-FR");
+const uppercaseName = (value: string) => value.trim().toLocaleUpperCase("fr-FR");
 
-/** Nom court pour les communications : dernier prénom usuel puis nom de famille.
- * Convention CRM : NOM en premier, puis les prénoms. Exemple : KONAN AMENAN LARISSA → Larissa KONAN.
- */
-/** Affiche uniquement le dernier prénom puis le nom de famille à partir des champs structurés. */
+/** Règle unique AgriCapital : dernier prénom usuel, puis NOM en majuscules. */
 export function formatStructuredPersonName(lastName?: string | null, givenNames?: string | null): string {
-  const surname = String(lastName || "").trim().split(/\s+/).filter(Boolean).join(" ");
+  const surname = String(lastName || "").trim().replace(/\s+/g, " ");
   const given = String(givenNames || "").trim().split(/\s+/).filter(Boolean).pop() || "";
   if (!surname && !given) return "Utilisateur";
   if (!surname) return displayCaseName(given);
@@ -35,36 +31,77 @@ export function formatStructuredPersonName(lastName?: string | null, givenNames?
   return displayCaseName(given) + " " + uppercaseName(surname);
 }
 
+/** Repli pour les anciens profils enregistrés sous la forme NOM + prénoms. */
 export function formatUserShortName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
-  if (parts.length === 1) return displayCaseName(parts[0]);
-  return displayCaseName(parts[parts.length - 1]) + " " + uppercaseName(parts[0]);
-}
-
-
-/** Nom de communication pour les répertoires mixtes : les leads/prospects stockent PRENOMS NOM,
- * les profils internes/clients stockent généralement NOM puis prénoms. */
-export function formatRecipientName(fullName?: string | null, sourceType?: string | null): string {
-  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return parts.length ? displayCaseName(parts[0]) : "Contact";
-  if (sourceType === "lead" || sourceType === "prospect") {
-    const surname = uppercaseName(parts[parts.length - 1]);
-    const givenName = displayCaseName(parts[parts.length - 2]);
-    return givenName + " " + surname;
-  }
-  return displayCaseName(parts[parts.length - 1]) + " " + uppercaseName(parts[0]);
-}
-
-/** Bandeau de bienvenue: dernier prénom puis NOM en majuscules (ex: KONAN ADJOUA LARRISSA → Larrissa KONAN). */
-export function formatWelcomeName(fullName?: string | null): string {
-  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "Utilisateur";
   if (parts.length === 1) return uppercaseName(parts[0]);
-  return displayCaseName(parts[parts.length - 1]) + " " + uppercaseName(parts[0]);
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const firstIsUpper = first === first.toLocaleUpperCase("fr-FR") && first !== first.toLocaleLowerCase("fr-FR");
+  const lastIsUpper = last === last.toLocaleUpperCase("fr-FR") && last !== last.toLocaleLowerCase("fr-FR");
+  // Les profils récents stockent déjà PRENOMS NOM ; les anciens profils sans champs
+  // structurés restent souvent au format NOM PRENOMS.
+  if (!firstIsUpper && lastIsUpper) {
+    return displayCaseName(parts[parts.length - 2]) + " " + uppercaseName(last);
+  }
+  return formatStructuredPersonName(first, parts.slice(1).join(" "));
 }
 
-/** Nom utilisé dans les communications et les affichages courts. */
+/** Nom de communication. Les champs structurés priment toujours sur le nom complet historique. */
+export function formatRecipientName(
+  fullName?: string | null,
+  sourceType?: string | null,
+  lastName?: string | null,
+  givenNames?: string | null,
+): string {
+  if (String(lastName || "").trim() || String(givenNames || "").trim()) {
+    return formatStructuredPersonName(lastName, givenNames);
+  }
+  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "Contact";
+  if (parts.length === 1) return uppercaseName(parts[0]);
+  // Leads/prospects sont historiquement stockés PRENOMS NOM ; les fiches clients/utilisateurs
+  // historiques sont souvent NOM PRENOMS. Sans champs structurés, on applique leur convention.
+  if (sourceType === "lead" || sourceType === "prospect") {
+    return formatStructuredPersonName(parts[parts.length - 1], parts.slice(0, -1).join(" "));
+  }
+  return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
+}
+
+/** Affichage en tableau : tous les prénoms et le nom de famille, intégralement en majuscules. */
+export function formatStructuredTablePersonName(lastName?: string | null, givenNames?: string | null, fullName?: string | null): string {
+  const surname = String(lastName || "").trim().replace(/\s+/g, " ");
+  const given = String(givenNames || "").trim().replace(/\s+/g, " ");
+  const structuredName = [given, surname].filter(Boolean).join(" ");
+  if (surname && given) return uppercaseName(structuredName);
+  return formatTablePersonName(fullName || structuredName);
+}
+
+/** Les noms complets historiques sont déjà enregistrés dans l'ordre d'affichage ; les tableaux les gardent tous et les passent en majuscules. */
+export function formatTablePersonName(fullName?: string | null): string {
+  const value = String(fullName || "").trim().replace(/\s+/g, " ");
+  return value ? uppercaseName(value) : "—";
+}
+
+/** Version tableau pour les contacts avec champs structurés ou nom complet historique. */
+export function formatTableRecipientName(
+  fullName?: string | null,
+  _sourceType?: string | null,
+  lastName?: string | null,
+  givenNames?: string | null,
+): string {
+  if (String(lastName || "").trim() || String(givenNames || "").trim()) {
+    return formatStructuredTablePersonName(lastName, givenNames, fullName);
+  }
+  return formatTablePersonName(fullName);
+}
+
+/** Même règle pour les bandeaux et messages à partir des anciens profils NOM + prénoms. */
+export function formatWelcomeName(fullName?: string | null): string {
+  return formatUserShortName(fullName);
+}
+
 export function formatUserProfileName(fullName?: string | null): string {
   return formatUserShortName(fullName);
 }

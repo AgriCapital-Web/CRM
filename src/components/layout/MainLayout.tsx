@@ -9,7 +9,7 @@ import { NotificationCenter } from "@/components/common/NotificationCenter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import AIAssistant from "@/components/ai/AIAssistant";
-import { cn, formatStructuredPersonName, formatUserShortName } from "@/lib/utils";
+import { cn, formatStructuredPersonName } from "@/lib/utils";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
@@ -45,7 +45,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: LandPlot, label: "Parcelles", path: "/parcelles", permission: PERMISSIONS.VIEW_PARCELLES },
     { icon: Sprout, label: "Plantations", path: "/plantations", permission: PERMISSIONS.VIEW_PLANTATIONS },
     { icon: Sprout, label: "Opérations techniques", path: "/terrain", permission: PERMISSIONS.VIEW_RAPPORTS_TECHNIQUES },
-    { icon: Wallet, label: "Finance & Comptabilité", path: "/finance", permission: "finance.view" as any },
+    { icon: Wallet, label: can("finance.view") ? "Finance & Comptabilité" : "Paie & salaires", path: "/finance", permission: "finance.view" as any },
     { icon: CreditCard, label: "Paiements", path: "/paiements", permission: PERMISSIONS.VIEW_PAIEMENTS },
     { icon: Receipt, label: "Commissions", path: "/commissions", permission: PERMISSIONS.VIEW_COMMISSIONS },
     { icon: Wallet, label: "Portefeuilles", path: "/portefeuilles", permission: PERMISSIONS.VIEW_PORTEFEUILLES },
@@ -57,7 +57,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
 
   const visibleMenuItems = menuItems.filter(item => item.label === "AgriCapital 360"
     ? (can("messagerie.view") || can("finance.view") || can("documents.view") || can("decision_center.view"))
-    : can(item.permission));
+    : item.path === "/finance" ? (can("finance.view") || can("finance.payroll")) : can(item.permission));
   const handleLogout = async () => { await signOut(); navigate("/"); };
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'AG';
 
@@ -167,7 +167,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             <Button variant="outline" size="icon" className="h-9 w-9" onClick={syncNow} disabled={isSyncing || !isOnline} title="Synchroniser">
               <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
             </Button>
-            <div className="text-right leading-tight"><p className="text-sm font-semibold">{formatUserShortName(profile?.nom_complet)}</p><p className="text-xs text-muted-foreground">{userRoles.map(r => ROLE_SHORT_LABELS[r] || r).join(" / ") || "Compte actif"}</p></div>
+            <div className="text-right leading-tight"><p className="text-sm font-semibold">{formatStructuredPersonName(profile?.nom, profile?.prenoms)}</p><p className="text-xs text-muted-foreground">{userRoles.map(r => ROLE_SHORT_LABELS[r] || r).join(" / ") || "Compte actif"}</p></div>
             <Avatar className="h-9 w-9 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-sm">{getInitials(formatStructuredPersonName(profile?.nom, profile?.prenoms))}</AvatarFallback></Avatar>
           </div>
         </header>
@@ -175,7 +175,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       </main>
 
 
-      <AIAssistant mode="staff" context={`Utilisateur: ${formatUserShortName(profile?.nom_complet)}; rôles: ${userRoles.join(", ") || "N/A"}; département: ${profile?.departement || "non défini"}; équipe principale: ${profile?.equipe_id || "non définie"}; relation RH: ${profile?.relation_rh || "non définie"}`} />
+      <AIAssistant mode="staff" context={`Utilisateur: ${formatStructuredPersonName(profile?.nom, profile?.prenoms)}; rôles: ${userRoles.join(", ") || "N/A"}; département: ${profile?.departement || "non défini"}; équipe principale: ${profile?.equipe_id || "non définie"}; relation RH: ${profile?.relation_rh || "non définie"}`} />
     </div>
   );
 };

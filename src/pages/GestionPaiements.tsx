@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { formatStructuredPersonName } from "@/lib/utils";
 import ClientPaymentWorkspace from "@/components/finance/ClientPaymentWorkspace";
 
 interface Paiement {
@@ -58,21 +60,28 @@ interface Paiement {
   date_paiement: string | null;
   created_at: string;
   metadata: any;
-  clients?: { nom_complet: string; telephone: string; statut_global?: string; type_client?: string; is_internal?: boolean; contrat_solde_at?: string | null };
+  clients?: { nom_complet: string; nom?: string | null; prenoms?: string | null; telephone: string; statut_global?: string; type_client?: string; is_internal?: boolean; contrat_solde_at?: string | null };
   plantations?: { id_unique: string; nom_plantation: string };
 }
 
 const GestionPaiements = () => {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedClientId = searchParams.get("client_id");
+  const requestedAction = searchParams.get("action");
   const { can, capabilities } = usePermissions();
   const canFinancialOverview = capabilities.globalAdmin || can("finance.view") || can("paiements.view");
   const canViewClientMoney = canFinancialOverview;
-  const canTransferPayment = capabilities.globalAdmin || can("paiements.update") || can("finance.manage");
-  const canRefundPayment = capabilities.globalAdmin || can("paiements.cancel") || can("finance.manage");
+  const canManageClientMoneyActions = capabilities.globalAdmin || can("clients.manage_money_actions");
+  const canTransferPayment = canManageClientMoneyActions;
+  const canRefundPayment = canManageClientMoneyActions;
   const canManage = canTransferPayment || canRefundPayment;
   const queryClient = useQueryClient();
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [moneyConversionClient, setMoneyConversionClient] = useState<any>(null);
+  const [moneyConversionDays, setMoneyConversionDays] = useState("1");
+  const [moneyConversionLoading, setMoneyConversionLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Transfer state
@@ -110,7 +119,7 @@ const GestionPaiements = () => {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('v_monnaie_clients')
-        .select('client_id,monnaie_client,clients(id,nom_complet,telephone)')
+        .select('client_id,monnaie_client,clients(id,nom_complet,nom,prenoms,telephone)')
         .gt('monnaie_client', 0)
         .order('monnaie_client', { ascending: false })
         .limit(100);
@@ -118,6 +127,8 @@ const GestionPaiements = () => {
       return (data || []).map((row: any) => ({
         id: row.client_id,
         nom_complet: row.clients?.nom_complet,
+        nom: row.clients?.nom,
+        prenoms: row.clients?.prenoms,
         telephone: row.clients?.telephone,
         monnaie: Number(row.monnaie_client || 0),
       }));
@@ -182,7 +193,7 @@ const GestionPaiements = () => {
     const safe = phone.replace(/[^\p{L}\p{N}\s+\-_.]/gu, "").trim();
     if (safe.length < 8) return;
     const { data, error } = await (supabase as any).from('clients')
-      .select('id,nom_complet,telephone,id_unique,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,montant_total_contrat')
+      .select('id,nom_complet,nom,prenoms,telephone,id_unique,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,montant_total_contrat')
       .or(`telephone.ilike.%${safe}%,whatsapp.ilike.%${safe}%,id_unique.ilike.%${safe}%`)
       .eq('statut','actif').limit(10);
     if (error) { toast({variant:"destructive",title:"Recherche impossible",description:getSafeErrorMessage(error)}); return; }
@@ -199,6 +210,81 @@ const GestionPaiements = () => {
       const { data: paiements } = await (supabase as any).from('paiements').select('*').eq('client_id',candidate.id).eq('statut','valide').order('created_at',{ascending:false}).limit(10);
       setSourcePaiements(paiements || []);
     } else setTargetClient(candidate);
+  };
+
+  useEffect(() => {
+    if (!requestedClientId || !["transfer", "refund"].includes(String(requestedAction))) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: client, error: clientError } = await (supabase as any)
+        .from("clients")
+        .select("id,nom_complet,nom,prenoms,telephone,id_unique,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,montant_total_contrat")
+        .eq("id", requestedClientId)
+        .maybeSingle();
+      if (clientError) throw clientError;
+      if (!client) throw new Error("Client introuvable.");
+      const blocked = await financialBlockReason(client);
+      if (blocked) throw new Error(blocked);
+      const { data: payments, error: paymentsError } = await (supabase as any)
+        .from("paiements")
+        .select("*")
+        .eq("client_id", client.id)
+        .eq("statut", "valide")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (paymentsError) throw paymentsError;
+      if (cancelled) return;
+      setSourceClient(client);
+      setSourcePhone(client.telephone || "");
+      setRefundSourcePhone(client.telephone || "");
+      setSourcePaiements(payments || []);
+      if (requestedAction === "transfer") {
+        setTargetClient(null);
+        setTargetAccount("");
+        setTransferAmount("");
+        setTransferNotes("");
+        setIsTransferDialogOpen(true);
+      } else {
+        const firstPayment = (payments || [])[0];
+        setRefundPaiementId(firstPayment?.id || "");
+        setRefundAmount(firstPayment ? String(firstPayment.montant_paye ?? firstPayment.montant ?? "") : "");
+        setRefundNotes("");
+        setRefundMode("Mobile Money");
+        setRefundNumero("");
+        setIsRefundDialogOpen(true);
+      }
+      setSearchParams({}, { replace: true });
+    })().catch((error: any) => {
+      if (!cancelled) toast({ variant: "destructive", title: "Action financière impossible", description: getSafeErrorMessage(error) });
+      setSearchParams({}, { replace: true });
+    });
+    return () => { cancelled = true; };
+  }, [requestedClientId, requestedAction]);
+
+  const handleConvertMoneyToDays = async () => {
+    if (!canManageClientMoneyActions || !moneyConversionClient || moneyConversionLoading) return;
+    const days = Math.floor(Number(moneyConversionDays));
+    if (!Number.isFinite(days) || days <= 0) {
+      toast({ variant: "destructive", title: "Nombre de jours invalide", description: "Saisissez un nombre entier supérieur à zéro." });
+      return;
+    }
+    setMoneyConversionLoading(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("rachater_monnaie_client", {
+        p_client_id: moneyConversionClient.id,
+        p_jours: days,
+      });
+      if (error) throw error;
+      toast({ title: "Conversion effectuée", description: `${days} jour(s) converti(s). Solde de monnaie restant : ${formatMontant(Number(data || 0))} F CFA.` });
+      setMoneyConversionClient(null);
+      setMoneyConversionDays("1");
+      await queryClient.invalidateQueries({ queryKey: ["clients-monnaie"] });
+      await queryClient.invalidateQueries({ queryKey: ["gestion-paiements-clients"] });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Conversion impossible", description: getSafeErrorMessage(error) });
+    } finally {
+      setMoneyConversionLoading(false);
+    }
   };
 
   // Handle transfer between accounts
@@ -250,7 +336,7 @@ const GestionPaiements = () => {
           metadata: {
             transfert_entrant: {
               depuis: sourceClient.id,
-              depuis_nom: sourceClient.nom_complet,
+              depuis_nom: formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms),
               montant: amount,
               date: new Date().toISOString(),
               notes: transferNotes
@@ -270,7 +356,7 @@ const GestionPaiements = () => {
 
       toast({
         title: "Transfert effectué",
-        description: `${formatMontant(amount)} transféré de ${sourceClient.nom_complet} vers ${targetClient.nom_complet}`
+        description: `${formatMontant(amount)} transféré de ${formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)} vers ${formatStructuredPersonName(targetClient.nom, targetClient.prenoms)}`
       });
 
       setIsTransferDialogOpen(false);
@@ -355,7 +441,7 @@ const GestionPaiements = () => {
 
       toast({
         title: "Remboursement enregistré",
-        description: `${formatMontant(amount)} à rembourser à ${sourceClient.nom_complet}`
+        description: `${formatMontant(amount)} à rembourser à ${formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)}`
       });
 
       setIsRefundDialogOpen(false);
@@ -474,6 +560,10 @@ const GestionPaiements = () => {
                   void searchClient(client.telephone || "", "source");
                   setIsRefundDialogOpen(true);
                 } : undefined}
+                onConvertMoney={canManageClientMoneyActions ? (client: any) => {
+                  setMoneyConversionClient(client);
+                  setMoneyConversionDays("1");
+                } : undefined}
               />
             </TabsContent>
 
@@ -505,6 +595,29 @@ const GestionPaiements = () => {
             </TabsContent>}
           </Tabs>
 
+          <Dialog open={Boolean(moneyConversionClient)} onOpenChange={(open) => { if (!open) { setMoneyConversionClient(null); setMoneyConversionDays("1"); } }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Coins className="h-5 w-5 text-amber-600" />Convertir la monnaie en jours</DialogTitle>
+                <DialogDescription>{formatStructuredPersonName(moneyConversionClient?.nom, moneyConversionClient?.prenoms)}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">Monnaie disponible : <strong>{formatMontant(Number(moneyConversionClient?.monnaie_client || 0))} F CFA</strong></p>
+                <div className="space-y-2">
+                  <Label>Nombre de jours à convertir</Label>
+                  <Input type="number" min="1" step="1" inputMode="numeric" value={moneyConversionDays} onChange={(event) => setMoneyConversionDays(event.target.value)} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setMoneyConversionClient(null)}>Annuler</Button>
+                <Button type="button" onClick={() => void handleConvertMoneyToDays()} disabled={moneyConversionLoading || !moneyConversionClient || Number(moneyConversionDays) <= 0}>
+                  {moneyConversionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coins className="mr-2 h-4 w-4" />}
+                  Convertir en jours
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Transfer Dialog */}
           <Dialog open={isTransferDialogOpen} onOpenChange={(open) => { setIsTransferDialogOpen(open); if (!open) resetForms(); }}>
             <DialogContent className="max-w-lg">
@@ -530,7 +643,7 @@ const GestionPaiements = () => {
                   />
                   {sourceClient && (
                     <div className="bg-green-50 p-2 rounded border border-green-200">
-                      <p className="text-sm font-medium text-green-800">✓ {sourceClient.nom_complet}</p>
+                      <p className="text-sm font-medium text-green-800">✓ {formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)}</p>
                       <p className="text-xs text-green-600">ID client : {sourceClient.id_unique}</p>
                     </div>
                   )}
@@ -550,7 +663,7 @@ const GestionPaiements = () => {
                   />
                   {targetClient && (
                     <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                      <p className="text-sm font-medium text-blue-800">✓ {targetClient.nom_complet}</p>
+                      <p className="text-sm font-medium text-blue-800">✓ {formatStructuredPersonName(targetClient.nom, targetClient.prenoms)}</p>
                       <p className="text-xs text-blue-600">ID client : {targetClient.id_unique}</p>
                     </div>
                   )}
@@ -609,7 +722,7 @@ const GestionPaiements = () => {
                   />
                   {sourceClient && (
                     <div className="bg-muted p-2 rounded">
-                      <p className="text-sm font-medium">✓ {sourceClient.nom_complet}</p>
+                      <p className="text-sm font-medium">✓ {formatStructuredPersonName(sourceClient.nom, sourceClient.prenoms)}</p>
                     </div>
                   )}
                 </div>
