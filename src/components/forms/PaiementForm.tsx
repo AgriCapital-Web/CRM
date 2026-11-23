@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import FileUpload from "@/components/ui/file-upload";
 import { X } from "lucide-react";
 import { usePromotionActive } from "@/hooks/usePromotionActive";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,11 +27,13 @@ import { useSystemReferences } from "@/hooks/useSystemReferences";
 
 interface PaiementFormProps {
   paiement?: any;
+  initialClientId?: string;
+  lockClient?: boolean;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
+const PaiementForm = ({ paiement, initialClientId, lockClient = false, onSuccess, onCancel }: PaiementFormProps) => {
   const { toast } = useToast();
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     defaultValues: { ...(paiement || {}), type_preuve: paiement?.type_preuve || (paiement?.fichier_preuve_url ? (String(paiement.fichier_preuve_url).toLowerCase().endsWith(".pdf") ? "pdf_document" : "photo_recu") : "id_transaction") },
@@ -67,6 +68,11 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     fetchClients();
   }, []);
 
+  useEffect(() => {
+    if (!initialClientId || !clients.some((client) => client.id === initialClientId)) return;
+    setValue("client_id", initialClientId);
+  }, [initialClientId, clients, setValue]);
+
   // Ne réinitialiser les relations qu'après un vrai changement de type effectué
   // après l'initialisation. Le type initial est parfois chargé du référentiel de façon
   // asynchrone : il ne doit jamais effacer un client déjà choisi pendant ce chargement.
@@ -77,10 +83,12 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     previousPaymentTypeRef.current = typePaiement;
     if (!previousType || previousType === typePaiement || paiement) return;
 
-    setValue("client_id", "");
+    if (!lockClient) {
+      setValue("client_id", "");
+      setSelectedClient(null);
+    }
     setValue("plantation_id", "");
     setValue("acquisition_id", "");
-    setSelectedClient(null);
     setSelectedPlantation(null);
     setSelectedAcquisition(null);
     setAcquisitionPaymentState(null);
@@ -313,45 +321,60 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (selectedFiles: FileList | null) => {
+    const selected = Array.from(selectedFiles || []);
+    if (!selected.length) return;
+    const existingCount = (() => {
+      try {
+        const parsed = JSON.parse(String(fileUrl || ""));
+        return Array.isArray(parsed) ? parsed.length : fileUrl ? 1 : 0;
+      } catch {
+        return fileUrl ? 1 : 0;
+      }
+    })();
+    const files = selected.slice(0, Math.max(0, 25 - existingCount));
+    if (!files.length) return;
     try {
       setUploading(true);
-      
-      // Prévisualisation pour les images
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFilePreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setFilePreview(file.name);
-      }
-      
-      // Les preuves de paiement sont privées : stocker le chemin, jamais une URL publique.
       const currentUser = (await supabase.auth.getUser()).data.user;
       if (!currentUser) throw new Error("Session utilisateur introuvable.");
       if (!clientId) throw new Error("Sélectionnez le client avant de téléverser sa preuve de paiement.");
-      const uploaded = await uploadFile("preuves-paiement", file, `${clientId}/paiements`);
-      if (!uploaded?.path) throw new Error("Le téléversement de la preuve de paiement a échoué.");
-
-      setFileUrl(uploaded.path);
-      setValue("fichier_preuve_url", uploaded.path);
-      setValue("preuve_paiement_url", uploaded.path);
-      setValue("type_preuve", file.type === "application/pdf" ? "pdf_document" : "photo_recu");
+      const uploadedPaths: string[] = [];
+      try {
+        for (const file of files) {
+          const uploaded = await uploadFile("preuves-paiement", file, `${clientId}/paiements`);
+          if (!uploaded?.path) throw new Error("Le téléversement d’un justificatif a échoué.");
+          uploadedPaths.push(uploaded.path);
+        }
+      } catch (error) {
+        if (uploadedPaths.length) await supabase.storage.from("preuves-paiement").remove(uploadedPaths);
+        throw error;
+      }
+      const existingPaths = (() => {
+        try {
+          const parsed = JSON.parse(String(fileUrl || ""));
+          return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : fileUrl ? [String(fileUrl)] : [];
+        } catch {
+          return fileUrl ? [String(fileUrl)] : [];
+        }
+      })();
+      const allPaths = [...existingPaths, ...uploadedPaths].slice(0, 25);
+      const storedPaths = allPaths.length === 1 ? allPaths[0] : JSON.stringify(allPaths);
+      setFileUrl(storedPaths);
+      setValue("fichier_preuve_url", storedPaths);
+      setValue("preuve_paiement_url", storedPaths);
+      setValue("type_preuve", files[0].type === "application/pdf" ? "pdf_document" : "photo_recu");
       setValue("id_transaction", "");
       setValue("operateur_mobile_money", "");
-      
-      toast({
-        title: "Succès",
-        description: "Fichier téléchargé avec succès",
-      });
+      if (files.length === 1 && files[0].type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onloadend = () => setFilePreview(reader.result as string);
+        reader.readAsDataURL(files[0]);
+      } else {
+        setFilePreview("");
+      }
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: getSafeErrorMessage(error),
-      });
+      toast({ variant: "destructive", title: "Erreur", description: getSafeErrorMessage(error) });
     } finally {
       setUploading(false);
     }
@@ -543,8 +566,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           <div>
             <Label htmlFor="client_id">Planteur *</Label>
             <Select
+              value={clientId || ""}
               onValueChange={(value) => setValue("client_id", value)}
-              defaultValue={paiement?.client_id}
+              disabled={lockClient}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner un planteur" />
@@ -800,8 +824,8 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         {(typePreuve === "photo_recu" || typePreuve === "pdf_document") && (
           <div>
             <Label>Fichier justificatif *</Label>
-            <FileUpload onFileSelect={handleFileUpload} accept="image/*,.pdf" maxSize={10} />
-            {fileUrl && !filePreview && <p className="text-xs text-muted-foreground">Justificatif déjà enregistré : {String(fileUrl).split("/").pop()}</p>}
+            <Input type="file" accept="image/*,.pdf" multiple={true} disabled={uploading} onChange={event => { void handleFileUpload(event.target.files); event.target.value = ""; }} />
+            
             {filePreview && (
               <div className="mt-3">
                 {filePreview.startsWith('data:image') ? (
