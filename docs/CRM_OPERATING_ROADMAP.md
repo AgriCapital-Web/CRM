@@ -540,3 +540,10 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 
 - Vérification de l'historique : les 57 interventions techniques et l'unique rapport de visite technique existants sont déjà affectés à YAO KONAN JEAN-MARIE (profil technicien identifié).
 - Aucun enregistrement n'a nécessité de modification.
+
+## Mise à jour du rapprochement des sorties — 23 novembre 2026
+
+- Le grand livre compte désormais 92 sorties validées, pour un total de 730 190 F CFA.
+- Les frais de transaction inclus dans ces sorties totalisent 330 F CFA.
+- L'écart de 3 000 F CFA par rapport au précédent contrôle (727 190 F CFA) correspond à une nouvelle sortie COMMUNICATION de 3 000 F CFA enregistrée et validée le 23 novembre à 13 h 58 UTC.
+- Le règlement partiel de 30 000 F CFA et ses 300 F CFA de frais sont compris dans le total de 730 190 F CFA ; ils ne sont pas comptés deux fois.
