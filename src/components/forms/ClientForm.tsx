@@ -398,28 +398,25 @@ const ClientForm = ({ client, onSuccess, onCancel, readOnly = false, lockCommerc
       </Card>
 
       <Card className="overflow-hidden">
-        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Photos et pièces d’identité</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-3 gap-2 px-4 pb-3 pt-0">
-          <div className="min-w-0"><Label className="text-xs">Photo profil</Label>{fileUpload("Photo profil","photo_profil",photoFile,form.photo_profil_url,photoPreview,setPhotoFile,setPhotoPreview)}</div>
-          <div className="min-w-0"><Label className="text-xs">Pièce recto</Label>{fileUpload("Pièce recto","piece_recto",pieceRectoFile,form.fichier_piece_recto_url,pieceRectoPreview,setPieceRectoFile,setPieceRectoPreview,true)}</div>
-          <div className="min-w-0"><Label className="text-xs">Pièce verso</Label>{fileUpload("Pièce verso","piece_verso",pieceVersoFile,form.fichier_piece_verso_url,pieceVersoPreview,setPieceVersoFile,setPieceVersoPreview)}</div>
-        </CardContent>
-      </Card>
-
-      <Card className="overflow-hidden">
-        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Contrat du client</CardTitle></CardHeader>
-        <CardContent className="space-y-2 px-4 pb-3 pt-0">
-          {contractDocument && !contractFile && <p className="text-xs text-muted-foreground">Contrat déjà rattaché. Choisissez un autre fichier pour le remplacer.</p>}
-          <FileUploadVisual
-            label="Importer le contrat (PDF ou image)"
-            field="fiche_contrat"
-            accept="application/pdf,image/*"
-            currentFile={contractFile}
-            currentPreview={contractPreview}
-            existingPreview={storedContractPreview}
-            onFileChange={(_, file, preview) => { setContractFile(file); setContractPreview(preview); }}
-            compact
-          />
+        <CardHeader className="px-4 py-2"><CardTitle className="text-sm">Identité, photos et contrat du client</CardTitle></CardHeader>
+        <CardContent className="grid min-w-0 grid-cols-2 gap-2 px-4 pb-3 pt-0">
+          <div className="min-w-0"><Label className="text-xs">Pièce — recto</Label>{fileUpload("Pièce — recto","piece_recto",pieceRectoFile,form.fichier_piece_recto_url,pieceRectoPreview,setPieceRectoFile,setPieceRectoPreview,true)}</div>
+          <div className="min-w-0"><Label className="text-xs">Pièce — verso</Label>{fileUpload("Pièce — verso","piece_verso",pieceVersoFile,form.fichier_piece_verso_url,pieceVersoPreview,setPieceVersoFile,setPieceVersoPreview)}</div>
+          <div className="min-w-0"><Label className="text-xs">Photo client</Label>{fileUpload("Photo client","photo_profil",photoFile,form.photo_profil_url,photoPreview,setPhotoFile,setPhotoPreview)}</div>
+          <div className="min-w-0 space-y-1">
+            <Label className="text-xs">Contrat signé</Label>
+            {contractDocument && !contractFile && <p className="text-[11px] text-muted-foreground">Contrat déjà joint.</p>}
+            <FileUploadVisual
+              label="Contrat signé"
+              field="fiche_contrat"
+              accept="application/pdf,image/*"
+              currentFile={contractFile}
+              currentPreview={contractPreview}
+              existingPreview={storedContractPreview}
+              onFileChange={(_, file, preview) => { setContractFile(file); setContractPreview(preview); }}
+              compact
+            />
+          </div>
         </CardContent>
       </Card>
 
