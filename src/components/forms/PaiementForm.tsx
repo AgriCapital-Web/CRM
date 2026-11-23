@@ -27,11 +27,13 @@ import { useSystemReferences } from "@/hooks/useSystemReferences";
 
 interface PaiementFormProps {
   paiement?: any;
+  initialClientId?: string;
+  lockClient?: boolean;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
+const PaiementForm = ({ paiement, initialClientId, lockClient = false, onSuccess, onCancel }: PaiementFormProps) => {
   const { toast } = useToast();
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     defaultValues: { ...(paiement || {}), type_preuve: paiement?.type_preuve || (paiement?.fichier_preuve_url ? (String(paiement.fichier_preuve_url).toLowerCase().endsWith(".pdf") ? "pdf_document" : "photo_recu") : "id_transaction") },
@@ -65,6 +67,11 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   useEffect(() => {
     fetchClients();
   }, []);
+
+  useEffect(() => {
+    if (!initialClientId || !clients.some((client) => client.id === initialClientId)) return;
+    setValue("client_id", initialClientId);
+  }, [initialClientId, clients, setValue]);
 
   // Ne réinitialiser les relations qu'après un vrai changement de type effectué
   // après l'initialisation. Le type initial est parfois chargé du référentiel de façon
@@ -313,8 +320,8 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   };
 
   const handleFileUpload = async (selectedFiles: FileList | null) => {
-    const files = Array.from(selectedFiles || []);
-    if (!files.length) return;
+    const selected = Array.from(selectedFiles || []);
+    if (!selected.length) return;
     const existingCount = (() => {
       try {
         const parsed = JSON.parse(String(fileUrl || ""));
@@ -323,7 +330,8 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         return fileUrl ? 1 : 0;
       }
     })();
-    if (files.length + existingCount > 25) return;
+    const files = selected.slice(0, Math.max(0, 25 - existingCount));
+    if (!files.length) return;
     try {
       setUploading(true);
       const currentUser = (await supabase.auth.getUser()).data.user;
@@ -556,8 +564,9 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
           <div>
             <Label htmlFor="client_id">Planteur *</Label>
             <Select
+              value={clientId || ""}
               onValueChange={(value) => setValue("client_id", value)}
-              defaultValue={paiement?.client_id}
+              disabled={lockClient}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner un planteur" />
@@ -813,7 +822,7 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
         {(typePreuve === "photo_recu" || typePreuve === "pdf_document") && (
           <div>
             <Label>Fichier justificatif *</Label>
-            <Input type="file" accept="image/*,.pdf" multiple disabled={uploading} onChange={event => { void handleFileUpload(event.target.files); event.target.value = ""; }} />
+            <Input type="file" accept="image/*,.pdf" multiple={true} disabled={uploading} onChange={event => { void handleFileUpload(event.target.files); event.target.value = ""; }} />
             
             {filePreview && (
               <div className="mt-3">
