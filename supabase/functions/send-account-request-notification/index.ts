@@ -174,14 +174,15 @@ serve(async (req) => {
         console.log("Duplicate account-request notification suppressed");
         continue;
       }
-      const { data: insertedNotification, error: notifError } = await supabaseAdmin.from('notifications').insert({
+      const { data: insertedNotification, error: notifError } = await supabaseAdmin.from("notifications").insert({
         user_id: adminProfile.id,
-        type: 'account_request',
-        titre: 'Nouvelle demande de compte',
-        message: `${applicantDisplayName} (${requestData.email}) demande un accès à la plateforme.`,
-        lien: '/account-requests',
-        dedupe_key: notificationDedupeKey
-      }).select('id').maybeSingle();
+        type: "account_request",
+        title: "Nouvelle demande de compte",
+        message: `${applicantDisplayName} (${requestData.email}) demande un accès au poste ${requestedRole}.`,
+        data: { route: "/account-requests", auth_user_id: requestData.auth_user_id || null, role_souhaite: requestedRole },
+        read: false,
+        dedupe_key: notificationDedupeKey,
+      }).select("id").maybeSingle();
 
       if (notifError || !insertedNotification) {
         console.error("Notification claim failed or duplicate; external delivery skipped.");
