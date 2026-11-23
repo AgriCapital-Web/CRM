@@ -6,7 +6,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -46,11 +45,11 @@ function FeeChoiceButtons({ value, onChange }: { value: "with" | "without"; onCh
   return (
     <div className="inline-flex flex-wrap items-center gap-3" role="group" aria-label="Frais de transaction">
       <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
-        <Checkbox checked={value === "with"} onCheckedChange={() => onChange("with")} />
+        <input type="checkbox" checked={value === "with"} onChange={() => onChange("with")} className="h-4 w-4 rounded border-input accent-primary" />
         Avec frais
       </label>
       <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
-        <Checkbox checked={value === "without"} onCheckedChange={() => onChange("without")} />
+        <input type="checkbox" checked={value === "without"} onChange={() => onChange("without")} className="h-4 w-4 rounded border-input accent-primary" />
         Sans frais
       </label>
     </div>
