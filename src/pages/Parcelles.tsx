@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { formatRecipientName } from "@/lib/utils";
+import { formatRecipientName, formatTableRecipientName, formatTablePersonName } from "@/lib/utils";
 import { Eye, Pencil } from "lucide-react";
 import { Search, Layers, MapPin, Sprout } from "lucide-react";
 
@@ -211,11 +211,11 @@ const Parcelles = () => {
                     <TableCell><Badge variant={ownClient ? "secondary" : "default"} className={ownClient ? "border-[#22a45d]/35 bg-[#22a45d]/12 text-[#168348] dark:bg-[#22a45d]/20 dark:text-[#7be0a2]" : ""}>{ownClient ? "Propriété client" : "Foncier / partagé"}</Badge></TableCell>
                     <TableCell className="text-xs">{[p.departements?.nom, p.sous_prefectures?.nom, p.village].filter(Boolean).join(" · ") || "—"}</TableCell>
                     <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</TableCell>
-                    <TableCell>{p.proprietaires_terres?.nom_complet ? displayOwnerName(p.proprietaires_terres) : (ownClient ? formatRecipientName(parcelClients[0]?.nom_complet, "client", parcelClients[0]?.nom, parcelClients[0]?.prenoms) : "—")}</TableCell>
+                    <TableCell>{p.proprietaires_terres?.nom_complet ? (p.proprietaires_terres?.type_proprietaire === "personne_physique" ? formatTableRecipientName(p.proprietaires_terres.nom_complet, "client", p.proprietaires_terres.nom, p.proprietaires_terres.prenoms) : formatTablePersonName(p.proprietaires_terres.denomination_sociale || p.proprietaires_terres.nom_complet)) : (ownClient ? formatTableRecipientName(parcelClients[0]?.nom_complet, "client", parcelClients[0]?.nom, parcelClients[0]?.prenoms) : "—")}</TableCell>
                     <TableCell>{Number(p.surface_agricapital_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</TableCell>
                     <TableCell>{parcelLots.length || "—"}</TableCell>
                     <TableCell className="max-w-[280px] text-xs">
-                      {parcelClients.length ? parcelClients.map(c => <div key={c.id}>{formatRecipientName(c.nom_complet, "client", c.nom, c.prenoms)} · {c.total_hectares} ha</div>) : "—"}
+                      {parcelClients.length ? parcelClients.map(c => <div key={c.id}>{formatTableRecipientName(c.nom_complet, "client", c.nom, c.prenoms)} · {c.total_hectares} ha</div>) : "—"}
                     </TableCell>
                     <TableCell><Badge>{statusLabel(p, parcelClients, parcelPlantations)}</Badge></TableCell><TableCell className="text-right"><div className="inline-flex gap-1" onClick={event => event.stopPropagation()}><Button type="button" size="icon" variant="ghost" aria-label="Consulter" onClick={() => openParcel(p)}><Eye className="h-4 w-4" /></Button>{canEditParcel && <Button type="button" size="icon" variant="ghost" aria-label="Modifier" onClick={() => { openParcel(p); setEditParcel(true); }}><Pencil className="h-4 w-4" /></Button>}</div></TableCell>
                   </TableRow>;
