@@ -535,3 +535,8 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Sortie réellement inscrite au grand livre : 30 300 F CFA.
 - La dépense reste partielle, sur un total de 50 000 F CFA ; le reliquat est de 20 000 F CFA.
 - La transaction et le règlement sont déjà validés en base. L'affichage distingue désormais les 30 000 F CFA versés et les 300 F CFA de frais, sans créer de seconde sortie.
+
+## Affectation des interventions techniques — 23 novembre 2026
+
+- Vérification de l'historique : les 57 interventions techniques et l'unique rapport de visite technique existants sont déjà affectés à YAO KONAN JEAN-MARIE (profil technicien identifié).
+- Aucun enregistrement n'a nécessité de modification.
