@@ -42,6 +42,7 @@ type ClientFinanceRow = {
   montant_pi_total?: number | null;
   duree_paiement_mois?: number | null;
   acquisitionTotal?: number;
+  monnaie_client?: number;
   baseContractTotal?: number;
   hasAcquisitions?: boolean;
   summary: any;
@@ -60,13 +61,15 @@ type ContractState = {
 
 const money = (value: unknown) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0)) + " F CFA";
 
-export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
+export default function ClientPaymentWorkspace({ onTransfer, onRefund, onConvertMoney }: {
   onTransfer?: (client: ClientFinanceRow) => void;
   onRefund?: (client: ClientFinanceRow) => void;
+  onConvertMoney?: (client: ClientFinanceRow) => void;
 }) {
   const { toast } = useToast();
   const { can } = usePermissions();
   const canRecordPayments = can("paiements.record") || can("paiements.execute");
+  const canViewClientMoney = can("clients.view_money");
   const queryClient = useQueryClient();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
   const [search, setSearch] = useState("");
@@ -85,7 +88,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const [plantations, setPlantations] = useState<any[]>([]);
 
   const { data: clients = [], isLoading, refetch } = useQuery({
-    queryKey: ["gestion-paiements-clients"],
+    queryKey: ["gestion-paiements-clients", canViewClientMoney],
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: acquisitions, error: acquisitionsError }] = await Promise.all([
         (supabase as any).from("clients")
@@ -102,6 +105,11 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       if (clientsError) throw clientsError;
       if (summaryError) throw summaryError;
       if (acquisitionsError) throw acquisitionsError;
+      const { data: moneyRows, error: moneyError } = canViewClientMoney
+        ? await (supabase as any).from("v_monnaie_clients").select("client_id,monnaie_client")
+        : { data: [], error: null };
+      if (moneyError) throw moneyError;
+      const moneyByClient = new Map<string, number>((moneyRows || []).map((row: any) => [row.client_id, Number(row.monnaie_client || 0)]));
       const byClient = new Map<string, any>((summaries || []).map((s: any) => [s.client_id, s]));
       const acquisitionMap = new Map<string, any[]>();
       (acquisitions || []).forEach((s: any) => { const items = acquisitionMap.get(s.client_id) || []; items.push(s); acquisitionMap.set(s.client_id, items); });
@@ -112,6 +120,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         const principalTotal = Number(summary?.montant_total_contrat ?? (acquisitionTotal > 0 ? acquisitionTotal : Number(c.montant_total_contrat || 0)));
         return {
           ...c,
+          monnaie_client: moneyByClient.get(c.id) || 0,
           summary,
           acquisitionTotal,
           hasAcquisitions: clientAcquisitions.length > 0,
@@ -450,6 +459,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                     <TableCell><div className="flex items-center justify-end gap-1">
                       {remainingClient > 0 && !client.contrat_solde_at && onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${formatStructuredPersonName(client.nom, client.prenoms)}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
                       {remainingClient > 0 && !client.contrat_solde_at && onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${formatStructuredPersonName(client.nom, client.prenoms)}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
+                      {Number(client.monnaie_client || 0) > 0 && onConvertMoney && <Button type="button" size="icon" variant="ghost" aria-label={`Convertir la monnaie en jours pour ${formatStructuredPersonName(client.nom, client.prenoms)}`} title="Convertir monnaie en jours" onClick={() => onConvertMoney(client)}><Coins className="h-4 w-4 text-amber-600" /></Button>}
                       {remainingClient > 0 && !client.contrat_solde_at && canRecordPayments && <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${formatStructuredPersonName(client.nom, client.prenoms)}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>}
                     </div></TableCell>
                   </TableRow>;
