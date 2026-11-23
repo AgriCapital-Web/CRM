@@ -55,7 +55,30 @@ serve(async (req) => {
       }
     );
 
-    const { requestData } = await req.json();
+    const { requestData: incomingRequestData } = await req.json();
+    const requestData = { ...(incomingRequestData || {}) };
+    // La version actuellement active de submit-account-request peut ne pas
+    // transmettre le rôle et la région : les relire depuis la demande enregistrée.
+    if (!requestData.role_souhaite || !requestData.region_id || !requestData.auth_user_id) {
+      let requestQuery = supabaseAdmin.from("account_requests")
+        .select("auth_user_id,role_souhaite,poste_souhaite,region_id,district_id,departement_geo_id,sous_prefecture_id")
+        .order("created_at", { ascending: false }).limit(1);
+      requestQuery = requestData.auth_user_id
+        ? requestQuery.eq("auth_user_id", String(requestData.auth_user_id))
+        : requestQuery.eq("email", String(requestData.email || ""));
+      const { data: savedRequests, error: requestLookupError } = await requestQuery;
+      if (requestLookupError) throw requestLookupError;
+      const savedRequest = savedRequests?.[0];
+      if (savedRequest) {
+        requestData.auth_user_id = requestData.auth_user_id || savedRequest.auth_user_id;
+        requestData.role_souhaite = requestData.role_souhaite || savedRequest.role_souhaite;
+        requestData.poste = requestData.poste || savedRequest.poste_souhaite;
+        requestData.region_id = requestData.region_id || savedRequest.region_id;
+        requestData.district_id = requestData.district_id || savedRequest.district_id;
+        requestData.departement_geo_id = requestData.departement_geo_id || savedRequest.departement_geo_id;
+        requestData.sous_prefecture_id = requestData.sous_prefecture_id || savedRequest.sous_prefecture_id;
+      }
+    }
     const requestNameParts = String(requestData?.nom_complet || "").trim().split(/\s+/).filter(Boolean);
     const applicantLastName = String(requestData?.nom || requestNameParts[0] || "").trim();
     const applicantGivenNames = String(requestData?.prenoms || requestNameParts.slice(1).join(" ")).trim();
