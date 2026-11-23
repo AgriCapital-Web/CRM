@@ -496,3 +496,17 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Finance et Comptabilité : les champs de justificatifs acceptent une sélection multiple jusqu'à 25 fichiers par opération. Les champs existants de la page Finance couvrent les entrées, sorties, dépenses à payer, règlements, mouvements d'associés et paiements de paie.
 - Formulaire de paiement client : remplacement du téléversement mono-fichier par une sélection multiple ; les chemins des reçus sont enregistrés ensemble dans les champs de preuve existants, sans ajouter de texte d'aide ni de message explicatif dans l'interface.
 - La limite de 25 est appliquée au nombre total de fichiers associés à l'opération. Les justificatifs sont téléversés dans le stockage privé existant.
+
+## Actions financières dans la fiche client — 23 novembre 2026
+
+- La fiche client et le module Paiements proposent les actions de conversion de monnaie client en jours, en complément de la saisie de paiement, du remboursement et du transfert.
+- Les boutons d'action sont réservés au PDG et à la Relation Client (service client et chef d'équipe Relation Client). Les profils disposant uniquement d'un droit de consultation conservent l'accès aux informations sans les commandes d'exécution.
+- Le formulaire de paiement ouvert depuis une fiche client conserve le client pré-sélectionné même lorsque le type de paiement change.
+- Le calcul du rachat de monnaie utilise le tarif journalier total du client : tarif journalier par hectare multiplié par la superficie, ou tarif total personnalisé lorsqu'il existe. Le calcul est aligné sur le moteur de tarification journalier.
+- Les permissions et politiques RLS de paiements, remboursements et transferts sont alignées avec ces rôles.
+
+## Rapprochement des sorties validées — 23 novembre 2026
+
+- Le KPI « Sorties validées » est calculé à partir des transactions de sortie dont le statut est valide dans le grand livre finance_transactions. Il inclut les frais réellement décaissés, les commissions et les paiements de dépenses ; il ne correspond donc pas uniquement au total des fiches de dépenses.
+- Les commissions déjà payées et présentes dans le grand livre sont maintenant également rapprochées des fiches de dépenses associées.
+- Une dépense de carburant de 2 000 F CFA demeure à vérifier : sa fiche est marquée payée alors que sa transaction liée est annulée et qu'aucun règlement associé n'existe dans le registre des paiements de dépenses. Elle n'a pas été modifiée automatiquement faute de preuve sur le paiement réel.
