@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatTablePersonName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useToast } from "@/hooks/use-toast";
@@ -345,7 +345,7 @@ const Equipes = () => {
                   {equipe.photo_url ? <img src={equipe.photo_url} alt={`Logo ${equipe.nom}`} className="h-8 w-8 rounded-md border object-cover" loading="lazy" /> : <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">{equipe.type_equipe === "technique" ? <Wrench className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}</div>}
                 </TableCell>
                 <TableCell className="max-w-[10rem] py-1 font-medium" title={equipe.nom}><span className="block max-w-[10rem] truncate whitespace-nowrap">{equipe.nom}</span></TableCell>
-                <TableCell className="max-w-[10rem] truncate py-1" title={equipe.responsable?.nom_complet || "Non assigné"}>{formatUserShortName(equipe.responsable?.nom_complet || "Non assigné")}</TableCell>
+                <TableCell className="max-w-[10rem] truncate py-1" title={equipe.responsable?.nom_complet || "Non assigné"}>{formatTablePersonName(equipe.responsable?.nom_complet || "Non assigné")}</TableCell>
                 <TableCell className="whitespace-nowrap py-1">{equipe.region?.nom || "—"}</TableCell>
                 <TableCell className="max-w-[12rem] truncate py-1" title={equipe.zone_couverture || ""}>{equipe.zone_couverture || "—"}</TableCell>
                 <TableCell className="py-1 text-center tabular-nums">{equipe.effectif || 0}</TableCell>
