@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatTablePersonName } from "@/lib/utils";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -142,7 +142,7 @@ const HistoriqueComplet = () => {
                       <TableCell>
                         {format(new Date(action.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
                       </TableCell>
-                      <TableCell>{formatUserShortName(action.user?.nom_complet || "Système")}</TableCell>
+                      <TableCell>{formatTablePersonName(action.user?.nom_complet || "Système")}</TableCell>
                       <TableCell>
                         <span className="capitalize">{action.type_action}</span>
                       </TableCell>
