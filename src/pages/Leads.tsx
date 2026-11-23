@@ -35,16 +35,17 @@ import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatStructuredPersonName, formatStructuredTablePersonName } from "@/lib/utils";
 import ContactLauncher from "@/components/common/ContactLauncher";
 
 
 const normalizeSmsText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const offerRequiresLand = (offer: any) => { const identity = normalizeSmsText([offer?.code, offer?.nom, offer?.famille_offre, offer?.formule_code, offer?.formule_nom].filter(Boolean).join(" ")).toLowerCase().replace(/[ _-]+/g, ""); if (identity.includes("palminvest")) return false; if (identity.includes("terrapalm") || identity.includes("palmterroir")) return true; return null; };
 const renderLeadTemplate = (template: string, lead: any) => {
-  const fullName = [lead?.prenoms, lead?.nom].filter(Boolean).join(" ").trim();
+  const fullName = formatStructuredPersonName(lead?.nom, lead?.prenoms);
+  const lastGivenName = String(lead?.prenoms || "").trim().split(/\s+/).filter(Boolean).pop() || "";
   const vars: Record<string, string> = {
-    nom: fullName, nom_complet: fullName, prenom: String(lead?.prenoms || fullName.split(/\s+/)[0] || ""),
+    nom: fullName, nom_complet: fullName, prenom: lastGivenName,
     telephone: String(lead?.telephone || ""), telephone_secondaire: String(lead?.telephone_secondaire || ""), telephone_secondaire_indicatif: String(lead?.telephone_secondaire_indicatif || ""), telephone_secondaire_local: String(lead?.telephone_secondaire_local || ""), telephone_principal_whatsapp: String(!!lead?.telephone_principal_whatsapp), telephone_secondaire_whatsapp: String(!!lead?.telephone_secondaire_whatsapp), whatsapp: String(lead?.whatsapp || lead?.telephone || ""),
     email: String(lead?.email || ""), numero_contrat: "", offre: "", montant: "", date: new Date().toLocaleDateString("fr-FR"),
   };
@@ -686,9 +687,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
-                    <TableRow key={l.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${l.etape_pipeline === "prospect" ? "prospect" : "lead"} ${[l.prenoms, l.nom].filter(Boolean).join(" ")}`} onClick={() => openOfficialLeadForm(l, "view")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openOfficialLeadForm(l, "view"); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:py-1 [&>td]:px-2">
-                      <TableCell><div className="font-medium leading-tight">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
-                      <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /></TableCell>
+                    <TableRow key={l.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${l.etape_pipeline === "prospect" ? "prospect" : "lead"} ${formatStructuredTablePersonName(l.nom, l.prenoms, l.nom_complet)}`} onClick={() => openOfficialLeadForm(l, "view")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openOfficialLeadForm(l, "view"); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:py-1 [&>td]:px-2">
+                      <TableCell><div className="font-medium leading-tight">{formatStructuredTablePersonName(l.nom, l.prenoms, l.nom_complet)}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
+                      <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} name={formatStructuredTablePersonName(l.nom, l.prenoms, l.nom_complet)} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
                       <TableCell className="min-w-0" onClick={(event) => event.stopPropagation()}>
                         <Select value={l.statut} disabled={!canUpdateLeads} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
