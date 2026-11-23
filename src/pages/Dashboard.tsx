@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { PERMISSIONS, ROLE_SHORT_LABELS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatStructuredPersonName } from "@/lib/utils";
+import { formatStructuredPersonName, formatStructuredTablePersonName, formatTablePersonName } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -978,7 +978,7 @@ const Dashboard = () => {
                         <TableBody>
                           {filteredRecentClients.length ? filteredRecentClients.map((c) => (
                             <TableRow key={c.id_unique}>
-                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{formatStructuredPersonName(c.nom,c.prenoms)}</TableCell>
+                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{formatStructuredTablePersonName(c.nom,c.prenoms)}</TableCell>
                               <TableCell className="px-2 py-1.5 text-xs sm:text-sm">{c.nombre_plantations || 0}</TableCell>
                               <TableCell className="px-2 py-1.5">{(() => { const status = String(c.statut || "actif").toLowerCase(); const label = status === "actif" ? "Actif" : status === "suspendu" ? "Suspendu" : status === "archive" ? "Archivé" : status === "inactif" ? "Inactif" : status; const display = c.contrat_solde_at ? "Soldé" : label; const className = c.contrat_solde_at ? "whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" : status === "actif" ? "whitespace-nowrap border-emerald-200 bg-emerald-100/70 text-emerald-800 hover:bg-emerald-100/70" : status === "en_retard" || status === "retard" ? "whitespace-nowrap border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-100" : "whitespace-nowrap"; return <Badge variant={c.contrat_solde_at || status === "actif" ? "outline" : status === "suspendu" ? "destructive" : "secondary"} className={className}>{display}</Badge>; })()}</TableCell>
                             </TableRow>
@@ -998,7 +998,7 @@ const Dashboard = () => {
                         <TableBody>
                           {filteredRecentPayments.length ? filteredRecentPayments.map((p) => (
                             <TableRow key={p.id}>
-                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{p.client_nom}</TableCell>
+                              <TableCell className="px-2 py-1.5 text-xs font-medium sm:text-sm">{formatTablePersonName(p.client_nom)}</TableCell>
                               <TableCell className="whitespace-nowrap px-2 py-1.5 text-xs sm:text-sm">{money(Number(p.montant_paye ?? p.montant ?? 0))}</TableCell>
                               <TableCell className="whitespace-nowrap px-2 py-1.5 text-xs">{(["content", "comptant", "cash", "espèces", "especes"].includes(String(p.mode_paiement || "").trim().toLowerCase()) ? "Cash" : p.mode_paiement || "—")}</TableCell>
                               <TableCell className="px-2 py-1.5"><Badge variant="outline" className="whitespace-nowrap border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Validé</Badge></TableCell>
