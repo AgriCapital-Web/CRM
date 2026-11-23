@@ -35,16 +35,17 @@ import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatStructuredPersonName, formatStructuredTablePersonName } from "@/lib/utils";
 import ContactLauncher from "@/components/common/ContactLauncher";
 
 
 const normalizeSmsText = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
 const offerRequiresLand = (offer: any) => { const identity = normalizeSmsText([offer?.code, offer?.nom, offer?.famille_offre, offer?.formule_code, offer?.formule_nom].filter(Boolean).join(" ")).toLowerCase().replace(/[ _-]+/g, ""); if (identity.includes("palminvest")) return false; if (identity.includes("terrapalm") || identity.includes("palmterroir")) return true; return null; };
 const renderLeadTemplate = (template: string, lead: any) => {
-  const fullName = [lead?.prenoms, lead?.nom].filter(Boolean).join(" ").trim();
+  const fullName = formatStructuredPersonName(lead?.nom, lead?.prenoms);
+  const lastGivenName = String(lead?.prenoms || "").trim().split(/\s+/).filter(Boolean).pop() || "";
   const vars: Record<string, string> = {
-    nom: fullName, nom_complet: fullName, prenom: String(lead?.prenoms || fullName.split(/\s+/)[0] || ""),
+    nom: fullName, nom_complet: fullName, prenom: lastGivenName,
     telephone: String(lead?.telephone || ""), telephone_secondaire: String(lead?.telephone_secondaire || ""), telephone_secondaire_indicatif: String(lead?.telephone_secondaire_indicatif || ""), telephone_secondaire_local: String(lead?.telephone_secondaire_local || ""), telephone_principal_whatsapp: String(!!lead?.telephone_principal_whatsapp), telephone_secondaire_whatsapp: String(!!lead?.telephone_secondaire_whatsapp), whatsapp: String(lead?.whatsapp || lead?.telephone || ""),
     email: String(lead?.email || ""), numero_contrat: "", offre: "", montant: "", date: new Date().toLocaleDateString("fr-FR"),
   };
@@ -96,7 +97,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const [contactChannel, setContactChannel] = useState("whatsapp");
   const [contactMessage, setContactMessage] = useState("");
   const [contactMedia, setContactMedia] = useState<File[]>([]);
-  const [contactStoredMedia, setContactStoredMedia] = useState<Array<{ bucket: string; path: string; name: string; mimeType : string; size: number }>>([]);
+  const [contactStoredMedia, setContactStoredMedia] = useState<Array<{ bucket: string; path: string; name: string; mimeType: string; size: number }>>([]);
   const [contactTemplates, setContactTemplates] = useState<any[]>([]);
   const [selectedContactTemplate, setSelectedContactTemplate] = useState("");
   const [contactSending, setContactSending] = useState(false);
@@ -519,16 +520,16 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
     }
     setContactSending(true);
     try {
-      const mediaAttachments: Array<{ bucket: string; path: string; name: string; mimeType : string; size: number }> = [];
+      const mediaAttachments: Array<{ bucket: string; path: string; name: string; mimeType: string; size: number }> = [];
       if (contactChannel === "whatsapp" || contactChannel === "email") {
         for (const file of contactMedia) {
           const { data: authData } = await supabase.auth.getUser();
           if (!authData.user) throw new Error("Session expirée. Reconnectez-vous.");
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
           const path = `${authData.user.id}/manual-${crypto.randomUUID()}-${safeName}`;
-          const { error: uploadError } = await supabase.storage.from("notification-media").upload(path, file, { contentType : file.type || "application/octet-stream", upsert: false });
+          const { error: uploadError } = await supabase.storage.from("notification-media").upload(path, file, { contentType: file.type || "application/octet-stream", upsert: false });
           if (uploadError) throw uploadError;
-          mediaAttachments.push({ bucket: "notification-media", path, name: file.name, mimeType : file.type || "application/octet-stream", size: file.size });
+          mediaAttachments.push({ bucket: "notification-media", path, name: file.name, mimeType: file.type || "application/octet-stream", size: file.size });
         }
       }
       const { data, error } = await supabase.functions.invoke("notification-dispatch", {
@@ -686,9 +687,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
-                    <TableRow key={l.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${l.etape_pipeline === "prospect" ? "prospect" : "lead"} ${[l.prenoms, l.nom].filter(Boolean).join(" ")}`} onClick={() => openOfficialLeadForm(l, "view")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openOfficialLeadForm(l, "view"); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:py-1 [&>td]:px-2">
-                      <TableCell><div className="font-medium leading-tight">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
-                      <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /></TableCell>
+                    <TableRow key={l.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${l.etape_pipeline === "prospect" ? "prospect" : "lead"} ${formatStructuredTablePersonName(l.nom, l.prenoms, l.nom_complet)}`} onClick={() => openOfficialLeadForm(l, "view")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openOfficialLeadForm(l, "view"); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:py-1 [&>td]:px-2">
+                      <TableCell><div className="font-medium leading-tight">{formatStructuredTablePersonName(l.nom, l.prenoms, l.nom_complet)}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
+                      <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} name={formatStructuredTablePersonName(l.nom, l.prenoms, l.nom_complet)} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
                       <TableCell className="min-w-0" onClick={(event) => event.stopPropagation()}>
                         <Select value={l.statut} disabled={!canUpdateLeads} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
@@ -741,16 +742,16 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                     <TabsTrigger value="historique">Historique ({historique.length})</TabsTrigger>
                   </TabsList>
                   <TabsContent value="info" className="space-y-2 text-sm">
-                    <p><b>Téléphone :</b> {selected.telephone} • <b>WhatsApp :</b> {selected.whatsapp || "—"}</p>
-                    <p><b>E-mail :</b> {selected.email || "—"}</p>
-                    <p><b>Région :</b> {selected.region_residence || "—"}</p>
-                    <p><b>Type :</b> {selected.type_lead === "proprietaire_foncier" ? "Propriétaire foncier" : "Client"}</p>
-                    {selected.type_lead === "client" && <p><b>Offre / formule :</b> {selected.offre_code || "—"} / {selected.formule_code || "—"}</p>}
-                    <p><b>Terrain :</b> {selected.type_lead === "proprietaire_foncier" ? `${selected.superficie_disponible_ha || 0} ha disponibles, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : selected.dispose_terrain ? `Oui — ${selected.superficie_disponible_ha || 0} ha disponibles, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : `Non — souhaite ${selected.superficie_souhaitee_ha || 0} ha`}</p>
-                    <p><b>Délai :</b> {selected.delai_demarrage || "—"} • <b>Créneau :</b> {selected.creneau_prefere || "—"} • <b>Mode :</b> {selected.mode_contact_prefere}</p>
-                    <p><b>Source :</b> {selected.source}</p>
-                    <p><b>Message :</b> {selected.commentaire || "—"}</p>
-                    <p><b>Créé par :</b> {nameOf(selected.created_by)} • <b>Commercial affecté :</b> {nameOf(selected.assigned_to)}</p>
+                    <p><b>Téléphone:</b> {selected.telephone} • <b>WhatsApp:</b> {selected.whatsapp || "—"}</p>
+                    <p><b>Email:</b> {selected.email || "—"}</p>
+                    <p><b>Région:</b> {selected.region_residence || "—"}</p>
+                    <p><b>Type:</b> {selected.type_lead === "proprietaire_foncier" ? "Propriétaire foncier" : "Client"}</p>
+                    {selected.type_lead === "client" && <p><b>Offre / formule:</b> {selected.offre_code || "—"} / {selected.formule_code || "—"}</p>}
+                    <p><b>Terrain:</b> {selected.type_lead === "proprietaire_foncier" ? `${selected.superficie_disponible_ha || 0} ha disponibles, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : selected.dispose_terrain ? `Oui — ${selected.superficie_disponible_ha || 0} ha disponibles, ${selected.superficie_a_valoriser_ha || 0} ha à valoriser` : `Non — souhaite ${selected.superficie_souhaitee_ha || 0} ha`}</p>
+                    <p><b>Délai:</b> {selected.delai_demarrage || "—"} • <b>Créneau:</b> {selected.creneau_prefere || "—"} • <b>Mode:</b> {selected.mode_contact_prefere}</p>
+                    <p><b>Source:</b> {selected.source}</p>
+                    <p><b>Message:</b> {selected.commentaire || "—"}</p>
+                    <p><b>Créé par:</b> {nameOf(selected.created_by)} • <b>Commercial affecté:</b> {nameOf(selected.assigned_to)}</p>
                     {canSupervise && (
                       <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>Réaffecter à un commercial</Button>
                     )}
@@ -774,7 +775,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                           <Badge variant="outline">{h.action}</Badge>
                           <span className="text-xs text-muted-foreground">{format(new Date(h.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}</span>
                         </div>
-                        <p className="mt-1"><b>Par :</b> {nameOf(h.acteur_id)}</p>
+                        <p className="mt-1"><b>Par:</b> {nameOf(h.acteur_id)}</p>
                         {h.champ && (
                           <p className="text-xs text-muted-foreground mt-1">
                             {h.champ} : {h.champ === "assigned_to" ? nameOf(h.ancienne_valeur) : (h.ancienne_valeur || "—")}
@@ -956,7 +957,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 <div><Label>Prénom *</Label><Input value={leadForm.prenoms} onChange={e => setLeadForm(x => ({ ...x, prenoms: e.target.value.toLocaleUpperCase("fr-FR") }))} placeholder="Prénom" /></div>
                 <div className="space-y-1"><CountryPhoneInput label="Téléphone principal" required countryCode={leadForm.telephone_indicatif || undefined} localValue={leadForm.telephone_local || leadForm.telephone || ""} onChange={v => setLeadForm(x => ({ ...x, telephone_indicatif: v.callingCode, telephone_local: v.localValue, telephone: v.internationalValue }))}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!leadForm.telephone_principal_whatsapp} onCheckedChange={v=>setLeadForm(x=>({...x,telephone_principal_whatsapp:v===true}))}/>Ce numéro utilise WhatsApp</label></div>
                 <div className="space-y-1"><CountryPhoneInput label="Téléphone secondaire" countryCode={leadForm.telephone_secondaire_indicatif || undefined} localValue={leadForm.telephone_secondaire_local || leadForm.telephone_secondaire || ""} onChange={v=>setLeadForm(x=>({...x,telephone_secondaire_indicatif:v.callingCode,telephone_secondaire_local:v.localValue,telephone_secondaire:v.internationalValue}))}/><label className="flex items-center gap-2 text-xs"><Checkbox checked={!!leadForm.telephone_secondaire_whatsapp} onCheckedChange={v=>setLeadForm(x=>({...x,telephone_secondaire_whatsapp:v===true}))}/>Ce numéro utilise WhatsApp</label></div>
-                <div className="sm:col-span-2"><Label>E-mail (facultatif)</Label><Input value={leadForm.email} onChange={e => setLeadForm(x => ({ ...x, email: e.target.value }))} placeholder="Adresse e-mail" type="email" /></div>
+                <div className="sm:col-span-2"><Label>Email (facultatif)</Label><Input value={leadForm.email} onChange={e => setLeadForm(x => ({ ...x, email: e.target.value }))} placeholder="Adresse e-mail" type="email" /></div>
                 <div className="sm:col-span-2"><Label>Lieu de résidence (facultatif)</Label><Input value={leadForm.lieu_residence} onChange={e => setLeadForm(x => ({ ...x, lieu_residence: e.target.value }))} placeholder="Village, ville ou quartier de résidence" /></div>
                 {leadForm.type_lead === "client" && <div className="sm:col-span-2"><Label>Dispose d’un terrain ?</Label><Select value={leadForm.dispose_terrain} onValueChange={v => setLeadForm(x => ({ ...x, dispose_terrain: v }))}><SelectTrigger><SelectValue placeholder="Choisir Oui ou Non" /></SelectTrigger><SelectContent>{refs("oui_non").map((r:any) => <SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent></Select></div>}
                 <div className="sm:col-span-2"><Label>Note rapide (facultatif)</Label><Textarea value={leadForm.commentaire} onChange={e => setLeadForm(x => ({ ...x, commentaire: e.target.value }))} placeholder="Besoin exprimé ou information utile…" rows={2} /></div>
