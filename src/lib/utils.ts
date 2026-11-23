@@ -74,7 +74,8 @@ export function formatStructuredTablePersonName(lastName?: string | null, givenN
   const surname = String(lastName || "").trim().replace(/\s+/g, " ");
   const given = String(givenNames || "").trim().replace(/\s+/g, " ");
   const structuredName = [given, surname].filter(Boolean).join(" ");
-  return structuredName ? uppercaseName(structuredName) : formatTablePersonName(fullName || "");
+  if (surname && given) return uppercaseName(structuredName);
+  return formatTablePersonName(fullName || structuredName);
 }
 
 /** Les noms complets historiques sont déjà enregistrés dans l'ordre d'affichage ; les tableaux les gardent tous et les passent en majuscules. */
