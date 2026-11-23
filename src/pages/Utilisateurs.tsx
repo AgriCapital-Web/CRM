@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatTablePersonName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useToast } from "@/hooks/use-toast";
@@ -390,9 +390,9 @@ const Utilisateurs = () => {
             <TableBody>
               {filteredUsers.map((user) => (
                 <TableRow key={user.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche utilisateur ${user.nom_complet || ""}`} onClick={() => setViewUser(user)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setViewUser(user); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                  <TableCell className="font-medium whitespace-nowrap">{formatUserShortName(user.nom_complet)}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{formatTablePersonName(user.nom_complet)}</TableCell>
                   <TableCell className="whitespace-nowrap">{user.email || "—"}</TableCell>
-                  <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={user.telephone} email={user.email} name={formatUserShortName(user.nom_complet) || user.email || "Utilisateur"} kind="staff" status={user.statut || user.status || ""}/></TableCell>
+                  <TableCell className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={user.telephone} email={user.email} name={formatTablePersonName(user.nom_complet) || user.email || "Utilisateur"} kind="staff" status={user.statut || user.status || ""}/></TableCell>
                   <TableCell>
                     {getHighestRole(user) ? (
                       <Badge variant="outline" className="whitespace-nowrap text-xs">
