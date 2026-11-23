@@ -31,7 +31,8 @@ const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"X
 const uploadProofFiles=async(files:File[],folder:string)=>{
   if(files.length>25)throw new Error("Maximum 25 justificatifs par opération.");
   const uploaded:{path:string;name:string;type:string}[]=[];
-  for(const file of files){const result=await uploadFile("documents",file,folder);if(!result?.path)throw new Error("Un justificatif n’a pas pu être téléversé.");uploaded.push({path:result.path,name:file.name,type:file.type});}
+  try{for(const file of files){const result=await uploadFile("documents",file,folder);if(!result?.path)throw new Error("Un justificatif n’a pas pu être téléversé.");uploaded.push({path:result.path,name:file.name,type:file.type});}}
+  catch(error){if(uploaded.length)await supabase.storage.from("documents").remove(uploaded.map(item=>item.path));throw error;}
   return uploaded.length?{path:JSON.stringify(uploaded.map(x=>x.path)),name:JSON.stringify(uploaded.map(x=>x.name)),type:JSON.stringify(uploaded.map(x=>x.type))}:null;
 };
 const proofPaths=(value:string|null|undefined):string[]=>{if(!value)return [];try{const parsed=JSON.parse(value);if(Array.isArray(parsed))return parsed.filter((item):item is string=>typeof item==="string");}catch{}return [value];};
@@ -634,8 +635,8 @@ export default function Finance(){
         p_payment_method:payrollPaymentMethod,
         p_payment_reference:payrollPaymentReferenceAsFile?"":payrollPaymentReference.trim(),
         p_payment_proof_url:uploadedProofPath,
-        p_payment_proof_name:payrollPaymentReferenceAsFile?(payrollPaymentProof.length?JSON.stringify(payrollPaymentProof.map(file=>file.name)):null),
-        p_payment_proof_mime_type:payrollPaymentReferenceAsFile?(payrollPaymentProof.length?JSON.stringify(payrollPaymentProof.map(file=>file.type)):null),
+        p_payment_proof_name:payrollPaymentReferenceAsFile?(payrollPaymentProof.length?JSON.stringify(payrollPaymentProof.map(file=>file.name)):null):null,
+        p_payment_proof_mime_type:payrollPaymentReferenceAsFile?(payrollPaymentProof.length?JSON.stringify(payrollPaymentProof.map(file=>file.type)):null):null,
         p_fee_applied:payrollPaymentMethod!=="especes"&&payrollPaymentWithFees
       });
       if(error)throw error;
