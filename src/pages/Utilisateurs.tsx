@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
-import { formatUserShortName, formatTablePersonName } from "@/lib/utils";
+import { formatUserShortName, formatTablePersonName, formatStructuredPersonName } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,8 @@ import UtilisateurFormNew from "@/components/forms/UtilisateurFormNew";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAppRoles } from "@/hooks/useReferentiels";
+
+const displayStaffName = (profile: any) => profile?.nom || profile?.prenoms ? formatStructuredPersonName(profile.nom, profile.prenoms) : formatUserShortName(profile?.nom_complet || "Utilisateur");
 
 const Utilisateurs = () => {
   const [utilisateurs, setUtilisateurs] = useState<any[]>([]);
@@ -478,14 +480,14 @@ const Utilisateurs = () => {
 
       <Dialog open={!!viewUser} onOpenChange={(o) => !o && setViewUser(null)}>
         <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader><DialogTitle>Fiche utilisateur — {formatUserShortName(viewUser?.nom_complet || "Utilisateur")}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Fiche utilisateur — {displayStaffName(viewUser)}</DialogTitle></DialogHeader>
           {viewUser ? (
             <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-6">
               <div className="flex justify-center">
-                {viewPhotoUrl ? <img src={viewPhotoUrl} alt={formatUserShortName(viewUser.nom_complet)} className="h-32 w-32 rounded-2xl object-cover border" /> : <div className="h-32 w-32 rounded-2xl border bg-muted flex items-center justify-center text-muted-foreground text-xs text-center">Aucune photo</div>}
+                {viewPhotoUrl ? <img src={viewPhotoUrl} alt={displayStaffName(viewUser)} className="h-32 w-32 rounded-2xl object-cover border" /> : <div className="h-32 w-32 rounded-2xl border bg-muted flex items-center justify-center text-muted-foreground text-xs text-center">Aucune photo</div>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Nom</span><p className="font-medium">{formatUserShortName(viewUser.nom_complet || "—")}</p></div>
+                <div><span className="text-muted-foreground">Nom</span><p className="font-medium">{displayStaffName(viewUser)}</p></div>
                 <div><span className="text-muted-foreground">Email</span><p className="font-medium break-all">{viewUser.email || "—"}</p></div>
                 <div><span className="text-muted-foreground">Téléphone</span><p><ContactLauncher phone={viewUser.telephone} email={viewUser.email} name={viewUser.full_name || viewUser.nom_complet || viewUser.email || "Utilisateur"} kind="staff" status={viewUser.statut || viewUser.status || ""}/></p></div>
                 <div><span className="text-muted-foreground">Relation RH</span><p>{viewUser.relation_rh || "—"}</p></div>
@@ -501,7 +503,7 @@ const Utilisateurs = () => {
         <DialogContent className="w-[calc(100vw-1rem)] max-w-lg max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>
-              {adminAction === "roles" && `Rôles de ${formatUserShortName(adminTarget?.nom_complet)}`}
+              {adminAction === "roles" && `Rôles de ${displayStaffName(adminTarget)}`}
               {adminAction === "password" && `Nouveau mot de passe — ${formatUserShortName(adminTarget?.nom_complet)}`}
               {adminAction === "username" && `Identifiant — ${formatUserShortName(adminTarget?.nom_complet)}`}
               {adminAction === "permissions" && `Permissions individuelles — ${formatUserShortName(adminTarget?.nom_complet)}`}
