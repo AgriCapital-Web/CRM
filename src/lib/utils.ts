@@ -36,7 +36,16 @@ export function formatUserShortName(fullName?: string | null): string {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Utilisateur";
   if (parts.length === 1) return uppercaseName(parts[0]);
-  return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const firstIsUpper = first === first.toLocaleUpperCase("fr-FR") && first !== first.toLocaleLowerCase("fr-FR");
+  const lastIsUpper = last === last.toLocaleUpperCase("fr-FR") && last !== last.toLocaleLowerCase("fr-FR");
+  // Les profils récents stockent déjà PRENOMS NOM ; les anciens profils sans champs
+  // structurés restent souvent au format NOM PRENOMS.
+  if (!firstIsUpper && lastIsUpper) {
+    return displayCaseName(parts[parts.length - 2]) + " " + uppercaseName(last);
+  }
+  return formatStructuredPersonName(first, parts.slice(1).join(" "));
 }
 
 /** Nom de communication. Les champs structurés priment toujours sur le nom complet historique. */
