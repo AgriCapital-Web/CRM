@@ -331,6 +331,8 @@ serve(async (req) => {
                 nom: adminProfile.nom || null,
                 prenoms: adminProfile.prenoms || null,
                 telephone: adminProfile.telephone || (adminProfile.telephone_indicatif && adminProfile.telephone_local ? `${adminProfile.telephone_indicatif}${adminProfile.telephone_local}` : adminProfile.telephone_local),
+                telephone_indicatif: adminProfile.telephone_indicatif || null,
+                telephone_local: adminProfile.telephone_local || null,
               },
               content: message,
               channel: "sms",
