@@ -68,7 +68,6 @@ const GestionRoles = () => {
   const [roleToDelete, setRoleToDelete] = useState<RoleDefinition | null>(null);
   const [userRoleToRemove, setUserRoleToRemove] = useState<any>(null);
   const [tableSearch, setTableSearch] = useState("");
-  const [roleTableSearch, setRoleTableSearch] = useState("");
   const canManageRoles = can("roles.manage_permissions") && rolesFromDb && matrixFromDb;
   const canViewUsers = can("utilisateurs.view");
   const canCreateUsers = can("utilisateurs.create");
@@ -150,7 +149,7 @@ const GestionRoles = () => {
 
   const filteredProfiles = useMemo(() => profiles.filter((p) => JSON.stringify(p).toLowerCase().includes(tableSearch.trim().toLowerCase())), [profiles, tableSearch]);
   const filteredUserRoles = useMemo(() => userRoles.filter((r) => JSON.stringify(r).toLowerCase().includes(tableSearch.trim().toLowerCase())), [userRoles, tableSearch]);
-  const filteredRoles = useMemo(() => roles.filter((r) => JSON.stringify(r).toLowerCase().includes(roleTableSearch.trim().toLowerCase())), [roles, roleTableSearch]);
+  const filteredRoles = useMemo(() => roles.filter((r) => JSON.stringify(r).toLowerCase().includes(tableSearch.trim().toLowerCase())), [roles, tableSearch]);
   const sansRole = useMemo(
     () => profiles.filter((p) => getUserRoles(p.id).length === 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -584,7 +583,7 @@ const GestionRoles = () => {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border overflow-x-auto">
-            <div className="mb-3"><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un rôle ou un utilisateur" /></div>
+            <div className="mb-3"><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un utilisateur ou un rôle…" /></div>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -680,7 +679,6 @@ const GestionRoles = () => {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border overflow-x-auto">
-            <div className="mb-3"><TableSearchInput value={roleTableSearch} onChange={setRoleTableSearch} placeholder="Rechercher un rôle" /></div>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -802,7 +800,7 @@ const GestionRoles = () => {
                   value={roleDraft.code}
                   disabled={!!editingCode}
                   onChange={(e) => setRoleDraft({ ...roleDraft, code: e.target.value })}
-                  placeholder="ex. : chef_equipe_commercial"
+                  placeholder="ex: chef_equipe_commercial"
                 />
               </div>
               <div className="space-y-2">
@@ -810,7 +808,7 @@ const GestionRoles = () => {
                 <Input
                   value={roleDraft.court}
                   onChange={(e) => setRoleDraft({ ...roleDraft, court: e.target.value })}
-                  placeholder="ex. : CEC"
+                  placeholder="ex: CEC"
                 />
               </div>
             </div>
