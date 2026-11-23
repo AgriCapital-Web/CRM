@@ -18,6 +18,7 @@ import { ArrowLeft, Plus, MapPin, Layers, Ruler, Upload } from "lucide-react";
 import GeographieCascade from "@/components/common/GeographieCascade";
 import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { formatRecipientName } from "@/lib/utils";
 import { uploadFile, resolveStorageUrl } from "@/utils/storage";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
 
@@ -228,7 +229,7 @@ const ProprietaireTerreDetail = () => {
     try {
       const { error } = await offlineInsert("parcelles", {
         proprietaire_id: id,
-        nom: form.nom || `Parcelle — ${owner?.nom_complet || "Propriétaire"}`,
+        nom: form.nom || `Parcelle — ${displayOwnerName(owner)}`,
         surface_totale_ha: surface,
         surface_proprietaire_ha: surface / 2,
         surface_agricapital_ha: surface / 2,
@@ -266,7 +267,7 @@ const ProprietaireTerreDetail = () => {
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" onClick={() => navigate("/proprietaires-terres")}><ArrowLeft className="mr-2 h-4 w-4" />Retour</Button>
               <div>
-                <h1 className="text-2xl font-bold">{owner.nom_complet}</h1>
+                <h1 className="text-2xl font-bold">{displayOwnerName(owner)}</h1>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
