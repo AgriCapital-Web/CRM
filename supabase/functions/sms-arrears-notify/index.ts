@@ -20,6 +20,8 @@ const sendRoutedNotification = async (_db: any, client: any, contact: any, text:
         source_id: client.id,
         user_id: client.user_id || null,
         nom_complet: client.nom_complet || null,
+        nom: client.nom || null,
+        prenoms: client.prenoms || null,
         telephone: contact.telephone || client.telephone,
       },
       content: text,
@@ -65,7 +67,7 @@ serve(async (req) => {
 
     const {data:clients,error:clientErr}=await supabase
       .from("clients")
-      .select("id,nom_complet,telephone,user_id,paiement_personnalise,prochaine_echeance")
+      .select("id,nom_complet,nom,prenoms,telephone,user_id,paiement_personnalise,prochaine_echeance")
       .eq("compte_actif",true)
       .in("statut_global",["actif","active"]);
     if(clientErr) throw clientErr;
