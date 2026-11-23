@@ -517,3 +517,21 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Dans les profils, fiches, messages, SMS, WhatsApp, notifications et autres affichages hors tableaux : dernier prénom en casse de titre, suivi du NOM entièrement en majuscules.
 - Dans tous les tableaux : tous les prénoms et le nom complet, l'ensemble en majuscules.
 - Les champs structurés nom/prénoms sont prioritaires ; les noms complets historiques sont conservés en repli pour ne pas perdre les personnes dont les champs structurés sont incomplets.
+
+## Paiements, formulaires et affichage — 23 novembre 2026
+
+- Dans la fiche financière client, la saisie du numéro Mobile Money conserve le zéro national après l'indicatif ivoirien.
+- Avant l'ouverture de KKiaPay, l'adresse email du client est transmise lorsqu'elle existe ; sinon une adresse technique déterministe est fournie au widget, sans demander au client de la saisir.
+- Les formulaires de dialogue et de confirmation sont centrés dans la zone de travail située à droite du menu latéral, et non au centre de toute la fenêtre.
+- Le formulaire client regroupe le recto et le verso de la pièce, la photo du client et le contrat signé dans une seule section en grille 2 colonnes.
+- Jacques KOUAKOU KOUAME (enregistrement fourni) est masqué uniquement dans la liste des conventions foncières ; sa fiche et ses parcelles ne sont pas supprimées ni modifiées.
+- Les règlements partiels affichent séparément le montant remis au bénéficiaire et les frais de transaction, tout en conservant le montant total réellement sorti dans le grand livre.
+
+## Rapprochement du paiement partiel de 30 000 F CFA
+
+- Dépense : prime de stage d'octobre de KONAN AMENAN LARISSA.
+- Montant de la dépense réglé : 30 000 F CFA.
+- Frais de transaction : 300 F CFA.
+- Sortie réellement inscrite au grand livre : 30 300 F CFA.
+- La dépense reste partielle, sur un total de 50 000 F CFA ; le reliquat est de 20 000 F CFA.
+- La transaction et le règlement sont déjà validés en base. L'affichage distingue désormais les 30 000 F CFA versés et les 300 F CFA de frais, sans créer de seconde sortie.
