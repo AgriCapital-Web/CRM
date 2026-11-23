@@ -59,11 +59,14 @@ const PaiementForm = ({ paiement, initialClientId, lockClient = false, onSuccess
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState(paiement?.fichier_preuve_url || "");
   const openStoredProof = async (path: string) => {
+    const proofWindow = window.open("about:blank", "_blank");
     try {
       const { data, error } = await supabase.storage.from("preuves-paiement").createSignedUrl(path, 3600);
       if (error || !data?.signedUrl) throw error || new Error("Lien du justificatif indisponible.");
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      if (proofWindow) proofWindow.location.href = data.signedUrl;
+      else window.location.href = data.signedUrl;
     } catch (error: any) {
+      proofWindow?.close();
       toast({ variant: "destructive", title: "Ouverture impossible", description: getSafeErrorMessage(error, "Impossible d'ouvrir ce justificatif.") });
     }
   };
