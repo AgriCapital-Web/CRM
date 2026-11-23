@@ -40,7 +40,7 @@ serve(async (req) => {
     const login_url = "https://app.agricapital.ci/login";
 
     const secretClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const { data: reqRow, error: reqErr } = await secretClient.from("account_requests").select("email,nom_complet,telephone,statut").eq("id", requestId).maybeSingle();
+    const { data: reqRow, error: reqErr } = await secretClient.from("account_requests").select("email,nom_complet,nom,prenoms,telephone,statut,auth_user_id").eq("id", requestId).maybeSingle();
     if (reqErr || !reqRow?.email) return deny("Demande de compte introuvable", 404);
     if (!["approuve", "approuvee", "approved", "valide", "validee"].includes(String(reqRow.statut ?? "").toLowerCase())) return deny("La demande n'est pas approuvée", 409);
     const email = String(reqRow.email);
@@ -70,7 +70,23 @@ serve(async (req) => {
     let smsError: string | null = null;
     let smsCharacters = 0;
     const phone = String(reqRow.telephone ?? "").trim();
-    const fullName = String(reqRow.nom_complet ?? "").trim();
+    let surname = String(reqRow.nom || "").trim();
+    let givenNames = String(reqRow.prenoms || "").trim();
+    if ((!surname || !givenNames) && reqRow.auth_user_id) {
+      const { data: profile } = await secretClient.from("profiles")
+        .select("nom,prenoms").eq("user_id", reqRow.auth_user_id).maybeSingle();
+      surname = surname || String(profile?.nom || "").trim();
+      givenNames = givenNames || String(profile?.prenoms || "").trim();
+    }
+    const titleCase = (value: string) => value.trim().toLocaleLowerCase("fr-FR")
+      .replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+    const lastGivenName = givenNames.split(/\s+/).filter(Boolean).pop() || "";
+    const legacyParts = String(reqRow.nom_complet ?? "").trim().split(/\s+/).filter(Boolean);
+    let fullName = lastGivenName && surname
+      ? titleCase(lastGivenName) + " " + surname.toLocaleUpperCase("fr-FR")
+      : legacyParts.length > 1
+        ? titleCase(legacyParts[legacyParts.length - 1]) + " " + legacyParts[0].toLocaleUpperCase("fr-FR")
+        : legacyParts.length === 1 ? titleCase(legacyParts[0]) : "";
     const smsText = `${fullName}, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login`;
     smsCharacters = Array.from(smsText).length;
 
