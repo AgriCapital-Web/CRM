@@ -20,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { formatRecipientName, formatTableRecipientName } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -81,7 +82,7 @@ const Plantations = () => {
     if (!canTransferPlantation) return;
     const { data, error } = await (supabase as any)
       .from("clients")
-      .select("id,id_unique,nom_complet,famille_offre,formule_code,formule_nom,is_internal")
+      .select("id,id_unique,nom_complet,nom,prenoms,famille_offre,formule_code,formule_nom,is_internal")
       .order("nom_complet");
     if (error) {
       toast({ variant: "destructive", title: "Chargement des destinataires impossible", description: getSafeErrorMessage(error) });
@@ -129,7 +130,7 @@ const Plantations = () => {
       p.id_unique?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.nom_plantation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.clients?.nom_complet || (p.clients?.nom + ' ' + p.clients?.prenoms))?.toLowerCase().includes(searchTerm.toLowerCase())
+      formatRecipientName(p.clients?.nom_complet, "client", p.clients?.nom, p.clients?.prenoms).toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
@@ -223,13 +224,13 @@ const Plantations = () => {
             <CardContent className="space-y-3">
               <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>Plantation AgriCapital *</Label><Select value={transferPlantationId} onValueChange={setTransferPlantationId}><SelectTrigger><SelectValue placeholder="Choisir une plantation interne" /></SelectTrigger><SelectContent>{plantations.filter((p: any) => p.clients?.is_internal === true).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nom_plantation || p.nom || p.id_unique} · {Number(p.superficie_ha || 0)} ha</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-1"><Label>Client PalmInvest destinataire *</Label><Select value={transferClientId} onValueChange={setTransferClientId}><SelectTrigger><SelectValue placeholder="Choisir un client PalmInvest" /></SelectTrigger><SelectContent>{clients.filter((c: any) => !c.is_internal && (String(c.famille_offre || "").toUpperCase() === "PALMINVEST" || String(c.formule_code || "").toUpperCase().includes("PALMINVEST") || String(c.formule_nom || "").toUpperCase().includes("PALMINVEST"))).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nom_complet || c.id_unique} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1"><Label>Client PalmInvest destinataire *</Label><Select value={transferClientId} onValueChange={setTransferClientId}><SelectTrigger><SelectValue placeholder="Choisir un client PalmInvest" /></SelectTrigger><SelectContent>{clients.filter((c: any) => !c.is_internal && (String(c.famille_offre || "").toUpperCase() === "PALMINVEST" || String(c.formule_code || "").toUpperCase().includes("PALMINVEST") || String(c.formule_nom || "").toUpperCase().includes("PALMINVEST"))).map((c: any) => <SelectItem key={c.id} value={c.id}>{formatRecipientName(c.nom_complet, "client", c.nom, c.prenoms)} · {c.id_unique}</SelectItem>)}</SelectContent></Select></div>
               </div>
               <div className="flex justify-end"><Button onClick={handleTransferPlantation} disabled={transferSaving || !transferPlantationId || !transferClientId}>{transferSaving ? "Transfert…" : "Confirmer le transfert"}</Button></div>
             </CardContent>
           </Card>}
 
-          <div className="grid min-w-0 grid-cols-4 gap-1 sm:gap-2">
+          <div className="grid min-w-0 grid-cols-2 gap-1 sm:grid-cols-4 sm:gap-2">
             <Card className="min-w-0"><CardHeader className="p-2 sm:p-3 pb-1"><CardTitle className="text-[9px] leading-tight sm:text-xs font-medium text-muted-foreground">Nombre</CardTitle></CardHeader><CardContent className="p-2 sm:p-3 pt-0"><div className="text-[clamp(0.8rem,3vw,1.5rem)] font-bold leading-tight">{nombreTotal}</div><p className="mt-1 text-[9px] leading-tight text-muted-foreground sm:text-xs">plantation(s)</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Superficie</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{superficieTotale.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">rattachée</p></CardContent></Card>
             <Card className="min-w-0"><CardHeader className="p-3 sm:p-4 pb-1.5 sm:pb-2"><CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Superficie plantée</CardTitle></CardHeader><CardContent className="p-3 sm:p-4 pt-0"><div className="text-xl sm:text-2xl font-bold">{superficiePlantee.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ha</div><p className="text-[11px] sm:text-xs text-muted-foreground mt-1">{superficieTotale > 0 ? `${((superficiePlantee / superficieTotale) * 100).toFixed(0)}%` : "0%"} du total</p></CardContent></Card>
@@ -247,7 +248,7 @@ const Plantations = () => {
                 <TableHead>Plantation</TableHead><TableHead>Client / dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement…</TableCell></TableRow>
+                {loading ? <TableRow><TableCell colSpan={8} className="text-center py-8">Chargement...</TableCell></TableRow>
                 : filteredPlantations.length === 0 ? <TableRow><TableCell colSpan={8} className="text-center py-8">Aucune plantation trouvée</TableCell></TableRow>
                 : paginatedPlantations.map((plantation) => (
                   <TableRow key={plantation.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche plantation ${plantation.nom_plantation || plantation.nom || ""}`} onClick={() => navigate(`/plantations/${plantation.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/plantations/${plantation.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
@@ -256,8 +257,8 @@ const Plantations = () => {
                     </TableCell>
                     <TableCell className="font-medium">
                       {plantation.clients ? (
-                        <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline" title={plantation.clients.nom_complet || [plantation.clients.nom, plantation.clients.prenoms].filter(Boolean).join(" ")}>
-                          <span className="block max-w-[12rem] truncate">{plantation.clients.nom_complet || [plantation.clients.nom, plantation.clients.prenoms].filter(Boolean).join(" ") || "Client"}</span>
+                        <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline" title={formatTableRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}>
+                          <span className="block max-w-[12rem] truncate">{formatTableRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}</span>
                           <span className="text-[10px] text-muted-foreground">{plantation.clients.id_unique || "Dossier"}</span>
                         </Link>
                       ) : "—"}
