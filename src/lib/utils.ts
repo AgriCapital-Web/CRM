@@ -92,7 +92,7 @@ export function formatTableRecipientName(
   givenNames?: string | null,
 ): string {
   if (String(lastName || "").trim() || String(givenNames || "").trim()) {
-    return formatStructuredTablePersonName(lastName, givenNames);
+    return formatStructuredTablePersonName(lastName, givenNames, fullName);
   }
   return formatTablePersonName(fullName);
 }
