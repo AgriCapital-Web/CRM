@@ -81,9 +81,12 @@ serve(async (req) => {
     const titleCase = (value: string) => value.trim().toLocaleLowerCase("fr-FR")
       .replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
     const lastGivenName = givenNames.split(/\s+/).filter(Boolean).pop() || "";
+    const legacyParts = String(reqRow.nom_complet ?? "").trim().split(/\s+/).filter(Boolean);
     let fullName = lastGivenName && surname
       ? titleCase(lastGivenName) + " " + surname.toLocaleUpperCase("fr-FR")
-      : String(reqRow.nom_complet ?? "").trim();
+      : legacyParts.length > 1
+        ? titleCase(legacyParts[legacyParts.length - 1]) + " " + legacyParts[0].toLocaleUpperCase("fr-FR")
+        : legacyParts.length === 1 ? titleCase(legacyParts[0]) : "";
     const smsText = `${fullName}, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login`;
     smsCharacters = Array.from(smsText).length;
 
