@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { formatStructuredPersonName } from "@/lib/utils";
 import { MessageSquare, Send, Loader2, Headphones, Paperclip, FileText, Image as ImageIcon, Video, X, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -223,7 +224,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
       if (!userId) throw new Error("Session CRM introuvable.");
-      const { data: profile } = await (supabase as any).from("profiles").select("nom_complet").eq("user_id", userId).maybeSingle();
+      const { data: profile } = await (supabase as any).from("profiles").select("nom_complet,nom,prenoms").eq("user_id", userId).maybeSingle();
 
       let attachmentMeta: Record<string, unknown> = {};
       if (attachment) {
@@ -242,7 +243,7 @@ export default function ClientMessagingPanel({ clientId, plantationId }: { clien
 
       const { error } = await (supabase as any).from("portail_messages").insert({
         client_id: clientId, plantation_id: plantationId || null, auteur_user_id: userId,
-        auteur_type: "staff", auteur_nom: profile?.nom_complet || "AgriCapital", message: message || "Pièce jointe",
+        auteur_type: "staff", auteur_nom: formatStructuredPersonName(profile?.nom, profile?.prenoms), message: message || "Pièce jointe",
         lu: false, ...attachmentMeta,
       });
       if (error) throw error;
