@@ -35,7 +35,7 @@ import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 import CommercialCombobox from "@/components/common/CommercialCombobox";
 import MediaUploadVisual from "@/components/ui/media-upload-visual";
-import { formatUserShortName, formatStructuredPersonName } from "@/lib/utils";
+import { formatUserShortName, formatStructuredPersonName, formatStructuredTablePersonName } from "@/lib/utils";
 import ContactLauncher from "@/components/common/ContactLauncher";
 
 
@@ -687,9 +687,9 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
                 {paginatedLeads.map((l: any) => {
                   const st = STATUTS.find(s => s.v === l.statut);
                   return (
-                    <TableRow key={l.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${l.etape_pipeline === "prospect" ? "prospect" : "lead"} ${[l.prenoms, l.nom].filter(Boolean).join(" ")}`} onClick={() => openOfficialLeadForm(l, "view")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openOfficialLeadForm(l, "view"); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:py-1 [&>td]:px-2">
-                      <TableCell><div className="font-medium leading-tight">{l.nom} {l.prenoms}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
-                      <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} name={[l.prenoms, l.nom].filter(Boolean).join(" ").trim()} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /></TableCell>
+                    <TableRow key={l.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche ${l.etape_pipeline === "prospect" ? "prospect" : "lead"} ${formatStructuredTablePersonName(l.nom, l.prenoms)}`} onClick={() => openOfficialLeadForm(l, "view")} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openOfficialLeadForm(l, "view"); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:py-1 [&>td]:px-2">
+                      <TableCell><div className="font-medium leading-tight">{formatStructuredTablePersonName(l.nom, l.prenoms)}</div><Badge variant="outline" className="mt-0.5 text-[10px] leading-tight">{l.etape_pipeline === "prospect" ? "Prospect" : "Lead"}</Badge></TableCell>
+                      <TableCell className="text-sm" onClick={(event) => event.stopPropagation()}><ContactLauncher phone={l.telephone} whatsapp={l.whatsapp} name={formatStructuredTablePersonName(l.nom, l.prenoms)} kind={l._record_type === "prospect" || l.etape_pipeline === "prospect" ? "prospect" : "lead"} status={l.statut} /></TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{l.region_residence}</TableCell>
                       <TableCell className="min-w-0" onClick={(event) => event.stopPropagation()}>
                         <Select value={l.statut} disabled={!canUpdateLeads} onValueChange={v => updateStatus.mutate({ id: l.id, leadId: l.lead_id || (l._record_type === "prospect" ? null : l.id), prospectId: l.prospect_id, statut: v })}>
