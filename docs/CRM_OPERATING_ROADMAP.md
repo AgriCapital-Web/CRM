@@ -458,15 +458,71 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Aucun champ métier ni aucune colonne de base n'est supprimé sans audit de dépendances et de données.
 
 
+## Revue complémentaire des formulaires — 21 novembre 2026
+
+- Formulaire d'acquisition / étape Client : correction de l'actualisation des pièces et contrats conditionnels. Le filtrage des documents dépend désormais aussi du type de représentant, de la présence du représentant et des exigences foncières/contractuelles de l'offre. Un changement de ces champs met immédiatement à jour les pièces affichées.
+- Formulaire d'acquisition / étape Client : lorsque l'offre n'est pas encore sélectionnée, la liste des pièces et contrats est réinitialisée et l'état de chargement se termine ; le formulaire ne reste plus bloqué sur « Chargement des pièces requises… ».
+- Formulaire de modification de fiche client : le contrat déjà rattaché reste consultable/remplaçable ; les montants contractuels, paiement initial et mensualité totale sont recalculés à partir de la surface et du snapshot du contrat. Le contrat signé obligatoire reste contrôlé dans le parcours de création d'acquisition, conformément à la dernière consigne conservée.
+- Formulaire de convention foncière : les champs et annexes conditionnelles sont présents. Les annexes « à fournir » restent traçables dans le dossier soumis à validation ; ne pas bloquer l'enregistrement initial ni transformer leur absence en pièce jointe fictive. La date de signature reste facultative tant qu'elle n'est pas confirmée.
+- Historique des conversations antérieures : la recherche des sessions Notion n'est pas autorisée par le niveau d'accès actuel. Cette revue s'appuie sur les décisions conservées dans le dépôt et sur le code de la branche ; les demandes non conservées ne sont pas reconstituées par supposition.
+
+
+## Correction des numéros de téléphone — 21 novembre 2026
+
+- Cause identifiée dans le composant partagé `src/components/common/CountryPhoneInput.tsx` : à chaque frappe, le numéro local était reparsé puis remplacé par `nationalNumber`. Le parseur pouvait interpréter le zéro initial comme un préfixe national et le supprimer du champ contrôlé.
+- Correction : conserver les chiffres locaux exactement comme saisis, y compris le zéro initial. Le préfixe pays n'est retiré que lorsqu'un numéro international complet est explicitement collé.
+- Le composant partagé alimente les formulaires client, propriétaire foncier, utilisateur, profil, leads et la fiche financière de paiement. La correction s'applique donc à ces écrans sans duplication de patch.
+- Dans le portail client, le composant `src/components/common/CountryPhoneInput.tsx` conservait déjà les chiffres saisis sans reparsage ; cette règle est explicitement documentée pour éviter une régression. Les champs d'identifiants et de pièces sont des champs texte, et les champs de montants/surfaces restent numériques.
+
+
+## Localisations GPS individualisées et choix des frais — 23 novembre 2026
+
+- Mise à jour des coordonnées GPS propres aux plantations : ZAGBLE BOLOU (PLT-000002) : 6.994030, -6.440640 ; YAO KONAN EMMANUEL pour sa plantation de 2 ha (PLT-000001) : 6.994392, -6.440456 ; Jacques KOUAKOU KOUAME (PLT-000014, 6,5 ha) : 6.994115, -6.440071.
+- Les coordonnées des fiches clients correspondantes ont été alignées pour ZAGBLE BOLOU et Emmanuel. La parcelle propre à Jacques a également été mise à jour. La parcelle commune de ZAGBLE BOLOU et Emmanuel n'a pas été écrasée par une coordonnée individuelle.
+- Carte des plantations : suppression du décalage artificiel de 100 m ; chaque repère reprend désormais strictement le GPS enregistré sur sa plantation.
+- Finance et Comptabilité : remplacement du sélecteur à boutons « Avec frais / Sans frais » par deux petites cases à cocher mutuellement exclusives. Le composant commun couvre les formulaires de saisie de dépense, paiement d'une dépense, paiement de paie et mouvement d'associé ; les calculs métier restent inchangés.
+
+
+## Justificatifs multiples en Finance et Comptabilité — 23 novembre 2026
+
+- Les champs de justificatifs des formulaires d'entrées, sorties, dépenses à payer, règlements de dépenses, paiements de paie et mouvements d'associés acceptent désormais la sélection multiple, jusqu'à 25 fichiers par opération.
+- Les fichiers sont téléversés individuellement dans le stockage privé et leurs chemins/noms sont conservés ensemble dans les champs justificatifs existants au format JSON, sans migration de schéma ; les anciens justificatifs unitaires restent compatibles.
+- La sélection ne rajoute aucun texte d'aide ni compteur explicatif dans les formulaires.
+- L'ouverture des justificatifs prend en charge les anciens fichiers unitaires et les nouvelles listes de fichiers.
+
+
+## Justificatifs multiples — 23 novembre 2026
+
+- Finance et Comptabilité : les champs de justificatifs acceptent une sélection multiple jusqu'à 25 fichiers par opération. Les champs existants de la page Finance couvrent les entrées, sorties, dépenses à payer, règlements, mouvements d'associés et paiements de paie.
+- Formulaire de paiement client : remplacement du téléversement mono-fichier par une sélection multiple ; les chemins des reçus sont enregistrés ensemble dans les champs de preuve existants, sans ajouter de texte d'aide ni de message explicatif dans l'interface.
+- La limite de 25 est appliquée au nombre total de fichiers associés à l'opération. Les justificatifs sont téléversés dans le stockage privé existant.
+
+## Actions financières dans la fiche client — 23 novembre 2026
+
+- La fiche client et le module Paiements proposent les actions de conversion de monnaie client en jours, en complément de la saisie de paiement, du remboursement et du transfert.
+- Les boutons d'action sont réservés au PDG et à la Relation Client (service client et chef d'équipe Relation Client). Les profils disposant uniquement d'un droit de consultation conservent l'accès aux informations sans les commandes d'exécution.
+- Les profils autorisés à consulter une fiche client voient également l'historique des paiements et le solde de monnaie en lecture seule, dans le périmètre des clients auxquels ils ont accès. Le module global Paiements conserve son contrôle d'accès dédié.
+- Le formulaire de paiement ouvert depuis une fiche client conserve le client pré-sélectionné même lorsque le type de paiement change.
+- Le calcul du rachat de monnaie utilise le tarif journalier total du client : tarif journalier par hectare multiplié par la superficie, ou tarif total personnalisé lorsqu'il existe. Le calcul est aligné sur le moteur de tarification journalier.
+- Les permissions et politiques RLS de paiements, remboursements et transferts sont alignées avec ces rôles.
+
+## Rapprochement des sorties validées — 23 novembre 2026
+
+- Le KPI « Sorties validées » est calculé à partir des transactions de sortie dont le statut est valide dans le grand livre finance_transactions. Il inclut les frais réellement décaissés, les commissions et les paiements de dépenses ; il ne correspond donc pas uniquement au total des fiches de dépenses.
+- Les commissions déjà payées et présentes dans le grand livre sont maintenant également rapprochées des fiches de dépenses associées.
+- Une dépense de carburant de 2 000 F CFA demeure à vérifier : sa fiche est marquée payée alors que sa transaction liée est annulée et qu'aucun règlement associé n'existe dans le registre des paiements de dépenses. Elle n'a pas été modifiée automatiquement faute de preuve sur le paiement réel.
+
+## Règle d'affichage des noms — 23 novembre 2026
+
+- Dans les profils, fiches, messages, SMS, WhatsApp, notifications et autres affichages hors tableaux : dernier prénom en casse de titre, suivi du NOM entièrement en majuscules.
+- Dans tous les tableaux : tous les prénoms et le nom complet, l'ensemble en majuscules.
+- Les champs structurés nom/prénoms sont prioritaires ; les noms complets historiques sont conservés en repli pour ne pas perdre les personnes dont les champs structurés sont incomplets.
+
+
 ## Harmonisation des libellés d’interface — 21 novembre 2026
 
-- Branche : `fix/crm-interface-copy-20261121`.
-- Tableau de bord, carte « Pilotage financier » : libellé raccourci de « Mensualités prévisionnelles » à « Mensualités prévues » afin d’éviter le débordement dans la carte.
-- Paramètres : libellé mobile « Users » remplacé par « Utilis. » ; onglet « Notifs » harmonisé en « Notifications » (mobile : « Alertes ») ; onglet « BDD » harmonisé en « Base de données » (mobile : « Données »).
-- Modifications limitées aux textes de l’interface ; aucune donnée métier, table, politique RLS ou migration Supabase n’a été modifiée.
-- Validation de build et déploiement à compléter après création de la PR. L’audit orthographique exhaustif de toutes les pages et sous-sections reste à poursuivre avant de considérer l’harmonisation éditoriale comme terminée.
-
-- Corrections complémentaires repérées lors de la relecture des écrans principaux et des sous-sections Paramètres : accents et pluriels dans les campagnes de notification, libellés des onglets de configuration, formulations d’aide harmonisées au vouvoiement, ponctuation française des fiches Leads, casse des titres Utilisateurs, et libellés de chargement.
-- Dans Paramètres → Base de données, correction d’un bloc JSX qui contenait des séquences littérales « \\n » visibles autour du bouton de copie locale ; titres et ponctuation harmonisés.
-- Pages complémentaires modifiées : `FinanceAnalytics.tsx`, `PlanificationBudgetaire.tsx`, `Plantations.tsx`, `Leads.tsx`, `Utilisateurs.tsx`, ainsi que plusieurs sous-pages Paramètres.
-- Aucun changement de schéma ou de donnée Supabase. Les tests de compilation et le déploiement de production restent à vérifier.
+- Branche : fix/crm-interface-copy-20261121.
+- Tableau de bord : libellé « Mensualités prévisionnelles » raccourci en « Mensualités prévues ».
+- Paramètres : libellés mobiles et titres harmonisés.
+- Corrections complémentaires d’accents, de ponctuation et de formulations françaises dans les écrans principaux et les sous-sections Paramètres.
+- Les corrections de libellés ne modifient aucune donnée métier ni aucun schéma Supabase.
