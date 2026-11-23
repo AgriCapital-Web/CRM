@@ -315,7 +315,15 @@ const PaiementForm = ({ paiement, onSuccess, onCancel }: PaiementFormProps) => {
   const handleFileUpload = async (selectedFiles: FileList | null) => {
     const files = Array.from(selectedFiles || []);
     if (!files.length) return;
-    if (files.length > 25) return;
+    const existingCount = (() => {
+      try {
+        const parsed = JSON.parse(String(fileUrl || ""));
+        return Array.isArray(parsed) ? parsed.length : fileUrl ? 1 : 0;
+      } catch {
+        return fileUrl ? 1 : 0;
+      }
+    })();
+    if (files.length + existingCount > 25) return;
     try {
       setUploading(true);
       const currentUser = (await supabase.auth.getUser()).data.user;
