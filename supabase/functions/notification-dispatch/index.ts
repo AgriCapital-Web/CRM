@@ -1558,11 +1558,15 @@ serve(async (req) => {
         whatsapp: raw.whatsapp ? String(raw.whatsapp) : null,
       };
       const content = typeof body.content === "string" ? body.content.trim() : "";
+      const requestedChannel = String(body.channel || "auto");
+      if (!["auto", "sms"].includes(requestedChannel)) {
+        return json(req, { error: "Canal interne non pris en charge." }, 400);
+      }
       if (!contact.source_id || !content || !contact.telephone) {
         return json(req, { error: "Contact, téléphone et contenu sont obligatoires." }, 400);
       }
       const result = await deliver({
-        canal: "auto",
+        canal: requestedChannel,
         content,
         contacts: [contact],
         eventKey: String(body.event_key || body.idempotency_key || crypto.randomUUID()),
