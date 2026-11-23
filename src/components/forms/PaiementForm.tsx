@@ -83,10 +83,12 @@ const PaiementForm = ({ paiement, initialClientId, lockClient = false, onSuccess
     previousPaymentTypeRef.current = typePaiement;
     if (!previousType || previousType === typePaiement || paiement) return;
 
-    setValue("client_id", "");
+    if (!lockClient) {
+      setValue("client_id", "");
+      setSelectedClient(null);
+    }
     setValue("plantation_id", "");
     setValue("acquisition_id", "");
-    setSelectedClient(null);
     setSelectedPlantation(null);
     setSelectedAcquisition(null);
     setAcquisitionPaymentState(null);
