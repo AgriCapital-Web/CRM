@@ -259,7 +259,9 @@ serve(async (req) => {
         body: JSON.stringify({
           requestData: {
             nom_complet: cleanNomComplet, nom: cleanNom, prenoms: cleanPrenoms, email: cleanEmail, telephone,
-            username: cleanUsername, poste: poste_souhaite ?? role_souhaite,
+            auth_user_id: userId, username: cleanUsername, poste: poste_souhaite ?? role_souhaite,
+            role_souhaite, region_id: region_id ?? null, district_id: district_id ?? null,
+            departement_geo_id: departement_geo_id ?? null, sous_prefecture_id: sous_prefecture_id ?? null,
           },
         }),
       });
