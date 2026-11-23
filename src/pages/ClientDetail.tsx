@@ -38,11 +38,11 @@ const formatMontant = (m: number) => new Intl.NumberFormat("fr-FR").format(Math.
 const ClientDetail = () => {
   const { can } = usePermissions();
   const { user } = useAuth();
-  const canViewClientMoney = can("clients.view_money");
+  const canViewClientMoney = can("clients.view_money") || can(PERMISSIONS.VIEW_CLIENTS);
   const canManageClientMoneyActions = can("clients.manage_money_actions");
   const canValidateClient = can("clients.validate");
   const canUploadDocuments = can("documents.upload");
-  const canViewClientPayments = can("paiements.view");
+  const canViewClientPayments = can("paiements.view") || can(PERMISSIONS.VIEW_CLIENTS);
   const canCreatePlantationAcquisition = can(PERMISSIONS.CREATE_ACQUISITION) || can("plantations.create");
   const { id } = useParams();
   const navigate = useNavigate();
