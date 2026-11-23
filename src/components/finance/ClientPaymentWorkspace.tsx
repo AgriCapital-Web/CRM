@@ -5,6 +5,7 @@ import { useKkiapay } from "@/hooks/useKkiapay";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { formatStructuredPersonName, formatStructuredTablePersonName } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
@@ -19,6 +20,8 @@ type ClientFinanceRow = {
   id: string;
   id_unique?: string | null;
   nom_complet?: string | null;
+  nom?: string | null;
+  prenoms?: string | null;
   telephone?: string | null;
   type_client?: string | null;
   type_client_foncier?: string | null;
@@ -39,6 +42,7 @@ type ClientFinanceRow = {
   montant_pi_total?: number | null;
   duree_paiement_mois?: number | null;
   acquisitionTotal?: number;
+  monnaie_client?: number;
   baseContractTotal?: number;
   hasAcquisitions?: boolean;
   summary: any;
@@ -57,13 +61,15 @@ type ContractState = {
 
 const money = (value: unknown) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0)) + " F CFA";
 
-export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
+export default function ClientPaymentWorkspace({ onTransfer, onRefund, onConvertMoney }: {
   onTransfer?: (client: ClientFinanceRow) => void;
   onRefund?: (client: ClientFinanceRow) => void;
+  onConvertMoney?: (client: ClientFinanceRow) => void;
 }) {
   const { toast } = useToast();
   const { can } = usePermissions();
   const canRecordPayments = can("paiements.record") || can("paiements.execute");
+  const canViewClientMoney = can("clients.view_money");
   const queryClient = useQueryClient();
   const { openPayment, onSuccess, onFailed, onClose } = useKkiapay();
   const [search, setSearch] = useState("");
@@ -82,11 +88,11 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
   const [plantations, setPlantations] = useState<any[]>([]);
 
   const { data: clients = [], isLoading, refetch } = useQuery({
-    queryKey: ["gestion-paiements-clients"],
+    queryKey: ["gestion-paiements-clients", canViewClientMoney],
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: acquisitions, error: acquisitionsError }] = await Promise.all([
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares,mensualite_montant,paiement_initial_montant,montant_pi_total,duree_paiement_mois")
+          .select("id,id_unique,nom_complet,nom,prenoms,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares,mensualite_montant,paiement_initial_montant,montant_pi_total,duree_paiement_mois")
           .eq("compte_actif", true)
           .order("created_at", { ascending: false }),
         (supabase as any).from("v_client_synthese")
@@ -99,6 +105,11 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       if (clientsError) throw clientsError;
       if (summaryError) throw summaryError;
       if (acquisitionsError) throw acquisitionsError;
+      const { data: moneyRows, error: moneyError } = canViewClientMoney
+        ? await (supabase as any).from("v_monnaie_clients").select("client_id,monnaie_client")
+        : { data: [], error: null };
+      if (moneyError) throw moneyError;
+      const moneyByClient = new Map<string, number>((moneyRows || []).map((row: any) => [row.client_id, Number(row.monnaie_client || 0)]));
       const byClient = new Map<string, any>((summaries || []).map((s: any) => [s.client_id, s]));
       const acquisitionMap = new Map<string, any[]>();
       (acquisitions || []).forEach((s: any) => { const items = acquisitionMap.get(s.client_id) || []; items.push(s); acquisitionMap.set(s.client_id, items); });
@@ -109,6 +120,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         const principalTotal = Number(summary?.montant_total_contrat ?? (acquisitionTotal > 0 ? acquisitionTotal : Number(c.montant_total_contrat || 0)));
         return {
           ...c,
+          monnaie_client: moneyByClient.get(c.id) || 0,
           summary,
           acquisitionTotal,
           hasAcquisitions: clientAcquisitions.length > 0,
@@ -404,7 +416,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
       onClose(() => setPaying(false));
       const opened = await openPayment({
         amount: paymentAmount,
-        name: activeClient.nom_complet || "Client AgriCapital",
+        name: formatStructuredPersonName(activeClient.nom, activeClient.prenoms),
         phone: paymentPhone || activeClient.telephone || "",
         paymentMethods: ["momo", "card"],
         data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, acquisition_id: activeContract.acquisitionId },
@@ -438,16 +450,17 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
                   const paid = Number(client.summary?.total_paye || 0);
                   const remainingClient = Number(client.summary?.reste_a_payer ?? Math.max(0, total - paid));
                   return <TableRow key={client.id}>
-                    <TableCell><div className="font-semibold">{client.nom_complet || "Client sans nom"}</div><div className="text-xs text-muted-foreground">{client.id_unique || "—"} · {client.telephone || "Téléphone non renseigné"}</div></TableCell>
+                    <TableCell><div className="font-semibold">{formatStructuredTablePersonName(client.nom, client.prenoms, client.nom_complet)}</div><div className="text-xs text-muted-foreground">{client.id_unique || "—"} · {client.telephone || "Téléphone non renseigné"}</div></TableCell>
                     <TableCell>{client.formule_nom || "Contrat client"}</TableCell>
                     <TableCell>{money(total)}</TableCell>
                     <TableCell>{money(paid)}</TableCell>
                     <TableCell className="font-semibold text-amber-700">{money(remainingClient)}</TableCell>
                     <TableCell>{(() => { const status = String(client.statut || "").toLowerCase(); const isLate = status.includes("retard") || Number(client.jours_retard || 0) > 0; const isAdvance = status.includes("avance") || Number((client as any).jours_avance || 0) > 0; const label = client.contrat_solde_at || remainingClient <= 0 ? "Soldé" : isLate ? "En retard" : isAdvance ? "En avance" : status.includes("actif") ? "Actif" : "À jour"; return <Badge variant={label === "En retard" ? "destructive" : "outline"} className={label === "Soldé" ? "border-emerald-600/30 bg-emerald-600/10 text-emerald-700" : label === "En avance" ? "border-blue-600/30 bg-blue-600/10 text-blue-700" : ""}>{label}</Badge>; })()}</TableCell>
                     <TableCell><div className="flex items-center justify-end gap-1">
-                      {remainingClient > 0 && !client.contrat_solde_at && onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${client.nom_complet || "ce client"}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
-                      {remainingClient > 0 && !client.contrat_solde_at && onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${client.nom_complet || "ce client"}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
-                      {remainingClient > 0 && !client.contrat_solde_at && canRecordPayments && <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${client.nom_complet || "ce client"}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>}
+                      {remainingClient > 0 && !client.contrat_solde_at && onTransfer && <Button type="button" size="icon" variant="ghost" aria-label={`Transférer pour ${formatStructuredTablePersonName(client.nom, client.prenoms, client.nom_complet)}`} title="Transférer" onClick={() => onTransfer(client)}><ArrowRightLeft className="h-4 w-4 text-blue-600" /></Button>}
+                      {remainingClient > 0 && !client.contrat_solde_at && onRefund && <Button type="button" size="icon" variant="ghost" aria-label={`Rembourser ${formatStructuredTablePersonName(client.nom, client.prenoms, client.nom_complet)}`} title="Rembourser" onClick={() => onRefund(client)}><ArrowDownLeft className="h-4 w-4 text-red-600" /></Button>}
+                      {Number(client.monnaie_client || 0) > 0 && onConvertMoney && <Button type="button" size="icon" variant="ghost" aria-label={`Convertir la monnaie en jours pour ${formatStructuredTablePersonName(client.nom, client.prenoms, client.nom_complet)}`} title="Convertir monnaie en jours" onClick={() => onConvertMoney(client)}><Coins className="h-4 w-4 text-amber-600" /></Button>}
+                      {remainingClient > 0 && !client.contrat_solde_at && canRecordPayments && <Button type="button" size="icon" variant="ghost" className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" aria-label={`Nouveau paiement pour ${formatStructuredTablePersonName(client.nom, client.prenoms, client.nom_complet)}`} title="Nouveau paiement" onClick={() => void openClientFinance(client)}><ArrowUpFromLine className="h-4 w-4" /></Button>}
                     </div></TableCell>
                   </TableRow>;
                 })}
@@ -461,7 +474,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund }: {
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" />Fiche financière client</DialogTitle>
-            <DialogDescription>{activeClient?.nom_complet || "Client"} · Les règlements sont exclusivement effectués en ligne.</DialogDescription>
+            <DialogDescription>{formatStructuredPersonName(activeClient?.nom, activeClient?.prenoms)} · Les règlements sont exclusivement effectués en ligne.</DialogDescription>
           </DialogHeader>
           {loadingFinance ? <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />Chargement de la situation financière…</div>
           : activeClient ? (
