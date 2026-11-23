@@ -526,3 +526,4 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Paramètres : libellés mobiles et titres harmonisés.
 - Corrections complémentaires d’accents, de ponctuation et de formulations françaises dans les écrans principaux et les sous-sections Paramètres.
 - Les corrections de libellés ne modifient aucune donnée métier ni aucun schéma Supabase.
+- Branche de livraison : fix/crm-release-20261123, basée sur la dernière version de main.
