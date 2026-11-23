@@ -362,7 +362,7 @@ const GestionNotifications = () => {
       const data = await callDispatch({ mode: "status" });
       setProvider(data.providers || {});
     } catch (error: any) {
-      toast.error(error.message || "Etat des services indisponible");
+      toast.error(error.message || "État des services indisponible");
     }
   };
 
@@ -398,7 +398,7 @@ const GestionNotifications = () => {
       const data = await callDispatch({ mode: "preview", criteria: { audience } });
       setPreview({ count: data.count || 0, sample: data.sample || [] });
     } catch (error: any) {
-      toast.error(error.message || "Apercu impossible");
+      toast.error(error.message || "Aperçu impossible");
     } finally { setPreviewing(false); }
   };
 
@@ -670,7 +670,7 @@ const GestionNotifications = () => {
             <CardHeader><CardTitle>{editingCampaignId ? "Modifier la campagne" : "Nouvelle campagne"}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value })} placeholder="Campagne rentree agricole" /></Field>
+                <Field label="Nom"><Input value={campaign.nom} onChange={(e) => setCampaign({ ...campaign, nom: e.target.value })} placeholder="Campagne de rentrée agricole" /></Field>
                 <Field label="Modèle enregistré"><Select value="" onValueChange={id=>{const t=templates.find(x=>x.id===id);if(t)applyTemplate(t);}}><SelectTrigger><SelectValue placeholder="Choisir un modèle"/></SelectTrigger><SelectContent>{templates.filter(t=>t.actif).map(t=><SelectItem key={t.id} value={t.id}>{t.nom} · {t.canal}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Canal"><Select value={campaign.canal} onValueChange={(v) => setCampaign({ ...campaign, canal: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CHANNELS.map((x) => <SelectItem key={x.value} value={x.value}>{x.label}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Destinataires"><div className="flex gap-2"><Select value={campaign.audience === "selection" ? "selection" : campaign.audience} onValueChange={(v) => { setCampaign({ ...campaign, audience: v }); if (v !== "selection") void previewAudience(v); else void openRecipientPicker(); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{AUDIENCES.map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}<SelectItem value="selection">Sélection manuelle…</SelectItem></SelectContent></Select><Button type="button" variant="outline" onClick={() => void openRecipientPicker()}><Users className="mr-2 h-4 w-4"/>Choisir</Button></div>{campaign.audience === "selection" && <p className="text-xs text-muted-foreground">{selectedRecipients.length} destinataire(s) sélectionné(s)</p>}</Field>
