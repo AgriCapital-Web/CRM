@@ -57,19 +57,24 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
   const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
   const options = useMemo(() => COUNTRIES.map(c => ({ value: c.code, label: c.name + " " + c.callingCode, flagUrl: flagUrl(c.code) })), []);
   const normalizedLocal = (value: string, country: Country) => {
-    let valueDigits = digits(value);
+    const rawValue = String(value || "").trim();
+    let valueDigits = digits(rawValue);
     const callingDigits = digits(country.callingCode);
-    // People often paste a full international number into the national-number field.
-    // Strip the selected country's prefix by parsing the complete number, not by
-    // comparing against maxLocalDigits (which used to leave +225 inside the local field).
-    if (callingDigits && valueDigits.startsWith(callingDigits) && valueDigits.length > callingDigits.length) {
-      const parsedInternational = parsePhoneNumberFromString("+" + valueDigits);
-      if (parsedInternational?.countryCallingCode === callingDigits && parsedInternational.nationalNumber) {
-        valueDigits = parsedInternational.nationalNumber;
-      } else if (country.code === "CI" && valueDigits.length === 13 && valueDigits.startsWith("225")) {
-        valueDigits = valueDigits.slice(3);
+
+    // Preserve the national number exactly as typed. Parsing a national number
+    // on every keystroke can treat its leading zero as a trunk prefix and remove
+    // it from the controlled input, making numbers beginning with 0 impossible
+    // to enter. Only remove a country prefix when the user explicitly pasted
+    // an international number (starting with +).
+    if (rawValue.startsWith("+") && callingDigits && valueDigits.startsWith(callingDigits)) {
+      const parsedInternational = parsePhoneNumberFromString(rawValue);
+      if (parsedInternational?.countryCallingCode === callingDigits) {
+        valueDigits = valueDigits.slice(callingDigits.length);
       }
+    } else if (country.code === "CI" && valueDigits.length === 13 && valueDigits.startsWith("225")) {
+      valueDigits = valueDigits.slice(3);
     }
+
     return valueDigits.slice(0, maxLocalDigits || 15);
   };
   const currentLocal = normalizedLocal(localValue, selected);
@@ -77,9 +82,8 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
     setSelectedCode(country.code);
     const local = normalizedLocal(value, country);
     const internationalValue = local ? country.callingCode + local : "";
-    const parsed = internationalValue ? parsePhoneNumberFromString(internationalValue, country.code as any) : undefined;
-    const normalized = parsed?.countryCallingCode === digits(country.callingCode) ? parsed.nationalNumber : local;
-    onChange({ countryCode: country.code, callingCode: country.callingCode, localValue: normalized, internationalValue });
+    // Keep the local digits untouched, including a leading zero.
+    onChange({ countryCode: country.code, callingCode: country.callingCode, localValue: local, internationalValue });
   };
 
   return <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
