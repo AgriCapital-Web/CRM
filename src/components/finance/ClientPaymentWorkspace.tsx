@@ -23,6 +23,7 @@ type ClientFinanceRow = {
   nom?: string | null;
   prenoms?: string | null;
   telephone?: string | null;
+  email?: string | null;
   type_client?: string | null;
   type_client_foncier?: string | null;
   proprietaire_id?: string | null;
@@ -92,7 +93,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund, onConvert
     queryFn: async () => {
       const [{ data: clientRows, error: clientsError }, { data: summaries, error: summaryError }, { data: acquisitions, error: acquisitionsError }] = await Promise.all([
         (supabase as any).from("clients")
-          .select("id,id_unique,nom_complet,nom,prenoms,telephone,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares,mensualite_montant,paiement_initial_montant,montant_pi_total,duree_paiement_mois")
+          .select("id,id_unique,nom_complet,nom,prenoms,telephone,email,type_client,type_client_foncier,proprietaire_id,is_internal,contrat_solde_at,jours_retard,jours_payes,contrat_debut_at,prochaine_echeance,compte_actif,statut,formule_nom,montant_total_contrat,total_hectares,mensualite_montant,paiement_initial_montant,montant_pi_total,duree_paiement_mois")
           .eq("compte_actif", true)
           .order("created_at", { ascending: false }),
         (supabase as any).from("v_client_synthese")
@@ -417,7 +418,8 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund, onConvert
       const opened = await openPayment({
         amount: paymentAmount,
         name: formatStructuredPersonName(activeClient.nom, activeClient.prenoms),
-        phone: paymentPhone || activeClient.telephone || "",
+        phone: (paymentPhone || activeClient.telephone || "").replace(/^\+/, ""),
+        email: activeClient.email?.trim() || `paiement-${activeClient.id.replace(/-/g, "")}@agricapital.ci`,
         paymentMethods: ["momo", "card"],
         data: { paiement_id: paiementId, reference: existing?.reference || reference, type: paymentType === "PI" ? "PI" : "MENSUALITE", intention: paymentType, client_id: activeClient.id, acquisition_id: activeContract.acquisitionId },
       });
@@ -504,7 +506,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund, onConvert
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Numéro de paiement (Mobile Money / Wave)</label>
-                <CountryPhoneInput label="" countryCode={paymentPhone.startsWith("+225") ? "+225" : undefined} localValue={paymentPhone.startsWith("+") ? paymentPhone.replace(/^\+\d{1,4}/, "") : paymentPhone} onChange={v => setPaymentPhone(v.internationalValue)} />
+                <CountryPhoneInput label="" countryCode={paymentPhone.startsWith("+225") ? "+225" : undefined} localValue={paymentPhone.startsWith("+225") ? paymentPhone.slice(4) : paymentPhone.startsWith("+") ? paymentPhone.replace(/^\+\d{1,3}/, "") : paymentPhone} onChange={v => setPaymentPhone(v.internationalValue)} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Montant à payer (F CFA)</label>
