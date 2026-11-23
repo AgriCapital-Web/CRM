@@ -260,8 +260,13 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) =>
 const render = (template: string, contact: Contact, context: Record<string, unknown> = {}) => {
   const nameParts = String(contact.nom_complet || (context.finance_payout_sms === true ? "" : "Client")).trim().split(/\s+/).filter(Boolean);
   const leadStyleName = contact.source_type === "lead" || contact.source_type === "prospect";
-  const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || (context.finance_payout_sms === true ? "" : "Client"));
-  const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
+  const firstToken = nameParts[0] || "";
+  const lastToken = nameParts[nameParts.length - 1] || "";
+  const firstIsUpper = firstToken === firstToken.toLocaleUpperCase("fr-FR") && firstToken !== firstToken.toLocaleLowerCase("fr-FR");
+  const lastIsUpper = lastToken === lastToken.toLocaleUpperCase("fr-FR") && lastToken !== lastToken.toLocaleLowerCase("fr-FR");
+  const currentDisplayOrder = !leadStyleName && !firstIsUpper && lastIsUpper;
+  const familyName = nameParts.length > 1 ? (leadStyleName || currentDisplayOrder ? lastToken : firstToken) : (firstToken || (context.finance_payout_sms === true ? "" : "Client"));
+  const firstName = nameParts.length > 1 ? (leadStyleName || currentDisplayOrder ? nameParts[nameParts.length - 2] : lastToken) : familyName;
   const titleCaseNames = (value: string) => value.trim().replace(/^[\s.,;:]+|[\s.,;:]+$/g, "").toLocaleLowerCase("fr-FR").replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
   const structuredFirstNames = contact.prenoms?.trim();
   const structuredLastName = contact.nom?.trim();
