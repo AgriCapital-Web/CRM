@@ -473,3 +473,11 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Correction : conserver les chiffres locaux exactement comme saisis, y compris le zéro initial. Le préfixe pays n'est retiré que lorsqu'un numéro international complet est explicitement collé.
 - Le composant partagé alimente les formulaires client, propriétaire foncier, utilisateur, profil, leads et la fiche financière de paiement. La correction s'applique donc à ces écrans sans duplication de patch.
 - Dans le portail client, le composant `src/components/common/CountryPhoneInput.tsx` conservait déjà les chiffres saisis sans reparsage ; cette règle est explicitement documentée pour éviter une régression. Les champs d'identifiants et de pièces sont des champs texte, et les champs de montants/surfaces restent numériques.
+
+
+## Localisations GPS individualisées et choix des frais — 23 novembre 2026
+
+- Mise à jour des coordonnées GPS propres aux plantations : ZAGBLE BOLOU (PLT-000002) : 6.994030, -6.440640 ; YAO KONAN EMMANUEL pour sa plantation de 2 ha (PLT-000001) : 6.994392, -6.440456 ; Jacques KOUAKOU KOUAME (PLT-000014, 6,5 ha) : 6.994115, -6.440071.
+- Les coordonnées des fiches clients correspondantes ont été alignées pour ZAGBLE BOLOU et Emmanuel. La parcelle propre à Jacques a également été mise à jour. La parcelle commune de ZAGBLE BOLOU et Emmanuel n'a pas été écrasée par une coordonnée individuelle.
+- Carte des plantations : suppression du décalage artificiel de 100 m ; chaque repère reprend désormais strictement le GPS enregistré sur sa plantation.
+- Finance et Comptabilité : remplacement du sélecteur à boutons « Avec frais / Sans frais » par deux petites cases à cocher mutuellement exclusives. Le composant commun couvre les formulaires de saisie de dépense, paiement d'une dépense, paiement de paie et mouvement d'associé ; les calculs métier restent inchangés.
