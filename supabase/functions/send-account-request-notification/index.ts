@@ -12,6 +12,15 @@ const escapeHtml = (value: unknown): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const formatPersonName = (lastName?: string | null, givenNames?: string | null) => {
+  const surname = String(lastName || "").trim();
+  const given = String(givenNames || "").trim().split(/\s+/).filter(Boolean).pop() || "";
+  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
+    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
+  if (given && surname) return `${titleCase(given)} ${surname.toLocaleUpperCase("fr-FR")}`;
+  return given ? titleCase(given) : surname ? surname.toLocaleUpperCase("fr-FR") : "Utilisateur";
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -47,9 +56,13 @@ serve(async (req) => {
     );
 
     const { requestData } = await req.json();
+    const requestNameParts = String(requestData?.nom_complet || "").trim().split(/\s+/).filter(Boolean);
+    const applicantLastName = String(requestData?.nom || requestNameParts[0] || "").trim();
+    const applicantGivenNames = String(requestData?.prenoms || requestNameParts.slice(1).join(" ")).trim();
+    const applicantDisplayName = formatPersonName(applicantLastName, applicantGivenNames);
     // Toutes les valeurs issues du formulaire public sont échappées avant insertion dans l'email HTML.
     const safe = {
-      nom_complet: escapeHtml(requestData?.nom_complet),
+      nom_complet: escapeHtml(applicantDisplayName),
       email: escapeHtml(requestData?.email),
       telephone: escapeHtml(requestData?.telephone),
       poste: escapeHtml(requestData?.poste),
@@ -77,7 +90,7 @@ serve(async (req) => {
     const adminIds = superAdmins?.map(a => a.user_id) || [];
     const { data: adminProfiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, nom_complet, telephone')
+      .select('id, user_id, email, nom_complet, nom, prenoms, telephone')
       .in('id', adminIds);
 
     if (profilesError) {
@@ -107,7 +120,7 @@ serve(async (req) => {
         user_id: adminProfile.id,
         type: 'account_request',
         titre: 'Nouvelle demande de compte',
-        message: `${requestData.nom_complet} (${requestData.email}) demande un accès à la plateforme.`,
+        message: `${applicantDisplayName} (${requestData.email}) demande un accès à la plateforme.`,
         lien: '/account-requests',
         dedupe_key: notificationDedupeKey
       }).select('id').maybeSingle();
@@ -129,7 +142,7 @@ serve(async (req) => {
             channel: "email", to: adminProfile.email,
             senderId: (typeof senndoSender === "string" && senndoSender) || Deno.env.get("SENNDO_EMAIL_SENDER_ID") || "notifications@agricapital.ci",
             subject: "AgriCapital | Notification automatique : nouvelle demande de compte",
-            text: `AgriCapital — notification automatique à l’équipe. Nouvelle demande de compte. Nom : ${requestData.nom_complet}. E-mail : ${requestData.email}. Téléphone : ${requestData.telephone}. Rôle demandé : ${requestData.role_souhaite || requestData.poste_souhaite}. Consultez les demandes dans le CRM : https://app.agricapital.ci/account-requests`,
+            text: `AgriCapital — notification automatique à l’équipe. Nouvelle demande de compte. Nom : ${applicantDisplayName}. E-mail : ${requestData.email}. Téléphone : ${requestData.telephone}. Rôle demandé : ${requestData.role_souhaite || requestData.poste_souhaite}. Consultez les demandes dans le CRM : https://app.agricapital.ci/account-requests`,
             idempotencyKey: `account-request-${String(requestData.auth_user_id || requestData.email).toLowerCase()}-${String(adminProfile.email).toLowerCase()}`,
           });
         } catch (error) {
@@ -174,7 +187,7 @@ serve(async (req) => {
                       <p>Nouvelle demande de compte</p>
                     </div>
                     <div class="content">
-                      <p>Bonjour ${escapeHtml(adminProfile.nom_complet)},</p>
+                      <p>Bonjour ${escapeHtml(formatPersonName(adminProfile.nom, adminProfile.prenoms))},</p>
                       <p>Une nouvelle demande de création de compte a été soumise sur la plateforme AgriCapital.</p>
                       
                       <h3>Détails de la demande :</h3>
@@ -246,7 +259,7 @@ serve(async (req) => {
           const dispatchUrl = Deno.env.get("SUPABASE_URL") ?? "";
           const internalSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
           const message =
-            `AgriCapital - Nouvelle demande de compte\nNom: ${requestData.nom_complet}\nEmail: ${requestData.email}\nTel: ${requestData.telephone}\n${requestData.poste ? `Poste: ${requestData.poste}\n` : ""}Consultez app.agricapital.ci pour traiter la demande.`;
+            `AgriCapital - Nouvelle demande de compte\nNom: ${applicantDisplayName}\nEmail: ${requestData.email}\nTel: ${requestData.telephone}\n${requestData.poste ? `Poste: ${requestData.poste}\n` : ""}Consultez app.agricapital.ci pour traiter la demande.`;
           const routed = await fetch(dispatchUrl + "/functions/v1/notification-dispatch", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": internalSecret },
@@ -256,7 +269,9 @@ serve(async (req) => {
                 source_type: "equipe",
                 source_id: String(adminProfile.id),
                 user_id: String(adminProfile.id),
-                nom_complet: adminProfile.nom_complet || null,
+                nom_complet: formatPersonName(adminProfile.nom, adminProfile.prenoms),
+                nom: adminProfile.nom || null,
+                prenoms: adminProfile.prenoms || null,
                 telephone: adminProfile.telephone,
               },
               content: message,
