@@ -10,7 +10,13 @@ const formatClientDisplayName = (contact: any) => {
   const parts = String(contact?.nom_complet || "").trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "Client";
   if (parts.length === 1) return parts[0].toLocaleUpperCase("fr-FR");
-  return `${titleCase(parts[parts.length - 1])} ${parts[0].toLocaleUpperCase("fr-FR")}`;
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const firstIsUpper = first === first.toLocaleUpperCase("fr-FR") && first !== first.toLocaleLowerCase("fr-FR");
+  const lastIsUpper = last === last.toLocaleUpperCase("fr-FR") && last !== last.toLocaleLowerCase("fr-FR");
+  return !firstIsUpper && lastIsUpper
+    ? `${titleCase(parts[parts.length - 2])} ${last.toLocaleUpperCase('fr-FR')}`
+    : `${titleCase(last)} ${first.toLocaleUpperCase('fr-FR')}`;
 };
 
 const corsHeaders = {
