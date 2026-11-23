@@ -474,7 +474,7 @@ export default function ClientPaymentWorkspace({ onTransfer, onRefund, onConvert
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" />Fiche financière client</DialogTitle>
-            <DialogDescription>{activeClient?.nom_complet || "Client"} · Les règlements sont exclusivement effectués en ligne.</DialogDescription>
+            <DialogDescription>{formatStructuredPersonName(activeClient?.nom, activeClient?.prenoms)} · Les règlements sont exclusivement effectués en ligne.</DialogDescription>
           </DialogHeader>
           {loadingFinance ? <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />Chargement de la situation financière…</div>
           : activeClient ? (
