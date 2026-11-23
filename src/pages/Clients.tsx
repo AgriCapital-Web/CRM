@@ -643,7 +643,7 @@ const Clients = () => {
                           className="cursor-pointer bg-muted/20 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&>td]:px-2 [&>td]:py-1"
                         >
                           <TableCell className="font-mono text-[11px] font-medium whitespace-nowrap">ASSOCIÉ</TableCell>
-                          <TableCell className="font-medium text-xs whitespace-nowrap">{associate.full_name}</TableCell>
+                          <TableCell className="font-medium text-xs whitespace-nowrap">{formatTablePersonName(associate.full_name)}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs" onClick={(event) => event.stopPropagation()}>
                             <ContactLauncher phone={associate.telephone} name={associate.full_name || "Associé"} kind="client" status={associate.active ? "actif" : "inactif"} />
                           </TableCell>
