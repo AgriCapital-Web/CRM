@@ -31,7 +31,7 @@ import FileUploadVisual from "@/components/ui/file-upload-visual";
 import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { getCachedItems, STORES } from "@/lib/offlineDb";
 import { getSafeErrorMessage } from "@/lib/safeError";
-import { formatRecipientName } from "@/lib/utils";
+import { formatRecipientName, formatTableRecipientName, formatTablePersonName } from "@/lib/utils";
 
 const ANNEXES_CONVENTION: Array<{ field: string; label: string; obligatoire?: boolean; facultative?: boolean; when?: string }> = [
   { field: "annexe_1_copies_identite_signataires", label: "Annexe 1 — Pièces d’identité du propriétaire et des signataires", obligatoire: true },
@@ -47,6 +47,7 @@ const createInitialAnnexStatuses = (): Record<string, "joint" | "a_fournir"> =>
   }, {});
 
 const displayOwnerName = (owner: any) => owner?.type_proprietaire === "personne_physique" ? formatRecipientName(owner?.nom_complet, "client", owner?.nom, owner?.prenoms) : (owner?.denomination_sociale || owner?.nom_complet || "Propriétaire");
+const displayOwnerTableName = (owner: any) => owner?.type_proprietaire === "personne_physique" ? formatTableRecipientName(owner?.nom_complet, "client", owner?.nom, owner?.prenoms) : formatTablePersonName(owner?.denomination_sociale || owner?.nom_complet || "Propriétaire");
 
 const ProprietairesTerres = () => {
   const navigate = useNavigate();
@@ -1038,14 +1039,14 @@ const ProprietairesTerres = () => {
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={8} className="text-center py-8">Aucun propriétaire</TableCell></TableRow>
                 ) : filtered.map(p => (
-                  <TableRow key={p.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche propriétaire ${displayOwnerName(p)}`} onClick={() => navigate(`/proprietaires-terres?edit_id=${p.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/proprietaires-terres?edit_id=${p.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <TableRow key={p.id} role="button" tabIndex={0} aria-label={`Ouvrir la fiche propriétaire ${displayOwnerTableName(p)}`} onClick={() => navigate(`/proprietaires-terres?edit_id=${p.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/proprietaires-terres?edit_id=${p.id}`); } }} className="cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">
                         {p.type_proprietaire === 'personne_morale' ? 'Morale' : p.type_proprietaire === 'famille_groupement' ? 'Famille' : 'Physique'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap" onClick={(event) => event.stopPropagation()}><Link to={`/proprietaires-terres?edit_id=${p.id}`} className="whitespace-nowrap hover:underline">{displayOwnerName(p)}</Link></TableCell>
-                    <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={displayOwnerName(p)} kind="proprietaire" status={p.statut || ""}/></TableCell>
+                    <TableCell className="font-medium whitespace-nowrap" onClick={(event) => event.stopPropagation()}><Link to={`/proprietaires-terres?edit_id=${p.id}`} className="whitespace-nowrap hover:underline">{displayOwnerTableName(p)}</Link></TableCell>
+                    <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={displayOwnerTableName(p)} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
                     <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}</TableCell>
