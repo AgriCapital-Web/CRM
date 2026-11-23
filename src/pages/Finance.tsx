@@ -213,7 +213,7 @@ export default function Finance(){
       const empty={data:[],error:null};
       const [t,e,a,am,p,s,r,independent,independentInvoiceRows]=await Promise.all([
         canView?(supabase as any).from("finance_transactions").select("*").order("transaction_date",{ascending:false}):Promise.resolve(empty),
-        canView?(supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id,amount,gross_amount,paid_at,payment_method,proof_path,proof_name)").order("created_at",{ascending:false}):Promise.resolve(empty),
+        canView?(supabase as any).from("finance_expenses").select("*,finance_expense_payments(id,status,transaction_id,amount,gross_amount,fee_amount,fee_applied,paid_at,payment_method,proof_path,proof_name)").order("created_at",{ascending:false}):Promise.resolve(empty),
         canView?(supabase as any).from("finance_associates").select("*").order("full_name"):Promise.resolve(empty),
         canView?(supabase as any).from("finance_associate_transactions").select("id,associate_id,transaction_id,movement_type,contribution_status,contribution_description,estimated_value,project_reference,notes,created_at,finance_transactions(id,transaction_date,label,amount,gross_amount,fee_applied,payment_method,notes,direction,status,reference,proof_path,proof_name)").order("created_at",{ascending:false}):Promise.resolve(empty),
         (canView||canPayroll)?(async()=>{
@@ -799,7 +799,7 @@ export default function Finance(){
                 <td className="whitespace-nowrap px-2 py-1.5">{t.transaction_date?new Date(t.transaction_date).toLocaleDateString("fr-FR"):"—"}</td>
                 <td className="px-2 py-1.5 font-medium">{expenseRow?.expense_category||t.category||"—"}{t.label&&t.label!==(expenseRow?.expense_category||t.category)&&<p className="max-w-[320px] truncate text-xs text-muted-foreground">{t.label}</p>}{paymentRow&&<p className="text-xs text-muted-foreground">Règlement de dépense · {paymentRow.paid_at?new Date(paymentRow.paid_at).toLocaleDateString("fr-FR"):""}</p>}</td>
                 <td className="max-w-[220px] truncate px-2 py-1.5">{beneficiary}</td>
-                <td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(t.amount)}</td>
+                <td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums">{money(t.amount)}{Number(t.fee_amount || paymentRow?.fee_amount || 0) > 0 && <p className="text-[11px] font-normal text-muted-foreground">{money(t.gross_amount || paymentRow?.gross_amount || 0)} + {money(t.fee_amount || paymentRow?.fee_amount || 0)} de frais</p>}</td>
                 <td className="px-2 py-1.5"><Badge variant={t.status==="valide"?"default":"secondary"}>{t.status||"—"}</Badge></td>
                 <td className="px-2 py-1.5">{proofPath?<Button type="button" variant="ghost" size="sm" onClick={()=>void openProofFiles(proofPath)}><Paperclip className="mr-1 h-3.5 w-3.5"/>{proofDisplayName(proofName)}</Button>:"—"}</td>
                 {isPdg&&<td className="px-2 py-1.5 text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Actions"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end">
