@@ -271,7 +271,7 @@ const GestionZones = () => {
             <p className="text-center py-8">Chargement…</p>
           ) : (
             <div className="border rounded-lg">
-              <Table>
+              <Table searchable={false}>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Utilisateur</TableHead>
