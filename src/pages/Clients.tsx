@@ -502,7 +502,7 @@ const Clients = () => {
                   <div style={{ width: tableContentWidth, height: 1 }} />
                 </div>
                 <div ref={tableScrollRef} className="border rounded-lg overflow-x-auto" onScroll={(event) => { if (topScrollRef.current) topScrollRef.current.scrollLeft = event.currentTarget.scrollLeft; }}>
-                <Table className="responsive-data-table min-w-[1500px] text-xs">
+                <Table searchable={false} className="responsive-data-table min-w-[1500px] text-xs">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="whitespace-nowrap px-2 py-2">Identifiant client</TableHead>
