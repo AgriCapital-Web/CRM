@@ -2,9 +2,15 @@ name: Déploiement de production groupé
 
 on:
   schedule:
-    # Une seule mise en production par jour, à 18 h UTC (18 h à Abidjan).
+    # Une seule vérification par jour, à 18 h UTC (18 h à Abidjan).
     - cron: "0 18 * * *"
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Forcer un déploiement même sans nouveau commit"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -18,7 +24,41 @@ jobs:
     name: Déployer le dernier état de main
     runs-on: ubuntu-latest
     steps:
+      - name: Récupérer le dernier état de main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Restaurer le dernier commit déjà déployé
+        uses: actions/cache/restore@v4
+        with:
+          path: .deploy-state
+          key: agricapital-production-deployed-${{ github.sha }}
+          restore-keys: |
+            agricapital-production-deployed-
+
+      - name: Vérifier s'il y a de nouvelles modifications
+        id: changes
+        env:
+          FORCE_DEPLOY: ${{ inputs.force || 'false' }}
+        shell: bash
+        run: |
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          LAST_SHA=""
+          if [ -f .deploy-state/last-successful-sha ]; then
+            LAST_SHA="$(cat .deploy-state/last-successful-sha)"
+          fi
+
+          if [ "$CURRENT_SHA" = "$LAST_SHA" ] && [ "$FORCE_DEPLOY" != "true" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Aucune nouvelle fusion depuis le dernier déploiement."
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "Un nouveau commit doit être déployé : $CURRENT_SHA"
+          fi
+
       - name: Vérifier la configuration du Deploy Hook
+        if: steps.changes.outputs.deploy == 'true'
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         shell: bash
@@ -37,6 +77,7 @@ jobs:
           esac
 
       - name: Déclencher le déploiement groupé
+        if: steps.changes.outputs.deploy == 'true'
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
@@ -46,3 +87,16 @@ jobs:
             --write-out "Réponse Vercel : HTTP %{http_code}\n" \
             "$VERCEL_DEPLOY_HOOK_URL"
           cat /tmp/vercel-deploy-response.json
+
+      - name: Enregistrer le commit déployé
+        if: steps.changes.outputs.deploy == 'true'
+        run: |
+          mkdir -p .deploy-state
+          git rev-parse HEAD > .deploy-state/last-successful-sha
+
+      - name: Sauvegarder l'état du déploiement
+        if: steps.changes.outputs.deploy == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .deploy-state
+          key: agricapital-production-deployed-${{ github.sha }}
