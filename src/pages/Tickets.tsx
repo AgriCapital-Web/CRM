@@ -131,7 +131,7 @@ const Tickets = () => {
             </CardHeader>
             <CardContent className="min-w-0">
               <div className="w-full min-w-0 overflow-x-auto">
-              <Table className="min-w-[820px] responsive-data-table">
+              <Table searchable={false} className="min-w-[820px] responsive-data-table">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
