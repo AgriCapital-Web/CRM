@@ -112,7 +112,7 @@ export default function Portefeuilles(){
   const filtered=useMemo(()=>portefeuilles.filter((p:any)=>{
     if(!visibleProfiles.some((x:any)=>x.id===p.profile_id||x.user_id===p.user_id))return false;
     const q=searchKey(search);
-    const haystack=searchKey([p.user?.nom_complet,p.user?.email,p.user?.poste,(p.user?.roles||[]).join(" "),p.solde_commissions,p.total_gagne,p.total_verse].join(" "));
+    const haystack=searchKey([p.user?.nom_complet,p.user?.email,p.user?.poste,(Array.isArray(p.user?.roles)?p.user.roles:[p.user?.roles]).filter(Boolean).join(" "),p.solde_commissions,p.total_gagne,p.total_verse].join(" "));
     return !q||haystack.includes(q);
   }),[portefeuilles,visibleProfiles,search]);
 
