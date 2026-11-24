@@ -244,7 +244,7 @@ const InfoRow = ({
       display: "grid",
       gridTemplateColumns: "176px minmax(0,1fr)",
       alignItems: "center",
-      minHeight: 35,
+      minHeight: 30,
       columnGap: 8,
       width: "100%",
       boxSizing: "border-box",
@@ -254,11 +254,11 @@ const InfoRow = ({
     <span
       style={{
         color: VERT,
-        fontSize: 13.5,
+        fontSize: 12,
         fontWeight: 900,
         textTransform: "uppercase",
         letterSpacing: 0,
-        lineHeight: "18px",
+        lineHeight: "15px",
         whiteSpace: "nowrap",
       }}
     >
@@ -267,7 +267,7 @@ const InfoRow = ({
     <span
       style={{
         color: GRIS,
-        fontSize: value.length > 26 ? 10 : value.length > 21 ? 11 : value.length > 17 ? 12 : 14,
+        fontSize: value.length > 26 ? 9.5 : value.length > 21 ? 10.5 : value.length > 17 ? 11.5 : 13,
         fontWeight: 700,
         lineHeight: "18px",
         whiteSpace: "nowrap",
@@ -358,11 +358,11 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
             flexDirection: "column",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 82, flexShrink: 0 }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 72, flexShrink: 0 }}>
             <img
               src={logo}
               alt="AgriCapital — Investir la terre. Cultiver l'avenir."
-              style={{ display: "block", width: 310, maxWidth: "100%", height: 82, objectFit: "contain" }}
+              style={{ display: "block", width: 286, maxWidth: "100%", height: 72, objectFit: "contain" }}
             />
           </div>
 
@@ -386,8 +386,8 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
 
           <div
             style={{
-              width: 166,
-              height: 190,
+              width: 154,
+              height: 164,
               margin: "6px auto 0",
               borderRadius: 16,
               overflow: "hidden",
@@ -408,14 +408,14 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
             )}
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 7, minHeight: 64, flexShrink: 0, paddingInline: 2 }}>
+          <div style={{ textAlign: "center", marginTop: 5, minHeight: 56, flexShrink: 0, paddingInline: 2 }}>
             <p
               style={{
                 margin: 0,
                 color: VERT,
-                fontSize: nom.length > 42 ? 18 : nom.length > 34 ? 20 : nom.length > 26 ? 23 : 28,
+                fontSize: nom.length > 42 ? 16 : nom.length > 34 ? 18 : nom.length > 26 ? 20 : 24,
                 fontWeight: 900,
-                lineHeight: "30px",
+                lineHeight: "25px",
                 textTransform: "uppercase",
                 whiteSpace: "normal",
                 overflowWrap: "break-word",
@@ -428,9 +428,9 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
               style={{
                 margin: "3px 0 0",
                 color: GRIS_MOYEN,
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: 800,
-                lineHeight: "20px",
+                lineHeight: "17px",
                 textTransform: "uppercase",
                 minHeight: 20,
                 whiteSpace: "normal",
@@ -448,17 +448,17 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                minWidth: 140,
+                minWidth: 128,
                 maxWidth: "100%",
-                minHeight: 31,
+                minHeight: 28,
                 height: "auto",
-                padding: "5px 18px",
+                padding: "4px 14px",
                 boxSizing: "border-box",
                 borderRadius: 15,
                 backgroundColor: VERT,
                 color: BLANC,
-                fontSize: 13,
-                lineHeight: "17px",
+                fontSize: 12,
+                lineHeight: "15px",
                 fontWeight: 900,
                 letterSpacing: 0.5,
                 textTransform: "uppercase",
@@ -492,10 +492,10 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
             style={{
               marginTop: "auto",
               display: "grid",
-              gridTemplateColumns: "1fr 226px",
+              gridTemplateColumns: "1fr 206px",
               alignItems: "center",
-              columnGap: 8,
-              minHeight: 178,
+              columnGap: 6,
+              minHeight: 144,
               width: "100%",
               boxSizing: "border-box",
             }}
@@ -517,15 +517,15 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 Daloa-Gonaté, Côte d’Ivoire
               </p>
             </div>
-            <div style={{ position: "relative", width: 226, height: 154, justifySelf: "end", flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 206, height: 132, justifySelf: "end", flexShrink: 0 }}>
               <img
                 src={signature}
                 alt="Signature de la direction"
                 style={{
                   position: "absolute",
                   zIndex: 1,
-                  width: 250,
-                  height: 82,
+                  width: 210,
+                  height: 68,
                   maxWidth: "none",
                   objectFit: "contain",
                   top: 2,
@@ -539,10 +539,10 @@ export const CarteRecto = forwardRef<HTMLDivElement, { carte: CarteData }>(({ ca
                 style={{
                   position: "absolute",
                   zIndex: 2,
-                  width: 220,
+                  width: 185,
                   height: "auto",
                   maxWidth: "none",
-                  maxHeight: 137,
+                  maxHeight: 110,
                   objectFit: "contain",
                   objectPosition: "left top",
                   top: 15,
