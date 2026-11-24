@@ -568,6 +568,8 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 
 ### Contrôles et déploiement
 - Aucune migration Supabase n'est requise pour GOLY : les valeurs 5 ha / 50-50 / 2,5 ha + 2,5 ha sont déjà conformes et n'ont pas été modifiées.
-- Les coordonnées GPS des plantations de Jacques KOUAKOU KOUAME, YAO KONAN EMMANUEL (2 ha) et ZAGBLE BOLOU JEAN-JACQUES ont été relues en base. Le regroupement cartographique permet de les distinguer dans le détail sans modifier leurs coordonnées.
-- Commit applicatif : à renseigner après création.
-- Vérifications du build et déploiement Vercel : à renseigner après exécution.
+- Les coordonnées GPS relues en base sont : Jacques KOUAKOU KOUAME `6.994115, -6.440071` ; YAO KONAN EMMANUEL (2 ha) `6.994392, -6.440456` ; ZAGBLE BOLOU JEAN-JACQUES `6.994030, -6.440640`. Le regroupement cartographique permet de les distinguer dans le détail sans modifier leurs coordonnées.
+- Commit applicatif : `3c51d44f513caae874d51ab40223c175fa07df06`.
+- Déploiement Vercel de production : `dpl_HLXL4MX4EFwpxKtERy5AZs2i7j13`, état `READY`, alias `https://app.agricapital.ci` ; déploiement rattaché au commit applicatif ci-dessus.
+- Build Vite terminé sans erreur (3 975 modules transformés). Les avertissements relevés concernent la taille d'un bundle et 9 vulnérabilités modérées déjà signalées par npm audit ; ils n'ont pas bloqué le déploiement.
+- Contrôle des erreurs d'exécution après déploiement : aucune erreur runtime relevée sur la fenêtre contrôlée.
