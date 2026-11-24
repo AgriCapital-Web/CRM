@@ -228,7 +228,7 @@ export default function Commissions() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table className="responsive-data-table min-w-[720px]">
+                <Table searchable={false} className="responsive-data-table min-w-[720px]">
                   <TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Type</TableHead><TableHead>Équipe</TableHead><TableHead>Opérations</TableHead><TableHead>Base</TableHead><TableHead>Total commission</TableHead><TableHead>À valider</TableHead><TableHead>À payer</TableHead><TableHead>Payées</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {loading ? <TableRow><TableCell colSpan={9} className="py-8 text-center">Chargement</TableCell></TableRow> :
@@ -256,7 +256,7 @@ export default function Commissions() {
             <CardContent className="p-0">
               <div className="p-4"><h2 className="font-semibold">Commissions par équipe</h2></div>
               <div className="overflow-x-auto">
-                <Table className="responsive-data-table min-w-[560px]">
+                <Table searchable={false} className="responsive-data-table min-w-[560px]">
                   <TableHeader><TableRow><TableHead>Équipe</TableHead><TableHead>Total commissions</TableHead><TableHead>À valider</TableHead><TableHead>À payer</TableHead><TableHead>Payées</TableHead></TableRow></TableHeader>
                   <TableBody>{teamGroups.map((g: any) => <TableRow key={g.key} className="h-10"><TableCell className="py-1 font-medium">{g.equipe}</TableCell><TableCell className="py-1">{money(g.total)}</TableCell><TableCell className="py-1">{money(g.aValider)}</TableCell><TableCell className="py-1">{money(g.aPayer)}</TableCell><TableCell className="py-1">{money(g.payee)}</TableCell></TableRow>)}</TableBody>
                 </Table>
@@ -279,7 +279,7 @@ export default function Commissions() {
                     <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Payées</p><p className="font-bold">{money(selected.payee)}</p></CardContent></Card>
                   </div>
                   <div className="overflow-x-auto">
-                    <Table className="min-w-[1120px]">
+                    <Table searchable={false} className="min-w-[1120px]">
                       <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Déjà payé</TableHead><TableHead>Solde</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                       <TableBody>{selected.details.map((d: any) =>
                         <TableRow key={d.id}>
