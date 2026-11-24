@@ -606,3 +606,11 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Le dernier déploiement Vercel de production confirmé est rattaché au commit `fd49f592ebd9b112f1852716e451a6b2cccf75ba`. Les corrections fusionnées ensuite dans `main` (commit `a3f68df8f416e9bb9b0d7e42cb6de4df6b3c4d94`) ne sont pas encore publiées.
 - La PR `#70` prépare une publication quotidienne groupée. Elle suspend les déploiements Git automatiques sur toutes les branches ; ne pas la fusionner avant la création du Deploy Hook Vercel sur `main` et l'enregistrement du secret GitHub `VERCEL_DEPLOY_HOOK_URL`. Les aperçus Vercel des PR seront également suspendus ; les contrôles GitHub Actions restent actifs.
 - Le workflow groupé confirme l'acceptation du hook, mais le statut final `Ready` doit être contrôlé dans Vercel. En cas d'échec de build, relancer manuellement le workflow avec l'option `force`.
+
+
+### Optimisation des clés étrangères — 24 novembre 2026
+- Migration appliquée : `20261124071950_index_remaining_crm_foreign_keys`.
+- Ajout d'index sur `equipes.district_id`, `plantations.localisation_reference_plantation_id`, `user_permission_overrides.granted_by` et `user_permission_overrides.permission_code`.
+- Vérification SQL : les quatre index existent sur les colonnes attendues.
+- Le conseiller Performance ne signale plus de clé étrangère sans index couvrant.
+- Les avertissements restants portent sur 287 index signalés comme inutilisés et 430 cas de policies permissives multiples. Aucun index n'a été supprimé : les statistiques d'utilisation seules ne justifient pas une suppression sans analyse des requêtes, contraintes, périodes d'activité et plans d'exécution.
