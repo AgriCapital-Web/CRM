@@ -29,11 +29,15 @@ jobs:
         with:
           ref: main
 
+      - name: Identifier le commit à publier
+        id: current
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Restaurer le dernier commit déjà déployé
         uses: actions/cache/restore@v4
         with:
           path: .deploy-state
-          key: agricapital-production-deployed-${{ github.sha }}
+          key: agricapital-production-deployed-${{ steps.current.outputs.sha }}
           restore-keys: |
             agricapital-production-deployed-
 
@@ -41,9 +45,9 @@ jobs:
         id: changes
         env:
           FORCE_DEPLOY: ${{ inputs.force || 'false' }}
+          CURRENT_SHA: ${{ steps.current.outputs.sha }}
         shell: bash
         run: |
-          CURRENT_SHA="$(git rev-parse HEAD)"
           LAST_SHA=""
           if [ -f .deploy-state/last-successful-sha ]; then
             LAST_SHA="$(cat .deploy-state/last-successful-sha)"
@@ -90,13 +94,15 @@ jobs:
 
       - name: Enregistrer le commit déployé
         if: steps.changes.outputs.deploy == 'true'
+        env:
+          CURRENT_SHA: ${{ steps.current.outputs.sha }}
         run: |
           mkdir -p .deploy-state
-          git rev-parse HEAD > .deploy-state/last-successful-sha
+          printf '%s\n' "$CURRENT_SHA" > .deploy-state/last-successful-sha
 
       - name: Sauvegarder l'état du déploiement
         if: steps.changes.outputs.deploy == 'true'
         uses: actions/cache/save@v4
         with:
           path: .deploy-state
-          key: agricapital-production-deployed-${{ github.sha }}
+          key: agricapital-production-deployed-${{ steps.current.outputs.sha }}
