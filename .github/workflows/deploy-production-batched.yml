@@ -1,0 +1,48 @@
+name: Déploiement de production groupé
+
+on:
+  schedule:
+    # Une seule mise en production par jour, à 18 h UTC (18 h à Abidjan).
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agricapital-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Déployer le dernier état de main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier la configuration du Deploy Hook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "::error::Le secret GitHub VERCEL_DEPLOY_HOOK_URL n'est pas configuré."
+            exit 1
+          fi
+
+          case "$VERCEL_DEPLOY_HOOK_URL" in
+            https://api.vercel.com/v1/integrations/deploy/*) ;;
+            *)
+              echo "::error::Le secret ne contient pas une URL Vercel Deploy Hook valide."
+              exit 1
+              ;;
+          esac
+
+      - name: Déclencher le déploiement groupé
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --output /tmp/vercel-deploy-response.json \
+            --write-out "Réponse Vercel : HTTP %{http_code}\n" \
+            "$VERCEL_DEPLOY_HOOK_URL"
+          cat /tmp/vercel-deploy-response.json
