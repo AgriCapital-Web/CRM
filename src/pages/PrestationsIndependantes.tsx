@@ -54,7 +54,7 @@ export default function PrestationsIndependantes({embedded=false}:{embedded?:boo
   setRows(p.data||[]);setCustomers(c.data||[]);setCatalog(s.data||[]);setTechEvents(e.data||[]);setInvoices(i.data||[]);setLoading(false);
  },[]);
  useEffect(()=>{void load();},[load]);
- const filtered=useMemo(()=>{const q=search.trim().toLocaleLowerCase("fr");return rows.filter(r=>!q||[r.reference,r.client_name,r.client_phone,r.status].some(v=>String(v||"").toLocaleLowerCase("fr").includes(q)));},[rows,search]);
+ const filtered=useMemo(()=>rows.filter(r=>!search.trim()||[r.reference,r.client_name,r.client_phone,r.status].some(v=>matchesAccentInsensitive(v,search))),[rows,search]);
  const unitOptions=["hectares","plantes","points","forfait"];
  const lineSubtotal=(l:Line)=>Math.max(0,Number(l.quantity)||0)*(Math.max(0,Number(l.unit_price)||0)+(l.annexe_active?Math.max(0,Number(l.annexe_prix)||0):0));
  const lineUnitPrice=(l:Line)=>Math.max(0,Number(l.unit_price)||0);
