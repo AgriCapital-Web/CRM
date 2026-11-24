@@ -114,7 +114,7 @@ const HistoriqueComplet = () => {
           </div>
 
           <div className="border rounded-lg">
-            <Table>
+            <Table searchable={false}>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date & Heure</TableHead>

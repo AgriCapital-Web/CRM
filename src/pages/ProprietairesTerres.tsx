@@ -1021,7 +1021,7 @@ const ProprietairesTerres = () => {
           </div>
 
           <div className="border rounded-lg overflow-x-auto">
-            <Table className="responsive-data-table owners-table">
+            <Table searchable={false} className="responsive-data-table owners-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Type</TableHead>

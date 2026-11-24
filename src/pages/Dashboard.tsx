@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { PERMISSIONS, ROLE_SHORT_LABELS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatStructuredPersonName, formatStructuredTablePersonName, formatTablePersonName } from "@/lib/utils";
+import { formatStructuredPersonName, formatStructuredTablePersonName, formatTablePersonName, matchesAccentInsensitive } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -145,16 +145,21 @@ const Dashboard = () => {
 
   const [recentClients, setRecentClients] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
-  const [recentClientsQuery, setRecentClientsQuery] = useState("");
-  const [recentPaymentsQuery, setRecentPaymentsQuery] = useState("");
+  const [recentSearch, setRecentSearch] = useState("");
   const filteredRecentClients = useMemo(() => {
-    const q=recentClientsQuery.trim().toLowerCase();
-    return q ? recentClients.filter((item:any)=>[formatStructuredPersonName(item.nom,item.prenoms),item.nom_complet,item.id_unique,item.telephone].some(v=>String(v||"").toLowerCase().includes(q))) : recentClients;
-  },[recentClients,recentClientsQuery]);
+    const q = recentSearch.trim();
+    return q ? recentClients.filter((item: any) => [
+      formatStructuredPersonName(item.nom, item.prenoms), item.nom_complet, item.id_unique,
+      item.telephone, item.email, item.statut,
+    ].some((value) => matchesAccentInsensitive(value, q))) : recentClients;
+  }, [recentClients, recentSearch]);
   const filteredRecentPayments = useMemo(() => {
-    const q=recentPaymentsQuery.trim().toLowerCase();
-    return q ? recentPayments.filter((item:any)=>[item.client_nom,item.reference,item.reference_paiement,item.montant_paye,item.montant,item.mode_paiement].some(v=>String(v||"").toLowerCase().includes(q))) : recentPayments;
-  },[recentPayments,recentPaymentsQuery]);
+    const q = recentSearch.trim();
+    return q ? recentPayments.filter((item: any) => [
+      item.client_nom, item.client_email, item.reference, item.reference_paiement,
+      item.montant_paye, item.montant, item.mode_paiement, item.statut,
+    ].some((value) => matchesAccentInsensitive(value, q))) : recentPayments;
+  }, [recentPayments, recentSearch]);
   const [monthly, setMonthly] = useState<any[]>([]);
   const [offerPerformance, setOfferPerformance] = useState<any[]>([]);
   const [cycle, setCycle] = useState<any[]>([]);
@@ -966,12 +971,12 @@ const Dashboard = () => {
               <div className="rounded-xl border border-orange-500/50 p-2.5 sm:p-3">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
-                  <Input value={recentClientsQuery} onChange={e=>{setRecentClientsQuery(e.target.value);setRecentPaymentsQuery(e.target.value);}} placeholder="Rechercher un client ou un paiement" className="h-9 w-full sm:max-w-xs"/>
+                  <Input value={recentSearch} onChange={e=>setRecentSearch(e.target.value)} placeholder="Rechercher un client, un paiement, un identifiant ou une référence…" className="h-9 w-full sm:max-w-xs"/>
                 </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {canClients && recentClients.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle><Input value={recentClientsQuery} onChange={e=>setRecentClientsQuery(e.target.value)} placeholder="Rechercher un client" className="h-9 w-full sm:max-w-xs"/></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><CardTitle className="flex items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
                         <Table searchable={false} exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Nom</TableHead><TableHead className="h-8 px-2 py-1.5">Plantations</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>

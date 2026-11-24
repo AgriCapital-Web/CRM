@@ -132,7 +132,7 @@ const Documents = () => {
                     <p className="text-center text-muted-foreground py-8">Aucun document</p>
                   ) : (
                     <div className="overflow-x-auto rounded-lg">
-                      <Table className="min-w-[760px]">
+                      <Table searchable={false} className="min-w-[760px]">
                         <TableHeader>
                           <TableRow>
                             <TableHead>Client</TableHead>

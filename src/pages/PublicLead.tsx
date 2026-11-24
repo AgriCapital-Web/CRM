@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import logoV2 from "@/assets/logo-agricapital-v2.png";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { offlineInsert } from "@/lib/offlineWrite";
 import GeographieCascade from "@/components/common/GeographieCascade";
 
 const CRENEAUX = [
@@ -59,7 +60,6 @@ export default function PublicLead() {
       commentaire: f.commentaire || null,
       source: "formulaire_public",
     };
-    const { offlineInsert } = await import("@/lib/offlineWrite");
     const { error, offline } = await offlineInsert("leads", payload);
     setLoading(false);
     if (error) {

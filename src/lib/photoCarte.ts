@@ -7,6 +7,7 @@
  * l'objet est conservé en base (URL signée courte à l'affichage).
  */
 import { supabase } from "@/integrations/supabase/client";
+import { uploadOrQueueFile } from "@/lib/offlineFiles";
 
 export const CARTE_BUCKET = "cartes-personnel";
 
@@ -80,7 +81,6 @@ export async function traiterPhotoCarte(file: File | Blob): Promise<Blob> {
 export async function uploaderPhotoCarte(profileId: string, carteId: string, file: File | Blob): Promise<string> {
   const blob = await traiterPhotoCarte(file);
   const path = `originals/${profileId}/${Date.now()}.jpg`;
-  const { uploadOrQueueFile } = await import("@/lib/offlineFiles");
   const queued = await uploadOrQueueFile({
     bucket: CARTE_BUCKET,
     path,

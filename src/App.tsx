@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,50 +6,49 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import ForcePasswordChange from "./pages/ForcePasswordChange";
-import Dashboard from "./pages/Dashboard";
-import Clients from "./pages/Clients";
-import ValidationDossiers from "./pages/ValidationDossiers";
-import ClientDetail from "./pages/ClientDetail";
-import Plantations from "./pages/Plantations";
-import PlantationDetail from "./pages/PlantationDetail";
-import GestionPaiements from "./pages/GestionPaiements";
-import Finance from "./pages/Finance";
-import Commissions from "./pages/Commissions";
-import Portefeuilles from "./pages/Portefeuilles";
-import NouvelleAcquisition from "./pages/NouvelleAcquisition";
-import PrestationsIndependantes from "./pages/PrestationsIndependantes";
-import Parametres from "./pages/Parametres";
-import Profil from "./pages/Profil";
-import HistoriqueComplet from "./pages/HistoriqueComplet";
-import AccountRequest from "./pages/AccountRequest";
-import Tickets from "./pages/Tickets";
-import ProprietairesTerres from "./pages/ProprietairesTerres";
-import ProprietaireTerreDetail from "./pages/ProprietaireTerreDetail";
-import Parcelles from "./pages/Parcelles";
-import Documents from "./pages/Documents";
-import Leads from "./pages/Leads";
-import RelancesLeadsProspects from "./pages/RelancesLeadsProspects";
-import SyncQueue from "./pages/SyncQueue";
-import PublicLead from "./pages/PublicLead";
-import VerificationCarte from "./pages/VerificationCarte";
-import BeneficiaireParticulier from "./pages/BeneficiaireParticulier";
-import TechnicienTerrain from "./pages/TechnicienTerrain";
-import Messagerie from "./pages/Messagerie";
-import AgriCapitalConnect from "./pages/AgriCapitalConnect";
-import AgriCapitalIntelligence from "./pages/AgriCapitalIntelligence";
-import ExternalMeetingGuest from "./pages/ExternalMeetingGuest";
-
-import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
+const Index = lazy(() => import("./pages/Index"));
+const Login = lazy(() => import("./pages/Login"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const ForcePasswordChange = lazy(() => import("./pages/ForcePasswordChange"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Clients = lazy(() => import("./pages/Clients"));
+const ValidationDossiers = lazy(() => import("./pages/ValidationDossiers"));
+const ClientDetail = lazy(() => import("./pages/ClientDetail"));
+const Plantations = lazy(() => import("./pages/Plantations"));
+const PlantationDetail = lazy(() => import("./pages/PlantationDetail"));
+const GestionPaiements = lazy(() => import("./pages/GestionPaiements"));
+const Finance = lazy(() => import("./pages/Finance"));
+const Commissions = lazy(() => import("./pages/Commissions"));
+const Portefeuilles = lazy(() => import("./pages/Portefeuilles"));
+const NouvelleAcquisition = lazy(() => import("./pages/NouvelleAcquisition"));
+const PrestationsIndependantes = lazy(() => import("./pages/PrestationsIndependantes"));
+const Parametres = lazy(() => import("./pages/Parametres"));
+const Profil = lazy(() => import("./pages/Profil"));
+const HistoriqueComplet = lazy(() => import("./pages/HistoriqueComplet"));
+const AccountRequest = lazy(() => import("./pages/AccountRequest"));
+const Tickets = lazy(() => import("./pages/Tickets"));
+const ProprietairesTerres = lazy(() => import("./pages/ProprietairesTerres"));
+const ProprietaireTerreDetail = lazy(() => import("./pages/ProprietaireTerreDetail"));
+const Parcelles = lazy(() => import("./pages/Parcelles"));
+const Documents = lazy(() => import("./pages/Documents"));
+const Leads = lazy(() => import("./pages/Leads"));
+const RelancesLeadsProspects = lazy(() => import("./pages/RelancesLeadsProspects"));
+const SyncQueue = lazy(() => import("./pages/SyncQueue"));
+const PublicLead = lazy(() => import("./pages/PublicLead"));
+const VerificationCarte = lazy(() => import("./pages/VerificationCarte"));
+const BeneficiaireParticulier = lazy(() => import("./pages/BeneficiaireParticulier"));
+const TechnicienTerrain = lazy(() => import("./pages/TechnicienTerrain"));
+const Messagerie = lazy(() => import("./pages/Messagerie"));
+const AgriCapitalConnect = lazy(() => import("./pages/AgriCapitalConnect"));
+const AgriCapitalIntelligence = lazy(() => import("./pages/AgriCapitalIntelligence"));
+const ExternalMeetingGuest = lazy(() => import("./pages/ExternalMeetingGuest"));
 
+const NotFound = lazy(() => import("./pages/NotFound"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -70,7 +70,8 @@ const LegacyAcquisitionFallback = () => {
 
 const DomainRouter = () => {
   return (
-    <Routes>
+    <Suspense fallback={null}>
+      <Routes>
       {/* Page d'accueil = Login */}
       <Route path="/" element={<Index />} />
       <Route path="/login" element={<Login />} />
@@ -147,7 +148,8 @@ const DomainRouter = () => {
 
       {/* 404 */}
       <Route path="*" element={<LegacyAcquisitionFallback />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 };
 

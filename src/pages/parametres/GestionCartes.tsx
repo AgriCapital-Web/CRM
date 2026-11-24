@@ -297,7 +297,7 @@ const GestionCartes = () => {
             <p className="py-8 text-center text-sm text-muted-foreground">Chargement…</p>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table searchable={false}>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Agent</TableHead>

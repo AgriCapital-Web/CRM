@@ -136,7 +136,6 @@ export default function Finance(){
   useEffect(() => () => { if (expenseProofPreview) URL.revokeObjectURL(expenseProofPreview); }, [expenseProofPreview]);
   const [expenseFormMode,setExpenseFormMode]=useState<"new"|"view"|"edit"|null>(null);
   const [selectedExpense,setSelectedExpense]=useState<any|null>(null);
-  const [expenseSearch,setExpenseSearch]=useState("");
   const [plannedExpense,setPlannedExpense]=useState({category:"PRESTATIONS",amount:"",description:"",beneficiary:"",beneficiaryPhone:"",profileId:"",isInternalUser:false,expenseDate:new Date().toISOString().slice(0,10),dueDate:"",direct:false,reference:"",referenceAsFile:false});
   const [plannedProof,setPlannedProof]=useState<File[]>([]);
   const [plannedExpenseEditId,setPlannedExpenseEditId]=useState<string|null>(null);
@@ -262,13 +261,13 @@ export default function Finance(){
   const filteredOutgoingTransactions=useMemo(()=>outgoingTransactions.filter((t:any)=>{
     const expenseRow=expenses.find((e:any)=>e.transaction_id===t.id||e.finance_expense_payments?.some((p:any)=>p.transaction_id===t.id));
     const profileName=profiles.find((p:any)=>p.id===(expenseRow?.profile_id||t.profile_id))?.nom_complet;
-    const query=expenseSearch.trim();
+    const query=tableSearch.trim();
     return !query||[
       t.label,t.category,t.reference,t.status,t.payment_method,
       expenseRow?.expense_category,expenseRow?.description,expenseRow?.beneficiary_name,
       expenseRow?.supplier_name,expenseRow?.proof_name,profileName
     ].some((value:any)=>matchesAccentInsensitive(value,query));
-  }),[outgoingTransactions,expenses,profiles,expenseSearch]);
+  }),[outgoingTransactions,expenses,profiles,tableSearch]);
 
   const saveEntry=async()=>{
     if(entryEditId&&!isPdg){toast({title:"Action réservée au PDG",variant:"destructive"});return;}
@@ -711,7 +710,7 @@ export default function Finance(){
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>Journal financier</CardTitle>
-              <TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une écriture…" />
+              <TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une écriture ou une sortie…" />
             </div>
           </CardHeader>
           <CardContent>
@@ -785,7 +784,7 @@ export default function Finance(){
           </CardContent>
         </Card></DialogContent></Dialog>}
         <Card>
-          <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Sorties enregistrées</CardTitle><TableSearchInput value={expenseSearch} onChange={setExpenseSearch} placeholder="Rechercher une sortie…"/></div></CardHeader>
+          <CardHeader><CardTitle>Sorties enregistrées</CardTitle></CardHeader>
           <CardContent><div className="w-full overflow-x-auto"><table className="w-full min-w-[760px] text-sm">
             <thead><tr className="border-b text-left"><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Catégorie / libellé</th><th className="px-2 py-1.5">Bénéficiaire</th><th className="px-2 py-1.5 text-right">Montant sorti</th><th className="px-2 py-1.5">Statut</th><th className="px-2 py-1.5">Justificatif</th>{isPdg&&<th className="px-2 py-1.5 text-right">Actions</th>}</tr></thead>
             <tbody>{filteredOutgoingTransactions.map((t:any)=>{

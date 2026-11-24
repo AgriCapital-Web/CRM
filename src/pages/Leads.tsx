@@ -676,7 +676,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
         <Card>
           <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Suivi des leads et prospects</CardTitle><div className="flex flex-col gap-2 sm:flex-row sm:items-center"><div className="flex shrink-0 flex-nowrap items-center gap-4 whitespace-nowrap rounded-md border px-3 py-2 text-sm"><label className="flex items-center gap-2 cursor-pointer"><Checkbox checked={showLeads} onCheckedChange={(checked) => setShowLeads(checked === true)} />Lead</label><label className="flex items-center gap-2 cursor-pointer"><Checkbox checked={showProspects} onCheckedChange={(checked) => setShowProspects(checked === true)} />Prospect</label></div><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un lead ou prospect…" /></div></div></CardHeader>
           <CardContent>
-            <Table className="responsive-data-table">
+            <Table searchable={false} paginate={false} className="responsive-data-table">
               <TableHeader><TableRow>
                 <TableHead className="px-2 py-2">Nom</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Contact</TableHead>
                 <TableHead className="px-2 py-2">Région</TableHead><TableHead className="px-2 py-2">Statut</TableHead><TableHead className="whitespace-nowrap px-2 py-2">Relance</TableHead>

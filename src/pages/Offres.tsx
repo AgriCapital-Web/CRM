@@ -971,7 +971,7 @@ const Offres = () => {
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               ) : promotions && filteredPromotions.length > 0 ? (
-                <div className="overflow-x-auto"><Table className="min-w-[760px]">
+                <div className="overflow-x-auto"><Table searchable={false} paginate={false} className="min-w-[760px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nom</TableHead>

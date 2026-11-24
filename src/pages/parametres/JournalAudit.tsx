@@ -121,7 +121,7 @@ export default function JournalAudit() {
           </div>
 
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table searchable={false}>
               <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Utilisateur</TableHead><TableHead>Action</TableHead><TableHead>Table</TableHead><TableHead>Fiche concernée</TableHead><TableHead /></TableRow></TableHeader>
               <TableBody>
                 {visibles.map((log) => (

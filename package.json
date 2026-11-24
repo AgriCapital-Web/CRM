@@ -94,7 +94,7 @@
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react-swc": "^3.11.0",
+    "@vitejs/plugin-react-swc": "^4.3.3",
     "@vitest/ui": "^4.1.5",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.3",
@@ -123,5 +123,10 @@
     "exceljs": {
       "uuid": "^11.1.1"
     }
+  },
+  "allowScripts": {
+    "@swc/core@1.16.22": true,
+    "esbuild@0.25.12": true,
+    "core-js@3.51.0": false
   }
 }

@@ -3,9 +3,11 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SyncStatusBadge, OnlineBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { matchesAccentInsensitive } from "@/lib/utils";
 import { getAllItems, getHttpMutationStats, getPendingHttpMutations, getSyncQueueStats, retrySyncOperation, retryAllSyncOperations, retryHttpMutation, retryAllHttpMutations, deleteHttpMutation, STORES } from "@/lib/offlineDb";
 import {
   getAllQueuedFiles, retryQueuedFile, retryAllQueuedFiles, discardQueuedFile,
@@ -21,6 +23,7 @@ export function SyncQueueContent() {
   const [httpStats, setHttpStats] = useState({ pending: 0, error: 0, total: 0 });
   const [syncStats, setSyncStats] = useState({ pending: 0, error: 0, total: 0 });
   const [httpMutations, setHttpMutations] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const load = useCallback(async () => {
     const queue = await getAllItems(STORES.SYNC_QUEUE);
     setOps((queue as any[]).filter((o) => o.status !== "synced"));
@@ -44,6 +47,11 @@ export function SyncQueueContent() {
       clearInterval(t);
     };
   }, [load]);
+
+  const query = search.trim().toLocaleLowerCase("fr-FR");
+  const visibleHttpMutations = httpMutations.filter((item) => !query || matchesAccentInsensitive(JSON.stringify(item), search));
+  const visibleOps = ops.filter((item) => !query || JSON.stringify(item).toLocaleLowerCase("fr-FR").includes(query));
+  const visibleFiles = files.filter((item) => !query || JSON.stringify(item).toLocaleLowerCase("fr-FR").includes(query));
 
   const stateOf = (status: string): SyncState =>
     status === "error" ? "error" : status === "syncing" || status === "uploading" ? "syncing" : "queued";
@@ -99,14 +107,16 @@ export function SyncQueueContent() {
         ))}
       </div>
 
+      <div className="max-w-xl"><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher une requête, une opération ou un fichier…" /></div>
+
       <Card className="min-w-0 overflow-hidden">
         <CardHeader className="pb-2"><CardTitle className="text-base">Requêtes réseau en attente</CardTitle></CardHeader>
         <CardContent className="min-w-0">
-          {httpMutations.length === 0 ? <p className="text-sm text-muted-foreground">Aucune requête réseau en attente.</p> : (
+          {httpMutations.length === 0 ? <p className="text-sm text-muted-foreground">Aucune requête réseau en attente.</p> : visibleHttpMutations.length === 0 ? <p className="text-sm text-muted-foreground">Aucun résultat.</p> : (
             <div className="w-full overflow-x-auto">
-              <Table className="responsive-data-table">
+              <Table searchable={false} className="responsive-data-table">
                 <TableHeader><TableRow><TableHead>Méthode</TableHead><TableHead>Endpoint</TableHead><TableHead>État</TableHead><TableHead>En file depuis</TableHead><TableHead>Erreur</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                <TableBody>{httpMutations.map((m: any) => {
+                <TableBody>{visibleHttpMutations.map((m: any) => {
                   let endpoint = m.url || "—"; try { endpoint = new URL(m.url).pathname; } catch { /* URL invalide */ }
                   return <TableRow key={m.id}>
                     <TableCell><span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">{m.method}</span></TableCell>
@@ -131,9 +141,9 @@ export function SyncQueueContent() {
         <CardContent className="min-w-0">
           {ops.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucune opération en attente.</p>
-          ) : (
+          ) : visibleOps.length === 0 ? <p className="text-sm text-muted-foreground">Aucun résultat.</p> : (
             <div className="w-full overflow-x-auto">
-              <Table className="min-w-[720px]">
+              <Table searchable={false} className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Table</TableHead>
@@ -144,7 +154,7 @@ export function SyncQueueContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ops.map((op) => (
+                  {visibleOps.map((op) => (
                     <TableRow key={op.id}>
                       <TableCell>{op.table}</TableCell>
                       <TableCell>{op.operation}</TableCell>
@@ -171,9 +181,9 @@ export function SyncQueueContent() {
         <CardContent className="min-w-0">
           {files.length === 0 ? (
             <p className="text-sm text-muted-foreground">Aucun fichier en attente.</p>
-          ) : (
+          ) : visibleFiles.length === 0 ? <p className="text-sm text-muted-foreground">Aucun résultat.</p> : (
             <div className="w-full overflow-x-auto">
-              <Table className="min-w-[920px]">
+              <Table searchable={false} className="min-w-[920px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Bucket</TableHead>
@@ -184,7 +194,7 @@ export function SyncQueueContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {files.map((f) => (
+                  {visibleFiles.map((f) => (
                     <TableRow key={f.id}>
                       <TableCell>{f.bucket}</TableCell>
                       <TableCell className="text-xs break-all">{f.path}</TableCell>

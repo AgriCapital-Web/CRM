@@ -186,7 +186,7 @@ const Parcelles = () => {
           </div>
 
           <div className="border rounded-lg overflow-x-auto">
-            <Table className="responsive-data-table">
+            <Table searchable={false} className="responsive-data-table">
               <TableHeader><TableRow>
                 <TableHead>Parcelle</TableHead>
                 <TableHead>Propriété</TableHead>
