@@ -56,8 +56,15 @@ const Plantations = () => {
         .select(`
           *,
           clients (nom, prenoms, nom_complet, id, id_unique, is_internal, type_client, type_client_foncier, proprietaire_id),
-          parcelles (id_unique, nom, village),
-          lots_hectares (id, reference, numero_h, surface_ha, client_id, parcelle_id, parcelles (id_unique, nom, village)),
+          parcelles (
+            id_unique, nom, village,
+            proprietaires_terres (nom_complet, nom, prenoms, denomination_sociale, type_proprietaire)
+          ),
+          lots_hectares (
+            id, reference, numero_h, surface_ha, client_id, parcelle_id,
+            clients (id, id_unique, nom_complet, nom, prenoms),
+            parcelles (id_unique, nom, village)
+          ),
           regions (nom),
           departements (nom)
         `)
@@ -130,7 +137,12 @@ const Plantations = () => {
       p.id_unique?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.nom_plantation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      formatRecipientName(p.clients?.nom_complet, "client", p.clients?.nom, p.clients?.prenoms).toLowerCase().includes(searchTerm.toLowerCase())
+      formatRecipientName(
+        p.clients?.nom_complet || p.lots_hectares?.clients?.nom_complet || p.parcelles?.proprietaires_terres?.nom_complet || p.parcelles?.proprietaires_terres?.denomination_sociale,
+        "client",
+        p.clients?.nom || p.lots_hectares?.clients?.nom || p.parcelles?.proprietaires_terres?.nom,
+        p.clients?.prenoms || p.lots_hectares?.clients?.prenoms || p.parcelles?.proprietaires_terres?.prenoms
+      ).toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
 
@@ -180,19 +192,30 @@ const Plantations = () => {
     }
   };
 
-  const formatStatut = (statut: string) => statut === "active" ? "Actif" : (statut || "—").replace(/_/g, " ");
+  const normalizeStatut = (statut: string) => statut
+    .replace("en_attente_da", "en_attente_di")
+    .replace("da_valide", "di_valide");
+
+  const formatStatut = (statut: string) => {
+    const normalized = normalizeStatut(statut);
+    if (normalized === "active") return "Actif";
+    if (normalized === "en_attente_di") return "En attente de DI";
+    if (normalized === "di_valide") return "DI validée";
+    return (normalized || "—").replace(/_/g, " ");
+  };
 
   const getStatutBadge = (statut: string) => {
     const colors: Record<string, string> = {
-      en_attente_da: "bg-yellow-100 text-yellow-800",
-      da_valide: "bg-blue-100 text-blue-800",
+      en_attente_di: "bg-yellow-100 text-yellow-800",
+      di_valide: "bg-blue-100 text-blue-800",
       en_cours: "bg-purple-100 text-purple-800",
       en_production: "bg-green-100 text-green-800",
+      active: "bg-green-100 text-green-800",
       actif: "bg-green-100 text-green-800",
       suspendu: "bg-orange-100 text-orange-800",
       archive: "bg-slate-100 text-slate-800",
     };
-    return colors[statut] || "bg-gray-100 text-gray-800";
+    return colors[normalizeStatut(statut)] || "bg-gray-100 text-gray-800";
   };
 
   const productionOnly = statutFilter === "en_production";
@@ -257,10 +280,20 @@ const Plantations = () => {
                     </TableCell>
                     <TableCell className="font-medium">
                       {plantation.clients ? (
-                        <Link to={`/acquisitions/${plantation.clients.id}`} className="hover:underline" title={formatTableRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}>
+                        <Link to={"/acquisitions/" + plantation.clients.id} className="hover:underline" title={formatTableRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}>
                           <span className="block max-w-[12rem] truncate">{formatTableRecipientName(plantation.clients.nom_complet, "client", plantation.clients.nom, plantation.clients.prenoms)}</span>
                           <span className="text-[10px] text-muted-foreground">{plantation.clients.id_unique || "Dossier"}</span>
                         </Link>
+                      ) : plantation.lots_hectares?.clients ? (
+                        <span title={formatTableRecipientName(plantation.lots_hectares.clients.nom_complet, "client", plantation.lots_hectares.clients.nom, plantation.lots_hectares.clients.prenoms)}>
+                          <span className="block max-w-[12rem] truncate">{formatTableRecipientName(plantation.lots_hectares.clients.nom_complet, "client", plantation.lots_hectares.clients.nom, plantation.lots_hectares.clients.prenoms)}</span>
+                          <span className="text-[10px] text-muted-foreground">{plantation.lots_hectares.clients.id_unique || "Bénéficiaire"}</span>
+                        </span>
+                      ) : plantation.parcelles?.proprietaires_terres ? (
+                        <span title={formatTableRecipientName(plantation.parcelles.proprietaires_terres.nom_complet || plantation.parcelles.proprietaires_terres.denomination_sociale, "client", plantation.parcelles.proprietaires_terres.nom, plantation.parcelles.proprietaires_terres.prenoms)}>
+                          <span className="block max-w-[12rem] truncate">{formatTableRecipientName(plantation.parcelles.proprietaires_terres.nom_complet || plantation.parcelles.proprietaires_terres.denomination_sociale, "client", plantation.parcelles.proprietaires_terres.nom, plantation.parcelles.proprietaires_terres.prenoms)}</span>
+                          <span className="text-[10px] text-muted-foreground">Propriétaire foncier</span>
+                        </span>
                       ) : "—"}
                     </TableCell>
                     <TableCell title={plantation.parcelles?.nom || plantation.parcelles?.id_unique || plantation.lots_hectares?.parcelles?.nom || ""}>
