@@ -320,7 +320,7 @@ const Equipes = () => {
 
   const EquipeTable = () => (
     <div className="border rounded-lg overflow-x-auto">
-      <Table className="responsive-data-table">
+      <Table searchable={false} paginate={false} className="responsive-data-table">
         <TableHeader>
           <TableRow>
             <TableHead>Logo</TableHead>
