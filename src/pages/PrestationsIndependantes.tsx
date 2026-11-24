@@ -1,5 +1,6 @@
 import { useCallback,useEffect,useMemo,useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
+import { matchesAccentInsensitive } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
