@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Regrouper les fusions effectuées dans `main) afin de ne produire qu'un seul déploiement de production par jour, au lieu de lancer un déploiement à chaque fusion.
+Regrouper les fusions effectuées dans `main` afin de ne produire qu'un seul déploiement de production par jour, au lieu de lancer un déploiement à chaque fusion.
 
 ## Fonctionnement attendu
 
