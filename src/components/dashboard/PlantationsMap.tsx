@@ -1,10 +1,9 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Loader2 } from "lucide-react";
 import { formatRecipientName } from "@/lib/utils";
-
-const InteractiveMap = lazy(() => import("@/components/maps/InteractiveMap"));
+import InteractiveMap from "@/components/maps/InteractiveMap";
 
 interface PlantationMarkerMember {
   id: string;
@@ -215,15 +214,9 @@ export const PlantationsMap = () => {
             <p className="text-center text-sm text-muted-foreground">Aucune localisation GPS disponible</p>
           </div>
         ) : (
-          <Suspense fallback={
-            <div className={`${mapFallback} flex items-center justify-center rounded-lg bg-muted/50`}>
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-            </div>
-          }>
-            <div className={`h-[220px] sm:h-[400px] w-full overflow-hidden rounded-lg`}>
+          <div className="h-[220px] w-full overflow-hidden rounded-lg sm:h-[400px]">
               <InteractiveMap mode="view" markers={markers} height="100%" className="h-full w-full rounded-lg" />
             </div>
-          </Suspense>
         )}
         {sourceLocations.length > 0 && (
           <div className="mt-3 space-y-2 rounded-lg border bg-muted/20 p-3">
