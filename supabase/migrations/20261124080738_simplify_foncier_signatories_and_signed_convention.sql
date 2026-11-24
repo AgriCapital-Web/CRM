@@ -14,6 +14,9 @@ create table if not exists private.proprietaires_terres_signataires_archive (
 revoke all on table private.proprietaires_terres_signataires_archive
   from public, anon, authenticated;
 
+grant usage on schema private to service_role;
+grant select on table private.proprietaires_terres_signataires_archive to service_role;
+
 insert into private.proprietaires_terres_signataires_archive (proprietaire_id, donnees)
 select
   id,
