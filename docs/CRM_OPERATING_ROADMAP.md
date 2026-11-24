@@ -573,3 +573,13 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Déploiement Vercel de production : `dpl_HLXL4MX4EFwpxKtERy5AZs2i7j13`, état `READY`, alias `https://app.agricapital.ci` ; déploiement rattaché au commit applicatif ci-dessus.
 - Build Vite terminé sans erreur (3 975 modules transformés). Les avertissements relevés concernent la taille d'un bundle et 9 vulnérabilités modérées déjà signalées par npm audit ; ils n'ont pas bloqué le déploiement.
 - Contrôle des erreurs d'exécution après déploiement : aucune erreur runtime relevée sur la fenêtre contrôlée.
+
+
+## Harmonisation des recherches et assainissement du build — 24 novembre 2026
+
+- Règle d'interface : un seul champ de recherche multi-critères visible par page, y compris dans les onglets de Paramètres. Lorsque la page possède déjà une recherche métier, la recherche automatique du composant Table est désactivée pour éviter le doublon.
+- Portefeuilles : une seule recherche commune couvre les portefeuilles, les versements et les commissions du détail ; les champs répétés dans les cartes et la fenêtre de détail sont supprimés.
+- Build : migration de la configuration Vite vers les API ESM, retrait du minifier esbuild déprécié, mise à niveau de `@vitejs/plugin-react-swc` vers 4.3.3, autorisations npm limitées aux scripts nécessaires (`@swc/core`, `esbuild`) et refus explicite du script postinstall informatif de `core-js`.
+- Build : chargement différé des pages et des onglets de Paramètres pour réduire le bundle initial ; suppression des imports dynamiques inefficaces identifiés dans les journaux Vercel.
+- Installation Vercel : passage à `npm ci` et retrait de la variable obsolète `npm_config_cache_dir` avant l'installation.
+- État : corrections en cours sur la branche `fix/unified-search-build-cleanup`. Les contrôles TypeScript, tests, lint, audit npm, build et déploiement de production restent à exécuter avant clôture.
