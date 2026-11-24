@@ -937,7 +937,7 @@ const ProprietairesTerres = () => {
 
                     <TabsContent value="documents" className="space-y-4">
                       <h4 className="font-semibold">Documents d'identité et convention</h4>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <FileUploadVisual label="Photo de profil" field="photo_profil" accept="image/*" currentFile={files.photo_profil||null} existingPreview={formData.photo_profil_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,photo_profil:f}))}/>
                         <FileUploadVisual label="CNI / Pièce (Recto)" field="cni_recto" accept="image/*,.pdf" currentFile={files.cni_recto||null} existingPreview={formData.fichier_piece_recto_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,cni_recto:f}))} onIdentityNumberDetected={n=>update("numero_piece",n)} identityDocumentType={formData.type_piece}/>
                         <FileUploadVisual label="CNI / Pièce (Verso)" field="cni_verso" accept="image/*,.pdf" currentFile={files.cni_verso||null} existingPreview={formData.fichier_piece_verso_url || ""} onFileChange={(_,f)=>setFiles(x=>({...x,cni_verso:f}))}/>
@@ -1068,16 +1068,23 @@ const ProprietairesTerres = () => {
                         {p.type_proprietaire === 'personne_morale' ? 'Morale' : p.type_proprietaire === 'famille_groupement' ? 'Famille' : 'Physique'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-medium whitespace-nowrap"><Link to={`/proprietaires-terres/${p.id}`} className="whitespace-nowrap hover:underline">{displayOwnerTableName(p)}</Link></TableCell>
+                    <TableCell className="font-medium whitespace-nowrap" onClick={(event) => event.stopPropagation()}><Link to={`/proprietaires-terres/${p.id}`} className="whitespace-nowrap hover:underline">{displayOwnerTableName(p)}</Link></TableCell>
                     <TableCell onClick={(event) => event.stopPropagation()}><ContactLauncher phone={p.telephone} whatsapp={p.whatsapp} email={p.email} name={displayOwnerTableName(p)} kind="proprietaire" status={p.statut || ""}/></TableCell>
                     <TableCell className="text-xs">{[p.districts?.nom, p.regions?.nom, p.departements?.nom].filter(Boolean).join(" > ") || "-"}</TableCell>
                     <TableCell>{p.parcelles?.[0]?.count ?? 0}</TableCell>
                     <TableCell>{Number(p.surface_totale_ha || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}</TableCell>
                     <TableCell><Badge className={p.statut === "actif" ? "bg-green-500" : "bg-red-500"}>{p.statut}</Badge></TableCell>
-                    <TableCell>
-                      <Link to={`/proprietaires-terres/${p.id}`} aria-label={`Ouvrir la fiche et la validation de ${displayOwnerTableName(p)}`}>
-                        <Badge variant={p.validation_statut === "valide" ? "default" : p.validation_statut === "refuse" ? "destructive" : "outline"}>{p.validation_statut === "valide" ? "Validé" : p.validation_statut === "refuse" ? "Refusé" : "À valider"}</Badge>
-                      </Link>
+                    <TableCell onClick={(event) => event.stopPropagation()}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link to={`/proprietaires-terres/${p.id}`} aria-label={`Ouvrir la fiche et la validation de ${displayOwnerTableName(p)}`}>
+                          <Badge variant={p.validation_statut === "valide" ? "default" : p.validation_statut === "refuse" ? "destructive" : "outline"}>{p.validation_statut === "valide" ? "Validé" : p.validation_statut === "refuse" ? "Refusé" : "À valider"}</Badge>
+                        </Link>
+                        {p.validation_statut === "a_valider" && canValidateOwners && (
+                          <Button type="button" size="sm" variant="outline" onClick={() => navigate(`/proprietaires-terres/${p.id}`)}>
+                            Valider
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
