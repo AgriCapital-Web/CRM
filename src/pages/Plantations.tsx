@@ -243,7 +243,7 @@ const Plantations = () => {
           </div>
 
           <div className="border rounded-lg overflow-x-auto">
-            <Table className="responsive-data-table">
+            <Table searchable={false} paginate={false} className="responsive-data-table">
               <TableHeader><TableRow>
                 <TableHead>Plantation</TableHead><TableHead>Client / dossier</TableHead><TableHead>Parcelle</TableHead><TableHead>Lot</TableHead><TableHead>Superficie</TableHead><TableHead>Région</TableHead><TableHead>Statut</TableHead><TableHead>Actions</TableHead>
               </TableRow></TableHeader>
