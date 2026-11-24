@@ -42,6 +42,7 @@ async function fetchAllRows<T=any>(makeQuery:()=>any,pageSize=1000):Promise<T[]>
 }
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
+const searchKey=(value:any)=>String(value??"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLocaleLowerCase("fr");
 
 export default function Portefeuilles(){
   const { can }=usePermissions();
@@ -110,12 +111,13 @@ export default function Portefeuilles(){
 
   const filtered=useMemo(()=>portefeuilles.filter((p:any)=>{
     if(!visibleProfiles.some((x:any)=>x.id===p.profile_id||x.user_id===p.user_id))return false;
-    const q=search.trim().toLowerCase();
-    return !q||p.user?.nom_complet?.toLowerCase().includes(q);
+    const q=searchKey(search);
+    const haystack=searchKey([p.user?.nom_complet,p.user?.email,p.user?.poste,(p.user?.roles||[]).join(" "),p.solde_commissions,p.total_gagne,p.total_verse].join(" "));
+    return !q||haystack.includes(q);
   }),[portefeuilles,visibleProfiles,search]);
 
   const paginatedPortefeuilles=filtered.slice((portfolioPage-1)*pageSize,portfolioPage*pageSize);
-  const filteredVersements=useMemo(()=>versements.filter((v:any)=>visibleProfiles.some((p:any)=>p.id===v.profile_id) && JSON.stringify(v).toLowerCase().includes(search.trim().toLowerCase())),[versements,visibleProfiles,search]);
+  const filteredVersements=useMemo(()=>{const q=searchKey(search);return versements.filter((v:any)=>{const profile=visibleProfiles.find((p:any)=>p.id===v.profile_id);const haystack=searchKey([JSON.stringify(v),profile?.nom_complet,profile?.email,profile?.poste].join(" "));return Boolean(profile)&&(!q||haystack.includes(q));});},[versements,visibleProfiles,search]);
   const paginatedVersements=filteredVersements.slice((versementPage-1)*pageSize,versementPage*pageSize);
   useEffect(()=>{setPortfolioPage(1);setVersementPage(1);},[search,pageSize]);
 
@@ -210,6 +212,8 @@ export default function Portefeuilles(){
           <Button variant="outline" size="sm" onClick={()=>void load()}><RefreshCw className="mr-2 h-4 w-4"/>Actualiser</Button>
         </div>
 
+        <div className="max-w-xl"><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher un collaborateur, un versement ou une commission…" /></div>
+
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[["Solde total disponible",stats.solde,Wallet],["Total des commissions",stats.gagne,TrendingUp],["Total versé",stats.verse,CircleDollarSign],["Versements à traiter",stats.pending,CalendarClock]].map(([label,value,Icon]:any)=>
             <Card key={label as string}><CardContent className="p-4"><div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">{label}</span><Icon className="h-4 w-4 text-primary"/></div><div className="mt-2 text-xl font-bold">{money(value)}</div></CardContent></Card>
@@ -231,10 +235,10 @@ export default function Portefeuilles(){
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Portefeuilles</CardTitle><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher un portefeuille…" /></CardHeader>
+          <CardHeader><CardTitle className="text-base">Portefeuilles</CardTitle></CardHeader>
           <CardContent className="p-0">
             <div className="max-h-[calc(100vh-18rem)] overflow-auto">
-              <Table className="responsive-data-table min-w-[700px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow><TableHead>Collaborateur</TableHead><TableHead>Rôle</TableHead><TableHead>Solde</TableHead><TableHead>Total gagné</TableHead><TableHead>Total versé</TableHead></TableRow></TableHeader>
+              <Table searchable={false} paginate={false} className="responsive-data-table min-w-[700px]"><TableHeader className="sticky top-0 z-10 bg-background"><TableRow><TableHead>Collaborateur</TableHead><TableHead>Rôle</TableHead><TableHead>Solde</TableHead><TableHead>Total gagné</TableHead><TableHead>Total versé</TableHead></TableRow></TableHeader>
               <TableBody>
                 {loading?<TableRow><TableCell colSpan={5} className="py-8 text-center">Chargement…</TableCell></TableRow>:filtered.length===0?<TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Aucun portefeuille.</TableCell></TableRow>:paginatedPortefeuilles.map((p:any)=><TableRow key={p.id} className="cursor-pointer hover:bg-muted/40" onClick={()=>setSelected(p)}>
                   <TableCell className="font-medium">{formatTablePersonName(p.user?.nom_complet||"—")}</TableCell>
@@ -250,8 +254,8 @@ export default function Portefeuilles(){
         </Card>
 
         {canManage&&<Card>
-          <CardHeader><CardTitle className="text-base">Versements</CardTitle><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher un versement…" /></CardHeader>
-          <CardContent className="p-0"><div className="overflow-x-auto"><Table className="responsive-data-table min-w-[720px]"><TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Période</TableHead><TableHead>Montant total</TableHead><TableHead>Payé</TableHead><TableHead>Restant</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+          <CardHeader><CardTitle className="text-base">Versements</CardTitle></CardHeader>
+          <CardContent className="p-0"><div className="overflow-x-auto"><Table searchable={false} paginate={false} className="responsive-data-table min-w-[720px]"><TableHeader><TableRow><TableHead>Collaborateur</TableHead><TableHead>Période</TableHead><TableHead>Montant total</TableHead><TableHead>Payé</TableHead><TableHead>Restant</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
             <TableBody>{paginatedVersements.map((v:any)=>{
               const p=profiles.find((x:any)=>x.id===v.profile_id);
               return <TableRow key={v.id}><TableCell>{formatTablePersonName(p?.nom_complet||"—")}</TableCell><TableCell>{format(new Date(v.periode_debut),"dd/MM/yyyy")} — {format(new Date(v.periode_fin),"dd/MM/yyyy")}</TableCell><TableCell className="font-semibold">{money(v.montant_brut)}</TableCell><TableCell>{money(v.montant_paye||0)}</TableCell><TableCell className="font-semibold">{money(Math.max(0,Number(v.montant_brut||0)-Number(v.montant_paye||0)))}</TableCell><TableCell><Badge>{v.statut==="partiellement_paye"?"Partiellement payé":v.statut==="paye"?"Payé":v.statut==="valide"?"À payer":v.statut==="brouillon"?"À valider":v.statut}</Badge></TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label={`Actions pour le versement de ${formatTablePersonName(p?.nom_complet||"ce collaborateur")}`}><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={()=>{const wallet=portefeuilles.find((x:any)=>x.profile_id===v.profile_id);if(wallet)setSelected(wallet);else toast({title:"Détail indisponible",description:"Le portefeuille de cet utilisateur n’est pas accessible.",variant:"destructive"});}}>Voir le portefeuille</DropdownMenuItem>{v.statut==="brouillon"&&<DropdownMenuItem disabled={saving} onSelect={()=>void validatePayout(v)}>Valider</DropdownMenuItem>}{["valide","partiellement_paye"].includes(v.statut)&&<DropdownMenuItem disabled={saving} onSelect={()=>void markPaid(v)}>Payer</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu></TableCell></TableRow>
@@ -269,10 +273,10 @@ export default function Portefeuilles(){
                 <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Commission</p><p className="font-semibold">{money(detailRows.reduce((s:number,c:any)=>s+Number(c.montant_commission||0),0))}</p></CardContent></Card>
                 <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Clients</p><p className="font-semibold">{new Set(detailRows.map((c:any)=>c.client_id).filter(Boolean)).size}</p></CardContent></Card>
               </div>
-              <div className="mb-3"><TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher une commission…" /></div>
+              
               <div className="overflow-x-auto">
-                <Table className="responsive-data-table min-w-[1000px]"><TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Type</TableHead><TableHead>Paiement</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-                <TableBody>{detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).map((c:any)=><TableRow key={c.id}>
+                <Table searchable={false} className="responsive-data-table min-w-[1000px]"><TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Type</TableHead><TableHead>Paiement</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                <TableBody>{detailRows.filter((c:any)=>searchKey(JSON.stringify(c)).includes(searchKey(search))).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).map((c:any)=><TableRow key={c.id}>
                   <TableCell>{formatTablePersonName(c.client?.nom_complet||"—")}<span className="block text-xs text-muted-foreground">{c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
                   <TableCell>{c.client?.famille_offre||"—"}{c.client?.formule_nom?` · ${c.client.formule_nom}`:""}</TableCell>
                   <TableCell><Badge variant="outline">{c.type_commission==="acquisition"?"Vente commerciale":c.type_commission==="recouvrement_mensuel"?"Recouvrement mensuel":c.type_commission==="technique"?"Commission technique":c.type_commission==="mobilisation_fonciere"?"Mobilisation foncière":c.type_commission||"—"}</Badge></TableCell>
