@@ -83,7 +83,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
   useEffect(() => {
     const updateHourHeight = () => {
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      setHourPx(Math.max(12, Math.min(32, (viewportHeight - 260) / 24)));
+      setHourPx(Math.max(12, Math.min(32, (viewportHeight - 280) / 24)));
     };
     updateHourHeight();
     window.addEventListener("resize", updateHourHeight);
@@ -331,7 +331,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
                 onClick={() => { const at = new Date(d); at.setHours(h, 0, 0, 0); openCreate("event", at); }} />)}
               {timed.map((it, idx) => {
                 const s = Math.max(new Date(it.starts_at).getTime(), dayStart), e = Math.min(new Date(it.ends_at).getTime(), dayStart + 86400000);
-                const top = (s - dayStart) / 3600000 * hourPx, height = Math.max(20, (e - s) / 3600000 * hourPx - 2);
+                const top = (s - dayStart) / 3600000 * hourPx, height = Math.max(16, (e - s) / 3600000 * hourPx - 2);
                 const overlaps = timed.filter(o => new Date(o.starts_at) < new Date(it.ends_at) && new Date(o.ends_at) > new Date(it.starts_at));
                 const col = overlaps.indexOf(it), cols = overlaps.length;
                 return <button key={it.id + idx} type="button" onClick={() => setSelected(it)}
