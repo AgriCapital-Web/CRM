@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SyncStatusBadge, OnlineBadge, type SyncState } from "@/components/offline/SyncStatusBadge";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { matchesAccentInsensitive } from "@/lib/utils";
 import { getAllItems, getHttpMutationStats, getPendingHttpMutations, getSyncQueueStats, retrySyncOperation, retryAllSyncOperations, retryHttpMutation, retryAllHttpMutations, deleteHttpMutation, STORES } from "@/lib/offlineDb";
 import {
   getAllQueuedFiles, retryQueuedFile, retryAllQueuedFiles, discardQueuedFile,
@@ -48,7 +49,7 @@ export function SyncQueueContent() {
   }, [load]);
 
   const query = search.trim().toLocaleLowerCase("fr-FR");
-  const visibleHttpMutations = httpMutations.filter((item) => !query || JSON.stringify(item).toLocaleLowerCase("fr-FR").includes(query));
+  const visibleHttpMutations = httpMutations.filter((item) => !query || matchesAccentInsensitive(JSON.stringify(item), search));
   const visibleOps = ops.filter((item) => !query || JSON.stringify(item).toLocaleLowerCase("fr-FR").includes(query));
   const visibleFiles = files.filter((item) => !query || JSON.stringify(item).toLocaleLowerCase("fr-FR").includes(query));
 
