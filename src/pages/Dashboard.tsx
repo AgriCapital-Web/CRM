@@ -145,8 +145,7 @@ const Dashboard = () => {
 
   const [recentClients, setRecentClients] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
-  const [recentClientsQuery, setRecentClientsQuery] = useState("");
-  const [recentPaymentsQuery, setRecentPaymentsQuery] = useState("");
+  const [recentSearch, setRecentSearch] = useState("");
   const filteredRecentClients = useMemo(() => {
     const q=recentClientsQuery.trim().toLowerCase();
     return q ? recentClients.filter((item:any)=>[formatStructuredPersonName(item.nom,item.prenoms),item.nom_complet,item.id_unique,item.telephone].some(v=>String(v||"").toLowerCase().includes(q))) : recentClients;
@@ -966,12 +965,12 @@ const Dashboard = () => {
               <div className="rounded-xl border border-orange-500/50 p-2.5 sm:p-3">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-extrabold uppercase tracking-wide">Clients et paiements récents</h3>
-                  <Input value={recentClientsQuery} onChange={e=>{setRecentClientsQuery(e.target.value);setRecentPaymentsQuery(e.target.value);}} placeholder="Rechercher un client ou un paiement" className="h-9 w-full sm:max-w-xs"/>
+                  <Input value={recentSearch} onChange={e=>setRecentSearch(e.target.value)} placeholder="Rechercher un client, un paiement, un identifiant ou une référence…" className="h-9 w-full sm:max-w-xs"/>
                 </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {canClients && recentClients.length > 0 && (
                   <Card>
-                    <CardHeader className="px-3 py-2"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><CardTitle className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle><Input value={recentClientsQuery} onChange={e=>setRecentClientsQuery(e.target.value)} placeholder="Rechercher un client" className="h-9 w-full sm:max-w-xs"/></div></CardHeader>
+                    <CardHeader className="px-3 py-2"><CardTitle className="flex items-center gap-2 whitespace-nowrap text-sm sm:text-base"><Users className="h-4 w-4 shrink-0 text-primary" />Clients récents</CardTitle></CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
                         <Table searchable={false} exportable={false}><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="h-8 px-2 py-1.5">Nom</TableHead><TableHead className="h-8 px-2 py-1.5">Plantations</TableHead><TableHead className="h-8 px-2 py-1.5">Statut</TableHead></TableRow></TableHeader>
