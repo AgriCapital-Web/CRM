@@ -42,7 +42,7 @@ async function fetchAllRows<T=any>(makeQuery:()=>any,pageSize=1000):Promise<T[]>
 }
 
 const money=(n:any)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"XOF",maximumFractionDigits:0}).format(Number(n||0));
-const searchKey=(value:any)=>String(value??"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLocaleLowerCase("fr");
+const searchKey=(value:any)=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("fr");
 
 export default function Portefeuilles(){
   const { can }=usePermissions();
@@ -276,7 +276,7 @@ export default function Portefeuilles(){
               
               <div className="overflow-x-auto">
                 <Table searchable={false} className="responsive-data-table min-w-[1000px]"><TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Type</TableHead><TableHead>Paiement</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-                <TableBody>{detailRows.filter((c:any)=>searchKey(JSON.stringify(c)).includes(searchKey(search))).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>JSON.stringify(c).toLowerCase().includes(search.trim().toLowerCase())).map((c:any)=><TableRow key={c.id}>
+                <TableBody>{detailRows.filter((c:any)=>searchKey(JSON.stringify(c)).includes(searchKey(search))).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>searchKey(JSON.stringify(c)).includes(searchKey(search))).map((c:any)=><TableRow key={c.id}>
                   <TableCell>{formatTablePersonName(c.client?.nom_complet||"—")}<span className="block text-xs text-muted-foreground">{c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
                   <TableCell>{c.client?.famille_offre||"—"}{c.client?.formule_nom?` · ${c.client.formule_nom}`:""}</TableCell>
                   <TableCell><Badge variant="outline">{c.type_commission==="acquisition"?"Vente commerciale":c.type_commission==="recouvrement_mensuel"?"Recouvrement mensuel":c.type_commission==="technique"?"Commission technique":c.type_commission==="mobilisation_fonciere"?"Mobilisation foncière":c.type_commission||"—"}</Badge></TableCell>
