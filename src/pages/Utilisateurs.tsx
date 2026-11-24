@@ -378,7 +378,7 @@ const Utilisateurs = () => {
         </CardHeader>
         <CardContent>
           <div className="w-full max-w-full overflow-x-auto">
-          <Table className="responsive-data-table">
+          <Table searchable={false} paginate={false} className="responsive-data-table">
             <TableHeader>
               <TableRow>
                 <TableHead>Nom complet</TableHead>
