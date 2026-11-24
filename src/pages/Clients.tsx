@@ -1,5 +1,5 @@
 import { sortByCrmIdentifier, compareCrmIdentifiers } from "@/lib/crmIdentifierSort";
-import { formatStructuredPersonName, formatStructuredTablePersonName, formatTablePersonName } from "@/lib/utils";
+import { formatStructuredPersonName, formatStructuredTablePersonName } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { logActivity } from "@/utils/traceability";
 import MainLayout from "@/components/layout/MainLayout";

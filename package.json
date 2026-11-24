@@ -119,9 +119,6 @@
   "author": "Inocent KOFFI",
   "description": "AgriCapital 360 — La plateforme métier intelligente d’AgriCapital.",
   "overrides": {
-    "image-size": "2.0.4",
-    "exceljs": {
-      "uuid": "^11.1.1"
-    }
+    "image-size": "2.0.4"
   }
 }

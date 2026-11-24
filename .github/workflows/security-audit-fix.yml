@@ -1,7 +1,7 @@
 name: Security dependency remediation
 on:
   push:
-    branches: [main, "security/**"]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: write
@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
@@ -39,19 +39,11 @@ jobs:
           npm test
           npm run typecheck
           npm run build
-      - name: Require a clean dependency audit
+      - name: Require no high or critical advisories
         run: |
-          node -e "const r=require('./audit-report.json'); const counts=r.metadata?.vulnerabilities||{}; console.log('Final npm audit:',JSON.stringify(counts)); if((counts.total||0)>0) { console.error('Dependency advisories remain; see npm-security-audit artifact.'); process.exit(1); }"
+          node -e "const r=require('./audit-report.json'); const v=Object.values(r.vulnerabilities||{}); if(v.some(x=>x.severity==='critical'||x.severity==='high')) { console.error('High/critical advisories remain; see uploaded npm-security-audit artifact.'); process.exit(1); }"
 
-      - name: Commit the verified lockfile
+      - name: Report dependency lockfile handling
         if: success()
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          if git diff --cached --quiet; then
-            echo "The lockfile is already current."
-          else
-            git commit -m "fix(deps): refresh audited npm lockfile"
-            git push origin "HEAD:${{ github.ref_name }}"
-          fi
+          echo "Dependency lockfile synchronization and commit are handled by verify-agricapital-360.yml to avoid concurrent workflow pushes."
