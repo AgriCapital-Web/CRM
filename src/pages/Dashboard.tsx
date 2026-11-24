@@ -133,6 +133,8 @@ const Dashboard = () => {
     portfolio: 0,
     forecastRevenue: 0,
     monthlyForecast: 0,
+    monthlyCollected: 0,
+    monthlyCollectionRate: 0,
     plantingTargetHa: 0,
     patrimoineTotalHa: 0,
     clientCredit: 0,
@@ -328,6 +330,10 @@ const Dashboard = () => {
       const validPayments = payments.filter((p: any) => p.statut === "valide" && Number(p.montant_paye ?? p.montant ?? 0) > 0);
       const commercialValidPayments = validPayments.filter((p: any) => commercialClients.some((client: any) => client.id === p.client_id));
       const collected = commercialValidPayments.reduce((s: number, p: any) => s + Number(p.montant_paye ?? p.montant ?? 0), 0);
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const monthlyCollected = commercialValidPayments
+        .filter((p: any) => String(p.date_paiement || p.created_at || "").slice(0, 7) === currentMonth)
+        .reduce((sum: number, p: any) => sum + Number(p.montant_paye ?? p.montant ?? 0), 0);
       const overdue = payments.filter((p: any) => {
         if (!commercialClients.some((client: any) => client.id === p.client_id)) return false;
         if (p.statut === "valide" || p.statut === "annule" || p.statut === "planifie") return false;
@@ -546,6 +552,8 @@ const Dashboard = () => {
         portfolio: portfolioTotal,
         forecastRevenue,
         monthlyForecast,
+        monthlyCollected,
+        monthlyCollectionRate: monthlyForecast > 0 ? Math.round((monthlyCollected / monthlyForecast) * 1000) / 10 : 0,
         plantingTargetHa,
         patrimoineTotalHa: plantedHa,
         clientCredit,
@@ -772,8 +780,10 @@ const Dashboard = () => {
     { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canDashboardExecutiveFinance, metrics:[
       {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
       {label:"Mensualités prévues",value:money(stats.monthlyForecast),href:"/finance"},
-      {label:"Encaissé",value:money(stats.collected),href:"/finance"},
-      {label:"À encaisser",value:money(stats.dueAmount),href:"/finance"},
+      {label:"Encaissements du mois",value:money(stats.monthlyCollected),href:"/finance"},
+      {label:"Taux d'encaissement mensuel",value:num(stats.monthlyCollectionRate)+" %",href:"/finance"},
+      {label:"Encaissé total",value:money(stats.collected),href:"/finance"},
+      {label:"Reste à encaisser",value:money(stats.dueAmount),href:"/finance"},
       {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
       ...(canViewIndependentServiceProformas ? [{label:"Prestations engagées",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"}] : []),
       {label:"Échéances en retard",value:stats.overdueCount,href:"/finance"},
@@ -875,10 +885,10 @@ const Dashboard = () => {
                           ))}
                         </div>
                       ) : (
-                        <div className={k.label === "Pilotage financier" ? "grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2 md:grid-cols-4 lg:grid-cols-7" : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]"}>
+                        <div className={k.label === "Pilotage financier" ? "grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 lg:grid-cols-9" : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,92px),1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(min(100%,112px),1fr))] sm:gap-2 xl:grid-cols-[repeat(auto-fit,minmax(min(100%,124px),1fr))]"}>
                           {k.metrics.map((metric: any) => (
                             <div key={metric.label} className="flex min-h-[56px] min-w-0 flex-col justify-between rounded-lg border border-border/70 bg-card/95 p-1.5 shadow-sm sm:p-2">
-                              <span className={`min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[11px] ${k.label === "Pilotage financier" ? "whitespace-nowrap" : ""}`}>{k.label === "Pilotage financier" && metric.label === "CA prévisionnel" ? <><span className="sm:hidden">CA prév.</span><span className="hidden sm:inline">{metric.label}</span></> : metric.label}</span>
+                              <span className={`min-w-0 text-[9px] leading-tight text-muted-foreground sm:text-[11px] ${k.label === "Pilotage financier" ? "whitespace-nowrap" : ""}`}>{metric.label}</span>
                               <span className={`mt-1 block min-w-0 text-xs font-bold leading-tight tabular-nums text-foreground sm:text-base ${k.label === "Pilotage financier" ? "whitespace-nowrap text-[10px] sm:text-sm" : "break-words"}`}>{loading ? "…" : metric.value}</span>
                             </div>
                           ))}
