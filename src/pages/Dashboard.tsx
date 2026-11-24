@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { PERMISSIONS, ROLE_SHORT_LABELS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatStructuredPersonName, formatStructuredTablePersonName, formatTablePersonName } from "@/lib/utils";
+import { formatStructuredPersonName, formatStructuredTablePersonName, formatTablePersonName, matchesAccentInsensitive } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
