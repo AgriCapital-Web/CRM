@@ -583,3 +583,26 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Build : chargement différé des pages et des onglets de Paramètres pour réduire le bundle initial ; suppression des imports dynamiques inefficaces identifiés dans les journaux Vercel.
 - Installation Vercel : passage à `npm ci` et retrait de la variable obsolète `npm_config_cache_dir` avant l'installation.
 - État : corrections en cours sur la branche `fix/unified-search-build-cleanup`. Les contrôles TypeScript, tests, lint, audit npm, build et déploiement de production restent à exécuter avant clôture.
+
+
+## Audit de sécurité complémentaire et correctifs — 24 novembre 2026
+
+### Correctifs appliqués directement sur Supabase CRM
+- Migration appliquée : `20261124071737_restore_internal_user_view_rls_and_scope_finance_helper_exec`.
+- Vue `public.v_internal_users` : restauration de `security_invoker = true`. Les politiques RLS de `profiles` s'appliquent de nouveau aux requêtes sur l'annuaire interne ; la lecture reste autorisée aux utilisateurs authentifiés selon les permissions existantes, et refusée à `anon`.
+- Fonctions `public.finance_can_manage_payroll()` et `public.finance_can_manage_salary_profiles()` : retrait de l'exécution héritée de `PUBLIC` et de `anon`, maintien de l'exécution pour `authenticated`.
+- Vérification SQL après migration : `security_invoker=true` ; `authenticated` peut lire la vue ; `anon` ne peut pas lire la vue ; `anon` ne peut exécuter aucune des deux fonctions ; `authenticated` conserve leur exécution.
+- Conseiller Supabase après correction : l'alerte `security_definer_view` a disparu ; les deux fonctions financières ne figurent plus dans les fonctions SECURITY DEFINER accessibles à `anon`. Il reste une fonction anonyme `workspace_redeem_external_meeting_invite(text)`, conservée volontairement pour le parcours d'invitation externe par jeton ; elle doit rester soumise à une revue dédiée du flux d'invitation.
+
+### Alertes restant à auditer — ne pas appliquer de révocation globale
+- 121 fonctions SECURITY DEFINER restent exécutables par `authenticated`. Leur accès est nécessaire pour plusieurs RPC métier ; chaque fonction doit être relue individuellement (contrôle d'identité, permissions, périmètre de ligne, validation des paramètres) avant de modifier ses droits.
+- Six tables ont RLS activé sans policy : paramètres d'intégration AcreMap, OTP/sessions du portail de prestations et tables internes de notifications. Elles semblent volontairement fermées au rôle client ; vérifier les chemins d'accès service-role/Edge Functions avant toute ouverture.
+- La protection des mots de passe compromis Supabase Auth est désactivée ; son activation relève de la configuration Auth du projet, non d'une migration SQL.
+- Performance : quatre clés étrangères sans index couvrant ; 283 index signalés comme inutilisés (ne pas les supprimer sur ce seul signal) ; de nombreuses policies permissives multiples, notamment avec la policy globale PDG. Toute consolidation doit préserver les périmètres RBAC et être testée par rôle.
+- Aucune donnée métier client n'a été modifiée par cette migration.
+
+### Déploiement et vérifications
+- Les contrôles runtime Vercel sur les sept derniers jours n'ont retourné aucune erreur groupée. Les logs détaillés sur 24 h ne sont pas disponibles avec la rétention du plan actuel.
+- Le dernier déploiement Vercel de production confirmé est rattaché au commit `fd49f592ebd9b112f1852716e451a6b2cccf75ba`. Les corrections fusionnées ensuite dans `main` (commit `a3f68df8f416e9bb9b0d7e42cb6de4df6b3c4d94`) ne sont pas encore publiées.
+- La PR `#70` prépare une publication quotidienne groupée. Elle suspend les déploiements Git automatiques sur toutes les branches ; ne pas la fusionner avant la création du Deploy Hook Vercel sur `main` et l'enregistrement du secret GitHub `VERCEL_DEPLOY_HOOK_URL`. Les aperçus Vercel des PR seront également suspendus ; les contrôles GitHub Actions restent actifs.
+- Le workflow groupé confirme l'acceptation du hook, mais le statut final `Ready` doit être contrôlé dans Vercel. En cas d'échec de build, relancer manuellement le workflow avec l'option `force`.
