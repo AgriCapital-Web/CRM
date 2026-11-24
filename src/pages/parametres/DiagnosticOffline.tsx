@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,6 +29,7 @@ const DiagnosticOffline = () => {
   const [syncStats, setSyncStats] = useState({ pending: 0, error: 0, total: 0 });
   const [lastSyncTimes, setLastSyncTimes] = useState<Record<string, string | null>>({});
   const [pendingOps, setPendingOps] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const { isOnline, isSyncing, syncNow, pendingCount, networkQuality } = useOfflineSync();
   const [exporting, setExporting] = useState(false);
@@ -121,6 +123,13 @@ const DiagnosticOffline = () => {
     if (!iso) return "Jamais";
     return new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
+
+  const query = search.trim().toLocaleLowerCase("fr-FR");
+  const filteredStores = Object.entries(STORE_LABELS).filter(([key, label]) => {
+    const storeKey = STORES[key as keyof typeof STORES];
+    return !query || [key, label, storeKey, stats[key], lastSyncTimes[storeKey]].some((value) => String(value ?? "").toLocaleLowerCase("fr-FR").includes(query));
+  });
+  const filteredPendingOps = pendingOps.filter((op) => !query || JSON.stringify(op).toLocaleLowerCase("fr-FR").includes(query));
 
   const totalCached = Object.entries(stats)
     .filter(([k]) => !["PENDING_SYNC", "ERROR_SYNC"].includes(k))
@@ -228,6 +237,8 @@ const DiagnosticOffline = () => {
         </CardContent>
       </Card>
 
+      <div className="max-w-xl"><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher une table, une opération, un statut ou une erreur…" /></div>
+
       {/* Cache Details */}
       <Card>
         <CardHeader>
@@ -235,7 +246,7 @@ const DiagnosticOffline = () => {
           
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table searchable={false}>
             <TableHeader>
               <TableRow>
                 <TableHead>Table</TableHead>
@@ -245,7 +256,7 @@ const DiagnosticOffline = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Object.entries(STORE_LABELS).map(([key, label]) => {
+              {filteredStores.map(([key, label]) => {
                 const storeKey = STORES[key as keyof typeof STORES];
                 const count = stats[key] || 0;
                 return (
@@ -273,7 +284,7 @@ const DiagnosticOffline = () => {
             
           </CardHeader>
           <CardContent>
-            <Table>
+            <Table searchable={false}>
               <TableHeader>
                 <TableRow>
                   <TableHead>Table</TableHead>
@@ -284,7 +295,7 @@ const DiagnosticOffline = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingOps.map((op, i) => (
+                {filteredPendingOps.length === 0 ? <TableRow><TableCell colSpan={5} className="py-5 text-center text-muted-foreground">Aucun résultat.</TableCell></TableRow> : filteredPendingOps.map((op, i) => (
                   <TableRow key={op.id || i}>
                     <TableCell className="font-medium">{op.table}</TableCell>
                     <TableCell>
