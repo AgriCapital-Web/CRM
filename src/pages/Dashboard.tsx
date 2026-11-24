@@ -450,8 +450,8 @@ const Dashboard = () => {
         .reduce((sum: number, owner: any) => sum + Math.max(0, Number(owner.surface_totale_ha || 0)), 0);
       const plantingTargetHa = plantingTargetFromClients + plantingTargetFromOwners;
       remainingHa = Math.max(0, plantingTargetHa - plantedHa);
-      const monthlyForecast = clients
-        .filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase()))
+      const monthlyForecast = commercialClients
+        .filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase()) && Number(client.montant_total_contrat || 0) > 0)
         .reduce((sum: number, client: any) => sum + Math.max(0, Number(client.mensualite_montant || 0)), 0);
       const internalRemainingHa = Math.max(0, internalAreaHa - internalPlantedHa);
 
