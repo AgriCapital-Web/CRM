@@ -22,6 +22,10 @@ import { formatRecipientName } from "@/lib/utils";
 import { uploadFile, resolveStorageUrl } from "@/utils/storage";
 import FileUploadVisual from "@/components/ui/file-upload-visual";
 
+const displayOwnerName = (owner: any) => owner?.type_proprietaire === "personne_physique"
+  ? formatRecipientName(owner?.nom_complet, "client", owner?.nom, owner?.prenoms)
+  : (owner?.denomination_sociale || owner?.nom_complet || "Propriétaire");
+
 const ProprietaireTerreDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
