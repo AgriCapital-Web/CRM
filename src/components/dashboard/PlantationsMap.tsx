@@ -44,7 +44,7 @@ export const PlantationsMap = () => {
         return NaN;
       };
       try {
-        const [plantRes, clientRes, parcelRes, campementRes, villageRes] = await Promise.all([
+        const [plantRes, clientRes, parcelRes, campementRes, villageRes, ownerRes] = await Promise.all([
           (supabase as any).from("plantations")
             .select("id,id_unique,nom_plantation,latitude,longitude,localisation_gps_lat,localisation_gps_lng,localisation_source_url,localisation_reference_plantation_id,localisation_distance_m,superficie_ha,surface_reellement_plantee,village_nom,village,localite,parcelle_id,client_id")
             .range(0, 99999),
@@ -52,10 +52,11 @@ export const PlantationsMap = () => {
             .select("id,nom_complet,nom,prenoms,parcelle_id,campement_id,village_id,localite,total_hectares,latitude,longitude")
             .range(0, 99999),
           (supabase as any).from("parcelles")
-            .select("id,id_unique,nom,localisation_gps_lat,localisation_gps_lng,surface_totale_ha,surface_agricapital_ha,village")
+            .select("id,id_unique,nom,proprietaire_id,localisation_gps_lat,localisation_gps_lng,surface_totale_ha,surface_agricapital_ha,village")
             .range(0, 99999),
           (supabase as any).from("campements").select("id,nom").range(0, 99999),
           (supabase as any).from("villages").select("id,nom").range(0, 99999),
+          (supabase as any).from("proprietaires_terres").select("id,nom_complet,nom,prenoms,denomination_sociale,type_proprietaire").range(0, 99999),
         ]);
         if (plantRes.error) console.error("Carte dashboard — plantations:", plantRes.error);
         if (clientRes.error) console.error("Carte dashboard — clients:", clientRes.error);
@@ -64,6 +65,8 @@ export const PlantationsMap = () => {
         const plantations = plantRes.data || [];
         const clients = clientRes.data || [];
         const parcels = parcelRes.data || [];
+        const owners = ownerRes.data || [];
+        const ownerById = new Map<string, any>(owners.map((owner: any) => [owner.id, owner]));
         const campementById = new Map<string, any>((campementRes.data || []).map((row: any) => [row.id, row]));
         const villageById = new Map<string, any>((villageRes.data || []).map((row: any) => [row.id, row]));
         const clientById = new Map<string, any>(clients.map((c: any) => [c.id, c]));
@@ -80,6 +83,12 @@ export const PlantationsMap = () => {
         for (const p of plantations) {
           const parcel = parcelById.get(p.parcelle_id);
           const client = p.client_id ? clientById.get(p.client_id) : null;
+          const owner = parcel?.proprietaire_id ? ownerById.get(parcel.proprietaire_id) : null;
+          const ownerName = owner
+            ? (owner.type_proprietaire === "personne_physique"
+              ? formatRecipientName(owner.nom_complet, "client", owner.nom, owner.prenoms)
+              : owner.denomination_sociale || owner.nom_complet)
+            : null;
           const lat = num(p.latitude, p.localisation_gps_lat, client?.latitude, parcel?.localisation_gps_lat);
           const lng = num(p.longitude, p.localisation_gps_lng, client?.longitude, parcel?.localisation_gps_lng);
           if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -89,7 +98,7 @@ export const PlantationsMap = () => {
             const referenceClient = reference?.client_id ? clientById.get(reference.client_id) : null;
             if (p.localisation_source_url || reference) sourceOnly.push({
               id: p.id,
-              label: (clientById.get(p.client_id) ? formatRecipientName(clientById.get(p.client_id).nom_complet, "client", clientById.get(p.client_id).nom, clientById.get(p.client_id).prenoms) : null) || p.nom_plantation || p.id_unique || "Plantation",
+              label: (clientById.get(p.client_id) ? formatRecipientName(clientById.get(p.client_id).nom_complet, "client", clientById.get(p.client_id).nom, clientById.get(p.client_id).prenoms) : null) || ownerName || p.nom_plantation || p.id_unique || "Plantation",
               url: p.localisation_source_url || reference?.localisation_source_url || null,
               note: reference
                 ? "À environ " + Number(p.localisation_distance_m || 0).toLocaleString("fr-FR") + " m de " + (referenceClient?.nom_complet || reference.nom_plantation || "la plantation de référence")
@@ -104,7 +113,7 @@ export const PlantationsMap = () => {
           const area = p.superficie_ha ?? p.surface_reellement_plantee ?? client?.total_hectares ?? parcel?.surface_totale_ha ?? parcel?.surface_agricapital_ha ?? 0;
           out.push({
             id: `plantation-${p.id}`, lat, lng,
-            label: (client ? formatRecipientName(client.nom_complet, "client", client.nom, client.prenoms) : null) || p.nom_plantation || p.id_unique || parcel?.id_unique || "Client non renseigné",
+            label: (client ? formatRecipientName(client.nom_complet, "client", client.nom, client.prenoms) : null) || ownerName || p.nom_plantation || p.id_unique || parcel?.id_unique || "Plantation",
             info: `Superficie : ${area} ha • Localité : ${locality}`,
           });
         }
@@ -115,9 +124,15 @@ export const PlantationsMap = () => {
           const lng = num(parcel.localisation_gps_lng);
           if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
           const names = (clientsByParcel.get(parcel.id) || []).map((c) => formatRecipientName(c.nom_complet, "client", c.nom, c.prenoms)).filter(Boolean).join(", ");
+          const owner = parcel.proprietaire_id ? ownerById.get(parcel.proprietaire_id) : null;
+          const ownerName = owner
+            ? (owner.type_proprietaire === "personne_physique"
+              ? formatRecipientName(owner.nom_complet, "client", owner.nom, owner.prenoms)
+              : owner.denomination_sociale || owner.nom_complet)
+            : null;
           out.push({
             id: `parcel-${parcel.id}`, lat, lng,
-            label: names ? `${names} — ${parcel.id_unique || "Parcelle"}` : (parcel.id_unique || parcel.nom || "Parcelle"),
+            label: names || ownerName || parcel.nom || parcel.id_unique || "Parcelle",
             info: `${parcel.surface_agricapital_ha || parcel.surface_totale_ha || 0} ha${parcel.village ? ` • ${parcel.village}` : ""}`,
           });
         }
@@ -141,39 +156,10 @@ export const PlantationsMap = () => {
             info: `Site client • Localité : ${locality}`,
           });
         }
-        // Les sites distants de 75 m ou moins sont regroupés visuellement pour éviter
-        // que leurs icônes se recouvrent. Le repère reste ancré sur un GPS enregistré ;
-        // le détail conserve les coordonnées exactes de chaque site.
-        const distanceMeters = (a: PlantationMarker, b: PlantationMarker) => {
-          const meanLat = ((a.lat + b.lat) / 2) * Math.PI / 180;
-          const north = (a.lat - b.lat) * 111320;
-          const east = (a.lng - b.lng) * 111320 * Math.cos(meanLat);
-          return Math.hypot(north, east);
-        };
-        const consumed = new Set<string>();
-        const visibleMarkers: PlantationMarker[] = [];
-        for (const marker of out) {
-          if (consumed.has(marker.id)) continue;
-          const nearby = out.filter((candidate) =>
-            !consumed.has(candidate.id) && distanceMeters(marker, candidate) <= 75
-          );
-          nearby.forEach((candidate) => consumed.add(candidate.id));
-          if (nearby.length === 1) {
-            visibleMarkers.push(marker);
-          } else {
-            visibleMarkers.push({
-              id: `nearby-${nearby.map((item) => item.id).sort().join("-")}`,
-              lat: marker.lat,
-              lng: marker.lng,
-              label: `${nearby.length} sites agricoles à proximité`,
-              info: "Ouvrez le repère pour consulter chaque site et son GPS exact.",
-              members: nearby.map(({ id, lat, lng, label, info }) => ({ id, lat, lng, label, info })),
-            });
-          }
-        }
-
+        // Chaque plantation conserve son propre repère GPS : aucun regroupement,
+        // même lorsque plusieurs sites sont proches ou partagent une même parcelle.
         if (active) {
-          setMarkers(visibleMarkers);
+          setMarkers(out);
           setSourceLocations(sourceOnly);
         }
       } catch (error) {
