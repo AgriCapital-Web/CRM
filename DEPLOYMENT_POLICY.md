@@ -11,7 +11,7 @@ Regrouper les fusions effectuées dans `main` afin de ne produire qu'un seul dé
 3. Les contrôles GitHub Actions doivent réussir avant la fusion.
 4. Les fusions dans `main` ne déclenchent plus de déploiement Vercel de production.
 5. Les déploiements Preview des branches et Pull Requests restent autorisés.
-6. Chaque jour à 18 h (heure d'Abidjan), GitHub Actions vérifie si `main` a changé depuis le dernier déploiement réussi.
+6. Chaque jour à 18 h (heure d'Abidjan), GitHub Actions vérifie si `main` a changé depuis le dernier déclenchement accepté par Vercel.
 7. S'il y a eu une ou plusieurs fusions, le workflow appelle le Deploy Hook Vercel configuré sur `main`. Vercel construit le dernier état de la branche : toutes les fusions sont regroupées dans un seul déploiement.
 8. S'il n'y a eu aucune nouvelle fusion, aucun déploiement n'est lancé.
 9. Le workflow peut aussi être lancé manuellement depuis l'onglet Actions de GitHub. L'option `force` permet de forcer un déploiement même sans nouveau commit.
@@ -45,7 +45,8 @@ Le Deploy Hook reste le canal de déclenchement des déploiements de production.
 
 - Ne jamais lancer un déploiement Vercel à chaque commit ou à chaque fusion.
 - Fusionner les Pull Requests validées dans `main`; la mise en production intervient au prochain passage quotidien.
-- Pour une urgence, utiliser **Actions → Déploiement de production groupé → Run workflow**, puis activer `force` si nécessaire.
+- Pour une urgence ou après un échec de build, utiliser **Actions → Déploiement de production groupé → Run workflow**, puis activer `force`.
+- Vérifier dans Vercel que le déploiement atteint l'état **Ready** : le workflow confirme que le Deploy Hook a accepté la demande, pas que le build est terminé.
 - Ne jamais placer l'URL du Deploy Hook dans un fichier versionné.
 - Ne pas utiliser l'« Ignored Build Step » pour simuler ce regroupement : Vercel indique que les déploiements annulés par cette fonction comptent tout de même dans les quotas de déploiement.
 
@@ -54,5 +55,5 @@ Le Deploy Hook reste le canal de déclenchement des déploiements de production.
 - Automatique : **1 déploiement de production par jour au maximum**, uniquement si `main` a changé.
 - Heure prévue : **18 h, heure d'Abidjan**.
 - Plusieurs fusions pendant la journée : **1 seul déploiement**, contenant le dernier état de `main`.
-- Aucune fusion depuis le dernier déploiement : **0 déploiement**.
+- Aucune fusion depuis le dernier déclenchement : **0 déploiement**.
 - Déploiement urgent manuel : possible à tout moment, en plus du passage quotidien.
