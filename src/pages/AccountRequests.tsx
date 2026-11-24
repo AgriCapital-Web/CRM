@@ -135,7 +135,7 @@ const AccountRequests = () => {
           <TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher une demande" />
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto"><Table className="min-w-[900px]">
+          <div className="overflow-x-auto"><Table searchable={false} className="min-w-[900px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
