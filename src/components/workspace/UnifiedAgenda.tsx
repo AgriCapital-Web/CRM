@@ -41,7 +41,6 @@ const KIND_STYLE: Record<Kind, string> = {
 const KIND_DOT: Record<Kind, string> = { event: "bg-primary", meeting: "bg-accent", task: "bg-secondary-foreground/60", availability: "bg-muted-foreground", payment: "bg-destructive" };
 const KIND_LABEL: Record<Kind, string> = { event: "Événement", meeting: "Réunion", task: "Tâche", availability: "Disponibilité", payment: "Échéance de paiement" };
 
-const HOUR_PX = 48;
 const fr = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("fr-FR", o).format(d);
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -79,6 +78,21 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
   const [visibility, setVisibility] = useState("team");
   const [selected, setSelected] = useState<Item | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const [hourPx, setHourPx] = useState(24);
+
+  useEffect(() => {
+    const updateHourHeight = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      setHourPx(Math.max(12, Math.min(32, (viewportHeight - 280) / 24)));
+    };
+    updateHourHeight();
+    window.addEventListener("resize", updateHourHeight);
+    window.visualViewport?.addEventListener("resize", updateHourHeight);
+    return () => {
+      window.removeEventListener("resize", updateHourHeight);
+      window.visualViewport?.removeEventListener("resize", updateHourHeight);
+    };
+  }, []);
 
   const range = useMemo(() => {
     const y = cursor.getFullYear();
@@ -279,8 +293,8 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
   })();
 
   useEffect(() => {
-    if ((view === "day" || view === "week") && gridRef.current) gridRef.current.scrollTop = 7 * HOUR_PX;
-  }, [view, loading]);
+    if ((view === "day" || view === "week") && gridRef.current) gridRef.current.scrollTop = 7 * hourPx;
+  }, [view, loading, hourPx]);
 
   const Chip = ({ it, compact }: { it: Item; compact?: boolean }) => (
     <button type="button" onClick={(ev) => { ev.stopPropagation(); setSelected(it); }}
@@ -291,33 +305,33 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
   const TimeGrid = ({ days }: { days: Date[] }) => {
     const now = new Date();
-    return <div className="overflow-x-auto rounded-lg border">
-      <div className="min-w-[38rem]">
-      <div className="grid border-b bg-muted/40" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0,1fr))` }}>
+    return <div className="w-full min-w-0 overflow-hidden rounded-lg border">
+      <div className="w-full min-w-0">
+      <div className="grid border-b bg-muted/40" style={{ gridTemplateColumns: `2.25rem repeat(${days.length}, minmax(0,1fr))` }}>
         <div />
-        {days.map(d => <button key={dayKey(d)} type="button" onClick={() => { setCursor(d); setView("day"); }} className="flex flex-col items-center py-2 hover:bg-muted">
+        {days.map(d => <button key={dayKey(d)} type="button" onClick={() => { setCursor(d); setView("day"); }} className="flex min-w-0 flex-col items-center py-1 hover:bg-muted">
           <span className="text-[11px] uppercase text-muted-foreground">{fr(d,{weekday:"short"})}</span>
-          <span className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-base font-semibold ${sameDay(d, now) ? "bg-primary text-primary-foreground" : ""}`}>{d.getDate()}</span>
+          <span className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${sameDay(d, now) ? "bg-primary text-primary-foreground" : ""}`}>{d.getDate()}</span>
         </button>)}
       </div>
-      <div className="grid border-b" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0,1fr))` }}>
-        <div className="p-1 text-right text-[10px] text-muted-foreground">Journée</div>
+      <div className="grid border-b" style={{ gridTemplateColumns: `2.25rem repeat(${days.length}, minmax(0,1fr))` }}>
+        <div className="p-0.5 text-right text-[9px] text-muted-foreground">Journée</div>
         {days.map(d => <div key={dayKey(d)} className="min-h-7 space-y-0.5 border-l p-0.5" onClick={() => openCreate("event", startOfDay(d), true)}>
           {itemsOn(d).filter(i => i.all_day).map(i => <Chip key={i.id} it={i} compact />)}
         </div>)}
       </div>
-      <div ref={gridRef} className="max-h-[65dvh] overflow-y-auto">
-        <div className="relative grid" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0,1fr))` }}>
-          <div>{Array.from({ length: 24 }, (_, h) => <div key={h} style={{ height: HOUR_PX }} className="pr-1 text-right text-[10px] text-muted-foreground">{h ? `${String(h).padStart(2,"0")}:00` : ""}</div>)}</div>
+      <div ref={gridRef} className="max-h-[80dvh] overflow-y-hidden">
+        <div className="relative grid" style={{ gridTemplateColumns: `2.25rem repeat(${days.length}, minmax(0,1fr))` }}>
+          <div>{Array.from({ length: 24 }, (_, h) => <div key={h} style={{ height: hourPx }} className="pr-1 text-right text-[10px] text-muted-foreground">{h ? `${String(h).padStart(2,"0")}:00` : ""}</div>)}</div>
           {days.map(d => {
             const dayStart = startOfDay(d).getTime();
             const timed = itemsOn(d).filter(i => !i.all_day);
             return <div key={dayKey(d)} className="relative border-l">
-              {Array.from({ length: 24 }, (_, h) => <div key={h} style={{ height: HOUR_PX }} className="cursor-pointer border-b border-border/50 hover:bg-muted/40"
+              {Array.from({ length: 24 }, (_, h) => <div key={h} style={{ height: hourPx }} className="cursor-pointer border-b border-border/50 hover:bg-muted/40"
                 onClick={() => { const at = new Date(d); at.setHours(h, 0, 0, 0); openCreate("event", at); }} />)}
               {timed.map((it, idx) => {
                 const s = Math.max(new Date(it.starts_at).getTime(), dayStart), e = Math.min(new Date(it.ends_at).getTime(), dayStart + 86400000);
-                const top = (s - dayStart) / 3600000 * HOUR_PX, height = Math.max(20, (e - s) / 3600000 * HOUR_PX - 2);
+                const top = (s - dayStart) / 3600000 * hourPx, height = Math.max(16, (e - s) / 3600000 * hourPx - 2);
                 const overlaps = timed.filter(o => new Date(o.starts_at) < new Date(it.ends_at) && new Date(o.ends_at) > new Date(it.starts_at));
                 const col = overlaps.indexOf(it), cols = overlaps.length;
                 return <button key={it.id + idx} type="button" onClick={() => setSelected(it)}
@@ -327,7 +341,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
                   {height > 30 && <div className="truncate tabular-nums opacity-80">{time(it.starts_at)} – {time(it.ends_at)}</div>}
                 </button>;
               })}
-              {sameDay(d, now) && <div className="pointer-events-none absolute inset-x-0 z-20 h-0.5 bg-destructive" style={{ top: (now.getHours() + now.getMinutes()/60) * HOUR_PX }} />}
+              {sameDay(d, now) && <div className="pointer-events-none absolute inset-x-0 z-20 h-0.5 bg-destructive" style={{ top: (now.getHours() + now.getMinutes()/60) * hourPx }} />}
             </div>;
           })}
         </div>
@@ -342,7 +356,7 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
     const days = Array.from({ length: 42 }, (_, i) => plusDays(start, i));
     return <div className="overflow-hidden rounded-lg border">
       <div className="grid grid-cols-7 bg-muted/40">{["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(d => <div key={d} className="border-b py-1 text-center text-[9px] font-medium uppercase text-muted-foreground sm:py-1.5 sm:text-[11px]">{d}</div>)}</div>
-      <div className="grid grid-cols-7" style={{ height: "clamp(21rem, calc(100dvh - 20rem), 34rem)", gridTemplateRows: "repeat(6, minmax(0, 1fr))" }}>{days.map(d => {
+      <div className="grid grid-cols-7" style={{ height: "clamp(15rem, calc(100dvh - 25rem), 28rem)", gridTemplateRows: "repeat(6, minmax(0, 1fr))" }}>{days.map(d => {
         const list = itemsOn(d); const inMonth = d.getMonth() === cursor.getMonth();
         return <div key={dayKey(d)} onClick={() => { const at = new Date(d); at.setHours(9,0,0,0); openCreate("event", at); }}
           className={`min-h-0 overflow-hidden cursor-pointer border-b border-r px-0.5 py-0.5 hover:bg-muted/30 sm:px-1.5 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"}`}>
@@ -357,12 +371,12 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
 
   const MiniMonths = () => {
     const startM = periodStartMonth(cursor, view), n = monthsInView(view);
-    return <div className={`grid gap-3 ${n === 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
+    return <div className={`grid gap-2 ${n === 3 ? "grid-cols-1 md:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
       {Array.from({ length: n }, (_, k) => {
         const month = new Date(cursor.getFullYear(), startM + k, 1);
         const lead = (month.getDay() + 6) % 7, total = new Date(month.getFullYear(), month.getMonth()+1, 0).getDate();
         const monthCount = items.filter(i => { const d = new Date(i.starts_at); return d.getFullYear() === month.getFullYear() && d.getMonth() === month.getMonth(); }).length;
-        return <div key={k} className="rounded-lg border p-3">
+        return <div key={k} className="min-w-0 rounded-lg border p-2">
           <div className="mb-2 flex items-center justify-between">
             <button type="button" className="font-semibold capitalize hover:text-primary" onClick={() => { setCursor(month); setView("month"); }}>{fr(month,{month:"long"})}</button>
             <span className="text-xs text-muted-foreground">{monthCount} élément(s)</span>

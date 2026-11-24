@@ -50,7 +50,25 @@ const GestionCartes = () => {
   const [selected, setSelected] = useState<Row | null>(null);
   const rectoRef = useRef<HTMLDivElement>(null);
   const versoRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
   const [carteTab, setCarteTab] = useState("recto");
+
+  useEffect(() => {
+    const container = previewContainerRef.current;
+    if (!selected || !container) return;
+    const measure = () => {
+      const { width, height } = container.getBoundingClientRect();
+      const faces = carteTab === "both" ? 2 : 1;
+      const gap = faces === 2 ? 16 : 0;
+      const scale = Math.min(1, (width - gap - 12) / (540 * faces), (height - 12) / 856);
+      setPreviewScale(Math.max(0.2, scale));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [selected, carteTab]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -364,15 +382,21 @@ const GestionCartes = () => {
                 <TabsTrigger value="verso">Verso</TabsTrigger>
                 <TabsTrigger className="hidden min-[1200px]:inline-flex" value="both">Recto / Verso</TabsTrigger>
               </TabsList>
-              <TabsContent value="recto" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden py-1">
-                <div className="id-card-preview"><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
+              <TabsContent value="recto" className="flex min-h-0 flex-1 overflow-hidden py-1">
+                <div ref={previewContainerRef} className="flex h-full w-full min-h-0 items-center justify-center overflow-hidden">
+                  <div className="id-card-preview" style={{ zoom: previewScale }}><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
+                </div>
               </TabsContent>
-              <TabsContent value="verso" className="flex min-h-0 flex-1 items-center justify-center overflow-hidden py-1">
-                <div className="id-card-preview"><CarteVerso ref={versoRef} carte={dataSelection} /></div>
+              <TabsContent value="verso" className="flex min-h-0 flex-1 overflow-hidden py-1">
+                <div ref={previewContainerRef} className="flex h-full w-full min-h-0 items-center justify-center overflow-hidden">
+                  <div className="id-card-preview" style={{ zoom: previewScale }}><CarteVerso ref={versoRef} carte={dataSelection} /></div>
+                </div>
               </TabsContent>
-              <TabsContent value="both" className="hidden min-h-0 flex-1 items-center justify-center gap-4 overflow-hidden py-1 min-[1200px]:flex">
-                <div className="id-card-preview"><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
-                <div className="id-card-preview"><CarteVerso ref={versoRef} carte={dataSelection} /></div>
+              <TabsContent value="both" className="hidden min-h-0 flex-1 overflow-hidden py-1 min-[1200px]:flex">
+                <div ref={previewContainerRef} className="flex h-full w-full min-h-0 items-center justify-center gap-4 overflow-hidden">
+                  <div className="id-card-preview" style={{ zoom: previewScale }}><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
+                  <div className="id-card-preview" style={{ zoom: previewScale }}><CarteVerso ref={versoRef} carte={dataSelection} /></div>
+                </div>
               </TabsContent>
             </Tabs>
             </>

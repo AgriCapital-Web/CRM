@@ -10315,6 +10315,7 @@ export type Database = {
           co_titulaire_lien: string | null
           co_titulaire_nom: string | null
           co_titulaire_piece: string | null
+          co_titulaire_numero_piece: string | null
           co_titulaire_telephone: string | null
           co_titulaire_telephone_indicatif: string | null
           co_titulaire_telephone_local: string | null
@@ -10334,8 +10335,6 @@ export type Database = {
           forme_juridique_code: string | null
           id: string
           id_unique: string | null
-          leader_communautaire_nom: string | null
-          leader_communautaire_qualite: string | null
           lieu_naissance: string | null
           lieu_residence: string | null
           limites_est: string | null
@@ -10360,12 +10359,8 @@ export type Database = {
           part_proprietaire_pct: number | null
           photo_profil_url: string | null
           prenoms: string | null
-          president_cvgfr_nom: string | null
-          president_cvgfr_qualite: string | null
           reference_cadastrale: string | null
           region_id: string | null
-          representant_agricapital_nom: string | null
-          representant_agricapital_qualite: string | null
           responsable_legal_nom: string | null
           responsable_legal_prenoms: string | null
           responsable_legal_telephone: string | null
@@ -10384,10 +10379,6 @@ export type Database = {
           telephone_secondaire_indicatif: string | null
           telephone_secondaire_local: string | null
           telephone_secondaire_whatsapp: boolean
-          temoin_2_nom: string | null
-          temoin_2_qualite: string | null
-          temoin_proprietaire_nom: string | null
-          temoin_proprietaire_qualite: string | null
           type_personne: string
           type_piece: string | null
           type_proprietaire: string | null
@@ -10399,14 +10390,6 @@ export type Database = {
           validation_statut: string
           village: string | null
           village_id: string | null
-          voisin_1_cote: string | null
-          voisin_1_nom: string | null
-          voisin_2_cote: string | null
-          voisin_2_nom: string | null
-          voisin_3_cote: string | null
-          voisin_3_nom: string | null
-          voisin_4_cote: string | null
-          voisin_4_nom: string | null
           whatsapp: string | null
           whatsapp_indicatif: string | null
           whatsapp_local: string | null
@@ -10419,6 +10402,7 @@ export type Database = {
           co_titulaire_lien?: string | null
           co_titulaire_nom?: string | null
           co_titulaire_piece?: string | null
+          co_titulaire_numero_piece?: string | null
           co_titulaire_telephone?: string | null
           co_titulaire_telephone_indicatif?: string | null
           co_titulaire_telephone_local?: string | null
@@ -10438,8 +10422,6 @@ export type Database = {
           forme_juridique_code?: string | null
           id?: string
           id_unique?: string | null
-          leader_communautaire_nom?: string | null
-          leader_communautaire_qualite?: string | null
           lieu_naissance?: string | null
           lieu_residence?: string | null
           limites_est?: string | null
@@ -10464,12 +10446,8 @@ export type Database = {
           part_proprietaire_pct?: number | null
           photo_profil_url?: string | null
           prenoms?: string | null
-          president_cvgfr_nom?: string | null
-          president_cvgfr_qualite?: string | null
           reference_cadastrale?: string | null
           region_id?: string | null
-          representant_agricapital_nom?: string | null
-          representant_agricapital_qualite?: string | null
           responsable_legal_nom?: string | null
           responsable_legal_prenoms?: string | null
           responsable_legal_telephone?: string | null
@@ -10488,10 +10466,6 @@ export type Database = {
           telephone_secondaire_indicatif?: string | null
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
-          temoin_2_nom?: string | null
-          temoin_2_qualite?: string | null
-          temoin_proprietaire_nom?: string | null
-          temoin_proprietaire_qualite?: string | null
           type_personne?: string
           type_piece?: string | null
           type_proprietaire?: string | null
@@ -10503,14 +10477,6 @@ export type Database = {
           validation_statut?: string
           village?: string | null
           village_id?: string | null
-          voisin_1_cote?: string | null
-          voisin_1_nom?: string | null
-          voisin_2_cote?: string | null
-          voisin_2_nom?: string | null
-          voisin_3_cote?: string | null
-          voisin_3_nom?: string | null
-          voisin_4_cote?: string | null
-          voisin_4_nom?: string | null
           whatsapp?: string | null
           whatsapp_indicatif?: string | null
           whatsapp_local?: string | null
@@ -10523,6 +10489,7 @@ export type Database = {
           co_titulaire_lien?: string | null
           co_titulaire_nom?: string | null
           co_titulaire_piece?: string | null
+          co_titulaire_numero_piece?: string | null
           co_titulaire_telephone?: string | null
           co_titulaire_telephone_indicatif?: string | null
           co_titulaire_telephone_local?: string | null
@@ -10542,8 +10509,6 @@ export type Database = {
           forme_juridique_code?: string | null
           id?: string
           id_unique?: string | null
-          leader_communautaire_nom?: string | null
-          leader_communautaire_qualite?: string | null
           lieu_naissance?: string | null
           lieu_residence?: string | null
           limites_est?: string | null
@@ -10568,12 +10533,8 @@ export type Database = {
           part_proprietaire_pct?: number | null
           photo_profil_url?: string | null
           prenoms?: string | null
-          president_cvgfr_nom?: string | null
-          president_cvgfr_qualite?: string | null
           reference_cadastrale?: string | null
           region_id?: string | null
-          representant_agricapital_nom?: string | null
-          representant_agricapital_qualite?: string | null
           responsable_legal_nom?: string | null
           responsable_legal_prenoms?: string | null
           responsable_legal_telephone?: string | null
@@ -10592,10 +10553,6 @@ export type Database = {
           telephone_secondaire_indicatif?: string | null
           telephone_secondaire_local?: string | null
           telephone_secondaire_whatsapp?: boolean
-          temoin_2_nom?: string | null
-          temoin_2_qualite?: string | null
-          temoin_proprietaire_nom?: string | null
-          temoin_proprietaire_qualite?: string | null
           type_personne?: string
           type_piece?: string | null
           type_proprietaire?: string | null
@@ -10607,14 +10564,6 @@ export type Database = {
           validation_statut?: string
           village?: string | null
           village_id?: string | null
-          voisin_1_cote?: string | null
-          voisin_1_nom?: string | null
-          voisin_2_cote?: string | null
-          voisin_2_nom?: string | null
-          voisin_3_cote?: string | null
-          voisin_3_nom?: string | null
-          voisin_4_cote?: string | null
-          voisin_4_nom?: string | null
           whatsapp?: string | null
           whatsapp_indicatif?: string | null
           whatsapp_local?: string | null
