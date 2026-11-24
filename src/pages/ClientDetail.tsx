@@ -948,6 +948,7 @@ const ClientDetail = () => {
 
           </section>
 
+          <div className="max-w-xl"><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher dans les plantations, paiements, interventions et attributions…" /></div>
           <Tabs defaultValue="plantations" className="space-y-3">
             <TabsList className="h-auto min-h-9 flex-wrap justify-start gap-1 p-1">
               <TabsTrigger value="plantations">
@@ -990,7 +991,6 @@ const ClientDetail = () => {
                         </Button>
                       )}
                     </div>
-                    <TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une plantation…" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1100,7 +1100,6 @@ const ClientDetail = () => {
                         </div>
                       )}
                     </div>
-                    <TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher un paiement…" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1148,7 +1147,7 @@ const ClientDetail = () => {
             <TabsContent value="interventions">
               <Card>
                 <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Interventions Techniques</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une intervention…" /></div>
+                  <CardTitle>Interventions Techniques</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Table searchable={false} paginate={false}>
@@ -1191,7 +1190,7 @@ const ClientDetail = () => {
             <TabsContent value="dossier">
               <div className="grid gap-4">
                 <Card>
-                  <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Attributions agricoles</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une attribution…" /></div></CardHeader>
+                  <CardHeader><CardTitle>Attributions agricoles</CardTitle></CardHeader>
                   <CardContent>
                     <Table searchable={false} paginate={false}>
                       <TableHeader>
