@@ -1,27 +1,31 @@
+import { lazy, Suspense } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, IdCard, Map, KeyRound, Cable, Contact, History } from "lucide-react";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
-import Utilisateurs from "@/pages/Utilisateurs";
-import Offres from "@/pages/Offres";
-import Equipes from "@/pages/Equipes";
-import AccountRequests from "@/pages/AccountRequests";
-import GestionRoles from "@/pages/parametres/GestionRoles";
-import GestionGeographie from "@/pages/parametres/GestionGeographie";
-import GestionStatuts from "@/pages/parametres/GestionStatuts";
-import ConfigurationSysteme from "@/pages/parametres/ConfigurationSysteme";
-import GestionNotifications from "@/pages/parametres/GestionNotifications";
-import GestionBaseDonnees from "@/pages/parametres/GestionBaseDonnees";
-import { SyncQueueContent as SyncQueue } from "@/pages/SyncQueue";
-import GestionZones from "@/pages/parametres/GestionZones";
-import GestionCartes from "@/pages/parametres/GestionCartes";
-import GestionRemuneration from "@/pages/parametres/GestionRemuneration";
-import ReinitialiserCodesAcces from "@/pages/parametres/ReinitialiserCodesAcces";
-import IntegrationAcreMap from "@/pages/parametres/IntegrationAcreMap";
-import ImportContacts from "@/pages/parametres/ImportContacts";
-import JournalAudit from "@/pages/parametres/JournalAudit";
+const Utilisateurs = lazy(() => import("@/pages/Utilisateurs"));
+const Offres = lazy(() => import("@/pages/Offres"));
+const Equipes = lazy(() => import("@/pages/Equipes"));
+const AccountRequests = lazy(() => import("@/pages/AccountRequests"));
+const GestionRoles = lazy(() => import("@/pages/parametres/GestionRoles"));
+const GestionGeographie = lazy(() => import("@/pages/parametres/GestionGeographie"));
+const GestionStatuts = lazy(() => import("@/pages/parametres/GestionStatuts"));
+const ConfigurationSysteme = lazy(() => import("@/pages/parametres/ConfigurationSysteme"));
+const GestionNotifications = lazy(() => import("@/pages/parametres/GestionNotifications"));
+const GestionBaseDonnees = lazy(() => import("@/pages/parametres/GestionBaseDonnees"));
+const SyncQueue = lazy(async () => {
+  const module = await import("@/pages/SyncQueue");
+  return { default: module.SyncQueueContent };
+});
+const GestionZones = lazy(() => import("@/pages/parametres/GestionZones"));
+const GestionCartes = lazy(() => import("@/pages/parametres/GestionCartes"));
+const GestionRemuneration = lazy(() => import("@/pages/parametres/GestionRemuneration"));
+const ReinitialiserCodesAcces = lazy(() => import("@/pages/parametres/ReinitialiserCodesAcces"));
+const IntegrationAcreMap = lazy(() => import("@/pages/parametres/IntegrationAcreMap"));
+const ImportContacts = lazy(() => import("@/pages/parametres/ImportContacts"));
+const JournalAudit = lazy(() => import("@/pages/parametres/JournalAudit"));
 import { useSearchParams } from "react-router-dom";
 
 interface TabConfig {
@@ -30,7 +34,7 @@ interface TabConfig {
   mobileLabel?: string;
   icon: React.ElementType;
   permission: string;
-  component: React.ComponentType;
+  component: React.LazyExoticComponent<React.ComponentType<any>>;
 }
 
 const Parametres = () => {
@@ -86,7 +90,7 @@ const Parametres = () => {
 
             {visibleTabs.map(tab => (
               <TabsContent key={tab.value} value={tab.value}>
-                <tab.component />
+                <Suspense fallback={null}><tab.component /></Suspense>
               </TabsContent>
             ))}
           </Tabs>
