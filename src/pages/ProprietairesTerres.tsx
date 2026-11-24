@@ -240,12 +240,12 @@ const ProprietairesTerres = () => {
       return;
     }
     const totalSurface = Number(formData.surface_totale_declaree_ha || 0);
-    if (totalSurface < 2 || Math.abs(totalSurface / 2 - Math.round(totalSurface / 2)) > 0.000001) {
+    if (totalSurface < 2 || Math.abs(totalSurface * 2 - Math.round(totalSurface * 2)) > 0.000001) {
       setActiveFormTab("parcelle");
-      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie totale doit être d’au moins 2 ha et respecter des tranches de 2 ha." });
+      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie totale doit être d’au moins 2 ha et respecter des pas de 0,5 ha." });
       return;
     }
-    const agriPctCheck = (formData.type_convention || "plante_partage") === "achat" ? 100 : Math.max(0, Math.min(100, Number(formData.part_agricapital_pct || 50)));
+    const agriPctCheck = (formData.type_convention || "plante_partage") === "achat" ? 100 : 50;
     const agriShareCheck = totalSurface * agriPctCheck / 100;
     const ownerShareCheck = totalSurface - agriShareCheck;
     if ([agriShareCheck, ownerShareCheck].some((share) => Math.abs(share * 2 - Math.round(share * 2)) > 0.000001)) {
@@ -293,7 +293,7 @@ const ProprietairesTerres = () => {
 
       const surfaceTotale = formData.surface_totale_declaree_ha ? parseFloat(formData.surface_totale_declaree_ha) : null;
       const typeConvention = formData.type_convention || "plante_partage";
-      const agriPct = typeConvention === "achat" ? 100 : Math.max(0, Math.min(100, Number(formData.part_agricapital_pct || 50)));
+      const agriPct = typeConvention === "achat" ? 100 : 50;
       const ownerPct = 100 - agriPct;
       const partAgriHa = surfaceTotale ? (surfaceTotale * agriPct) / 100 : null;
       const partProprietaireHa = surfaceTotale ? (surfaceTotale * ownerPct) / 100 : null;
@@ -791,7 +791,7 @@ const ProprietairesTerres = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Superficie totale de la parcelle (ha) *</Label>
-                          <Input type="number" min="2" step="2" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
+                          <Input type="number" min="2" step="0.5" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
                         </div>
                         {formData.type_convention !== "achat" && <div className="space-y-2">
                           <Label>Superficie de la campagne de mise en valeur (ha) — minimum 2 ha *</Label>
@@ -800,7 +800,7 @@ const ProprietairesTerres = () => {
                         </div>}
                         <div className="space-y-2">
                           <Label>Part AgriCapital (%)</Label>
-                          <Input type="number" min="0" max="100" step="1" disabled={formData.type_convention === "achat"} value={formData.type_convention === "achat" ? "100" : formData.part_agricapital_pct} onChange={e => update('part_agricapital_pct', e.target.value)} />
+                          <Input type="number" min="0" max="100" step="1" disabled value={formData.type_convention === "achat" ? "100" : "50"} />
                         </div>
                         <div className="space-y-2">
                           <Label>Nombre de lots AgriCapital (1 ha / lot)</Label>
@@ -833,7 +833,7 @@ const ProprietairesTerres = () => {
                       </div>
                       {formData.surface_totale_declaree_ha && parseFloat(formData.surface_totale_declaree_ha) > 0 && (() => {
                         const total = parseFloat(formData.surface_totale_declaree_ha);
-                        const agriPct = formData.type_convention === "achat" ? 100 : Number(formData.part_agricapital_pct || 50);
+                        const agriPct = formData.type_convention === "achat" ? 100 : 50;
                         const ownerPct = 100 - agriPct;
                         const agriHa = total * agriPct / 100;
                         const ownerHa = total * ownerPct / 100;

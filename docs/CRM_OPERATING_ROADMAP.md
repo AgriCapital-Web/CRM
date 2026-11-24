@@ -1,6 +1,6 @@
 # AgriCapital CRM — feuille de route opérationnelle et mémoire durable
 
-**Dernière mise à jour : 19 novembre 2026**  
+**Dernière mise à jour : 24 novembre 2026**  
 **Référence à lire avant tout nouveau travail : ce document et le fichier `AGENTS.md`.**
 
 Ce document consolide les décisions et règles AgriCapital présentes dans le contexte projet accessible, les changements déjà appliqués et les dossiers en attente. Il sert de mémoire durable entre conversations et entre assistants. Il ne prétend pas reconstituer des conversations historiques qui ne seraient pas accessibles dans le contexte courant. Toute nouvelle décision confirmée doit être ajoutée ici, sans effacer les décisions antérieures encore valides.
@@ -547,3 +547,27 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Les frais de transaction inclus dans ces sorties totalisent 330 F CFA.
 - L'écart de 3 000 F CFA par rapport au précédent contrôle (727 190 F CFA) correspond à une nouvelle sortie COMMUNICATION de 3 000 F CFA enregistrée et validée le 23 novembre à 13 h 58 UTC.
 - Le règlement partiel de 30 000 F CFA et ses 300 F CFA de frais sont compris dans le total de 730 190 F CFA ; ils ne sont pas comptés deux fois.
+
+
+## Partage foncier GOLY, carte et pilotage financier — 24 novembre 2026
+
+### GOLY KOUADIO BASILE
+- Propriétaire : `AC-P000006`, enregistrement `9f72e141-9b61-4b3b-abf5-8f9b1bc84ceb`.
+- Superficie déclarée : 5 ha. Répartition vérifiée en base : 50 % AgriCapital (2,5 ha) et 50 % propriétaire (2,5 ha).
+- Le dossier reste provisoire et en attente de validation. Aucune parcelle n'est encore créée ; les coordonnées GPS, limites, pièces foncières et nombre de lots restent à confirmer. Ne pas créer de parcelle ni de lots et ne pas inventer de localisation.
+- Dans `src/pages/ProprietairesTerres.tsx`, une convention de mise en valeur agricole applique désormais la règle 50/50 sans possibilité de modifier le pourcentage. Le type historique « achat » conserve 100 % AgriCapital. Les contrôles, calculs et récapitulatifs utilisent la même règle.
+- La superficie totale accepte les pas de 0,5 ha, conformément à la contrainte Supabase active ; le contrôle de répartition vérifie ensuite que chaque quote-part respecte elle aussi les pas de 0,5 ha.
+
+### Carte interactive
+- Les sites distants de 75 m ou moins sont regroupés visuellement pour éviter le chevauchement des icônes. Le détail du repère groupé affiche chaque plantation, sa superficie/localité et ses coordonnées GPS exactes.
+- Le repère groupé reste ancré sur un GPS enregistré ; aucun décalage artificiel n'est appliqué.
+- La lecture GPS d'une plantation utilise aussi les coordonnées de sa fiche client en repli lorsque les champs GPS de la plantation sont vides.
+
+### Pilotage financier
+- Les indicateurs du tableau de bord sont affichés sur trois colonnes sur mobile, quatre sur largeur intermédiaire et sept sur grand écran.
+
+### Contrôles et déploiement
+- Aucune migration Supabase n'est requise pour GOLY : les valeurs 5 ha / 50-50 / 2,5 ha + 2,5 ha sont déjà conformes et n'ont pas été modifiées.
+- Les coordonnées GPS des plantations de Jacques KOUAKOU KOUAME, YAO KONAN EMMANUEL (2 ha) et ZAGBLE BOLOU JEAN-JACQUES ont été relues en base. Le regroupement cartographique permet de les distinguer dans le détail sans modifier leurs coordonnées.
+- Commit applicatif : à renseigner après création.
+- Vérifications du build et déploiement Vercel : à renseigner après exécution.

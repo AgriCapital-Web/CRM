@@ -24,6 +24,13 @@ const redIcon = L.divIcon({
   iconAnchor: [16, 41],
   popupAnchor: [0, -38],
 });
+const createClusterIcon = (count: number) => L.divIcon({
+  className: 'agricapital-location-cluster',
+  html: `<span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border:2px solid #fff;border-radius:50%;background:#b91c1c;color:#fff;font-size:12px;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,.35)">${count}</span>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+  popupAnchor: [0, -18],
+});
 
 interface LocationPickerProps {
   setPosition: (pos: [number, number]) => void;
@@ -48,12 +55,20 @@ const FlyToLocation = ({ position }: FlyToLocationProps) => {
   return null;
 };
 
+interface MapMarkerMember {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+  info?: string;
+}
 interface MapMarker {
   id: string;
   lat: number;
   lng: number;
   label: string;
   info?: string;
+  members?: MapMarkerMember[];
 }
 interface InteractiveMapProps {
   mode: 'view' | 'pick';
@@ -198,20 +213,35 @@ const InteractiveMapComponent = ({
         )}
 
         {mode === 'view' && markers.filter((marker) => Number.isFinite(marker.lat) && Number.isFinite(marker.lng) && marker.lat >= -90 && marker.lat <= 90 && marker.lng >= -180 && marker.lng <= 180).map((marker) => (
-          <Marker key={marker.id} position={[marker.lat, marker.lng]} icon={redIcon} zIndexOffset={2000} riseOnHover>
+          <Marker key={marker.id} position={[marker.lat, marker.lng]} icon={marker.members && marker.members.length > 1 ? createClusterIcon(marker.members.length) : redIcon} zIndexOffset={2000} riseOnHover>
             <Tooltip direction="top" offset={[0, -10]} opacity={1} sticky>
               <div className="min-w-[180px] max-w-[260px]">
                 <p className="font-semibold">{marker.label}</p>
-                {marker.info && <p className="mt-1 text-xs">{marker.info}</p>}
-                <p className="mt-1 text-[11px] font-mono text-muted-foreground">{marker.lat.toFixed(6)}, {marker.lng.toFixed(6)}</p>
+                {marker.members?.length ? (
+                  <p className="mt-1 text-xs">{marker.members.length} sites regroupés — ouvrir pour le détail</p>
+                ) : marker.info ? <p className="mt-1 text-xs">{marker.info}</p> : null}
+                {!marker.members?.length && <p className="mt-1 text-[11px] font-mono text-muted-foreground">{marker.lat.toFixed(6)}, {marker.lng.toFixed(6)}</p>}
               </div>
             </Tooltip>
             <Popup>
-              <div className="min-w-[150px]">
-                <p className="font-semibold text-primary">{marker.label}</p>
-                {marker.info && <p className="mt-1 text-xs text-muted-foreground">{marker.info}</p>}
-                <p className="mt-2 font-mono text-xs">{marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}</p>
-              </div>
+              {marker.members?.length ? (
+                <div className="max-h-60 min-w-[220px] space-y-2 overflow-y-auto">
+                  <p className="font-semibold text-primary">{marker.members.length} sites agricoles à proximité</p>
+                  {marker.members.map((member) => (
+                    <div key={member.id} className="border-t pt-2">
+                      <p className="font-semibold">{member.label}</p>
+                      {member.info && <p className="mt-1 text-xs text-muted-foreground">{member.info}</p>}
+                      <p className="mt-1 font-mono text-[11px]">{member.lat.toFixed(6)}, {member.lng.toFixed(6)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="min-w-[150px]">
+                  <p className="font-semibold text-primary">{marker.label}</p>
+                  {marker.info && <p className="mt-1 text-xs text-muted-foreground">{marker.info}</p>}
+                  <p className="mt-2 font-mono text-xs">{marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}</p>
+                </div>
+              )}
             </Popup>
           </Marker>
         ))}

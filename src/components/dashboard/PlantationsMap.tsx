@@ -6,12 +6,20 @@ import { formatRecipientName } from "@/lib/utils";
 
 const InteractiveMap = lazy(() => import("@/components/maps/InteractiveMap"));
 
+interface PlantationMarkerMember {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+  info: string;
+}
 interface PlantationMarker {
   id: string;
   lat: number;
   lng: number;
   label: string;
   info: string;
+  members?: PlantationMarkerMember[];
 }
 interface SourceLocation {
   id: string;
@@ -72,8 +80,9 @@ export const PlantationsMap = () => {
 
         for (const p of plantations) {
           const parcel = parcelById.get(p.parcelle_id);
-          const lat = num(p.latitude, p.localisation_gps_lat, parcel?.localisation_gps_lat);
-          const lng = num(p.longitude, p.localisation_gps_lng, parcel?.localisation_gps_lng);
+          const client = p.client_id ? clientById.get(p.client_id) : null;
+          const lat = num(p.latitude, p.localisation_gps_lat, client?.latitude, parcel?.localisation_gps_lat);
+          const lng = num(p.longitude, p.localisation_gps_lng, client?.longitude, parcel?.localisation_gps_lng);
           if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
             const reference = p.localisation_reference_plantation_id
               ? plantations.find((row: any) => row.id === p.localisation_reference_plantation_id)
@@ -90,7 +99,6 @@ export const PlantationsMap = () => {
             continue;
           }
           if (p.parcelle_id) parcelsWithPlantation.add(p.parcelle_id);
-          const client = clientById.get(p.client_id);
           const campement = campementById.get(client?.campement_id);
           const village = villageById.get(client?.village_id);
           const locality = campement?.nom || p.localite || client?.localite || village?.nom || p.village_nom || p.village || parcel?.village || "Localité non renseignée";
@@ -134,9 +142,36 @@ export const PlantationsMap = () => {
             info: `Site client • Localité : ${locality}`,
           });
         }
-        // Chaque repère utilise les coordonnées GPS propres à sa plantation.
-        // Aucun décalage cartographique : les positions affichées correspondent aux données enregistrées.
-        const visibleMarkers = out;
+        // Les sites distants de 75 m ou moins sont regroupés visuellement pour éviter
+        // que leurs icônes se recouvrent. Le repère reste ancré sur un GPS enregistré ;
+        // le détail conserve les coordonnées exactes de chaque site.
+        const distanceMeters = (a: PlantationMarker, b: PlantationMarker) => {
+          const meanLat = ((a.lat + b.lat) / 2) * Math.PI / 180;
+          const north = (a.lat - b.lat) * 111320;
+          const east = (a.lng - b.lng) * 111320 * Math.cos(meanLat);
+          return Math.hypot(north, east);
+        };
+        const consumed = new Set<string>();
+        const visibleMarkers: PlantationMarker[] = [];
+        for (const marker of out) {
+          if (consumed.has(marker.id)) continue;
+          const nearby = out.filter((candidate) =>
+            !consumed.has(candidate.id) && distanceMeters(marker, candidate) <= 75
+          );
+          nearby.forEach((candidate) => consumed.add(candidate.id));
+          if (nearby.length === 1) {
+            visibleMarkers.push(marker);
+          } else {
+            visibleMarkers.push({
+              id: `nearby-${nearby.map((item) => item.id).sort().join("-")}`,
+              lat: marker.lat,
+              lng: marker.lng,
+              label: `${nearby.length} sites agricoles à proximité`,
+              info: "Ouvrez le repère pour consulter chaque site et son GPS exact.",
+              members: nearby.map(({ id, lat, lng, label, info }) => ({ id, lat, lng, label, info })),
+            });
+          }
+        }
 
         if (active) {
           setMarkers(visibleMarkers);
@@ -152,6 +187,7 @@ export const PlantationsMap = () => {
     return () => { active = false; };
   }, []);
 
+  const siteCount = markers.reduce((total, marker) => total + (marker.members?.length || 1), 0) + sourceLocations.length;
   const mapFallback = "h-[220px] sm:h-[400px]";
 
   return (
@@ -160,9 +196,9 @@ export const PlantationsMap = () => {
         <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
           <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           Carte interactive des clients et plantations
-          {(markers.length + sourceLocations.length) > 0 && (
+          {siteCount > 0 && (
             <span className="ml-auto text-xs font-normal text-muted-foreground">
-              {markers.length + sourceLocations.length} site(s) · {markers.length} repère(s) GPS
+              {siteCount} site(s) · {markers.length} repère(s) GPS
             </span>
           )}
         </CardTitle>
