@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install --global npm@12.2.0 && npm install",
+  "installCommand": "unset npm_config_cache_dir && npm install --global npm@12.2.0 && npm ci",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
