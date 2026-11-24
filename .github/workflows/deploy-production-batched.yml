@@ -33,7 +33,7 @@ jobs:
         id: current
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Restaurer le dernier commit déjà déployé
+      - name: Restaurer le dernier commit envoyé à Vercel
         uses: actions/cache/restore@v4
         with:
           path: .deploy-state
@@ -49,16 +49,16 @@ jobs:
         shell: bash
         run: |
           LAST_SHA=""
-          if [ -f .deploy-state/last-successful-sha ]; then
-            LAST_SHA="$(cat .deploy-state/last-successful-sha)"
+          if [ -f .deploy-state/last-triggered-sha ]; then
+            LAST_SHA="$(cat .deploy-state/last-triggered-sha)"
           fi
 
           if [ "$CURRENT_SHA" = "$LAST_SHA" ] && [ "$FORCE_DEPLOY" != "true" ]; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "Aucune nouvelle fusion depuis le dernier déploiement."
+            echo "Aucune nouvelle fusion depuis le dernier déclenchement Vercel."
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
-            echo "Un nouveau commit doit être déployé : $CURRENT_SHA"
+            echo "Un nouveau commit doit être envoyé à Vercel : $CURRENT_SHA"
           fi
 
       - name: Vérifier la configuration du Deploy Hook
@@ -92,15 +92,15 @@ jobs:
             "$VERCEL_DEPLOY_HOOK_URL"
           cat /tmp/vercel-deploy-response.json
 
-      - name: Enregistrer le commit déployé
+      - name: Enregistrer le commit envoyé à Vercel
         if: steps.changes.outputs.deploy == 'true'
         env:
           CURRENT_SHA: ${{ steps.current.outputs.sha }}
         run: |
           mkdir -p .deploy-state
-          printf '%s\n' "$CURRENT_SHA" > .deploy-state/last-successful-sha
+          printf '%s\n' "$CURRENT_SHA" > .deploy-state/last-triggered-sha
 
-      - name: Sauvegarder l'état du déploiement
+      - name: Sauvegarder l'état du déclenchement
         if: steps.changes.outputs.deploy == 'true'
         uses: actions/cache/save@v4
         with:
