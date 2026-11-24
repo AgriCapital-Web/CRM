@@ -1046,7 +1046,7 @@ const ClientDetail = () => {
                       ))}
                     </div>
                   )}
-                  <Table>
+                  <Table searchable={false} paginate={false}>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nom</TableHead>
@@ -1104,7 +1104,7 @@ const ClientDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Table>
+                  <Table searchable={false} paginate={false}>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
@@ -1151,7 +1151,7 @@ const ClientDetail = () => {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Interventions Techniques</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une intervention…" /></div>
                 </CardHeader>
                 <CardContent>
-                  <Table>
+                  <Table searchable={false} paginate={false}>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
@@ -1193,7 +1193,7 @@ const ClientDetail = () => {
                 <Card>
                   <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Attributions agricoles</CardTitle><TableSearchInput value={tableSearch} onChange={setTableSearch} placeholder="Rechercher une attribution…" /></div></CardHeader>
                   <CardContent>
-                    <Table>
+                    <Table searchable={false} paginate={false}>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Parcelle</TableHead>
