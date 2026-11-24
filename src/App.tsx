@@ -6,6 +6,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { PERMISSIONS } from "@/lib/roles";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 const Index = lazy(() => import("./pages/Index"));
 const Login = lazy(() => import("./pages/Login"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
@@ -45,11 +49,6 @@ const AgriCapitalIntelligence = lazy(() => import("./pages/AgriCapitalIntelligen
 const ExternalMeetingGuest = lazy(() => import("./pages/ExternalMeetingGuest"));
 
 const NotFound = lazy(() => import("./pages/NotFound"));
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { PERMISSIONS } from "@/lib/roles";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/hooks/useAuth";
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
