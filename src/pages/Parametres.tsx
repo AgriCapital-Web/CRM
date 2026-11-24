@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Shield, Settings2, List, Bell, Globe, Package, UsersRound, UserPlus, Database, HardDrive, MapPinned, IdCard, Map, KeyRound, Cable, Contact, History } from "lucide-react";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useSearchParams } from "react-router-dom";
 const Utilisateurs = lazy(() => import("@/pages/Utilisateurs"));
 const Offres = lazy(() => import("@/pages/Offres"));
 const Equipes = lazy(() => import("@/pages/Equipes"));
@@ -26,7 +27,6 @@ const ReinitialiserCodesAcces = lazy(() => import("@/pages/parametres/Reinitiali
 const IntegrationAcreMap = lazy(() => import("@/pages/parametres/IntegrationAcreMap"));
 const ImportContacts = lazy(() => import("@/pages/parametres/ImportContacts"));
 const JournalAudit = lazy(() => import("@/pages/parametres/JournalAudit"));
-import { useSearchParams } from "react-router-dom";
 
 interface TabConfig {
   value: string;
