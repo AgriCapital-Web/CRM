@@ -82,7 +82,7 @@ serve(async (req) => {
       .replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
     const lastGivenName = givenNames.split(/\s+/).filter(Boolean).pop() || "";
     const legacyParts = String(reqRow.nom_complet ?? "").trim().split(/\s+/).filter(Boolean);
-    let fullName = lastGivenName && surname
+    const fullName = lastGivenName && surname
       ? titleCase(lastGivenName) + " " + surname.toLocaleUpperCase("fr-FR")
       : legacyParts.length > 1
         ? titleCase(legacyParts[legacyParts.length - 1]) + " " + legacyParts[0].toLocaleUpperCase("fr-FR")

@@ -36,7 +36,7 @@ const uploadProofFiles=async(files:File[],folder:string)=>{
   catch(error){if(uploaded.length)await supabase.storage.from("documents").remove(uploaded.map(item=>item.path));throw error;}
   return uploaded.length?{path:JSON.stringify(uploaded.map(x=>x.path)),name:JSON.stringify(uploaded.map(x=>x.name)),type:JSON.stringify(uploaded.map(x=>x.type))}:null;
 };
-const proofPaths=(value:string|null|undefined):string[]=>{if(!value)return [];try{const parsed=JSON.parse(value);if(Array.isArray(parsed))return parsed.filter((item):item is string=>typeof item==="string");}catch{}return [value];};
+const proofPaths=(value:string|null|undefined):string[]=>{if(!value)return [];try{const parsed=JSON.parse(value);if(Array.isArray(parsed))return parsed.filter((item):item is string=>typeof item==="string");}catch { /* Valeur non JSON : conserver le chemin simple. */ }return [value];};
 const openProofFiles=async(value:string|null|undefined)=>{for(const path of proofPaths(value)){const {data,error}=await supabase.storage.from("documents").createSignedUrl(path,3600);if(!error&&data?.signedUrl)window.open(data.signedUrl,"_blank","noopener,noreferrer");}};
 const proofDisplayName=(value:string|null|undefined)=>{const names=proofPaths(value);return names.length>1?names.length+" fichiers":names[0]||"Ouvrir";};
 
