@@ -11,6 +11,7 @@ import { RefreshCw, Trash2, Database, Wifi, WifiOff, Clock, AlertTriangle, Check
 import { useToast } from "@/hooks/use-toast";
 import { exportToCSV, exportAllOfflineData, type ExportType } from "@/utils/csvExport";
 import { getSafeErrorMessage } from "@/lib/safeError";
+import { matchesAccentInsensitive } from "@/lib/utils";
 
 const STORE_LABELS: Record<string, string> = {
   CLIENTS: "Clients",
@@ -127,9 +128,9 @@ const DiagnosticOffline = () => {
   const query = search.trim().toLocaleLowerCase("fr-FR");
   const filteredStores = Object.entries(STORE_LABELS).filter(([key, label]) => {
     const storeKey = STORES[key as keyof typeof STORES];
-    return !query || [key, label, storeKey, stats[key], lastSyncTimes[storeKey]].some((value) => String(value ?? "").toLocaleLowerCase("fr-FR").includes(query));
+    return !query || [key, label, storeKey, stats[key], lastSyncTimes[storeKey]].some((value) => matchesAccentInsensitive(value, search));
   });
-  const filteredPendingOps = pendingOps.filter((op) => !query || JSON.stringify(op).toLocaleLowerCase("fr-FR").includes(query));
+  const filteredPendingOps = pendingOps.filter((op) => !query || matchesAccentInsensitive(JSON.stringify(op), search));
 
   const totalCached = Object.entries(stats)
     .filter(([k]) => !["PENDING_SYNC", "ERROR_SYNC"].includes(k))
