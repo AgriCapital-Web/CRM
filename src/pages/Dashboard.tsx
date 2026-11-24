@@ -147,13 +147,19 @@ const Dashboard = () => {
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [recentSearch, setRecentSearch] = useState("");
   const filteredRecentClients = useMemo(() => {
-    const q=recentClientsQuery.trim().toLowerCase();
-    return q ? recentClients.filter((item:any)=>[formatStructuredPersonName(item.nom,item.prenoms),item.nom_complet,item.id_unique,item.telephone].some(v=>String(v||"").toLowerCase().includes(q))) : recentClients;
-  },[recentClients,recentClientsQuery]);
+    const q = recentSearch.trim();
+    return q ? recentClients.filter((item: any) => [
+      formatStructuredPersonName(item.nom, item.prenoms), item.nom_complet, item.id_unique,
+      item.telephone, item.email, item.statut,
+    ].some((value) => matchesAccentInsensitive(value, q))) : recentClients;
+  }, [recentClients, recentSearch]);
   const filteredRecentPayments = useMemo(() => {
-    const q=recentPaymentsQuery.trim().toLowerCase();
-    return q ? recentPayments.filter((item:any)=>[item.client_nom,item.reference,item.reference_paiement,item.montant_paye,item.montant,item.mode_paiement].some(v=>String(v||"").toLowerCase().includes(q))) : recentPayments;
-  },[recentPayments,recentPaymentsQuery]);
+    const q = recentSearch.trim();
+    return q ? recentPayments.filter((item: any) => [
+      item.client_nom, item.client_email, item.reference, item.reference_paiement,
+      item.montant_paye, item.montant, item.mode_paiement, item.statut,
+    ].some((value) => matchesAccentInsensitive(value, q))) : recentPayments;
+  }, [recentPayments, recentSearch]);
   const [monthly, setMonthly] = useState<any[]>([]);
   const [offerPerformance, setOfferPerformance] = useState<any[]>([]);
   const [cycle, setCycle] = useState<any[]>([]);
