@@ -2,58 +2,57 @@
 
 ## Objectif
 
-Regrouper les fusions effectuées dans `main` afin de ne produire qu'un seul déploiement de production par jour, au lieu de lancer un déploiement à chaque fusion.
+Regrouper les changements de toutes les branches et ne publier en production que le dernier état de `main`, une fois par jour au maximum.
 
-## Fonctionnement attendu
+## Fonctionnement
 
 1. Chaque modification est développée sur une branche dédiée.
 2. Chaque branche passe par une Pull Request vers `main`.
 3. Les contrôles GitHub Actions doivent réussir avant la fusion.
-4. Les fusions dans `main` ne déclenchent plus de déploiement Vercel de production.
-5. Les déploiements Preview des branches et Pull Requests restent autorisés.
-6. Chaque jour à 18 h (heure d'Abidjan), GitHub Actions vérifie si `main` a changé depuis le dernier déclenchement accepté par Vercel.
-7. S'il y a eu une ou plusieurs fusions, le workflow appelle le Deploy Hook Vercel configuré sur `main`. Vercel construit le dernier état de la branche : toutes les fusions sont regroupées dans un seul déploiement.
-8. S'il n'y a eu aucune nouvelle fusion, aucun déploiement n'est lancé.
-9. Le workflow peut aussi être lancé manuellement depuis l'onglet Actions de GitHub. L'option `force` permet de forcer un déploiement même sans nouveau commit.
+4. Les déploiements Git automatiques Vercel sont désactivés sur toutes les branches.
+5. Chaque jour à 18 h (heure d'Abidjan), GitHub Actions vérifie si `main` a changé depuis le dernier déclenchement accepté par Vercel.
+6. S'il y a eu une ou plusieurs fusions, un seul Deploy Hook Vercel publie le dernier état de `main`.
+7. S'il n'y a aucune nouvelle fusion, aucun déploiement n'est lancé.
+8. Le workflow peut être lancé manuellement en cas d'urgence, avec l'option `force`.
 
-## Configuration à effectuer une seule fois
+## Configuration obligatoire avant fusion de cette politique
 
 ### 1. Créer le Deploy Hook Vercel
 
 Dans le projet Vercel **crm** :
 
-1. Ouvrir **Settings → Git**.
-2. Dans **Deploy Hooks**, créer un hook nommé `production-daily-main`.
+1. Ouvrir **Settings → Git → Deploy Hooks**.
+2. Créer un hook nommé `production-daily-main`.
 3. Sélectionner la branche `main`.
-4. Copier l'URL générée. Cette URL est un secret : ne pas la publier dans le dépôt, les issues ou les messages.
+4. Copier l'URL générée. Cette URL est un secret : ne pas la publier.
 
 ### 2. Enregistrer le secret GitHub
 
-Dans le dépôt GitHub **AgriCapital-Web/CRM** :
+Dans **AgriCapital-Web/CRM → Settings → Secrets and variables → Actions** :
 
-1. Ouvrir **Settings → Secrets and variables → Actions**.
-2. Ajouter un secret nommé exactement `VERCEL_DEPLOY_HOOK_URL`.
-3. Coller l'URL du Deploy Hook Vercel comme valeur.
+1. Ajouter un secret nommé exactement `VERCEL_DEPLOY_HOOK_URL`.
+2. Coller l'URL du Deploy Hook Vercel.
 
-### 3. Activer la politique
+### 3. Effet de la configuration Vercel
 
-La propriété `git.deploymentEnabled.main = false` dans `vercel.json` désactive les déploiements automatiques déclenchés par les pushes sur `main`. Les autres branches conservent leurs déploiements Preview.
+La propriété `git.deploymentEnabled = false` dans `vercel.json` suspend les déploiements automatiques déclenchés par Git sur toutes les branches, y compris les Preview. L'intégration Git reste connectée et le Deploy Hook lié à `main` reste le mécanisme de publication.
 
-Le Deploy Hook reste le canal de déclenchement des déploiements de production. Ne pas désactiver l'intégration Git du projet : elle reste nécessaire aux Deploy Hooks et aux Preview.
+Cette suspension est volontaire : elle évite que chaque commit de branche ou chaque mise à jour de Pull Request consomme un déploiement. Les contrôles GitHub Actions restent actifs.
 
-## Règles de travail à respecter
+## Règles d'exploitation
 
-- Ne jamais lancer un déploiement Vercel à chaque commit ou à chaque fusion.
-- Fusionner les Pull Requests validées dans `main`; la mise en production intervient au prochain passage quotidien.
-- Pour une urgence ou après un échec de build, utiliser **Actions → Déploiement de production groupé → Run workflow**, puis activer `force`.
-- Vérifier dans Vercel que le déploiement atteint l'état **Ready** : le workflow confirme que le Deploy Hook a accepté la demande, pas que le build est terminé.
+- Ne jamais lancer un déploiement Vercel à chaque commit ou fusion.
+- Fusionner les PR validées dans `main`; la publication intervient au prochain passage quotidien.
+- Pour une urgence, utiliser **Actions → Déploiement de production groupé → Run workflow**, puis activer `force`.
+- Vérifier dans Vercel que le déploiement atteint **Ready** : le workflow vérifie l'acceptation du Deploy Hook, pas la réussite finale du build.
+- Après un échec de build, relancer manuellement le workflow avec `force`.
 - Ne jamais placer l'URL du Deploy Hook dans un fichier versionné.
-- Ne pas utiliser l'« Ignored Build Step » pour simuler ce regroupement : Vercel indique que les déploiements annulés par cette fonction comptent tout de même dans les quotas de déploiement.
+- Ne pas utiliser l'« Ignored Build Step » pour simuler le regroupement : les déploiements ignorés peuvent tout de même consommer le quota.
 
-## Fréquence et effet attendu
+## Fréquence attendue
 
 - Automatique : **1 déploiement de production par jour au maximum**, uniquement si `main` a changé.
-- Heure prévue : **18 h, heure d'Abidjan**.
-- Plusieurs fusions pendant la journée : **1 seul déploiement**, contenant le dernier état de `main`.
-- Aucune fusion depuis le dernier déclenchement : **0 déploiement**.
-- Déploiement urgent manuel : possible à tout moment, en plus du passage quotidien.
+- Heure : **18 h, heure d'Abidjan**.
+- Plusieurs fusions pendant la journée : **1 seul déploiement** avec le dernier état de `main`.
+- Aucune fusion depuis le dernier déploiement : **0 déploiement**.
+- Déploiement urgent manuel : possible à tout moment, en supplément.
