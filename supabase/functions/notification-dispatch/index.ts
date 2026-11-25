@@ -83,9 +83,16 @@ type Contact = {
 };
 
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
+// GSM-7 extension-table characters consume two septets even though they are
+// displayed as one character. Count the final personalized text, not the
+// template with its {nom} placeholder.
+const gsm7SeptetLength = (value: string) => {
+  const extension = new Set(["^", "{", "}", "\\", "[", "]", "~", "|", "€"]);
+  return Array.from(value).reduce((total, character) => total + (extension.has(character) ? 2 : 1), 0);
+};
 const assertSmsLength = (value: string, maxCharacters = 158) => {
-  const length = Array.from(value).length;
-  if (length > maxCharacters) throw new Error(`SMS trop long : ${length}/${maxCharacters} caractères, espaces et signes compris.`);
+  const length = gsm7SeptetLength(value);
+  if (length > maxCharacters) throw new Error(`SMS trop long : ${length}/${maxCharacters} unités GSM-7. Envoi bloqué pour éviter un second SMS.`);
   if (!length) throw new Error("Le SMS ne peut pas être vide.");
   return value;
 };
