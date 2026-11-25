@@ -376,7 +376,6 @@ const Dashboard = () => {
       // Le tableau de bord foncier prend les conventions actives comme référence contractuelle.
       // Les parcelles sans convention active et les propriétaires non validés sont exclus.
       const activeConventions = conventions.filter((c: any) => String(c.statut || "").trim().toLowerCase() === "active");
-      const activeConventionIds = new Set(activeConventions.map((c: any) => c.id));
       const activeConventionByParcel = new Map<string, any>();
       const activeConventionById = new Map<string, any>();
       activeConventions.forEach((c: any) => {
