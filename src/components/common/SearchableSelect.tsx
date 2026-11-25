@@ -5,7 +5,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-interface Option { value: string; label: string; flagUrl?: string; }
+interface Option { value: string; label: string; flagUrl?: string; searchTerms?: string; }
 
 interface SearchableSelectProps {
   value?: string | null;
@@ -54,7 +54,7 @@ export default function SearchableSelect({
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
-                <CommandItem key={option.value} value={option.label} onSelect={() => { onValueChange(option.value); setOpen(false); }}>
+                <CommandItem key={option.value} value={`${option.label} ${option.searchTerms ?? ""}`} onSelect={() => { onValueChange(option.value); setOpen(false); }}>
                   <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
                   <span className="flex min-w-0 items-center gap-2 truncate">{option.flagUrl && <img src={option.flagUrl} alt="" aria-hidden="true" className="h-4 w-6 shrink-0 rounded-[2px] border object-cover" loading="lazy" />}<span className="truncate">{option.label}</span></span>
                 </CommandItem>
