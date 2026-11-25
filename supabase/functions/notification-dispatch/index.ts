@@ -83,7 +83,7 @@ type Contact = {
 };
 
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
-const assertSmsLength = (value: string, maxCharacters = 155) => {
+const assertSmsLength = (value: string, maxCharacters = 158) => {
   const length = Array.from(value).length;
   if (length > maxCharacters) throw new Error(`SMS trop long : ${length}/${maxCharacters} caractères, espaces et signes compris.`);
   if (!length) throw new Error("Le SMS ne peut pas être vide.");
@@ -281,7 +281,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
     offre_code: contact.offre_code || "", formule: contact.formule_nom || contact.formule_code || "",
     formule_code: contact.formule_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
-    dernier_prenom_nom: displayName, dernierprenom_nom: displayName,
+    dernier_prenom_nom: displayName, dernierprenom_nom: displayName, nom: structuredLastName || familyName,
     ...(context.finance_payout_sms === true ? { prenom: firstName, nom: familyName, nom_complet: displayName } : {}),
   };
   const greetingAdjusted = context.finance_payout_sms === true
@@ -592,8 +592,8 @@ const DEFAULT_ROUTING_POLICY: NotificationRoutingPolicy = {
   domestic_country_calling_code: "+225",
   domestic_channel: "sms",
   international_channel: "whatsapp",
-  sms_max_characters: 155,
-  sms_content_max_characters: 130,
+  sms_max_characters: 158,
+  sms_content_max_characters: 158,
   sms_sender_id: "AgriCapital",
 };
 async function getNotificationRoutingPolicy(): Promise<NotificationRoutingPolicy> {
@@ -608,8 +608,8 @@ async function getNotificationRoutingPolicy(): Promise<NotificationRoutingPolicy
     domestic_country_calling_code: String(data.domestic_country_calling_code || "+225"),
     domestic_channel: "sms",
     international_channel: "whatsapp",
-    sms_max_characters: Math.min(155, Math.max(1, Number(data.sms_max_characters) || 155)),
-    sms_content_max_characters: Math.min(130, Math.max(1, Number(data.sms_content_max_characters) || 130)),
+    sms_max_characters: Math.min(158, Math.max(1, Number(data.sms_max_characters) || 158)),
+    sms_content_max_characters: Math.min(158, Math.max(1, Number(data.sms_content_max_characters) || 158)),
     sms_sender_id: "AgriCapital",
   };
 }
@@ -1072,7 +1072,7 @@ async function runCampaign(campaignId: string) {
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
   if (["sms", "whatsapp", "auto", "email_sms"].includes(String(campaign.canal || ""))) {
     const routingPolicy = await getNotificationRoutingPolicy();
-    const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
+    const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
     const bodyCharacters = Array.from(bodyWithoutRecipientName).length;
     if (bodyCharacters > routingPolicy.sms_content_max_characters) {
       throw new Error(`Message de campagne trop long : ${bodyCharacters}/${routingPolicy.sms_content_max_characters} caractères hors nom/prénom. Utilisez « Restructurer » avant l'envoi.`);
