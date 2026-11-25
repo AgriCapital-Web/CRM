@@ -49,22 +49,29 @@ Deno.serve(async (req) => {
       if (rolesError) throw rolesError;
       if (requestError) throw requestError;
 
-      if (profile?.type_compte === "interne" && profile.actif !== false && (roles || []).length > 0) {
-        return json({ success: true, client_id: client.id, linked_internal_user: true, client_portal_auth_not_required: true });
-      }
-
-      if ((roles || []).length > 0 || approvedRequest) {
-        return json({
-          success: false,
-          code: "INTERNAL_ACCOUNT_REVIEW_REQUIRED",
-          error: "Ce dossier est lié à une identité qui doit être vérifiée comme compte interne avant toute modification.",
-        }, 409);
-      }
-
       const { error: detachError } = await admin.from("clients")
         .update({ user_id: null, updated_at: new Date().toISOString() })
         .eq("id", client.id);
       if (detachError) throw detachError;
+
+      // Une personne peut être salariée et cliente, mais les deux dossiers restent indépendants.
+      if (profile?.type_compte === "interne" || approvedRequest) {
+        return json({
+          success: true,
+          client_id: client.id,
+          internal_account_preserved: true,
+          client_auth_link_removed: true,
+          client_portal_auth_not_required: true,
+        });
+      }
+
+      if ((roles || []).length > 0) {
+        return json({
+          success: false,
+          code: "INTERNAL_ACCOUNT_REVIEW_REQUIRED",
+          error: "Cette identité porte encore un rôle CRM. Vérifiez son profil interne avant toute suppression.",
+        }, 409);
+      }
 
       if (profile) {
         const { error: deleteProfileError } = await admin.from("profiles").delete().eq("user_id", client.user_id);
