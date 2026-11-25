@@ -55,7 +55,12 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
   }, [countryCode, localValue]);
   const selected = COUNTRIES.find(c => c.code === selectedCode) || countryFromCode(countryCode || "+225", COUNTRIES);
   const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
-  const options = useMemo(() => COUNTRIES.map(c => ({ value: c.code, label: c.name + " " + c.callingCode, flagUrl: flagUrl(c.code) })), []);
+  const options = useMemo(() => COUNTRIES.map(c => ({
+    value: c.code,
+    label: c.name + " " + c.callingCode,
+    flagUrl: flagUrl(c.code),
+    searchTerms: c.code === "CI" ? "Côte d'Ivoire Cote d'Ivoire Cote d Ivoire Côte d Ivoire cote ivoire Côte ivoire cote divoire cote divoir cote d ivoir cot d ivoir cot d'ivoire cot ivoire ivoire ivorie ivor Ivory Coast Ivory Ivory-Coast 225 +225 CI" : c.callingCode,
+  })), []);
   const normalizedLocal = (value: string, country: Country) => {
     const rawValue = String(value || "").trim();
     let valueDigits = digits(rawValue);
