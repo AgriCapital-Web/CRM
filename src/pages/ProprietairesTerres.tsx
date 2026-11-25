@@ -239,24 +239,16 @@ const ProprietairesTerres = () => {
       return;
     }
     const totalSurface = Number(formData.surface_totale_declaree_ha || 0);
-    if (totalSurface < 2 || Math.abs(totalSurface * 2 - Math.round(totalSurface * 2)) > 0.000001) {
+    if (!Number.isFinite(totalSurface) || totalSurface <= 0) {
       setActiveFormTab("parcelle");
-      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie totale doit être d’au moins 2 ha et respecter des pas de 0,5 ha." });
-      return;
-    }
-    const agriPctCheck = (formData.type_convention || "plante_partage") === "achat" ? 100 : 50;
-    const agriShareCheck = totalSurface * agriPctCheck / 100;
-    const ownerShareCheck = totalSurface - agriShareCheck;
-    if ([agriShareCheck, ownerShareCheck].some((share) => Math.abs(share * 2 - Math.round(share * 2)) > 0.000001)) {
-      setActiveFormTab("parcelle");
-      toast({ variant: "destructive", title: "Répartition foncière invalide", description: "Les parts du propriétaire et d’AgriCapital doivent être des multiples de 0,5 ha." });
+      toast({ variant: "destructive", title: "Superficie invalide", description: "La superficie totale doit être supérieure à 0 ha." });
       return;
     }
     if ((formData.type_convention || "plante_partage") === "plante_partage") {
       const campaignSurface = Number(formData.surface_campagne_ha || 0);
-      if (campaignSurface < 2 || campaignSurface > totalSurface || Math.abs(campaignSurface * 2 - Math.round(campaignSurface * 2)) > 0.000001) {
+      if (!Number.isFinite(campaignSurface) || campaignSurface <= 0 || campaignSurface > totalSurface) {
         setActiveFormTab("parcelle");
-        toast({ variant: "destructive", title: "Superficie de campagne invalide", description: "Chaque campagne doit porter sur au moins 2 ha, par pas de 0,5 ha, sans dépasser la superficie totale de la parcelle." });
+        toast({ variant: "destructive", title: "Superficie de campagne invalide", description: "La superficie de campagne doit être supérieure à 0 ha et ne pas dépasser la superficie totale." });
         return;
       }
     }
@@ -474,6 +466,13 @@ const ProprietairesTerres = () => {
       const { data: convention, error: conventionError } = await offlineInsert("conventions_foncieres", conventionPayload);
       if (conventionError || !convention) throw conventionError || new Error("La convention n’a pas été enregistrée.");
       const conventionRef: any = convention;
+      if (parcelleId && conventionRef?.id) {
+        const { error: linkConventionError } = await offlineUpdate("parcelles", parcelleId, {
+          convention_id: conventionRef.id,
+          updated_by: currentUser.id,
+        });
+        if (linkConventionError) throw linkConventionError;
+      }
 
       const documents = applicableAnnexes.map((a) => ({
         proprietaire_id: proprietaire.id,
@@ -810,11 +809,11 @@ const ProprietairesTerres = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Superficie totale de la parcelle (ha) *</Label>
-                          <Input type="number" min="2" step="0.5" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
+                          <Input type="number" min="0.01" step="any" value={formData.surface_totale_declaree_ha} onChange={e => update('surface_totale_declaree_ha', e.target.value)} required />
                         </div>
                         {formData.type_convention !== "achat" && <div className="space-y-2">
-                          <Label>Superficie de la campagne de mise en valeur (ha) — minimum 2 ha *</Label>
-                          <Input type="number" min="2" step="0.5" max={formData.surface_totale_declaree_ha || undefined} value={formData.surface_campagne_ha || ""} onChange={e => update('surface_campagne_ha', e.target.value)} required />
+                          <Label>Superficie de la campagne de mise en valeur (ha) *</Label>
+                          <Input type="number" min="0.01" step="any" max={formData.surface_totale_declaree_ha || undefined} value={formData.surface_campagne_ha || ""} onChange={e => update('surface_campagne_ha', e.target.value)} required />
                           <p className="text-xs text-muted-foreground">La superficie de la campagne ne peut pas dépasser celle de la parcelle.</p>
                         </div>}
                         <div className="space-y-2">
