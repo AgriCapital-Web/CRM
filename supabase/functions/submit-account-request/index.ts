@@ -28,13 +28,7 @@ const escapeHtml = (value: unknown): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const VALID_ROLES = [
-  "commercial", "technicien", "chef_equipe_commercial", "chef_equipe_technique",
-  "responsable_commercial", "responsable_technique_agronomique", "responsable_district",
-  "mobilisateur_foncier", "superviseur_mobilisation_fonciere", "comptable", "service_client", "operations",
-];
-
-// Aucun rôle ne peut être auto-attribué : toute demande passe par la validation d'un administrateur.
+// Le catalogue public des rôles en base est la seule source de vérité pour les demandes de compte.
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -70,27 +64,23 @@ serve(async (req) => {
     if (!String(username).trim()) {
       return json({ error: "Veuillez saisir un nom d'utilisateur.", step: "validate_username" }, 400);
     }
-    if (!VALID_ROLES.includes(String(role_souhaite))) {
-      return json({ error: `Rôle invalide: ${role_souhaite}`, step: "validate_role" }, 400);
-    }
-
-    // Geographic scope is derived from the official role, never from arbitrary
-    // client-supplied fields. Every selected zone must be active in its DB view.
     const roleCode = String(role_souhaite) === "responsable_zone" ? "responsable_district" : String(role_souhaite);
-    const geoLevelByRole: Record<string, "district" | "region" | "departement" | "sous_prefecture"> = {
-      responsable_district: "district",
-      responsable_commercial: "region",
-      chef_equipe_commercial: "departement",
-      commercial: "departement",
-      technicien: "departement",
-      mobilisateur_foncier: "departement",
-      chef_equipe_technique: "departement",
-      superviseur_mobilisation_fonciere: "region",
-      responsable_technique_agronomique: "region",
-    };
-    const scope = geoLevelByRole[roleCode] || null;
+    const { data: publicRole, error: publicRoleError } = await admin
+      .from("v_public_signup_roles")
+      .select("code,nom,niveau_couverture,actif")
+      .eq("code", roleCode)
+      .eq("actif", true)
+      .maybeSingle();
+    if (publicRoleError) return json({ error: "Impossible de vérifier le poste choisi dans le catalogue.", step: "validate_role" }, 500);
+    if (!publicRole) return json({ error: `Le poste choisi n'est pas disponible pour une demande de compte: ${roleCode}`, step: "validate_role" }, 400);
+
+    // Le niveau de couverture vient du catalogue en base : aucun mapping de rôle
+    // divergent n'est maintenu dans cette fonction.
+    const scope = String(publicRole.niveau_couverture || "global");
+    const validScopes = ["global", "district", "region", "departement", "sous_prefecture"];
+    if (!validScopes.includes(scope)) return json({ error: "Le niveau de couverture du poste est invalide.", step: "validate_geo" }, 400);
     district_id = null; region_id = null; departement_geo_id = null; sous_prefecture_id = null;
-    if (scope) {
+    if (scope !== "global") {
       const targetId = scope === "district" ? body?.district_id
         : scope === "region" ? body?.region_id
         : scope === "departement" ? body?.departement_geo_id
@@ -157,7 +147,7 @@ serve(async (req) => {
       email: cleanEmail,
       password: String(password),
       email_confirm: false,
-      user_metadata: { nom_complet: cleanNomComplet, nom: cleanNom, prenoms: cleanPrenoms, username: cleanUsername, pending_role: role_souhaite },
+      user_metadata: { nom_complet: cleanNomComplet, nom: cleanNom, prenoms: cleanPrenoms, username: cleanUsername, pending_role: roleCode },
     });
 
     if (createErr) {
@@ -210,7 +200,9 @@ serve(async (req) => {
       telephone_indicatif: telephone_indicatif ?? null,
       telephone_local: telephone_local ?? null,
       username: cleanUsername,
-      poste: poste_souhaite ?? null,
+      poste: poste_souhaite ?? publicRole.nom ?? roleCode,
+      departement: departement ?? null,
+      photo_url: photo_url ?? null,
       district_id: district_id ?? null,
       region_id: region_id ?? null,
       actif: false,
@@ -223,7 +215,9 @@ serve(async (req) => {
     }
 
     const { error: reqErr } = await admin.from("account_requests").insert({
-      nom_complet,
+      nom_complet: cleanNomComplet,
+      nom: cleanNom,
+      prenoms: cleanPrenoms,
       email: cleanEmail,
       telephone: String(telephone ?? "").trim(),
       telephone_indicatif: telephone_indicatif ?? null,
