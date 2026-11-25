@@ -393,10 +393,6 @@ const Dashboard = () => {
       );
       const validatedPartnershipParcelIds = new Set(validatedPartnershipParcels.map((p: any) => p.id));
       const validatedConventionIds = new Set(validatedPartnershipParcels.map((p: any) => conventionForParcel(p)?.id).filter(Boolean));
-      const partnershipTotalHa = validatedPartnershipParcels.reduce((sum: number, p: any) => {
-        const convention = conventionForParcel(p);
-        return sum + Math.max(0, Number(convention?.surface_totale_ha ?? p.surface_totale_ha ?? 0));
-      }, 0);
       const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
       const plantedByPartnershipParcel = new Map<string, number>();
       plantations.filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id)).forEach((p: any) => {
