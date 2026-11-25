@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
+import RequiredPwaUpdate from "@/components/pwa/RequiredPwaUpdate";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { PERMISSIONS } from "@/lib/roles";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -163,6 +164,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <InstallPrompt />
+          <RequiredPwaUpdate />
           <DomainRouter />
         </BrowserRouter>
       </TooltipProvider>

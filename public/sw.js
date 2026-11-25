@@ -1,14 +1,13 @@
-const CACHE_NAME = "agricapital-crm-v35";
+const CACHE_NAME = "agricapital-crm-v36";
 const CACHE_PREFIX = "agricapital-crm-";
 const OFFLINE_DB = "agricapital_offline";
 const OFFLINE_DB_VERSION = 15;
 const HTTP_QUEUE_STORE = "http_mutations";
-const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json?v=20261023-official-v5", "/asset-manifest.json", "/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official"];
+const SHELL_URLS = ["/", "/index.html", "/manifest-crm.json?v=20261125-square-v6", "/asset-manifest.json", "/images/Logo%20%20AgriCapital%20-360%C2%B0.png?v=20261023-official", "/icons/icon-crm-square.svg?v=20261125"];
 const FONT_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
-    self.skipWaiting();
     const cache = await caches.open(CACHE_NAME);
     await Promise.all(SHELL_URLS.map(async (url) => {
       try {

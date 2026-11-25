@@ -43,9 +43,9 @@ const Parametres = () => {
   const defaultTab = searchParams.get('tab') || 'utilisateurs';
 
   const tabs: TabConfig[] = [
-    { value: 'notifications', label: 'Notifications', mobileLabel: 'Notifications', icon: Bell, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionNotifications },
     { value: 'utilisateurs', label: 'Utilisateurs', mobileLabel: 'Utilis.', icon: Users, permission: PERMISSIONS.MANAGE_USERS, component: Utilisateurs },
     { value: 'cartes', label: 'Carte du personnel', mobileLabel: 'Cartes', icon: IdCard, permission: PERMISSIONS.MANAGE_USERS, component: GestionCartes },
+    { value: 'notifications', label: 'Notifications', mobileLabel: 'Notifications', icon: Bell, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionNotifications },
     { value: 'equipes', label: 'Équipes', icon: UsersRound, permission: PERMISSIONS.MANAGE_TEAMS, component: Equipes },
 
     { value: 'roles', label: 'Rôles', icon: Shield, permission: PERMISSIONS.MANAGE_ROLES, component: GestionRoles },

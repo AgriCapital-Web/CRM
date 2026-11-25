@@ -1,78 +1,86 @@
 const PREVIEW_HOSTS = ["lovableproject.com", "lovableproject-dev.com", "beta.lovable.dev"];
+const BUILD_VERSION = "2026.11.25.1";
+const ACCEPTED_VERSION_KEY = "agricapital-crm-update-accepted";
 
 function registrationAllowed() {
   const host = window.location.hostname;
-  const previewHost =
-    host.startsWith("id-preview--") ||
-    host.startsWith("preview--") ||
+  const previewHost = host.startsWith("id-preview--") || host.startsWith("preview--") ||
     PREVIEW_HOSTS.some((root) => host === root || host.endsWith("." + root));
-
-  return (
-    import.meta.env.PROD &&
-    window.top === window.self &&
-    !previewHost &&
-    new URLSearchParams(location.search).get("sw") !== "off"
-  );
+  return import.meta.env.PROD && window.top === window.self && !previewHost &&
+    new URLSearchParams(location.search).get("sw") !== "off";
 }
 
 async function unregisterAppWorkers() {
   const registrations = await navigator.serviceWorker.getRegistrations();
-  await Promise.all(
-    registrations
-      .filter((registration) => registration.active?.scriptURL.endsWith("/sw.js"))
-      .map((registration) => registration.unregister())
-  );
+  await Promise.all(registrations.filter((registration) =>
+    registration.active?.scriptURL.endsWith("/sw.js")
+  ).map((registration) => registration.unregister()));
+}
+
+function isInstalledPwa() {
+  return window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+}
+
+function requestMandatoryUpdate(registration?: ServiceWorkerRegistration) {
+  window.dispatchEvent(new CustomEvent("agri:pwa-update-required", {
+    detail: { registration, version: BUILD_VERSION },
+  }));
 }
 
 export async function registerAppServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-
   if (!registrationAllowed()) {
     await unregisterAppWorkers();
     return;
   }
 
   try {
-    // When an already-open PWA receives a new worker, reload once so its
-    // JavaScript bundle matches the newly deployed index.html.
     const hadController = Boolean(navigator.serviceWorker.controller);
-    if (hadController) {
-      let reloadingForWorkerUpdate = false;
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (reloadingForWorkerUpdate) return;
-        reloadingForWorkerUpdate = true;
-        window.location.reload();
-      });
-    }
+    const accepted = window.localStorage.getItem(ACCEPTED_VERSION_KEY);
+    if (!hadController) window.localStorage.setItem(ACCEPTED_VERSION_KEY, BUILD_VERSION);
+    else if (isInstalledPwa() && accepted !== BUILD_VERSION) requestMandatoryUpdate(undefined);
 
     const registration = await navigator.serviceWorker.register("/sw.js", {
-      scope: "/",
-      updateViaCache: "none",
+      scope: "/", updateViaCache: "none",
     });
 
-    // Keep updates silent: activate a waiting worker without forcing a reload.
-    if (registration.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    }
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloading || window.localStorage.getItem(ACCEPTED_VERSION_KEY) !== BUILD_VERSION) return;
+      reloading = true;
+      window.location.reload();
+    });
 
-    const checkForUpdate = () =>
-      registration.update().catch(() => {
-        // A temporary network failure must never break the application.
-      });
-    const onOnline = () => void checkForUpdate();
-    const onPageShow = () => void checkForUpdate();
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void checkForUpdate();
+    const notifyWaiting = () => {
+      if (isInstalledPwa() && registration.waiting && navigator.serviceWorker.controller) requestMandatoryUpdate(registration);
     };
+    registration.addEventListener("updatefound", () => {
+      const installing = registration.installing;
+      if (!installing) return;
+      installing.addEventListener("statechange", () => {
+        if (isInstalledPwa() && installing.state === "installed" && navigator.serviceWorker.controller) requestMandatoryUpdate(registration);
+      });
+    });
+    notifyWaiting();
 
-    // Installed PWAs can remain open while the device regains connectivity.
-    // Check immediately on reconnect, on foregrounding, at startup and periodically.
-    void checkForUpdate();
-    window.addEventListener("online", onOnline);
-    window.addEventListener("pageshow", onPageShow);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.setInterval(() => void checkForUpdate(), 15 * 60 * 1000);
+    const check = () => registration.update().then(notifyWaiting).catch(() => undefined);
+    void check();
+    window.addEventListener("online", () => void check());
+    window.addEventListener("pageshow", () => void check());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void check();
+    });
+    window.setInterval(() => void check(), 15 * 60 * 1000);
   } catch {
-    // Service worker support must remain non-blocking for the application.
+    // Les erreurs temporaires de service worker ne bloquent pas le CRM.
   }
+}
+
+export function acceptMandatoryPwaUpdate(registration?: ServiceWorkerRegistration) {
+  window.localStorage.setItem(ACCEPTED_VERSION_KEY, BUILD_VERSION);
+  if (registration?.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    return;
+  }
+  window.location.reload();
 }
