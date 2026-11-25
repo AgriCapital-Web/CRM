@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { getCountries, getCountryCallingCode, parsePhoneNumberFromString } from "libphonenumber-js/max";
+import { getLocalizedCountryNames } from "@/lib/countrySearch";
 
 type Country = { code: string; name: string; callingCode: string; flag: string };
 const digits = (value: string) => String(value || "").replace(/\D/g, "");
@@ -59,7 +60,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
     value: c.code,
     label: c.name + " " + c.callingCode,
     flagUrl: flagUrl(c.code),
-    searchTerms: c.code === "CI" ? "Côte d'Ivoire Cote d'Ivoire Cote d Ivoire Côte d Ivoire cote ivoire Côte ivoire cote divoire cote divoir cote d ivoir cot d ivoir cot d'ivoire cot ivoire ivoire ivorie ivor Ivory Coast Ivory Ivory-Coast 225 +225 CI" : c.callingCode,
+    searchTerms: `${getLocalizedCountryNames(c.code)} ${c.code} ${c.callingCode} ${c.code === "CI" ? "Ivory Coast Ivory-Coast Ivoire Ivorie" : ""}`,
   })), []);
   const normalizedLocal = (value: string, country: Country) => {
     const rawValue = String(value || "").trim();
