@@ -18,7 +18,7 @@ async function unregisterAppWorkers() {
 }
 
 function isInstalledPwa() {
-  return window.matchMedia("(display-mode: standalone)").matches || (navigator).standalone === true;
+  return window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
 }
 
 function requestMandatoryUpdate(registration) {
