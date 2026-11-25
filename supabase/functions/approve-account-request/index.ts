@@ -267,11 +267,16 @@ serve(async (req) => {
       departement: "p_departement_geo_id",
       sous_prefecture: "p_sous_prefecture_id",
     };
+    if (coverage !== "global" && !requiredZoneParam[coverage]) {
+      return json({ error: `Niveau de couverture non pris en charge pour le rôle: ${coverage}`, step, logs }, 400);
+    }
     if (coverage !== "global" && !zoneParams[requiredZoneParam[coverage]]) {
       const { data: existingZone, error: existingZoneError } = await admin
         .from("zone_assignments")
         .select("zone_type,zone_id")
         .eq("user_id", userId)
+        .eq("zone_type", coverage)
+        .limit(1)
         .maybeSingle();
       if (existingZoneError) return json({ error: `Lecture de la zone existante impossible: ${existingZoneError.message}`, step, logs }, 400);
       if (existingZone?.zone_type === coverage && existingZone.zone_id) {
