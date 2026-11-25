@@ -1,6 +1,6 @@
 
 -- 1) Séparer strictement les comptes internes CRM des comptes clients du portail.
-create or replace view public.v_internal_users as
+create or replace view public.v_internal_users with (security_invoker = true) as
 select
   p.id, p.user_id, p.nom_complet, p.email, p.telephone, p.photo_url, p.username,
   p.equipe_id, p.actif, p.created_at, p.updated_at, p.telephone_secondaire,
@@ -549,6 +549,7 @@ begin
       and a.created_at >= v_debut
       and a.created_at < v_fin
       and lower(coalesce(a.statut,'')) not in ('annule','annulee','refuse','rejetee','archive','supprime')
+      and lower(coalesce(a.validation_statut,'')) = 'valide'
       and private.is_commercial_assignable(c.commercial_id)
     group by c.commercial_id, public.crm_bonus_offer_code(
       a.offre_code, a.famille_offre, concat_ws(' ', a.formule_code, c.formule_code, c.formule_nom)
@@ -618,6 +619,7 @@ begin
         where a.created_at >= v_debut
           and a.created_at < v_fin
           and lower(coalesce(a.statut,'')) not in ('annule','annulee','refuse','rejetee','archive','supprime')
+      and lower(coalesce(a.validation_statut,'')) = 'valide'
           and private.is_commercial_assignable(c.commercial_id)
         group by pr.id, public.crm_bonus_offer_code(
           a.offre_code, a.famille_offre,
