@@ -101,6 +101,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         triggerLabel={selected.callingCode}
         triggerFlagUrl={flagUrl(selected.code)}
         triggerIconOnly
+        contentClassName="w-max min-w-[260px] max-w-[calc(100vw-24px)]"
       />
       <Input
         className={`min-w-0 w-0 flex-1 h-10 ${compact ? "px-2 text-sm" : ""}`}
