@@ -450,7 +450,7 @@ const Dashboard = () => {
         client.validation_statut === "valide" &&
         ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase())
       ).reduce((sum: number, client: any) => {
-        const hectares = Math.max(0, Number(client.superficie_ha ?? client.total_hectares ?? 0));
+        const hectares = Math.max(0, Number(client.total_hectares ?? client.superficie_ha ?? 0));
         const formula = `${client.formule_code || ""} ${client.famille_offre || ""} ${client.formule_nom || ""}`.toUpperCase();
         // PalmInvest engage aussi la même superficie à planter chez le propriétaire.
         return sum + hectares * (formula.includes("PALMINVEST") ? 2 : 1);
