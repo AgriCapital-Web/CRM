@@ -128,7 +128,7 @@ serve(async (req) => {
     step = "validate_role_catalog";
     const { data: roleRecord, error: roleCatalogError } = await admin
       .from("app_roles")
-      .select("code,actif")
+      .select("code,actif,niveau_couverture")
       .eq("code", finalRole)
       .eq("actif", true)
       .maybeSingle();
@@ -208,13 +208,14 @@ serve(async (req) => {
       prenoms: reqRow.prenoms || String(reqRow.nom_complet || "").trim().split(/\s+/).slice(1).join(" ") || null,
       telephone: reqRow.telephone,
       telephone_indicatif: reqRow.telephone_indicatif ?? null,
-      telephone_local: reqRow.telephone_local ?? reqRow.telephone ?? null,
+      telephone_local: reqRow.telephone_local ?? null,
       username: reqRow.username ?? String(reqRow.email).split("@")[0],
       poste: reqRow.poste_souhaite || finalRole,
+      departement: reqRow.departement ?? null,
       photo_url: reqRow.photo_url ?? null,
       district_id: reqRow.district_id,
       region_id: reqRow.region_id,
-      actif: true,
+      actif: false,
       password_change_required: Boolean(tempPassword),
     };
     const { data: linkedProfile, error: linkedProfileError } = await admin
@@ -233,18 +234,6 @@ serve(async (req) => {
       const { error: profileInsertError } = await admin.from("profiles").insert({ id: userId, ...profilePayload });
       if (profileInsertError) return json({ error: `Profil: ${profileInsertError.message}`, step, logs }, 400);
     }
-    step = "activate_profile";
-    const { data: activationRows, error: activationError } = await admin.rpc("admin_set_profile_active_authorized", {
-      p_user_id: userId,
-      p_actif: true,
-      p_actor_user_id: callerUserId,
-    });
-    if (activationError) return json({ error: `Activation du profil: ${activationError.message}`, step, logs }, 400);
-    const activeProfile = (activationRows ?? []).find((p: any) => p.user_id === userId || p.profile_id === userId);
-    if (!activeProfile || activeProfile.actif !== true) {
-      return json({ error: "Le compte n'a pas été activé de façon persistante.", step, logs }, 500);
-    }
-
     step = "assign_role";
     const { error: roleErr } = await admin.rpc("admin_set_user_roles_with_primary_authorized", {
       p_user_id: userId,
@@ -263,6 +252,70 @@ serve(async (req) => {
       return json({ error: `Rôle ou rôle principal non persisté. Rôle demandé: ${finalRole}; principal actuel: ${primaryAfter ?? "aucun"}`, step, logs }, 500);
     }
     log(`rôles après attribution: ${assigned.join(", ")}`);
+
+    step = "assign_geographic_scope";
+    const coverage = String(roleRecord.niveau_couverture || "global");
+    const zoneParams: Record<string, string | null> = {
+      p_district_id: reqRow.district_id ?? null,
+      p_region_id: reqRow.region_id ?? null,
+      p_departement_geo_id: reqRow.departement_geo_id ?? null,
+      p_sous_prefecture_id: reqRow.sous_prefecture_id ?? null,
+    };
+    const requiredZoneParam: Record<string, string> = {
+      district: "p_district_id",
+      region: "p_region_id",
+      departement: "p_departement_geo_id",
+      sous_prefecture: "p_sous_prefecture_id",
+    };
+    if (coverage !== "global" && !requiredZoneParam[coverage]) {
+      return json({ error: `Niveau de couverture non pris en charge pour le rôle: ${coverage}`, step, logs }, 400);
+    }
+    if (coverage !== "global" && !zoneParams[requiredZoneParam[coverage]]) {
+      const { data: existingZone, error: existingZoneError } = await admin
+        .from("zone_assignments")
+        .select("zone_type,zone_id")
+        .eq("user_id", userId)
+        .eq("zone_type", coverage)
+        .limit(1)
+        .maybeSingle();
+      if (existingZoneError) return json({ error: `Lecture de la zone existante impossible: ${existingZoneError.message}`, step, logs }, 400);
+      if (existingZone?.zone_type === coverage && existingZone.zone_id) {
+        zoneParams[requiredZoneParam[coverage]] = existingZone.zone_id;
+        log(`zone existante conservée pour le rôle: ${coverage}`);
+      }
+    }
+    const { error: zoneError } = await admin.rpc("admin_assign_requested_user_zone", {
+      p_user_id: userId,
+      p_role_code: finalRole,
+      ...zoneParams,
+      p_actor_user_id: callerUserId,
+    });
+    if (zoneError) return json({ error: `Attribution de la zone géographique impossible: ${zoneError.message}`, step, logs }, 400);
+
+    if (coverage !== "global") {
+      const { data: assignedZone, error: assignedZoneError } = await admin
+        .from("zone_assignments")
+        .select("zone_type,zone_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const expectedZoneId = zoneParams[requiredZoneParam[coverage]];
+      if (assignedZoneError || !assignedZone || assignedZone.zone_type !== coverage || assignedZone.zone_id !== expectedZoneId) {
+        return json({ error: "La zone choisie n'a pas été enregistrée correctement.", step, logs }, 500);
+      }
+    }
+    log(`couverture géographique confirmée: ${coverage}`);
+
+    step = "activate_profile";
+    const { data: activationRows, error: activationError } = await admin.rpc("admin_set_profile_active_authorized", {
+      p_user_id: userId,
+      p_actif: true,
+      p_actor_user_id: callerUserId,
+    });
+    if (activationError) return json({ error: `Activation du profil: ${activationError.message}`, step, logs }, 400);
+    const activeProfile = (activationRows ?? []).find((p: any) => p.user_id === userId || p.profile_id === userId);
+    if (!activeProfile || activeProfile.actif !== true) {
+      return json({ error: "Le compte n'a pas été activé de façon persistante.", step, logs }, 500);
+    }
 
     step = "update_request";
     const { data: updatedRequest, error: updErr } = await admin.from("account_requests").update({
