@@ -1,4 +1,6 @@
 const LOCALES = ["fr", "en", "es", "pt", "de", "it", "nl", "ar", "ru", "zh", "ja"] as const;
+type DisplayNamesCtor = new (locales: string[], options: { type: "region" }) => { of(code: string): string | undefined };
+const DisplayNames = (Intl as unknown as { DisplayNames: DisplayNamesCtor }).DisplayNames;
 
 export const normalizeCountrySearch = (value: string) =>
   String(value || "")
@@ -43,7 +45,7 @@ export const countrySearchMatches = (value: string, search: string) => {
 export const getLocalizedCountryNames = (code: string) => {
   const names = LOCALES.map((locale) => {
     try {
-      return new Intl.DisplayNames([locale], { type: "region" }).of(code) || "";
+      return typeof DisplayNames === "function" ? new DisplayNames([locale], { type: "region" }).of(code) || "" : code;
     } catch {
       return "";
     }
