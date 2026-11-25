@@ -80,6 +80,9 @@ export const resolveStorageUrl = async (
 ): Promise<string | null> => {
   if (!value) return null;
 
+  const resolvedBucket = bucket === "photos-profils" && value.startsWith("pending/")
+    ? "account-request-photos"
+    : bucket;
   let path = value;
   if (/^https?:\/\//i.test(value)) {
     let parsed: URL;
@@ -96,7 +99,7 @@ export const resolveStorageUrl = async (
     if (!storageMatch) return null;
     let decodedBucket: string;
     try { decodedBucket = decodeURIComponent(storageMatch[1]); } catch { return null; }
-    if (decodedBucket !== bucket) return null;
+    if (decodedBucket !== resolvedBucket) return null;
     try {
       path = storageMatch[2].split('/').map((segment) => decodeURIComponent(segment)).join('/');
     } catch {
@@ -104,7 +107,7 @@ export const resolveStorageUrl = async (
     }
   }
 
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+  const { data, error } = await supabase.storage.from(resolvedBucket).createSignedUrl(path, expiresIn);
   if (error || !data?.signedUrl) {
     console.warn('Unable to resolve stored media path', { bucket, path, error });
     return null;
