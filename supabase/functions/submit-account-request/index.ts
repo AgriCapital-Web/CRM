@@ -206,6 +206,7 @@ serve(async (req) => {
       district_id: district_id ?? null,
       region_id: region_id ?? null,
       actif: false,
+      type_compte: "interne",
     };
     const { error: profileError } = await admin.from("profiles").upsert(profilePayload, { onConflict: "id" });
     if (profileError) {
