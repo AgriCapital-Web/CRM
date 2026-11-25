@@ -216,6 +216,7 @@ serve(async (req) => {
       district_id: reqRow.district_id,
       region_id: reqRow.region_id,
       actif: false,
+      type_compte: "interne",
       password_change_required: Boolean(tempPassword),
     };
     const { data: linkedProfile, error: linkedProfileError } = await admin
