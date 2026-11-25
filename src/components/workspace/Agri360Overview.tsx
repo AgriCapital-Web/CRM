@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertTriangle, CalendarDays, CheckSquare, Users, Video } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckSquare, Video } from "lucide-react";
 
 
 type Meeting = { starts_at: string };
@@ -15,11 +14,8 @@ const TONE: Record<Tone, string> = {
 };
 
 export default function Agri360Overview({ profileId, meetings }: { profileId?: string; meetings: Meeting[] }) {
-  const { can } = usePermissions();
   const [tasks, setTasks] = useState<{ due_at: string | null; status: string }[]>([]);
   const [events, setEvents] = useState<{ starts_at: string }[]>([]);
-  const [leads, setLeads] = useState<number | null>(null);
-  const [clients, setClients] = useState<number | null>(null);
 
   useEffect(() => {
     if (!profileId) return;
@@ -32,14 +28,6 @@ export default function Agri360Overview({ profileId, meetings }: { profileId?: s
       ]);
       setTasks(t.data || []);
       setEvents(e.data || []);
-      if (can("leads.view")) {
-        const { count } = await (supabase as any).from("leads").select("id", { count: "exact", head: true });
-        setLeads(count ?? null);
-      }
-      if (can("clients.view")) {
-        const { count } = await (supabase as any).from("clients").select("id", { count: "exact", head: true });
-        setClients(count ?? null);
-      }
     })();
   }, [profileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -60,8 +48,6 @@ export default function Agri360Overview({ profileId, meetings }: { profileId?: s
     { label: "Réunions (7 jours)", value: stats.weekMeetings, icon: Video, tone: "neutral", hint: "Prochaine semaine" },
     { label: "Rendez-vous (7 jours)", value: stats.weekEvents, icon: CalendarDays, tone: "neutral", hint: "Prochaine semaine" },
   ];
-  if (leads !== null) kpis.push({ label: "Prospects", value: leads, icon: Users, tone: "neutral", hint: "Dans votre secteur" });
-  if (clients !== null) kpis.push({ label: "Clients", value: clients, icon: Users, tone: "good", hint: "Dans votre secteur" });
 
   return (
     <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6">

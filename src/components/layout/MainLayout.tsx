@@ -16,7 +16,7 @@ import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
 import {
   LayoutDashboard, Users, Sprout, CreditCard, LogOut, Menu, Receipt, History, CalendarDays,
   BarChart3, Ticket, Wallet, FileText, Settings, UserCircle, Wifi, WifiOff, RefreshCw, Signal,
-  LandPlot, Layers, Target, CloudUpload, MessageSquare
+  LandPlot, Layers, Target, CloudUpload, MessageSquare, Smartphone
 } from "lucide-react";
 
 interface MainLayoutProps { children: ReactNode; }
@@ -52,12 +52,15 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_PARAMETRES },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
     { icon: Layers, label: "AgriCapital 360", path: "/connect", permission: "messagerie.view" as any },
+    { icon: Smartphone, label: "Applications Android", path: "/applications-android", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
   ];
 
-  const visibleMenuItems = menuItems.filter(item => item.label === "AgriCapital 360"
-    ? (can("messagerie.view") || can("finance.view") || can("documents.view") || can("decision_center.view"))
-    : item.path === "/finance" ? (can("finance.view") || can("finance.payroll")) : can(item.permission));
+  const visibleMenuItems = menuItems.filter(item => item.path === "/applications-android"
+    ? userRoles.length > 0
+    : item.label === "AgriCapital 360"
+      ? (can("messagerie.view") || can("finance.view") || can("documents.view") || can("decision_center.view"))
+      : item.path === "/finance" ? (can("finance.view") || can("finance.payroll")) : can(item.permission));
   const handleLogout = async () => { await signOut(); navigate("/"); };
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'AG';
 
