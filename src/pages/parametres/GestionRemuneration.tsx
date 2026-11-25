@@ -21,6 +21,7 @@ type Rule = {
   description: string | null;
   actif: boolean | null;
   code_regle: string | null;
+  offre_code?: string | null;
 };
 
 const money = (value: unknown) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -35,10 +36,24 @@ const RULES = {
   technical: "TECHNIQUE_MISE_EN_TERRE",
 } as const;
 
+const BONUS_OFFERS = [
+  { code: "PALMINVEST", label: "PalmInvest" },
+  { code: "TERRAPALM", label: "TerraPalm" },
+  { code: "PALMTERROIR_ESSENTIELLE", label: "PalmTerroir — Essentielle" },
+  { code: "PALMTERROIR_FLEXIBLE", label: "PalmTerroir — Flexible" },
+] as const;
+const BONUS_TIERS = [
+  { index: 1, threshold: 10, amount: 15000 },
+  { index: 2, threshold: 15, amount: 25000 },
+  { index: 3, threshold: 20, amount: 35000 },
+  { index: 4, threshold: 25, amount: 50000 },
+] as const;
+const bonusRuleCode = (offer: string, index: number) => `COMMERCIAL_BONUS_${offer}_PALIER_${index}`;
+
 export default function GestionRemuneration() {
   const { toast } = useToast();
   const { can } = usePermissions();
-  const canEditRemuneration = can("system.global_admin");
+  const canEditRemuneration = can("system.global_admin") || can("finance.manage");
   const queryClient = useQueryClient();
   const [rows, setRows] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +64,7 @@ export default function GestionRemuneration() {
     setLoading(true);
     const { data, error } = await (supabase as any).from("grille_remuneration").select("*")
       .in("role_cible", ["commercial", "equipe_technique"])
-      .in("type_remuneration", ["acquisition", "recouvrement_mensuel", "commission_technique"]);
+      .in("type_remuneration", ["acquisition", "recouvrement_mensuel", "commission_technique", "bonus_palier"]);
     if (error) toast({ variant: "destructive", title: "Rémunération indisponible", description: error.message });
     else setRows((data || []) as Rule[]);
     setLoading(false);
@@ -65,20 +80,22 @@ export default function GestionRemuneration() {
   const save = async () => {
     setSaving(true);
     try {
-      for (const row of rows.filter(item => item.code_regle && Object.values(RULES).includes(item.code_regle as any))) {
+      for (const row of rows.filter(item => item.code_regle && (Object.values(RULES).includes(item.code_regle as any) || item.type_remuneration === "bonus_palier"))) {
         const { error } = await (supabase as any).from("grille_remuneration").update({
           montant: row.montant === "" || row.montant === null ? null : Number(row.montant),
           taux_pourcentage: row.taux_pourcentage === "" || row.taux_pourcentage === null ? null : Number(row.taux_pourcentage),
+          annee_application: row.annee_application === null || row.annee_application === undefined ? null : Number(row.annee_application),
           actif: row.actif !== false,
           updated_at: new Date().toISOString(),
         }).eq("id", row.id);
         if (error) throw error;
         // Read-after-write: don't report success if the stored value differs from the form.
         const { data: persisted, error: verifyError } = await (supabase as any)
-          .from("grille_remuneration").select("id,montant,taux_pourcentage,actif").eq("id", row.id).maybeSingle();
+          .from("grille_remuneration").select("id,montant,taux_pourcentage,annee_application,actif").eq("id", row.id).maybeSingle();
         if (verifyError) throw verifyError;
         if (!persisted || Number(persisted.taux_pourcentage ?? 0) !== Number(row.taux_pourcentage ?? 0)
           || Number(persisted.montant ?? 0) !== Number(row.montant ?? 0)
+          || Number(persisted.annee_application ?? 0) !== Number(row.annee_application ?? 0)
           || Boolean(persisted.actif) !== (row.actif !== false)) {
           throw new Error("La base de données n’a pas confirmé l’enregistrement de la règle « " + row.code_regle + " ». Rechargez la page et réessayez.");
         }
@@ -111,6 +128,27 @@ export default function GestionRemuneration() {
         <label className="mb-1 block text-xs text-muted-foreground">{unit === "money" ? "Montant (FCFA)" : "Taux (%)"}</label>
         <Input className="h-9 text-right tabular-nums" type="number" min="0" step={unit === "money" ? "500" : "0.1"} value={unit === "money" ? row.montant ?? "" : row.taux_pourcentage ?? ""} onChange={event => update(code, unit === "money" ? { montant: event.target.value } : { taux_pourcentage: event.target.value })} />
       </div>
+    </div>;
+  };
+
+  const BonusRuleEditor = ({ offer, tier }: { offer: typeof BONUS_OFFERS[number]; tier: typeof BONUS_TIERS[number] }) => {
+    const code = bonusRuleCode(offer.code, tier.index);
+    const row = byCode.get(code);
+    if (!row) return <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Palier {tier.index} — règle non configurée.</div>;
+    return <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(95px,125px)_minmax(110px,150px)] items-end gap-2 rounded-md border p-3">
+      <div className="min-w-0">
+        <div className="font-medium text-sm">Palier {tier.index}</div>
+        <label className="mt-1 block text-xs text-muted-foreground">Seuil (hectares)</label>
+        <Input className="h-9" type="number" min="1" step="1" value={row.annee_application ?? ""} onChange={event => update(code, { annee_application: event.target.value === "" ? null : Number(event.target.value) })} />
+      </div>
+      <div className="min-w-0">
+        <label className="mb-1 block text-xs text-muted-foreground">Bonus (FCFA)</label>
+        <Input className="h-9 text-right tabular-nums" type="number" min="0" step="500" value={row.montant ?? ""} onChange={event => update(code, { montant: event.target.value })} />
+      </div>
+      <label className="flex items-center gap-2 pb-2 text-xs text-muted-foreground">
+        <Checkbox checked={row.actif !== false} onCheckedChange={checked => update(code, { actif: checked === true })} />
+        Actif
+      </label>
     </div>;
   };
 
@@ -151,6 +189,26 @@ export default function GestionRemuneration() {
                 </Card>
               ))}
             </div>
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Bonus mensuels par offre</CardTitle></CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-2">
+                {BONUS_OFFERS.map(offer => (
+                  <div key={offer.code} className="rounded-md border p-3">
+                    <div className="mb-2 font-semibold text-sm">{offer.label}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {BONUS_TIERS.map(tier => {
+                        const row = byCode.get(bonusRuleCode(offer.code, tier.index));
+                        return <div key={tier.index} className="rounded-md bg-muted/40 p-2">
+                          <div className="text-xs text-muted-foreground">{row?.annee_application ?? tier.threshold} ha</div>
+                          <div className="font-semibold tabular-nums">{row ? `${money(row.montant)} FCFA` : "Non configuré"}</div>
+                          {row && row.actif === false && <div className="text-[11px] text-muted-foreground">Inactive</div>}
+                        </div>;
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           </TabsContent>
           <TabsContent value="technique-readonly">
             <Card><CardHeader className="pb-3"><CardTitle className="text-base">Commissions techniques</CardTitle></CardHeader><CardContent>
@@ -195,6 +253,19 @@ export default function GestionRemuneration() {
             </CardContent>
           </Card>
         </div>
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">Bonus mensuels par offre</CardTitle></CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            {BONUS_OFFERS.map(offer => (
+              <div key={offer.code} className="min-w-0 rounded-md border p-3">
+                <div className="mb-3 font-semibold">{offer.label}</div>
+                <div className="space-y-2">
+                  {BONUS_TIERS.map(tier => <BonusRuleEditor key={tier.index} offer={offer} tier={tier} />)}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="technique" className="space-y-3">
