@@ -851,7 +851,7 @@ async function deliver(args: {
           : rawRendered;
         const bodyFitted = restructureSmsTemplateWithinLimit(templateForSms, routingPolicy.sms_content_max_characters);
         const personalized = greetingName
-          ? bodyFitted.replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/i, greetingName)
+          ? bodyFitted.replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/i, greetingName)
           : bodyFitted;
         rendered = brandAutomatedMessage(personalized, channel, routingPolicy.sms_max_characters);
         assertSmsLength(normalizeSms(rendered), routingPolicy.sms_max_characters);
