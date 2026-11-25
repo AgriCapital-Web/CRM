@@ -168,9 +168,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <div className="flex items-center gap-2">
             <SheetTrigger asChild><Button variant="outline" size="icon"><Menu className="h-5 w-5" /></Button></SheetTrigger>
             <NotificationCenter />
+            <NetworkIndicator compact />
             <AndroidDownloads />
             {can("tickets.create") && <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => navigate("/support?create=1")} title="Créer un ticket" aria-label="Créer un ticket"><Ticket className="h-4 w-4" /></Button>}
-            <NetworkIndicator compact />
           </div>
           <Avatar className="h-8 w-8 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(formatStructuredPersonName(profile?.nom, profile?.prenoms))}</AvatarFallback></Avatar>
         </div>
@@ -180,9 +180,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       <main className="min-w-0 flex-1 overflow-x-hidden pt-14 md:ml-64 md:pt-0 bg-muted/20">
         <header className="sticky top-0 z-30 hidden h-16 items-center gap-4 border-b bg-background/80 px-6 backdrop-blur-xl shadow-sm md:flex">
           <div className="ml-auto flex min-w-0 items-center gap-3">
+            <NotificationCenter />
             <NetworkIndicator />
             <AndroidDownloads />
-            <NotificationCenter />
             {can("tickets.create") && <Button variant="outline" size="sm" className="h-9 gap-2 whitespace-nowrap" onClick={() => navigate("/support?create=1")} title="Créer un ticket"><Ticket className="h-4 w-4" /><span>Créer un ticket</span></Button>}
             {queueCount > 0 && (
               <button type="button" onClick={() => navigate("/synchronisation")} title="Voir les opérations et pièces jointes en attente" aria-label={`${queueCount} élément(s) en attente de synchronisation`} className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
