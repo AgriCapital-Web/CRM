@@ -28,6 +28,7 @@ export const RoleDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   const isPdg = capabilities.globalAdmin;
+  const isResponsableDistrict = can("system.role_responsable_district");
   const isResponsableCommercial = can("system.role_responsable_commercial");
   const isChefEquipe = can("system.role_chef_equipe");
   const isCommercial = can("system.role_commercial");
@@ -36,7 +37,7 @@ export const RoleDashboard = () => {
   useEffect(() => {
     if (!user) return;
     fetchZoneStats();
-  }, [user?.id, isPdg, isResponsableCommercial, isChefEquipe, isCommercial, isTechnique]);
+  }, [user?.id, isPdg, isResponsableDistrict, isResponsableCommercial, isChefEquipe, isCommercial, isTechnique]);
 
   const fetchZoneStats = async () => {
     try {
@@ -57,6 +58,45 @@ export const RoleDashboard = () => {
           plantationsEnProduction: pl?.filter((p: any) => p.statut_global === "en_production").length || 0,
           equipes: eq || 0,
           zoneName: "Vue globale — Toutes les zones",
+        });
+      } else if (isResponsableDistrict) {
+        const [{ data: profile }, { data: assignedZones }] = await Promise.all([
+          (supabase as any).from("profiles").select("district_id").eq("user_id", user!.id).maybeSingle(),
+          (supabase as any).from("zone_assignments").select("zone_id").eq("user_id", user!.id).eq("zone_type", "district"),
+        ]);
+        const districtIds = [...new Set([
+          profile?.district_id,
+          ...(assignedZones || []).map((zone: any) => zone.zone_id),
+        ].filter(Boolean))] as string[];
+
+        if (districtIds.length === 0) {
+          setStats({ totalClients: 0, totalPlantations: 0, totalHectares: 0,
+            totalPaiements: 0, paiementsEnAttente: 0, plantationsEnProduction: 0,
+            equipes: 0, zoneName: "Aucun district assigné" });
+          setLoading(false);
+          return;
+        }
+
+        const [{ data: districtRows }, { data: clients }, { data: plantations }, { data: teams }] = await Promise.all([
+          (supabase as any).from("districts").select("nom").in("id", districtIds),
+          (supabase as any).from("clients").select("id").in("district_id", districtIds),
+          (supabase as any).from("plantations").select("id,superficie_ha,statut_global").in("district_id", districtIds),
+          (supabase as any).rpc("get_team_directory_for_current_user"),
+        ]);
+        const plantationIds = (plantations || []).map((p: any) => p.id);
+        const { data: paiements } = plantationIds.length
+          ? await (supabase as any).from("paiements").select("montant,statut").in("plantation_id", plantationIds)
+          : { data: [] };
+
+        setStats({
+          totalClients: clients?.length || 0,
+          totalPlantations: plantations?.length || 0,
+          totalHectares: plantations?.reduce((sum: number, p: any) => sum + (Number(p.superficie_ha) || 0), 0) || 0,
+          totalPaiements: paiements?.filter((p: any) => p.statut === "valide").reduce((sum: number, p: any) => sum + (Number(p.montant) || 0), 0) || 0,
+          paiementsEnAttente: paiements?.filter((p: any) => p.statut === "en_attente").length || 0,
+          plantationsEnProduction: plantations?.filter((p: any) => p.statut_global === "en_production").length || 0,
+          equipes: teams?.length || 0,
+          zoneName: (districtRows || []).map((district: any) => district.nom).join(", ") || "District assigné",
         });
       } else if (isResponsableCommercial || isChefEquipe || isCommercial || isTechnique) {
         const { data: zones } = await (supabase as any)
@@ -116,11 +156,11 @@ export const RoleDashboard = () => {
 
   if (loading) return null;
 
-  const roleLabel = isPdg ? "PDG" : isResponsableCommercial ? "Responsable Commercial" : isChefEquipe ? "Chef d'Équipe" : isTechnique ? "Technique" : "Commercial";
-  const zoneLevel = isPdg ? "Global" : isResponsableCommercial ? "Régions" : isChefEquipe ? "Départements" : "Sous-préfectures";
+  const roleLabel = isPdg ? "PDG" : isResponsableDistrict ? "Responsable de district" : isResponsableCommercial ? "Responsable Commercial" : isChefEquipe ? "Chef d'Équipe" : isTechnique ? "Technique" : "Commercial";
+  const zoneLevel = isPdg ? "Global" : isResponsableDistrict ? "District" : isResponsableCommercial ? "Régions" : isChefEquipe ? "Départements" : "Sous-préfectures";
 
-  const showCommercialKPIs = isCommercial || isResponsableCommercial;
-  const showTechKPIs = isTechnique || isResponsableCommercial;
+  const showCommercialKPIs = isCommercial || isResponsableCommercial || isResponsableDistrict;
+  const showTechKPIs = isTechnique || isResponsableCommercial || isResponsableDistrict;
 
   return (
     <Card className="border-primary/20 bg-primary/5">
