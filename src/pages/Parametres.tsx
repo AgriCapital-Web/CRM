@@ -45,6 +45,7 @@ const Parametres = () => {
   const tabs: TabConfig[] = [
     { value: 'utilisateurs', label: 'Utilisateurs', mobileLabel: 'Utilis.', icon: Users, permission: PERMISSIONS.MANAGE_USERS, component: Utilisateurs },
     { value: 'cartes', label: 'Carte du personnel', mobileLabel: 'Cartes', icon: IdCard, permission: PERMISSIONS.MANAGE_USERS, component: GestionCartes },
+    { value: 'notifications', label: 'Notifications', mobileLabel: 'Alertes', icon: Bell, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionNotifications },
     { value: 'equipes', label: 'Équipes', icon: UsersRound, permission: PERMISSIONS.MANAGE_TEAMS, component: Equipes },
 
     { value: 'roles', label: 'Rôles', icon: Shield, permission: PERMISSIONS.MANAGE_ROLES, component: GestionRoles },
@@ -55,7 +56,6 @@ const Parametres = () => {
     { value: 'remuneration', label: 'Rémunération', mobileLabel: 'Rémun.', icon: Settings2, permission: PERMISSIONS.MANAGE_REMUNERATION, component: GestionRemuneration },
     { value: 'codes-acces', label: 'Codes d’accès', mobileLabel: 'Codes', icon: KeyRound, permission: PERMISSIONS.MANAGE_SYSTEM, component: ReinitialiserCodesAcces },
     { value: 'statuts', label: 'Statuts', icon: List, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionStatuts },
-    { value: 'notifications', label: 'Notifications', mobileLabel: 'Alertes', icon: Bell, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionNotifications },
     { value: 'database', label: 'Base de données', mobileLabel: 'Données', icon: Database, permission: PERMISSIONS.MANAGE_SYSTEM, component: GestionBaseDonnees },
     { value: 'systeme', label: 'Système', icon: Globe, permission: PERMISSIONS.MANAGE_SYSTEM, component: ConfigurationSysteme },
     { value: 'acremap', label: 'AcreMap API', mobileLabel: 'AcreMap', icon: Cable, permission: PERMISSIONS.MANAGE_SYSTEM, component: IntegrationAcreMap },
