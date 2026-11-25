@@ -12,7 +12,7 @@ export default function RequiredPwaUpdate() {
   useEffect(() => {
     const show = (event: Event) => setDetail((event as CustomEvent<UpdateDetail>).detail || {});
     window.addEventListener("agri:pwa-update-required", show);
-    if (navigator.serviceWorker?.controller && (window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) && window.localStorage.getItem("agricapital-crm-update-accepted") !== "2026.11.25.1") setDetail({ version: "2026.11.25.1" });
+    if (navigator.serviceWorker?.controller && (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true) && window.localStorage.getItem("agricapital-crm-update-accepted") !== "2026.11.25.1") setDetail({ version: "2026.11.25.1" });
     return () => window.removeEventListener("agri:pwa-update-required", show);
   }, []);
 
