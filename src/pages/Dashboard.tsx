@@ -91,6 +91,8 @@ const Dashboard = () => {
     prospectsConversionRate: 0,
     ownerAreaHa: 0,
     partnershipTotalHa: 0,
+    activePartnershipConventions: 0,
+    partnershipParcelCount: 0,
     partnershipPlantedHa: 0,
     partnershipRemainingHa: 0,
     partnerOwnerAreaHa: 0,
@@ -197,7 +199,7 @@ const Dashboard = () => {
         teamMembersRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,region_id,domicile,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre,mensualite_montant")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,superficie_ha,region_id,domicile,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre,mensualite_montant")
           : Promise.resolve({ data: [], count: 0 }),
         canViewIndependentServiceCustomers
           ? (supabase as any).from("independent_service_customers").select("id").is("archived_at", null)
@@ -371,43 +373,43 @@ const Dashboard = () => {
         ? Math.round((convertedLeads / (pipelineLeads.length + convertedLeads)) * 100) : 0;
       const prospectsConversionRate = pipelineProspects.length + convertedProspects
         ? Math.round((convertedProspects / (pipelineProspects.length + convertedProspects)) * 100) : 0;
-      // Audit foncier : chaque indicateur utilise sa propre surface et sa relation validée.
-      // Une surface totale de parcelle ne remplace jamais la quote-part AgriCapital.
-      const activeConventionIds = new Set(conventions
-        .filter((c: any) => String(c.statut || "").toLowerCase() === "active")
-        .map((c: any) => c.id));
+      // Le tableau de bord foncier prend les conventions actives comme référence contractuelle.
+      // Les parcelles sans convention active et les propriétaires non validés sont exclus.
+      const activeConventions = conventions.filter((c: any) => String(c.statut || "").trim().toLowerCase() === "active");
+      const activeConventionByParcel = new Map<string, any>();
+      const activeConventionById = new Map<string, any>();
+      activeConventions.forEach((c: any) => {
+        activeConventionById.set(c.id, c);
+        if (c.parcelle_id) activeConventionByParcel.set(c.parcelle_id, c);
+      });
+      const conventionForParcel = (p: any) => activeConventionByParcel.get(p.id) || activeConventionById.get(p.convention_id);
       const validatedOwnerIds = new Set(proprietaires
         .filter((owner: any) => ["valide", "validee", "validé", "validée", "actif", "active"].includes(String(owner.validation_statut || owner.statut || "").toLowerCase()))
         .map((owner: any) => owner.id));
       const validatedPartnershipParcels = parcelles.filter((p: any) =>
         Boolean(p.proprietaire_id) && validatedOwnerIds.has(p.proprietaire_id) &&
-        (p.plantation_partagee_activee === true || activeConventionIds.has(p.convention_id)) &&
+        Boolean(conventionForParcel(p)) &&
         !["archive", "annulee", "annulée"].includes(String(p.statut || "").toLowerCase())
       );
       const validatedPartnershipParcelIds = new Set(validatedPartnershipParcels.map((p: any) => p.id));
-      const activeConventionByParcel = new Map<string, any>();
-      conventions.filter((c: any) => String(c.statut || "").toLowerCase() === "active" && c.parcelle_id)
-        .forEach((c: any) => activeConventionByParcel.set(c.parcelle_id, c));
-      const partnershipAreaFor = (p: any) => {
-        const convention = activeConventionByParcel.get(p.id);
-        return Number(convention?.part_agricapital_ha ?? p.surface_agricapital_ha ?? 0);
-      };
-      const partnershipTotalHa = validatedPartnershipParcels.reduce((sum: number, p: any) => sum + Number(p.surface_totale_ha || 0), 0);
       const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
       const plantedByPartnershipParcel = new Map<string, number>();
       plantations.filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id)).forEach((p: any) => {
-        const amount = Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0);
+        const amount = Math.max(0, Number(p.surface_reellement_plantee ?? p.superficie_activee ?? 0));
         plantedByPartnershipParcel.set(p.parcelle_id, (plantedByPartnershipParcel.get(p.parcelle_id) || 0) + amount);
       });
       const partnershipMetrics = validatedPartnershipParcels.reduce((acc: any, p: any) => {
-        const convention = activeConventionByParcel.get(p.id);
-        const total = Math.max(0, Number(p.surface_totale_ha || 0));
-        const agriShare = Math.min(total, Math.max(0, partnershipAreaFor(p)));
+        const convention = conventionForParcel(p);
+        const total = Math.max(0, Number(convention?.surface_totale_ha ?? p.surface_totale_ha ?? 0));
+        const physicalParcelArea = Math.max(0, Number(p.surface_totale_ha || 0));
+        const agriShare = Math.min(total, Math.max(0, Number(convention?.part_agricapital_ha ?? p.surface_agricapital_ha ?? 0)));
         const ownerShare = Math.min(Math.max(0, total - agriShare), Math.max(0, Number(convention?.part_proprietaire_ha ?? p.surface_proprietaire_ha ?? (total - agriShare))));
         const transferred = Math.min(agriShare, Math.max(0, Number(p.surface_attribuee_ha || 0)));
-        const planted = Math.min(total, Math.max(0, plantedByPartnershipParcel.get(p.id) || 0));
+        // La plantation réelle est plafonnée à la surface physique de la parcelle.
+        const planted = Math.min(total, physicalParcelArea || total, Math.max(0, plantedByPartnershipParcel.get(p.id) || 0));
         const agriPlanted = total > 0 ? Math.min(Math.max(0, agriShare - transferred), planted * agriShare / total) : 0;
         const ownerPlanted = total > 0 ? Math.min(ownerShare, planted * ownerShare / total) : 0;
+        acc.totalArea += total;
         acc.planted += planted;
         acc.ownerArea += ownerShare;
         acc.ownerPlanted += ownerPlanted;
@@ -417,7 +419,7 @@ const Dashboard = () => {
         acc.agriTransferred += transferred;
         acc.agriRemaining += Math.max(0, agriShare - transferred - agriPlanted);
         return acc;
-      }, {planted:0,ownerArea:0,ownerPlanted:0,ownerRemaining:0,agriArea:0,agriPlanted:0,agriTransferred:0,agriRemaining:0});
+      }, {totalArea:0,planted:0,ownerArea:0,ownerPlanted:0,ownerRemaining:0,agriArea:0,agriPlanted:0,agriTransferred:0,agriRemaining:0});
       const partnershipPlantedHa = partnershipMetrics.planted;
       const partnershipRemainingHa = partnershipMetrics.ownerRemaining + partnershipMetrics.agriRemaining;
       const partnerOwnerAreaHa = partnershipMetrics.ownerArea;
@@ -444,15 +446,15 @@ const Dashboard = () => {
         .filter((p: any) => !p.parcelle_id && !internalClientIds.has(p.client_id))
         .reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       plantedHa = sumPlantedArea(plantations);
-      const plantingTargetFromClients = clients.filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase())).reduce((sum: number, client: any) => {
-        const hectares = Math.max(0, Number(client.total_hectares || 0));
-        const formula = String(client.formule_code || client.famille_offre || "").toUpperCase();
+      const plantingTargetHa = commercialClients.filter((client: any) =>
+        client.validation_statut === "valide" &&
+        ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase())
+      ).reduce((sum: number, client: any) => {
+        const hectares = Math.max(0, Number(client.total_hectares ?? client.superficie_ha ?? 0));
+        const formula = `${client.formule_code || ""} ${client.famille_offre || ""} ${client.formule_nom || ""}`.toUpperCase();
+        // PalmInvest engage aussi la même superficie à planter chez le propriétaire.
         return sum + hectares * (formula.includes("PALMINVEST") ? 2 : 1);
       }, 0);
-      const plantingTargetFromOwners = proprietaires
-        .filter((owner: any) => ["valide", "validee", "validé", "validée", "actif", "active"].includes(String(owner.validation_statut || owner.statut || "").toLowerCase()))
-        .reduce((sum: number, owner: any) => sum + Math.max(0, Number(owner.surface_totale_ha || 0)), 0);
-      const plantingTargetHa = plantingTargetFromClients + plantingTargetFromOwners;
       remainingHa = Math.max(0, plantingTargetHa - plantedHa);
       const monthlyForecast = commercialClients
         .filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase()) && Number(client.montant_total_contrat || 0) > 0)
@@ -513,7 +515,9 @@ const Dashboard = () => {
         conversionRate,
         prospectsConversionRate,
         ownerAreaHa,
-        partnershipTotalHa,
+        partnershipTotalHa: partnershipMetrics.totalArea,
+        activePartnershipConventions: activeConventions.length,
+        partnershipParcelCount: validatedPartnershipParcels.length,
         partnershipPlantedHa,
         partnershipRemainingHa,
         partnerOwnerAreaHa,
@@ -805,8 +809,10 @@ const Dashboard = () => {
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
       ...(canParcelles || canPlantations ? [
-        {label:"Parcelles partenaires",value:stats.proprietaireParcelles,href:"/parcelles"},
-        {label:"Surface partenaire",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
+        {label:"Surface conventionnée",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
+        {label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},
+        {label:"Part propriétaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/parcelles"},
+        {label:"Attribuée clients",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},
         {label:"Surface plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
         {label:"Surface restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},
       ] : []),
