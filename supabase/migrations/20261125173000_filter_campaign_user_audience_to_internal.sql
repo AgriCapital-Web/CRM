@@ -127,3 +127,6 @@ and (nullif(_criteres->>'role_code','') is null or c.role_code=_criteres->>'role
 and (nullif(_criteres->>'has_email','') is null or case when (_criteres->>'has_email')::boolean then nullif(trim(c.email),'') is not null else nullif(trim(c.email),'') is null end)
 and (nullif(_criteres->>'has_phone','') is null or case when (_criteres->>'has_phone')::boolean then nullif(trim(c.telephone),'') is not null else nullif(trim(c.telephone),'') is null end);
 $function$;
+
+revoke all on function public.notification_resolve_recipients(jsonb) from public, anon, authenticated;
+grant execute on function public.notification_resolve_recipients(jsonb) to service_role;
