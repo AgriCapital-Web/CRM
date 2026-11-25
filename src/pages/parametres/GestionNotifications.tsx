@@ -407,7 +407,7 @@ const GestionNotifications = () => {
     const submittedMedia = [...campaignMedia];
     if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
     if (submittedCampaign.audience === "selection" && !selectedRecipients.some((r) => r?.source_type && r?.source_id)) return toast.error("Coche au moins un destinataire valide.");
-    if (["sms", "whatsapp", "auto", "email_sms"].includes(submittedCampaign.canal) && smsBodyLength(submittedCampaign.contenu) > 158) return toast.error(`Le texte hors prénom/nom fait ${smsBodyLength(submittedCampaign.contenu)}/130 caractères. Clique sur « Restructurer ».`);
+    if (["sms", "whatsapp", "auto", "email_sms"].includes(submittedCampaign.canal) && smsBodyLength(submittedCampaign.contenu) > 158) return toast.error(`Le texte hors nom fait ${smsBodyLength(submittedCampaign.contenu)}/158 caractères. Clique sur « Restructurer ».`);
     if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
     let recipientCount = selectedRecipients.length;
