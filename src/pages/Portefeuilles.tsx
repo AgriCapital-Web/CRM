@@ -23,7 +23,7 @@ import TableSearchInput from "@/components/common/TableSearchInput";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
 import ResponsiveTablePagination from "@/components/common/ResponsiveTablePagination";
 
-const ROLE_LABELS:Record<string,string>={pdg:"PDG",dg:"Directeur général",comptable:"Comptable",responsable_operations:"Responsable opérations",responsable_commercial:"Responsable commercial",chef_equipe_commercial:"Chef d’équipe commerciale",chef_equipe_technique:"Chef d’équipe technique",commercial:"Commercial",technicien:"Technicien",mobilisateur_foncier:"Mobilisateur foncier",superviseur_mobilisation_fonciere:"Superviseur foncier",service_client:"Service client",associe_actionnaire:"Associé actionnaire"};
+const ROLE_LABELS:Record<string,string>={pdg:"PDG",dg:"Directeur général",comptable:"Comptable",responsable_operations:"Responsable opérations",manager_commercial_national:"Responsable commercial national",responsable_commercial:"Responsable commercial de zone",manager_technique_national:"Responsable technique national",responsable_technique_zone:"Responsable technique de zone",responsable_district:"Responsable de district",chef_equipe_commercial:"Chef d’équipe commercial",chef_equipe_technique:"Chef d’équipe technique",commercial:"Commercial",technicien:"Technicien",mobilisateur_foncier:"Mobilisateur foncier",superviseur_mobilisation_fonciere:"Superviseur foncier",service_client:"Service client",associe_actionnaire:"Associé actionnaire"};
 const fortnight=(d=new Date())=>d.getDate()<=15
   ? {start:new Date(d.getFullYear(),d.getMonth(),1),end:new Date(d.getFullYear(),d.getMonth(),15)}
   : {start:new Date(d.getFullYear(),d.getMonth(),16),end:endOfMonth(d)};
@@ -78,7 +78,7 @@ export default function Portefeuilles(){
       const [visibleProfileRows,walletRows,commissionsData,versementRows,versementLines]=await Promise.all([
         fetchAllRows(()=> (supabase as any).rpc("list_visible_portfolio_profiles")),
         fetchAllRows(()=> (supabase as any).from("portefeuilles").select("*").order("updated_at",{ascending:false})),
-        fetchAllRows(()=> (supabase as any).from("commissions").select("id,profile_id,client_id,paiement_id,type_commission,montant_base,taux_commission,montant_commission,periode,statut,date_calcul,client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),paiement:paiements(id,reference,date_paiement)").order("periode",{ascending:false})),
+        fetchAllRows(()=> (supabase as any).from("commissions").select("id,profile_id,client_id,paiement_id,type_commission,offre_code,montant_base,taux_commission,montant_commission,periode,statut,date_calcul,client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),paiement:paiements(id,reference,date_paiement)").order("periode",{ascending:false})),
         fetchAllRows(()=> (supabase as any).from("portefeuille_versements").select("*").order("periode_debut",{ascending:false})),
         fetchAllRows(()=> (supabase as any).from("portefeuille_versement_lignes").select("commission_id,versement_id")),
       ]);
@@ -277,9 +277,9 @@ export default function Portefeuilles(){
               <div className="overflow-x-auto">
                 <Table searchable={false} className="responsive-data-table min-w-[1000px]"><TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre / formule</TableHead><TableHead>Type</TableHead><TableHead>Paiement</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                 <TableBody>{detailRows.filter((c:any)=>searchKey(JSON.stringify(c)).includes(searchKey(search))).length===0?<TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Aucune commission sur cette période.</TableCell></TableRow>:detailRows.filter((c:any)=>searchKey(JSON.stringify(c)).includes(searchKey(search))).map((c:any)=><TableRow key={c.id}>
-                  <TableCell>{formatTablePersonName(c.client?.nom_complet||"—")}<span className="block text-xs text-muted-foreground">{c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
-                  <TableCell>{c.client?.famille_offre||"—"}{c.client?.formule_nom?` · ${c.client.formule_nom}`:""}</TableCell>
-                  <TableCell><Badge variant="outline">{c.type_commission==="acquisition"?"Vente commerciale":c.type_commission==="recouvrement_mensuel"?"Recouvrement mensuel":c.type_commission==="technique"?"Commission technique":c.type_commission==="mobilisation_fonciere"?"Mobilisation foncière":c.type_commission||"—"}</Badge></TableCell>
+                  <TableCell>{c.type_commission==="bonus_palier"?"Bonus mensuel":formatTablePersonName(c.client?.nom_complet||"—")}<span className="block text-xs text-muted-foreground">{c.type_commission==="bonus_palier"?"Prime mensuelle":c.client?.id_unique ? `ID client : ${c.client.id_unique}` : "—"}</span></TableCell>
+                  <TableCell>{c.type_commission==="bonus_palier"?(({PALMINVEST:"PalmInvest",TERRAPALM:"TerraPalm",PALMTERROIR_ESSENTIELLE:"PalmTerroir — Essentielle",PALMTERROIR_FLEXIBLE:"PalmTerroir — Flexible"} as Record<string,string>)[c.offre_code]||c.offre_code||"—"):(c.client?.famille_offre||"—")}{c.client?.formule_nom?` · ${c.client.formule_nom}`:""}</TableCell>
+                  <TableCell><Badge variant="outline">{c.type_commission==="acquisition"?"Vente commerciale":c.type_commission==="recouvrement_mensuel"?"Recouvrement mensuel":c.type_commission==="bonus_palier"?"Bonus mensuel":c.type_commission==="technique"?"Commission technique":c.type_commission==="mobilisation_fonciere"?"Mobilisation foncière":c.type_commission||"—"}</Badge></TableCell>
                   <TableCell>{c.paiement?.reference||"—"}</TableCell>
                   <TableCell>{money(c.montant_base)}</TableCell>
                   <TableCell>{Number(c.taux_commission||0)>0?`${c.taux_commission}%`:"—"}</TableCell>
