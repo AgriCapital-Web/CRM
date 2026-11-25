@@ -93,7 +93,7 @@ const GestionRoles = () => {
     setLoading(true);
     try {
       const profileQuery = canViewUsers
-        ? (supabase as any).from("profiles").select("id, user_id, nom_complet, email, username, telephone, telephone_indicatif, telephone_local, whatsapp, whatsapp_indicatif, whatsapp_local, photo_url, actif, departement, relation_rh, district_id, region_id, equipe_id, type_compte").eq("actif", true).neq("type_compte","client_portail").order("nom_complet")
+        ? (supabase as any).from("profiles").select("id, user_id, nom_complet, email, username, telephone, telephone_indicatif, telephone_local, whatsapp, whatsapp_indicatif, whatsapp_local, photo_url, actif, departement, relation_rh, district_id, region_id, equipe_id, type_compte").eq("actif", true).eq("type_compte", "interne").order("nom_complet")
         : Promise.resolve({ data: [], error: null });
       const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }, { data: permissionData, error: permissionError }] = await Promise.all([
         profileQuery,
@@ -103,7 +103,7 @@ const GestionRoles = () => {
       if (profilesError) throw profilesError;
       if (rolesError) throw rolesError;
       if (permissionError) throw permissionError;
-      setProfiles((profilesData || []).filter((profile: any) => profile.type_compte !== "client_portail" && profile.relation_rh !== "Client portail"));
+      setProfiles((profilesData || []).filter((profile: any) => profile.type_compte === "interne"));
       setUserRoles(rolesData || []);
       setCustomPermissions(permissionData || []);
     } catch (error: any) {

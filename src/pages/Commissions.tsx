@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const money = (n: any) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(Number(n || 0));
-const typeLabel = (t: string) => t === "acquisition" ? "Vente commerciale" : t === "recouvrement_mensuel" ? "Recouvrement mensuel" : t === "technique" ? "Commission technique" : t === "mobilisation_fonciere" ? "Mobilisation foncière" : t || "—";
+const typeLabel = (t: string) => t === "acquisition" ? "Vente commerciale" : t === "recouvrement_mensuel" ? "Recouvrement mensuel" : t === "bonus_palier" ? "Bonus mensuel" : t === "technique" ? "Commission technique" : t === "mobilisation_fonciere" ? "Mobilisation foncière" : t || "—";
 const statusLabel = (s: string) => s === "calculee" || s === "en_attente" ? "À valider" : s === "validee" ? "À payer" : s === "payee" ? "Payée" : s === "annule" ? "Annulée" : s || "—";
 const statusVariant = (s: string) => s === "payee" ? "default" : s === "validee" ? "secondary" : s === "calculee" ? "outline" : "destructive";
 
@@ -283,8 +283,8 @@ export default function Commissions() {
                       <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Déjà payé</TableHead><TableHead>Solde</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                       <TableBody>{selected.details.map((d: any) =>
                         <TableRow key={d.id}>
-                          <TableCell>{d.client?.nom_complet || "—"}</TableCell>
-                          <TableCell>{d.client?.famille_offre || d.client?.formule_code || "—"}{d.client?.formule_nom ? ` · ${d.client.formule_nom}` : ""}</TableCell>
+                          <TableCell>{d.type_commission === "bonus_palier" ? "Bonus mensuel" : d.client?.nom_complet || "—"}</TableCell>
+                          <TableCell>{d.type_commission === "bonus_palier" ? ({ PALMINVEST: "PalmInvest", TERRAPALM: "TerraPalm", PALMTERROIR_ESSENTIELLE: "PalmTerroir — Essentielle", PALMTERROIR_FLEXIBLE: "PalmTerroir — Flexible" } as Record<string, string>)[d.offre_code] || d.offre_code || "—" : d.client?.famille_offre || d.client?.formule_code || "—"}{d.client?.formule_nom ? ` · ${d.client.formule_nom}` : ""}</TableCell>
                           <TableCell><Badge variant="outline">{typeLabel(d.type_commission)}</Badge></TableCell>
                           <TableCell>{money(d.montant_base)}</TableCell>
                           <TableCell>{Number(d.taux_commission || 0) > 0 ? `${d.taux_commission}%` : "—"}</TableCell>
