@@ -21,7 +21,7 @@ function isInstalledPwa() {
   return window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
 }
 
-function requestMandatoryUpdate(registration) {
+function requestMandatoryUpdate(registration?: ServiceWorkerRegistration) {
   window.dispatchEvent(new CustomEvent("agri:pwa-update-required", {
     detail: { registration, version: BUILD_VERSION },
   }));
@@ -76,7 +76,7 @@ export async function registerAppServiceWorker() {
   }
 }
 
-export function acceptMandatoryPwaUpdate(registration) {
+export function acceptMandatoryPwaUpdate(registration?: ServiceWorkerRegistration) {
   window.localStorage.setItem(ACCEPTED_VERSION_KEY, BUILD_VERSION);
   if (registration?.waiting) {
     registration.waiting.postMessage({ type: "SKIP_WAITING" });
