@@ -158,7 +158,9 @@ where ap.code = any(array[
   'rapports.view_technique',
   'tickets.create',
   'tickets.update',
-  'tickets.view'
+  'tickets.view',
+  'parametres.manage_teams',
+  'commissions.view'
 ])
 and not exists (
   select 1 from public.role_permissions rp
@@ -179,6 +181,7 @@ as $function$
     and private.is_commercial_assignable(_target)
     and (
       private.is_global_admin(_actor)
+      or private.crm_user_has_global_scope(_actor)
       or private.has_role(_actor,'responsable_operations')
       or private.has_role(_actor,'service_client')
       or private.has_role(_actor,'chef_equipe_service_client')
@@ -343,6 +346,16 @@ as $function$
           and exists (select 1 from public.profiles v where v.user_id = _user_id and v.district_id is not null and v.district_id = t.district_id)
         )
         or (
+          lower(coalesce(t.type_equipe,'')) like '%technique%'
+          and _type = 'technique'
+          and exists (
+            select 1 from public.user_roles ur
+            join public.profiles v on v.user_id = ur.user_id
+            where ur.user_id = _user_id and ur.role = 'responsable_technique_zone'
+              and v.region_id is not null and v.region_id = t.region_id
+          )
+        )
+        or (
           lower(coalesce(t.type_equipe,'')) like '%commercial%'
           and _type <> 'technique'
           and exists (
@@ -396,6 +409,15 @@ as $function$
       )
       or exists (select 1 from public.profiles v join public.profiles t on t.id = _profile_id
                  where v.user_id = _user_id and v.id = t.id)
+      or (
+        _type = 'technique'
+        and exists (select 1 from public.user_roles ur where ur.user_id = _user_id and ur.role = 'responsable_technique_zone')
+        and exists (select 1 from public.profiles v join public.profiles t on t.id = _profile_id
+                    where v.user_id = _user_id and v.region_id is not null and v.region_id = t.region_id)
+        and exists (select 1 from public.user_roles ur
+                    where ur.user_id = (select p.user_id from public.profiles p where p.id = _profile_id)
+                      and ur.role in ('technicien','chef_equipe_technique','responsable_technique_zone'))
+      )
       or (
         _type <> 'technique'
         and exists (select 1 from public.user_roles ur where ur.user_id = _user_id and ur.role = 'responsable_commercial')
