@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { countrySearchMatches } from "@/lib/countrySearch";
 
 interface Option { value: string; label: string; flagUrl?: string; searchTerms?: string; }
 
@@ -48,7 +49,7 @@ export default function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className={cn("w-[var(--radix-popover-trigger-width)] max-h-[75vh] overflow-hidden p-0", contentClassName)}>
-        <Command className="w-full min-w-0">
+        <Command className="w-full min-w-0" filter={(value, search) => countrySearchMatches(value, search)}>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList className="max-h-[min(65vh,420px)] overflow-y-auto overscroll-contain touch-pan-y">
             <CommandEmpty>{emptyText}</CommandEmpty>
