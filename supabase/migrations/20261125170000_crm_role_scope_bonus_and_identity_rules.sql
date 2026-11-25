@@ -920,5 +920,82 @@ as $function$
     );
 $function$;
 
+
+-- Le catalogue de rôles doit aussi exposer les nouveaux postes dans les formulaires
+-- internes et les référentiels utilisés par l'organigramme.
+drop policy if exists app_roles_public_signup_select on public.app_roles;
+create policy app_roles_public_signup_select
+on public.app_roles
+for select
+to anon, authenticated
+using (
+  actif is true
+  and code = any(array[
+    'commercial','technicien','mobilisateur_foncier',
+    'superviseur_mobilisation_fonciere','chef_equipe_commercial',
+    'chef_equipe_technique','responsable_commercial',
+    'responsable_technique_zone','manager_commercial_national',
+    'manager_technique_national','responsable_operations',
+    'responsable_district','comptable','service_client'
+  ])
+);
+
+-- Le responsable de district conserve un périmètre transversal : toute équipe
+-- (commerciale, technique, foncière ou support) de son district.
+-- Les responsables de zone restent limités à leur filière.
+create or replace function public.get_team_directory_for_current_user()
+returns table(
+  id uuid, nom text, responsable_id uuid, region_id uuid, district_id uuid,
+  type_equipe text, actif boolean, zone_couverture text, photo_url text,
+  created_at timestamptz, region_nom text
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $function$
+begin
+  if auth.uid() is null
+     or not private.crm_has_role_permission('parametres.manage_teams') then
+    raise exception 'Permission insuffisante pour consulter les équipes.' using errcode = '42501';
+  end if;
+
+  return query
+  select e.id, e.nom, e.responsable_id, e.region_id,
+         coalesce(e.district_id, r.district_id),
+         e.type_equipe, e.actif, e.zone_couverture, e.photo_url, e.created_at,
+         r.nom
+  from public.equipes e
+  left join public.regions r on r.id = e.region_id
+  where private.crm_user_can_access_geo(
+          auth.uid(), e.region_id, coalesce(e.district_id, r.district_id), null, null
+        )
+    and (
+      private.crm_is_global_admin(auth.uid())
+      or private.crm_user_has_global_scope(auth.uid())
+      or exists (select 1 from public.user_roles ur where ur.user_id=auth.uid() and ur.role='responsable_district')
+      or (
+        exists (select 1 from public.user_roles ur where ur.user_id=auth.uid() and ur.role='responsable_technique_zone')
+        and lower(coalesce(e.type_equipe,'')) like '%technique%'
+      )
+      or (
+        exists (select 1 from public.user_roles ur where ur.user_id=auth.uid() and ur.role='responsable_commercial')
+        and lower(coalesce(e.type_equipe,'')) like '%commercial%'
+      )
+      or (
+        not exists (select 1 from public.user_roles ur where ur.user_id=auth.uid()
+                    and ur.role in ('responsable_district','responsable_technique_zone','responsable_commercial'))
+      )
+    )
+  order by e.created_at desc;
+end;
+$function$;
+
+revoke all on function public.get_team_directory_for_current_user() from public, anon;
+grant execute on function public.get_team_directory_for_current_user() to authenticated, service_role;
+
+-- Les fonctions de résolution d'audience sont des fonctions internes au dispatcher.
+-- Les utilisateurs publics ne doivent jamais pouvoir les appeler directement.
+
 -- Recalculer les bonus du mois courant après la mise à jour du référentiel.
 select public.recalculer_bonus_commerciaux_mensuels(current_date);
