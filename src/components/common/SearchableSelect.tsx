@@ -19,6 +19,7 @@ interface SearchableSelectProps {
   triggerLabel?: string;
   triggerFlagUrl?: string;
   triggerIconOnly?: boolean;
+  contentClassName?: string;
 }
 
 export default function SearchableSelect({
@@ -33,6 +34,7 @@ export default function SearchableSelect({
   triggerLabel,
   triggerFlagUrl,
   triggerIconOnly = false,
+  contentClassName,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const selected = useMemo(() => options.find((option) => option.value === value), [options, value]);
@@ -45,8 +47,8 @@ export default function SearchableSelect({
           {!triggerIconOnly ? <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /> : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] max-h-[75vh] overflow-hidden p-0">
-        <Command>
+      <PopoverContent align="start" className={cn("w-[var(--radix-popover-trigger-width)] max-h-[75vh] overflow-hidden p-0", contentClassName)}>
+        <Command className="w-full min-w-0">
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList className="max-h-[min(65vh,420px)] overflow-y-auto overscroll-contain touch-pan-y">
             <CommandEmpty>{emptyText}</CommandEmpty>
