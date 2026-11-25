@@ -1,5 +1,5 @@
-# AgriCapital 360 — application privée, ne pas indexer
+# AgriCapital 360 — application métier privée
+# Le site renvoie X-Robots-Tag: noindex et une balise meta robots noindex.
+# robots.txt n'est pas un contrôle d'accès : l'authentification protège les données.
 User-agent: *
-Disallow: /
-
-# No sitemap — AgriCapital 360 is private
+Allow: /
