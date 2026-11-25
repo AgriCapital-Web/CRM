@@ -1,5 +1,5 @@
 const PREVIEW_HOSTS = ["lovableproject.com", "lovableproject-dev.com", "beta.lovable.dev"];
-const BUILD_VERSION = "2026.11.25.1";
+const BUILD_VERSION = "2026.11.25.2";
 const ACCEPTED_VERSION_KEY = "agricapital-crm-update-accepted";
 
 function registrationAllowed() {
@@ -76,11 +76,28 @@ export async function registerAppServiceWorker() {
   }
 }
 
-export function acceptMandatoryPwaUpdate(registration?: ServiceWorkerRegistration) {
-  window.localStorage.setItem(ACCEPTED_VERSION_KEY, BUILD_VERSION);
-  if (registration?.waiting) {
-    registration.waiting.postMessage({ type: "SKIP_WAITING" });
-    return;
+export async function acceptMandatoryPwaUpdate(registration?: ServiceWorkerRegistration) {
+  const target = registration || await navigator.serviceWorker.getRegistration("/");
+  if (!target) { window.location.reload(); return; }
+  try { await target.update(); } catch { /* Un worker déjà téléchargé peut encore être activé hors ligne. */ }
+  let waiting = target.waiting;
+  if (!waiting && target.installing) {
+    await new Promise<void>((resolve) => {
+      const installing = target.installing;
+      if (!installing) return resolve();
+      const finish = () => {
+        if (["installed", "activated", "redundant"].includes(installing.state)) {
+          installing.removeEventListener("statechange", finish);
+          resolve();
+        }
+      };
+      installing.addEventListener("statechange", finish);
+      window.setTimeout(resolve, 20000);
+    });
+    waiting = target.waiting;
   }
+  window.localStorage.setItem(ACCEPTED_VERSION_KEY, BUILD_VERSION);
+  if (waiting) { waiting.postMessage({ type: "SKIP_WAITING" }); return; }
+  // Aucun nouveau worker n’est en attente : recharger la version publiée sans effacer les données locales.
   window.location.reload();
 }

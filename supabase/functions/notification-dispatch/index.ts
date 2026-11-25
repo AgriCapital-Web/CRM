@@ -83,7 +83,7 @@ type Contact = {
 };
 
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
-const assertSmsLength = (value: string, maxCharacters = 155) => {
+const assertSmsLength = (value: string, maxCharacters = 158) => {
   const length = Array.from(value).length;
   if (length > maxCharacters) throw new Error(`SMS trop long : ${length}/${maxCharacters} caractères, espaces et signes compris.`);
   if (!length) throw new Error("Le SMS ne peut pas être vide.");
@@ -179,7 +179,7 @@ function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): strin
 }
 
 function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 130): string {
-  const tokenPattern = /\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
+  const tokenPattern = /\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
   const marker = "__AGRICAPITAL_LAST_GIVEN_NAME_AND_SURNAME__";
   let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(tokenPattern, marker);
   if (!text) throw new Error("Le message est vide.");
@@ -204,7 +204,7 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
   text = text.replace(/\s*(?:Direction|Investir la terre[^.]*|Merci pour votre confiance\.?|AgriCapital\.? )\s*$/i, "").trim();
   const nameIndex = text.indexOf(marker);
   const bodyText = text.replaceAll(marker, "");
-  if (Array.from(bodyText).length <= maxBodyCharacters) return text.replaceAll(marker, "{dernierprenom_nom}");
+  if (Array.from(bodyText).length <= maxBodyCharacters) return text.replaceAll(marker, "{nom}");
   if (nameIndex >= 0) {
     const beforeName = text.slice(0, nameIndex);
     const afterName = text.slice(nameIndex + marker.length).trim();
@@ -215,7 +215,7 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
     while (kept.length && Array.from(kept.join(" ")).length > remaining - 1) kept.pop();
     const suffix = kept.length ? " " + kept.join(" ") : "";
     const fitted = beforeName + marker + suffix + (kept.length < words.length ? "…" : "");
-    return fitted.replaceAll(marker, "{dernierprenom_nom}");
+    return fitted.replaceAll(marker, "{nom}");
   }
   const chars = Array.from(text);
   return chars.slice(0, Math.max(0, maxBodyCharacters - 1)).join("").trimEnd() + "…";
@@ -281,7 +281,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
     offre_code: contact.offre_code || "", formule: contact.formule_nom || contact.formule_code || "",
     formule_code: contact.formule_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
-    dernier_prenom_nom: displayName, dernierprenom_nom: displayName,
+    dernier_prenom_nom: displayName, dernierprenom_nom: displayName, nom: structuredLastName || familyName,
     ...(context.finance_payout_sms === true ? { prenom: firstName, nom: familyName, nom_complet: displayName } : {}),
   };
   const greetingAdjusted = context.finance_payout_sms === true
@@ -592,8 +592,8 @@ const DEFAULT_ROUTING_POLICY: NotificationRoutingPolicy = {
   domestic_country_calling_code: "+225",
   domestic_channel: "sms",
   international_channel: "whatsapp",
-  sms_max_characters: 155,
-  sms_content_max_characters: 130,
+  sms_max_characters: 158,
+  sms_content_max_characters: 158,
   sms_sender_id: "AgriCapital",
 };
 async function getNotificationRoutingPolicy(): Promise<NotificationRoutingPolicy> {
@@ -608,8 +608,8 @@ async function getNotificationRoutingPolicy(): Promise<NotificationRoutingPolicy
     domestic_country_calling_code: String(data.domestic_country_calling_code || "+225"),
     domestic_channel: "sms",
     international_channel: "whatsapp",
-    sms_max_characters: Math.min(155, Math.max(1, Number(data.sms_max_characters) || 155)),
-    sms_content_max_characters: Math.min(130, Math.max(1, Number(data.sms_content_max_characters) || 130)),
+    sms_max_characters: Math.min(158, Math.max(1, Number(data.sms_max_characters) || 158)),
+    sms_content_max_characters: Math.min(158, Math.max(1, Number(data.sms_content_max_characters) || 158)),
     sms_sender_id: "AgriCapital",
   };
 }
@@ -851,7 +851,7 @@ async function deliver(args: {
           : rawRendered;
         const bodyFitted = restructureSmsTemplateWithinLimit(templateForSms, routingPolicy.sms_content_max_characters);
         const personalized = greetingName
-          ? bodyFitted.replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/i, greetingName)
+          ? bodyFitted.replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/i, greetingName)
           : bodyFitted;
         rendered = brandAutomatedMessage(personalized, channel, routingPolicy.sms_max_characters);
         assertSmsLength(normalizeSms(rendered), routingPolicy.sms_max_characters);
@@ -1072,7 +1072,7 @@ async function runCampaign(campaignId: string) {
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
   if (["sms", "whatsapp", "auto", "email_sms"].includes(String(campaign.canal || ""))) {
     const routingPolicy = await getNotificationRoutingPolicy();
-    const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
+    const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
     const bodyCharacters = Array.from(bodyWithoutRecipientName).length;
     if (bodyCharacters > routingPolicy.sms_content_max_characters) {
       throw new Error(`Message de campagne trop long : ${bodyCharacters}/${routingPolicy.sms_content_max_characters} caractères hors nom/prénom. Utilisez « Restructurer » avant l'envoi.`);
@@ -1601,9 +1601,9 @@ serve(async (req) => {
     if (!(await staffAuthorized(req, requiredPermission))) return json(req, { error: "Accès refusé : votre rôle ne possède pas la permission de messagerie requise." }, 401);
     if (mode === "restructure_sms") {
       const content = typeof body.content === "string" ? body.content : "";
-      const rewritten = restructureSmsTemplateWithinLimit(content, 130);
-      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""))).length;
-      return json(req, { ok: true, content: rewritten, bodyCharacters, maxBodyCharacters: 130, engine: "internal" });
+      const rewritten = restructureSmsTemplateWithinLimit(content, 158);
+      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""))).length;
+      return json(req, { ok: true, content: rewritten, bodyCharacters, maxBodyCharacters: 158, engine: "internal" });
     }
     if (mode === "recipient_directory") {
       // Use the same canonical recipient resolver as campaign previews and sends.

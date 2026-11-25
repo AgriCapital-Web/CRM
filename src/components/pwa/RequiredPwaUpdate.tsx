@@ -12,14 +12,15 @@ export default function RequiredPwaUpdate() {
   useEffect(() => {
     const show = (event: Event) => setDetail((event as CustomEvent<UpdateDetail>).detail || {});
     window.addEventListener("agri:pwa-update-required", show);
-    if (navigator.serviceWorker?.controller && (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true) && window.localStorage.getItem("agricapital-crm-update-accepted") !== "2026.11.25.1") setDetail({ version: "2026.11.25.1" });
+    if (navigator.serviceWorker?.controller && (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true) && window.localStorage.getItem("agricapital-crm-update-accepted") !== "2026.11.25.2") setDetail({ version: "2026.11.25.2" });
     return () => window.removeEventListener("agri:pwa-update-required", show);
   }, []);
 
   if (!detail) return null;
-  const apply = () => {
+  const apply = async () => {
     setInstalling(true);
-    acceptMandatoryPwaUpdate(detail.registration);
+    try { await acceptMandatoryPwaUpdate(detail.registration); }
+    catch { setInstalling(false); }
   };
 
   return (
@@ -32,7 +33,7 @@ export default function RequiredPwaUpdate() {
           <RefreshCw className={installing ? "mr-2 h-4 w-4 animate-spin" : "mr-2 h-4 w-4"} />
           {installing ? "Installation en cours…" : "Installer la mise à jour"}
         </Button>
-        <p className="mt-3 text-center text-xs text-muted-foreground">Cette demande ne réapparaîtra pas après confirmation de l’installation.</p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">Si Android conserve l’ancienne icône, supprimez le raccourci de l’écran d’accueil puis ajoutez à nouveau AgriCapital 360 depuis le navigateur. Le site ne peut pas désinstaller ce raccourci à votre place.</p>
       </div>
     </div>
   );

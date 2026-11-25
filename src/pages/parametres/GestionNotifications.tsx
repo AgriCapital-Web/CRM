@@ -97,7 +97,7 @@ const formatCampaignRecipientName = (r: any) => r?.nom && r?.prenoms ? formatStr
 const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) return true; const type = String(r.source_type || ""); return types.some((t) => t === "proprietaire_foncier" ? type.includes("proprietaire_foncier") : t === "beneficiaire_particulier" ? type.includes("beneficiaire_particulier") : t === "autre" ? ["autre","cotitulaire_proprietaire","cotitulaire_client"].includes(type) : type === t); };
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
 const smsLength = (value: string) => Array.from(normalizeSms(value)).length
-const SMS_NAME_TOKEN = /\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
+const SMS_NAME_TOKEN = /\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
 const smsBodyLength = (value: string) => smsLength(value.replace(SMS_NAME_TOKEN, ""));
 const restructureSms = (value: string) => {
   const marker = "__AGRICAPITAL_RECIPIENT_NAME__";
@@ -123,20 +123,20 @@ const restructureSms = (value: string) => {
     if (token === marker) { output += token; continue; }
     if (/^\\s+$/.test(token)) {
       if (output && !output.endsWith(" ")) {
-        if (count + 1 > 129) { truncated = true; break; }
+        if (count + 1 > 157) { truncated = true; break; }
         output += " ";
         count += 1;
       }
       continue;
     }
     const length = smsLength(token);
-    if (count + length > 129) { truncated = true; break; }
+    if (count + length > 157) { truncated = true; break; }
     output += token;
     count += length;
   }
   output = output.trimEnd().replace(/\s+([,.;!?])/g, "$1");
   if (truncated) output = output.replace(/[\s,;:]+$/g, "") + "…";
-  return output.replaceAll(marker, "{dernierprenom_nom}");
+  return output.replaceAll(marker, "{nom}");
 };
 const isImageFile = (file: File | MediaAttachment) => {
   const mime = String(("type" in file ? file.type : "") || ("mimeType" in file ? file.mimeType : "") || "").toLowerCase();
@@ -384,7 +384,7 @@ const GestionNotifications = () => {
       const result = await callDispatch({ mode: "restructure_sms", content: campaign.contenu });
       if (!result?.ok || typeof result.content !== "string") throw new Error(result?.error || "Le module interne n'a pas pu reformuler le message.");
       setCampaign(current => ({ ...current, contenu: result.content }));
-      toast.success(`Reformulation interne terminée · ${Number(result.bodyCharacters) || 0}/130 caractères hors nom.`);
+      toast.success(`Reformulation interne terminée · ${Number(result.bodyCharacters) || 0}/158 caractères hors nom.`);
     } catch (error: any) {
       toast.error(error?.message || "Reformulation impossible.");
     } finally {
@@ -407,7 +407,7 @@ const GestionNotifications = () => {
     const submittedMedia = [...campaignMedia];
     if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
     if (submittedCampaign.audience === "selection" && !selectedRecipients.some((r) => r?.source_type && r?.source_id)) return toast.error("Coche au moins un destinataire valide.");
-    if (["sms", "whatsapp", "auto", "email_sms"].includes(submittedCampaign.canal) && smsBodyLength(submittedCampaign.contenu) > 130) return toast.error(`Le texte hors prénom/nom fait ${smsBodyLength(submittedCampaign.contenu)}/130 caractères. Clique sur « Restructurer ».`);
+    if (["sms", "whatsapp", "auto", "email_sms"].includes(submittedCampaign.canal) && smsBodyLength(submittedCampaign.contenu) > 158) return toast.error(`Le texte hors nom fait ${smsBodyLength(submittedCampaign.contenu)}/158 caractères. Clique sur « Restructurer ».`);
     if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
     let recipientCount = selectedRecipients.length;
@@ -677,10 +677,10 @@ const GestionNotifications = () => {
                 <Field label="Planification"><Input type="datetime-local" value={campaign.programme_le} onChange={(e) => setCampaign({ ...campaign, programme_le: e.target.value })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={campaign.sujet} onChange={(e) => setCampaign({ ...campaign, sujet: e.target.value })} placeholder="Information AgriCapital" /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {dernierprenom_nom}, ..." />
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={campaign.contenu} onChange={(e) => setCampaign({ ...campaign, contenu: e.target.value })} placeholder="Bonjour {nom}, ..." />
                 <div className="mt-2 flex flex-wrap gap-2">
                   {[
-                    ["Dernier prénom + nom", "{dernierprenom_nom}"],
+                    ["Nom", "{nom}"],
                     ["Montant", "{{montant}}"],
                     ["Date", "{{date}}"],
                     ["Échéance", "{{date_echeance}}"],
@@ -688,7 +688,7 @@ const GestionNotifications = () => {
                     ["Téléphone", "{{telephone}}"],
                   ].map(([label, token]) => <Button key={token} type="button" size="sm" variant="outline" onClick={() => setCampaign(current => ({ ...current, contenu: current.contenu + (current.contenu && !/\\s$/.test(current.contenu) ? " " : "") + token }))}>{label}</Button>)}
                 </div>
-                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">{["sms", "whatsapp", "auto", "email_sms"].includes(campaign.canal) && <><span className={smsBodyLength(campaign.contenu) > 130 ? "font-semibold text-destructive" : ""}>{smsBodyLength(campaign.contenu)}/130 caractères hors dernier prénom + nom · SMS personnalisé ≤155</span><Button type="button" size="sm" variant="outline" onClick={() => void restructureCampaignSms()} disabled={restructuringSms}>{restructuringSms ? <><RefreshCw className="mr-2 h-3 w-3 animate-spin"/>Reformulation interne…</> : <><RefreshCw className="mr-2 h-3 w-3"/>Restructurer</>}</Button></>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">{["sms", "whatsapp", "auto", "email_sms"].includes(campaign.canal) && <><span className={smsBodyLength(campaign.contenu) > 158 ? "font-semibold text-destructive" : ""}>{smsBodyLength(campaign.contenu)}/158 caractères hors nom · SMS personnalisé ≤158</span><Button type="button" size="sm" variant="outline" onClick={() => void restructureCampaignSms()} disabled={restructuringSms}>{restructuringSms ? <><RefreshCw className="mr-2 h-3 w-3 animate-spin"/>Reformulation interne…</> : <><RefreshCw className="mr-2 h-3 w-3"/>Restructurer</>}</Button></>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
               {preview && <Preview count={preview.count} sample={preview.sample} />}
               <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />{editingCampaignId ? "Enregistrer les modifications" : "Enregistrer la campagne"}</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>

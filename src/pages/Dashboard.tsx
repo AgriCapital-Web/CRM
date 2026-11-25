@@ -811,7 +811,6 @@ const Dashboard = () => {
       ...(canParcelles || canPlantations ? [
         {label:"Surface conventionnée",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
         {label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},
-        {label:"Part propriétaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/parcelles"},
         {label:"Attribuée clients",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},
         {label:"Surface plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
         {label:"Surface restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},

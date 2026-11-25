@@ -16,8 +16,9 @@ import { useGlobalRealtime } from "@/hooks/useGlobalRealtime";
 import {
   LayoutDashboard, Users, Sprout, CreditCard, LogOut, Menu, Receipt, History, CalendarDays,
   BarChart3, Ticket, Wallet, FileText, Settings, UserCircle, Wifi, WifiOff, RefreshCw, Signal,
-  LandPlot, Layers, Target, CloudUpload, MessageSquare, Smartphone
+  LandPlot, Layers, Target, CloudUpload, MessageSquare, Download
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface MainLayoutProps { children: ReactNode; }
 
@@ -52,15 +53,12 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     { icon: Users, label: "Équipes", path: "/parametres?tab=equipes", permission: PERMISSIONS.VIEW_PARAMETRES },
     { icon: Ticket, label: "Support", path: "/support", permission: PERMISSIONS.VIEW_TICKETS },
     { icon: Layers, label: "AgriCapital 360", path: "/connect", permission: "messagerie.view" as any },
-    { icon: Smartphone, label: "Applications Android", path: "/applications-android", permission: PERMISSIONS.VIEW_DASHBOARD },
     { icon: CloudUpload, label: "Synchronisation", path: "/synchronisation", permission: PERMISSIONS.VIEW_DASHBOARD },
   ];
 
-  const visibleMenuItems = menuItems.filter(item => item.path === "/applications-android"
-    ? userRoles.length > 0
-    : item.label === "AgriCapital 360"
-      ? (can("messagerie.view") || can("finance.view") || can("documents.view") || can("decision_center.view"))
-      : item.path === "/finance" ? (can("finance.view") || can("finance.payroll")) : can(item.permission));
+  const visibleMenuItems = menuItems.filter(item => item.label === "AgriCapital 360"
+    ? (can("messagerie.view") || can("finance.view") || can("documents.view") || can("decision_center.view"))
+    : item.path === "/finance" ? (can("finance.view") || can("finance.payroll")) : can(item.permission));
   const handleLogout = async () => { await signOut(); navigate("/"); };
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'AG';
 
@@ -70,6 +68,28 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     return <span className={cn("flex items-center gap-1 text-xs font-semibold", compact ? "text-primary" : "text-primary-foreground")}><Wifi className="h-3.5 w-3.5" /> {!compact && 'En ligne'}</span>;
   };
 
+  const AndroidDownloads = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-accent hover:bg-accent/10 hover:text-accent" title="Télécharger les applications Android" aria-label="Télécharger les applications Android">
+          <Download className="h-5 w-5 stroke-[2.8]" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        {userRoles.includes("pdg") ? (
+          <>
+            <DropdownMenuItem disabled>APK AgriCapital 360 — non disponible</DropdownMenuItem>
+            <DropdownMenuItem disabled>AAB AgriCapital 360 — non disponible</DropdownMenuItem>
+            <DropdownMenuItem disabled>APK AgriCapital Client — non disponible</DropdownMenuItem>
+            <DropdownMenuItem disabled>AAB AgriCapital Client — non disponible</DropdownMenuItem>
+          </>
+        ) : (
+          <DropdownMenuItem disabled>APK AgriCapital 360 — non disponible</DropdownMenuItem>
+        )}
+        <div className="px-2 py-2 text-xs text-muted-foreground">Les fichiers signés seront activés dès leur publication.</div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
   const SidebarContent = () => (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-primary text-primary-foreground shadow-xl">
       <div className="shrink-0 border-b border-primary-foreground/10 px-4 py-3 bg-white/95 backdrop-blur">
@@ -148,8 +168,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <div className="flex items-center gap-2">
             <SheetTrigger asChild><Button variant="outline" size="icon"><Menu className="h-5 w-5" /></Button></SheetTrigger>
             <NotificationCenter />
-            {can("tickets.create") && <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => navigate("/support?create=1")} title="Créer un ticket" aria-label="Créer un ticket"><Ticket className="h-4 w-4" /></Button>}
             <NetworkIndicator compact />
+            <AndroidDownloads />
+            {can("tickets.create") && <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => navigate("/support?create=1")} title="Créer un ticket" aria-label="Créer un ticket"><Ticket className="h-4 w-4" /></Button>}
           </div>
           <Avatar className="h-8 w-8 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(formatStructuredPersonName(profile?.nom, profile?.prenoms))}</AvatarFallback></Avatar>
         </div>
@@ -159,8 +180,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       <main className="min-w-0 flex-1 overflow-x-hidden pt-14 md:ml-64 md:pt-0 bg-muted/20">
         <header className="sticky top-0 z-30 hidden h-16 items-center gap-4 border-b bg-background/80 px-6 backdrop-blur-xl shadow-sm md:flex">
           <div className="ml-auto flex min-w-0 items-center gap-3">
-            <NetworkIndicator />
             <NotificationCenter />
+            <NetworkIndicator />
+            <AndroidDownloads />
             {can("tickets.create") && <Button variant="outline" size="sm" className="h-9 gap-2 whitespace-nowrap" onClick={() => navigate("/support?create=1")} title="Créer un ticket"><Ticket className="h-4 w-4" /><span>Créer un ticket</span></Button>}
             {queueCount > 0 && (
               <button type="button" onClick={() => navigate("/synchronisation")} title="Voir les opérations et pièces jointes en attente" aria-label={`${queueCount} élément(s) en attente de synchronisation`} className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
