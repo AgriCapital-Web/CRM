@@ -199,7 +199,7 @@ const Dashboard = () => {
         teamMembersRes
       ] = await Promise.all([
         canClients || canTechnical || canPlantations
-          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,region_id,domicile,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre,mensualite_montant")
+          ? (supabase as any).from("clients").select("id,id_unique,nom_complet,created_at,updated_at,statut,statut_global,validation_statut,contrat_solde_at,nombre_plantations,total_hectares,superficie_ha,region_id,domicile,montant_total_contrat,formule_nom,formule_code,phase_actuelle,compte_actif,numero_ordre_global,commercial_id,created_by,paiement_initial_paye_at,pi_paye_at,type_client,type_client_foncier,parcelle_id,is_internal,famille_offre,mensualite_montant")
           : Promise.resolve({ data: [], count: 0 }),
         canViewIndependentServiceCustomers
           ? (supabase as any).from("independent_service_customers").select("id").is("archived_at", null)
@@ -392,7 +392,6 @@ const Dashboard = () => {
         !["archive", "annulee", "annulée"].includes(String(p.statut || "").toLowerCase())
       );
       const validatedPartnershipParcelIds = new Set(validatedPartnershipParcels.map((p: any) => p.id));
-      const validatedConventionIds = new Set(validatedPartnershipParcels.map((p: any) => conventionForParcel(p)?.id).filter(Boolean));
       const ownerAreaHa = proprietaires.reduce((sum: number, owner: any) => sum + Number(owner.surface_totale_ha || 0), 0);
       const plantedByPartnershipParcel = new Map<string, number>();
       plantations.filter((p: any) => p.parcelle_id && validatedPartnershipParcelIds.has(p.parcelle_id)).forEach((p: any) => {
@@ -447,15 +446,15 @@ const Dashboard = () => {
         .filter((p: any) => !p.parcelle_id && !internalClientIds.has(p.client_id))
         .reduce((sum: number, p: any) => sum + Number(p.superficie_ha || 0), 0);
       plantedHa = sumPlantedArea(plantations);
-      const plantingTargetFromClients = clients.filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase())).reduce((sum: number, client: any) => {
-        const hectares = Math.max(0, Number(client.total_hectares || 0));
-        const formula = String(client.formule_code || client.famille_offre || "").toUpperCase();
+      const plantingTargetHa = commercialClients.filter((client: any) =>
+        client.validation_statut === "valide" &&
+        ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase())
+      ).reduce((sum: number, client: any) => {
+        const hectares = Math.max(0, Number(client.superficie_ha ?? client.total_hectares ?? 0));
+        const formula = `${client.formule_code || ""} ${client.famille_offre || ""} ${client.formule_nom || ""}`.toUpperCase();
+        // PalmInvest engage aussi la même superficie à planter chez le propriétaire.
         return sum + hectares * (formula.includes("PALMINVEST") ? 2 : 1);
       }, 0);
-      const plantingTargetFromOwners = proprietaires
-        .filter((owner: any) => ["valide", "validee", "validé", "validée", "actif", "active"].includes(String(owner.validation_statut || owner.statut || "").toLowerCase()))
-        .reduce((sum: number, owner: any) => sum + Math.max(0, Number(owner.surface_totale_ha || 0)), 0);
-      const plantingTargetHa = plantingTargetFromClients + plantingTargetFromOwners;
       remainingHa = Math.max(0, plantingTargetHa - plantedHa);
       const monthlyForecast = commercialClients
         .filter((client: any) => client.validation_statut === "valide" && ["actif", "active"].includes(String(client.statut || client.statut_global || "").toLowerCase()) && Number(client.montant_total_contrat || 0) > 0)
@@ -517,7 +516,7 @@ const Dashboard = () => {
         prospectsConversionRate,
         ownerAreaHa,
         partnershipTotalHa: partnershipMetrics.totalArea,
-        activePartnershipConventions: validatedConventionIds.size,
+        activePartnershipConventions: activeConventions.length,
         partnershipParcelCount: validatedPartnershipParcels.length,
         partnershipPlantedHa,
         partnershipRemainingHa,
@@ -810,17 +809,12 @@ const Dashboard = () => {
     { label:"Domaine foncier et partenariat", icon:LandPlot, href:"/proprietaires-terres", show:canOwners || canParcelles || canPlantations, metrics:[
       ...(canOwners ? [{label:"Propriétaires",value:stats.proprietaires,href:"/proprietaires-terres"}] : []),
       ...(canParcelles || canPlantations ? [
-        {label:"Conventions actives",value:stats.activePartnershipConventions,href:"/proprietaires-terres"},
-        {label:"Parcelles sous convention",value:stats.partnershipParcelCount,href:"/parcelles"},
-        {label:"Surface totale conventionnée",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
+        {label:"Surface conventionnée",value:num(stats.partnershipTotalHa)+" ha",href:"/parcelles"},
         {label:"Part AgriCapital",value:num(stats.agriCapitalAreaHa)+" ha",href:"/parcelles"},
         {label:"Part propriétaire",value:num(stats.partnerOwnerAreaHa)+" ha",href:"/parcelles"},
-        {label:"Part AgriCapital attribuée aux clients",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},
-        {label:"Surface réellement plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
-        {label:"Part AgriCapital réellement plantée",value:num(stats.foncierPlantedHa)+" ha",href:"/plantations"},
-        {label:"Reste à planter — part AgriCapital",value:num(stats.foncierRemainingHa)+" ha",href:"/parcelles"},
-        {label:"Reste à planter — part propriétaire",value:num(stats.partnerOwnerRemainingHa)+" ha",href:"/parcelles"},
-        {label:"Surface restante totale",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},
+        {label:"Attribuée clients",value:num(stats.agriCapitalSoldToClientsHa)+" ha",href:"/parcelles"},
+        {label:"Surface plantée",value:num(stats.partnershipPlantedHa)+" ha",href:"/plantations"},
+        {label:"Surface restante",value:num(stats.partnershipRemainingHa)+" ha",href:"/parcelles"},
       ] : []),
     ]},
     { label:"Exploitation agricole", icon:Sprout, href:"/plantations", show:canPlantations, metrics:[
