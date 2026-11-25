@@ -17,6 +17,10 @@ async function unregisterAppWorkers() {
   ).map((registration) => registration.unregister()));
 }
 
+function isInstalledPwa() {
+  return window.matchMedia("(display-mode: standalone)").matches || (navigator).standalone === true;
+}
+
 function requestMandatoryUpdate(registration) {
   window.dispatchEvent(new CustomEvent("agri:pwa-update-required", {
     detail: { registration, version: BUILD_VERSION },
@@ -34,7 +38,7 @@ export async function registerAppServiceWorker() {
     const hadController = Boolean(navigator.serviceWorker.controller);
     const accepted = window.localStorage.getItem(ACCEPTED_VERSION_KEY);
     if (!hadController) window.localStorage.setItem(ACCEPTED_VERSION_KEY, BUILD_VERSION);
-    else if (accepted !== BUILD_VERSION) requestMandatoryUpdate(undefined);
+    else if (isInstalledPwa() && accepted !== BUILD_VERSION) requestMandatoryUpdate(undefined);
 
     const registration = await navigator.serviceWorker.register("/sw.js", {
       scope: "/", updateViaCache: "none",
@@ -48,13 +52,13 @@ export async function registerAppServiceWorker() {
     });
 
     const notifyWaiting = () => {
-      if (registration.waiting && navigator.serviceWorker.controller) requestMandatoryUpdate(registration);
+      if (isInstalledPwa() && registration.waiting && navigator.serviceWorker.controller) requestMandatoryUpdate(registration);
     };
     registration.addEventListener("updatefound", () => {
       const installing = registration.installing;
       if (!installing) return;
       installing.addEventListener("statechange", () => {
-        if (installing.state === "installed" && navigator.serviceWorker.controller) requestMandatoryUpdate(registration);
+        if (isInstalledPwa() && installing.state === "installed" && navigator.serviceWorker.controller) requestMandatoryUpdate(registration);
       });
     });
     notifyWaiting();
