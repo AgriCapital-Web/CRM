@@ -179,7 +179,7 @@ function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): strin
 }
 
 function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 130): string {
-  const tokenPattern = /\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
+  const tokenPattern = /\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
   const marker = "__AGRICAPITAL_LAST_GIVEN_NAME_AND_SURNAME__";
   let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(tokenPattern, marker);
   if (!text) throw new Error("Le message est vide.");
@@ -204,7 +204,7 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
   text = text.replace(/\s*(?:Direction|Investir la terre[^.]*|Merci pour votre confiance\.?|AgriCapital\.? )\s*$/i, "").trim();
   const nameIndex = text.indexOf(marker);
   const bodyText = text.replaceAll(marker, "");
-  if (Array.from(bodyText).length <= maxBodyCharacters) return text.replaceAll(marker, "{dernierprenom_nom}");
+  if (Array.from(bodyText).length <= maxBodyCharacters) return text.replaceAll(marker, "{nom}");
   if (nameIndex >= 0) {
     const beforeName = text.slice(0, nameIndex);
     const afterName = text.slice(nameIndex + marker.length).trim();
@@ -215,7 +215,7 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
     while (kept.length && Array.from(kept.join(" ")).length > remaining - 1) kept.pop();
     const suffix = kept.length ? " " + kept.join(" ") : "";
     const fitted = beforeName + marker + suffix + (kept.length < words.length ? "…" : "");
-    return fitted.replaceAll(marker, "{dernierprenom_nom}");
+    return fitted.replaceAll(marker, "{nom}");
   }
   const chars = Array.from(text);
   return chars.slice(0, Math.max(0, maxBodyCharacters - 1)).join("").trimEnd() + "…";
@@ -1601,9 +1601,9 @@ serve(async (req) => {
     if (!(await staffAuthorized(req, requiredPermission))) return json(req, { error: "Accès refusé : votre rôle ne possède pas la permission de messagerie requise." }, 401);
     if (mode === "restructure_sms") {
       const content = typeof body.content === "string" ? body.content : "";
-      const rewritten = restructureSmsTemplateWithinLimit(content, 130);
-      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""))).length;
-      return json(req, { ok: true, content: rewritten, bodyCharacters, maxBodyCharacters: 130, engine: "internal" });
+      const rewritten = restructureSmsTemplateWithinLimit(content, 158);
+      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""))).length;
+      return json(req, { ok: true, content: rewritten, bodyCharacters, maxBodyCharacters: 158, engine: "internal" });
     }
     if (mode === "recipient_directory") {
       // Use the same canonical recipient resolver as campaign previews and sends.
