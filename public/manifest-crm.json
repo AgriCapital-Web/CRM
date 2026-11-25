@@ -11,10 +11,10 @@
   "id": "ac-teams",
   "icons": [
     {
-      "src": "/images/Logo%20%20AgriCapital%20-360%C2%B0.jpg?v=20261023-official",
-      "sizes": "any",
-      "type": "image/jpeg",
-      "purpose": "any"
+      "src": "/icons/icon-crm-square.svg?v=20261125",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ],
   "categories": [
@@ -25,5 +25,5 @@
   "dir": "ltr",
   "author": "Inocent KOFFI",
   "publisher": "AgriCapital SARL",
-  "version": "1.7.0"
+  "version": "1.7.1"
 }
