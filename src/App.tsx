@@ -46,7 +46,6 @@ const BeneficiaireParticulier = lazy(() => import("./pages/BeneficiaireParticuli
 const TechnicienTerrain = lazy(() => import("./pages/TechnicienTerrain"));
 const Messagerie = lazy(() => import("./pages/Messagerie"));
 const AgriCapitalConnect = lazy(() => import("./pages/AgriCapitalConnect"));
-const ApplicationsAndroid = lazy(() => import("./pages/ApplicationsAndroid"));
 const AgriCapitalIntelligence = lazy(() => import("./pages/AgriCapitalIntelligence"));
 const ExternalMeetingGuest = lazy(() => import("./pages/ExternalMeetingGuest"));
 
@@ -119,7 +118,6 @@ const DomainRouter = () => {
             <Route path="/beneficiaire-particulier" element={<ProtectedRoute requiredPermission={PERMISSIONS.CREATE_BENEFICIAIRE}><BeneficiaireParticulier /></ProtectedRoute>} />
       <Route path="/messagerie" element={<Navigate to="/connect" replace />} />
       <Route path="/connect" element={<ProtectedRoute><AgriCapitalConnect /></ProtectedRoute>} />
-      <Route path="/applications-android" element={<ProtectedRoute><ApplicationsAndroid /></ProtectedRoute>} />
       <Route path="/intelligence" element={<AgriCapitalIntelligence />} />
       <Route path="/espace-travail" element={<ProtectedRoute><Navigate to="/connect?module=documents" replace /></ProtectedRoute>} />
       <Route path="/espace-travail-360" element={<ProtectedRoute><Navigate to="/connect?module=organisation" replace /></ProtectedRoute>} />
