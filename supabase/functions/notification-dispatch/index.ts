@@ -1085,10 +1085,15 @@ async function runCampaign(campaignId: string) {
       throw new Error(`Message de campagne trop long : ${bodyCharacters}/${routingPolicy.sms_content_max_characters} caractères hors nom/prénom. Utilisez « Restructurer » avant l'envoi.`);
     }
   }
-  const hasExplicitSelection = Array.isArray(criteria.selected_recipients);
+  // Une audience nommée (clients, leads, prospects, utilisateurs…) est recalculée
+  // au déclenchement. Seule une sélection explicitement manuelle reste figée.
+  const manualSelectionRequested = criteria.selection_mode === "manual"
+    || criteria.audience === "selection"
+    || (!criteria.audience && Array.isArray(criteria.selected_recipients));
+  const hasExplicitSelection = manualSelectionRequested && Array.isArray(criteria.selected_recipients);
   const selectedRecipients = hasExplicitSelection ? criteria.selected_recipients as Array<{ source_type?: string; source_id?: string }> : [];
-  // Fail closed: an empty saved manual selection must never fall through to the broad audience resolver.
-  if (hasExplicitSelection && !selectedRecipients.some((item) => item?.source_type && item?.source_id)) {
+  // Fail closed pour une vraie sélection manuelle vide, sans bloquer une audience dynamique.
+  if (manualSelectionRequested && (!hasExplicitSelection || !selectedRecipients.some((item) => item?.source_type && item?.source_id))) {
     throw new Error("Campagne bloquée : aucun destinataire valide n’est enregistré. Modifiez la sélection avant l’envoi.");
   }
   // For a saved audience (e.g. prospects), resolve the current real audience at send time.
