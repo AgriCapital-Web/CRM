@@ -59,10 +59,15 @@ const GestionCartes = () => {
     if (!selected || !container) return;
     const measure = () => {
       const { width, height } = container.getBoundingClientRect();
-      const faces = carteTab === "both" ? 2 : 1;
-      const gap = faces === 2 ? 16 : 0;
-      const scale = Math.min(1, (width - gap - 12) / (540 * faces), (height - 12) / 856);
-      setPreviewScale(Math.max(0.2, scale));
+      const availableHeight = Math.max(0, height - 24);
+      const heightScale = availableHeight / 856;
+      // Sur mobile uniquement, la largeur évite le débordement horizontal.
+      // Sur ordinateur, l’aperçu se règle sur la hauteur disponible.
+      const mobileWidthScale = window.matchMedia("(max-width: 767px)").matches
+        ? Math.max(0, width - 24) / 540
+        : 1;
+      const scale = Math.min(1, heightScale, mobileWidthScale);
+      setPreviewScale(Math.max(0.05, scale));
     };
     measure();
     const observer = new ResizeObserver(measure);
