@@ -40,13 +40,16 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
   const [sousPrefectures, setSousPrefectures] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [coverage, setCoverage] = useState<string | null>(null);
+  const [coverageLoading, setCoverageLoading] = useState(false);
+  const [geoLoadError, setGeoLoadError] = useState("");
   const levels = levelsForCoverage(coverage);
 
   useEffect(() => {
     let active = true;
     const code = normalizeRole(role);
     setCoverage(null);
-    if (!code) return () => { active = false; };
+    if (!code) { setCoverageLoading(false); return () => { active = false; }; }
+    setCoverageLoading(true);
     void (async () => {
       const { data, error } = await (supabase as any).from("v_public_signup_roles")
         .select("code,niveau_couverture,actif")
@@ -57,9 +60,11 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
       if (error) {
         console.error("Impossible de charger le périmètre du rôle", error);
         setCoverage(FALLBACK_COVERAGE[code] || null);
+        setCoverageLoading(false);
         return;
       }
-      setCoverage(data?.niveau_couverture || null);
+      setCoverage(data?.niveau_couverture || FALLBACK_COVERAGE[code] || null);
+      setCoverageLoading(false);
     })();
     return () => { active = false; };
   }, [role]);
@@ -68,6 +73,7 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
     let active = true;
     void (async () => {
       setLoading(true);
+      setGeoLoadError("");
       try {
         const [d, r, de, sp] = await Promise.all([
           (supabase as any).from("v_geo_districts").select("id,nom,est_actif_effectif").eq("est_actif_effectif", true).order("nom"),
@@ -82,6 +88,7 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
           const fallback = await (supabase as any).from(table).select(columns).eq(activeColumn, true).order("nom");
           if (fallback.error) {
             console.error("Liste géographique indisponible", { table, viewError: result.error?.message, fallbackError: fallback.error.message });
+            setGeoLoadError("Impossible de charger le référentiel géographique. Vérifiez votre connexion puis réessayez.");
             return [];
           }
           return fallback.data || [];
@@ -96,6 +103,7 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
         setRegions(regionRows);
         setDepartements(departmentRows);
         setSousPrefectures(subPrefectureRows);
+        if (!districtRows.length) setGeoLoadError("Aucun district actif n’est disponible dans le référentiel.");
       } catch (error) {
         console.error("Chargement des zones actives impossible", error);
         if (active) {
@@ -157,19 +165,20 @@ export default function RoleGeographyFields({ role, value, onChange, required = 
     onChange({ districtId: region?.district_id || null, regionId: department?.region_id || null, departementId: row?.departement_id || null, sousPrefectureId: sousPrefectureId || null });
   };
 
-  if (!visibleLevels.length) return null;
+  if (!visibleLevels.length) return <p className="text-xs text-muted-foreground">{coverageLoading ? "Chargement du périmètre du poste…" : coverage === "global" ? "Ce poste dispose d’une couverture nationale : aucune zone locale n’est requise." : "Le périmètre géographique de ce poste n’est pas configuré. Contactez un administrateur."}</p>;
   const field = (level: string, label: string, rows: Row[], selected: string | null | undefined, onSelect: (id: string) => void, disabled = false) => (
     <div key={level} className="min-w-0 space-y-1.5">
       <Label>{label}{required ? " *" : ""}</Label>
       <select value={selected || ""} disabled={loading || disabled} onChange={(e) => onSelect(e.target.value)} required={required}
         className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50">
-        <option value="">{loading ? "Chargement…" : `Sélectionner ${label.toLocaleLowerCase("fr-FR")}`}</option>
+        <option value="">{loading ? "Chargement…" : rows.length ? `Sélectionner ${label.toLocaleLowerCase("fr-FR")}` : "Aucune zone active disponible"}</option>
         {rows.map((row) => <option key={row.id} value={row.id}>{row.nom}</option>)}
       </select>
     </div>
   );
 
   return <div className={className}>
+    {geoLoadError && <p className="sm:col-span-2 text-xs text-destructive">{geoLoadError}</p>}
     {visibleLevels.includes("district") && field("district", "District", districts, value.districtId, changeDistrict)}
     {!isDiaspora && visibleLevels.includes("region") && field("region", "Région", regionsForDistrict, value.regionId, changeRegion, visibleLevels.includes("district") && !value.districtId)}
     {!isDiaspora && visibleLevels.includes("departement") && field("departement", "Département", departmentsForRegion, value.departementId, changeDepartment, visibleLevels.includes("region") && !value.regionId)}
