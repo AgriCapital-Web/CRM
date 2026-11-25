@@ -208,14 +208,14 @@ serve(async (req) => {
       prenoms: reqRow.prenoms || String(reqRow.nom_complet || "").trim().split(/\s+/).slice(1).join(" ") || null,
       telephone: reqRow.telephone,
       telephone_indicatif: reqRow.telephone_indicatif ?? null,
-      telephone_local: reqRow.telephone_local ?? reqRow.telephone ?? null,
+      telephone_local: reqRow.telephone_local ?? null,
       username: reqRow.username ?? String(reqRow.email).split("@")[0],
       poste: reqRow.poste_souhaite || finalRole,
       departement: reqRow.departement ?? null,
       photo_url: reqRow.photo_url ?? null,
       district_id: reqRow.district_id,
       region_id: reqRow.region_id,
-      actif: true,
+      actif: false,
       password_change_required: Boolean(tempPassword),
     };
     const { data: linkedProfile, error: linkedProfileError } = await admin
