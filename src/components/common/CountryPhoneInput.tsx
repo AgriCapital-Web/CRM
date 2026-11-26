@@ -54,6 +54,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
     const parsed = parsePhoneNumberFromString(String(localValue || ""));
     if (parsed?.country) setSelectedCode(parsed.country);
   }, [countryCode, localValue]);
+  const [internationalDraft, setInternationalDraft] = useState<string | null>(null);
   const selected = COUNTRIES.find(c => c.code === selectedCode) || countryFromCode(countryCode || "+225", COUNTRIES);
   const flagUrl = (code: string) => `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
   const options = useMemo(() => COUNTRIES.map(c => ({
@@ -91,13 +92,41 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
     // Keep the local digits untouched, including a leading zero.
     onChange({ countryCode: country.code, callingCode: country.callingCode, localValue: local, internationalValue });
   };
+  const handlePhoneInput = (rawValue: string) => {
+    const raw = rawValue.trim();
+    if (raw.startsWith("+")) {
+      const rawDigits = digits(raw);
+      const match = COUNTRIES
+        .filter(country => rawDigits.startsWith(digits(country.callingCode)))
+        .sort((a, b) => digits(b.callingCode).length - digits(a.callingCode).length)[0];
+      setInternationalDraft(raw);
+      if (!match) {
+        onChange({ countryCode: selected.code, callingCode: selected.callingCode, localValue: "", internationalValue: "" });
+        return;
+      }
+      const parsed = parsePhoneNumberFromString(raw);
+      const country = (parsed?.country && COUNTRIES.find(item => item.code === parsed.country))
+        || (match.callingCode === "+1" ? countryFromCode("+1", COUNTRIES) : match);
+      const local = rawDigits.slice(digits(country.callingCode).length).slice(0, maxLocalDigits || 15);
+      setSelectedCode(country.code);
+      onChange({
+        countryCode: country.code,
+        callingCode: country.callingCode,
+        localValue: local,
+        internationalValue: local ? country.callingCode + local : "",
+      });
+      return;
+    }
+    setInternationalDraft(null);
+    emit(selected, rawValue);
+  };
 
   return <div className={`min-w-0 ${compact ? "space-y-1" : "space-y-2"}`}>
     {label && <label className={`block font-medium leading-tight ${compact ? "whitespace-normal break-words text-xs" : "text-sm"}`}>{label}{required && " *"}</label>}
     <div className={`flex w-full min-w-0 items-stretch ${compact ? "gap-2" : "gap-2"}`}>
       <SearchableSelect
         value={selected.code}
-        onValueChange={code => { const country = COUNTRIES.find(c => c.code === code); if (country) emit(country, currentLocal); }}
+        onValueChange={code => { const country = COUNTRIES.find(c => c.code === code); if (country) { setInternationalDraft(null); emit(country, currentLocal); } }}
         options={options}
         placeholder="Pays"
         searchPlaceholder="Rechercher un pays..."
@@ -113,7 +142,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         type="tel"
         inputMode="tel"
         autoComplete="tel-national"
-        value={currentLocal}
+        value={internationalDraft ?? currentLocal}
         disabled={disabled}
         required={required}
         minLength={minLocalDigits}
@@ -125,7 +154,7 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
           if (value && (!phone || !phone.isPossible())) e.currentTarget.setCustomValidity("Le numéro ne correspond pas à une longueur valide pour le pays sélectionné.");
         }}
         onInput={e => e.currentTarget.setCustomValidity("")}
-        onChange={e => emit(selected, e.target.value)}
+        onChange={e => handlePhoneInput(e.target.value)}
       />
     </div>
   </div>;
