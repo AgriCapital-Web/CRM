@@ -66,7 +66,14 @@ export function formatRecipientName(
   if (sourceType === "lead" || sourceType === "prospect") {
     return formatStructuredPersonName(parts[parts.length - 1], parts.slice(0, -1).join(" "));
   }
-  return formatStructuredPersonName(parts[0], parts.slice(1).join(" "));
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const firstIsUpper = first === first.toLocaleUpperCase("fr-FR") && first !== first.toLocaleLowerCase("fr-FR");
+  const lastIsUpper = last === last.toLocaleUpperCase("fr-FR") && last !== last.toLocaleLowerCase("fr-FR");
+  if (!firstIsUpper && lastIsUpper) {
+    return formatStructuredPersonName(last, parts[parts.length - 2]);
+  }
+  return formatStructuredPersonName(first, parts.slice(1).join(" "));
 }
 
 /** Affichage en tableau : tous les prénoms et le nom de famille, intégralement en majuscules. */

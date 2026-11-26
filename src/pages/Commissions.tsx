@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
-import { formatUserShortName } from "@/lib/utils";
+import { formatUserShortName, formatTablePersonName, formatRecipientName, formatTableRecipientName } from "@/lib/utils";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
@@ -42,7 +42,7 @@ export default function Commissions() {
     try {
       const { data, error } = await (supabase as any)
         .from("commissions")
-        .select("*,profile:profiles!commissions_profile_id_fkey(id,nom_complet,telephone,equipe_id,equipe:equipes!profiles_equipe_id_fkey(id,nom,type_equipe)),plantation:plantations(id_unique,nom_plantation),client:clients(id,id_unique,nom_complet,famille_offre,formule_code,formule_nom),payment_allocations:commission_payment_allocations(amount)")
+        .select("*,profile:profiles!commissions_profile_id_fkey(id,nom_complet,telephone,equipe_id,equipe:equipes!profiles_equipe_id_fkey(id,nom,type_equipe)),plantation:plantations(id_unique,nom_plantation),client:clients(id,id_unique,nom_complet,nom,prenoms,famille_offre,formule_code,formule_nom),payment_allocations:commission_payment_allocations(amount)")
         .order("created_at", { ascending: false })
         .limit(2000);
       if (error) throw error;
@@ -116,7 +116,7 @@ export default function Commissions() {
       // sont consolidés dans le même portefeuille de commissions.
       const key = row.profile_id || String(row.profile?.nom_complet || "sans-commercial").trim().toLowerCase();
       const current = map.get(key) || {
-        key, profile_id: row.profile_id, nom: formatUserShortName(row.profile?.nom_complet || "Collaborateur non renseigné"), type: row.type_commission === "technique" ? "Technicien" : "Commercial", equipes: new Set<string>(),
+        key, profile_id: row.profile_id, nom: formatUserShortName(row.profile?.nom_complet || "Collaborateur non renseigné"), nom_table: formatTablePersonName(row.profile?.nom_complet || "Collaborateur non renseigné"), type: row.type_commission === "technique" ? "Technicien" : "Commercial", equipes: new Set<string>(),
         total: 0, base: 0, count: 0, calculee: 0, validee: 0, payee: 0, aPayer: 0, details: []
       };
       if (row.type_commission === "technique") current.type = current.type === "Commercial" ? "Mixte" : current.type;
@@ -234,7 +234,7 @@ export default function Commissions() {
                     {loading ? <TableRow><TableCell colSpan={9} className="py-8 text-center">Chargement</TableCell></TableRow> :
                       filtered.length === 0 ? <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Aucune commission.</TableCell></TableRow> :
                       filtered.map((g: any) => <TableRow key={g.key} className="h-10 cursor-pointer hover:bg-muted/40" onClick={() => setSelected(g)}>
-                        <TableCell className="font-medium">{g.nom}</TableCell>
+                        <TableCell className="font-medium">{g.nom_table}</TableCell>
                         <TableCell><Badge variant="outline">{g.type}</Badge></TableCell>
                         <TableCell>{g.equipe}</TableCell>
                         <TableCell>{g.count}</TableCell>
@@ -268,7 +268,7 @@ export default function Commissions() {
 
           <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
             <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-              <DialogHeader><DialogTitle>{selected?.nom}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{selected?.nom_table || selected?.nom}</DialogTitle></DialogHeader>
               {selected && canRecordPayment && <div className="flex justify-end"><Button onClick={openPaymentDialog}>Enregistrer un paiement</Button></div>}
               {selected && (
                 <div className="space-y-4">
@@ -283,7 +283,7 @@ export default function Commissions() {
                       <TableHeader><TableRow><TableHead>Client</TableHead><TableHead>Offre</TableHead><TableHead>Type</TableHead><TableHead>Base</TableHead><TableHead>Taux</TableHead><TableHead>Commission</TableHead><TableHead>Déjà payé</TableHead><TableHead>Solde</TableHead><TableHead>Période</TableHead><TableHead>Statut</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
                       <TableBody>{selected.details.map((d: any) =>
                         <TableRow key={d.id}>
-                          <TableCell>{d.type_commission === "bonus_palier" ? "Bonus mensuel" : d.client?.nom_complet || "—"}</TableCell>
+                          <TableCell>{d.type_commission === "bonus_palier" ? "Bonus mensuel" : formatTableRecipientName(d.client?.nom_complet,"client",d.client?.nom,d.client?.prenoms)}</TableCell>
                           <TableCell>{d.type_commission === "bonus_palier" ? ({ PALMINVEST: "PalmInvest", TERRAPALM: "TerraPalm", PALMTERROIR_ESSENTIELLE: "PalmTerroir — Essentielle", PALMTERROIR_FLEXIBLE: "PalmTerroir — Flexible" } as Record<string, string>)[d.offre_code] || d.offre_code || "—" : d.client?.famille_offre || d.client?.formule_code || "—"}{d.client?.formule_nom ? ` · ${d.client.formule_nom}` : ""}</TableCell>
                           <TableCell><Badge variant="outline">{typeLabel(d.type_commission)}</Badge></TableCell>
                           <TableCell>{money(d.montant_base)}</TableCell>
@@ -311,7 +311,7 @@ export default function Commissions() {
                   {(selected?.details || []).filter((d: any) => Number(d.remainingAmount || 0) > 0 && ["validee", "payee"].includes(d.statut)).map((d: any) => (
                     <label key={d.id} className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 hover:bg-muted/50">
                       <input type="checkbox" className="mt-1 h-4 w-4 accent-primary" checked={paymentIds.includes(d.id)} onChange={(event) => setPaymentIds(current => event.target.checked ? [...current, d.id] : current.filter(id => id !== d.id))} />
-                      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{d.client?.nom_complet || "Intervention sans client"} · {typeLabel(d.type_commission)}</span><span className="block text-xs text-muted-foreground">Solde restant : {money(d.remainingAmount)}</span></span>
+                      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{d.client?.nom || d.client?.prenoms ? formatRecipientName(d.client?.nom_complet,"client",d.client?.nom,d.client?.prenoms) : formatUserShortName(d.client?.nom_complet || "Intervention sans client")} · {typeLabel(d.type_commission)}</span><span className="block text-xs text-muted-foreground">Solde restant : {money(d.remainingAmount)}</span></span>
                     </label>
                   ))}
                 </div>
