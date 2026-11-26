@@ -196,7 +196,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             <Avatar className="h-9 w-9 cursor-pointer" role="button" tabIndex={0} aria-label="Ouvrir mon profil" onClick={() => navigate('/profil')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profil'); } }}><AvatarImage src={photoUrl || ''} /><AvatarFallback className="bg-primary text-primary-foreground text-sm">{getInitials(formatStructuredPersonName(profile?.nom, profile?.prenoms))}</AvatarFallback></Avatar>
           </div>
         </header>
-        <div className="min-w-0 w-full max-w-[1600px] mx-auto p-3 sm:p-5 lg:p-7">{children}</div>
+        <div className="min-w-0 w-full max-w-none p-3 sm:p-5 lg:p-7">{children}</div>
       </main>
 
 
