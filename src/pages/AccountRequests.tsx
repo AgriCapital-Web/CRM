@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { CheckCircle, XCircle, Eye, Trash2 } from "lucide-react";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { SignedImg } from "@/hooks/useSignedUrl";
+import { formatStructuredPersonName, formatStructuredTablePersonName, formatUserShortName } from "@/lib/utils";
 import TableSearchInput from "@/components/common/TableSearchInput";
 
 const AccountRequests = () => {
@@ -154,7 +155,7 @@ const AccountRequests = () => {
                   <TableCell>
                     {new Date(request.created_at).toLocaleDateString('fr-FR')}
                   </TableCell>
-                  <TableCell>{request.nom_complet}</TableCell>
+                  <TableCell>{formatStructuredTablePersonName(request.nom,request.prenoms,request.nom_complet)}</TableCell>
                   <TableCell>{request.email}</TableCell>
                   
                   <TableCell>{request.poste_souhaite}</TableCell>
@@ -235,7 +236,7 @@ const AccountRequests = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Nom et prénom</Label>
-                  <p className="text-sm">{selectedRequest.nom_complet}</p>
+                  <p className="text-sm">{selectedRequest.nom||selectedRequest.prenoms?formatStructuredPersonName(selectedRequest.nom,selectedRequest.prenoms):formatUserShortName(selectedRequest.nom_complet)}</p>
                 </div>
                 <div>
                   <Label>Email</Label>
