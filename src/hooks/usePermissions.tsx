@@ -33,7 +33,10 @@ async function fetchEffectivePermissions(userId: string): Promise<PermissionMatr
       // The database response remains authoritative even if offline caching fails.
     }
     return { matrix, fromDatabase: true };
-  } catch {
+  } catch (error) {
+    // Never reuse an old role matrix while the device is online: a changed role
+    // could otherwise keep a stale client-only capability after promotion.
+    if (typeof navigator !== "undefined" && navigator.onLine) throw error;
     // Offline mode may use only the last effective set returned by the database.
     // The previous role matrix is deliberately not reconstructed in the browser.
     try {
@@ -56,6 +59,7 @@ function useEffectivePermissionSnapshot() {
     queryKey: ["effective-permissions", user?.id || "anonymous"],
     queryFn: () => fetchEffectivePermissions(user!.id),
     enabled: Boolean(user?.id),
+    retry: 2,
     staleTime: 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -147,7 +151,7 @@ export function usePermissions() {
     technicalManager: permissions.has("system.technical_manager"),
     manageAccountRequests: permissions.has("system.manage_account_requests"),
     manageUserCredentials: permissions.has("system.manage_user_credentials"),
-    clientOnly: !isGlobalExecutive && permissions.has("system.client_only"),
+    clientOnly: !isGlobalExecutive && permissions.has("system.client_only") && (fromDatabase || (typeof navigator !== "undefined" && !navigator.onLine)),
     transferPlantation: permissions.has("system.transfer_plantation"),
     independentServiceCustomers: permissions.has("system.independent_service_customers"),
     independentServiceProformas: permissions.has("system.independent_service_proformas"),
@@ -158,7 +162,7 @@ export function usePermissions() {
     independentServiceWrite: permissions.has("system.independent_service_write"),
     independentServiceOperations: permissions.has("system.independent_service_operations"),
     manageHR: permissions.has("system.manage_hr"),
-  }), [permissions, isGlobalExecutive]);
+  }), [permissions, fromDatabase, isGlobalExecutive]);
 
   return {
     can,
