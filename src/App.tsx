@@ -38,6 +38,7 @@ const ProprietaireTerreDetail = lazy(() => import("./pages/ProprietaireTerreDeta
 const Parcelles = lazy(() => import("./pages/Parcelles"));
 const Documents = lazy(() => import("./pages/Documents"));
 const Leads = lazy(() => import("./pages/Leads"));
+const IdentitesCentrales = lazy(() => import("./pages/IdentitesCentrales"));
 const RelancesLeadsProspects = lazy(() => import("./pages/RelancesLeadsProspects"));
 const SyncQueue = lazy(() => import("./pages/SyncQueue"));
 const PublicLead = lazy(() => import("./pages/PublicLead"));
@@ -93,6 +94,7 @@ const DomainRouter = () => {
       {/* Routes privées : chaque route porte explicitement sa permission métier. */}
       <Route path="/dashboard" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_DASHBOARD}><Dashboard /></ProtectedRoute>} />
       <Route path="/leads" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEADS}><Leads view="all" /></ProtectedRoute>} />
+      <Route path="/identites" element={<ProtectedRoute><IdentitesCentrales /></ProtectedRoute>} />
       <Route path="/leads-relances" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_LEADS}><RelancesLeadsProspects /></ProtectedRoute>} />
       <Route path="/prospects" element={<Navigate to="/leads" replace />} />
       <Route path="/synchronisation" element={<ProtectedRoute requiredPermission={PERMISSIONS.VIEW_DASHBOARD}><SyncQueue /></ProtectedRoute>} />
