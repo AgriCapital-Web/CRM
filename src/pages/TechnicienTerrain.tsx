@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSystemReferences } from "@/hooks/useSystemReferences";
+import { formatStructuredPersonName, formatUserShortName } from "@/lib/utils";
 import { offlineInsert, offlineUpdate } from "@/lib/offlineWrite";
 import { uploadOrQueueFile } from "@/lib/offlineFiles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,7 +87,7 @@ const TechnicienTerrain=()=>{
     const uid=user?.id;
     if(!uid)return null;
     try {
-      const {data}=await (supabase as any).from("profiles").select("id,equipe_id,nom_complet").eq("user_id",uid).maybeSingle();
+      const {data}=await (supabase as any).from("profiles").select("id,equipe_id,nom_complet,nom,prenoms").eq("user_id",uid).maybeSingle();
       if(data) return data;
     } catch (error) { void error; }
     return null;
@@ -99,18 +100,13 @@ const TechnicienTerrain=()=>{
       const profile=await profileContext();
       setProfileId(profile?.id||"");
       const rawTechnicianName=String(profile?.nom_complet||user?.user_metadata?.full_name||user?.user_metadata?.name||"Technicien AgriCapital").trim();
-      const technicianNameParts=rawTechnicianName.split(/\s+/).filter(Boolean);
-      // Accepte les deux formes courantes : « KOFFI Inocent » (nom d'abord)
-      // et « Inocent KOFFI » (prénom d'abord). Affichage final : Prénom NOM.
-      const firstPartIsSurname=technicianNameParts.length>1 && technicianNameParts[0]===technicianNameParts[0].toLocaleUpperCase("fr-FR") && technicianNameParts[0]!==technicianNameParts[0].toLocaleLowerCase("fr-FR");
-      const givenNames=firstPartIsSurname?technicianNameParts.slice(1):technicianNameParts.slice(0,-1);
-      const surname=firstPartIsSurname?technicianNameParts[0]:technicianNameParts[technicianNameParts.length-1];
-      const titleCase=(value:string)=>value.toLocaleLowerCase("fr-FR").replace(/(^|[-'’])(\p{L})/gu,(_match:string,prefix:string,letter:string)=>prefix+letter.toLocaleUpperCase("fr-FR"));
-      const formattedTechnicianName=technicianNameParts.length>1?`${givenNames.map(titleCase).join(" ")} ${surname.toLocaleUpperCase("fr-FR")}`:titleCase(rawTechnicianName);
+      const formattedTechnicianName=profile?.nom||profile?.prenoms
+        ? formatStructuredPersonName(profile.nom,profile.prenoms)
+        : formatUserShortName(rawTechnicianName);
       setProfileName(formattedTechnicianName);
       const results=await Promise.all([
         (supabase as any).from("plantations").select("id,id_unique,nom_plantation,nom,superficie_ha,superficie_activee,surface_reellement_plantee,client_id,parcelle_id,acquisition_id,statut_global,prochaine_visite,date_plantation,nombre_plants_prevus,nombre_plants_mis_en_terre,densite_plants,densite_cible,parcelles:parcelles(plantation_densite_plants)").order("nom_plantation"),
-        (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,total_hectares,parcelle_id,proprietaire_id,district_id,region_id,departement_id,sous_prefecture_id,localite,is_internal,type_client_foncier").order("nom_complet"),
+        (supabase as any).from("clients").select("id,id_unique,offre_id,formule_code,formule_nom,famille_offre,nom_complet,nom,prenoms,total_hectares,parcelle_id,proprietaire_id,district_id,region_id,departement_id,sous_prefecture_id,localite,is_internal,type_client_foncier").order("nom_complet"),
         (supabase as any).from("acquisitions").select("id,client_id,offre_id,offre_code,offre_nom,famille_offre,formule_code,formule_nom,gestion_type,necessite_foncier_client,superficie_ha,parcelle_id,lot_id,statut,statut_technique,montant_pi_total,montant_total_contrat,metadata,parcelle:parcelles(plantation_densite_plants)").order("created_at",{ascending:false}),
         (supabase as any).from("parcelles").select("id,id_unique,nom,village,surface_totale_ha,region_id,plantation_date_activation,plantation_type_culture,plantation_densite_plants,proprietaire_id,convention_id,code_parc,proprietaire:proprietaires_terres(id,nom_complet)").order("nom"),
         (supabase as any).from("rapports_visites_techniques").select("*,plantation:plantations(id_unique,nom_plantation),agent:profiles!rapports_visites_techniques_agent_technique_id_fkey(nom_complet)").order("date_visite",{ascending:false}).limit(100),
