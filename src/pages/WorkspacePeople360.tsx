@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
+import { formatUserShortName } from "@/lib/utils";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
