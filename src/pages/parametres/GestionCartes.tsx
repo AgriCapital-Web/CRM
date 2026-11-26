@@ -59,14 +59,15 @@ const GestionCartes = () => {
     if (!selected || !container) return;
     const measure = () => {
       const { width, height } = container.getBoundingClientRect();
-      const availableHeight = Math.max(0, height - 24);
+      const availableHeight = Math.max(0, height - 20);
       const heightScale = availableHeight / 856;
-      // Sur mobile uniquement, la largeur évite le débordement horizontal.
-      // Sur ordinateur, l’aperçu se règle sur la hauteur disponible.
-      const mobileWidthScale = window.matchMedia("(max-width: 767px)").matches
-        ? Math.max(0, width - 24) / 540
-        : 1;
-      const scale = Math.min(1, heightScale, mobileWidthScale);
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+      const singleCardWidthScale = Math.max(0, width - 20) / 540;
+      const doubleCardWidthScale = Math.max(0, width - 32) / 1096;
+      // La carte garde toujours son ratio portrait. Sa taille suit d'abord la
+      // hauteur disponible ; la largeur ne la limite que sur mobile ou en recto-verso.
+      const widthScale = carteTab === "both" ? doubleCardWidthScale : (isMobile ? singleCardWidthScale : 1.4);
+      const scale = Math.min(1.4, heightScale, widthScale);
       setPreviewScale(Math.max(0.05, scale));
     };
     measure();
@@ -377,7 +378,7 @@ const GestionCartes = () => {
       </Card>
 
       <Dialog open={!!selected} onOpenChange={(v) => !v && setSelected(null)}>
-        <DialogContent className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-6xl flex-col gap-2 overflow-hidden p-2 sm:p-4">
+        <DialogContent className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none flex-col gap-2 overflow-hidden p-2 sm:p-4">
           <DialogHeader className="shrink-0"><DialogTitle>Carte de {selected?.nom_complet}</DialogTitle></DialogHeader>
           {dataSelection && (
             <>
@@ -388,17 +389,17 @@ const GestionCartes = () => {
                 <TabsTrigger className="hidden min-[1200px]:inline-flex" value="both">Recto / Verso</TabsTrigger>
               </TabsList>
               <TabsContent value="recto" className="flex min-h-0 flex-1 overflow-hidden py-1">
-                <div ref={previewContainerRef} className="flex h-full w-full min-h-0 items-center justify-center overflow-hidden">
+                <div ref={carteTab === "recto" ? previewContainerRef : undefined} className="flex h-full w-full min-h-0 items-center justify-center overflow-hidden">
                   <div className="id-card-preview" style={{ zoom: previewScale }}><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
                 </div>
               </TabsContent>
               <TabsContent value="verso" className="flex min-h-0 flex-1 overflow-hidden py-1">
-                <div ref={previewContainerRef} className="flex h-full w-full min-h-0 items-center justify-center overflow-hidden">
+                <div ref={carteTab === "verso" ? previewContainerRef : undefined} className="flex h-full w-full min-h-0 items-center justify-center overflow-hidden">
                   <div className="id-card-preview" style={{ zoom: previewScale }}><CarteVerso ref={versoRef} carte={dataSelection} /></div>
                 </div>
               </TabsContent>
               <TabsContent value="both" className="hidden min-h-0 flex-1 overflow-hidden py-1 min-[1200px]:flex">
-                <div ref={previewContainerRef} className="flex h-full w-full min-h-0 items-center justify-center gap-4 overflow-hidden">
+                <div ref={carteTab === "both" ? previewContainerRef : undefined} className="flex h-full w-full min-h-0 items-center justify-center gap-4 overflow-hidden">
                   <div className="id-card-preview" style={{ zoom: previewScale }}><CarteRecto ref={rectoRef} carte={dataSelection} /></div>
                   <div className="id-card-preview" style={{ zoom: previewScale }}><CarteVerso ref={versoRef} carte={dataSelection} /></div>
                 </div>
