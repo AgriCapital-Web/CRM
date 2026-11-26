@@ -1,0 +1,49 @@
+name: Nettoyage ponctuel des branches historiques
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    if: contains(github.event.head_commit.message, '[prune-stale-branches]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supprimer toutes les branches secondaires après audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t branches < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/branches?per_page=100" --jq '.[].name')
+          failed=0
+          for branch in "${branches[@]}"; do
+            if [[ "${branch}" == "main" ]]; then
+              continue
+            fi
+            echo "Suppression de la branche : ${branch}"
+            if ! gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}"; then
+              echo "::error::Impossible de supprimer ${branch}"
+              failed=1
+            fi
+          done
+          if [[ "${failed}" -ne 0 ]]; then
+            exit 1
+          fi
+      - name: Retirer le workflow ponctuel après exécution
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          file_sha=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/prune-stale-branches-once.yml?ref=main" --jq '.sha')
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/prune-stale-branches-once.yml" \
+            -f message="Retirer le workflow ponctuel de nettoyage des branches" \
+            -f sha="${file_sha}" \
+            -f branch="main"
