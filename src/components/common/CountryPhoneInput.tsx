@@ -146,8 +146,8 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         disabled={disabled}
         required={required}
         minLength={minLocalDigits}
-        maxLength={maxLocalDigits || 15}
-        placeholder="Numéro local"
+        maxLength={internationalDraft ? (maxLocalDigits || 15) + 4 : (maxLocalDigits || 15)}
+        placeholder="Numéro local ou international"
         onInvalid={e => {
           const value = (e.currentTarget as HTMLInputElement).value;
           const phone = value ? parsePhoneNumberFromString(value, selected.code as any) : undefined;
