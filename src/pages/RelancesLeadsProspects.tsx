@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Search, PhoneCall, CalendarClock, UserRound, RefreshCw } from "lucide-react";
 import { format, isValid, parseISO, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatStructuredPersonName } from "@/lib/utils";
 
 type RelanceRow = Record<string, any>;
 const dateLabel = (value?: string | null) => {
@@ -20,7 +21,7 @@ const dateLabel = (value?: string | null) => {
   const date = parseISO(value);
   return isValid(date) ? format(date, "dd MMM yyyy", { locale: fr }) : "—";
 };
-const nameOf = (row: RelanceRow) => [row.nom, row.prenoms].filter(Boolean).join(" ").trim() || "Sans nom";
+const nameOf = (row: RelanceRow) => row.nom || row.prenoms ? formatStructuredPersonName(row.nom, row.prenoms) : "Sans nom";
 const prospectStatuses = ["qualifie", "interesse", "tres_interesse", "en_discussion", "preparation_dossier", "pret_souscrire"];
 const legacyStage = (row: RelanceRow) => row.etape_pipeline || (prospectStatuses.includes(row.statut) ? "prospect" : row.statut === "converti" ? "converti" : "lead");
 
@@ -55,6 +56,13 @@ const RelancesLeadsProspects = () => {
           return {
             ...linkedLead,
             ...prospect,
+            nom: prospect.nom || linkedLead?.nom,
+            prenoms: prospect.prenoms || linkedLead?.prenoms,
+            telephone: prospect.telephone || linkedLead?.telephone,
+            whatsapp: prospect.whatsapp || linkedLead?.whatsapp,
+            email: prospect.email || linkedLead?.email,
+            region_residence: prospect.region_residence || linkedLead?.region_residence,
+            statut: prospect.statut || linkedLead?.statut,
             _type: "Prospect",
             _key: "prospect:" + prospect.id,
             _leadId: prospect.lead_id || null,
@@ -76,7 +84,7 @@ const RelancesLeadsProspects = () => {
       const { data, error } = await (supabase as any)
         .from("lead_relances")
         .select("*")
-        .eq("lead_id", selected._leadId)
+        .eq("lead_id", selected?._leadId)
         .order("date_relance", { ascending: false });
       if (error) throw error;
       return data || [];
