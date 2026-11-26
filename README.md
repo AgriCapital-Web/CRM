@@ -6,7 +6,7 @@ AgriCapital 360 est la plateforme métier intégrée d’AgriCapital SARL. Elle 
 
 **Fondateur et Président-Directeur Général (PDG) :** Inocent KOFFI.
 
-**Version PWA :** 1.7.0
+**Version PWA :** 1.8.0
 
 ## Stack
 
