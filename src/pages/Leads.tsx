@@ -603,7 +603,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
             statut: p.statut || linkedLead?.statut || "qualifie",
             created_by: p.created_by || linkedLead?.created_by,
             assigned_to: p.assigned_to || linkedLead?.assigned_to,
-            prochaine_relance_at: linkedLead?.prochaine_relance_at || null,
+            prochaine_relance_at: p.prochaine_relance_at || linkedLead?.prochaine_relance_at || null,
             _record_type: "prospect",
           };
         }),
@@ -621,7 +621,7 @@ export default function Leads({ view = "leads" }: { view?: "leads" | "prospects"
   const stats = {
     total: stageLeads.length,
     nouveaux: stageLeads.filter((l: any) => l.statut === "nouveau").length,
-    aRelancer: stageLeads.filter((l: any) => l.prochaine_relance_at && new Date(l.prochaine_relance_at) <= new Date()).length,
+    aRelancer: stageLeads.filter((l: any) => l.statut !== "abandonne" && l.statut !== "converti" && legacyStage(l) !== "converti").length,
     convertis: leads.filter((l: any) => l.etape_pipeline === "converti" || l.statut === "converti").length,
     superficie: stageLeads.reduce((s: number, l: any) => s + (Number(l.superficie_disponible_ha || l.superficie_souhaitee_ha) || 0), 0),
   };
