@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, PhoneCall, CalendarClock, UserRound, RefreshCw, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, Search, PhoneCall, CalendarClock, UserRound, RefreshCw } from "lucide-react";
 import { format, isValid, parseISO, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 
