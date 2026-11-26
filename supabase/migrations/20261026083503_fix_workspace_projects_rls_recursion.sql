@@ -1,5 +1,5 @@
 -- Break the circular RLS dependency between workspace_projects and workspace_project_members.
--- This migration is already applied to Supabase as version 20261026083503.
+-- These helpers run with the migration owner, use fully-qualified names, and expose only booleans.
 create or replace function private.workspace_is_project_owner(p_project_id uuid)
 returns boolean
 language sql

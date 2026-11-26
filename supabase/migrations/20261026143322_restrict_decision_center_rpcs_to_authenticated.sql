@@ -1,5 +1,3 @@
--- Restrict decision-center helper functions to signed-in users.
--- This migration is already applied to Supabase as version 20261026143322.
 revoke execute on function public.can_access_decision_center(text) from public, anon;
 revoke execute on function public.can_view_decision_proposal(uuid) from public, anon;
 revoke execute on function public.current_user_has_app_permission(text) from public, anon;
