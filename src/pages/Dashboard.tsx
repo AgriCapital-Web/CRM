@@ -787,12 +787,12 @@ const Dashboard = () => {
   const kpis: any[] = [
     { label:"Pilotage financier", icon:Wallet, href:"/finance", show:canDashboardExecutiveFinance, metrics:[
       {label:"CA prévisionnel",value:money(stats.forecastRevenue),href:"/finance"},
-      {label:"Mensualités dues",value:money(stats.monthlyForecast),href:"/finance"},
+      {label:"Mens Prévisionnel",value:money(stats.monthlyForecast),href:"/finance"},
       {label:"Mens. encaissées",value:money(stats.monthlyCollected),href:"/finance"},
       {label:"Taux mensuel",value:num(stats.monthlyCollectionRate)+" %",href:"/finance"},
       {label:"Total encaissé",value:money(stats.collected),href:"/finance"},
       {label:"Reste à encaisser",value:money(stats.dueAmount),href:"/finance"},
-      {label:"Crédit client",value:money(stats.clientCredit),href:"/finance"},
+      {label:"Monnaie client",value:money(stats.clientCredit),href:"/finance"},
       ...(canViewIndependentServiceProformas ? [{label:"Prestations",value:money(stats.independentServicePipelineAmount),href:"/acquisitions/prestations-independantes"}] : []),
       {label:"Retards",value:stats.overdueCount,href:"/finance"},
     ]},
