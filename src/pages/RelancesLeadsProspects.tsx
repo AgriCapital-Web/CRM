@@ -39,9 +39,10 @@ const RelancesLeadsProspects = () => {
       ]);
       if (leadsError) throw leadsError;
       if (prospectsError) throw prospectsError;
-      const prospectLeadIds = new Set((prospects || []).map((p: any) => p.lead_id).filter(Boolean));
+      const activeProspects = (prospects || []).filter((prospect: any) => prospect.statut !== "abandonne" && prospect.statut !== "converti");
+      const prospectLeadIds = new Set(activeProspects.map((p: any) => p.lead_id).filter(Boolean));
       const normalizedLeads = (leads || [])
-        .filter((lead: any) => !prospectLeadIds.has(lead.id) && legacyStage(lead) !== "converti" && lead.statut !== "abandonne")
+        .filter((lead: any) => !prospectLeadIds.has(lead.id) && legacyStage(lead) !== "converti" && lead.statut !== "converti" && lead.statut !== "abandonne")
         .map((lead: any) => ({
           ...lead,
           _type: legacyStage(lead) === "prospect" ? "Prospect" : "Lead",
@@ -49,8 +50,7 @@ const RelancesLeadsProspects = () => {
           _leadId: lead.id,
           prochaine_relance: lead.prochaine_relance_at || null,
         }));
-      const normalizedProspects = (prospects || [])
-        .filter((prospect: any) => prospect.statut !== "abandonne" && prospect.statut !== "converti")
+      const normalizedProspects = activeProspects
         .map((prospect: any) => {
           const linkedLead = (leads || []).find((lead: any) => lead.id === prospect.lead_id);
           return {
