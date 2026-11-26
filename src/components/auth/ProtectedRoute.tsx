@@ -14,7 +14,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, requiredPermission, requiredPermissionCode, requiredAnyPermission }: ProtectedRouteProps) => {
   const { user, profile, loading } = useAuth();
-  const { can, loading: permissionsLoading } = usePermissions();
+  const { can, canAny, loading: permissionsLoading } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
 
