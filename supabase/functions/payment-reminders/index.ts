@@ -2,15 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const formatClientDisplayName = (contact: any) => {
   const surname = String(contact?.nom || "").trim();
-  const givenNames = String(contact?.prenoms || "").trim().split(/\s+/).filter(Boolean);
-  const lastGivenName = givenNames[givenNames.length - 1] || "";
-  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
-    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
-  if (lastGivenName && surname) return `${titleCase(lastGivenName)} ${surname.toLocaleUpperCase("fr-FR")}`;
   const parts = String(contact?.nom_complet || "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "Client";
-  if (parts.length === 1) return parts[0].toLocaleUpperCase("fr-FR");
-  return `${titleCase(parts[parts.length - 1])} ${parts[0].toLocaleUpperCase("fr-FR")}`;
+  const familyName = surname || parts[parts.length - 1] || "";
+  return familyName ? familyName.toLocaleUpperCase("fr-FR") : "Client";
 };
 
 const corsHeaders = {
