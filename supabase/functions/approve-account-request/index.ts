@@ -187,7 +187,7 @@ serve(async (req) => {
           email: reqRow.email,
           password: tempPassword,
           email_confirm: true,
-          user_metadata: { nom_complet: reqRow.nom_complet, nom: reqRow.nom, prenoms: reqRow.prenoms, username: reqRow.username ?? undefined },
+          user_metadata: { nom_complet: reqRow.nom_complet, nom: reqRow.nom, prenoms: reqRow.prenoms, genre: reqRow.genre ?? null, username: reqRow.username ?? undefined },
         });
         if (cErr) return json({ error: cErr.message, step, logs }, 400);
         userId = created.user!.id;
@@ -202,6 +202,7 @@ serve(async (req) => {
       nom_complet: reqRow.nom_complet,
       nom: reqRow.nom || String(reqRow.nom_complet || "").trim().split(/\s+/)[0] || null,
       prenoms: reqRow.prenoms || String(reqRow.nom_complet || "").trim().split(/\s+/).slice(1).join(" ") || null,
+      genre: reqRow.genre ?? null,
       telephone: reqRow.telephone,
       telephone_indicatif: reqRow.telephone_indicatif ?? null,
       telephone_local: reqRow.telephone_local ?? null,
