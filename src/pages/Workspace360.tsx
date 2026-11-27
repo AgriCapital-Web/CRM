@@ -65,6 +65,8 @@ function OrganizationCard({node,onSelect}:{node:Row;onSelect:(node:Row)=>void}) 
    {node.departement&&<span className="mt-1 block">{node.departement}</span>}
    {zone&&<span className="block text-muted-foreground">{zone}</span>}
    {node.relation_rh&&<span className="block text-muted-foreground">{node.relation_rh}</span>}
+   {node.type_compte&&<span className="block text-muted-foreground">{node.type_compte}</span>}
+   {node.telephone&&<span className="mt-1 block text-muted-foreground">{node.telephone}</span>}
    {node.email&&<span className="block truncate text-muted-foreground">{node.email}</span>}
   </span>
  </button>;
