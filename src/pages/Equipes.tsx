@@ -478,7 +478,7 @@ const Equipes = () => {
                 {!formData.region_id ? (
                   <p className="text-xs text-muted-foreground">Choisissez d’abord une région pour afficher ses départements.</p>
                 ) : coverageDepartments.length ? (
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border p-3 sm:grid-cols-3">
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border p-3">
                     {coverageDepartments.map((department) => (
                       <label key={department.id} className="flex min-w-0 cursor-pointer items-center gap-2 text-xs">
                         <Checkbox checked={selectedDepartmentNames.includes(department.nom)} onCheckedChange={(checked) => setSelectedDepartmentNames((current) => checked === true ? [...current, department.nom] : current.filter((name) => name !== department.nom))} />
