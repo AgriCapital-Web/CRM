@@ -96,7 +96,7 @@ const Profil = () => {
     setSaving(true);
     try {
       const fields = [
-        "nom_complet", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
+        "nom_complet", "telephone", "telephone_indicatif", "telephone_local", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
         "type_piece_identite", "numero_piece_identite", "photo_url", "piece_identite_recto_url", "piece_identite_verso_url",
         "contact_urgence_nom", "contact_urgence_telephone1", "contact_urgence_telephone1_indicatif", "contact_urgence_telephone1_local", "contact_urgence_telephone2", "contact_urgence_telephone2_indicatif", "contact_urgence_telephone2_local", "contact_urgence_email", "contact_urgence_photo_url",
       ];
@@ -203,7 +203,7 @@ const Profil = () => {
               <div><Label>Nom d'utilisateur</Label><Input className="h-9 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div className="min-w-0 w-full space-y-2">
-                <CountryPhoneInput label="Téléphone principal" compact countryCode={profile.telephone_indicatif || undefined} localValue={profile.telephone_local || profile.telephone || ""} disabled={!isAdmin} onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }} />
+                <CountryPhoneInput label="Téléphone principal" compact countryCode={profile.telephone_indicatif || undefined} localValue={profile.telephone_local || profile.telephone || ""} onChange={(v) => { set("telephone_indicatif", v.callingCode); set("telephone_local", v.localValue); set("telephone", v.internationalValue); }} />
                 <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!profile.telephone_principal_whatsapp} onCheckedChange={(v) => set("telephone_principal_whatsapp",v===true)} />Dispose d'un compte WhatsApp !</label>
               </div>
               <div><Label>Email secondaire</Label><Input className="h-9 text-sm" type="email" value={profile.adresse_mail_secondaire || ""} onChange={(e) => set("adresse_mail_secondaire", e.target.value)} /></div>
