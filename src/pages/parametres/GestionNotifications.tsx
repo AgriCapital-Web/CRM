@@ -295,12 +295,12 @@ const GestionNotifications = () => {
 
   const saveFinancePayoutTemplate = async (template: FinancePayoutSmsTemplate) => {
     const content = template.content || "";
-    if (!content.trim() || smsLength(content) > 155) {
-      toast.error("Le SMS doit respecter 155 caractères maximum, espaces et signes compris.");
+    if (!content.trim() || smsLength(content) > 158) {
+      toast.error("Le SMS doit respecter 158 unités GSM-7 maximum, espaces et signes compris.");
       return;
     }
     const { error } = await (supabase as any).from("finance_payout_sms_templates")
-      .update({ name: template.name, content: normalizeSms(content), active: template.active, max_characters: 155 }).eq("id", template.id);
+      .update({ name: template.name, content: normalizeSms(content), active: template.active, max_characters: 158 }).eq("id", template.id);
     if (error) {
       toast.error(error.message || "Enregistrement impossible.");
       return;
@@ -758,7 +758,7 @@ const GestionNotifications = () => {
           {editingFinancePayoutTemplate && (
             <div className="space-y-4">
               <div className="space-y-1"><Label>Nom du modèle</Label><Input value={editingFinancePayoutTemplate.name} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, name: e.target.value } : row)} /></div>
-              <div className="space-y-1"><Label>Message SMS</Label><Textarea rows={3} maxLength={155} value={editingFinancePayoutTemplate.content} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, content: e.target.value } : row)} /><div className={smsLength(editingFinancePayoutTemplate.content) > 155 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{smsLength(editingFinancePayoutTemplate.content)}/155 caractères</div></div>
+              <div className="space-y-1"><Label>Message SMS</Label><Textarea rows={3} maxLength={158} value={editingFinancePayoutTemplate.content} onChange={(e) => setEditingFinancePayoutTemplate(row => row ? { ...row, content: e.target.value } : row)} /><div className={smsLength(editingFinancePayoutTemplate.content) > 158 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{smsLength(editingFinancePayoutTemplate.content)}/158 unités GSM-7</div></div>
               <div className="flex items-center justify-between"><Label>Actif</Label><Switch checked={editingFinancePayoutTemplate.active} onCheckedChange={(active) => setEditingFinancePayoutTemplate(row => row ? { ...row, active } : row)} /></div>
               <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditingFinancePayoutTemplate(null)}>Annuler</Button><Button type="button" onClick={() => void saveFinancePayoutTemplate(editingFinancePayoutTemplate)}>Enregistrer</Button></div>
             </div>
