@@ -15,6 +15,7 @@ import { getSafeErrorMessage } from "@/lib/safeError";
 import { SignedImg } from "@/hooks/useSignedUrl";
 import { formatStructuredPersonName, formatStructuredTablePersonName, formatUserShortName } from "@/lib/utils";
 import TableSearchInput from "@/components/common/TableSearchInput";
+import { GenderAvatar } from "@/components/common/GenderAvatar";
 
 const AccountRequests = () => {
   const [requests, setRequests] = useState<any[]>([]);
@@ -239,6 +240,10 @@ const AccountRequests = () => {
                   <p className="text-sm">{selectedRequest.nom||selectedRequest.prenoms?formatStructuredPersonName(selectedRequest.nom,selectedRequest.prenoms):formatUserShortName(selectedRequest.nom_complet)}</p>
                 </div>
                 <div>
+                  <Label>Genre</Label>
+                  <p className="text-sm">{selectedRequest.genre === "F" ? "Féminin (F)" : selectedRequest.genre === "M" ? "Masculin (M)" : "Non renseigné"}</p>
+                </div>
+                <div>
                   <Label>Email</Label>
                   <p className="text-sm">{selectedRequest.email}</p>
                 </div>
@@ -269,6 +274,7 @@ const AccountRequests = () => {
                 <p className="text-sm mt-1">{selectedRequest.justification}</p>
               </div>
 
+              {!selectedRequest.photo_url && <div><Label>Avatar</Label><GenderAvatar gender={selectedRequest.genre} className="mt-2 h-20 w-20" /></div>}
               {selectedRequest.photo_url && (
                 <div>
                   <Label>Photo</Label>
