@@ -139,7 +139,7 @@ function normalizeWhatsAppMessage(value: string): string {
 }
 function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): string {
   let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(/\s+/g, " ").trim();
-  if (Array.from(text).length <= maxSmsCharacters) return text;
+  if (gsm7SeptetLength(text) <= maxSmsCharacters) return text;
 
   const rules: Array<[RegExp, string]> = [
     [/AgriCapital\s*\(notification automatique\)\s*:/gi, "AgriCapital:"],
@@ -159,29 +159,34 @@ function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): strin
   ];
   for (const [pattern, replacement] of rules) {
     text = text.replace(pattern, replacement);
-    if (Array.from(text).length <= maxSmsCharacters) return text;
+    if (gsm7SeptetLength(text) <= maxSmsCharacters) return text;
   }
 
   // Retirer d'abord les signatures et les formules secondaires, jamais le nom du destinataire.
   text = text.replace(/\s*(?:Direction|Investir la terre[^.]*|AgriCapital\.?|Merci\.)\s*$/i, "").trim();
-  if (Array.from(text).length <= maxSmsCharacters) return text;
+  if (gsm7SeptetLength(text) <= maxSmsCharacters) return text;
 
   const greeting = text.match(/^(.*?Bonjour\s+[^,;:]+[,;:]\s*)(.*)$/i);
   if (greeting) {
     const head = greeting[1];
     let body = greeting[2].trim();
-    const available = maxSmsCharacters - Array.from(head).length;
+    const available = maxSmsCharacters - gsm7SeptetLength(head);
     if (available <= 0) throw new Error("Le nom complet du destinataire dépasse la limite SMS autorisée.");
     body = body.replace(/\s*[-–—]\s*AgriCapital\.?$/i, "").trim();
     const words = body.split(/\s+/).filter(Boolean);
-    while (words.length && Array.from(words.join(" ")).length > available) words.pop();
+    while (words.length && gsm7SeptetLength(words.join(" ")) > available) words.pop();
     const compactBody = words.join(" ").replace(/[ ,;:]+$/g, "");
-    const fitted = head + (compactBody.length < body.length ? compactBody.replace(/[.!?]?$/, "") + "…" : compactBody);
+    const fitted = head + (compactBody.length < body.length ? compactBody.replace(/[.!?]?$/, "") + "..." : compactBody);
     return assertSmsLength(fitted, maxSmsCharacters);
   }
 
   const chars = Array.from(text);
-  return assertSmsLength(chars.slice(0, Math.max(0, maxSmsCharacters - 1)).join("").trimEnd() + "…", maxSmsCharacters);
+  let fitted = "";
+  for (const character of chars) {
+    if (gsm7SeptetLength(fitted + character + "...") > maxSmsCharacters) break;
+    fitted += character;
+  }
+  return assertSmsLength(fitted.trimEnd() + "...", maxSmsCharacters);
 }
 
 function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 130): string {
@@ -215,7 +220,7 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
     const beforeName = text.slice(0, nameIndex);
     const afterName = text.slice(nameIndex + marker.length).trim();
     const remaining = maxBodyCharacters - gsm7SeptetLength(beforeName);
-    if (remaining < 1) throw new Error("Le texte avant le nom dépasse déjà 130 caractères.");
+    if (remaining < 1) throw new Error("Le texte avant le nom dépasse la limite SMS autorisée.");
     const words = afterName.split(/\s+/).filter(Boolean);
     const kept = [...words];
     while (kept.length && gsm7SeptetLength(kept.join(" ")) > remaining - 3) kept.pop();
@@ -1611,7 +1616,7 @@ serve(async (req) => {
     if (mode === "restructure_sms") {
       const content = typeof body.content === "string" ? body.content : "";
       const rewritten = restructureSmsTemplateWithinLimit(content, 158);
-      const bodyCharacters = Array.from(normalizeSms(rewritten.replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""))).length;
+      const bodyCharacters = gsm7SeptetLength(normalizeSms(rewritten.replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, "")));
       return json(req, { ok: true, content: rewritten, bodyCharacters, maxBodyCharacters: 158, engine: "internal" });
     }
     if (mode === "recipient_directory") {
