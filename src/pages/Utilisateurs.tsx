@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Users, Plus, Search, Edit, Shield, MoreHorizontal, UserCheck, UserX, KeyRound, AtSign, Trash2, Eye, EyeOff } from "lucide-react";
 import UtilisateurFormNew from "@/components/forms/UtilisateurFormNew";
+import { GenderAvatar } from "@/components/common/GenderAvatar";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAppRoles } from "@/hooks/useReferentiels";
@@ -210,6 +211,7 @@ const Utilisateurs = () => {
             username: adminTarget.username || String(adminTarget.email || "").split("@")[0],
             email: adminTarget.email,
             nom_complet: adminTarget.nom_complet,
+            genre: adminTarget.genre || null,
             telephone: adminTarget.telephone || null,
             telephone_indicatif: adminTarget.telephone_indicatif || null,
             telephone_local: adminTarget.telephone_local || null,
@@ -484,10 +486,11 @@ const Utilisateurs = () => {
           {viewUser ? (
             <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-6">
               <div className="flex justify-center">
-                {viewPhotoUrl ? <img src={viewPhotoUrl} alt={displayStaffName(viewUser)} className="h-32 w-32 rounded-2xl object-cover border" /> : <div className="h-32 w-32 rounded-2xl border bg-muted flex items-center justify-center text-muted-foreground text-xs text-center">Aucune photo</div>}
+                <GenderAvatar src={viewPhotoUrl} gender={viewUser.genre} alt={displayStaffName(viewUser)} className="h-32 w-32 rounded-2xl border" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Nom</span><p className="font-medium">{displayStaffName(viewUser)}</p></div>
+                <div><span className="text-muted-foreground">Genre</span><p className="font-medium">{viewUser.genre === "F" ? "Féminin (F)" : viewUser.genre === "M" ? "Masculin (M)" : "Non renseigné"}</p></div>
                 <div><span className="text-muted-foreground">E-mail</span><p className="font-medium break-all">{viewUser.email || "—"}</p></div>
                 <div><span className="text-muted-foreground">Téléphone</span><p><ContactLauncher phone={viewUser.telephone} email={viewUser.email} name={viewUser.full_name || viewUser.nom_complet || viewUser.email || "Utilisateur"} kind="staff" status={viewUser.statut || viewUser.status || ""}/></p></div>
                 <div><span className="text-muted-foreground">Relation RH</span><p>{viewUser.relation_rh || "—"}</p></div>
