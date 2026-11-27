@@ -1,5 +1,5 @@
 const PREVIEW_HOSTS = ["lovableproject.com", "lovableproject-dev.com", "beta.lovable.dev"];
-const BUILD_VERSION = "2026.11.25.2";
+const BUILD_VERSION = "2026.11.27.1";
 const ACCEPTED_VERSION_KEY = "agricapital-crm-update-accepted";
 
 function registrationAllowed() {
