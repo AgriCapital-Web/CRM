@@ -11,7 +11,7 @@ SET search_path TO ''
 AS $function$
 BEGIN
   IF lower(coalesce(NEW.canal, '')) IN ('sms', 'email_sms')
-     AND char_length(regexp_replace(btrim(coalesce(NEW.contenu, '')), '\\s+', ' ', 'g')) > 158 THEN
+     AND char_length(regexp_replace(btrim(coalesce(NEW.contenu, '')), '[[:space:]]+', ' ', 'g')) > 158 THEN
     RAISE EXCEPTION 'Le SMS ne peut pas dépasser 158 caractères, espaces et signes compris.';
   END IF;
   IF lower(coalesce(NEW.canal, '')) IN ('whatsapp', 'auto')
