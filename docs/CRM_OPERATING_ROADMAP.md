@@ -614,3 +614,13 @@ Cette entrée remplace les anciens statuts de PR et de déploiement qui précèd
 - Vérification SQL : les quatre index existent sur les colonnes attendues.
 - Le conseiller Performance ne signale plus de clé étrangère sans index couvrant.
 - Les avertissements restants portent sur 287 index signalés comme inutilisés et 430 cas de policies permissives multiples. Aucun index n'a été supprimé : les statistiques d'utilisation seules ne justifient pas une suppression sans analyse des requêtes, contraintes, périodes d'activité et plans d'exécution.
+
+
+## Pilotage technique — indicateurs opérationnels — 27 novembre 2026
+
+- Le bloc « Pilotage technique » du tableau de bord est enrichi avec des indicateurs calculés depuis les tables métier, dans le périmètre autorisé : surfaces réellement plantées / surfaces enregistrées, plants mis en terre / plants prévus, interventions réalisées et en retard, rapports de visite et suivis dépassés, visites à effectuer, couverture GPS des plantations, tickets techniques ouverts et prioritaires.
+- Les interventions, rapports et tickets sont filtrés sur les plantations et clients du périmètre visible ; les abonnements Realtime actualisent le tableau de bord après modification.
+- Vérification de la base au 27/11/2026 : 14 plantations ; 21 ha de superficie enregistrée ; 14,5 ha réellement plantés ; 3 005 plants prévus ; 1 631 plants mis en terre ; 57 interventions réalisées sur 57 ; 5 plantations sans coordonnées GPS complètes ; 1 rapport de visite avec une prochaine intervention dépassée ; 0 visite échue sur les fiches plantations ; 0 ticket technique ouvert.
+- Lecture des indicateurs : le taux de surface plantée est de 69 % et le taux de plants mis en terre de 54 %. Les deux ratios mesurent des choses différentes et ne doivent pas être confondus. Les 5 fiches sans GPS et le suivi dépassé constituent les priorités de correction opérationnelle.
+- Fichier applicatif : `src/pages/Dashboard.tsx`. Aucun changement de données métier ni migration Supabase CRM n'est requis pour cette évolution.
+- État de livraison : commit et déploiement à renseigner après vérification du build et de la production.

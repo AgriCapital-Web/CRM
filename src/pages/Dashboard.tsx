@@ -167,6 +167,7 @@ const Dashboard = () => {
   const [monthly, setMonthly] = useState<any[]>([]);
   const [offerPerformance, setOfferPerformance] = useState<any[]>([]);
   const [cycle, setCycle] = useState<any[]>([]);
+  const [technicalMetrics, setTechnicalMetrics] = useState({ contractedHa: 0, plantedHa: 0, surfaceRate: 0, plantsPlanned: 0, plantsInstalled: 0, plantRate: 0, interventionsTotal: 0, interventionsDone: 0, interventionsLate: 0, visitReports: 0, followupsOverdue: 0, visitsDue: 0, gpsMissing: 0, plantationsTotal: 0, openTickets: 0, criticalTickets: 0 });
   const [alerts, setAlerts] = useState<any[]>([]);
   const [topClients, setTopClients] = useState<any[]>([]);
   const [regional, setRegional] = useState<any[]>([]);
@@ -190,6 +191,8 @@ const Dashboard = () => {
         conventionsRes,
         beneficiariesRes,
         interventionsRes,
+        visitReportsRes,
+        technicalTicketsRes,
         commissionsRes,
         portfoliosRes,
         regionsRes,
@@ -217,7 +220,7 @@ const Dashboard = () => {
           ? (supabase as any).from("acquisitions").select("id,client_id,statut,statut_technique,superficie_ha,parcelle_id,created_at")
           : Promise.resolve({ data: [] }),
         canPlantations
-          ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,acquisition_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard")
+          ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,acquisition_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard,nombre_plants_prevus,nombre_plants_mis_en_terre,taux_reussite,localisation_gps_lat,localisation_gps_lng,prochaine_visite")
           : Promise.resolve({ data: [] }),
         canPayments
           ? (supabase as any).from("paiements").select("id,client_id,plantation_id,montant,montant_paye,statut,date_paiement,date_echeance,type_paiement,mode_paiement,reference,est_paiement_initial,created_at").order("date_paiement", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
@@ -242,6 +245,12 @@ const Dashboard = () => {
           : Promise.resolve({ data: [] }),
         canTechnical || canPlantations
           ? (supabase as any).from("interventions_techniques").select("id,type_intervention,statut,date_intervention,plantation_id,client_id,agent_technique_id")
+          : Promise.resolve({ data: [] }),
+        canTechnical
+          ? (supabase as any).from("rapports_visites_techniques").select("id,plantation_id,client_id,date_visite,statut,prochaine_intervention")
+          : Promise.resolve({ data: [] }),
+        canTechnical
+          ? (supabase as any).from("tickets_techniques").select("id,plantation_id,client_id,statut,priorite,created_at,date_resolution")
           : Promise.resolve({ data: [] }),
         canCommissions || canFinance
           ? (supabase as any).from("commissions").select("montant_commission,statut")
@@ -307,6 +316,8 @@ const Dashboard = () => {
       const conventions = conventionsRes.data || [];
       const beneficiaries = beneficiariesRes.data || [];
       const interventions = interventionsRes.data || [];
+      const visitReports = visitReportsRes.data || [];
+      const technicalTickets = technicalTicketsRes.data || [];
       const commissions = commissionsRes.data || [];
       const portfolios = portfoliosRes.data || [];
       const regions = regionsRes.data || [];
@@ -665,6 +676,51 @@ const Dashboard = () => {
         ...technicalClients.map((c: any) => c.id).filter(Boolean),
         ...interventions.map((i: any) => i.client_id).filter(Boolean),
       ]);
+      const technicalPlantationIds = new Set(scopedPlantations.map((p: any) => p.id));
+      const scopedInterventions = interventions.filter((i: any) =>
+        (i.plantation_id && technicalPlantationIds.has(i.plantation_id)) ||
+        (i.client_id && technicalClientIds.has(i.client_id))
+      );
+      const scopedVisitReports = visitReports.filter((r: any) =>
+        technicalPlantationIds.has(r.plantation_id) || (r.client_id && technicalClientIds.has(r.client_id))
+      );
+      const scopedTickets = technicalTickets.filter((t: any) =>
+        (t.plantation_id && technicalPlantationIds.has(t.plantation_id)) || (t.client_id && technicalClientIds.has(t.client_id))
+      );
+      const normalizeTechnicalStatus = (value: unknown) => String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const technicalCompletedStatuses = new Set(["termine", "terminee", "valide", "validee", "complete", "complet", "realise", "realisee", "acheve", "achevee"]);
+      const isTechnicalCompleted = (value: unknown) => technicalCompletedStatuses.has(normalizeTechnicalStatus(value));
+      const technicalTodayKey = new Date().toISOString().slice(0, 10);
+      const contractedHa = scopedPlantations.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.superficie_ha ?? p.superficie_activee ?? 0)), 0);
+      const technicalPlantedHa = sumPlantedArea(scopedPlantations);
+      const plantsPlanned = scopedPlantations.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.nombre_plants_prevus || 0)), 0);
+      const plantsInstalled = scopedPlantations.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.nombre_plants_mis_en_terre || 0)), 0);
+      const interventionsDone = scopedInterventions.filter((i: any) => isTechnicalCompleted(i.statut)).length;
+      const interventionsLate = scopedInterventions.filter((i: any) => !isTechnicalCompleted(i.statut) && String(i.date_intervention || "").slice(0, 10) < technicalTodayKey).length;
+      const followupsOverdue = scopedVisitReports.filter((r: any) => r.prochaine_intervention && String(r.prochaine_intervention).slice(0, 10) < technicalTodayKey).length;
+      const visitsDue = scopedPlantations.filter((p: any) => p.prochaine_visite && String(p.prochaine_visite).slice(0, 10) <= technicalTodayKey).length;
+      const gpsMissing = scopedPlantations.filter((p: any) => p.localisation_gps_lat == null || p.localisation_gps_lng == null).length;
+      const closedTicketStatuses = new Set(["resolu", "ferme", "cloture", "termine", "annule"]);
+      const openTickets = scopedTickets.filter((t: any) => !closedTicketStatuses.has(normalizeTechnicalStatus(t.statut))).length;
+      const criticalTickets = scopedTickets.filter((t: any) => !closedTicketStatuses.has(normalizeTechnicalStatus(t.statut)) && ["critique", "haute", "urgent", "critical", "high"].includes(normalizeTechnicalStatus(t.priorite))).length;
+      setTechnicalMetrics({
+        contractedHa,
+        plantedHa: technicalPlantedHa,
+        surfaceRate: contractedHa > 0 ? Math.round((technicalPlantedHa / contractedHa) * 100) : 0,
+        plantsPlanned,
+        plantsInstalled,
+        plantRate: plantsPlanned > 0 ? Math.round((plantsInstalled / plantsPlanned) * 100) : 0,
+        interventionsTotal: scopedInterventions.length,
+        interventionsDone,
+        interventionsLate,
+        visitReports: scopedVisitReports.length,
+        followupsOverdue,
+        visitsDue,
+        gpsMissing,
+        plantationsTotal: scopedPlantations.length,
+        openTickets,
+        criticalTickets,
+      });
 
       const cycleTypes = [
         ["validation_parcelle", "Parcelles validées"],
@@ -770,6 +826,8 @@ const Dashboard = () => {
   useRealtime({ table: "plantations", onChange: refreshSilently });
   useRealtime({ table: "paiements", onChange: refreshSilently });
   useRealtime({ table: "interventions_techniques", onChange: refreshSilently });
+  useRealtime({ table: "rapports_visites_techniques", onChange: refreshSilently });
+  useRealtime({ table: "tickets_techniques", onChange: refreshSilently });
   useRealtime({ table: "commissions", onChange: refreshSilently });
   useRealtime({ table: "portefeuilles", onChange: refreshSilently });
   useRealtime({ table: "leads", onChange: refreshSilently });
@@ -1069,12 +1127,56 @@ const Dashboard = () => {
 
               </div>
 
-              {canTechnical && cycle.some((c: any) => c.total > 0) && (
+              {canTechnical && technicalMetrics.plantationsTotal > 0 && (
                 <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Tractor className="h-5 w-5 text-primary" />Pilotage technique</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 sm:gap-3">
-                      {cycle.map((c) => <div key={c.label} className="min-w-0 rounded-xl border p-2 sm:p-3"><p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">{c.label}</p><p className="mt-1 text-base font-bold sm:text-lg">{c.pct}%</p><p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">{c.done}/{c.total} terminées</p></div>)}
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Surface réellement plantée</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{num(technicalMetrics.plantedHa)} / {num(technicalMetrics.contractedHa)} ha</p>
+                        <Progress className="mt-2" value={technicalMetrics.surfaceRate} />
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.surfaceRate}% de la surface enregistrée</p>
+                      </Link>
+                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Plants mis en terre</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.plantsInstalled.toLocaleString("fr-FR")} / {technicalMetrics.plantsPlanned.toLocaleString("fr-FR")}</p>
+                        <Progress className="mt-2" value={technicalMetrics.plantRate} />
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.plantRate}% du volume prévu</p>
+                      </Link>
+                      <Link to="/terrain" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Interventions réalisées</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.interventionsDone} / {technicalMetrics.interventionsTotal}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.interventionsLate} intervention(s) en retard</p>
+                      </Link>
+                      <Link to="/terrain" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Rapports et suivis</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.visitReports} rapport(s)</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.followupsOverdue} suivi(s) dépassé(s) · {technicalMetrics.visitsDue} visite(s) à effectuer</p>
+                      </Link>
+                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Couverture GPS</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} / {technicalMetrics.plantationsTotal}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.gpsMissing} plantation(s) sans coordonnées complètes</p>
+                      </Link>
+                      <Link to="/support" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Tickets techniques ouverts</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.openTickets}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.criticalTickets} ticket(s) critique(s) ou prioritaire(s)</p>
+                      </Link>
+                    </div>
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold">Avancement du parcours de plantation</h3>
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                        {cycle.map((c) => (
+                          <div key={c.label} className="min-w-0 rounded-xl border p-3">
+                            <p className="text-xs leading-tight text-muted-foreground">{c.label}</p>
+                            <p className="mt-1 text-lg font-bold tabular-nums">{c.pct}%</p>
+                            <p className="text-[11px] text-muted-foreground">{c.done}/{c.total} dossiers</p>
+                            <Progress className="mt-2" value={c.pct} />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
