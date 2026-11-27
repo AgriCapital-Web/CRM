@@ -1156,34 +1156,34 @@ const Dashboard = () => {
                       <Link to="/terrain" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
                         <p className="text-[11px] font-medium leading-tight text-muted-foreground">Interventions</p>
                         <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.interventionsDone} <span className="text-[11px] font-medium text-muted-foreground">/ {technicalMetrics.interventionsTotal}</span></p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.interventionsLate} en retard</p>
+                        <div className="mt-1.5"><Progress value={technicalMetrics.interventionsTotal > 0 ? (technicalMetrics.interventionsDone / technicalMetrics.interventionsTotal) * 100 : 0} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.interventionsLate} en retard</p></div>
                       </Link>
                       <Link to="/terrain" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
                         <p className="text-[11px] font-medium leading-tight text-muted-foreground">Visites réalisées</p>
                         <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.visitReports}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.visitsDue} à faire · {technicalMetrics.followupsOverdue} en retard</p>
+                        <div className="mt-1.5"><Progress value={(technicalMetrics.visitReports + technicalMetrics.visitsDue) > 0 ? (technicalMetrics.visitReports / (technicalMetrics.visitReports + technicalMetrics.visitsDue)) * 100 : 0} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.visitsDue} à faire · {technicalMetrics.followupsOverdue} en retard</p></div>
                       </Link>
                       <Link to="/plantations" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
                         <p className="text-[11px] font-medium leading-tight text-muted-foreground">GPS renseignés</p>
                         <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} <span className="text-[11px] font-medium text-muted-foreground">/ {technicalMetrics.plantationsTotal}</span></p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.gpsMissing} sans GPS complet</p>
+                        <div className="mt-1.5"><Progress value={technicalMetrics.plantationsTotal > 0 ? ((technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing) / technicalMetrics.plantationsTotal) * 100 : 0} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.gpsMissing} sans GPS complet</p></div>
                       </Link>
                       {(canTickets || canTechnical) && (
                         <Link to={canTickets ? "/support" : "/terrain"} className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
                           <p className="text-[11px] font-medium leading-tight text-muted-foreground">Tickets ouverts</p>
                           <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.openTickets}</p>
-                          <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.criticalTickets} critique(s)</p>
+                          <div className="mt-1.5"><Progress value={technicalMetrics.openTickets > 0 ? (technicalMetrics.criticalTickets / technicalMetrics.openTickets) * 100 : 0} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.criticalTickets} critique(s) sur {technicalMetrics.openTickets}</p></div>
                         </Link>
                       )}
                       <Link to="/plantations" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
                         <p className="text-[11px] font-medium leading-tight text-muted-foreground">Taux de réussite</p>
                         <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.successRateReported ? `${technicalMetrics.successRateAverage}%` : "—"}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.successRateReported} plantation(s) renseignée(s)</p>
+                        <div className="mt-1.5"><Progress value={technicalMetrics.successRateReported ? technicalMetrics.successRateAverage : 0} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.successRateReported} plantation(s) renseignée(s)</p></div>
                       </Link>
                       <Link to="/terrain" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
                         <p className="text-[11px] font-medium leading-tight text-muted-foreground">Écarts techniques</p>
                         <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.nonconformingStages}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">À vérifier sur PalmTerroir</p>
+                        <div className="mt-1.5"><Progress value={technicalMetrics.interventionsTotal > 0 ? Math.max(0, 100 - (technicalMetrics.nonconformingStages / technicalMetrics.interventionsTotal) * 100) : 100} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">Conformité du suivi technique</p></div>
                       </Link>
                     </div>
                   </CardContent>
