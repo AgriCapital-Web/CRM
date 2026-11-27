@@ -137,11 +137,12 @@ const AccountRequests = () => {
           <TableSearchInput value={search} onChange={setSearch} placeholder="Rechercher une demande" />
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto"><Table searchable={false} className="min-w-[900px]">
+          <div className="overflow-x-auto"><Table searchable={false} className="min-w-[940px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Nom</TableHead>
+                <TableHead>Genre</TableHead>
                 <TableHead>Email</TableHead>
                 
                 <TableHead>Poste</TableHead>
@@ -157,6 +158,7 @@ const AccountRequests = () => {
                     {new Date(request.created_at).toLocaleDateString('fr-FR')}
                   </TableCell>
                   <TableCell>{formatStructuredTablePersonName(request.nom,request.prenoms,request.nom_complet)}</TableCell>
+                  <TableCell>{request.genre === "F" ? "F" : request.genre === "M" ? "M" : "—"}</TableCell>
                   <TableCell>{request.email}</TableCell>
                   
                   <TableCell>{request.poste_souhaite}</TableCell>
