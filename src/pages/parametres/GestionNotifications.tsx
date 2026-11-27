@@ -96,7 +96,7 @@ const AUDIENCES = [
 const formatCampaignRecipientName = (r: any) => r?.nom && r?.prenoms ? formatStructuredPersonName(r.nom, r.prenoms) : formatRecipientName(r?.nom_complet || "", r?.source_type, r?.nom, r?.prenoms);
 const recipientMatchesType = (r: any, types: string[]) => { if (!types.length) return true; const type = String(r.source_type || ""); return types.some((t) => t === "proprietaire_foncier" ? type.includes("proprietaire_foncier") : t === "beneficiaire_particulier" ? type.includes("beneficiaire_particulier") : t === "autre" ? ["autre","cotitulaire_proprietaire","cotitulaire_client"].includes(type) : type === t); };
 const normalizeSms = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim();
-const smsLength = (value: string) => Array.from(normalizeSms(value)).length
+const smsLength = (value: string) => Array.from(normalizeSms(value)).reduce((total, character) => total + ("^{}\\[]~|€".includes(character) ? 2 : 1), 0)
 const SMS_NAME_TOKEN = /\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
 const smsBodyLength = (value: string) => smsLength(value.replace(SMS_NAME_TOKEN, ""));
 const restructureSms = (value: string) => {
@@ -407,8 +407,8 @@ const GestionNotifications = () => {
     const submittedMedia = [...campaignMedia];
     if (!submittedCampaign.nom.trim() || !submittedCampaign.contenu.trim()) return toast.error("Nom et contenu obligatoires");
     if (submittedCampaign.audience === "selection" && !selectedRecipients.some((r) => r?.source_type && r?.source_id)) return toast.error("Coche au moins un destinataire valide.");
-    if (["sms", "whatsapp", "auto", "email_sms"].includes(submittedCampaign.canal) && smsBodyLength(submittedCampaign.contenu) > 158) return toast.error(`Le texte hors nom fait ${smsBodyLength(submittedCampaign.contenu)}/158 caractères. Clique sur « Restructurer ».`);
-    if (submittedCampaign.canal === "whatsapp" && whatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 4096.`);
+    if (["sms", "email_sms"].includes(submittedCampaign.canal) && smsBodyLength(submittedCampaign.contenu) > 158) return toast.error(`Le texte hors nom fait ${smsBodyLength(submittedCampaign.contenu)}/158 unités GSM-7. Clique sur « Restructurer ».`);
+    if (["whatsapp", "auto"].includes(submittedCampaign.canal) && whatsappCount > 250) return toast.error(`Le message WhatsApp fait ${whatsappCount} caractères : limite 250.`);
     const selected = submittedCampaign.segment_id || segments.find((s) => s.code === submittedCampaign.audience)?.id || null;
     let recipientCount = selectedRecipients.length;
     if (submittedCampaign.audience !== "selection") {
@@ -522,8 +522,8 @@ const GestionNotifications = () => {
     const submittedAutomation = { ...automation };
     const submittedMedia = [...automationMedia];
     if (!submittedAutomation.nom.trim() || !submittedAutomation.code.trim() || !submittedAutomation.contenu.trim()) return toast.error("Code, nom et contenu obligatoires");
-    if ((submittedAutomation.canal === "sms" || submittedAutomation.canal === "email_sms") && automationSmsCount > 155) return toast.error(`Le SMS fait ${automationSmsCount} caractères : limite 155, espaces et signes compris.`);
-    if (submittedAutomation.canal === "whatsapp" && automationWhatsappCount > 4096) return toast.error(`Le message WhatsApp fait ${automationWhatsappCount} caractères : limite 4096.`);
+    if ((submittedAutomation.canal === "sms" || submittedAutomation.canal === "email_sms") && automationSmsCount > 158) return toast.error(`Le SMS fait ${automationSmsCount} unités GSM-7 : limite 158, espaces et signes compris.`);
+    if (["whatsapp", "auto"].includes(submittedAutomation.canal) && automationWhatsappCount > 250) return toast.error(`Le message WhatsApp fait ${automationWhatsappCount} caractères : limite 250.`);
     const { error } = await (supabase as any).from("notification_automations").upsert({
       code: submittedAutomation.code.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_"),
       nom: submittedAutomation.nom.trim(), description: submittedAutomation.description || null,
@@ -688,7 +688,7 @@ const GestionNotifications = () => {
                     ["Téléphone", "{{telephone}}"],
                   ].map(([label, token]) => <Button key={token} type="button" size="sm" variant="outline" onClick={() => setCampaign(current => ({ ...current, contenu: current.contenu + (current.contenu && !/\\s$/.test(current.contenu) ? " " : "") + token }))}>{label}</Button>)}
                 </div>
-                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">{["sms", "whatsapp", "auto", "email_sms"].includes(campaign.canal) && <><span className={smsBodyLength(campaign.contenu) > 158 ? "font-semibold text-destructive" : ""}>{smsBodyLength(campaign.contenu)}/158 caractères hors nom · SMS personnalisé ≤158</span><Button type="button" size="sm" variant="outline" onClick={() => void restructureCampaignSms()} disabled={restructuringSms}>{restructuringSms ? <><RefreshCw className="mr-2 h-3 w-3 animate-spin"/>Reformulation interne…</> : <><RefreshCw className="mr-2 h-3 w-3"/>Restructurer</>}</Button></>}{campaign.canal === "whatsapp" && <span className={whatsappCount > 4096 ? "font-semibold text-destructive" : ""}>{whatsappCount}/4096 caractères WhatsApp</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">{["sms", "auto", "email_sms"].includes(campaign.canal) && <><span className={campaign.canal !== "auto" && smsBodyLength(campaign.contenu) > 158 ? "font-semibold text-destructive" : ""}>{smsBodyLength(campaign.contenu)}/158 unités GSM-7 SMS (Côte d’Ivoire)</span><Button type="button" size="sm" variant="outline" onClick={() => void restructureCampaignSms()} disabled={restructuringSms}>{restructuringSms ? <><RefreshCw className="mr-2 h-3 w-3 animate-spin"/>Reformulation interne…</> : <><RefreshCw className="mr-2 h-3 w-3"/>Restructurer</>}</Button></>}{["whatsapp", "auto"].includes(campaign.canal) && <span className={whatsappCount > 250 ? "font-semibold text-destructive" : ""}>{whatsappCount}/250 caractères WhatsApp (international)</span>}</div></Field><MediaPicker target="campaign" items={campaignMedia}/>
               {preview && <Preview count={preview.count} sample={preview.sample} />}
               <div className="flex flex-wrap gap-2"><Button onClick={createCampaign}><Plus className="mr-2 h-4 w-4" />{editingCampaignId ? "Enregistrer les modifications" : "Enregistrer la campagne"}</Button><Button variant="outline" onClick={() => void previewAudience(campaign.audience)} disabled={previewing}><Eye className="mr-2 h-4 w-4" />Apercu</Button></div>
             </CardContent>
@@ -714,7 +714,7 @@ const GestionNotifications = () => {
                 <Field label="Delai anti-doublon (minutes)"><Input type="number" min={0} value={automation.cooldown_minutes} onChange={(e) => setAutomation({ ...automation, cooldown_minutes: Number(e.target.value) || 0 })} /></Field>
               </div>
               <Field label="Sujet email"><Input uppercase={false} value={automation.sujet} onChange={(e) => setAutomation({ ...automation, sujet: e.target.value })} /></Field>
-              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {dernier_prenom_nom}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 155 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/155 caractères SMS.</p>}{automation.canal === "whatsapp" && <p className={automationWhatsappCount > 4096 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationWhatsappCount}/4096 caractères WhatsApp.</p>}</Field><MediaPicker target="automation" items={automationMedia}/>
+              <Field label="Message"><Textarea uppercase={false} rows={5} value={automation.contenu} onChange={(e) => setAutomation({ ...automation, contenu: e.target.value })} placeholder="Bonjour {dernier_prenom_nom}, votre plantation est activée..." />{automation.canal.includes("sms") && <p className={automationSmsCount > 158 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationSmsCount}/158 unités GSM-7 SMS.</p>}{["whatsapp", "auto"].includes(automation.canal) && <p className={automationWhatsappCount > 250 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{automationWhatsappCount}/250 caractères WhatsApp (international).</p>}</Field><MediaPicker target="automation" items={automationMedia}/>
               <div className="flex items-center gap-2"><Switch checked={automation.actif} onCheckedChange={(v) => setAutomation({ ...automation, actif: v })} /><Label>Activer automatiquement</Label></div>
               <Button onClick={saveAutomation}><Zap className="mr-2 h-4 w-4" />Enregistrer l'automatisation</Button>
             </CardContent>
