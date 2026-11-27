@@ -68,7 +68,7 @@ const AccountRequest = () => {
   const [roles, setRoles] = useState<AccountRole[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [formData, setFormData] = useState({
-    nom: "", prenoms: "", email: "", telephone: "", telephone_indicatif: "", telephone_local: "", poste: "",
+    nom: "", prenoms: "", genre: "", email: "", telephone: "", telephone_indicatif: "", telephone_local: "", poste: "",
     region: "", departement: "", district: "", sous_prefecture: "", message: "",
     username: "", password: "", password_confirm: "",
   });
@@ -139,8 +139,8 @@ const AccountRequest = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorDetail(null);
-    if (!photoPath) {
-      toast({ variant: "destructive", title: "Photo obligatoire", description: "Ajoutez une photo et attendez la fin de son enregistrement avant de valider." });
+    if (!["M", "F"].includes(formData.genre)) {
+      toast({ variant: "destructive", title: "Genre requis", description: "Sélectionnez le genre avant d’envoyer votre demande." });
       return;
     }
     if (formData.password !== formData.password_confirm) {
@@ -160,6 +160,7 @@ const AccountRequest = () => {
         body: {
           nom: formData.nom.trim(),
           prenoms: formData.prenoms.trim(),
+          genre: formData.genre,
           nom_complet: [formData.nom, formData.prenoms].map((v) => String(v || "").trim()).filter(Boolean).join(" "),
           email: formData.email.trim(),
           telephone: formData.telephone.trim(),
@@ -226,6 +227,7 @@ const AccountRequest = () => {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               <Field label="Nom *" icon={<User />}><Input required value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Nom" /></Field>
                <Field label="Prénom *" icon={<User />}><Input required value={formData.prenoms} onChange={(e) => setFormData({ ...formData, prenoms: e.target.value.toLocaleUpperCase("fr-FR") })} placeholder="Prénom" /></Field>
+              <Field label="Genre *" icon={<User />}><Select value={formData.genre} onValueChange={(value) => setFormData((prev) => ({ ...prev, genre: value }))}><SelectTrigger className="w-full min-w-0"><SelectValue placeholder="Sélectionner le genre" /></SelectTrigger><SelectContent><SelectItem value="F">Féminin (F)</SelectItem><SelectItem value="M">Masculin (M)</SelectItem></SelectContent></Select></Field>
               <Field label="Email *" icon={<Mail />}><Input required type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="votre@email.com" /></Field>
               <Field label="Téléphone *" icon={<Phone />}><CountryPhoneInput label="" required countryCode={formData.telephone_indicatif||undefined} localValue={formData.telephone_local||formData.telephone||""} onChange={v=>setFormData(x=>({...x,telephone_indicatif:v.callingCode,telephone_local:v.localValue,telephone:v.internationalValue}))}/></Field>
               <Field label="Poste souhaité *" icon={<Briefcase />}><Select value={formData.poste} disabled={rolesLoading || roles.length === 0} onValueChange={(value) => setFormData((prev) => ({ ...prev, poste: value, district: "", region: "", departement: "", sous_prefecture: "" }))}><SelectTrigger><SelectValue placeholder={rolesLoading ? "Chargement des postes…" : "Sélectionner un poste"} /></SelectTrigger><SelectContent>{roles.map((role) => <SelectItem key={role.code} value={role.code}>{role.nom}</SelectItem>)}</SelectContent></Select></Field>
@@ -235,12 +237,12 @@ const AccountRequest = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <Camera className="h-5 w-5 text-primary" />
                 <div className="min-w-0">
-                  <Label className="text-sm font-semibold">Photo de profil *</Label>
+                  <Label className="text-sm font-semibold">Photo de profil (facultatif)</Label>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[150px_1fr] sm:items-center">
                 <div className="mx-auto flex h-36 w-28 items-center justify-center overflow-hidden rounded-xl border bg-background sm:mx-0">
-                  {photoPreview ? <img src={photoPreview} alt="Aperçu de la photo" className="h-full w-full object-cover" /> : <ImageIcon className="h-10 w-10 text-muted-foreground" />}
+                  {photoPreview ? <img src={photoPreview} alt="Aperçu de la photo" className="h-full w-full object-cover" /> : <User className="h-10 w-10 text-muted-foreground" />}
                 </div>
                 <div className="min-w-0 space-y-3">
                   <input ref={photoInputRef} type="file" accept="image/*" className="sr-only" onChange={(e) => { void handlePhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
