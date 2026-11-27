@@ -6,14 +6,10 @@ function generateTempPassword() {
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("") + "!7";
 }
 
-const formatPersonName = (lastName?: string | null, givenNames?: string | null, legacyFullName?: string | null) => {
+const formatPersonName = (lastName?: string | null, _givenNames?: string | null, legacyFullName?: string | null) => {
   const parts = String(legacyFullName || "").trim().split(/\s+/).filter(Boolean);
-  const surname = String(lastName || parts[0] || "").trim();
-  const given = String(givenNames || parts.slice(1).join(" ")).trim().split(/\s+/).filter(Boolean).pop() || "";
-  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
-    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
-  return given && surname ? `${titleCase(given)} ${surname.toLocaleUpperCase("fr-FR")}`
-    : given ? titleCase(given) : surname.toLocaleUpperCase("fr-FR");
+  const surname = String(lastName || parts[parts.length - 1] || "").trim();
+  return surname ? surname.toLocaleUpperCase("fr-FR") : "Utilisateur";
 };
 
 const corsHeaders = {
