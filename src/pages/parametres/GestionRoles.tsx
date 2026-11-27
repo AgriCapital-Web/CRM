@@ -92,11 +92,22 @@ const GestionRoles = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const profileQuery = canViewUsers
-        ? (supabase as any).from("profiles").select("id, user_id, nom_complet, email, username, telephone, telephone_indicatif, telephone_local, whatsapp, whatsapp_indicatif, whatsapp_local, photo_url, actif, departement, relation_rh, district_id, region_id, equipe_id, type_compte").eq("actif", true).eq("type_compte", "interne").order("nom_complet")
-        : Promise.resolve({ data: [], error: null });
+      const profileQuery = async () => {
+        if (!canViewUsers) return { data: [], error: null };
+        const allProfiles: any[] = [];
+        const pageSize = 1000;
+        for (let from = 0; ; from += pageSize) {
+          const { data, error } = await (supabase as any).from("profiles")
+            .select("id, user_id, nom_complet, email, username, telephone, telephone_indicatif, telephone_local, whatsapp, whatsapp_indicatif, whatsapp_local, photo_url, actif, departement, relation_rh, district_id, region_id, equipe_id, type_compte")
+            .eq("actif", true).eq("type_compte", "interne").order("nom_complet").range(from, from + pageSize - 1);
+          if (error) return { data: null, error };
+          allProfiles.push(...(data || []));
+          if (!data || data.length < pageSize) break;
+        }
+        return { data: allProfiles, error: null };
+      };
       const [{ data: profilesData, error: profilesError }, { data: rolesData, error: rolesError }, { data: permissionData, error: permissionError }] = await Promise.all([
-        profileQuery,
+        profileQuery(),
         supabase.from("user_roles").select("*"),
         (supabase as any).from("app_permissions").select("*").eq("actif", true).order("module").order("code"),
       ]);
@@ -536,7 +547,17 @@ const GestionRoles = () => {
                       <SelectContent>
                         {profiles.filter((profile) => Boolean(profile.user_id) || (canCreateUsers && Boolean(profile.email))).map((profile) => (
                           <SelectItem key={profile.id} value={profile.id}>
-                            {profile.nom_complet || profile.email}
+                            <div className="flex min-w-0 flex-col items-start gap-0.5 py-0.5">
+                              <span className="max-w-full truncate text-sm">{profile.nom_complet || profile.email}</span>
+                              <span className="flex max-w-full flex-wrap gap-1">
+                                {getUserRoles(profile.id).length
+                                  ? getUserRoles(profile.id).map((userRole: any) => {
+                                      const assignedRole = roles.find((role) => role.code === userRole.role);
+                                      return <span key={userRole.id || userRole.role} className="max-w-full truncate rounded-sm bg-muted px-1.5 py-0.5 text-[9px] leading-tight text-muted-foreground">{assignedRole?.nom || roleLabel(userRole.role)}{userRole.is_primary ? " · principal" : ""}</span>;
+                                    })
+                                  : <span className="text-[9px] leading-tight text-muted-foreground">Aucun rôle assigné</span>}
+                              </span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
