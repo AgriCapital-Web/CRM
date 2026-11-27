@@ -171,7 +171,7 @@ function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): strin
     const head = greeting[1];
     let body = greeting[2].trim();
     const available = maxSmsCharacters - gsm7SeptetLength(head);
-    if (available <= 0) throw new Error("Le nom complet du destinataire dépasse la limite SMS autorisée.");
+    if (available <= 0) throw new Error("Le nom du destinataire dépasse la limite SMS autorisée.");
     body = body.replace(/\s*[-–—]\s*AgriCapital\.?$/i, "").trim();
     const words = body.split(/\s+/).filter(Boolean);
     while (words.length && gsm7SeptetLength(words.join(" ")) > available) words.pop();
@@ -191,7 +191,7 @@ function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): strin
 
 function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 130): string {
   const tokenPattern = /\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi;
-  const marker = "__AGRICAPITAL_LAST_GIVEN_NAME_AND_SURNAME__";
+  const marker = "__AGRICAPITAL_FAMILY_NAME__";
   let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(tokenPattern, marker);
   if (!text) throw new Error("Le message est vide.");
   const rules: Array<[RegExp, string]> = [
@@ -278,7 +278,7 @@ const render = (template: string, contact: Contact, context: Record<string, unkn
   const titleCaseNames = (value: string) => value.trim().replace(/^[\s.,;:]+|[\s.,;:]+$/g, "").toLocaleLowerCase("fr-FR").replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
   // Règle globale AgriCapital : seul le nom de famille est injecté dans les notifications.
   // Priorité au champ structuré « nom » ; à défaut, dernier élément du nom affiché.
-  const familyName = contact.nom?.trim() || nameParts[nameParts.length - 1] || "";
+  const familyName = contact.nom?.trim() || nameParts[nameParts.length - 1] || "Client";
   const displayName = titleCaseNames(familyName).toLocaleUpperCase("fr-FR");
   const vars: Record<string, string> = {
     email: contact.email || "", telephone: contact.telephone || "",
