@@ -1186,22 +1186,6 @@ const Dashboard = () => {
                         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">Préparations à vérifier sur PalmTerroir</p>
                       </Link>
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="mb-2 text-sm font-semibold">Avancement du parcours de plantation</h3>
-                      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                        {cycle.map((c) => (
-                          <div key={c.label} className="flex min-h-[104px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3">
-                            <p className="min-w-0 break-words text-xs font-medium leading-snug text-muted-foreground">{c.label}</p>
-                            <div className="mt-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                              <span className="text-base font-bold leading-tight tabular-nums">{c.done} / {c.total}</span>
-                              <span className="text-sm font-semibold leading-tight tabular-nums">{c.pct}%</span>
-                            </div>
-                            <Progress className="mt-2" value={c.pct} />
-                            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">Dossiers réalisés</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               )}
