@@ -26,7 +26,7 @@ const tabs: {id:Tab; label:string; icon:any}[] = [
 ];
 const fmt=(value:string|null|undefined)=>value?new Date(value).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"}):"Non défini";
 const ROLE_LABEL: Record<string,string> = {
- pdg:"PDG", dg:"DG", associe_actionnaire:"Associé", manager_commercial_national:"RCN",
+ pdg:"Fondateur / PDG", dg:"DG", associe_actionnaire:"Associé", manager_commercial_national:"RCN",
  manager_technique_national:"RTN", responsable_operations:"RON", responsable_district:"RD",
  responsable_commercial:"RCZ", responsable_technique_zone:"RTZ",
  chef_equipe_commercial:"CEC", chef_equipe_technique:"CET",
