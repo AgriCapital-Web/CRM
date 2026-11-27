@@ -50,6 +50,7 @@ const userFormSchema = z.object({
   type_piece_identite: z.string().optional().or(z.literal("")),
   numero_piece_identite: z.string().optional().or(z.literal("")),
   salaire_base: z.string().optional().or(z.literal("")),
+  relation_rh: z.string().nullish().or(z.literal("")),
 });
 
 interface UtilisateurFormProps {
@@ -373,7 +374,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             whatsapp_local: data.whatsapp_local || null,
             departement: data.departement || null,
             equipe_id: data.equipe_id || null,
-            relation_rh: data.relation_rh || 'Employé',
+            relation_rh: data.relation_rh || null,
             taux_commission: data.taux_commission || null,
             district_id: data.district_id || null,
             region_id: data.region_id || null,
@@ -543,7 +544,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           <div className="space-y-2">
             <Label>Type de pièce</Label>
             <Select value={watch("type_piece_identite") || utilisateur?.type_piece_identite || ""} onValueChange={(value) => setValue("type_piece_identite", value)}>
-              <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Facultatif — non renseigné" /></SelectTrigger>
               <SelectContent>
                 {refs("piece_identite").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
               </SelectContent>
@@ -645,7 +646,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {utilisateur && <div className="space-y-2">
-            <Label>Relation RH *</Label>
+            <Label>Relation RH (facultatif)</Label>
             <Select
               defaultValue={utilisateur?.relation_rh}
               onValueChange={(value) => {
