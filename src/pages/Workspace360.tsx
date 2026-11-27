@@ -25,31 +25,80 @@ const tabs: {id:Tab; label:string; icon:any}[] = [
  {id:"org",label:"Organigramme",icon:Network}
 ];
 const fmt=(value:string|null|undefined)=>value?new Date(value).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"}):"Non défini";
-function OrganizationAvatar({photoUrl,name}:{photoUrl?:string|null;name:string}) {
- const signedPhoto=useSignedUrl("photos-profils",photoUrl||null);
- return <div className="flex w-16 shrink-0 flex-col items-center gap-1" title={name} aria-label={name}><Avatar className="h-14 w-14 border-2 border-background shadow-sm"><AvatarImage src={signedPhoto||undefined} alt={signedPhoto?name:""}/><AvatarFallback><Network className="h-6 w-6 text-primary"/></AvatarFallback></Avatar>{!signedPhoto&&<span className="w-full text-center text-xs font-medium leading-tight">{name}</span>}</div>
+const ROLE_LABEL: Record<string,string> = {
+ pdg:"PDG", dg:"DG", associe_actionnaire:"Associé", manager_commercial_national:"RCN",
+ manager_technique_national:"RTN", responsable_operations:"RON", responsable_district:"RD",
+ responsable_commercial:"RCZ", responsable_technique_zone:"RTZ",
+ chef_equipe_commercial:"CEC", chef_equipe_technique:"CET",
+ chef_equipe_service_client:"CE Support", ressources_humaines:"RH",
+ comptable:"Comptable", assistant_administratif:"Assistant", service_client:"Support",
+ commercial:"Commercial", technicien:"Technicien", mobilisateur_foncier:"Mobilisateur",
+ superviseur_mobilisation_fonciere:"SMF",
+};
+const ROLE_COLOR: Record<string,string> = {
+ pdg:"border-l-slate-800", dg:"border-l-slate-700", associe_actionnaire:"border-l-violet-600",
+ manager_commercial_national:"border-l-blue-700", manager_technique_national:"border-l-emerald-700",
+ responsable_operations:"border-l-amber-700", responsable_district:"border-l-indigo-700",
+ responsable_commercial:"border-l-blue-500", responsable_technique_zone:"border-l-emerald-500",
+ chef_equipe_commercial:"border-l-sky-500", chef_equipe_technique:"border-l-teal-500",
+ ressources_humaines:"border-l-fuchsia-600", comptable:"border-l-orange-600",
+ assistant_administratif:"border-l-slate-500", service_client:"border-l-cyan-600",
+ commercial:"border-l-sky-400", technicien:"border-l-teal-400", mobilisateur_foncier:"border-l-lime-600",
+ superviseur_mobilisation_fonciere:"border-l-lime-700",
+};
+function roleLabel(node:Row) {
+ const code=String(node.role_code||"");
+ return ROLE_LABEL[code] || (node.role_name && node.role_name.length<=22 ? node.role_name : "Collaborateur");
 }
-
-function OrganizationTree({items}:{items:Row[]}) {
- const ids=new Set(items.map(item=>String(item.profile_id||item.id)));
- const roots=items.filter(item=>!item.manager_profile_id||!ids.has(String(item.manager_profile_id)));
- const displayRoots=roots.length?roots:items;
- return <div className="space-y-4">{displayRoots.map(node=><OrganizationNode key={String(node.profile_id||node.id)} node={node} items={items} ancestors={[]}/>)}</div>;
-}
-function OrganizationNode({node,items,ancestors}:{node:Row;items:Row[];ancestors:string[]}) {
- const id=String(node.profile_id||node.id);
- const nextAncestors=[...ancestors,id];
- const children=items.filter(item=>String(item.manager_profile_id||"")===id&&!ancestors.includes(String(item.profile_id||item.id)));
- return <div className="min-w-0">
-  <div className="relative min-w-0 overflow-hidden rounded-xl border bg-card p-4 shadow-sm">
-   <div className="absolute inset-x-0 top-0 h-1" style={{background:node.role_level<=1?"#166534":node.role_level<=3?"#2563eb":node.role_level===4?"#d97706":"#0f766e"}}/>
-   <div className="flex items-start gap-3 pt-1"><OrganizationAvatar photoUrl={node.employee_photo_url} name={node.employee_name||"Collaborateur"}/><div className="min-w-0 flex-1">
-    <p className="text-sm font-semibold">{node.role_name||"Rôle non défini"}</p>
-    <p className="mt-1 text-xs text-muted-foreground">{node.team_name||"Équipe non définie"}{node.region_name?" · "+node.region_name:""}{node.district_name?" · "+node.district_name:""}</p>
-    <div className="mt-2 flex flex-wrap gap-1">{node.rattachement_a_verifier&&<Badge variant="destructive">Rattachement à vérifier</Badge>}</div>
-   </div></div>
+function OrganizationCard({node}:{node:Row}) {
+ const role=String(node.role_code||"");
+ const zone=[node.district_name,node.region_name].filter(Boolean).join(" · ");
+ const name=String(node.employee_name||"Collaborateur");
+ return <div className={`min-w-0 rounded-md border border-l-4 bg-card px-3 py-2.5 shadow-sm ${ROLE_COLOR[role]||"border-l-muted-foreground"}`}>
+  <div className="flex min-w-0 items-center gap-2.5">
+   {node.employee_photo_url ? <Avatar className="h-9 w-9 shrink-0"><AvatarImage src={node.employee_photo_url}/><AvatarFallback>{name.slice(0,2).toUpperCase()}</AvatarFallback></Avatar> : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{name.split(/\\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()}</div>}
+   <div className="min-w-0 flex-1">
+    <p className="truncate text-xs font-semibold leading-4">{roleLabel(node)}</p>
+    <p className="truncate text-[11px] leading-4 text-muted-foreground">{name}</p>
+    {zone&&<p className="truncate text-[10px] leading-3 text-muted-foreground">{zone}</p>}
+   </div>
   </div>
-  {children.length>0&&<div className="ml-4 mt-3 space-y-3 border-l-2 border-primary/30 pl-4 sm:ml-8 sm:pl-6">{children.map(child=><OrganizationNode key={String(child.profile_id||child.id)} node={child} items={items} ancestors={nextAncestors}/>)}</div>}
+ </div>;
+}
+function OrganizationTree({items}:{items:Row[]}) {
+ const role=(n:Row)=>String(n.role_code||"");
+ const isAssociate=(n:Row)=>role(n)==="associe_actionnaire"||/associ[eé].*actionnaire/i.test(String(n.poste||""));
+ const unique=(arr:Row[])=>Array.from(new Map(arr.map(x=>[String(x.profile_id||x.id),x])).values());
+ const associates=unique(items.filter(isAssociate));
+ const founder=unique(items.filter(n=>role(n)==="pdg"||/fondateur/i.test(String(n.poste||""))));
+ const leadership=unique(items.filter(n=>["dg","manager_commercial_national","manager_technique_national","responsable_operations"].includes(role(n))&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
+ const districts=unique(items.filter(n=>role(n)==="responsable_district"));
+ const zoneLeads=unique(items.filter(n=>["responsable_commercial","responsable_technique_zone","superviseur_mobilisation_fonciere"].includes(role(n))));
+ const teams=unique(items.filter(n=>["chef_equipe_commercial","chef_equipe_technique","chef_equipe_service_client"].includes(role(n))));
+ const heads=new Set([...founder,...associates,...leadership,...districts,...zoneLeads,...teams].map(n=>String(n.profile_id||n.id)));
+ const departments=[
+  {id:"commercial",title:"Commercial",codes:["commercial","mobilisateur_foncier"],terms:["commercial"]},
+  {id:"technique",title:"Technique & foncier",codes:["technicien","superviseur_mobilisation_fonciere"],terms:["technique","foncier"]},
+  {id:"support",title:"Support & relation client",codes:["service_client","assistant_administratif"],terms:["support","relation client"]},
+  {id:"finance",title:"Finance",codes:["comptable"],terms:["finance","comptab"]},
+  {id:"rh",title:"Ressources humaines",codes:["ressources_humaines"],terms:["rh","ressources humaines"]},
+ ];
+ const departmentItems=departments.map(d=>({ ...d, people:unique(items.filter(n=>{
+  if(heads.has(String(n.profile_id||n.id))) return false;
+  const code=role(n), dept=String(n.departement||"").toLowerCase();
+  return d.codes.includes(code)||d.terms.some(t=>dept.includes(t));
+ }))})).filter(d=>d.people.length>0);
+ const other=unique(items.filter(n=>!heads.has(String(n.profile_id||n.id))&&!departmentItems.some(d=>d.people.some(p=>(p.profile_id||p.id)===(n.profile_id||n.id)))));
+ const Section=({title,people,compact=false}:{title:string;people:Row[];compact?:boolean})=>people.length?<section className="min-w-0 space-y-2"><h3 className="border-b pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3><div className={compact?"grid grid-cols-1 gap-2 sm:grid-cols-2":"grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"}>{people.map(n=><OrganizationCard key={String(n.profile_id||n.id)} node={n}/>)}</div></section>:null;
+ return <div className="space-y-4">
+  {founder.length>0&&<Section title="Fondateur & direction" people={founder} compact/>}
+  {associates.length>0&&<Section title="Associés" people={associates} compact/>}
+  {leadership.length>0&&<Section title="Direction & pilotage national" people={leadership} compact/>}
+  {districts.length>0&&<Section title="Coordination des districts" people={districts} compact/>}
+  {zoneLeads.length>0&&<Section title="Responsables de zone" people={zoneLeads} compact/>}
+  {teams.length>0&&<Section title="Encadrement des équipes" people={teams} compact/>}
+  {departmentItems.length>0&&<div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">{departmentItems.map(d=><Section key={d.id} title={d.title} people={d.people}/>)}</div>}
+  {other.length>0&&<Section title="Autres fonctions" people={other}/>}
  </div>;
 }
 
