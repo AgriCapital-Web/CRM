@@ -39,6 +39,8 @@ const highestVisibleRole = (roles: string[] = [], roleCatalog: { code: string; n
 const Equipes = () => {
   const [equipes, setEquipes] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
+  const [coverageDepartments, setCoverageDepartments] = useState<any[]>([]);
+  const [selectedDepartmentNames, setSelectedDepartmentNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingForm, setSavingForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -113,6 +115,29 @@ const Equipes = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    let active = true;
+    if (!formData.region_id) {
+      setCoverageDepartments([]);
+      return () => { active = false; };
+    }
+    void (async () => {
+      const { data, error } = await (supabase as any).from("v_geo_departements")
+        .select("id,nom,region_id")
+        .eq("region_id", formData.region_id)
+        .eq("est_actif_effectif", true)
+        .order("nom");
+      if (!active) return;
+      if (error) {
+        setCoverageDepartments([]);
+        toast({ variant: "destructive", title: "Départements indisponibles", description: getSafeErrorMessage(error) });
+        return;
+      }
+      setCoverageDepartments(data || []);
+    })();
+    return () => { active = false; };
+  }, [formData.region_id]);
+
   useEffect(() => {
     let active = true;
     if (!canManageTeams) {
@@ -230,7 +255,7 @@ const Equipes = () => {
         region_id: formData.region_id || null,
         type_equipe: formData.type_equipe,
         actif: formData.actif,
-        zone_couverture: formData.zone_couverture.trim() || null,
+        zone_couverture: selectedDepartmentNames.join(" · ") || null,
         photo_url: formData.photo_url || null,
       };
       let equipeId = selectedEquipe?.id as string | undefined;
@@ -288,6 +313,7 @@ const Equipes = () => {
       zone_couverture: equipe.zone_couverture || "",
       photo_url: equipe.photo_url || "",
     });
+    setSelectedDepartmentNames(String(equipe.zone_couverture || "").split(/\s*[·,]\s*/).map((name: string) => name.trim()).filter(Boolean));
     setLogoFile(null);
     setLogoPreview(equipe.photo_url || "");
     setIsFormOpen(true);
@@ -397,6 +423,7 @@ const Equipes = () => {
               setSelectedEquipe(null);
               setReadOnlyForm(false);
               setFormData({ nom: "", responsable_id: "", region_id: "", type_equipe: activeTab as any, actif: true, zone_couverture: "", photo_url: "" });
+              setSelectedDepartmentNames([]);
               setLogoFile(null);
               setLogoPreview("");
             }}>
@@ -437,7 +464,7 @@ const Equipes = () => {
               </div>
               <div>
                 <Label>Région</Label>
-                <Select value={formData.region_id} onValueChange={(v) => setFormData({ ...formData, region_id: v })}>
+                <Select value={formData.region_id} onValueChange={(v) => { setFormData({ ...formData, region_id: v, zone_couverture: "" }); setSelectedDepartmentNames([]); }}>
                   <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                   <SelectContent>
                     {regions.map((r) => (
@@ -446,9 +473,23 @@ const Equipes = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Zone de couverture</Label>
-                <Input value={formData.zone_couverture} onChange={(e) => setFormData({ ...formData, zone_couverture: e.target.value })} placeholder="Ex. Daloa, Gonaté et localités voisines" />
+              <div className="space-y-2">
+                <Label>Départements couverts</Label>
+                {!formData.region_id ? (
+                  <p className="text-xs text-muted-foreground">Choisissez d’abord une région pour afficher ses départements.</p>
+                ) : coverageDepartments.length ? (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border p-3 sm:grid-cols-3">
+                    {coverageDepartments.map((department) => (
+                      <label key={department.id} className="flex min-w-0 cursor-pointer items-center gap-2 text-xs">
+                        <Checkbox checked={selectedDepartmentNames.includes(department.nom)} onCheckedChange={(checked) => setSelectedDepartmentNames((current) => checked === true ? [...current, department.nom] : current.filter((name) => name !== department.nom))} />
+                        <span className="truncate" title={department.nom}>{department.nom}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Aucun département actif dans cette région.</p>
+                )}
+                <p className="text-[10px] text-muted-foreground">{selectedDepartmentNames.length ? `${selectedDepartmentNames.length} département(s) sélectionné(s)` : "Aucun département sélectionné"}</p>
               </div>
               <div className="space-y-2">
                 <Label>Logo / photo de l'équipe</Label>
