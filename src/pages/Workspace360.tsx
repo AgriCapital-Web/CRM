@@ -50,31 +50,35 @@ function roleLabel(node:Row) {
  const code=String(node.role_code||"");
  return ROLE_LABEL[code] || (node.role_name && node.role_name.length<=22 ? node.role_name : "Collaborateur");
 }
-function OrganizationCard({node}:{node:Row}) {
+function OrganizationCard({node,onSelect}:{node:Row;onSelect:(node:Row)=>void}) {
  const role=String(node.role_code||"");
  const zone=[node.district_name,node.region_name].filter(Boolean).join(" · ");
- const name=String(node.employee_name||"Collaborateur");
- return <div className={`min-w-0 rounded-md border border-l-4 bg-card px-3 py-2.5 shadow-sm ${ROLE_COLOR[role]||"border-l-muted-foreground"}`}>
-  <div className="flex min-w-0 items-center gap-2.5">
-   {node.employee_photo_url ? <Avatar className="h-9 w-9 shrink-0"><AvatarImage src={node.employee_photo_url}/><AvatarFallback>{name.slice(0,2).toUpperCase()}</AvatarFallback></Avatar> : <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{name.split(/\\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()}</div>}
-   <div className="min-w-0 flex-1">
-    <p className="truncate text-xs font-semibold leading-4">{roleLabel(node)}</p>
-    <p className="truncate text-[11px] leading-4 text-muted-foreground">{name}</p>
-    {zone&&<p className="truncate text-[10px] leading-3 text-muted-foreground">{zone}</p>}
-    {node.relation_rh&&<p className="text-[9px] leading-3 text-muted-foreground">{String(node.relation_rh).toLowerCase().includes("prestataire")?"Prestataire":String(node.relation_rh).toLowerCase().includes("employ")?"Employé":""}</p>}
-   </div>
-  </div>
- </div>;
+ const name=String(node.employee_name||node.nom_complet||"Collaborateur");
+ const position=String(node.poste||node.role_name||roleLabel(node));
+ const initials=name.split(/\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()||"AC";
+ return <button type="button" onClick={()=>onSelect(node)} title={name+" — "+position+(zone?" — "+zone:"")} aria-label={"Voir la fiche de "+name} className={\`group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-l-4 bg-card px-2 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary \${ROLE_COLOR[role]||"border-l-muted-foreground"}\`}>
+  {node.employee_photo_url ? <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border sm:h-9 sm:w-9"><AvatarImage src={node.employee_photo_url}/><AvatarFallback className="text-[10px]">{initials}</AvatarFallback></Avatar> : <Avatar className="h-8 w-8 shrink-0 sm:h-9 sm:w-9"><AvatarFallback className="bg-muted text-[10px] font-semibold">{initials}</AvatarFallback></Avatar>}
+  <span className="max-w-full truncate text-[11px] font-bold leading-4 sm:text-xs">{roleLabel(node)}</span>
+  <span className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-52 -translate-x-1/2 rounded-md border bg-popover p-2.5 text-left text-xs text-popover-foreground shadow-xl group-hover:block group-focus-visible:block">
+   <span className="block font-semibold">{name}</span>
+   <span className="mt-0.5 block text-muted-foreground">{position}</span>
+   {node.departement&&<span className="mt-1 block">{node.departement}</span>}
+   {zone&&<span className="block text-muted-foreground">{zone}</span>}
+   {node.relation_rh&&<span className="block text-muted-foreground">{node.relation_rh}</span>}
+   {node.email&&<span className="block truncate text-muted-foreground">{node.email}</span>}
+  </span>
+ </button>;
 }
 function OrganizationTree({items}:{items:Row[]}) {
+ const [selectedNode,setSelectedNode]=useState<Row|null>(null);
  const role=(n:Row)=>String(n.role_code||"");
  const isAssociate=(n:Row)=>role(n)==="associe_actionnaire"||/associ[eé].*actionnaire/i.test(String(n.poste||""));
  const unique=(arr:Row[])=>Array.from(new Map(arr.map(x=>[String(x.profile_id||x.id),x])).values());
- const associates=unique(items.filter(isAssociate));
  const founder=unique(items.filter(n=>role(n)==="pdg"||/fondateur/i.test(String(n.poste||""))));
+ const associates=unique(items.filter(isAssociate));
  const dg=unique(items.filter(n=>role(n)==="dg"&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
  const operations=unique(items.filter(n=>role(n)==="responsable_operations"&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
- const nationalLeads=unique(items.filter(n=>["manager_commercial_national","manager_technique_national"].includes(role(n))&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
+ const nationalLeads=unique(items.filter(n=>["manager_commercial_national","manager_technique_national"].includes(role(n))));
  const districts=unique(items.filter(n=>role(n)==="responsable_district"));
  const zoneLeads=unique(items.filter(n=>["responsable_commercial","responsable_technique_zone","superviseur_mobilisation_fonciere"].includes(role(n))));
  const teams=unique(items.filter(n=>["chef_equipe_commercial","chef_equipe_technique","chef_equipe_service_client"].includes(role(n))));
@@ -86,24 +90,47 @@ function OrganizationTree({items}:{items:Row[]}) {
   {id:"finance",title:"Finance",codes:["comptable"],terms:["finance","comptab"]},
   {id:"rh",title:"Ressources humaines",codes:["ressources_humaines"],terms:["rh","ressources humaines"]},
  ];
- const departmentItems=departments.map(d=>({ ...d, people:unique(items.filter(n=>{
+ const departmentItems=departments.map(d=>({...d,people:unique(items.filter(n=>{
   if(heads.has(String(n.profile_id||n.id))) return false;
-  const code=role(n), dept=String(n.departement||"").toLowerCase();
+  const code=role(n),dept=String(n.departement||"").toLowerCase();
   return d.codes.includes(code)||d.terms.some(t=>dept.includes(t));
  }))})).filter(d=>d.people.length>0);
- const other=unique(items.filter(n=>!heads.has(String(n.profile_id||n.id))&&!departmentItems.some(d=>d.people.some(p=>(p.profile_id||p.id)===(n.profile_id||n.id)))));
- const Section=({title,people,compact=false}:{title:string;people:Row[];compact?:boolean})=>people.length?<section className="min-w-0 space-y-2"><h3 className="border-b pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3><div className={compact?"grid grid-cols-1 gap-2 sm:grid-cols-2":"grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"}>{people.map(n=><OrganizationCard key={String(n.profile_id||n.id)} node={n}/>)}</div></section>:null;
- return <div className="space-y-4">
-  {founder.length>0&&<Section title="Fondateur & direction" people={founder} compact/>}
-  {associates.length>0&&<Section title="Associés" people={associates} compact/>}
-  {dg.length>0&&<Section title="Direction générale" people={dg} compact/>}
-  {operations.length>0&&<Section title="Direction des opérations" people={operations} compact/>}
-  {nationalLeads.length>0&&<Section title="Directions nationales" people={nationalLeads} compact/>}
-  {districts.length>0&&<Section title="Coordination des districts" people={districts} compact/>}
-  {zoneLeads.length>0&&<Section title="Responsables de zone" people={zoneLeads} compact/>}
-  {teams.length>0&&<Section title="Encadrement des équipes" people={teams} compact/>}
-  {departmentItems.length>0&&<div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">{departmentItems.map(d=><Section key={d.id} title={d.title} people={d.people}/>)}</div>}
-  {other.length>0&&<Section title="Autres fonctions" people={other}/>}
+ const other=unique(items.filter(n=>!heads.has(String(n.profile_id||n.id))&&!departmentItems.some(d=>d.people.some(p=>String(p.profile_id||p.id)===String(n.profile_id||n.id)))));
+ const Cards=({people,columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8"}:{people:Row[];columns?:string})=><div className={\`grid min-w-0 \${columns} gap-2\`}>{people.map(n=><OrganizationCard key={String(n.profile_id||n.id)} node={n} onSelect={setSelectedNode}/>)}</div>;
+ const Level=({title,people,center=false,columns}:{title:string;people:Row[];center?:boolean;columns?:string})=>people.length?<section className="mx-auto w-full max-w-6xl space-y-2"><h3 className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</h3><div className={center?"mx-auto flex max-w-2xl flex-wrap items-stretch justify-center gap-2":""}><Cards people={people} columns={columns}/></div></section>:null;
+ const Connector=()=> <div className="mx-auto h-4 w-px bg-border"/>;
+ return <div className="space-y-1">
+  <div className="flex justify-center">{founder.map(n=><div key={String(n.profile_id||n.id)} className="w-36"><OrganizationCard node={n} onSelect={setSelectedNode}/></div>)}</div>
+  {founder.length>0&&<Connector/>}
+  <Level title="Associés" people={associates} center columns="grid-cols-2 sm:grid-cols-3"/>
+  {associates.length>0&&<Connector/>}
+  <Level title="Direction générale" people={dg} center columns="grid-cols-1 sm:grid-cols-1"/>
+  {dg.length>0&&<Connector/>}
+  <Level title="Direction des opérations" people={operations} center columns="grid-cols-1 sm:grid-cols-1"/>
+  {operations.length>0&&<Connector/>}
+  <Level title="Directions nationales" people={nationalLeads} columns="grid-cols-2 sm:grid-cols-2 lg:grid-cols-2"/>
+  {nationalLeads.length>0&&<Connector/>}
+  <Level title="Responsables de district" people={districts} columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"/>
+  {districts.length>0&&<Connector/>}
+  <Level title="Responsables de zone" people={zoneLeads} columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6"/>
+  {zoneLeads.length>0&&<Connector/>}
+  <Level title="Chefs d'équipe" people={teams} columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6"/>
+  {departmentItems.length>0&&<><Connector/><div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">{departmentItems.map(d=><section key={d.id} className="min-w-0 space-y-2 rounded-lg border p-2.5"><h3 className="border-b pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{d.title}</h3><Cards people={d.people} columns="grid-cols-3 sm:grid-cols-4 xl:grid-cols-5"/></section>)}</div></>}
+  {other.length>0&&<><Connector/><Level title="Autres fonctions" people={other}/></>}
+  <Dialog open={!!selectedNode} onOpenChange={open=>!open&&setSelectedNode(null)}>
+   <DialogContent className="max-w-sm">
+    <DialogHeader><DialogTitle>{selectedNode?.employee_name||selectedNode?.nom_complet||"Fiche collaborateur"}</DialogTitle></DialogHeader>
+    {selectedNode&&<div className="space-y-3 text-sm">
+     <div className="flex items-center gap-3">
+      <Avatar className="h-14 w-14"><AvatarImage src={selectedNode.employee_photo_url||""}/><AvatarFallback>{String(selectedNode.employee_name||selectedNode.nom_complet||"AC").split(/\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()}</AvatarFallback></Avatar>
+      <div><p className="font-semibold">{roleLabel(selectedNode)}</p><p className="text-xs text-muted-foreground">{selectedNode.poste||selectedNode.role_name||""}</p></div>
+     </div>
+     <div className="grid grid-cols-2 gap-2">
+      {([["Département",selectedNode.departement],["Relation RH",selectedNode.relation_rh],["Zone",[selectedNode.district_name,selectedNode.region_name].filter(Boolean).join(" · ")],["Type de compte",selectedNode.type_compte],["Téléphone",selectedNode.telephone],["E-mail",selectedNode.email]] as [string,any][]).filter(([,v])=>v).map(([label,value])=><div key={label} className="min-w-0 rounded-md bg-muted/60 p-2"><p className="text-[10px] text-muted-foreground">{label}</p><p className="break-words text-xs font-medium">{String(value)}</p></div>)}
+     </div>
+    </div>}
+   </DialogContent>
+  </Dialog>
  </div>;
 }
 
