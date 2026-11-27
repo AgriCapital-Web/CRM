@@ -55,7 +55,6 @@ function OrganizationCard({node,onSelect}:{node:Row;onSelect:(node:Row)=>void}) 
  const zone=[node.district_name,node.region_name].filter(Boolean).join(" · ");
  const name=String(node.employee_name||node.nom_complet||"Collaborateur");
  const position=String(node.poste||node.role_name||roleLabel(node));
- const initials=name.split(/\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()||"AC";
  return <button type="button" onClick={()=>onSelect(node)} title={name+" — "+position+(zone?" — "+zone:"")} aria-label={"Voir la fiche de "+name} className={`group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-l-4 bg-card px-2 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${ROLE_COLOR[role]||"border-l-muted-foreground"}`}>
   <GenderAvatar src={node.employee_photo_url} gender={node.employee_gender} alt={name} className="h-8 w-8 ring-1 ring-border sm:h-9 sm:w-9" />
   <span className="max-w-full truncate text-[11px] font-bold leading-4 sm:text-xs">{roleLabel(node)}</span>
