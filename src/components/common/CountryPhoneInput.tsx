@@ -132,13 +132,13 @@ export const CountryPhoneInput = ({ label, countryCode, localValue = "", require
         searchPlaceholder="Rechercher un pays..."
         emptyText="Aucun pays trouvé."
         disabled={disabled}
-        className="h-10 w-[112px] min-w-[112px] shrink-0 px-3"
+        className="h-9 min-h-9 w-[112px] min-w-[112px] shrink-0 px-2"
         triggerLabel={selected.callingCode}
         triggerFlagUrl={flagUrl(selected.code)}
         contentClassName="w-max min-w-[260px] max-w-[calc(100vw-24px)]"
       />
       <Input
-        className={`min-w-0 w-0 flex-1 h-10 ${compact ? "px-2 text-sm" : ""}`}
+        className={`min-w-0 w-0 flex-1 h-9 min-h-9 ${compact ? "px-2 text-sm" : ""}`}
         type="tel"
         inputMode="tel"
         autoComplete="tel-national"
