@@ -61,6 +61,7 @@ function OrganizationCard({node}:{node:Row}) {
     <p className="truncate text-xs font-semibold leading-4">{roleLabel(node)}</p>
     <p className="truncate text-[11px] leading-4 text-muted-foreground">{name}</p>
     {zone&&<p className="truncate text-[10px] leading-3 text-muted-foreground">{zone}</p>}
+    {node.relation_rh&&<p className="text-[9px] leading-3 text-muted-foreground">{String(node.relation_rh).toLowerCase().includes("prestataire")?"Prestataire":String(node.relation_rh).toLowerCase().includes("employ")?"Employé":""}</p>}
    </div>
   </div>
  </div>;
@@ -154,9 +155,9 @@ export default function Workspace360({ embedded = false }: { embedded?: boolean 
       (supabase as any).from("v_workspace_organization_chart").select("*").order("role_level",{ascending:true}).order("employee_name",{ascending:true}).limit(500),
       (supabase as any).from("workspace_notifications").select("*").eq("recipient_profile_id",pid).order("created_at",{ascending:false}).limit(100),
       canManageHR ? (supabase as any).from("profiles").select("id,nom_complet,email,equipe_id").eq("actif",true).order("nom_complet") : Promise.resolve({data:[]}),
-      canManageHR ? (supabase as any).from("profiles").select("id,poste,departement,relation_rh,type_compte").eq("actif",true) : Promise.resolve({data:[]})
+      canManageHR ? (supabase as any).from("profiles").select("id,poste,departement,relation_rh,type_compte").eq("actif",true).eq("type_compte","interne") : Promise.resolve({data:[]})
     ]);
-    for(const [name,result] of [["agenda",e],["tâches",t],["projets",p],["fiches de poste",j],["affectations",a],["organigramme",o],["notifications",n],["collaborateurs",s]] as any){
+    for(const [name,result] of [["agenda",e],["tâches",t],["projets",p],["fiches de poste",j],["affectations",a],["organigramme",o],["notifications",n],["collaborateurs",s],["métadonnées RH",argumentsMeta]] as any){
       if(result.error)throw new Error("Chargement "+name+" : "+result.error.message);
     }
     const orgMetaById = new Map((argumentsMeta.data||[]).map((row:Row)=>[String(row.id),row]));
