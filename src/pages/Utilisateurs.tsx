@@ -180,6 +180,10 @@ const Utilisateurs = () => {
 
   const runAdminAction = async () => {
     if (!adminTarget || !adminAction) return;
+    if (adminAction === "roles" && !adminTarget.user_id && !["M", "F"].includes(String(adminTarget.genre || ""))) {
+      toast({ variant: "destructive", title: "Genre requis", description: "Modifiez d’abord la fiche utilisateur pour renseigner le genre avant de créer son compte de connexion." });
+      return;
+    }
     if ((adminAction === "password" || adminAction === "username") && !adminTarget.user_id) {
       toast({ variant: "destructive", title: "Compte de connexion requis", description: "Ce profil doit d'abord être rattaché à son compte Auth." });
       return;
