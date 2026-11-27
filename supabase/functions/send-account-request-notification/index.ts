@@ -12,13 +12,9 @@ const escapeHtml = (value: unknown): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const formatPersonName = (lastName?: string | null, givenNames?: string | null) => {
+const formatPersonName = (lastName?: string | null, _givenNames?: string | null) => {
   const surname = String(lastName || "").trim();
-  const given = String(givenNames || "").trim().split(/\s+/).filter(Boolean).pop() || "";
-  const titleCase = (value: string) => value.toLocaleLowerCase("fr-FR")
-    .replace(/(^|[\s’'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
-  if (given && surname) return `${titleCase(given)} ${surname.toLocaleUpperCase("fr-FR")}`;
-  return given ? titleCase(given) : surname ? surname.toLocaleUpperCase("fr-FR") : "Utilisateur";
+  return surname ? surname.toLocaleUpperCase("fr-FR") : "Utilisateur";
 };
 
 const corsHeaders = {
@@ -80,7 +76,7 @@ serve(async (req) => {
       }
     }
     const requestNameParts = String(requestData?.nom_complet || "").trim().split(/\s+/).filter(Boolean);
-    const applicantLastName = String(requestData?.nom || requestNameParts[0] || "").trim();
+    const applicantLastName = String(requestData?.nom || requestNameParts[requestNameParts.length - 1] || "").trim();
     const applicantGivenNames = String(requestData?.prenoms || requestNameParts.slice(1).join(" ")).trim();
     const applicantDisplayName = formatPersonName(applicantLastName, applicantGivenNames);
     // Toutes les valeurs issues du formulaire public sont échappées avant insertion dans l'email HTML.
