@@ -27,7 +27,7 @@ const tabs: {id:Tab; label:string; icon:any}[] = [
 const fmt=(value:string|null|undefined)=>value?new Date(value).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"}):"Non défini";
 const ROLE_LABEL: Record<string,string> = {
  pdg:"Fondateur / PDG", dg:"DG", associe_actionnaire:"Associé", manager_commercial_national:"RCN",
- manager_technique_national:"RTN", responsable_operations:"RON", responsable_district:"RD",
+ manager_technique_national:"RTN", responsable_operations:"RO", responsable_district:"RD",
  responsable_commercial:"RCZ", responsable_technique_zone:"RTZ",
  chef_equipe_commercial:"CEC", chef_equipe_technique:"CET",
  chef_equipe_service_client:"CE Support", ressources_humaines:"RH",
@@ -72,11 +72,13 @@ function OrganizationTree({items}:{items:Row[]}) {
  const unique=(arr:Row[])=>Array.from(new Map(arr.map(x=>[String(x.profile_id||x.id),x])).values());
  const associates=unique(items.filter(isAssociate));
  const founder=unique(items.filter(n=>role(n)==="pdg"||/fondateur/i.test(String(n.poste||""))));
- const leadership=unique(items.filter(n=>["dg","manager_commercial_national","manager_technique_national","responsable_operations"].includes(role(n))&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
+ const dg=unique(items.filter(n=>role(n)==="dg"&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
+ const operations=unique(items.filter(n=>role(n)==="responsable_operations"&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
+ const nationalLeads=unique(items.filter(n=>["manager_commercial_national","manager_technique_national"].includes(role(n))&&!isAssociate(n)&&!founder.some(f=>f.id===n.id)));
  const districts=unique(items.filter(n=>role(n)==="responsable_district"));
  const zoneLeads=unique(items.filter(n=>["responsable_commercial","responsable_technique_zone","superviseur_mobilisation_fonciere"].includes(role(n))));
  const teams=unique(items.filter(n=>["chef_equipe_commercial","chef_equipe_technique","chef_equipe_service_client"].includes(role(n))));
- const heads=new Set([...founder,...associates,...leadership,...districts,...zoneLeads,...teams].map(n=>String(n.profile_id||n.id)));
+ const heads=new Set([...founder,...associates,...dg,...operations,...nationalLeads,...districts,...zoneLeads,...teams].map(n=>String(n.profile_id||n.id)));
  const departments=[
   {id:"commercial",title:"Commercial",codes:["commercial","mobilisateur_foncier"],terms:["commercial"]},
   {id:"technique",title:"Technique & foncier",codes:["technicien","superviseur_mobilisation_fonciere"],terms:["technique","foncier"]},
@@ -94,7 +96,9 @@ function OrganizationTree({items}:{items:Row[]}) {
  return <div className="space-y-4">
   {founder.length>0&&<Section title="Fondateur & direction" people={founder} compact/>}
   {associates.length>0&&<Section title="Associés" people={associates} compact/>}
-  {leadership.length>0&&<Section title="Direction & pilotage national" people={leadership} compact/>}
+  {dg.length>0&&<Section title="Direction générale" people={dg} compact/>}
+  {operations.length>0&&<Section title="Direction des opérations" people={operations} compact/>}
+  {nationalLeads.length>0&&<Section title="Directions nationales" people={nationalLeads} compact/>}
   {districts.length>0&&<Section title="Coordination des districts" people={districts} compact/>}
   {zoneLeads.length>0&&<Section title="Responsables de zone" people={zoneLeads} compact/>}
   {teams.length>0&&<Section title="Encadrement des équipes" people={teams} compact/>}
