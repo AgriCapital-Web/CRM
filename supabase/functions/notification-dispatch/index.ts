@@ -847,7 +847,10 @@ async function deliver(args: {
         const templateForSms = greetingName
           ? rawRendered.replace(/Bonjour\s+[^,;:]+([,;:])/i, "Bonjour {dernierprenom_nom}$1")
           : rawRendered;
-        const bodyFitted = restructureSmsTemplateWithinLimit(templateForSms, routingPolicy.sms_content_max_characters);
+        const nameTokenCount = (templateForSms.match(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi) || []).length;
+        const reservedNameUnits = greetingName ? gsm7SeptetLength(normalizeSms(greetingName)) * nameTokenCount : 0;
+        const availableSmsUnits = Math.max(1, Math.min(routingPolicy.sms_content_max_characters, routingPolicy.sms_max_characters - reservedNameUnits));
+        const bodyFitted = restructureSmsTemplateWithinLimit(templateForSms, availableSmsUnits);
         const personalized = greetingName
           ? bodyFitted.replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/i, greetingName)
           : bodyFitted;
