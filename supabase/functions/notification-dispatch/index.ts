@@ -1558,6 +1558,7 @@ serve(async (req) => {
         source_id: String(raw.source_id || ""),
         user_id: raw.user_id ? String(raw.user_id) : null,
         nom_complet: raw.nom_complet ? String(raw.nom_complet) : null,
+        nom: raw.nom ? String(raw.nom) : null,
         telephone: raw.telephone ? String(raw.telephone) : null,
         telephone_local: raw.telephone_local ? String(raw.telephone_local) : null,
         telephone_indicatif: raw.telephone_indicatif ? String(raw.telephone_indicatif) : null,
