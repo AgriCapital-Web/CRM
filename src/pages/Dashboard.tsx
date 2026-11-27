@@ -219,7 +219,7 @@ const Dashboard = () => {
         canClients || canPlantations
           ? (supabase as any).from("acquisitions").select("id,client_id,statut,statut_technique,superficie_ha,parcelle_id,created_at")
           : Promise.resolve({ data: [] }),
-        canPlantations
+        canPlantations || canTechnical
           ? (supabase as any).from("plantations").select("id,id_unique,client_id,parcelle_id,acquisition_id,superficie_ha,superficie_activee,surface_reellement_plantee,date_plantation,date_activation,statut_global,created_at,region_id,departement_id,village_nom,village,alerte_non_paiement,alerte_visite_retard,nombre_plants_prevus,nombre_plants_mis_en_terre,taux_reussite,localisation_gps_lat,localisation_gps_lng,prochaine_visite")
           : Promise.resolve({ data: [] }),
         canPayments
@@ -249,7 +249,7 @@ const Dashboard = () => {
         canTechnical
           ? (supabase as any).from("rapports_visites_techniques").select("id,plantation_id,client_id,date_visite,statut,prochaine_intervention")
           : Promise.resolve({ data: [] }),
-        canTickets
+        canTickets || canTechnical
           ? (supabase as any).from("tickets_techniques").select("id,plantation_id,client_id,statut,priorite,created_at,date_resolution")
           : Promise.resolve({ data: [] }),
         canCommissions || canFinance
@@ -1166,9 +1166,9 @@ const Dashboard = () => {
                         <p className="mt-1 text-lg font-bold tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} / {technicalMetrics.plantationsTotal}</p>
                         <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.gpsMissing} plantation(s) sans coordonnées complètes</p>
                       </Link>
-                      {canTickets && (
-                        <Link to="/support" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                          <p className="text-xs text-muted-foreground">Tickets techniques ouverts</p>
+                      {(canTickets || canTechnical) && (
+                        <Link to={canTickets ? "/support" : "/terrain"} className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                          <p className="text-xs text-muted-foreground">{canTickets ? "Tickets techniques ouverts" : "Mes tickets techniques ouverts"}</p>
                           <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.openTickets}</p>
                           <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.criticalTickets} ticket(s) critique(s) ou prioritaire(s)</p>
                         </Link>
