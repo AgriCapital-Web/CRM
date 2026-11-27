@@ -1142,48 +1142,48 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Tractor className="h-5 w-5 text-primary" />Pilotage technique</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs font-medium leading-snug text-muted-foreground">Surface plantée</p>
-                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{num(technicalMetrics.plantedHa)} / {num(technicalMetrics.contractedHa)} ha</p>
-                        <div className="mt-2"><Progress value={technicalMetrics.surfaceRate} /><p className="mt-1 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.surfaceRate}% de la surface de référence</p></div>
+                    <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4">
+                      <Link to="/plantations" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                        <p className="text-[11px] font-medium leading-tight text-muted-foreground">Surface plantée</p>
+                        <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{num(technicalMetrics.plantedHa)} / {num(technicalMetrics.contractedHa)} <span className="text-[11px] font-medium text-muted-foreground">ha</span></p>
+                        <div className="mt-1.5"><Progress value={technicalMetrics.surfaceRate} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.surfaceRate}% réalisé</p></div>
                       </Link>
-                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs font-medium leading-snug text-muted-foreground">Plants mis en terre</p>
-                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.plantsInstalled.toLocaleString("fr-FR")} / {technicalMetrics.plantsPlanned.toLocaleString("fr-FR")}</p>
-                        <div className="mt-2"><Progress value={technicalMetrics.plantRate} /><p className="mt-1 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.plantRate}% réalisés · {Math.max(0, technicalMetrics.plantsPlanned - technicalMetrics.plantsInstalled).toLocaleString("fr-FR")} restants</p></div>
+                      <Link to="/plantations" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                        <p className="text-[11px] font-medium leading-tight text-muted-foreground">Plants en terre</p>
+                        <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.plantsInstalled.toLocaleString("fr-FR")} <span className="text-[11px] font-medium text-muted-foreground">/ {technicalMetrics.plantsPlanned.toLocaleString("fr-FR")}</span></p>
+                        <div className="mt-1.5"><Progress value={technicalMetrics.plantRate} className="h-1.5" /><p className="mt-1 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.plantRate}% réalisé</p></div>
                       </Link>
-                      <Link to="/terrain" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs font-medium leading-snug text-muted-foreground">Interventions terminées</p>
-                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.interventionsDone} / {technicalMetrics.interventionsTotal}</p>
-                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.interventionsLate} en retard</p>
+                      <Link to="/terrain" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                        <p className="text-[11px] font-medium leading-tight text-muted-foreground">Interventions</p>
+                        <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.interventionsDone} <span className="text-[11px] font-medium text-muted-foreground">/ {technicalMetrics.interventionsTotal}</span></p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.interventionsLate} en retard</p>
                       </Link>
-                      <Link to="/terrain" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs font-medium leading-snug text-muted-foreground">Rapports de visite</p>
-                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.visitReports}</p>
-                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.followupsOverdue} suivi(s) en retard · {technicalMetrics.visitsDue} visite(s) à faire</p>
+                      <Link to="/terrain" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                        <p className="text-[11px] font-medium leading-tight text-muted-foreground">Visites réalisées</p>
+                        <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.visitReports}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.visitsDue} à faire · {technicalMetrics.followupsOverdue} en retard</p>
                       </Link>
-                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs font-medium leading-snug text-muted-foreground">Plantations géolocalisées</p>
-                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} / {technicalMetrics.plantationsTotal}</p>
-                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.gpsMissing} sans coordonnées complètes</p>
+                      <Link to="/plantations" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                        <p className="text-[11px] font-medium leading-tight text-muted-foreground">GPS renseignés</p>
+                        <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} <span className="text-[11px] font-medium text-muted-foreground">/ {technicalMetrics.plantationsTotal}</span></p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.gpsMissing} sans GPS complet</p>
                       </Link>
                       {(canTickets || canTechnical) && (
-                        <Link to={canTickets ? "/support" : "/terrain"} className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                          <p className="text-xs font-medium leading-snug text-muted-foreground">{canTickets ? "Tickets techniques ouverts" : "Mes tickets ouverts"}</p>
-                          <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.openTickets}</p>
-                          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.criticalTickets} critique(s) ou prioritaire(s)</p>
+                        <Link to={canTickets ? "/support" : "/terrain"} className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                          <p className="text-[11px] font-medium leading-tight text-muted-foreground">Tickets ouverts</p>
+                          <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.openTickets}</p>
+                          <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.criticalTickets} critique(s)</p>
                         </Link>
                       )}
-                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs font-medium leading-snug text-muted-foreground">Taux de réussite moyen</p>
-                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.successRateReported ? `${technicalMetrics.successRateAverage}%` : "—"}</p>
-                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.successRateReported} / {technicalMetrics.plantationsTotal} renseignées</p>
+                      <Link to="/plantations" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                        <p className="text-[11px] font-medium leading-tight text-muted-foreground">Taux de réussite</p>
+                        <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.successRateReported ? `${technicalMetrics.successRateAverage}%` : "—"}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">{technicalMetrics.successRateReported} plantation(s) renseignée(s)</p>
                       </Link>
-                      <Link to="/terrain" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs font-medium leading-snug text-muted-foreground">Écarts au parcours</p>
-                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.nonconformingStages}</p>
-                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">Préparations à vérifier sur PalmTerroir</p>
+                      <Link to="/terrain" className="flex min-h-[82px] min-w-0 flex-col justify-between rounded-lg border bg-card/70 p-2.5 transition-colors hover:bg-muted/50">
+                        <p className="text-[11px] font-medium leading-tight text-muted-foreground">Écarts techniques</p>
+                        <p className="mt-1 break-words text-base font-bold leading-tight tabular-nums">{technicalMetrics.nonconformingStages}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-muted-foreground">À vérifier sur PalmTerroir</p>
                       </Link>
                     </div>
                   </CardContent>
