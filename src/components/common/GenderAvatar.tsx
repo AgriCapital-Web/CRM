@@ -1,4 +1,4 @@
-import { Mars, UserRound, Venus } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -26,8 +26,8 @@ export function GenderAvatar({ gender, src, alt = "Avatar", className, fallbackC
       <AvatarFallback className={cn("relative flex h-full w-full items-center justify-center", tone, fallbackClassName)}>
         <UserRound className="h-[58%] w-[58%]" strokeWidth={1.7} aria-hidden="true" />
         {(isFemale || isMale) && (
-          <span className="absolute bottom-0 right-0 flex h-[38%] w-[38%] items-center justify-center rounded-full border border-current/20 bg-background/90">
-            {isFemale ? <Venus className="h-[75%] w-[75%]" /> : <Mars className="h-[75%] w-[75%]" />}
+          <span className="absolute bottom-0 right-0 flex h-[38%] w-[38%] items-center justify-center rounded-full border border-current/20 bg-background/90 text-[9px] font-bold leading-none">
+            {isFemale ? "F" : "M"}
           </span>
         )}
       </AvatarFallback>
