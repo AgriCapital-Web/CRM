@@ -145,7 +145,7 @@ export default function Workspace360({ embedded = false }: { embedded?: boolean 
     if(!pid){const {data}=await (supabase as any).from("profiles").select("id").eq("user_id",user.id).maybeSingle();pid=data?.id;}
     if(!pid)throw new Error("Profil collaborateur introuvable.");
     setProfileId(pid);
-    const [e,t,p,j,a,o,n,s]=await Promise.all([
+    const [e,t,p,j,a,o,n,s,argumentsMeta]=await Promise.all([
       (supabase as any).from("workspace_events").select("*").order("starts_at",{ascending:true}).limit(200),
       (supabase as any).from("workspace_tasks").select("*").order("due_at",{ascending:true}).limit(200),
       (supabase as any).from("workspace_projects").select("*").order("updated_at",{ascending:false}).limit(100),
@@ -153,12 +153,15 @@ export default function Workspace360({ embedded = false }: { embedded?: boolean 
       (supabase as any).from("workspace_job_assignments").select("*,workspace_job_descriptions(*)").eq("profile_id",pid).is("effective_to",null),
       (supabase as any).from("v_workspace_organization_chart").select("*").order("role_level",{ascending:true}).order("employee_name",{ascending:true}).limit(500),
       (supabase as any).from("workspace_notifications").select("*").eq("recipient_profile_id",pid).order("created_at",{ascending:false}).limit(100),
-      canManageHR ? (supabase as any).from("profiles").select("id,nom_complet,email,equipe_id").eq("actif",true).order("nom_complet") : Promise.resolve({data:[]})
+      canManageHR ? (supabase as any).from("profiles").select("id,nom_complet,email,equipe_id").eq("actif",true).order("nom_complet") : Promise.resolve({data:[]}),
+      canManageHR ? (supabase as any).from("profiles").select("id,poste,departement,relation_rh,type_compte").eq("actif",true) : Promise.resolve({data:[]})
     ]);
     for(const [name,result] of [["agenda",e],["tâches",t],["projets",p],["fiches de poste",j],["affectations",a],["organigramme",o],["notifications",n],["collaborateurs",s]] as any){
       if(result.error)throw new Error("Chargement "+name+" : "+result.error.message);
     }
-    setEvents(e.data||[]);setTasks(t.data||[]);setProjects(p.data||[]);setJobs(j.data||[]);setAssignments(a.data||[]);setOrg(o.data||[]);setNotifications(n.data||[]);setStaff(s.data||[]);
+    const orgMetaById = new Map((argumentsMeta.data||[]).map((row:Row)=>[String(row.id),row]));
+    const enrichedOrg = (o.data||[]).map((row:Row)=>({...row,...(orgMetaById.get(String(row.profile_id||row.id))||{})}));
+    setEvents(e.data||[]);setTasks(t.data||[]);setProjects(p.data||[]);setJobs(j.data||[]);setAssignments(a.data||[]);setOrg(enrichedOrg);setNotifications(n.data||[]);setStaff(s.data||[]);
    }catch(err:any){toast.error(err?.message||"Impossible de charger l’espace de travail.");}
    finally{setLoading(false);}
  },[user?.id,profile?.id,canManageHR]);
