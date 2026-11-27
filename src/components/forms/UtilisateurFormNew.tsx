@@ -648,14 +648,16 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           {utilisateur && <div className="space-y-2">
             <Label>Relation RH (facultatif)</Label>
             <Select
-              defaultValue={utilisateur?.relation_rh}
+              defaultValue={utilisateur?.relation_rh || "__none__"}
               onValueChange={(value) => {
-                setValue("relation_rh", value);
-                
+                setValue("relation_rh", value === "__none__" ? null : value);
               }}
             >
-              <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-              <SelectContent>{refs("relation_rh").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}</SelectContent>
+              <SelectTrigger><SelectValue placeholder="Facultatif — non renseigné" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Non renseigné</SelectItem>
+                {refs("relation_rh").map((r:any)=><SelectItem key={r.id} value={r.code}>{r.libelle}</SelectItem>)}
+              </SelectContent>
             </Select>
           </div>}
           {utilisateur && <div className="space-y-2">
