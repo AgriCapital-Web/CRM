@@ -98,7 +98,7 @@ const assertSmsLength = (value: string, maxCharacters = 158) => {
 };
 const assertWhatsAppLength = (value: string) => {
   const length = Array.from(value).length;
-  if (length > 4096) throw new Error(`Message WhatsApp trop long : ${length}/4096 caractères.`);
+  if (length > 250) throw new Error(`Message WhatsApp trop long : ${length}/250 caractères.`);
   if (!length) throw new Error("Le message WhatsApp ne peut pas être vide.");
   return value;
 };
@@ -113,8 +113,7 @@ function stripAgriCapitalPrefix(value: string): string {
 }
 
 function normalizeWhatsAppMessage(value: string): string {
-  // WhatsApp conserve l'en-tête automatique, suivi de deux sauts de ligne avant le corps.
-  // Le Sender ID évite uniquement de répéter le nom AgriCapital.
+  // Le Sender ID identifie déjà AgriCapital : le corps reste direct et limité à 250 caractères.
   const normalized = value
     .replace(/\r\n?/g, "\n")
     .replace(/🌱/gu, "")
@@ -136,7 +135,7 @@ function normalizeWhatsAppMessage(value: string): string {
     sloganSeen = true;
     return true;
   }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
-  return body ? "Notification automatique\n\n" + body : "Notification automatique";
+  return body;
 }
 function reformulateSmsWithinLimit(value: string, maxSmsCharacters = 155): string {
   let text = stripAgriCapitalPrefix(normalizeSms(value)).replace(/\s+/g, " ").trim();
@@ -211,21 +210,26 @@ function restructureSmsTemplateWithinLimit(value: string, maxBodyCharacters = 13
   text = text.replace(/\s*(?:Direction|Investir la terre[^.]*|Merci pour votre confiance\.?|AgriCapital\.? )\s*$/i, "").trim();
   const nameIndex = text.indexOf(marker);
   const bodyText = text.replaceAll(marker, "");
-  if (Array.from(bodyText).length <= maxBodyCharacters) return text.replaceAll(marker, "{nom}");
+  if (gsm7SeptetLength(bodyText) <= maxBodyCharacters) return text.replaceAll(marker, "{nom}");
   if (nameIndex >= 0) {
     const beforeName = text.slice(0, nameIndex);
     const afterName = text.slice(nameIndex + marker.length).trim();
-    const remaining = maxBodyCharacters - Array.from(beforeName).length;
+    const remaining = maxBodyCharacters - gsm7SeptetLength(beforeName);
     if (remaining < 1) throw new Error("Le texte avant le nom dépasse déjà 130 caractères.");
     const words = afterName.split(/\s+/).filter(Boolean);
     const kept = [...words];
-    while (kept.length && Array.from(kept.join(" ")).length > remaining - 1) kept.pop();
+    while (kept.length && gsm7SeptetLength(kept.join(" ")) > remaining - 3) kept.pop();
     const suffix = kept.length ? " " + kept.join(" ") : "";
-    const fitted = beforeName + marker + suffix + (kept.length < words.length ? "…" : "");
+    const fitted = beforeName + marker + suffix + (kept.length < words.length ? "..." : "");
     return fitted.replaceAll(marker, "{nom}");
   }
   const chars = Array.from(text);
-  return chars.slice(0, Math.max(0, maxBodyCharacters - 1)).join("").trimEnd() + "…";
+  let fitted = "";
+  for (const character of chars) {
+    if (gsm7SeptetLength(fitted + character + "...") > maxBodyCharacters) break;
+    fitted += character;
+  }
+  return fitted.trimEnd() + "...";
 }
 
 function brandAutomatedMessage(value: string, channel: string, maxSmsCharacters = 155): string {
@@ -265,39 +269,26 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) =>
 );
 
 const render = (template: string, contact: Contact, context: Record<string, unknown> = {}) => {
-  const nameParts = String(contact.nom_complet || (context.finance_payout_sms === true ? "" : "Client")).trim().split(/\s+/).filter(Boolean);
-  const leadStyleName = contact.source_type === "lead" || contact.source_type === "prospect";
-  const familyName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 1] : nameParts[0]) : (nameParts[0] || (context.finance_payout_sms === true ? "" : "Client"));
-  const firstName = nameParts.length > 1 ? (leadStyleName ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1]) : familyName;
+  const nameParts = String(contact.nom_complet || "").trim().split(/\s+/).filter(Boolean);
   const titleCaseNames = (value: string) => value.trim().replace(/^[\s.,;:]+|[\s.,;:]+$/g, "").toLocaleLowerCase("fr-FR").replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
-  const structuredFirstNames = contact.prenoms?.trim();
-  const structuredLastName = contact.nom?.trim();
-  const structuredDisplayName = structuredFirstNames && structuredLastName
-    ? (() => {
-        const givenNames = structuredFirstNames.split(/\s+/).filter(Boolean);
-        const lastGivenName = givenNames[givenNames.length - 1] || structuredFirstNames;
-        return titleCaseNames(lastGivenName) + " " + structuredLastName.toLocaleUpperCase("fr-FR");
-      })()
-    : null;
-  const displayName = structuredDisplayName || (nameParts.length > 1 ? `${titleCaseNames(firstName)} ${familyName.toLocaleUpperCase("fr-FR")}` : titleCaseNames(familyName));
-  // Seul le jeton {dernier_prenom_nom} est autorisé pour le nom du destinataire.
-  // Les anciens alias nom/prenom/nom_complet ne sont volontairement pas exposés.
+  // Règle globale AgriCapital : seul le nom de famille est injecté dans les notifications.
+  // Priorité au champ structuré « nom » ; à défaut, dernier élément du nom affiché.
+  const familyName = contact.nom?.trim() || nameParts[nameParts.length - 1] || "";
+  const displayName = titleCaseNames(familyName).toLocaleUpperCase("fr-FR");
   const vars: Record<string, string> = {
     email: contact.email || "", telephone: contact.telephone || "",
     role: contact.role_code || "", offre: contact.offre_nom || contact.offre_code || "",
     offre_code: contact.offre_code || "", formule: contact.formule_nom || contact.formule_code || "",
     formule_code: contact.formule_code || "", date: new Date().toLocaleDateString("fr-FR"),
     ...Object.fromEntries(Object.entries(context).map(([k, v]) => [k, v == null ? "" : String(v)])),
-    dernier_prenom_nom: displayName, dernierprenom_nom: displayName, nom: structuredLastName || familyName,
-    ...(context.finance_payout_sms === true ? { prenom: firstName, nom: familyName, nom_complet: displayName } : {}),
+    dernier_prenom_nom: displayName, dernierprenom_nom: displayName,
+    nom: displayName, prenom: displayName, nom_complet: displayName,
   };
-  const greetingAdjusted = context.finance_payout_sms === true
-    ? template.replace(/Bonjour\s+\{\s*(?:dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, displayName ? `Bonjour ${displayName}` : "Bonjour")
-    : template;
-  return greetingAdjusted.replace(/\{\s*dernier_prenom_nom\s*\}/gi, () => displayName)
+  return template.replace(/\{\s*dernier_prenom_nom\s*\}/gi, () => displayName)
     .replace(/\{\{\s*([a-zA-Z0-9_ ]+)\s*\}\}|\{\s*([a-zA-Z0-9_ ]+)\s*\}/g, (_match, doubleKey, singleKey) => {
       const key = String(doubleKey || singleKey || "").trim().replace(/\s+/g, "_");
-      return key === "dernier_prenom_nom" ? displayName : vars[key] ?? "";
+      return key === "dernier_prenom_nom" || key === "dernierprenom_nom" || key === "nom" || key === "prenom" || key === "nom_complet"
+        ? displayName : vars[key] ?? "";
     });
 };
 
@@ -1079,10 +1070,12 @@ async function runCampaign(campaignId: string) {
   const criteria = campaign.segment?.criteres || campaign.criteres || {};
   if (["sms", "whatsapp", "auto", "email_sms"].includes(String(campaign.canal || ""))) {
     const routingPolicy = await getNotificationRoutingPolicy();
-    const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
-    const bodyCharacters = Array.from(bodyWithoutRecipientName).length;
-    if (bodyCharacters > routingPolicy.sms_content_max_characters) {
-      throw new Error(`Message de campagne trop long : ${bodyCharacters}/${routingPolicy.sms_content_max_characters} caractères hors nom/prénom. Utilisez « Restructurer » avant l'envoi.`);
+    if (["sms", "email_sms"].includes(String(campaign.canal || ""))) {
+      const bodyWithoutRecipientName = normalizeSms(String(campaign.contenu || "").replace(/\{\s*(?:nom|dernier_prenom_nom|dernierprenom_nom)\s*\}/gi, ""));
+      const bodyCharacters = gsm7SeptetLength(bodyWithoutRecipientName);
+      if (bodyCharacters > routingPolicy.sms_content_max_characters) {
+        throw new Error(`Message de campagne trop long : ${bodyCharacters}/${routingPolicy.sms_content_max_characters} unités GSM-7 hors nom. Utilisez « Restructurer » avant l'envoi.`);
+      }
     }
   }
   // Une audience nommée (clients, leads, prospects, utilisateurs…) est recalculée
@@ -1726,7 +1719,7 @@ serve(async (req) => {
         channel = routedChannel;
         normalizedContent = brandAutomatedMessage(content, channel, routingPolicy.sms_max_characters);
         effectiveLength = Array.from(normalizedContent).length;
-        limit = channel === "sms" ? routingPolicy.sms_max_characters : 4096;
+        limit = channel === "sms" ? routingPolicy.sms_max_characters : 250;
         if (!normalizedContent || effectiveLength > limit) {
           return json(req, { error: `Le message doit contenir entre 1 et ${limit} caractères (actuellement ${effectiveLength}).` }, 400);
         }
