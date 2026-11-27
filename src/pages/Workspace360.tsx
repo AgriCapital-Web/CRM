@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { GenderAvatar } from "@/components/common/GenderAvatar";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CalendarDays, CheckSquare, BriefcaseBusiness, Network, Bell, RefreshCw, Plus, Clock, Users } from "lucide-react";
@@ -57,7 +58,7 @@ function OrganizationCard({node,onSelect}:{node:Row;onSelect:(node:Row)=>void}) 
  const position=String(node.poste||node.role_name||roleLabel(node));
  const initials=name.split(/\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()||"AC";
  return <button type="button" onClick={()=>onSelect(node)} title={name+" — "+position+(zone?" — "+zone:"")} aria-label={"Voir la fiche de "+name} className={`group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-l-4 bg-card px-2 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${ROLE_COLOR[role]||"border-l-muted-foreground"}`}>
-  {node.employee_photo_url ? <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border sm:h-9 sm:w-9"><AvatarImage src={node.employee_photo_url}/><AvatarFallback className="text-[10px]">{initials}</AvatarFallback></Avatar> : <Avatar className="h-8 w-8 shrink-0 sm:h-9 sm:w-9"><AvatarFallback className="bg-muted text-[10px] font-semibold">{initials}</AvatarFallback></Avatar>}
+  <GenderAvatar src={node.employee_photo_url} gender={node.employee_gender} alt={name} className="h-8 w-8 ring-1 ring-border sm:h-9 sm:w-9" />
   <span className="max-w-full truncate text-[11px] font-bold leading-4 sm:text-xs">{roleLabel(node)}</span>
   <span className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-52 -translate-x-1/2 rounded-md border bg-popover p-2.5 text-left text-xs text-popover-foreground shadow-xl group-hover:block group-focus-visible:block">
    <span className="block font-semibold">{name}</span>
@@ -124,7 +125,7 @@ function OrganizationTree({items}:{items:Row[]}) {
     <DialogHeader><DialogTitle>{selectedNode?.employee_name||selectedNode?.nom_complet||"Fiche collaborateur"}</DialogTitle></DialogHeader>
     {selectedNode&&<div className="space-y-3 text-sm">
      <div className="flex items-center gap-3">
-      <Avatar className="h-14 w-14"><AvatarImage src={selectedNode.employee_photo_url||""}/><AvatarFallback>{String(selectedNode.employee_name||selectedNode.nom_complet||"AC").split(/\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()}</AvatarFallback></Avatar>
+      <GenderAvatar src={selectedNode.employee_photo_url} gender={selectedNode.employee_gender} alt={selectedNode.employee_name||"Collaborateur"} className="h-14 w-14" />
       <div><p className="font-semibold">{roleLabel(selectedNode)}</p><p className="text-xs text-muted-foreground">{selectedNode.poste||selectedNode.role_name||""}</p></div>
      </div>
      <div className="grid grid-cols-2 gap-2">
