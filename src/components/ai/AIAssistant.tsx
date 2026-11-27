@@ -22,8 +22,48 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [buttonPosition, setButtonPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ pointerX: number; pointerY: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("kapita-floating-position");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Number.isFinite(parsed?.x) && Number.isFinite(parsed?.y)) setButtonPosition({ x: parsed.x, y: parsed.y });
+      }
+    } catch { /* Position customization is optional. */ }
+  }, []);
+
+  useEffect(() => {
+    if (buttonPosition) {
+      try { window.localStorage.setItem("kapita-floating-position", JSON.stringify(buttonPosition)); } catch { /* Storage may be unavailable. */ }
+    }
+  }, [buttonPosition]);
+
+  const handleButtonPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    dragRef.current = { pointerX: event.clientX, pointerY: event.clientY, startX: buttonPosition?.x ?? rect.left, startY: buttonPosition?.y ?? rect.top, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleButtonPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag || !(event.buttons & 1)) return;
+    const dx = event.clientX - drag.pointerX;
+    const dy = event.clientY - drag.pointerY;
+    if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
+    if (!drag.moved) return;
+    setButtonPosition({ x: Math.max(8, Math.min(window.innerWidth - 64, drag.startX + dx)), y: Math.max(8, Math.min(window.innerHeight - 64, drag.startY + dy)) });
+  };
+
+  const handleButtonPointerUp = () => {
+    if (dragRef.current?.moved) suppressClickRef.current = true;
+    dragRef.current = null;
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -122,8 +162,15 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
     return (
       <Button
         data-floating-ai-assistant="true"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl bg-gradient-to-br from-primary to-accent hover:scale-110 transition-transform"
+        onPointerDown={handleButtonPointerDown}
+        onPointerMove={handleButtonPointerMove}
+        onPointerUp={handleButtonPointerUp}
+        onPointerCancel={handleButtonPointerUp}
+        onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } setIsOpen(true); }}
+        aria-label="Ouvrir Kapita"
+        title="Kapita — déplacer en faisant glisser"
+        style={buttonPosition ? { left: buttonPosition.x, top: buttonPosition.y, right: "auto", bottom: "auto", touchAction: "none" } : { touchAction: "none" }}
+        className="fixed bottom-6 right-6 z-50 h-14 w-14 cursor-grab rounded-full shadow-2xl bg-gradient-to-br from-primary to-accent hover:scale-110 transition-transform active:cursor-grabbing"
         size="icon"
       >
         <Sparkles className="h-6 w-6 text-white" />
@@ -140,7 +187,7 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
       <CardHeader className="flex flex-row items-center justify-between py-3 px-4 bg-gradient-to-r from-primary to-primary/90 text-white rounded-t-lg">
         <CardTitle className="text-sm flex items-center gap-2">
           <Bot className="h-5 w-5" />
-          {mode === "admin" ? "IA INTERNE — CRM AGRICAPITAL" : "IA INTERNE AGRICAPITAL"}
+          Kapita
         </CardTitle>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/20" onClick={() => setIsMaximized(!isMaximized)}>
@@ -158,7 +205,7 @@ const AIAssistant = ({ mode, context }: AIAssistantProps) => {
               <Bot className="h-12 w-12 mx-auto opacity-50" />
               <p className="text-sm font-medium">
                 {mode === "admin"
-                  ? "Bonjour ! Je suis le moteur IA interne d’AgriCapital. Posez vos questions sur le CRM."
+                  ? "Bonjour ! Je suis Kapita, votre assistant AgriCapital. Posez vos questions sur le CRM."
                   : "Bonjour ! Comment puis-je vous aider aujourd'hui ?"}
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
