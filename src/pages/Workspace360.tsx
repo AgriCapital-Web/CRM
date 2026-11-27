@@ -26,7 +26,7 @@ const tabs: {id:Tab; label:string; icon:any}[] = [
 ];
 const fmt=(value:string|null|undefined)=>value?new Date(value).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"}):"Non défini";
 const ROLE_LABEL: Record<string,string> = {
- pdg:"Fondateur / PDG", dg:"DG", associe_actionnaire:"Associé", manager_commercial_national:"RCN",
+ pdg:"PDG", dg:"DG", associe_actionnaire:"Associé", manager_commercial_national:"RCN",
  manager_technique_national:"RTN", responsable_operations:"RO", responsable_district:"RD",
  responsable_commercial:"RCZ", responsable_technique_zone:"RTZ",
  chef_equipe_commercial:"CEC", chef_equipe_technique:"CET",
@@ -56,7 +56,7 @@ function OrganizationCard({node,onSelect}:{node:Row;onSelect:(node:Row)=>void}) 
  const name=String(node.employee_name||node.nom_complet||"Collaborateur");
  const position=String(node.poste||node.role_name||roleLabel(node));
  const initials=name.split(/\s+/).slice(-1)[0]?.slice(0,2).toUpperCase()||"AC";
- return <button type="button" onClick={()=>onSelect(node)} title={name+" — "+position+(zone?" — "+zone:"")} aria-label={"Voir la fiche de "+name} className={\`group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-l-4 bg-card px-2 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary \${ROLE_COLOR[role]||"border-l-muted-foreground"}\`}>
+ return <button type="button" onClick={()=>onSelect(node)} title={name+" — "+position+(zone?" — "+zone:"")} aria-label={"Voir la fiche de "+name} className={`group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-l-4 bg-card px-2 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${ROLE_COLOR[role]||"border-l-muted-foreground"}`}>
   {node.employee_photo_url ? <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border sm:h-9 sm:w-9"><AvatarImage src={node.employee_photo_url}/><AvatarFallback className="text-[10px]">{initials}</AvatarFallback></Avatar> : <Avatar className="h-8 w-8 shrink-0 sm:h-9 sm:w-9"><AvatarFallback className="bg-muted text-[10px] font-semibold">{initials}</AvatarFallback></Avatar>}
   <span className="max-w-full truncate text-[11px] font-bold leading-4 sm:text-xs">{roleLabel(node)}</span>
   <span className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-52 -translate-x-1/2 rounded-md border bg-popover p-2.5 text-left text-xs text-popover-foreground shadow-xl group-hover:block group-focus-visible:block">
@@ -96,7 +96,7 @@ function OrganizationTree({items}:{items:Row[]}) {
   return d.codes.includes(code)||d.terms.some(t=>dept.includes(t));
  }))})).filter(d=>d.people.length>0);
  const other=unique(items.filter(n=>!heads.has(String(n.profile_id||n.id))&&!departmentItems.some(d=>d.people.some(p=>String(p.profile_id||p.id)===String(n.profile_id||n.id)))));
- const Cards=({people,columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8"}:{people:Row[];columns?:string})=><div className={\`grid min-w-0 \${columns} gap-2\`}>{people.map(n=><OrganizationCard key={String(n.profile_id||n.id)} node={n} onSelect={setSelectedNode}/>)}</div>;
+ const Cards=({people,columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8"}:{people:Row[];columns?:string})=><div className={`grid min-w-0 ${columns} gap-2`}>{people.map(n=><OrganizationCard key={String(n.profile_id||n.id)} node={n} onSelect={setSelectedNode}/>)}</div>;
  const Level=({title,people,center=false,columns}:{title:string;people:Row[];center?:boolean;columns?:string})=>people.length?<section className="mx-auto w-full max-w-6xl space-y-2"><h3 className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</h3><div className={center?"mx-auto flex max-w-2xl flex-wrap items-stretch justify-center gap-2":""}><Cards people={people} columns={columns}/></div></section>:null;
  const Connector=()=> <div className="mx-auto h-4 w-px bg-border"/>;
  return <div className="space-y-1">
