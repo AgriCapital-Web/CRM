@@ -252,7 +252,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
         }
 
         // Update existing user
-        const { error: profileError } = await (supabase as any)
+        const { data: updatedProfile, error: profileError } = await (supabase as any)
           .from("profiles")
           .update({
             nom: normalizedNom,
@@ -264,6 +264,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
             telephone_principal_whatsapp: primaryIsWhatsapp,
+            telephone_whatsapp: primaryIsWhatsapp,
             telephone_secondaire: data.telephone_secondaire || null,
             telephone_secondaire_local: data.telephone_secondaire_local || null,
             telephone_secondaire_indicatif: data.telephone_secondaire_indicatif || null,
@@ -273,7 +274,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             whatsapp_local: data.whatsapp_local || null,
             departement: data.departement || null,
             relation_rh: data.relation_rh || null,
-            salaire_base: data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base),
+            ...(canManagePayroll ? { salaire_base: data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base) } : {}),
             taux_commission: data.taux_commission ? Number(data.taux_commission) : null,
             district_id: data.district_id || null,
             region_id: data.region_id || null,
@@ -286,19 +287,26 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             piece_identite_verso_url: pieceVersoUrl || null,
             piece_identite_page_principale_url: piecePassportUrl || null,
           })
-          .eq("id", utilisateur.id);
+          .eq("id", utilisateur.id)
+          .select("id")
+          .maybeSingle();
 
         if (profileError) throw profileError;
+        if (!updatedProfile?.id) {
+          throw new Error("Aucune modification confirmée : le profil est inaccessible ou vos droits ne permettent pas cette mise à jour.");
+        }
 
-        const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
-        if (baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
-          const { error: salaryError } = await (supabase as any).from("finance_salary_profiles")
-            .upsert({ profile_id: utilisateur.id, base_salary: baseSalary, pay_day: 28, active: true }, { onConflict: "profile_id" });
-          if (salaryError) throw salaryError;
-        } else {
-          const { error: salaryError } = await (supabase as any).from("finance_salary_profiles")
-            .update({ active: false }).eq("profile_id", utilisateur.id);
-          if (salaryError) throw salaryError;
+        if (canManagePayroll) {
+          const baseSalary = data.salaire_base === "" || data.salaire_base == null ? null : Number(data.salaire_base);
+          if (baseSalary !== null && Number.isFinite(baseSalary) && baseSalary > 0) {
+            const { error: salaryError } = await (supabase as any).from("finance_salary_profiles")
+              .upsert({ profile_id: utilisateur.id, base_salary: baseSalary, pay_day: 28, active: true }, { onConflict: "profile_id" });
+            if (salaryError) throw salaryError;
+          } else {
+            const { error: salaryError } = await (supabase as any).from("finance_salary_profiles")
+              .update({ active: false }).eq("profile_id", utilisateur.id);
+            if (salaryError) throw salaryError;
+          }
         }
 
         // Les rôles sont liés au compte Auth. Un ancien profil sans compte de connexion
@@ -318,7 +326,9 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             }
           }
 
-          await savePrimaryZoneAssignment(uid, data);
+          if (canAssignRoles && effectivePrimaryRole) {
+            await savePrimaryZoneAssignment(uid, data);
+          }
 
           await logAdminAction({
             action: "MODIFICATION_UTILISATEUR",
@@ -353,6 +363,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
             telephone_principal_whatsapp: primaryIsWhatsapp,
+            telephone_whatsapp: primaryIsWhatsapp,
             telephone_secondaire: data.telephone_secondaire || null,
             telephone_secondaire_local: data.telephone_secondaire_local || null,
             telephone_secondaire_indicatif: data.telephone_secondaire_indicatif || null,
@@ -466,7 +477,14 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className={`user-form min-w-0 ${utilisateur ? "user-edit-compact" : "space-y-4 sm:space-y-6"}`}>
+    <form onSubmit={handleSubmit(onSubmit, (invalid: any) => {
+      const firstError = Object.values(invalid || {}).find(Boolean) as any;
+      toast({
+        variant: "destructive",
+        title: "Informations à corriger",
+        description: firstError?.message || "Vérifiez les champs obligatoires avant de valider.",
+      });
+    })} className={`user-form min-w-0 ${utilisateur ? "user-edit-compact" : "space-y-4 sm:space-y-6"}`}>
       <Card>
         <CardHeader>
           <CardTitle className="text-lg sm:text-xl leading-tight">Informations Personnelles</CardTitle>
