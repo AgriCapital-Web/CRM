@@ -43,16 +43,31 @@ const TicketForm = ({ ticket, plantationId, clientId: fixedClientId, clientLocat
 
   useEffect(() => {
     const fetchData = async () => {
-      const [{ data: clientsData }, { data: plantsData }, { data: regionsData }, { data: techniciansData }] = await Promise.all([
-        (supabase as any).from("clients").select("id,id_unique,nom_complet,nom_famille,prenoms,region_id").not("statut","in","(archive,supprime)").order("nom_complet"),
-        (supabase as any).from("plantations").select("id,id_unique,nom_plantation,client_id").order("created_at", { ascending: false }),
-        (supabase as any).from("v_geo_regions").select("id,nom").eq("est_active_effectif", true).order("nom"),
-        (supabase as any).rpc("get_technician_directory"),
-      ]);
-      setClients(clientsData || []);
-      setPlantations(plantsData || []);
-      setRegions(regionsData || []);
-      // Le RPC applique le périmètre métier côté base ; l'UI ne reconstruit pas une liste globale.\n      setTechniciens((techniciansData || []).map((t:any) => ({ ...t, id: t.profile_id })));
+      try {
+        const [clientsResult, plantsResult, regionsResult, techniciansResult] = await Promise.all([
+          (supabase as any).from("clients")
+            .select("id,id_unique,nom_complet,prenoms,nom,region_id")
+            .not("statut", "in", "(archive,supprime)")
+            .order("nom_complet", { ascending: true }),
+          (supabase as any).from("plantations").select("id,id_unique,nom_plantation,client_id").order("created_at", { ascending: false }),
+          (supabase as any).from("v_geo_regions").select("id,nom").eq("est_active_effectif", true).order("nom"),
+          (supabase as any).rpc("get_technician_directory"),
+        ]);
+
+        if (clientsResult.error) throw clientsResult.error;
+        setClients(clientsResult.data || []);
+        setPlantations(plantsResult.data || []);
+        setRegions(regionsResult.data || []);
+        // Le RPC applique le périmètre métier côté base ; l'UI ne reconstruit pas une liste globale.
+        setTechniciens((techniciansResult.data || []).map((t: any) => ({ ...t, id: t.profile_id })));
+
+        if (plantsResult.error) console.error("Chargement des plantations impossible :", plantsResult.error);
+        if (regionsResult.error) console.error("Chargement des régions impossible :", regionsResult.error);
+        if (techniciansResult.error) console.error("Chargement des techniciens impossible :", techniciansResult.error);
+      } catch (error) {
+        setClients([]);
+        toast({ variant: "destructive", title: "Chargement des clients impossible", description: getSafeErrorMessage(error) });
+      }
     };
     fetchData();
   }, []);
@@ -160,9 +175,9 @@ const TicketForm = ({ ticket, plantationId, clientId: fixedClientId, clientLocat
       <Card><CardContent className="space-y-3 p-3 sm:p-4">
         <div className="space-y-1.5">
           <Label>Client *</Label>
-          {fixedClientId ? <div className="flex min-h-9 items-center rounded-md border bg-muted/50 px-3 text-sm font-medium">{clients.find(c => c.id === fixedClientId)?.id_unique || ""} — {clients.find(c => c.id === fixedClientId)?.nom_complet || "Client de la fiche ouverte"}</div> : <Select defaultValue={ticket?.client_id} onValueChange={v => setValue("client_id", v)} disabled={readOnly}>
+          {fixedClientId ? <div className="flex min-h-9 items-center rounded-md border bg-muted/50 px-3 text-sm font-medium">{clients.find(c => c.id === fixedClientId)?.id_unique || ""} — {clients.find(c => c.id === fixedClientId)?.nom_complet || "Client de la fiche ouverte"}</div> : <Select value={clientId || ""} onValueChange={v => setValue("client_id", v, { shouldValidate: true })} disabled={readOnly}>
             <SelectTrigger><SelectValue placeholder="Sélectionner le client" /></SelectTrigger>
-            <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.id_unique} — {c.nom_complet || [c.prenoms,c.nom_famille].filter(Boolean).join(" ")}</SelectItem>)}</SelectContent>
+            <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.id_unique} — {c.nom_complet || [c.prenoms,c.nom].filter(Boolean).join(" ") || "Client sans nom"}</SelectItem>)}</SelectContent>
           </Select>}
         </div>
 
