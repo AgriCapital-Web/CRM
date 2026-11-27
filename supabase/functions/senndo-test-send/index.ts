@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     let channel = body?.channel;
     const to = typeof body?.to === "string" ? body.to.trim() : "";
-    const text = typeof body?.text === "string" ? body.text.trim() : "";
+    let text = typeof body?.text === "string" ? body.text.trim() : "";
     const subject = typeof body?.subject === "string" ? body.subject.trim().slice(0, 150) : "Test AgriCapital";
     if (!["sms", "email", "whatsapp", "voice"].includes(channel)) return reply(req, { error: "Canal de test invalide" }, 400);
     if (channel === "sms" || channel === "whatsapp") {
@@ -112,6 +112,15 @@ Deno.serve(async (req) => {
     }
     if (!to || to.length > 254) return reply(req, { error: "Destinataire invalide" }, 400);
     if (!text || text.length > 1000) return reply(req, { error: "Le message doit contenir entre 1 et 1000 caractères" }, 400);
+    if (channel === "sms") {
+      text = text.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/[œŒ]/g, "oe").replace(/[æÆ]/g, "ae").replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/[•·]/g, " ").replace(/[^\\x20-\\x7E]/g, "").replace(/\\s+/g, " ").trim();
+      const extension = new Set(["^", "{", "}", "\\\\", "[", "]", "~", "|", "€"]);
+      const septets = Array.from(text).reduce((total, character) => total + (extension.has(character) ? 2 : 1), 0);
+      if (!septets || septets > 158) return reply(req, { error: `Le SMS de test doit respecter 158 unités GSM-7 maximum (actuellement ${septets}).` }, 400);
+    }
+    if (channel === "whatsapp" && Array.from(text).length > 250) {
+      return reply(req, { error: `Le message WhatsApp de test doit respecter 250 caractères maximum (actuellement ${Array.from(text).length}).` }, 400);
+    }
     if (channel === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return reply(req, { error: "Adresse e-mail invalide" }, 400);
     if (!(await isOwnContact(caller, channel, to))) {
       return reply(req, { error: "Le test ne peut être envoyé qu’à vos propres coordonnées (e-mail ou téléphone de votre profil)." }, 403);
