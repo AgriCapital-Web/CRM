@@ -78,35 +78,43 @@ serve(async (req) => {
       surname = surname || String(profile?.nom || "").trim();
       givenNames = givenNames || String(profile?.prenoms || "").trim();
     }
-    const titleCase = (value: string) => value.trim().toLocaleLowerCase("fr-FR")
-      .replace(/(^|[\s'-])(\p{L})/gu, (_match, boundary, letter) => boundary + letter.toLocaleUpperCase("fr-FR"));
-    const lastGivenName = givenNames.split(/\s+/).filter(Boolean).pop() || "";
     const legacyParts = String(reqRow.nom_complet ?? "").trim().split(/\s+/).filter(Boolean);
-    const fullName = lastGivenName && surname
-      ? titleCase(lastGivenName) + " " + surname.toLocaleUpperCase("fr-FR")
-      : legacyParts.length > 1
-        ? titleCase(legacyParts[legacyParts.length - 1]) + " " + legacyParts[0].toLocaleUpperCase("fr-FR")
-        : legacyParts.length === 1 ? titleCase(legacyParts[0]) : "";
-    const smsText = `${fullName}, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login`;
+    const familyName = surname || legacyParts[legacyParts.length - 1] || "";
+    const smsText = `Bonjour ${familyName.toLocaleUpperCase("fr-FR")}, bienvenue chez AgriCapital ! Votre accès est activé. Connectez-vous : app.agricapital.ci/login`;
     smsCharacters = Array.from(smsText).length;
 
-    if (!fullName) smsError = "Nom complet absent.";
+    if (!familyName) smsError = "Nom absent.";
     else if (!phone) smsError = "Numéro de téléphone absent.";
-    else if (!senndo) smsError = "Service SMS Senndo non configuré.";
-    else if (smsCharacters > 150) smsError = "Le message dépasse la limite de 150 caractères.";
     else {
       try {
-        await senndo.sendMessage({
-          channel: "sms",
-          to: phone,
-          text: smsText,
-          ...(phone.startsWith("+225") ? { senderId: "AgriCapital" } : {}),
-          idempotencyKey: `account-approved-sms-${requestId}`,
+        const { data: internalSecret, error: internalSecretError } = await secretClient.rpc("notification_get_internal_secret");
+        if (internalSecretError || !internalSecret) throw new Error("Routage interne des notifications indisponible.");
+        const dispatchResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notification-dispatch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-agricapital-automation-secret": String(internalSecret) },
+          body: JSON.stringify({
+            mode: "internal_routed_message",
+            channel: "auto",
+            event_key: `account-approved-${requestId}`,
+            contact: {
+              source_type: "utilisateur",
+              source_id: requestId,
+              user_id: reqRow.auth_user_id || null,
+              nom: familyName,
+              nom_complet: familyName,
+              telephone: phone,
+            },
+            content: smsText,
+          }),
         });
+        const dispatchPayload = await dispatchResponse.json().catch(() => ({}));
+        if (!dispatchResponse.ok || !dispatchPayload.ok || Number(dispatchPayload.result?.sent || 0) < 1) {
+          throw new Error(dispatchPayload.error || "Envoi de bienvenue non confirmé.");
+        }
         smsSent = true;
       } catch (smsSendError) {
-        smsError = "Envoi SMS non confirmé.";
-        console.error("account approval SMS failed", requestId, smsSendError);
+        smsError = "Envoi de bienvenue non confirmé.";
+        console.error("account approval notification failed", requestId, smsSendError);
       }
     }
 
