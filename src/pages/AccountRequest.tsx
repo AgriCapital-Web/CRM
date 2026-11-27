@@ -13,6 +13,7 @@ import { User, Mail, Phone, Briefcase, MapPin, FileText, KeyRound, AtSign, Camer
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import RoleGeographyFields from "@/components/common/RoleGeographyFields";
+import { GenderAvatar } from "@/components/common/GenderAvatar";
 
 type AccountRole = { code: string; nom: string; niveau_couverture: string | null; actif: boolean };
 // Catalogue public DB comme source de vérité : aucun filtre local des postes/rôles.
@@ -241,8 +242,8 @@ const AccountRequest = () => {
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[150px_1fr] sm:items-center">
-                <div className="mx-auto flex h-36 w-28 items-center justify-center overflow-hidden rounded-xl border bg-background sm:mx-0">
-                  {photoPreview ? <img src={photoPreview} alt="Aperçu de la photo" className="h-full w-full object-cover" /> : <User className="h-10 w-10 text-muted-foreground" />}
+                <div className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border bg-background sm:mx-0">
+                  {photoPreview ? <img src={photoPreview} alt="Aperçu de la photo" className="h-full w-full object-cover" /> : <GenderAvatar gender={formData.genre} className="h-full w-full" />}
                 </div>
                 <div className="min-w-0 space-y-3">
                   <input ref={photoInputRef} type="file" accept="image/*" className="sr-only" onChange={(e) => { void handlePhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
