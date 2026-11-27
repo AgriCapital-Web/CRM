@@ -234,7 +234,7 @@ const Dashboard = () => {
         canOwners || canPlantations || canClients
           ? (supabase as any).from("proprietaires_terres").select("id,surface_totale_ha,statut,validation_statut")
           : Promise.resolve({ data: [] }),
-        canParcelles || canPlantations || canClients
+        canParcelles || canPlantations || canClients || canTechnical
           ? (supabase as any).from("parcelles").select("id,proprietaire_id,surface_totale_ha,surface_proprietaire_ha,surface_disponible_ha,surface_attribuee_ha,surface_agricapital_ha,plantation_partagee_activee,convention_id,statut")
           : Promise.resolve({ data: [] }),
         canOwners || canParcelles || canPlantations
