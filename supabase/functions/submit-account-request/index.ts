@@ -43,7 +43,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const {
-      username, password, email, nom_complet, nom, prenoms, telephone, telephone_indicatif, telephone_local, role_souhaite,
+      username, password, email, nom_complet, nom, prenoms, genre, telephone, telephone_indicatif, telephone_local, role_souhaite,
       poste_souhaite, district_id: requestedDistrictId, region_id: requestedRegionId,
       departement_geo_id: requestedDepartementGeoId, sous_prefecture_id: requestedSousPrefectureId,
       departement, justification, photo_url,
@@ -58,7 +58,7 @@ serve(async (req) => {
     let departement_geo_id = requestedDepartementGeoId ?? null;
     let sous_prefecture_id = requestedSousPrefectureId ?? null;
 
-    if (!username || !password || !email || !cleanNomComplet || !telephone || !role_souhaite) {
+    if (!username || !password || !email || !cleanNomComplet || !telephone || !role_souhaite || !["M", "F"].includes(String(genre))) {
       return json({ error: "Champs obligatoires manquants (identifiant, mot de passe, email, nom, téléphone, rôle).", step: "validate_body" }, 400);
     }
     if (!String(username).trim()) {
@@ -147,7 +147,7 @@ serve(async (req) => {
       email: cleanEmail,
       password: String(password),
       email_confirm: false,
-      user_metadata: { nom_complet: cleanNomComplet, nom: cleanNom, prenoms: cleanPrenoms, username: cleanUsername, pending_role: roleCode },
+      user_metadata: { nom_complet: cleanNomComplet, nom: cleanNom, prenoms: cleanPrenoms, genre, username: cleanUsername, pending_role: roleCode },
     });
 
     if (createErr) {
@@ -196,6 +196,7 @@ serve(async (req) => {
       nom_complet: cleanNomComplet,
       nom: cleanNom,
       prenoms: cleanPrenoms,
+      genre,
       telephone: String(telephone ?? "").trim(),
       telephone_indicatif: telephone_indicatif ?? null,
       telephone_local: telephone_local ?? null,
@@ -219,6 +220,7 @@ serve(async (req) => {
       nom_complet: cleanNomComplet,
       nom: cleanNom,
       prenoms: cleanPrenoms,
+      genre,
       email: cleanEmail,
       telephone: String(telephone ?? "").trim(),
       telephone_indicatif: telephone_indicatif ?? null,
