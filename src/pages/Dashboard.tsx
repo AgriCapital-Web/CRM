@@ -167,7 +167,7 @@ const Dashboard = () => {
   const [monthly, setMonthly] = useState<any[]>([]);
   const [offerPerformance, setOfferPerformance] = useState<any[]>([]);
   const [cycle, setCycle] = useState<any[]>([]);
-  const [technicalMetrics, setTechnicalMetrics] = useState({ contractedHa: 0, plantedHa: 0, surfaceRate: 0, plantsPlanned: 0, plantsInstalled: 0, plantRate: 0, interventionsTotal: 0, interventionsDone: 0, interventionsLate: 0, visitReports: 0, followupsOverdue: 0, visitsDue: 0, gpsMissing: 0, plantationsTotal: 0, openTickets: 0, criticalTickets: 0 });
+  const [technicalMetrics, setTechnicalMetrics] = useState({ contractedHa: 0, plantedHa: 0, surfaceRate: 0, plantsPlanned: 0, plantsInstalled: 0, plantRate: 0, successRateAverage: 0, successRateReported: 0, nonconformingStages: 0, interventionsTotal: 0, interventionsDone: 0, interventionsLate: 0, visitReports: 0, followupsOverdue: 0, visitsDue: 0, gpsMissing: 0, plantationsTotal: 0, openTickets: 0, criticalTickets: 0 });
   const [alerts, setAlerts] = useState<any[]>([]);
   const [topClients, setTopClients] = useState<any[]>([]);
   const [regional, setRegional] = useState<any[]>([]);
@@ -249,7 +249,7 @@ const Dashboard = () => {
         canTechnical
           ? (supabase as any).from("rapports_visites_techniques").select("id,plantation_id,client_id,date_visite,statut,prochaine_intervention")
           : Promise.resolve({ data: [] }),
-        canTechnical
+        canTickets
           ? (supabase as any).from("tickets_techniques").select("id,plantation_id,client_id,statut,priorite,created_at,date_resolution")
           : Promise.resolve({ data: [] }),
         canCommissions || canFinance
@@ -695,6 +695,26 @@ const Dashboard = () => {
       const technicalPlantedHa = sumPlantedArea(scopedPlantations);
       const plantsPlanned = scopedPlantations.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.nombre_plants_prevus || 0)), 0);
       const plantsInstalled = scopedPlantations.reduce((sum: number, p: any) => sum + Math.max(0, Number(p.nombre_plants_mis_en_terre || 0)), 0);
+      const successRateRows = scopedPlantations.filter((p: any) => p.taux_reussite != null);
+      const successRateAverage = successRateRows.length
+        ? Math.round(successRateRows.reduce((sum: number, p: any) => sum + Number(p.taux_reussite || 0), 0) / successRateRows.length)
+        : 0;
+      const clientOfferById = new Map(allExternalClients.map((c: any) => [
+        String(c.id),
+        `${c.famille_offre || ""} ${c.formule_code || ""} ${c.formule_nom || ""}`.toUpperCase(),
+      ]));
+      const preparationEligibleIds = new Set([...technicalClientIds].filter((id: string) => {
+        const offer = clientOfferById.get(String(id)) || "";
+        if (offer.includes("PALMTERROIR")) return false;
+        if (/PALMINVEST|TERRAPALM/.test(offer)) return true;
+        return scopedInterventions.some((i: any) =>
+          String(i.client_id) === String(id) && ["defrichage", "nettoyage"].includes(String(i.type_intervention || "").toLowerCase())
+        );
+      }));
+      const nonconformingStages = scopedInterventions.filter((i: any) =>
+        ["defrichage", "nettoyage"].includes(String(i.type_intervention || "").toLowerCase()) &&
+        (clientOfferById.get(String(i.client_id)) || "").includes("PALMTERROIR")
+      ).length;
       const interventionsDone = scopedInterventions.filter((i: any) => isTechnicalCompleted(i.statut)).length;
       const interventionsLate = scopedInterventions.filter((i: any) => !isTechnicalCompleted(i.statut) && String(i.date_intervention || "").slice(0, 10) < technicalTodayKey).length;
       const followupsOverdue = scopedVisitReports.filter((r: any) => r.prochaine_intervention && String(r.prochaine_intervention).slice(0, 10) < technicalTodayKey).length;
@@ -710,6 +730,9 @@ const Dashboard = () => {
         plantsPlanned,
         plantsInstalled,
         plantRate: plantsPlanned > 0 ? Math.round((plantsInstalled / plantsPlanned) * 100) : 0,
+        successRateAverage,
+        successRateReported: successRateRows.length,
+        nonconformingStages,
         interventionsTotal: scopedInterventions.length,
         interventionsDone,
         interventionsLate,
@@ -723,36 +746,20 @@ const Dashboard = () => {
       });
 
       const cycleTypes = [
-        ["validation_parcelle", "Parcelles validées"],
-        ["defrichage", "Défrichage réalisé"],
-        ["piquetage", "Piquetage réalisé"],
-        ["trouaison", "Trouaison réalisée"],
-        ["mise_en_terre", "Mise en terre réalisée"],
+        { code: "validation_parcelle", label: "Parcelles validées", eligible: technicalClientIds },
+        { code: "defrichage", label: "Défrichage réalisé", eligible: preparationEligibleIds },
+        { code: "nettoyage", label: "Nettoyage réalisé", eligible: preparationEligibleIds },
+        { code: "piquetage", label: "Piquetage réalisé", eligible: technicalClientIds },
+        { code: "trouaison", label: "Trouaison réalisée", eligible: technicalClientIds },
+        { code: "mise_en_terre", label: "Mise en terre réalisée", eligible: technicalClientIds },
       ];
-      setCycle(cycleTypes.map(([code, label]) => {
-        const rows = interventions.filter((i: any) =>
-          technicalClientIds.has(i.client_id) &&
-          String(i.type_intervention || "").toLowerCase() === code
+      setCycle(cycleTypes.map(({ code, label, eligible }) => {
+        const rows = scopedInterventions.filter((i: any) =>
+          eligible.has(i.client_id) && String(i.type_intervention || "").toLowerCase() === code
         );
-        const doneClientIds = new Set(rows.filter((i: any) => {
-          const statut = String(i.statut || "")
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "");
-          return [
-            "termine",
-            "terminee",
-            "valide",
-            "validee",
-            "complete",
-            "complet",
-            "realise",
-            "realisee",
-            "acheve",
-            "achevee",
-          ].includes(statut);
-        }).map((i: any) => i.client_id).filter(Boolean));
-        const total = technicalClientIds.size;
+        const doneClientIds = new Set(rows.filter((i: any) => isTechnicalCompleted(i.statut))
+          .map((i: any) => i.client_id).filter(Boolean));
+        const total = eligible.size;
         const done = doneClientIds.size;
         return { label, total, done, pct: total ? Math.round((done / total) * 100) : 0 };
       }));
@@ -818,7 +825,7 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [canClients, canLeads, canOwners, canParcelles, canPlantations, canPayments, canFinance, canTechnical, canCommissions, canPortfolios, canCommercialTeamPerformance, canTechnicalTeamPerformance]);
+  }, [canClients, canLeads, canOwners, canParcelles, canPlantations, canPayments, canFinance, canTechnical, canTickets, canCommissions, canPortfolios, canCommercialTeamPerformance, canTechnicalTeamPerformance]);
 
   useEffect(() => { void fetchStats(false); }, [fetchStats]);
   const refreshSilently = useCallback(() => { void fetchStats(true); }, [fetchStats]);
@@ -1131,7 +1138,7 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Tractor className="h-5 w-5 text-primary" />Pilotage technique</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
                       <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
                         <p className="text-xs text-muted-foreground">Surface réellement plantée</p>
                         <p className="mt-1 text-lg font-bold tabular-nums">{num(technicalMetrics.plantedHa)} / {num(technicalMetrics.contractedHa)} ha</p>
@@ -1159,10 +1166,22 @@ const Dashboard = () => {
                         <p className="mt-1 text-lg font-bold tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} / {technicalMetrics.plantationsTotal}</p>
                         <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.gpsMissing} plantation(s) sans coordonnées complètes</p>
                       </Link>
-                      <Link to="/support" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Tickets techniques ouverts</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.openTickets}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.criticalTickets} ticket(s) critique(s) ou prioritaire(s)</p>
+                      {canTickets && (
+                        <Link to="/support" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                          <p className="text-xs text-muted-foreground">Tickets techniques ouverts</p>
+                          <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.openTickets}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.criticalTickets} ticket(s) critique(s) ou prioritaire(s)</p>
+                        </Link>
+                      )}
+                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Taux de réussite renseigné</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.successRateReported ? `${technicalMetrics.successRateAverage}%` : "—"}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.successRateReported} / {technicalMetrics.plantationsTotal} plantations renseignées</p>
+                      </Link>
+                      <Link to="/terrain" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs text-muted-foreground">Écarts au parcours de l’offre</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.nonconformingStages}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">Interventions de préparation à vérifier sur PalmTerroir</p>
                       </Link>
                     </div>
                     <div>
