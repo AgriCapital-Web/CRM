@@ -1140,16 +1140,16 @@ const Dashboard = () => {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
                       <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Surface réellement plantée</p>
+                        <p className="text-xs text-muted-foreground">Surface déclarée plantée</p>
                         <p className="mt-1 text-lg font-bold tabular-nums">{num(technicalMetrics.plantedHa)} / {num(technicalMetrics.contractedHa)} ha</p>
                         <Progress className="mt-2" value={technicalMetrics.surfaceRate} />
                         <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.surfaceRate}% de la surface enregistrée</p>
                       </Link>
                       <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Plants mis en terre</p>
+                        <p className="text-xs text-muted-foreground">Plants déclarés mis en terre</p>
                         <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.plantsInstalled.toLocaleString("fr-FR")} / {technicalMetrics.plantsPlanned.toLocaleString("fr-FR")}</p>
                         <Progress className="mt-2" value={technicalMetrics.plantRate} />
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.plantRate}% du volume prévu</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.plantRate}% du volume prévu · {Math.max(0, technicalMetrics.plantsPlanned - technicalMetrics.plantsInstalled).toLocaleString("fr-FR")} à planifier ou justifier</p>
                       </Link>
                       <Link to="/terrain" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
                         <p className="text-xs text-muted-foreground">Interventions réalisées</p>
