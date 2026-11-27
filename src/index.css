@@ -1649,3 +1649,18 @@ button > span, [role="button"] > span {
 
 @media (min-width: 768px) { body.agricapital-has-sidebar [data-radix-dialog-content] { left: calc(50% + 8rem) !important; max-width: min(calc(100vw - 18rem), 72rem); } }
 @media (max-width: 767px) { body.agricapital-has-sidebar [data-radix-dialog-content] { left: 50% !important; max-width: calc(100vw - 1rem); } }
+
+/* Hauteur commune des champs de formulaire dans tout le CRM.
+   Les cases, radios, fichiers et zones multilignes gardent leur comportement propre. */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="hidden"]),
+  select,
+  [role="combobox"] {
+    height: 2.25rem !important;
+    min-height: 2.25rem !important;
+  }
+
+  textarea {
+    min-height: 4rem;
+  }
+}
