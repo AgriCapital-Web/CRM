@@ -356,14 +356,14 @@ export default function UnifiedAgenda({ profileId, meetings, onScheduleMeeting }
     const days = Array.from({ length: 42 }, (_, i) => plusDays(start, i));
     return <div className="overflow-hidden rounded-lg border">
       <div className="grid grid-cols-7 bg-muted/40">{["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(d => <div key={d} className="border-b py-1 text-center text-[9px] font-medium uppercase text-muted-foreground sm:py-1.5 sm:text-[11px]">{d}</div>)}</div>
-      <div className="grid grid-cols-7" style={{ height: "clamp(15rem, calc(100dvh - 25rem), 28rem)", gridTemplateRows: "repeat(6, minmax(0, 1fr))" }}>{days.map(d => {
+      <div className="grid h-[15rem] grid-cols-7 sm:h-[18rem] lg:h-[20rem]" style={{ gridTemplateRows: "repeat(6, minmax(0, 1fr))" }}>{days.map(d => {
         const list = itemsOn(d); const inMonth = d.getMonth() === cursor.getMonth();
         return <div key={dayKey(d)} onClick={() => { const at = new Date(d); at.setHours(9,0,0,0); openCreate("event", at); }}
           className={`min-h-0 overflow-hidden cursor-pointer border-b border-r px-0.5 py-0.5 hover:bg-muted/30 sm:px-1.5 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"}`}>
           <button type="button" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}
             className={`mb-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] hover:bg-muted ${sameDay(d, new Date()) ? "bg-primary font-bold text-primary-foreground hover:bg-primary" : ""}`}>{d.getDate()}</button>
           <div className="space-y-px overflow-hidden">{list.slice(0, 2).map(i => <Chip key={i.id} it={i} compact />)}
-            {list.length > 2 && <button type="button" className="block max-w-full truncate text-[9px] font-medium leading-tight text-primary sm:text-[10px]" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}>+{list.length - 2} autres</button>}</div>
+            {list.length > 2 && <button type="button" className="block max-w-full truncate text-[8px] font-medium leading-tight text-primary sm:text-[9px]" onClick={(ev) => { ev.stopPropagation(); setCursor(d); setView("day"); }}>+{list.length - 2} autres</button>}</div>
         </div>;
       })}</div>
     </div>;
