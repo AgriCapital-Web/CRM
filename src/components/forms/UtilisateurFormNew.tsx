@@ -32,6 +32,7 @@ const userFormSchema = z.object({
     .max(255, "L'email ne peut pas dépasser 255 caractères"),
   nom: z.string().trim().min(1, "Le nom est obligatoire").max(100, "Le nom ne peut pas dépasser 100 caractères"),
   prenoms: z.string().trim().min(1, "Le prénom est obligatoire").max(100, "Le prénom ne peut pas dépasser 100 caractères"),
+  genre: z.enum(["M", "F"], { required_error: "Sélectionnez le genre." }),
   telephone: z.string().nullish(),
   telephone_local: z.string().nullish(),
   telephone_secondaire: z.string().nullish(),
@@ -258,6 +259,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
           .update({
             nom: normalizedNom,
             prenoms: normalizedPrenoms,
+            genre: data.genre,
             nom_complet: fullName,
             username: String(data.username || "").trim(),
             email: String(data.email || "").trim(),
@@ -360,6 +362,7 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             nom_complet: fullName,
             nom: normalizedNom,
             prenoms: normalizedPrenoms,
+            genre: data.genre,
             telephone: data.telephone || null,
             telephone_indicatif: data.telephone_indicatif || null,
             telephone_local: data.telephone_local || null,
@@ -500,6 +503,15 @@ const UtilisateurFormNew = ({ utilisateur, onSuccess, onCancel }: UtilisateurFor
             <Label>Prénom *</Label>
             <Input {...register("prenoms", { required: true, onChange: e => setValue("prenoms", e.target.value.toLocaleUpperCase("fr-FR")) })} defaultValue={utilisateur?.prenoms || String(utilisateur?.nom_complet || "").trim().split(/\\s+/).slice(0,-1).join(" ") || ""} />
             {errors.prenoms?.message && <p className="text-sm text-destructive">{String(errors.prenoms.message)}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Genre *</Label>
+            <Select value={watch("genre") || ""} onValueChange={(value) => setValue("genre", value as "M" | "F", { shouldValidate: true })}>
+              <SelectTrigger className="w-full min-w-0"><SelectValue placeholder="Sélectionner le genre" /></SelectTrigger>
+              <SelectContent><SelectItem value="F">Féminin (F)</SelectItem><SelectItem value="M">Masculin (M)</SelectItem></SelectContent>
+            </Select>
+            {errors.genre?.message && <p className="text-sm text-destructive">{String(errors.genre.message)}</p>}
           </div>
 
           <div className="space-y-2">
