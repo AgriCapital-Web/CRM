@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-import { User, Mail, Phone, Briefcase, MapPin, FileText, KeyRound, AtSign, Camera, Loader2, CheckCircle2, Image as ImageIcon } from "lucide-react";
+import { User, Mail, Phone, Briefcase, MapPin, FileText, KeyRound, AtSign, Camera, Loader2, CheckCircle2 } from "lucide-react";
 import CountryPhoneInput from "@/components/common/CountryPhoneInput";
 import { getSafeErrorMessage } from "@/lib/safeError";
 import RoleGeographyFields from "@/components/common/RoleGeographyFields";
