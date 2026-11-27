@@ -59,7 +59,7 @@ serve(async (req) => {
     let sous_prefecture_id = requestedSousPrefectureId ?? null;
 
     if (!username || !password || !email || !cleanNomComplet || !telephone || !role_souhaite || !["M", "F"].includes(String(genre))) {
-      return json({ error: "Champs obligatoires manquants (identifiant, mot de passe, email, nom, téléphone, rôle).", step: "validate_body" }, 400);
+      return json({ error: "Champs obligatoires manquants (identifiant, mot de passe, email, nom, téléphone, genre, rôle).", step: "validate_body" }, 400);
     }
     if (!String(username).trim()) {
       return json({ error: "Veuillez saisir un nom d'utilisateur.", step: "validate_username" }, 400);
