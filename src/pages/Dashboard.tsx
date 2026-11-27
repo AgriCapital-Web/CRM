@@ -979,11 +979,15 @@ const Dashboard = () => {
                 <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
                   <Card>
                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Parcours de plantation</CardTitle></CardHeader>
-                    <CardContent className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-4 md:grid-cols-1">
-                      {cycle.map((c, index) => (
-                        <div key={c.label} className={`min-w-0 ${index === cycle.length - 1 ? "col-span-2 md:col-span-1" : ""}`}>
-                          <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1 text-sm"><span className="min-w-0">{c.label}</span><span className="font-medium tabular-nums whitespace-nowrap">{c.done} / {c.total} dossiers · {c.pct}%</span></div>
-                          <Progress className="mt-1" value={c.pct} />
+                    <CardContent className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                      {cycle.map((c) => (
+                        <div key={c.label} className="flex min-h-[88px] min-w-0 flex-col justify-between rounded-lg border bg-muted/20 p-3">
+                          <p className="min-w-0 break-words text-xs font-medium leading-snug text-muted-foreground">{c.label}</p>
+                          <div className="mt-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                            <span className="text-sm font-bold leading-tight tabular-nums">{c.done} / {c.total} dossiers</span>
+                            <span className="text-sm font-semibold leading-tight tabular-nums">{c.pct}%</span>
+                          </div>
+                          <Progress className="mt-2" value={c.pct} />
                         </div>
                       ))}
                     </CardContent>
@@ -1138,61 +1142,62 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Tractor className="h-5 w-5 text-primary" />Pilotage technique</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Surface déclarée plantée</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{num(technicalMetrics.plantedHa)} / {num(technicalMetrics.contractedHa)} ha</p>
-                        <Progress className="mt-2" value={technicalMetrics.surfaceRate} />
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.surfaceRate}% de la surface enregistrée</p>
+                    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs font-medium leading-snug text-muted-foreground">Surface plantée</p>
+                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{num(technicalMetrics.plantedHa)} / {num(technicalMetrics.contractedHa)} ha</p>
+                        <div className="mt-2"><Progress value={technicalMetrics.surfaceRate} /><p className="mt-1 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.surfaceRate}% de la surface de référence</p></div>
                       </Link>
-                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Plants déclarés mis en terre</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.plantsInstalled.toLocaleString("fr-FR")} / {technicalMetrics.plantsPlanned.toLocaleString("fr-FR")}</p>
-                        <Progress className="mt-2" value={technicalMetrics.plantRate} />
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.plantRate}% du volume prévu · {Math.max(0, technicalMetrics.plantsPlanned - technicalMetrics.plantsInstalled).toLocaleString("fr-FR")} à planifier ou justifier</p>
+                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs font-medium leading-snug text-muted-foreground">Plants mis en terre</p>
+                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.plantsInstalled.toLocaleString("fr-FR")} / {technicalMetrics.plantsPlanned.toLocaleString("fr-FR")}</p>
+                        <div className="mt-2"><Progress value={technicalMetrics.plantRate} /><p className="mt-1 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.plantRate}% réalisés · {Math.max(0, technicalMetrics.plantsPlanned - technicalMetrics.plantsInstalled).toLocaleString("fr-FR")} restants</p></div>
                       </Link>
-                      <Link to="/terrain" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Interventions réalisées</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.interventionsDone} / {technicalMetrics.interventionsTotal}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.interventionsLate} intervention(s) en retard</p>
+                      <Link to="/terrain" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs font-medium leading-snug text-muted-foreground">Interventions terminées</p>
+                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.interventionsDone} / {technicalMetrics.interventionsTotal}</p>
+                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.interventionsLate} en retard</p>
                       </Link>
-                      <Link to="/terrain" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Rapports et suivis</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.visitReports} rapport(s)</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.followupsOverdue} suivi(s) dépassé(s) · {technicalMetrics.visitsDue} visite(s) à effectuer</p>
+                      <Link to="/terrain" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs font-medium leading-snug text-muted-foreground">Rapports de visite</p>
+                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.visitReports}</p>
+                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.followupsOverdue} suivi(s) en retard · {technicalMetrics.visitsDue} visite(s) à faire</p>
                       </Link>
-                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Couverture GPS</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} / {technicalMetrics.plantationsTotal}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.gpsMissing} plantation(s) sans coordonnées complètes</p>
+                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs font-medium leading-snug text-muted-foreground">Plantations géolocalisées</p>
+                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{Math.max(0, technicalMetrics.plantationsTotal - technicalMetrics.gpsMissing)} / {technicalMetrics.plantationsTotal}</p>
+                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.gpsMissing} sans coordonnées complètes</p>
                       </Link>
                       {(canTickets || canTechnical) && (
-                        <Link to={canTickets ? "/support" : "/terrain"} className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                          <p className="text-xs text-muted-foreground">{canTickets ? "Tickets techniques ouverts" : "Mes tickets techniques ouverts"}</p>
-                          <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.openTickets}</p>
-                          <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.criticalTickets} ticket(s) critique(s) ou prioritaire(s)</p>
+                        <Link to={canTickets ? "/support" : "/terrain"} className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                          <p className="text-xs font-medium leading-snug text-muted-foreground">{canTickets ? "Tickets techniques ouverts" : "Mes tickets ouverts"}</p>
+                          <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.openTickets}</p>
+                          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.criticalTickets} critique(s) ou prioritaire(s)</p>
                         </Link>
                       )}
-                      <Link to="/plantations" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Taux de réussite renseigné</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.successRateReported ? `${technicalMetrics.successRateAverage}%` : "—"}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{technicalMetrics.successRateReported} / {technicalMetrics.plantationsTotal} plantations renseignées</p>
+                      <Link to="/plantations" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs font-medium leading-snug text-muted-foreground">Taux de réussite moyen</p>
+                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.successRateReported ? `${technicalMetrics.successRateAverage}%` : "—"}</p>
+                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{technicalMetrics.successRateReported} / {technicalMetrics.plantationsTotal} renseignées</p>
                       </Link>
-                      <Link to="/terrain" className="min-w-0 rounded-xl border p-3 transition-colors hover:bg-muted/50">
-                        <p className="text-xs text-muted-foreground">Écarts au parcours de l’offre</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{technicalMetrics.nonconformingStages}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">Interventions de préparation à vérifier sur PalmTerroir</p>
+                      <Link to="/terrain" className="flex min-h-[112px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3 transition-colors hover:bg-muted/50">
+                        <p className="text-xs font-medium leading-snug text-muted-foreground">Écarts au parcours</p>
+                        <p className="mt-1 break-words text-lg font-bold leading-tight tabular-nums">{technicalMetrics.nonconformingStages}</p>
+                        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">Préparations à vérifier sur PalmTerroir</p>
                       </Link>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="mb-2 text-sm font-semibold">Avancement du parcours de plantation</h3>
-                      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                         {cycle.map((c) => (
-                          <div key={c.label} className="min-w-0 rounded-xl border p-3">
-                            <p className="text-xs leading-tight text-muted-foreground">{c.label}</p>
-                            <p className="mt-1 text-lg font-bold tabular-nums">{c.pct}%</p>
-                            <p className="text-[11px] text-muted-foreground">{c.done}/{c.total} dossiers</p>
+                          <div key={c.label} className="flex min-h-[104px] min-w-0 flex-col justify-between rounded-xl border bg-card/70 p-3">
+                            <p className="min-w-0 break-words text-xs font-medium leading-snug text-muted-foreground">{c.label}</p>
+                            <div className="mt-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                              <span className="text-base font-bold leading-tight tabular-nums">{c.done} / {c.total}</span>
+                              <span className="text-sm font-semibold leading-tight tabular-nums">{c.pct}%</span>
+                            </div>
                             <Progress className="mt-2" value={c.pct} />
+                            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">Dossiers réalisés</p>
                           </div>
                         ))}
                       </div>
