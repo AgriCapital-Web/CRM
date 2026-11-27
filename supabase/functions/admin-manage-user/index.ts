@@ -29,7 +29,7 @@ serve(async (req) => {
     const { data: caller } = await admin.auth.getUser(token);
     if (!caller?.user) return json({ error: "Session invalide", step }, 401);
     step = "parse_body";
-    const { action, user_id, password, username, email, nom_complet, nom, prenoms, telephone, telephone_indicatif, telephone_local, telephone_principal_whatsapp, telephone_secondaire, telephone_secondaire_local, telephone_secondaire_indicatif, telephone_secondaire_whatsapp, whatsapp, whatsapp_indicatif, whatsapp_local, departement, relation_rh, equipe_id, photo_url, type_piece_identite, numero_piece_identite, piece_identite_url, piece_identite_recto_url, piece_identite_verso_url, piece_identite_page_principale_url, roles, actif, primary_role } = await req.json();
+    const { action, user_id, password, username, email, nom_complet, nom, prenoms, genre, telephone, telephone_indicatif, telephone_local, telephone_principal_whatsapp, telephone_secondaire, telephone_secondaire_local, telephone_secondaire_indicatif, telephone_secondaire_whatsapp, whatsapp, whatsapp_indicatif, whatsapp_local, departement, relation_rh, equipe_id, photo_url, type_piece_identite, numero_piece_identite, piece_identite_url, piece_identite_recto_url, piece_identite_verso_url, piece_identite_page_principale_url, roles, actif, primary_role } = await req.json();
     if (!action || (action !== "create_user" && !user_id)) return json({ error: "action requis et user_id obligatoire sauf pour create_user", step }, 400);
 
     if (action === "complete_forced_password_change") {
@@ -104,7 +104,7 @@ serve(async (req) => {
         email: cleanEmail,
         password: tempPassword,
         email_confirm: true,
-        user_metadata: { nom_complet: cleanName, nom: String(nom ?? "").trim().toLocaleUpperCase("fr-FR") || null, prenoms: String(prenoms ?? "").trim().toLocaleUpperCase("fr-FR") || null, username: cleanUsername },
+        user_metadata: { nom_complet: cleanName, nom: String(nom ?? "").trim().toLocaleUpperCase("fr-FR") || null, prenoms: String(prenoms ?? "").trim().toLocaleUpperCase("fr-FR") || null, genre: genre ?? null, username: cleanUsername },
       });
       if (createError || !created?.user?.id) return json({ error: createError?.message || "Création du compte Auth non confirmée.", step }, 400);
       const authId = created.user.id;
@@ -117,6 +117,7 @@ serve(async (req) => {
           nom_complet: cleanName,
           nom: String(nom ?? "").trim().toLocaleUpperCase("fr-FR") || null,
           prenoms: String(prenoms ?? "").trim().toLocaleUpperCase("fr-FR") || null,
+          genre: genre ?? null,
           username: cleanUsername,
           telephone: telephone ?? null,
           telephone_indicatif: telephone_indicatif ?? null,
