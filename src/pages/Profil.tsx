@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GenderAvatar } from "@/components/common/GenderAvatar";
 import { Shield, KeyRound, Save, Upload, UserRound, Camera, Check } from "lucide-react";
 import { formatStructuredPersonName } from "@/lib/utils";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
@@ -96,7 +98,7 @@ const Profil = () => {
     setSaving(true);
     try {
       const fields = [
-        "nom_complet", "telephone", "telephone_indicatif", "telephone_local", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
+        "nom_complet", "genre", "telephone", "telephone_indicatif", "telephone_local", "adresse_mail_secondaire", "telephone_secondaire", "telephone_secondaire_indicatif", "telephone_secondaire_local", "telephone_principal_whatsapp", "telephone_secondaire_whatsapp", "whatsapp", "whatsapp_indicatif", "whatsapp_local", "ville", "quartier",
         "type_piece_identite", "numero_piece_identite", "photo_url", "piece_identite_recto_url", "piece_identite_verso_url",
         "contact_urgence_nom", "contact_urgence_telephone1", "contact_urgence_telephone1_indicatif", "contact_urgence_telephone1_local", "contact_urgence_telephone2", "contact_urgence_telephone2_indicatif", "contact_urgence_telephone2_local", "contact_urgence_email", "contact_urgence_photo_url",
       ];
@@ -178,10 +180,7 @@ const Profil = () => {
               <div className="flex flex-col sm:flex-row items-center gap-5">
                 <div className="relative shrink-0">
                   <button type="button" className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" title="Cliquer pour ajouter ou modifier la photo" aria-label="Ajouter ou modifier la photo de profil" onClick={() => document.getElementById("profile-photo-picker")?.click()}>
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage src={photoUrl || ""} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xl"><Camera className="h-7 w-7 text-emerald-800" /></AvatarFallback>
-                    </Avatar>
+                    <GenderAvatar src={photoUrl} gender={profile.genre} alt="Photo de profil" className="h-24 w-24" />
                   </button>
                   <input id="profile-photo-picker" type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { const file=e.currentTarget.files?.[0]; if(file) void upload("photo_url","photos-profils",file); e.currentTarget.value=""; }} />
                   {!photoUrl && <span className="pointer-events-none absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-700 bg-background text-emerald-800 shadow-sm"><Upload className="h-4 w-4" /></span>}
@@ -200,6 +199,7 @@ const Profil = () => {
             <CardContent className="grid min-w-0 grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 sm:gap-y-5">
               <div><Label>Nom</Label><Input className="h-9 text-sm" value={profile.nom || String(profile.nom_complet || "").trim().split(/\\s+/)[0] || ""} onChange={(e) => set("nom", e.target.value)} /></div>
               <div><Label>Prénom(s)</Label><Input className="h-9 text-sm" value={profile.prenoms || String(profile.nom_complet || "").trim().split(/\\s+/).slice(1).join(" ") || ""} onChange={(e) => set("prenoms", e.target.value)} /></div>
+              <div className="min-w-0 space-y-1.5"><Label>Genre</Label><Select value={profile.genre || ""} onValueChange={(value) => set("genre", value)}><SelectTrigger className="h-9 w-full min-w-0"><SelectValue placeholder="Sélectionner le genre" /></SelectTrigger><SelectContent><SelectItem value="F">Féminin (F)</SelectItem><SelectItem value="M">Masculin (M)</SelectItem></SelectContent></Select></div>
               <div><Label>Nom d'utilisateur</Label><Input className="h-9 text-sm" value={profile.username || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("username", e.target.value)} /></div>
               <div><Label>Email principal</Label><Input className="h-9 text-sm" type="email" value={profile.email || user?.email || ""} disabled={!isAdmin} title={lockHint} onChange={(e) => set("email", e.target.value)} /></div>
               <div className="min-w-0 w-full space-y-2">
