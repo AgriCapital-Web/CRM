@@ -55,9 +55,9 @@ function OrganizationCard({node,onSelect}:{node:Row;onSelect:(node:Row)=>void}) 
  const zone=[node.district_name,node.region_name].filter(Boolean).join(" · ");
  const name=String(node.employee_name||node.nom_complet||"Collaborateur");
  const position=String(node.poste||node.role_name||roleLabel(node));
- return <button type="button" onClick={()=>onSelect(node)} title={name+" — "+position+(zone?" — "+zone:"")} aria-label={"Voir la fiche de "+name} className={`group relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-l-4 bg-card px-2 py-2 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${ROLE_COLOR[role]||"border-l-muted-foreground"}`}>
-  <GenderAvatar src={node.employee_photo_url} gender={node.employee_gender} alt={name} className="h-8 w-8 ring-1 ring-border sm:h-9 sm:w-9" />
-  <span className="max-w-full truncate text-[11px] font-bold leading-4 sm:text-xs">{roleLabel(node)}</span>
+ return <button type="button" onClick={()=>onSelect(node)} title={name+" — "+position+(zone?" — "+zone:"")} aria-label={"Voir la fiche de "+name} className={`group relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md border border-l-4 bg-card px-1 py-1 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${ROLE_COLOR[role]||"border-l-muted-foreground"}`}>
+  <GenderAvatar src={node.employee_photo_url} gender={node.employee_gender} alt={name} className="h-6 w-6 ring-1 ring-border sm:h-8 sm:w-8" />
+  <span className="max-w-full truncate text-[9px] font-bold leading-3 sm:text-[11px] sm:leading-4">{roleLabel(node)}</span>
   <span className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-30 hidden w-52 -translate-x-1/2 rounded-md border bg-popover p-2.5 text-left text-xs text-popover-foreground shadow-xl group-hover:block group-focus-visible:block">
    <span className="block font-semibold">{name}</span>
    <span className="mt-0.5 block text-muted-foreground">{position}</span>
@@ -97,11 +97,11 @@ function OrganizationTree({items}:{items:Row[]}) {
   return d.codes.includes(code)||d.terms.some(t=>dept.includes(t));
  }))})).filter(d=>d.people.length>0);
  const other=unique(items.filter(n=>!heads.has(String(n.profile_id||n.id))&&!departmentItems.some(d=>d.people.some(p=>String(p.profile_id||p.id)===String(n.profile_id||n.id)))));
- const Cards=({people,columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8"}:{people:Row[];columns?:string})=><div className={`grid min-w-0 ${columns} gap-2`}>{people.map(n=><OrganizationCard key={String(n.profile_id||n.id)} node={n} onSelect={setSelectedNode}/>)}</div>;
- const Level=({title,people,center=false,columns}:{title:string;people:Row[];center?:boolean;columns?:string})=>people.length?<section className="mx-auto w-full max-w-6xl space-y-2"><h3 className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</h3><div className={center?"mx-auto flex max-w-2xl flex-wrap items-stretch justify-center gap-2":""}><Cards people={people} columns={columns}/></div></section>:null;
+ const Cards=({people,columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8"}:{people:Row[];columns?:string})=><div className={`grid min-w-0 ${columns} gap-1 sm:gap-2`}>{people.map(n=><OrganizationCard key={String(n.profile_id||n.id)} node={n} onSelect={setSelectedNode}/>)}</div>;
+ const Level=({title,people,center=false,columns}:{title:string;people:Row[];center?:boolean;columns?:string})=>people.length?<section className="mx-auto w-full max-w-6xl space-y-1.5 sm:space-y-2"><h3 className="text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</h3><div className={center?"mx-auto flex max-w-2xl flex-wrap items-stretch justify-center gap-2":""}><Cards people={people} columns={columns}/></div></section>:null;
  const Connector=()=> <div className="mx-auto h-4 w-px bg-border"/>;
  return <div className="space-y-1">
-  <div className="flex justify-center">{founder.map(n=><div key={String(n.profile_id||n.id)} className="w-36"><OrganizationCard node={n} onSelect={setSelectedNode}/></div>)}</div>
+  <div className="flex justify-center">{founder.map(n=><div key={String(n.profile_id||n.id)} className="w-24 sm:w-32"><OrganizationCard node={n} onSelect={setSelectedNode}/></div>)}</div>
   {founder.length>0&&<Connector/>}
   <Level title="Associés" people={associates} center columns="grid-cols-2 sm:grid-cols-3"/>
   {associates.length>0&&<Connector/>}
@@ -116,7 +116,7 @@ function OrganizationTree({items}:{items:Row[]}) {
   <Level title="Responsables de zone" people={zoneLeads} columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6"/>
   {zoneLeads.length>0&&<Connector/>}
   <Level title="Chefs d'équipe" people={teams} columns="grid-cols-3 sm:grid-cols-4 lg:grid-cols-6"/>
-  {departmentItems.length>0&&<><Connector/><div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">{departmentItems.map(d=><section key={d.id} className="min-w-0 space-y-2 rounded-lg border p-2.5"><h3 className="border-b pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{d.title}</h3><Cards people={d.people} columns="grid-cols-3 sm:grid-cols-4 xl:grid-cols-5"/></section>)}</div></>}
+  {departmentItems.length>0&&<><Connector/><div className="grid min-w-0 grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">{departmentItems.map(d=><section key={d.id} className="min-w-0 space-y-1.5 rounded-md border p-1.5 sm:space-y-2 sm:rounded-lg sm:p-2.5"><h3 className="border-b pb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{d.title}</h3><Cards people={d.people} columns="grid-cols-3 sm:grid-cols-4 xl:grid-cols-5"/></section>)}</div></>}
   {other.length>0&&<><Connector/><Level title="Autres fonctions" people={other}/></>}
   <Dialog open={!!selectedNode} onOpenChange={open=>!open&&setSelectedNode(null)}>
    <DialogContent className="max-w-sm">
