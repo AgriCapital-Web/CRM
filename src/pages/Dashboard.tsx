@@ -746,12 +746,12 @@ const Dashboard = () => {
       });
 
       const cycleTypes = [
-        { code: "validation_parcelle", label: "Parcelles validées", eligible: technicalClientIds },
-        { code: "defrichage", label: "Défrichage réalisé", eligible: preparationEligibleIds },
-        { code: "nettoyage", label: "Nettoyage réalisé", eligible: preparationEligibleIds },
-        { code: "piquetage", label: "Piquetage réalisé", eligible: technicalClientIds },
-        { code: "trouaison", label: "Trouaison réalisée", eligible: technicalClientIds },
-        { code: "mise_en_terre", label: "Mise en terre réalisée", eligible: technicalClientIds },
+        { code: "validation_parcelle", label: "Parcelle", eligible: technicalClientIds },
+        { code: "defrichage", label: "Défrichage", eligible: preparationEligibleIds },
+        { code: "nettoyage", label: "Nettoyage", eligible: preparationEligibleIds },
+        { code: "piquetage", label: "Piquetage", eligible: technicalClientIds },
+        { code: "trouaison", label: "Trouaison", eligible: technicalClientIds },
+        { code: "mise_en_terre", label: "Mise en terre", eligible: technicalClientIds },
       ];
       setCycle(cycleTypes.map(({ code, label, eligible }) => {
         const rows = scopedInterventions.filter((i: any) =>
@@ -979,15 +979,15 @@ const Dashboard = () => {
                 <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
                   <Card>
                     <CardHeader><CardTitle className="text-base flex items-center gap-2"><Tractor className="h-5 w-5 text-primary" />Parcours de plantation</CardTitle></CardHeader>
-                    <CardContent className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                    <CardContent className="grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-6 sm:gap-2">
                       {cycle.map((c) => (
-                        <div key={c.label} className="flex min-h-[88px] min-w-0 flex-col justify-between rounded-lg border bg-muted/20 p-3">
-                          <p className="min-w-0 break-words text-xs font-medium leading-snug text-muted-foreground">{c.label}</p>
-                          <div className="mt-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                            <span className="text-sm font-bold leading-tight tabular-nums">{c.done} / {c.total} dossiers</span>
-                            <span className="text-sm font-semibold leading-tight tabular-nums">{c.pct}%</span>
+                        <div key={c.label} title={c.label} className="flex min-h-[76px] min-w-0 flex-col justify-between rounded-md border bg-muted/20 p-2 sm:min-h-[84px] sm:rounded-lg sm:p-2.5">
+                          <p className="min-w-0 truncate text-[10px] font-medium leading-tight text-muted-foreground sm:text-xs">{c.label}</p>
+                          <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline justify-between gap-x-1 gap-y-0.5 sm:mt-2 sm:gap-x-2">
+                            <span className="min-w-0 truncate text-[11px] font-bold leading-tight tabular-nums sm:text-sm">{c.done}/{c.total}</span>
+                            <span className="shrink-0 text-[11px] font-semibold leading-tight tabular-nums sm:text-sm">{c.pct}%</span>
                           </div>
-                          <Progress className="mt-2" value={c.pct} />
+                          <Progress className="mt-1.5 h-1.5 sm:mt-2" value={c.pct} />
                         </div>
                       ))}
                     </CardContent>
