@@ -1,4 +1,5 @@
 import { UserRound } from "lucide-react";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ export function GenderAvatar({ gender, src, alt = "Avatar", className, fallbackC
   const normalizedGender = String(gender || "").toUpperCase();
   const isFemale = normalizedGender === "F";
   const isMale = normalizedGender === "M";
+  const signedPhotoUrl = useSignedUrl("photos-profils", src);
   const tone = isFemale
     ? "bg-fuchsia-50 text-fuchsia-800 dark:bg-fuchsia-950/50 dark:text-fuchsia-200"
     : isMale
@@ -22,7 +24,7 @@ export function GenderAvatar({ gender, src, alt = "Avatar", className, fallbackC
 
   return (
     <Avatar className={cn("relative shrink-0 overflow-hidden", className)}>
-      {src ? <AvatarImage src={src} alt={alt} className="h-full w-full object-cover" /> : null}
+      {signedPhotoUrl ? <AvatarImage src={signedPhotoUrl} alt={alt} className="h-full w-full object-cover" /> : null}
       <AvatarFallback className={cn("relative flex h-full w-full items-center justify-center", tone, fallbackClassName)}>
         <UserRound className="h-[58%] w-[58%]" strokeWidth={1.7} aria-hidden="true" />
         {(isFemale || isMale) && (
